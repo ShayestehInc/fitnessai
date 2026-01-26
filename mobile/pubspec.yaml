@@ -1,0 +1,53 @@
+name: fitnessai
+description: Fitness AI for Trainers - Native mobile app
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.3
+  
+  # Navigation
+  go_router: ^13.0.0
+  
+  # Networking
+  dio: ^5.4.0
+  json_annotation: ^4.8.1
+  
+  # Local Database (Offline-First)
+  drift: ^2.14.1
+  sqlite3_flutter_libs: ^0.5.18
+  path_provider: ^2.1.1
+  path: ^1.8.3
+  
+  # Health Data
+  health: ^13.2.1
+  
+  # Storage
+  shared_preferences: ^2.2.2
+  
+  # Utilities
+  freezed_annotation: ^2.4.1
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.7
+  intl: ^0.20.2
+  equatable: ^2.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  drift_dev: ^2.14.1
+  freezed: ^2.4.6
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.7
+
+flutter:
+  uses-material-design: true

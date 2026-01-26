@@ -1,0 +1,652 @@
+"""
+Views for trainer app.
+"""
+from rest_framework import generics, status, views
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from django.db.models import Count, Q, Avg
+from datetime import timedelta
+
+from core.permissions import IsTrainer
+from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary
+from .serializers import (
+    TraineeListSerializer, TraineeDetailSerializer,
+    TraineeActivitySerializer, TraineeInvitationSerializer,
+    CreateInvitationSerializer, TrainerSessionSerializer,
+    StartImpersonationSerializer, TrainerDashboardStatsSerializer,
+    ProgramTemplateSerializer, AssignProgramSerializer
+)
+from workouts.models import ProgramTemplate, Program
+
+User = get_user_model()
+
+
+class TrainerDashboardView(views.APIView):
+    """
+    GET: Returns trainer dashboard overview.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request):
+        trainer = request.user
+        trainees = User.objects.filter(
+            parent_trainer=trainer,
+            role=User.Role.TRAINEE
+        )
+
+        today = timezone.now().date()
+
+        # Get recent activity
+        recent_trainees = TraineeListSerializer(
+            trainees.order_by('-created_at')[:10],
+            many=True
+        ).data
+
+        # Get trainees needing attention (no activity in 3+ days)
+        three_days_ago = today - timedelta(days=3)
+        inactive_trainee_ids = []
+        for trainee in trainees:
+            latest_activity = trainee.activity_summaries.order_by('-date').first()
+            if not latest_activity or latest_activity.date < three_days_ago:
+                inactive_trainee_ids.append(trainee.id)
+
+        inactive_trainees = TraineeListSerializer(
+            trainees.filter(id__in=inactive_trainee_ids[:5]),
+            many=True
+        ).data
+
+        return Response({
+            'recent_trainees': recent_trainees,
+            'inactive_trainees': inactive_trainees,
+            'today': str(today)
+        })
+
+
+class TrainerStatsView(views.APIView):
+    """
+    GET: Returns trainer statistics for dashboard.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request):
+        trainer = request.user
+        trainees = User.objects.filter(
+            parent_trainer=trainer,
+            role=User.Role.TRAINEE
+        )
+
+        today = timezone.now().date()
+        total_trainees = trainees.count()
+        active_trainees = trainees.filter(is_active=True).count()
+
+        # Count trainees who logged today
+        logged_today = TraineeActivitySummary.objects.filter(
+            trainee__in=trainees,
+            date=today
+        ).filter(
+            Q(logged_food=True) | Q(logged_workout=True)
+        ).count()
+
+        # Count trainees on track (hit goals in last 7 days avg)
+        week_ago = today - timedelta(days=7)
+        on_track = TraineeActivitySummary.objects.filter(
+            trainee__in=trainees,
+            date__gte=week_ago,
+            hit_protein_goal=True
+        ).values('trainee').distinct().count()
+
+        # Calculate average adherence rate
+        total_summaries = TraineeActivitySummary.objects.filter(
+            trainee__in=trainees,
+            date__gte=week_ago
+        ).count()
+
+        hit_goals = TraineeActivitySummary.objects.filter(
+            trainee__in=trainees,
+            date__gte=week_ago,
+            hit_protein_goal=True
+        ).count()
+
+        avg_adherence = (hit_goals / total_summaries * 100) if total_summaries > 0 else 0
+
+        # Subscription info
+        try:
+            subscription = trainer.subscription
+            tier = subscription.tier
+            max_trainees = subscription.get_max_trainees()
+        except:
+            tier = 'NONE'
+            max_trainees = 0
+
+        # Pending onboarding
+        pending_onboarding = 0
+        for trainee in trainees:
+            try:
+                if not trainee.profile.onboarding_completed:
+                    pending_onboarding += 1
+            except:
+                pending_onboarding += 1
+
+        stats = {
+            'total_trainees': total_trainees,
+            'active_trainees': active_trainees,
+            'trainees_logged_today': logged_today,
+            'trainees_on_track': on_track,
+            'avg_adherence_rate': round(avg_adherence, 1),
+            'subscription_tier': tier,
+            'max_trainees': max_trainees if max_trainees != float('inf') else -1,
+            'trainees_pending_onboarding': pending_onboarding
+        }
+
+        serializer = TrainerDashboardStatsSerializer(stats)
+        return Response(serializer.data)
+
+
+class TraineeListView(generics.ListAPIView):
+    """
+    GET: List all trainees for the authenticated trainer.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    serializer_class = TraineeListSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(
+            parent_trainer=self.request.user,
+            role=User.Role.TRAINEE
+        ).order_by('-created_at')
+
+
+class TraineeDetailView(generics.RetrieveAPIView):
+    """
+    GET: Retrieve detailed information about a specific trainee.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    serializer_class = TraineeDetailSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(
+            parent_trainer=self.request.user,
+            role=User.Role.TRAINEE
+        )
+
+
+class TraineeActivityView(generics.ListAPIView):
+    """
+    GET: Get activity summaries for a specific trainee.
+    Query params: ?days=30 (default 30)
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    serializer_class = TraineeActivitySerializer
+
+    def get_queryset(self):
+        trainee_id = self.kwargs['pk']
+        days = int(self.request.query_params.get('days', 30))
+
+        # Verify trainer owns this trainee
+        if not User.objects.filter(
+            id=trainee_id,
+            parent_trainer=self.request.user
+        ).exists():
+            return TraineeActivitySummary.objects.none()
+
+        start_date = timezone.now().date() - timedelta(days=days)
+        return TraineeActivitySummary.objects.filter(
+            trainee_id=trainee_id,
+            date__gte=start_date
+        ).order_by('-date')
+
+
+class TraineeProgressView(views.APIView):
+    """
+    GET: Get progress analytics for a specific trainee.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request, pk):
+        # Verify trainer owns this trainee
+        try:
+            trainee = User.objects.get(
+                id=pk,
+                parent_trainer=request.user,
+                role=User.Role.TRAINEE
+            )
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Trainee not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get weight progress
+        weight_checkins = trainee.weight_checkins.order_by('date')[:30]
+        weight_progress = [{
+            'date': str(w.date),
+            'weight_kg': w.weight_kg
+        } for w in weight_checkins]
+
+        # Get workout volume progress (last 4 weeks)
+        four_weeks_ago = timezone.now().date() - timedelta(weeks=4)
+        volume_data = TraineeActivitySummary.objects.filter(
+            trainee=trainee,
+            date__gte=four_weeks_ago,
+            logged_workout=True
+        ).values('date').annotate(
+            total_volume=Avg('total_volume')
+        ).order_by('date')
+
+        volume_progress = [{
+            'date': str(v['date']),
+            'volume': v['total_volume']
+        } for v in volume_data]
+
+        # Get adherence over time
+        adherence_data = TraineeActivitySummary.objects.filter(
+            trainee=trainee,
+            date__gte=four_weeks_ago
+        ).order_by('date')
+
+        adherence_progress = [{
+            'date': str(a.date),
+            'logged_food': a.logged_food,
+            'logged_workout': a.logged_workout,
+            'hit_protein': a.hit_protein_goal
+        } for a in adherence_data]
+
+        return Response({
+            'weight_progress': weight_progress,
+            'volume_progress': volume_progress,
+            'adherence_progress': adherence_progress
+        })
+
+
+class RemoveTraineeView(views.APIView):
+    """
+    POST: Remove a trainee from trainer (unassign, not delete).
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def post(self, request, pk):
+        try:
+            trainee = User.objects.get(
+                id=pk,
+                parent_trainer=request.user,
+                role=User.Role.TRAINEE
+            )
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Trainee not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        trainee.parent_trainer = None
+        trainee.save()
+
+        return Response({
+            'message': f'Trainee {trainee.email} has been removed.'
+        })
+
+
+class InvitationListCreateView(generics.ListCreateAPIView):
+    """
+    GET: List all invitations sent by the trainer.
+    POST: Create a new invitation.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return CreateInvitationSerializer
+        return TraineeInvitationSerializer
+
+    def get_queryset(self):
+        return TraineeInvitation.objects.filter(
+            trainer=self.request.user
+        ).order_by('-created_at')
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+        expires_days = data.pop('expires_days', 7)
+
+        invitation = TraineeInvitation.objects.create(
+            trainer=request.user,
+            email=data['email'],
+            message=data.get('message', ''),
+            program_template_id=data.get('program_template_id'),
+            expires_at=timezone.now() + timedelta(days=expires_days)
+        )
+
+        return Response(
+            TraineeInvitationSerializer(invitation).data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+class InvitationDetailView(generics.RetrieveDestroyAPIView):
+    """
+    GET: Get invitation details.
+    DELETE: Cancel/delete an invitation.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    serializer_class = TraineeInvitationSerializer
+
+    def get_queryset(self):
+        return TraineeInvitation.objects.filter(
+            trainer=self.request.user
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.status == TraineeInvitation.Status.PENDING:
+            instance.status = TraineeInvitation.Status.CANCELLED
+            instance.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ResendInvitationView(views.APIView):
+    """
+    POST: Resend an invitation (reset expiration).
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def post(self, request, pk):
+        try:
+            invitation = TraineeInvitation.objects.get(
+                id=pk,
+                trainer=request.user
+            )
+        except TraineeInvitation.DoesNotExist:
+            return Response(
+                {'error': 'Invitation not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if invitation.status != TraineeInvitation.Status.PENDING:
+            return Response(
+                {'error': 'Can only resend pending invitations'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        invitation.expires_at = timezone.now() + timedelta(days=7)
+        invitation.save()
+
+        # TODO: Send email notification
+
+        return Response(TraineeInvitationSerializer(invitation).data)
+
+
+class StartImpersonationView(views.APIView):
+    """
+    POST: Start an impersonation session (login as trainee).
+    Returns a special JWT token for the trainee.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def post(self, request, trainee_id):
+        serializer = StartImpersonationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Verify trainer owns this trainee
+        try:
+            trainee = User.objects.get(
+                id=trainee_id,
+                parent_trainer=request.user,
+                role=User.Role.TRAINEE
+            )
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Trainee not found or not assigned to you'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Create session record
+        session = TrainerSession.objects.create(
+            trainer=request.user,
+            trainee=trainee,
+            is_read_only=serializer.validated_data['is_read_only']
+        )
+
+        # Generate tokens for trainee with impersonation metadata
+        refresh = RefreshToken.for_user(trainee)
+        refresh['impersonating'] = True
+        refresh['original_user_id'] = request.user.id
+        refresh['session_id'] = session.id
+        refresh['is_read_only'] = session.is_read_only
+
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'session': TrainerSessionSerializer(session).data,
+            'trainee': {
+                'id': trainee.id,
+                'email': trainee.email,
+                'first_name': trainee.first_name,
+                'last_name': trainee.last_name
+            }
+        })
+
+
+class EndImpersonationView(views.APIView):
+    """
+    POST: End an impersonation session.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        session_id = request.data.get('session_id')
+
+        if not session_id:
+            # Try to find active session for this user
+            session = TrainerSession.objects.filter(
+                trainee=request.user,
+                ended_at__isnull=True
+            ).order_by('-started_at').first()
+        else:
+            session = TrainerSession.objects.filter(
+                id=session_id,
+                ended_at__isnull=True
+            ).first()
+
+        if not session:
+            return Response(
+                {'error': 'No active impersonation session found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        session.end_session()
+
+        return Response({
+            'message': 'Impersonation session ended',
+            'session': TrainerSessionSerializer(session).data
+        })
+
+
+class ProgramTemplateListCreateView(generics.ListCreateAPIView):
+    """
+    GET: List program templates.
+    POST: Create a new program template.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    serializer_class = ProgramTemplateSerializer
+
+    def get_queryset(self):
+        # Return trainer's own templates + public templates
+        return ProgramTemplate.objects.filter(
+            Q(created_by=self.request.user) | Q(is_public=True)
+        ).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class ProgramTemplateDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET: Retrieve a program template.
+    PUT/PATCH: Update a program template.
+    DELETE: Delete a program template.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    serializer_class = ProgramTemplateSerializer
+
+    def get_queryset(self):
+        return ProgramTemplate.objects.filter(
+            created_by=self.request.user
+        )
+
+
+class AssignProgramTemplateView(views.APIView):
+    """
+    POST: Assign a program template to a trainee.
+    Creates a new Program from the template.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def post(self, request, pk):
+        serializer = AssignProgramSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            template = ProgramTemplate.objects.get(
+                Q(id=pk) & (Q(created_by=request.user) | Q(is_public=True))
+            )
+        except ProgramTemplate.DoesNotExist:
+            return Response(
+                {'error': 'Program template not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        trainee = User.objects.get(id=serializer.validated_data['trainee_id'])
+        start_date = serializer.validated_data['start_date']
+        end_date = start_date + timedelta(weeks=template.duration_weeks)
+
+        # Create program from template
+        program = Program.objects.create(
+            trainee=trainee,
+            name=template.name,
+            description=template.description,
+            start_date=start_date,
+            end_date=end_date,
+            schedule=template.schedule_template,
+            is_active=True,
+            created_by=request.user
+        )
+
+        # Increment usage counter
+        template.times_used += 1
+        template.save(update_fields=['times_used'])
+
+        return Response({
+            'message': f'Program assigned to {trainee.email}',
+            'program_id': program.id,
+            'program_name': program.name
+        }, status=status.HTTP_201_CREATED)
+
+
+class AdherenceAnalyticsView(views.APIView):
+    """
+    GET: Get adherence analytics across all trainees.
+    Query params: ?days=30
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request):
+        days = int(request.query_params.get('days', 30))
+        start_date = timezone.now().date() - timedelta(days=days)
+
+        trainees = User.objects.filter(
+            parent_trainer=request.user,
+            role=User.Role.TRAINEE,
+            is_active=True
+        )
+
+        # Overall adherence stats
+        summaries = TraineeActivitySummary.objects.filter(
+            trainee__in=trainees,
+            date__gte=start_date
+        )
+
+        total_days = summaries.count()
+        food_logged_days = summaries.filter(logged_food=True).count()
+        workout_logged_days = summaries.filter(logged_workout=True).count()
+        protein_hit_days = summaries.filter(hit_protein_goal=True).count()
+
+        # Per-trainee adherence
+        trainee_adherence = []
+        for trainee in trainees:
+            trainee_summaries = summaries.filter(trainee=trainee)
+            trainee_total = trainee_summaries.count()
+
+            if trainee_total > 0:
+                adherence_rate = trainee_summaries.filter(
+                    Q(logged_food=True) | Q(logged_workout=True)
+                ).count() / trainee_total * 100
+            else:
+                adherence_rate = 0
+
+            trainee_adherence.append({
+                'trainee_id': trainee.id,
+                'trainee_email': trainee.email,
+                'trainee_name': f"{trainee.first_name} {trainee.last_name}".strip(),
+                'adherence_rate': round(adherence_rate, 1),
+                'days_tracked': trainee_total
+            })
+
+        return Response({
+            'period_days': days,
+            'total_tracking_days': total_days,
+            'food_logged_rate': round(food_logged_days / total_days * 100, 1) if total_days > 0 else 0,
+            'workout_logged_rate': round(workout_logged_days / total_days * 100, 1) if total_days > 0 else 0,
+            'protein_goal_rate': round(protein_hit_days / total_days * 100, 1) if total_days > 0 else 0,
+            'trainee_adherence': sorted(trainee_adherence, key=lambda x: -x['adherence_rate'])
+        })
+
+
+class ProgressAnalyticsView(views.APIView):
+    """
+    GET: Get progress analytics across all trainees.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request):
+        trainees = User.objects.filter(
+            parent_trainer=request.user,
+            role=User.Role.TRAINEE,
+            is_active=True
+        )
+
+        progress_data = []
+        for trainee in trainees:
+            # Get weight change
+            checkins = trainee.weight_checkins.order_by('date')
+            first_weight = checkins.first()
+            last_weight = checkins.last()
+
+            weight_change = None
+            if first_weight and last_weight and first_weight.id != last_weight.id:
+                weight_change = round(last_weight.weight_kg - first_weight.weight_kg, 1)
+
+            # Get goal (if profile exists)
+            try:
+                goal = trainee.profile.goal
+            except:
+                goal = None
+
+            progress_data.append({
+                'trainee_id': trainee.id,
+                'trainee_email': trainee.email,
+                'trainee_name': f"{trainee.first_name} {trainee.last_name}".strip(),
+                'current_weight': last_weight.weight_kg if last_weight else None,
+                'weight_change': weight_change,
+                'goal': goal
+            })
+
+        return Response({
+            'trainee_progress': progress_data
+        })

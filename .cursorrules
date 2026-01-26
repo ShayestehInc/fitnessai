@@ -1,0 +1,143 @@
+# Fitness AI Project Standards - Gold Standard Rules
+
+This project serves as the gold standard for the "Fitness AI for Trainers" platform. Follow these rules strictly to ensure scalability, clean architecture, and AI reliability.
+
+---
+
+## 1. Backend Standards (Django REST Framework)
+
+### Architecture & Organization
+- **ALL business logic MUST be inside `services/`** - Never in Views or Serializers.
+  - `views.py`: Only handles request reception and response formatting.
+  - `serializers.py`: Only handles validation and data shaping.
+  - `services/`: Contains the actual logic (e.g., `WorkoutGeneratorService`, `NutritionParserService`).
+- **App Structure**: Each app (e.g., `users`, `workouts`, `subscriptions`) must be self-contained.
+  - `helper/`: Pure utility functions (stateless).
+  - `selectors.py`: (Optional) Read-only queries to keep logic out of views.
+- **Settings**: **ONLY ONE settings.py file**. Use environment variables for config.
+
+### Type Hints & Quality
+- **MANDATORY Type Hints**: Every function signature must have strict typing.
+  - Use `typing.List`, `typing.Dict`, `typing.Optional`.
+  - Do not use `Any` unless absolutely necessary.
+- **Prefetching**: All API endpoints returning lists or related data MUST implement `.select_related()` or `.prefetch_related()` to avoid N+1 queries.
+
+### Environment & Secrets
+- **Documentation**: All env vars must be in `example.env` with comments.
+- **Secrets**: Never commit API keys (OpenAI, Stripe).
+
+---
+
+## 2. Mobile Frontend Standards (Flutter)
+
+### Architecture (Riverpod + Repository Pattern)
+- **State Management**: Use **Riverpod** exclusively.
+  - Use `AutoDispose` providers by default to prevent memory leaks.
+  - Business logic lives in `Notifiers` (StateClasses), not in UI Widgets.
+- **Data Layer (Repository Pattern)**:
+  - UI never calls API directly.
+  - **Flow**: UI -> Controller/Provider -> Repository -> API Client.
+  - All API calls must be typed classes (e.g., `Future<Result<User>>`).
+
+### UI & Styling (Shadcn/UI Port)
+- **Library**: Use `shadcn_ui` (or `flutter_shadcn_ui`) package.
+- **Theming**: Implement `ThemeData` centrally. Do not hardcode colors/fonts in widgets.
+- **Widget Composition**:
+  - **MAX 150 LINES PER WIDGET FILE**.
+  - If a `build()` method is scrolling, break it into smaller StatelessWidgets.
+  - Use `const` constructors everywhere possible for performance.
+
+### Health & Offline Capability
+- **HealthKit/Connect**: All health data syncing must happen in a background isolate or service, never blocking the UI thread.
+- **Offline-First**: Critical features (Logging, viewing active program) must work offline.
+  - Use `drift` or `hive` for local caching.
+  - Sync queue pattern for uploading logs when connection returns.
+
+---
+
+## 3. AI Integration Standards (OpenAI/LLM)
+
+### Prompt Engineering & Stability
+- **Prompt Storage**: Prompts are CODE. They belong in a dedicated `ai_prompts.py` file within the relevant app (e.g., `workouts/ai_prompts.py`).
+  - DO NOT scatter prompt strings inside service logic.
+- **Parsing**:
+  - Use "Function Calling" (Structured Outputs) to guarantee JSON responses.
+  - **Validation**: Always validate the AI response against a Pydantic model or DRF Serializer before saving to DB.
+- **Failure Handling**:
+  - AI services must have a fallback or retry mechanism.
+  - If the AI fails to parse a "Natural Language Log," return a structured error asking the user to clarify (e.g., "I understood the chicken, but how much weight did you lift?").
+
+---
+
+## 4. Web Admin Standards (React/Shadcn - Optional)
+
+*Applies only if building the Admin Panel in React.*
+
+- **Atomic Architecture**:
+  - `src/features/`: Complex domains (e.g., `TrainerApprovalTable`).
+  - `src/ui/`: Base shadcn components.
+- **Strict Typing**: TypeScript `interface` must match Django Serializers exactly.
+
+---
+
+## 5. File Organization Examples
+
+### Good Django Structure:
+```text
+project_root/
+├── manage.py
+├── config/
+│   ├── settings.py 
+│   ├── urls.py
+│   └── wsgi.py
+├── core/                  # Shared utilities
+├── users/                 # Custom Auth & Roles
+├── workouts/
+│   ├── models.py
+│   ├── views.py
+│   ├── serializers.py
+│   ├── services/
+│   │   ├── workout_generator.py  # AI Logic here
+│   │   └── log_parser.py         # AI Logic here
+│   ├── ai_prompts.py             # Prompts stored here
+│   └── urls.py
+└── subscriptions/
+    ├── models.py
+    └── services/
+        └── stripe_service.py
+
+Good Flutter Structure:
+
+lib/
+├── main.dart
+├── core/
+│   ├── theme/
+│   ├── constants/
+│   └── services/ (HealthService, LocalStorage)
+├── features/
+│   ├── workout_logger/
+│   │   ├── presentation/
+│   │   │   ├── screens/
+│   │   │   └── widgets/
+│   │   ├── application/ (Riverpod Providers)
+│   │   ├── domain/ (Entities)
+│   │   └── data/ (Repositories)
+│   └── trainer_dashboard/
+└── shared/
+    └── widgets/ (Reusable Shadcn components)
+
+
+Checklist Before Committing
+[ ] Django: Logic is in services/, not views?
+
+[ ] Django: All DB queries use prefetch/select_related?
+
+[ ] Flutter: No widget file > 150 lines?
+
+[ ] Flutter: UI does not call API directly (uses Repository)?
+
+[ ] AI: Prompts are isolated in a dedicated file?
+
+[ ] AI: Parser handles invalid JSON responses gracefully?
+
+[ ] General: mypy (Backend) and flutter analyze pass with zero errors?

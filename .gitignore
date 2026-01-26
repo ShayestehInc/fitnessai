@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/media
+/staticfiles
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Flutter
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Development logs
+backend.log
+mobile.log
+
+# Docker
+.docker/
+
+# Exclude parent directory items that might accidentally be included
+../0rax/
+../Untitled/
+../ancestary/
+../anyscoreapproved/
+../autosound-ios-main 2/
+../gaming-app/
+../ancestrybureau/
+../backend/
+../design-system/
+../flutter-test/
+../gs-autosound/
+../matador/
+../osx-test/
+../phil-code/
+../readyminds-fe/
+../reinforce42/

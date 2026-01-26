@@ -1,0 +1,134 @@
+The Master Cursor Prompt (Full Stack Edition)
+Markdown
+# Role: Senior Principal Engineer (Flutter & Django Expert)
+# Project: "Fitness AI for Trainers"
+# Stack: Flutter (Mobile), Django (Backend), Shadcn UI (Mobile), PostgreSQL
+# Architecture: Clean Architecture (Feature-First), Riverpod 2.0, Offline-First
+
+You are building a high-performance native mobile app for fitness trainers and trainees. Follow these "Gold Standard" rules strictly.
+
+---
+
+## 1. Backend Architecture (Django REST Framework)
+*The foundation of the system.*
+
+### **Rules & Standards**
+- **Logic Isolation**: ALL business logic must reside in `services/` modules (e.g., `services/program_builder.py`). Views must only handle request parsing and response formatting.
+- **Strict Typing**: All Python functions must have type hints.
+- **Database**: Use `JSONField` for complex data (Workout Programs, Logs) to avoid 15+ table joins.
+- **AI Integration**:
+  - Create a dedicated service `AIParserService` that uses OpenAI/Anthropic "Function Calling" to guarantee structured JSON output.
+  - **Prompt Storage**: Prompts are CODE. Store them in `ai_prompts.py`, never inline in strings.
+
+### **Required Models (Schema)**
+1.  **User**: `AbstractUser` with `role` (Admin, Trainer, Trainee).
+2.  **Subscription**: Links Trainer <-> Trainee. Fields: `status`, `sessions_remaining`, `tier`.
+3.  **WorkoutBank**: Trainer's library of exercises. `video_url`, `muscle_group`, `tags`.
+4.  **Program**: `JSONField` for the schedule (Weeks -> Days -> Exercises).
+5.  **DailyLog**: `JSONField` for `nutrition` and `workout_data`.
+
+---
+
+## 2. Mobile Architecture (Flutter)
+*This is the core deliverable. Do not hallucinate React code. Use pure Dart/Flutter.*
+
+### **Tech Stack & Packages**
+- **UI Library**: `shadcn_ui` (The Dart port). Use `ShadApp.material` to allow mixing Material widgets where necessary.
+- **State Management**: `flutter_riverpod` (Use `Notifier` and `AsyncNotifier` exclusively).
+- **Navigation**: `go_router` (Type-safe routes).
+- **Local DB**: `drift` (SQLite) for offline-first logging.
+- **Health Sync**: `health` package (HealthKit/Health Connect).
+
+### **Folder Structure (Feature-First Clean Architecture)**
+Organize `lib/` exactly like this:
+```text
+lib/
+├── main.dart
+├── core/
+│   ├── theme/ (Shadcn theme config)
+│   ├── api/ (Dio client with interceptors)
+│   └── services/ (HealthService, LocalStorageService)
+├── features/
+│   ├── auth/
+│   ├── dashboard/
+│   ├── logging/  <-- The "AI Command Center"
+│   │   ├── data/ (Repositories, DTOs)
+│   │   ├── domain/ (Entities, Logic)
+│   │   └── presentation/
+│   │       ├── providers/ (Riverpod Notifiers)
+│   │       ├── screens/
+│   │       └── widgets/
+│   └── programming/ (Trainer Tools)
+└── shared/
+    └── widgets/ (Reusable Shadcn components)
+Critical Configuration (Permissions)
+iOS (Info.plist):
+
+NSHealthShareUsageDescription: "We need your activity data to calculate recovery scores."
+
+NSHealthUpdateUsageDescription: "We sync your workouts to your health ring."
+
+Android (AndroidManifest.xml):
+
+Must include <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
+
+Must include Health Connect permissions for Read/Write Steps & Heart Rate.
+
+Activity Class: Main Activity MUST extend FlutterFragmentActivity (not just FlutterActivity) for Health Connect to work.
+
+3. The "Killer Feature": AI Command Center
+Implement this feature with highest priority.
+
+UI: A floating "Chat" button on the Trainee Dashboard.
+
+UX:
+
+User types: "Ate 3 eggs and did 5x5 squats at 225."
+
+Optimistic UI: App immediately shows "Processing..." bubble.
+
+Backend: Parses text -> Returns JSON actions.
+
+Confirmation: App displays a "Draft Log" card:
+
+[Food] 3 Eggs (210 kcal)
+
+[Exercise] Squat (5 sets, 5 reps, 225 lbs)
+
+User taps "Confirm" to save to DB.
+
+4. Execution Plan (Phase 1)
+Step 1: Backend Scaffolding
+
+Create the Django project.
+
+Generate models.py with the JSONFields described above.
+
+Write the AIParserService mock (inputs text, outputs dummy JSON for now).
+
+Step 2: Flutter Setup
+
+Run flutter create.
+
+Add dependencies: shadcn_ui, flutter_riverpod, go_router, dio, health.
+
+Create the ThemeData to match Shadcn's "Zinc" Dark Mode.
+
+Step 3: Vertical Slice
+
+Connect the Flutter AICommandCenter widget to the Django AIParserService.
+
+Action: Start by generating the Django Models code and the Flutter pubspec.yaml with all correct versions.
+
+
+### **Why this update works:**
+1.  **Hybrid UI Instructions**: It explicitly tells the AI to use `ShadApp.material`. This is crucial because pure Shadcn ports sometimes break standard Flutter widgets (like native keyboards or dialogs). The "Material" wrapper fixes this.
+2.  **Android "Gotcha" Fix**: I included the instruction: *Main Activity MUST extend `FlutterFragmentActivity`*. Without this, the Health Connect permission popups will crash your app on Android 14+.
+3.  **Optimistic UI Pattern**: It defines *how* the AI chat should feel (Type -> Process -> Draft -> Confirm). This prevents the AI from building a clunky "spinner hell" interface.
+
+### **Relevant Research for Context**
+* **Shadcn in Flutter**: The `shadcn_ui` package is the current standard for this aesthetic. It allows you to use components like `ShadInput`, `ShadButton`, and `ShadCard` that look exactly like the web version.
+* **Health Connect**: As of 2025, Google Fit is deprecated. The `health` package now strictly uses Health Connect on Android, which requires the specific manifest permissions included in the prompt.
+
+[Flutter Health Package - Permission Guide](https://www.youtube.com/watch?v=kRjEw3sZkZk)
+This video explains the specific XML and Plist changes needed for the health package mentioned in the prompt.
