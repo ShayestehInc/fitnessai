@@ -8,6 +8,123 @@ from decimal import Decimal
 from typing import Optional
 
 
+class SubscriptionTier(models.Model):
+    """
+    Configurable subscription tier for trainers.
+    Admin can edit pricing, limits, and features.
+    """
+    name = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Tier name (e.g., FREE, STARTER, PRO, ENTERPRISE)"
+    )
+    display_name = models.CharField(
+        max_length=100,
+        help_text="Display name shown to users"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Description of the tier benefits"
+    )
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text="Monthly price in dollars"
+    )
+    trainee_limit = models.IntegerField(
+        default=0,
+        help_text="Maximum number of trainees (0 = unlimited)"
+    )
+    features = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of features included in this tier"
+    )
+    stripe_price_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Stripe Price ID for this tier"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this tier is available for selection"
+    )
+    sort_order = models.IntegerField(
+        default=0,
+        help_text="Order in which tiers are displayed"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'subscription_tiers'
+        ordering = ['sort_order', 'price']
+
+    def __str__(self) -> str:
+        return f"{self.display_name} (${self.price}/mo)"
+
+    def get_trainee_limit(self) -> int:
+        """Get trainee limit, treating 0 as unlimited."""
+        return self.trainee_limit if self.trainee_limit > 0 else float('inf')
+
+    @classmethod
+    def get_tier_by_name(cls, name: str):
+        """Get tier by name, with fallback to defaults."""
+        try:
+            return cls.objects.get(name=name, is_active=True)
+        except cls.DoesNotExist:
+            return None
+
+    @classmethod
+    def seed_default_tiers(cls):
+        """Create default tiers if they don't exist."""
+        defaults = [
+            {
+                'name': 'FREE',
+                'display_name': 'Free',
+                'description': 'Perfect for getting started',
+                'price': Decimal('0.00'),
+                'trainee_limit': 3,
+                'features': ['Up to 3 trainees', 'Basic workout logging', 'Email support'],
+                'sort_order': 0,
+            },
+            {
+                'name': 'STARTER',
+                'display_name': 'Starter',
+                'description': 'For growing trainers',
+                'price': Decimal('29.00'),
+                'trainee_limit': 10,
+                'features': ['Up to 10 trainees', 'Workout programs', 'Nutrition tracking', 'Priority support'],
+                'sort_order': 1,
+            },
+            {
+                'name': 'PRO',
+                'display_name': 'Pro',
+                'description': 'For professional trainers',
+                'price': Decimal('79.00'),
+                'trainee_limit': 50,
+                'features': ['Up to 50 trainees', 'AI-powered insights', 'Advanced analytics', 'Custom branding'],
+                'sort_order': 2,
+            },
+            {
+                'name': 'ENTERPRISE',
+                'display_name': 'Enterprise',
+                'description': 'For large training businesses',
+                'price': Decimal('199.00'),
+                'trainee_limit': 0,  # Unlimited
+                'features': ['Unlimited trainees', 'White-label options', 'API access', 'Dedicated support'],
+                'sort_order': 3,
+            },
+        ]
+        for tier_data in defaults:
+            cls.objects.update_or_create(
+                name=tier_data['name'],
+                defaults=tier_data
+            )
+
+
 class Subscription(models.Model):
     """
     Subscription model for Trainers.
@@ -129,12 +246,24 @@ class Subscription(models.Model):
     def __str__(self) -> str:
         return f"{self.trainer.email} - {self.get_tier_display()} ({self.status})"
 
+    def get_tier_config(self):
+        """Get the SubscriptionTier config for this subscription's tier."""
+        return SubscriptionTier.get_tier_by_name(self.tier)
+
     def get_max_trainees(self) -> int:
         """Get maximum number of trainees allowed for this tier."""
+        tier_config = self.get_tier_config()
+        if tier_config:
+            return tier_config.get_trainee_limit()
+        # Fallback to hardcoded values
         return self.TIER_LIMITS.get(self.tier, 0)
 
     def get_monthly_price(self) -> Decimal:
         """Get the monthly price for this tier."""
+        tier_config = self.get_tier_config()
+        if tier_config:
+            return tier_config.price
+        # Fallback to hardcoded values
         return self.TIER_PRICING.get(self.tier, Decimal('0.00'))
 
     def can_add_trainee(self) -> bool:
@@ -497,3 +626,227 @@ class TraineeSubscription(models.Model):
             return None
         delta = self.current_period_end - timezone.now()
         return max(0, delta.days)
+
+
+class Coupon(models.Model):
+    """
+    Coupon for discounts on trainer subscriptions (platform tiers) or
+    trainee coaching subscriptions.
+    """
+    class Type(models.TextChoices):
+        PERCENT = 'percent', 'Percentage Discount'
+        FIXED = 'fixed', 'Fixed Amount'
+        FREE_TRIAL = 'free_trial', 'Free Trial Days'
+
+    class AppliesTo(models.TextChoices):
+        TRAINER_SUBSCRIPTION = 'trainer', 'Trainer Platform Subscription'
+        TRAINEE_COACHING = 'trainee', 'Trainee Coaching Subscription'
+        BOTH = 'both', 'Both'
+
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'Active'
+        EXPIRED = 'expired', 'Expired'
+        REVOKED = 'revoked', 'Revoked'
+        EXHAUSTED = 'exhausted', 'Exhausted'
+
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Unique coupon code"
+    )
+    description = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Internal description"
+    )
+    coupon_type = models.CharField(
+        max_length=20,
+        choices=Type.choices,
+        default=Type.PERCENT
+    )
+    discount_value = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text="Discount amount (% or $) or number of free trial days"
+    )
+    applies_to = models.CharField(
+        max_length=20,
+        choices=AppliesTo.choices,
+        default=AppliesTo.BOTH
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE
+    )
+    # Ownership - if trainer is set, only their trainees can use it
+    # If null, it's a platform-wide coupon (admin only)
+    created_by_trainer = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_coupons',
+        limit_choices_to={'role': 'TRAINER'},
+        help_text="Trainer who created this coupon (null for admin coupons)"
+    )
+    created_by_admin = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='admin_created_coupons',
+        limit_choices_to={'role': 'ADMIN'},
+        help_text="Admin who created this coupon"
+    )
+    # Applicable tiers (for trainer subscriptions)
+    applicable_tiers = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of tier names this coupon applies to (empty = all)"
+    )
+    # Usage limits
+    max_uses = models.IntegerField(
+        default=0,
+        help_text="Maximum number of times coupon can be used (0 = unlimited)"
+    )
+    max_uses_per_user = models.IntegerField(
+        default=1,
+        help_text="Maximum uses per user"
+    )
+    current_uses = models.IntegerField(default=0)
+    # Validity period
+    valid_from = models.DateTimeField(
+        default=timezone.now,
+        help_text="When the coupon becomes valid"
+    )
+    valid_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the coupon expires (null = no expiry)"
+    )
+    # Stripe integration
+    stripe_coupon_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Stripe Coupon ID"
+    )
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'coupons'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['code']),
+            models.Index(fields=['status']),
+            models.Index(fields=['created_by_trainer']),
+            models.Index(fields=['valid_until']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.code} - {self.get_coupon_type_display()}"
+
+    def is_valid(self) -> bool:
+        """Check if coupon is currently valid."""
+        if self.status != self.Status.ACTIVE:
+            return False
+        now = timezone.now()
+        if now < self.valid_from:
+            return False
+        if self.valid_until and now > self.valid_until:
+            return False
+        if self.max_uses > 0 and self.current_uses >= self.max_uses:
+            return False
+        return True
+
+    def can_be_used_by(self, user) -> tuple[bool, str]:
+        """Check if a user can use this coupon."""
+        if not self.is_valid():
+            return False, "Coupon is not valid"
+
+        # Check if it's a trainer coupon and user is a trainee
+        if self.created_by_trainer:
+            # Only trainees of this trainer can use it
+            if not hasattr(user, 'trainer') or user.trainer != self.created_by_trainer:
+                return False, "This coupon is not available to you"
+
+        # Check per-user limit
+        usage_count = CouponUsage.objects.filter(coupon=self, user=user).count()
+        if usage_count >= self.max_uses_per_user:
+            return False, "You have already used this coupon"
+
+        return True, "Valid"
+
+    def calculate_discount(self, original_amount: Decimal) -> Decimal:
+        """Calculate discounted amount."""
+        if self.coupon_type == self.Type.PERCENT:
+            discount = original_amount * (self.discount_value / 100)
+            return max(Decimal('0.00'), original_amount - discount)
+        elif self.coupon_type == self.Type.FIXED:
+            return max(Decimal('0.00'), original_amount - self.discount_value)
+        return original_amount
+
+    def record_usage(self, user, subscription=None, trainee_subscription=None):
+        """Record coupon usage."""
+        self.current_uses += 1
+        if self.max_uses > 0 and self.current_uses >= self.max_uses:
+            self.status = self.Status.EXHAUSTED
+        self.save()
+
+        CouponUsage.objects.create(
+            coupon=self,
+            user=user,
+            subscription=subscription,
+            trainee_subscription=trainee_subscription,
+        )
+
+    def revoke(self):
+        """Revoke the coupon."""
+        self.status = self.Status.REVOKED
+        self.save()
+
+
+class CouponUsage(models.Model):
+    """Track coupon usage."""
+    coupon = models.ForeignKey(
+        Coupon,
+        on_delete=models.CASCADE,
+        related_name='usages'
+    )
+    user = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='coupon_usages'
+    )
+    subscription = models.ForeignKey(
+        Subscription,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='coupon_usages',
+        help_text="Trainer subscription this was applied to"
+    )
+    trainee_subscription = models.ForeignKey(
+        TraineeSubscription,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='coupon_usages',
+        help_text="Trainee coaching subscription this was applied to"
+    )
+    discount_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
+    used_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'coupon_usages'
+        ordering = ['-used_at']
+
+    def __str__(self) -> str:
+        return f"{self.user.email} used {self.coupon.code} at {self.used_at}"

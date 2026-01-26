@@ -4,9 +4,54 @@ Serializers for Subscription and Admin management.
 from rest_framework import serializers
 from .models import (
     Subscription, PaymentHistory, SubscriptionChange,
-    StripeAccount, TrainerPricing, TraineePayment, TraineeSubscription
+    StripeAccount, TrainerPricing, TraineePayment, TraineeSubscription,
+    SubscriptionTier, Coupon, CouponUsage
 )
 from users.models import User
+
+
+# ============ Subscription Tier Serializers ============
+
+class SubscriptionTierSerializer(serializers.ModelSerializer):
+    """Full serializer for subscription tiers."""
+    trainee_limit_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SubscriptionTier
+        fields = [
+            'id', 'name', 'display_name', 'description', 'price',
+            'trainee_limit', 'trainee_limit_display', 'features',
+            'stripe_price_id', 'is_active', 'sort_order',
+            'created_at', 'updated_at'
+        ]
+
+    def get_trainee_limit_display(self, obj):
+        return 'Unlimited' if obj.trainee_limit == 0 else str(obj.trainee_limit)
+
+
+class SubscriptionTierCreateUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for creating/updating subscription tiers."""
+    class Meta:
+        model = SubscriptionTier
+        fields = [
+            'name', 'display_name', 'description', 'price',
+            'trainee_limit', 'features', 'stripe_price_id',
+            'is_active', 'sort_order'
+        ]
+
+    def validate_name(self, value):
+        # Ensure name is uppercase
+        return value.upper()
+
+    def validate_price(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Price cannot be negative")
+        return value
+
+    def validate_trainee_limit(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Trainee limit cannot be negative")
+        return value
 
 
 class TrainerSummarySerializer(serializers.ModelSerializer):
@@ -296,3 +341,127 @@ class TrainerPublicPricingSerializer(serializers.ModelSerializer):
 
     def get_has_stripe_account(self, obj):
         return hasattr(obj.trainer, 'stripe_account') and obj.trainer.stripe_account.is_ready_for_payments()
+
+
+# ============ Coupon Serializers ============
+
+class CouponUsageSerializer(serializers.ModelSerializer):
+    """Serializer for coupon usage records."""
+    user_email = serializers.CharField(source='user.email', read_only=True)
+
+    class Meta:
+        model = CouponUsage
+        fields = ['id', 'user_email', 'discount_amount', 'used_at']
+
+
+class CouponSerializer(serializers.ModelSerializer):
+    """Full serializer for coupons."""
+    created_by_trainer_email = serializers.CharField(
+        source='created_by_trainer.email', read_only=True
+    )
+    created_by_admin_email = serializers.CharField(
+        source='created_by_admin.email', read_only=True
+    )
+    is_valid = serializers.SerializerMethodField()
+    usage_count = serializers.SerializerMethodField()
+    recent_usages = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Coupon
+        fields = [
+            'id', 'code', 'description', 'coupon_type', 'discount_value',
+            'applies_to', 'status', 'created_by_trainer', 'created_by_trainer_email',
+            'created_by_admin', 'created_by_admin_email', 'applicable_tiers',
+            'max_uses', 'max_uses_per_user', 'current_uses', 'usage_count',
+            'valid_from', 'valid_until', 'stripe_coupon_id', 'is_valid',
+            'recent_usages', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['current_uses', 'created_at', 'updated_at']
+
+    def get_is_valid(self, obj):
+        return obj.is_valid()
+
+    def get_usage_count(self, obj):
+        return obj.current_uses
+
+    def get_recent_usages(self, obj):
+        usages = obj.usages.all()[:5]
+        return CouponUsageSerializer(usages, many=True).data
+
+
+class CouponListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for coupon lists."""
+    is_valid = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Coupon
+        fields = [
+            'id', 'code', 'description', 'coupon_type', 'discount_value',
+            'applies_to', 'status', 'max_uses', 'current_uses',
+            'valid_from', 'valid_until', 'is_valid', 'created_by_name', 'created_at'
+        ]
+
+    def get_is_valid(self, obj):
+        return obj.is_valid()
+
+    def get_created_by_name(self, obj):
+        if obj.created_by_trainer:
+            return f"{obj.created_by_trainer.first_name} {obj.created_by_trainer.last_name}".strip() or obj.created_by_trainer.email
+        if obj.created_by_admin:
+            return f"Admin: {obj.created_by_admin.email}"
+        return "System"
+
+
+class CouponCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating coupons."""
+    class Meta:
+        model = Coupon
+        fields = [
+            'code', 'description', 'coupon_type', 'discount_value',
+            'applies_to', 'applicable_tiers', 'max_uses', 'max_uses_per_user',
+            'valid_from', 'valid_until'
+        ]
+
+    def validate_code(self, value):
+        # Ensure code is uppercase and alphanumeric
+        code = value.upper().replace(' ', '')
+        if not code.isalnum():
+            raise serializers.ValidationError("Code must be alphanumeric")
+        return code
+
+    def validate_discount_value(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Discount value must be positive")
+        return value
+
+    def validate(self, data):
+        # Validate percent discounts are <= 100
+        if data.get('coupon_type') == 'percent' and data.get('discount_value', 0) > 100:
+            raise serializers.ValidationError({
+                'discount_value': "Percentage discount cannot exceed 100%"
+            })
+        return data
+
+
+class CouponUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating coupons."""
+    class Meta:
+        model = Coupon
+        fields = [
+            'description', 'discount_value', 'applicable_tiers',
+            'max_uses', 'max_uses_per_user', 'valid_until', 'status'
+        ]
+
+    def validate_discount_value(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Discount value must be positive")
+        return value
+
+
+class ApplyCouponSerializer(serializers.Serializer):
+    """Serializer for applying a coupon."""
+    code = serializers.CharField(max_length=50)
+
+    def validate_code(self, value):
+        return value.upper().replace(' ', '')

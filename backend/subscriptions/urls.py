@@ -4,8 +4,11 @@ from . import views
 
 app_name = 'subscriptions'
 
+# Admin routers
 router = DefaultRouter()
 router.register(r'subscriptions', views.AdminSubscriptionViewSet, basename='admin-subscriptions')
+router.register(r'tiers', views.AdminSubscriptionTierViewSet, basename='admin-tiers')
+router.register(r'coupons', views.AdminCouponViewSet, basename='admin-coupons')
 
 urlpatterns = [
     # Admin dashboard
@@ -16,9 +19,16 @@ urlpatterns = [
     path('past-due/', views.AdminPastDueView.as_view(), name='admin-past-due'),
     path('upcoming-payments/', views.AdminUpcomingPaymentsView.as_view(), name='admin-upcoming-payments'),
 
-    # Subscription CRUD with router
+    # Public tiers endpoint
+    path('tiers/public/', views.PublicSubscriptionTiersView.as_view(), name='public-tiers'),
+
+    # Subscription/Tier/Coupon CRUD with router
     path('', include(router.urls)),
 ]
+
+# Trainer coupon router
+trainer_coupon_router = DefaultRouter()
+trainer_coupon_router.register(r'coupons', views.TrainerCouponViewSet, basename='trainer-coupons')
 
 # Payment URLs (Stripe Connect)
 payment_urlpatterns = [
@@ -43,6 +53,12 @@ payment_urlpatterns = [
     # Trainer payment views
     path('trainer/payments/', views.TrainerPaymentHistoryView.as_view(), name='trainer-payments'),
     path('trainer/subscribers/', views.TrainerSubscribersView.as_view(), name='trainer-subscribers'),
+
+    # Trainer coupon management
+    path('trainer/', include(trainer_coupon_router.urls)),
+
+    # Coupon validation (for trainees/trainers)
+    path('coupons/validate/', views.ValidateCouponView.as_view(), name='validate-coupon'),
 
     # Webhooks
     path('webhook/', views.StripeWebhookView.as_view(), name='stripe-webhook'),

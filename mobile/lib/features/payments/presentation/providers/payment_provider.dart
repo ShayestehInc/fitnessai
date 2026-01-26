@@ -427,3 +427,205 @@ final trainerPublicPricingProvider =
   final repository = ref.watch(paymentRepositoryProvider);
   return repository.getTrainerPublicPricing(trainerId);
 });
+
+// ============ Trainer Coupons State ============
+
+class TrainerCoupon {
+  final int id;
+  final String code;
+  final String description;
+  final String couponType;
+  final String discountValue;
+  final String status;
+  final int maxUses;
+  final int currentUses;
+  final String? validFrom;
+  final String? validUntil;
+  final bool isValid;
+  final String? createdAt;
+
+  TrainerCoupon({
+    required this.id,
+    required this.code,
+    this.description = '',
+    required this.couponType,
+    required this.discountValue,
+    required this.status,
+    this.maxUses = 0,
+    this.currentUses = 0,
+    this.validFrom,
+    this.validUntil,
+    this.isValid = false,
+    this.createdAt,
+  });
+
+  factory TrainerCoupon.fromJson(Map<String, dynamic> json) {
+    return TrainerCoupon(
+      id: json['id'] as int,
+      code: json['code'] as String,
+      description: json['description'] as String? ?? '',
+      couponType: json['coupon_type'] as String,
+      discountValue: json['discount_value']?.toString() ?? '0',
+      status: json['status'] as String,
+      maxUses: json['max_uses'] as int? ?? 0,
+      currentUses: json['current_uses'] as int? ?? 0,
+      validFrom: json['valid_from'] as String?,
+      validUntil: json['valid_until'] as String?,
+      isValid: json['is_valid'] as bool? ?? false,
+      createdAt: json['created_at'] as String?,
+    );
+  }
+
+  double get discountValueNum => double.tryParse(discountValue) ?? 0.0;
+
+  String get discountDisplay {
+    switch (couponType) {
+      case 'percent':
+        return '${discountValueNum.toStringAsFixed(0)}%';
+      case 'fixed':
+        return '\$${discountValueNum.toStringAsFixed(2)}';
+      case 'free_trial':
+        return '${discountValueNum.toStringAsFixed(0)} days';
+      default:
+        return discountValue;
+    }
+  }
+
+  bool get isActive => status == 'active';
+}
+
+class TrainerCouponsState {
+  final List<TrainerCoupon> coupons;
+  final bool isLoading;
+  final bool isSaving;
+  final String? error;
+  final String? statusFilter;
+
+  TrainerCouponsState({
+    this.coupons = const [],
+    this.isLoading = false,
+    this.isSaving = false,
+    this.error,
+    this.statusFilter,
+  });
+
+  TrainerCouponsState copyWith({
+    List<TrainerCoupon>? coupons,
+    bool? isLoading,
+    bool? isSaving,
+    String? error,
+    String? statusFilter,
+  }) {
+    return TrainerCouponsState(
+      coupons: coupons ?? this.coupons,
+      isLoading: isLoading ?? this.isLoading,
+      isSaving: isSaving ?? this.isSaving,
+      error: error,
+      statusFilter: statusFilter,
+    );
+  }
+}
+
+class TrainerCouponsNotifier extends StateNotifier<TrainerCouponsState> {
+  final PaymentRepository _repository;
+
+  TrainerCouponsNotifier(this._repository) : super(TrainerCouponsState());
+
+  Future<void> loadCoupons({String? status}) async {
+    state = state.copyWith(isLoading: true, error: null, statusFilter: status);
+
+    final result = await _repository.getTrainerCoupons(status: status);
+
+    if (result['success'] == true) {
+      final List<dynamic> data = result['data'] as List<dynamic>;
+      final coupons = data.map((json) => TrainerCoupon.fromJson(json as Map<String, dynamic>)).toList();
+      state = state.copyWith(
+        isLoading: false,
+        coupons: coupons,
+      );
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        error: result['error'] as String?,
+      );
+    }
+  }
+
+  Future<bool> createCoupon(Map<String, dynamic> data) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.createTrainerCoupon(data);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadCoupons(status: state.statusFilter);
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> revokeCoupon(int id) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.revokeTrainerCoupon(id);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadCoupons(status: state.statusFilter);
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> reactivateCoupon(int id) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.reactivateTrainerCoupon(id);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadCoupons(status: state.statusFilter);
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> deleteCoupon(int id) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.deleteTrainerCoupon(id);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadCoupons(status: state.statusFilter);
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+}
+
+final trainerCouponsProvider =
+    StateNotifierProvider<TrainerCouponsNotifier, TrainerCouponsState>((ref) {
+  final repository = ref.watch(paymentRepositoryProvider);
+  return TrainerCouponsNotifier(repository);
+});

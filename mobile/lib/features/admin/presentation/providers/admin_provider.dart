@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../data/models/admin_models.dart';
+import '../../data/models/tier_coupon_models.dart';
 
 final adminRepositoryProvider = Provider<AdminRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
@@ -383,6 +384,365 @@ class AdminSubscriptionDetailNotifier extends StateNotifier<AdminSubscriptionDet
         error: result['error'] as String?,
       );
       return false;
+    }
+  }
+}
+
+/// Subscription Tiers state
+class AdminTiersState {
+  final List<SubscriptionTierModel> tiers;
+  final bool isLoading;
+  final bool isSaving;
+  final String? error;
+
+  const AdminTiersState({
+    this.tiers = const [],
+    this.isLoading = false,
+    this.isSaving = false,
+    this.error,
+  });
+
+  AdminTiersState copyWith({
+    List<SubscriptionTierModel>? tiers,
+    bool? isLoading,
+    bool? isSaving,
+    String? error,
+  }) {
+    return AdminTiersState(
+      tiers: tiers ?? this.tiers,
+      isLoading: isLoading ?? this.isLoading,
+      isSaving: isSaving ?? this.isSaving,
+      error: error,
+    );
+  }
+}
+
+final adminTiersProvider =
+    StateNotifierProvider<AdminTiersNotifier, AdminTiersState>((ref) {
+  final repository = ref.watch(adminRepositoryProvider);
+  return AdminTiersNotifier(repository);
+});
+
+class AdminTiersNotifier extends StateNotifier<AdminTiersState> {
+  final AdminRepository _repository;
+
+  AdminTiersNotifier(this._repository) : super(const AdminTiersState());
+
+  Future<void> loadTiers() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _repository.getTiers();
+
+    if (result['success'] == true) {
+      state = state.copyWith(
+        isLoading: false,
+        tiers: result['data'] as List<SubscriptionTierModel>,
+      );
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        error: result['error'] as String?,
+      );
+    }
+  }
+
+  Future<bool> createTier(Map<String, dynamic> data) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.createTier(data);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadTiers();
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> updateTier(int id, Map<String, dynamic> data) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.updateTier(id, data);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadTiers();
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> toggleTierActive(int id) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.toggleTierActive(id);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadTiers();
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> deleteTier(int id) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.deleteTier(id);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadTiers();
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> seedDefaultTiers() async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.seedDefaultTiers();
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadTiers();
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+}
+
+/// Admin Coupons state
+class AdminCouponsState {
+  final List<CouponListItemModel> coupons;
+  final bool isLoading;
+  final bool isSaving;
+  final String? error;
+  final String? statusFilter;
+
+  const AdminCouponsState({
+    this.coupons = const [],
+    this.isLoading = false,
+    this.isSaving = false,
+    this.error,
+    this.statusFilter,
+  });
+
+  AdminCouponsState copyWith({
+    List<CouponListItemModel>? coupons,
+    bool? isLoading,
+    bool? isSaving,
+    String? error,
+    String? statusFilter,
+  }) {
+    return AdminCouponsState(
+      coupons: coupons ?? this.coupons,
+      isLoading: isLoading ?? this.isLoading,
+      isSaving: isSaving ?? this.isSaving,
+      error: error,
+      statusFilter: statusFilter,
+    );
+  }
+}
+
+final adminCouponsProvider =
+    StateNotifierProvider<AdminCouponsNotifier, AdminCouponsState>((ref) {
+  final repository = ref.watch(adminRepositoryProvider);
+  return AdminCouponsNotifier(repository);
+});
+
+class AdminCouponsNotifier extends StateNotifier<AdminCouponsState> {
+  final AdminRepository _repository;
+
+  AdminCouponsNotifier(this._repository) : super(const AdminCouponsState());
+
+  Future<void> loadCoupons({String? status}) async {
+    state = state.copyWith(isLoading: true, error: null, statusFilter: status);
+
+    final result = await _repository.getCoupons(status: status);
+
+    if (result['success'] == true) {
+      state = state.copyWith(
+        isLoading: false,
+        coupons: result['data'] as List<CouponListItemModel>,
+      );
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        error: result['error'] as String?,
+      );
+    }
+  }
+
+  Future<bool> createCoupon(Map<String, dynamic> data) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.createCoupon(data);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadCoupons(status: state.statusFilter);
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> revokeCoupon(int id) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.revokeCoupon(id);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadCoupons(status: state.statusFilter);
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> reactivateCoupon(int id) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.reactivateCoupon(id);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadCoupons(status: state.statusFilter);
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> deleteCoupon(int id) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    final result = await _repository.deleteCoupon(id);
+
+    if (result['success'] == true) {
+      state = state.copyWith(isSaving: false);
+      await loadCoupons(status: state.statusFilter);
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
+}
+
+/// Coupon detail state
+class CouponDetailState {
+  final CouponModel? coupon;
+  final List<CouponUsageModel> usages;
+  final bool isLoading;
+  final String? error;
+
+  const CouponDetailState({
+    this.coupon,
+    this.usages = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  CouponDetailState copyWith({
+    CouponModel? coupon,
+    List<CouponUsageModel>? usages,
+    bool? isLoading,
+    String? error,
+  }) {
+    return CouponDetailState(
+      coupon: coupon ?? this.coupon,
+      usages: usages ?? this.usages,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+    );
+  }
+}
+
+final couponDetailProvider = StateNotifierProvider.family<
+    CouponDetailNotifier, CouponDetailState, int>((ref, id) {
+  final repository = ref.watch(adminRepositoryProvider);
+  return CouponDetailNotifier(repository, id);
+});
+
+class CouponDetailNotifier extends StateNotifier<CouponDetailState> {
+  final AdminRepository _repository;
+  final int _couponId;
+
+  CouponDetailNotifier(this._repository, this._couponId)
+      : super(const CouponDetailState());
+
+  Future<void> loadCoupon() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final results = await Future.wait([
+        _repository.getCoupon(_couponId),
+        _repository.getCouponUsages(_couponId),
+      ]);
+
+      final couponResult = results[0];
+      final usagesResult = results[1];
+
+      state = state.copyWith(
+        isLoading: false,
+        coupon: couponResult['success'] == true
+            ? couponResult['data'] as CouponModel
+            : null,
+        usages: usagesResult['success'] == true
+            ? usagesResult['data'] as List<CouponUsageModel>
+            : [],
+        error: couponResult['success'] != true
+            ? couponResult['error'] as String?
+            : null,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load coupon: ${e.toString()}',
+      );
     }
   }
 }

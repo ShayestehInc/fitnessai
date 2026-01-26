@@ -227,4 +227,120 @@ class PaymentRepository {
       return [];
     }
   }
+
+  // ============ Trainer Coupons ============
+
+  /// Get trainer's coupons
+  Future<Map<String, dynamic>> getTrainerCoupons({String? status}) async {
+    try {
+      final params = <String, dynamic>{};
+      if (status != null) params['status'] = status;
+
+      final response = await _apiClient.dio.get(
+        ApiConstants.trainerCoupons,
+        queryParameters: params.isNotEmpty ? params : null,
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load coupons',
+      };
+    }
+  }
+
+  /// Create a trainer coupon
+  Future<Map<String, dynamic>> createTrainerCoupon(Map<String, dynamic> data) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.trainerCoupons,
+        data: data,
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? e.response?.data?['detail'] ?? 'Failed to create coupon',
+      };
+    }
+  }
+
+  /// Revoke a trainer coupon
+  Future<Map<String, dynamic>> revokeTrainerCoupon(int id) async {
+    try {
+      final response = await _apiClient.dio.post(
+        '${ApiConstants.trainerCoupons}$id/revoke/',
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to revoke coupon',
+      };
+    }
+  }
+
+  /// Reactivate a trainer coupon
+  Future<Map<String, dynamic>> reactivateTrainerCoupon(int id) async {
+    try {
+      final response = await _apiClient.dio.post(
+        '${ApiConstants.trainerCoupons}$id/reactivate/',
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to reactivate coupon',
+      };
+    }
+  }
+
+  /// Delete a trainer coupon
+  Future<Map<String, dynamic>> deleteTrainerCoupon(int id) async {
+    try {
+      await _apiClient.dio.delete(
+        '${ApiConstants.trainerCoupons}$id/',
+      );
+      return {'success': true};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to delete coupon',
+      };
+    }
+  }
+
+  /// Validate a coupon code
+  Future<Map<String, dynamic>> validateCoupon(String code, {int? trainerId}) async {
+    try {
+      final data = <String, dynamic>{'code': code};
+      if (trainerId != null) data['trainer_id'] = trainerId;
+
+      final response = await _apiClient.dio.post(
+        ApiConstants.validateCoupon,
+        data: data,
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Invalid coupon code',
+      };
+    }
+  }
 }

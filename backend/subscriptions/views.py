@@ -17,7 +17,8 @@ import stripe
 
 from .models import (
     Subscription, PaymentHistory, SubscriptionChange,
-    StripeAccount, TrainerPricing, TraineePayment, TraineeSubscription
+    StripeAccount, TrainerPricing, TraineePayment, TraineeSubscription,
+    SubscriptionTier, Coupon, CouponUsage
 )
 from .serializers import (
     SubscriptionSerializer,
@@ -34,6 +35,13 @@ from .serializers import (
     TraineeSubscriptionSerializer,
     CreateCheckoutSessionSerializer,
     TrainerPublicPricingSerializer,
+    SubscriptionTierSerializer,
+    SubscriptionTierCreateUpdateSerializer,
+    CouponSerializer,
+    CouponListSerializer,
+    CouponCreateSerializer,
+    CouponUpdateSerializer,
+    ApplyCouponSerializer,
 )
 from users.models import User
 
@@ -449,6 +457,263 @@ class AdminUpcomingPaymentsView(APIView):
 
         serializer = SubscriptionListSerializer(upcoming, many=True)
         return Response(serializer.data)
+
+
+# ============ Subscription Tier Management (Admin) ============
+
+class AdminSubscriptionTierViewSet(viewsets.ModelViewSet):
+    """
+    Admin viewset for managing subscription tiers.
+    GET /api/admin/tiers/ - List all tiers
+    POST /api/admin/tiers/ - Create a new tier
+    GET /api/admin/tiers/{id}/ - Get tier details
+    PUT /api/admin/tiers/{id}/ - Update tier
+    DELETE /api/admin/tiers/{id}/ - Delete tier
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    queryset = SubscriptionTier.objects.all().order_by('sort_order', 'price')
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return SubscriptionTierCreateUpdateSerializer
+        return SubscriptionTierSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        tier = self.get_object()
+        # Check if any subscriptions use this tier
+        subscription_count = Subscription.objects.filter(tier=tier.name).count()
+        if subscription_count > 0:
+            return Response(
+                {'error': f'Cannot delete tier with {subscription_count} active subscriptions. Deactivate it instead.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=['post'], url_path='seed-defaults')
+    def seed_defaults(self, request):
+        """
+        Seed default tiers if they don't exist.
+        POST /api/admin/tiers/seed-defaults/
+        """
+        SubscriptionTier.seed_default_tiers()
+        tiers = SubscriptionTier.objects.all().order_by('sort_order')
+        serializer = SubscriptionTierSerializer(tiers, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='toggle-active')
+    def toggle_active(self, request, pk=None):
+        """
+        Toggle tier active status.
+        POST /api/admin/tiers/{id}/toggle-active/
+        """
+        tier = self.get_object()
+        tier.is_active = not tier.is_active
+        tier.save()
+        return Response(SubscriptionTierSerializer(tier).data)
+
+
+class PublicSubscriptionTiersView(APIView):
+    """
+    List active subscription tiers (public).
+    GET /api/admin/tiers/public/
+    """
+    permission_classes = []  # Public endpoint
+
+    def get(self, request):
+        tiers = SubscriptionTier.objects.filter(is_active=True).order_by('sort_order', 'price')
+        serializer = SubscriptionTierSerializer(tiers, many=True)
+        return Response(serializer.data)
+
+
+# ============ Coupon Management (Admin) ============
+
+class AdminCouponViewSet(viewsets.ModelViewSet):
+    """
+    Admin viewset for managing all coupons.
+    GET /api/admin/coupons/ - List all coupons
+    POST /api/admin/coupons/ - Create a new coupon
+    GET /api/admin/coupons/{id}/ - Get coupon details
+    PUT /api/admin/coupons/{id}/ - Update coupon
+    DELETE /api/admin/coupons/{id}/ - Delete coupon
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    queryset = Coupon.objects.all().order_by('-created_at')
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CouponCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            return CouponUpdateSerializer
+        if self.action == 'list':
+            return CouponListSerializer
+        return CouponSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(created_by_admin=self.request.user)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # Filter by status
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        # Filter by type
+        type_filter = self.request.query_params.get('type')
+        if type_filter:
+            queryset = queryset.filter(coupon_type=type_filter)
+
+        # Filter by applies_to
+        applies_to = self.request.query_params.get('applies_to')
+        if applies_to:
+            queryset = queryset.filter(applies_to=applies_to)
+
+        # Search by code
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(code__icontains=search)
+
+        return queryset
+
+    @action(detail=True, methods=['post'], url_path='revoke')
+    def revoke(self, request, pk=None):
+        """
+        Revoke a coupon.
+        POST /api/admin/coupons/{id}/revoke/
+        """
+        coupon = self.get_object()
+        coupon.revoke()
+        return Response(CouponSerializer(coupon).data)
+
+    @action(detail=True, methods=['post'], url_path='reactivate')
+    def reactivate(self, request, pk=None):
+        """
+        Reactivate a revoked coupon.
+        POST /api/admin/coupons/{id}/reactivate/
+        """
+        coupon = self.get_object()
+        if coupon.status == Coupon.Status.EXHAUSTED:
+            return Response(
+                {'error': 'Cannot reactivate exhausted coupon'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        coupon.status = Coupon.Status.ACTIVE
+        coupon.save()
+        return Response(CouponSerializer(coupon).data)
+
+    @action(detail=True, methods=['get'], url_path='usages')
+    def usages(self, request, pk=None):
+        """
+        Get all usages of a coupon.
+        GET /api/admin/coupons/{id}/usages/
+        """
+        coupon = self.get_object()
+        usages = coupon.usages.all().select_related('user')
+
+        data = []
+        for usage in usages:
+            data.append({
+                'id': usage.id,
+                'user_email': usage.user.email,
+                'user_name': f"{usage.user.first_name} {usage.user.last_name}".strip(),
+                'discount_amount': str(usage.discount_amount),
+                'used_at': usage.used_at.isoformat(),
+            })
+
+        return Response(data)
+
+
+# ============ Coupon Management (Trainer) ============
+
+class TrainerCouponViewSet(viewsets.ModelViewSet):
+    """
+    Trainer viewset for managing their coupons.
+    GET /api/payments/trainer/coupons/ - List trainer's coupons
+    POST /api/payments/trainer/coupons/ - Create a coupon for trainees
+    GET /api/payments/trainer/coupons/{id}/ - Get coupon details
+    PUT /api/payments/trainer/coupons/{id}/ - Update coupon
+    DELETE /api/payments/trainer/coupons/{id}/ - Delete coupon
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get_queryset(self):
+        return Coupon.objects.filter(
+            created_by_trainer=self.request.user
+        ).order_by('-created_at')
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CouponCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            return CouponUpdateSerializer
+        if self.action == 'list':
+            return CouponListSerializer
+        return CouponSerializer
+
+    def perform_create(self, serializer):
+        # Force trainee coaching coupons only
+        serializer.save(
+            created_by_trainer=self.request.user,
+            applies_to=Coupon.AppliesTo.TRAINEE_COACHING
+        )
+
+    @action(detail=True, methods=['post'], url_path='revoke')
+    def revoke(self, request, pk=None):
+        """Revoke a coupon."""
+        coupon = self.get_object()
+        coupon.revoke()
+        return Response(CouponSerializer(coupon).data)
+
+    @action(detail=True, methods=['post'], url_path='reactivate')
+    def reactivate(self, request, pk=None):
+        """Reactivate a revoked coupon."""
+        coupon = self.get_object()
+        if coupon.status == Coupon.Status.EXHAUSTED:
+            return Response(
+                {'error': 'Cannot reactivate exhausted coupon'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        coupon.status = Coupon.Status.ACTIVE
+        coupon.save()
+        return Response(CouponSerializer(coupon).data)
+
+
+class ValidateCouponView(APIView):
+    """
+    Validate a coupon code.
+    POST /api/payments/coupons/validate/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ApplyCouponSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        code = serializer.validated_data['code']
+
+        try:
+            coupon = Coupon.objects.get(code=code)
+        except Coupon.DoesNotExist:
+            return Response(
+                {'valid': False, 'error': 'Coupon not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        can_use, message = coupon.can_be_used_by(request.user)
+
+        if can_use:
+            return Response({
+                'valid': True,
+                'coupon': CouponSerializer(coupon).data,
+                'message': 'Coupon is valid'
+            })
+        else:
+            return Response({
+                'valid': False,
+                'error': message
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ============ Stripe Connect / Payment Views ============
