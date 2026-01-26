@@ -157,6 +157,17 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 # Stripe
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', '')
 STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
+
+# Stripe Connect (for trainer payments)
+STRIPE_PLATFORM_FEE_PERCENT = float(os.getenv('STRIPE_PLATFORM_FEE_PERCENT', '10'))
+
+# Frontend URLs for Stripe redirects
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+STRIPE_CONNECT_RETURN_URL = os.getenv('STRIPE_CONNECT_RETURN_URL', f'{FRONTEND_URL}/trainer/stripe-connect/return')
+STRIPE_CONNECT_REFRESH_URL = os.getenv('STRIPE_CONNECT_REFRESH_URL', f'{FRONTEND_URL}/trainer/stripe-connect/refresh')
+STRIPE_CHECKOUT_SUCCESS_URL = os.getenv('STRIPE_CHECKOUT_SUCCESS_URL', f'{FRONTEND_URL}/payment/success')
+STRIPE_CHECKOUT_CANCEL_URL = os.getenv('STRIPE_CHECKOUT_CANCEL_URL', f'{FRONTEND_URL}/payment/cancel')
 
 # Djoser Configuration - Use email for authentication
 DJOSER = {

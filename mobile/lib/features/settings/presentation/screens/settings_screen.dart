@@ -11,15 +11,12 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
+    final role = user?.role ?? 'TRAINEE';
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         backgroundColor: AppTheme.background,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.foreground),
-          onPressed: () => context.pop(),
-        ),
         title: const Text(
           'Settings',
           style: TextStyle(color: AppTheme.foreground),
@@ -29,64 +26,265 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Profile Section
-          _buildSectionHeader('Profile'),
-          _buildSettingsTile(
-            icon: Icons.person_outline,
-            title: 'Edit Profile',
-            subtitle: 'Update your personal information',
-            onTap: () => context.push('/edit-profile'),
-          ),
-          _buildSettingsTile(
-            icon: Icons.fitness_center,
-            title: 'Fitness Goals',
-            subtitle: 'Change your activity level and goals',
-            onTap: () => context.push('/edit-goals'),
-          ),
-          _buildSettingsTile(
-            icon: Icons.restaurant_menu,
-            title: 'Diet Preferences',
-            subtitle: 'Update diet type and meal settings',
-            onTap: () => context.push('/edit-diet'),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Account Section
-          _buildSectionHeader('Account'),
-          _buildSettingsTile(
-            icon: Icons.email_outlined,
-            title: 'Email',
-            subtitle: user?.email ?? 'Not set',
-            onTap: null,
-          ),
-          _buildSettingsTile(
-            icon: Icons.logout,
-            title: 'Logout',
-            subtitle: 'Sign out of your account',
-            isDestructive: true,
-            onTap: () async {
-              await ref.read(authStateProvider.notifier).logout();
-              if (context.mounted) {
-                context.go('/login');
-              }
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Danger Zone
-          _buildSectionHeader('DANGER ZONE'),
-          _buildSettingsTile(
-            icon: Icons.delete_forever,
-            title: 'Delete Account',
-            subtitle: 'Permanently delete your account and all data',
-            isDestructive: true,
-            onTap: () => _showDeleteAccountDialog(context, ref),
-          ),
+          // Role-specific settings
+          if (role == 'ADMIN') ..._buildAdminSettings(context, ref, user?.email),
+          if (role == 'TRAINER') ..._buildTrainerSettings(context, ref, user?.email),
+          if (role == 'TRAINEE') ..._buildTraineeSettings(context, ref, user?.email),
         ],
       ),
     );
+  }
+
+  List<Widget> _buildAdminSettings(BuildContext context, WidgetRef ref, String? email) {
+    return [
+      // Admin Info
+      _buildSectionHeader('ADMIN ACCOUNT'),
+      _buildSettingsTile(
+        icon: Icons.admin_panel_settings,
+        title: 'Admin Profile',
+        subtitle: email ?? 'admin@fitnessai.com',
+        onTap: null,
+      ),
+
+      const SizedBox(height: 24),
+
+      // Platform Management
+      _buildSectionHeader('PLATFORM'),
+      _buildSettingsTile(
+        icon: Icons.dashboard,
+        title: 'Dashboard',
+        subtitle: 'View platform statistics',
+        onTap: () => context.go('/admin'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.people,
+        title: 'Manage Trainers',
+        subtitle: 'View and manage all trainers',
+        onTap: () => context.go('/admin/trainers'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.credit_card,
+        title: 'Subscriptions',
+        subtitle: 'Manage billing and subscriptions',
+        onTap: () => context.go('/admin/subscriptions'),
+      ),
+
+      const SizedBox(height: 24),
+
+      // System
+      _buildSectionHeader('SYSTEM'),
+      _buildSettingsTile(
+        icon: Icons.notifications_outlined,
+        title: 'Notifications',
+        subtitle: 'Configure system notifications',
+        onTap: () {},
+      ),
+      _buildSettingsTile(
+        icon: Icons.security,
+        title: 'Security',
+        subtitle: 'Manage platform security settings',
+        onTap: () {},
+      ),
+
+      const SizedBox(height: 24),
+
+      // Account Actions
+      _buildSectionHeader('ACCOUNT'),
+      _buildSettingsTile(
+        icon: Icons.logout,
+        title: 'Logout',
+        subtitle: 'Sign out of admin account',
+        isDestructive: true,
+        onTap: () async {
+          await ref.read(authStateProvider.notifier).logout();
+          if (context.mounted) {
+            context.go('/login');
+          }
+        },
+      ),
+    ];
+  }
+
+  List<Widget> _buildTrainerSettings(BuildContext context, WidgetRef ref, String? email) {
+    return [
+      // Profile Section
+      _buildSectionHeader('PROFILE'),
+      _buildSettingsTile(
+        icon: Icons.person_outline,
+        title: 'Business Profile',
+        subtitle: 'Update your trainer profile',
+        onTap: () => context.push('/edit-profile'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.email_outlined,
+        title: 'Email',
+        subtitle: email ?? 'Not set',
+        onTap: null,
+      ),
+
+      const SizedBox(height: 24),
+
+      // Business Section
+      _buildSectionHeader('BUSINESS'),
+      _buildSettingsTile(
+        icon: Icons.credit_card,
+        title: 'Subscription',
+        subtitle: 'Manage your subscription plan',
+        onTap: () => context.push('/trainer/subscription'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.people_outline,
+        title: 'My Trainees',
+        subtitle: 'View and manage your trainees',
+        onTap: () => context.go('/trainer/trainees'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.bar_chart,
+        title: 'Analytics',
+        subtitle: 'View trainee progress analytics',
+        onTap: () {},
+      ),
+
+      const SizedBox(height: 24),
+
+      // Notifications
+      _buildSectionHeader('NOTIFICATIONS'),
+      _buildSettingsTile(
+        icon: Icons.notifications_outlined,
+        title: 'Push Notifications',
+        subtitle: 'Manage notification preferences',
+        onTap: () {},
+      ),
+      _buildSettingsTile(
+        icon: Icons.email_outlined,
+        title: 'Email Notifications',
+        subtitle: 'Configure email alerts',
+        onTap: () {},
+      ),
+
+      const SizedBox(height: 24),
+
+      // Feature Requests
+      _buildSectionHeader('FEEDBACK'),
+      _buildSettingsTile(
+        icon: Icons.lightbulb_outline,
+        title: 'Feature Requests',
+        subtitle: 'Suggest new features or vote on ideas',
+        onTap: () => context.push('/feature-requests'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.help_outline,
+        title: 'Help & Support',
+        subtitle: 'Get help with using the platform',
+        onTap: () {},
+      ),
+
+      const SizedBox(height: 24),
+
+      // Account Section
+      _buildSectionHeader('ACCOUNT'),
+      _buildSettingsTile(
+        icon: Icons.logout,
+        title: 'Logout',
+        subtitle: 'Sign out of your account',
+        isDestructive: true,
+        onTap: () async {
+          await ref.read(authStateProvider.notifier).logout();
+          if (context.mounted) {
+            context.go('/login');
+          }
+        },
+      ),
+
+      const SizedBox(height: 24),
+
+      // Danger Zone
+      _buildSectionHeader('DANGER ZONE'),
+      _buildSettingsTile(
+        icon: Icons.delete_forever,
+        title: 'Delete Account',
+        subtitle: 'Permanently delete your account and all data',
+        isDestructive: true,
+        onTap: () => _showDeleteAccountDialog(context, ref),
+      ),
+    ];
+  }
+
+  List<Widget> _buildTraineeSettings(BuildContext context, WidgetRef ref, String? email) {
+    return [
+      // Profile Section
+      _buildSectionHeader('PROFILE'),
+      _buildSettingsTile(
+        icon: Icons.person_outline,
+        title: 'Edit Profile',
+        subtitle: 'Update your personal information',
+        onTap: () => context.push('/edit-profile'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.fitness_center,
+        title: 'Fitness Goals',
+        subtitle: 'Change your activity level and goals',
+        onTap: () => context.push('/edit-goals'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.restaurant_menu,
+        title: 'Diet Preferences',
+        subtitle: 'Update diet type and meal settings',
+        onTap: () => context.push('/edit-diet'),
+      ),
+
+      const SizedBox(height: 24),
+
+      // Tracking Settings
+      _buildSectionHeader('TRACKING'),
+      _buildSettingsTile(
+        icon: Icons.monitor_weight_outlined,
+        title: 'Check-in Days',
+        subtitle: 'Set your weigh-in schedule',
+        onTap: () => context.push('/edit-diet'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.notifications_outlined,
+        title: 'Reminders',
+        subtitle: 'Configure workout and meal reminders',
+        onTap: () {},
+      ),
+
+      const SizedBox(height: 24),
+
+      // Account Section
+      _buildSectionHeader('ACCOUNT'),
+      _buildSettingsTile(
+        icon: Icons.email_outlined,
+        title: 'Email',
+        subtitle: email ?? 'Not set',
+        onTap: null,
+      ),
+      _buildSettingsTile(
+        icon: Icons.logout,
+        title: 'Logout',
+        subtitle: 'Sign out of your account',
+        isDestructive: true,
+        onTap: () async {
+          await ref.read(authStateProvider.notifier).logout();
+          if (context.mounted) {
+            context.go('/login');
+          }
+        },
+      ),
+
+      const SizedBox(height: 24),
+
+      // Danger Zone
+      _buildSectionHeader('DANGER ZONE'),
+      _buildSettingsTile(
+        icon: Icons.delete_forever,
+        title: 'Delete Account',
+        subtitle: 'Permanently delete your account and all data',
+        isDestructive: true,
+        onTap: () => _showDeleteAccountDialog(context, ref),
+      ),
+    ];
   }
 
   Widget _buildSectionHeader(String title) {

@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Represents a single exercise within a workout
 class WorkoutExercise {
   final int exerciseId;

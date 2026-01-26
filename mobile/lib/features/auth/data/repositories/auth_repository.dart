@@ -28,7 +28,7 @@ class AuthRepository {
         try {
           final userResponse = await _apiClient.dio.get('${ApiConstants.apiBaseUrl}/auth/users/me/');
           final user = UserModel.fromJson(userResponse.data);
-          
+
           return {
             'success': true,
             'user': user,
@@ -36,13 +36,11 @@ class AuthRepository {
             'refresh_token': refreshToken,
           };
         } catch (e) {
-          // If user endpoint fails, create a basic user from token
-          // In production, you'd decode the JWT to get user info
+          print('Error fetching user info: $e');
+          // If user endpoint fails, return error
           return {
-            'success': true,
-            'user': null, // Will need to fetch separately
-            'access_token': accessToken,
-            'refresh_token': refreshToken,
+            'success': false,
+            'error': 'Failed to fetch user profile. Please try again.',
           };
         }
       }

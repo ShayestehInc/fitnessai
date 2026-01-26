@@ -133,4 +133,50 @@ class LoggingNotifier extends StateNotifier<LoggingState> {
   void clearState() {
     state = LoggingState();
   }
+
+  /// Save a manual food entry directly (no AI parsing)
+  Future<bool> saveManualFoodEntry({
+    required String name,
+    required int protein,
+    required int carbs,
+    required int fat,
+    required int calories,
+    String? date,
+  }) async {
+    state = state.copyWith(isSaving: true, error: null);
+
+    // Build the parsed data structure for manual entry
+    final parsedJson = {
+      'nutrition': {
+        'meals': [
+          {
+            'name': name,
+            'protein': protein,
+            'carbs': carbs,
+            'fat': fat,
+            'calories': calories,
+            'timestamp': DateTime.now().toIso8601String(),
+          }
+        ],
+      },
+      'workout': {
+        'exercises': [],
+      },
+      'confidence': 1.0,
+      'needs_clarification': false,
+    };
+
+    final result = await _repository.confirmAndSave(parsedJson, date: date);
+
+    if (result['success'] == true) {
+      state = LoggingState(); // Reset state
+      return true;
+    } else {
+      state = state.copyWith(
+        isSaving: false,
+        error: result['error'] as String?,
+      );
+      return false;
+    }
+  }
 }

@@ -10,7 +10,9 @@ urlpatterns = [
     path('api/auth/', include('djoser.urls.jwt')),
     path('api/users/', include('users.urls')),
     path('api/workouts/', include('workouts.urls')),
-    path('api/subscriptions/', include('subscriptions.urls')),
     path('api/trainer/', include('trainer.urls')),
     path('api/features/', include('features.urls')),
+
+    # Admin API endpoints
+    path('api/admin/', include('subscriptions.urls')),
 ]

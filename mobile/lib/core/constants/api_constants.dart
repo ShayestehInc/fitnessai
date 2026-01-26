@@ -44,6 +44,13 @@ class ApiConstants {
   // Feature request endpoints
   static const String featureRequests = '$apiBaseUrl/features/';
 
+  // Admin endpoints
+  static const String adminDashboard = '$apiBaseUrl/admin/dashboard/';
+  static const String adminTrainers = '$apiBaseUrl/admin/trainers/';
+  static const String adminSubscriptions = '$apiBaseUrl/admin/subscriptions/';
+  static const String adminPastDue = '$apiBaseUrl/admin/past-due/';
+  static const String adminUpcomingPayments = '$apiBaseUrl/admin/upcoming-payments/';
+
   // Headers
   static const String contentType = 'application/json';
   static const String authorization = 'Authorization';

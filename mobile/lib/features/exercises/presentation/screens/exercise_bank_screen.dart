@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/exercise_model.dart';
 import '../providers/exercise_provider.dart';
@@ -360,20 +361,6 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
               ),
               const SizedBox(height: 16),
               _buildDetailRow(Icons.category, 'Muscle Group', exercise.muscleGroupDisplay),
-              _buildDetailRow(Icons.fitness_center, 'Equipment', exercise.equipmentDisplay),
-              if (exercise.difficultyLevel != null)
-                _buildDetailRow(Icons.speed, 'Difficulty', exercise.difficultyLevel!),
-              _buildDetailRow(
-                Icons.layers,
-                'Type',
-                exercise.isCompound ? 'Compound' : 'Isolation',
-              ),
-              if (exercise.secondaryMuscles.isNotEmpty)
-                _buildDetailRow(
-                  Icons.group_work,
-                  'Secondary Muscles',
-                  exercise.secondaryMuscles.join(', '),
-                ),
               if (exercise.description != null && exercise.description!.isNotEmpty) ...[
                 const SizedBox(height: 20),
                 const Text(
@@ -383,14 +370,21 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 const SizedBox(height: 8),
                 Text(exercise.description!),
               ],
-              if (exercise.instructions != null && exercise.instructions!.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                const Text(
-                  'Instructions',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              if (exercise.videoUrl != null && exercise.videoUrl!.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _openYouTubeVideo(exercise.videoUrl!),
+                    icon: const Icon(Icons.play_circle_filled),
+                    label: const Text('Watch Tutorial Video'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(exercise.instructions!),
               ],
               const SizedBox(height: 24),
             ],
@@ -426,5 +420,18 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Custom exercise creation coming soon!')),
     );
+  }
+
+  Future<void> _openYouTubeVideo(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open video')),
+        );
+      }
+    }
   }
 }

@@ -27,22 +27,38 @@ import '../../features/programs/presentation/screens/programs_screen.dart';
 import '../../features/feature_requests/presentation/screens/feature_requests_screen.dart';
 import '../../features/feature_requests/presentation/screens/submit_feature_screen.dart';
 import '../../features/feature_requests/presentation/screens/feature_detail_screen.dart';
+import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/screens/admin_trainers_screen.dart';
+import '../../features/admin/presentation/screens/admin_subscriptions_screen.dart';
+import '../../features/admin/presentation/screens/admin_subscription_detail_screen.dart';
+import '../../features/admin/presentation/screens/admin_past_due_screen.dart';
+import '../../features/admin/presentation/screens/admin_upcoming_payments_screen.dart';
+import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../shared/widgets/main_navigation_shell.dart';
 import '../../shared/widgets/trainer_navigation_shell.dart';
+import '../../shared/widgets/admin_navigation_shell.dart';
 
 // Navigation keys for branches
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 final _trainerShellNavigatorKey = GlobalKey<NavigatorState>();
+final _adminShellNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/login',
+    initialLocation: '/splash',
     debugLogDiagnostics: true,
     routes: [
+      // Splash screen
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+
       // Auth routes (outside shell)
       GoRoute(
         path: '/login',
@@ -146,6 +162,78 @@ final routerProvider = Provider<GoRouter>((ref) {
           final traineeId = int.parse(state.pathParameters['id']!);
           return AssignProgramScreen(traineeId: traineeId);
         },
+      ),
+
+      // Admin Shell - separate navigation for admin users
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return AdminNavigationShell(navigationShell: navigationShell);
+        },
+        branches: [
+          // Dashboard branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin',
+                name: 'admin-dashboard',
+                builder: (context, state) => const AdminDashboardScreen(),
+              ),
+            ],
+          ),
+
+          // Trainers branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin/trainers',
+                name: 'admin-trainers',
+                builder: (context, state) => const AdminTrainersScreen(),
+              ),
+            ],
+          ),
+
+          // Subscriptions branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin/subscriptions',
+                name: 'admin-subscriptions',
+                builder: (context, state) => const AdminSubscriptionsScreen(),
+              ),
+            ],
+          ),
+
+          // Settings branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin/settings',
+                name: 'admin-settings',
+                builder: (context, state) => const SettingsScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      // Admin detail routes (outside shell)
+      GoRoute(
+        path: '/admin/subscriptions/:id',
+        name: 'admin-subscription-detail',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return AdminSubscriptionDetailScreen(subscriptionId: id);
+        },
+      ),
+      GoRoute(
+        path: '/admin/past-due',
+        name: 'admin-past-due',
+        builder: (context, state) => const AdminPastDueScreen(),
+      ),
+      GoRoute(
+        path: '/admin/upcoming',
+        name: 'admin-upcoming-payments',
+        builder: (context, state) => const AdminUpcomingPaymentsScreen(),
       ),
 
       // Main app shell with bottom navigation (for trainees)
@@ -286,6 +374,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggingIn = state.matchedLocation == '/login';
       final isRegistering = state.matchedLocation == '/register';
       final isOnboarding = state.matchedLocation == '/onboarding';
+      final isSplash = state.matchedLocation == '/splash';
+
+      // Don't redirect from splash - it handles its own navigation
+      if (isSplash) return null;
 
       // If not logged in, redirect to login (except for register)
       if (!isLoggedIn) {
@@ -297,6 +389,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       // If logged in and on auth pages, redirect based on role and onboarding status
       if (isLoggingIn || isRegistering) {
         final user = authState.user!;
+
+        // Admin goes to admin dashboard
+        if (user.isAdmin) {
+          return '/admin';
+        }
 
         // Trainers go to trainer dashboard
         if (user.isTrainer) {

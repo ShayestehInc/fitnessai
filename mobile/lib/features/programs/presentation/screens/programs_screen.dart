@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/program_model.dart';
 import '../providers/program_provider.dart';
+import 'program_builder_screen.dart';
 
 class ProgramsScreen extends ConsumerStatefulWidget {
   const ProgramsScreen({super.key});
@@ -593,21 +594,57 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
               const SizedBox(height: 32),
 
-              // Use Template button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Template selection coming soon! You will be able to assign this to a trainee.')),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProgramBuilderScreen(
+                              templateName: template.name,
+                              durationWeeks: template.durationWeeks,
+                              difficulty: template.difficulty,
+                              goal: template.goal,
+                              weeklySchedule: template.schedule,
+                            ),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Customize'),
+                    ),
                   ),
-                  child: const Text('Use This Template'),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProgramBuilderScreen(
+                              templateName: template.name,
+                              durationWeeks: template.durationWeeks,
+                              difficulty: template.difficulty,
+                              goal: template.goal,
+                              weeklySchedule: template.schedule,
+                            ),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Use Template'),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
             ],
@@ -636,8 +673,153 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
   }
 
   void _showCreateProgramDialog(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Program builder coming soon!')),
+    _showNewProgramSetupDialog(context);
+  }
+
+  void _showNewProgramSetupDialog(BuildContext context) {
+    String programName = '';
+    int durationWeeks = 4;
+    String difficulty = 'intermediate';
+    String goal = 'build_muscle';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                'Create New Program',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+
+              // Program name
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Program Name',
+                  hintText: 'e.g., My Custom PPL',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onChanged: (value) => programName = value,
+              ),
+              const SizedBox(height: 16),
+
+              // Duration slider
+              Text('Duration: $durationWeeks weeks'),
+              Slider(
+                value: durationWeeks.toDouble(),
+                min: 1,
+                max: 16,
+                divisions: 15,
+                label: '$durationWeeks weeks',
+                onChanged: (value) {
+                  setModalState(() => durationWeeks = value.round());
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Difficulty
+              const Text('Difficulty'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Beginner'),
+                    selected: difficulty == 'beginner',
+                    onSelected: (selected) {
+                      setModalState(() => difficulty = 'beginner');
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Intermediate'),
+                    selected: difficulty == 'intermediate',
+                    onSelected: (selected) {
+                      setModalState(() => difficulty = 'intermediate');
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Advanced'),
+                    selected: difficulty == 'advanced',
+                    onSelected: (selected) {
+                      setModalState(() => difficulty = 'advanced');
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Goal
+              const Text('Goal'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: ProgramGoals.all.map((g) => ChoiceChip(
+                  label: Text(ProgramGoals.displayName(g)),
+                  selected: goal == g,
+                  onSelected: (selected) {
+                    setModalState(() => goal = g);
+                  },
+                )).toList(),
+              ),
+              const SizedBox(height: 24),
+
+              // Create button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: programName.isEmpty ? null : () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProgramBuilderScreen(
+                          templateName: programName,
+                          durationWeeks: durationWeeks,
+                          difficulty: difficulty,
+                          goal: goal,
+                        ),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Create Program'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
