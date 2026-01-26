@@ -10,7 +10,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -73,21 +72,3 @@ mobile.log
 
 # Docker
 .docker/
-
-# Exclude parent directory items that might accidentally be included
-../0rax/
-../Untitled/
-../ancestary/
-../anyscoreapproved/
-../autosound-ios-main 2/
-../gaming-app/
-../ancestrybureau/
-../backend/
-../design-system/
-../flutter-test/
-../gs-autosound/
-../matador/
-../osx-test/
-../phil-code/
-../readyminds-fe/
-../reinforce42/
