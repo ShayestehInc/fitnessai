@@ -1,6 +1,7 @@
 """
 Admin views for subscription and trainer management.
 """
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,10 +9,16 @@ from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.views import APIView
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from django.conf import settings
 from datetime import timedelta
 from decimal import Decimal
 
-from .models import Subscription, PaymentHistory, SubscriptionChange
+import stripe
+
+from .models import (
+    Subscription, PaymentHistory, SubscriptionChange,
+    StripeAccount, TrainerPricing, TraineePayment, TraineeSubscription
+)
 from .serializers import (
     SubscriptionSerializer,
     SubscriptionListSerializer,
@@ -20,8 +27,20 @@ from .serializers import (
     AdminChangeTierSerializer,
     AdminChangeStatusSerializer,
     AdminUpdateNotesSerializer,
+    StripeAccountSerializer,
+    TrainerPricingSerializer,
+    TrainerPricingUpdateSerializer,
+    TraineePaymentSerializer,
+    TraineeSubscriptionSerializer,
+    CreateCheckoutSessionSerializer,
+    TrainerPublicPricingSerializer,
 )
 from users.models import User
+
+logger = logging.getLogger(__name__)
+
+# Initialize Stripe
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 class IsAdminUser(BasePermission):

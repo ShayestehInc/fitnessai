@@ -2,7 +2,10 @@
 Serializers for Subscription and Admin management.
 """
 from rest_framework import serializers
-from .models import Subscription, PaymentHistory, SubscriptionChange
+from .models import (
+    Subscription, PaymentHistory, SubscriptionChange,
+    StripeAccount, TrainerPricing, TraineePayment, TraineeSubscription
+)
 from users.models import User
 
 
@@ -167,3 +170,129 @@ class AdminDashboardStatsSerializer(serializers.Serializer):
 
     # Past due
     past_due_count = serializers.IntegerField()
+
+
+# ============ Payment Serializers (Stripe Connect) ============
+
+class StripeAccountSerializer(serializers.ModelSerializer):
+    """Serializer for trainer's connected Stripe account."""
+    trainer_email = serializers.CharField(source='trainer.email', read_only=True)
+    is_ready_for_payments = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StripeAccount
+        fields = [
+            'id', 'trainer_email', 'stripe_account_id', 'status',
+            'charges_enabled', 'payouts_enabled', 'details_submitted',
+            'onboarding_completed', 'default_currency', 'is_ready_for_payments',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['stripe_account_id', 'charges_enabled', 'payouts_enabled',
+                           'details_submitted', 'onboarding_completed']
+
+    def get_is_ready_for_payments(self, obj):
+        return obj.is_ready_for_payments()
+
+
+class TrainerPricingSerializer(serializers.ModelSerializer):
+    """Serializer for trainer's pricing configuration."""
+    trainer_email = serializers.CharField(source='trainer.email', read_only=True)
+
+    class Meta:
+        model = TrainerPricing
+        fields = [
+            'id', 'trainer_email', 'monthly_subscription_price',
+            'monthly_subscription_enabled', 'one_time_consultation_price',
+            'one_time_consultation_enabled', 'stripe_monthly_price_id',
+            'currency', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['stripe_monthly_price_id', 'created_at', 'updated_at']
+
+
+class TrainerPricingUpdateSerializer(serializers.Serializer):
+    """Serializer for updating trainer pricing."""
+    monthly_subscription_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=0, required=False
+    )
+    monthly_subscription_enabled = serializers.BooleanField(required=False)
+    one_time_consultation_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=0, required=False
+    )
+    one_time_consultation_enabled = serializers.BooleanField(required=False)
+    currency = serializers.CharField(max_length=3, required=False)
+
+
+class TraineePaymentSerializer(serializers.ModelSerializer):
+    """Serializer for trainee payment records."""
+    trainee_email = serializers.CharField(source='trainee.email', read_only=True)
+    trainer_email = serializers.CharField(source='trainer.email', read_only=True)
+    trainer_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TraineePayment
+        fields = [
+            'id', 'trainee_email', 'trainer_email', 'trainer_name',
+            'payment_type', 'status', 'amount', 'platform_fee',
+            'currency', 'description', 'created_at', 'paid_at'
+        ]
+
+    def get_trainer_name(self, obj):
+        return f"{obj.trainer.first_name} {obj.trainer.last_name}".strip() or obj.trainer.email
+
+
+class TraineeSubscriptionSerializer(serializers.ModelSerializer):
+    """Serializer for trainee coaching subscription."""
+    trainee_email = serializers.CharField(source='trainee.email', read_only=True)
+    trainer_email = serializers.CharField(source='trainer.email', read_only=True)
+    trainer_name = serializers.SerializerMethodField()
+    days_until_renewal = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TraineeSubscription
+        fields = [
+            'id', 'trainee_email', 'trainer_email', 'trainer_name',
+            'status', 'amount', 'currency', 'current_period_start',
+            'current_period_end', 'days_until_renewal', 'is_active',
+            'canceled_at', 'created_at', 'updated_at'
+        ]
+
+    def get_trainer_name(self, obj):
+        return f"{obj.trainer.first_name} {obj.trainer.last_name}".strip() or obj.trainer.email
+
+    def get_days_until_renewal(self, obj):
+        return obj.days_until_renewal()
+
+    def get_is_active(self, obj):
+        return obj.is_active()
+
+
+class CreateCheckoutSessionSerializer(serializers.Serializer):
+    """Serializer for creating a Stripe Checkout session."""
+    trainer_id = serializers.IntegerField()
+    payment_type = serializers.ChoiceField(choices=['subscription', 'one_time'])
+    success_url = serializers.URLField(required=False)
+    cancel_url = serializers.URLField(required=False)
+
+
+class TrainerPublicPricingSerializer(serializers.ModelSerializer):
+    """Public pricing info for trainees to view."""
+    trainer_id = serializers.IntegerField(source='trainer.id', read_only=True)
+    trainer_name = serializers.SerializerMethodField()
+    trainer_email = serializers.CharField(source='trainer.email', read_only=True)
+    has_stripe_account = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TrainerPricing
+        fields = [
+            'trainer_id', 'trainer_name', 'trainer_email',
+            'monthly_subscription_price', 'monthly_subscription_enabled',
+            'one_time_consultation_price', 'one_time_consultation_enabled',
+            'currency', 'has_stripe_account'
+        ]
+
+    def get_trainer_name(self, obj):
+        return f"{obj.trainer.first_name} {obj.trainer.last_name}".strip() or obj.trainer.email
+
+    def get_has_stripe_account(self, obj):
+        return hasattr(obj.trainer, 'stripe_account') and obj.trainer.stripe_account.is_ready_for_payments()
