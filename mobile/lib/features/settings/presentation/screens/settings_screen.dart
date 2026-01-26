@@ -147,6 +147,29 @@ class SettingsScreen extends ConsumerWidget {
 
       const SizedBox(height: 24),
 
+      // Payments Section
+      _buildSectionHeader('PAYMENTS'),
+      _buildSettingsTile(
+        icon: Icons.account_balance,
+        title: 'Payment Setup',
+        subtitle: 'Connect Stripe to receive payments',
+        onTap: () => context.push('/trainer/stripe-connect'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.attach_money,
+        title: 'Set Your Prices',
+        subtitle: 'Configure coaching subscription pricing',
+        onTap: () => context.push('/trainer/pricing'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.receipt_long,
+        title: 'Payment History',
+        subtitle: 'View received payments and subscribers',
+        onTap: () => context.push('/trainer/payments'),
+      ),
+
+      const SizedBox(height: 24),
+
       // Notifications
       _buildSectionHeader('NOTIFICATIONS'),
       _buildSettingsTile(
@@ -248,6 +271,17 @@ class SettingsScreen extends ConsumerWidget {
         title: 'Reminders',
         subtitle: 'Configure workout and meal reminders',
         onTap: () {},
+      ),
+
+      const SizedBox(height: 24),
+
+      // Subscription Section
+      _buildSectionHeader('SUBSCRIPTION'),
+      _buildSettingsTile(
+        icon: Icons.credit_card,
+        title: 'My Subscriptions',
+        subtitle: 'Manage coaching subscriptions',
+        onTap: () => context.push('/my-subscription'),
       ),
 
       const SizedBox(height: 24),

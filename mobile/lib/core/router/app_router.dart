@@ -33,6 +33,11 @@ import '../../features/admin/presentation/screens/admin_subscriptions_screen.dar
 import '../../features/admin/presentation/screens/admin_subscription_detail_screen.dart';
 import '../../features/admin/presentation/screens/admin_past_due_screen.dart';
 import '../../features/admin/presentation/screens/admin_upcoming_payments_screen.dart';
+import '../../features/payments/presentation/screens/stripe_connect_screen.dart';
+import '../../features/payments/presentation/screens/trainer_pricing_screen.dart';
+import '../../features/payments/presentation/screens/trainer_payments_screen.dart';
+import '../../features/payments/presentation/screens/my_subscription_screen.dart';
+import '../../features/payments/presentation/screens/trainer_pricing_view_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../shared/widgets/main_navigation_shell.dart';
 import '../../shared/widgets/trainer_navigation_shell.dart';
@@ -162,6 +167,23 @@ final routerProvider = Provider<GoRouter>((ref) {
           final traineeId = int.parse(state.pathParameters['id']!);
           return AssignProgramScreen(traineeId: traineeId);
         },
+      ),
+
+      // Trainer payment routes
+      GoRoute(
+        path: '/trainer/stripe-connect',
+        name: 'stripe-connect',
+        builder: (context, state) => const StripeConnectScreen(),
+      ),
+      GoRoute(
+        path: '/trainer/pricing',
+        name: 'trainer-pricing',
+        builder: (context, state) => const TrainerPricingScreen(),
+      ),
+      GoRoute(
+        path: '/trainer/payments',
+        name: 'trainer-payments',
+        builder: (context, state) => const TrainerPaymentsScreen(),
       ),
 
       // Admin Shell - separate navigation for admin users
@@ -360,6 +382,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/edit-diet',
         name: 'edit-diet',
         builder: (context, state) => const EditDietScreen(),
+      ),
+
+      // Trainee subscription routes
+      GoRoute(
+        path: '/my-subscription',
+        name: 'my-subscription',
+        builder: (context, state) => const MySubscriptionScreen(),
+      ),
+      GoRoute(
+        path: '/trainer/:id/pricing',
+        name: 'trainer-pricing-view',
+        builder: (context, state) {
+          final trainerId = int.parse(state.pathParameters['id']!);
+          final trainerName = state.uri.queryParameters['name'];
+          return TrainerPricingViewScreen(
+            trainerId: trainerId,
+            trainerName: trainerName,
+          );
+        },
       ),
 
       // Legacy dashboard route (redirect to home)

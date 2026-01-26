@@ -3,6 +3,7 @@ URL configuration for Fitness AI project.
 """
 from django.contrib import admin
 from django.urls import path, include
+from subscriptions.urls import payment_urlpatterns
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -15,4 +16,7 @@ urlpatterns = [
 
     # Admin API endpoints
     path('api/admin/', include('subscriptions.urls')),
+
+    # Payment API endpoints (Stripe Connect)
+    path('api/payments/', include(payment_urlpatterns)),
 ]

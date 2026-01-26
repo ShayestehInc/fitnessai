@@ -51,6 +51,28 @@ class ApiConstants {
   static const String adminPastDue = '$apiBaseUrl/admin/past-due/';
   static const String adminUpcomingPayments = '$apiBaseUrl/admin/upcoming-payments/';
 
+  // Payment endpoints (Stripe Connect)
+  static const String stripeConnectOnboard = '$apiBaseUrl/payments/connect/onboard/';
+  static const String stripeConnectStatus = '$apiBaseUrl/payments/connect/status/';
+  static const String stripeConnectDashboard = '$apiBaseUrl/payments/connect/dashboard/';
+
+  // Trainer pricing endpoints
+  static const String trainerPricing = '$apiBaseUrl/payments/pricing/';
+  static String trainerPublicPricing(int trainerId) =>
+      '$apiBaseUrl/payments/trainers/$trainerId/pricing/';
+
+  // Checkout endpoints
+  static const String checkoutSubscription = '$apiBaseUrl/payments/checkout/subscription/';
+  static const String checkoutOneTime = '$apiBaseUrl/payments/checkout/one-time/';
+
+  // Trainee subscription endpoints
+  static const String traineeSubscription = '$apiBaseUrl/payments/my-subscription/';
+  static const String traineePayments = '$apiBaseUrl/payments/my-payments/';
+
+  // Trainer payment view endpoints
+  static const String trainerPayments = '$apiBaseUrl/payments/trainer/payments/';
+  static const String trainerSubscribers = '$apiBaseUrl/payments/trainer/subscribers/';
+
   // Headers
   static const String contentType = 'application/json';
   static const String authorization = 'Authorization';
