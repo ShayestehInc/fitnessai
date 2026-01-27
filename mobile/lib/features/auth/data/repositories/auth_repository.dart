@@ -139,4 +139,26 @@ class AuthRepository {
       return {'success': false, 'error': e.toString()};
     }
   }
+
+  /// Get current user from API (used after token changes like impersonation)
+  Future<Map<String, dynamic>> getCurrentUser() async {
+    try {
+      final userResponse = await _apiClient.dio.get(
+        '${ApiConstants.apiBaseUrl}/auth/users/me/',
+      );
+      final user = UserModel.fromJson(userResponse.data);
+
+      return {
+        'success': true,
+        'user': user,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data['detail'] ?? 'Failed to load user',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
 }

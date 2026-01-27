@@ -259,6 +259,9 @@ class TrainerDashboardScreen extends ConsumerWidget {
           ),
         );
       }
+    } else if (context.mounted) {
+      // Navigate directly to trainee home
+      context.go('/home');
     }
   }
 

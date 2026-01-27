@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/admin_models.dart';
-import '../../data/repositories/admin_repository.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/admin_provider.dart';
+import '../providers/admin_impersonation_provider.dart';
 
 class AdminTrainersScreen extends ConsumerStatefulWidget {
   const AdminTrainersScreen({super.key});
@@ -109,8 +108,6 @@ class _TrainerCard extends ConsumerWidget {
   const _TrainerCard({required this.trainer});
 
   Future<void> _impersonateTrainer(BuildContext context, WidgetRef ref) async {
-    final repository = ref.read(adminRepositoryProvider);
-
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
@@ -119,7 +116,7 @@ class _TrainerCard extends ConsumerWidget {
         title: const Text('Login as Trainer'),
         content: Text(
           'You will be logged in as ${trainer.displayName} (${trainer.email}). '
-          'To return to your admin account, logout and login again.',
+          'Click "Exit" in the orange banner to return to your admin account.',
         ),
         actions: [
           TextButton(
@@ -139,30 +136,22 @@ class _TrainerCard extends ConsumerWidget {
 
     if (confirmed != true) return;
 
-    // Impersonate the trainer
-    final result = await repository.impersonateTrainer(trainer.id);
+    // Use admin impersonation provider to handle token management
+    final result = await ref.read(adminImpersonationProvider.notifier).startImpersonation(
+      trainerId: trainer.id,
+      trainerEmail: trainer.email,
+      trainerName: trainer.displayName,
+    );
 
     if (result['success'] == true && context.mounted) {
-      final data = result['data'] as Map<String, dynamic>;
-      final accessToken = data['access'] as String;
-      final refreshToken = data['refresh'] as String;
-
-      // Update auth state with new tokens
-      await ref.read(authStateProvider.notifier).setTokensAndLoadUser(
-        accessToken,
-        refreshToken,
-      );
-
       // Navigate to trainer dashboard
-      if (context.mounted) {
-        context.go('/trainer');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Logged in as ${trainer.displayName}'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      context.go('/trainer');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Logged in as ${trainer.displayName}'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } else if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

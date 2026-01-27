@@ -111,8 +111,9 @@ class ImpersonationState {
 class ImpersonationNotifier extends StateNotifier<ImpersonationState> {
   final TrainerRepository _repository;
   final ApiClient _apiClient;
+  final AuthNotifier _authNotifier;
 
-  ImpersonationNotifier(this._repository, this._apiClient)
+  ImpersonationNotifier(this._repository, this._apiClient, this._authNotifier)
       : super(const ImpersonationState());
 
   Future<Map<String, dynamic>> startImpersonation(int traineeId, {bool isReadOnly = true}) async {
@@ -138,6 +139,9 @@ class ImpersonationNotifier extends StateNotifier<ImpersonationState> {
         impersonationRefreshToken: response.refresh,
       );
 
+      // Refresh auth state to load the impersonated user's profile
+      await _authNotifier.refreshCurrentUser();
+
       return {'success': true};
     }
 
@@ -159,6 +163,9 @@ class ImpersonationNotifier extends StateNotifier<ImpersonationState> {
 
     state = state.clear();
 
+    // Refresh auth state to restore the original user's profile
+    await _authNotifier.refreshCurrentUser();
+
     return result;
   }
 }
@@ -166,7 +173,8 @@ class ImpersonationNotifier extends StateNotifier<ImpersonationState> {
 final impersonationProvider = StateNotifierProvider<ImpersonationNotifier, ImpersonationState>((ref) {
   final repository = ref.watch(trainerRepositoryProvider);
   final apiClient = ref.watch(apiClientProvider);
-  return ImpersonationNotifier(repository, apiClient);
+  final authNotifier = ref.watch(authStateProvider.notifier);
+  return ImpersonationNotifier(repository, apiClient, authNotifier);
 });
 
 // Analytics providers

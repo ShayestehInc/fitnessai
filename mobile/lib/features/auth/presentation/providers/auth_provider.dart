@@ -151,4 +151,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     }
   }
+
+  /// Refresh the current user from the API (used after token changes like impersonation)
+  Future<void> refreshCurrentUser() async {
+    final result = await _repository.getCurrentUser();
+
+    if (result['success'] == true) {
+      state = state.copyWith(
+        user: result['user'] as UserModel,
+      );
+    }
+  }
 }
