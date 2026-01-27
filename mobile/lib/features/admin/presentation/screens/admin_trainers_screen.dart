@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/admin_models.dart';
+import '../../data/repositories/admin_repository.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/admin_provider.dart';
 
 class AdminTrainersScreen extends ConsumerStatefulWidget {
@@ -101,13 +103,78 @@ class _AdminTrainersScreenState extends ConsumerState<AdminTrainersScreen> {
   }
 }
 
-class _TrainerCard extends StatelessWidget {
+class _TrainerCard extends ConsumerWidget {
   final AdminTrainer trainer;
 
   const _TrainerCard({required this.trainer});
 
+  Future<void> _impersonateTrainer(BuildContext context, WidgetRef ref) async {
+    final repository = ref.read(adminRepositoryProvider);
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.card,
+        title: const Text('Login as Trainer'),
+        content: Text(
+          'You will be logged in as ${trainer.displayName} (${trainer.email}). '
+          'To return to your admin account, logout and login again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+            ),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Impersonate the trainer
+    final result = await repository.impersonateTrainer(trainer.id);
+
+    if (result['success'] == true && context.mounted) {
+      final data = result['data'] as Map<String, dynamic>;
+      final accessToken = data['access'] as String;
+      final refreshToken = data['refresh'] as String;
+
+      // Update auth state with new tokens
+      await ref.read(authStateProvider.notifier).setTokensAndLoadUser(
+        accessToken,
+        refreshToken,
+      );
+
+      // Navigate to trainer dashboard
+      if (context.mounted) {
+        context.go('/trainer');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logged in as ${trainer.displayName}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['error'] ?? 'Failed to impersonate trainer'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final sub = trainer.subscription;
     final tierColor = _getTierColor(sub?.tier);
     final statusColor = _getStatusColor(sub?.status);
@@ -164,6 +231,40 @@ class _TrainerCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  // Login as trainer button
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert, color: AppTheme.mutedForeground),
+                    onSelected: (value) {
+                      if (value == 'impersonate') {
+                        _impersonateTrainer(context, ref);
+                      } else if (value == 'subscription' && sub?.id != null) {
+                        context.push('/admin/subscriptions/${sub!.id}');
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'impersonate',
+                        child: Row(
+                          children: [
+                            Icon(Icons.login, size: 20),
+                            SizedBox(width: 8),
+                            Text('Login as Trainer'),
+                          ],
+                        ),
+                      ),
+                      if (sub?.id != null)
+                        const PopupMenuItem(
+                          value: 'subscription',
+                          child: Row(
+                            children: [
+                              Icon(Icons.credit_card, size: 20),
+                              SizedBox(width: 8),
+                              Text('View Subscription'),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                   if (!trainer.isActive)
                     Container(

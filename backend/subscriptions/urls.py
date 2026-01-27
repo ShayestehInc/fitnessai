@@ -19,6 +19,10 @@ urlpatterns = [
     path('past-due/', views.AdminPastDueView.as_view(), name='admin-past-due'),
     path('upcoming-payments/', views.AdminUpcomingPaymentsView.as_view(), name='admin-upcoming-payments'),
 
+    # Admin impersonation (login as trainer)
+    path('impersonate/<int:trainer_id>/', views.AdminImpersonateTrainerView.as_view(), name='admin-impersonate-trainer'),
+    path('impersonate/end/', views.AdminEndImpersonationView.as_view(), name='admin-end-impersonation'),
+
     # Public tiers endpoint
     path('tiers/public/', views.PublicSubscriptionTiersView.as_view(), name='public-tiers'),
 

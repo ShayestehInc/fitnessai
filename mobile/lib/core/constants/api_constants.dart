@@ -55,6 +55,11 @@ class ApiConstants {
   static const String adminTiers = '$apiBaseUrl/admin/tiers/';
   static const String publicTiers = '$apiBaseUrl/admin/tiers/public/';
 
+  // Admin impersonation (login as trainer)
+  static String adminImpersonateTrainer(int trainerId) =>
+      '$apiBaseUrl/admin/impersonate/$trainerId/';
+  static const String adminEndImpersonation = '$apiBaseUrl/admin/impersonate/end/';
+
   // Admin coupon management
   static const String adminCoupons = '$apiBaseUrl/admin/coupons/';
 

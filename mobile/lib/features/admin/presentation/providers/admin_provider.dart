@@ -431,17 +431,16 @@ class AdminTiersNotifier extends StateNotifier<AdminTiersState> {
   Future<void> loadTiers() async {
     state = state.copyWith(isLoading: true, error: null);
 
-    final result = await _repository.getTiers();
-
-    if (result['success'] == true) {
+    try {
+      final tiers = await _repository.getTiers();
       state = state.copyWith(
         isLoading: false,
-        tiers: result['data'] as List<SubscriptionTierModel>,
+        tiers: tiers,
       );
-    } else {
+    } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: result['error'] as String?,
+        error: 'Failed to load tiers: ${e.toString()}',
       );
     }
   }
@@ -449,16 +448,32 @@ class AdminTiersNotifier extends StateNotifier<AdminTiersState> {
   Future<bool> createTier(Map<String, dynamic> data) async {
     state = state.copyWith(isSaving: true, error: null);
 
-    final result = await _repository.createTier(data);
+    try {
+      final tier = await _repository.createTier(
+        name: data['name'] as String,
+        displayName: data['display_name'] as String,
+        description: data['description'] as String?,
+        price: double.tryParse(data['price']?.toString() ?? '0') ?? 0.0,
+        traineeLimit: data['trainee_limit'] as int? ?? 0,
+        features: (data['features'] as List<dynamic>?)?.cast<String>(),
+        sortOrder: data['sort_order'] as int?,
+      );
 
-    if (result['success'] == true) {
-      state = state.copyWith(isSaving: false);
-      await loadTiers();
-      return true;
-    } else {
+      if (tier != null) {
+        state = state.copyWith(isSaving: false);
+        await loadTiers();
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: 'Failed to create tier',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        error: result['error'] as String?,
+        error: 'Failed to create tier: ${e.toString()}',
       );
       return false;
     }
@@ -467,16 +482,35 @@ class AdminTiersNotifier extends StateNotifier<AdminTiersState> {
   Future<bool> updateTier(int id, Map<String, dynamic> data) async {
     state = state.copyWith(isSaving: true, error: null);
 
-    final result = await _repository.updateTier(id, data);
+    try {
+      final tier = await _repository.updateTier(
+        id,
+        displayName: data['display_name'] as String?,
+        description: data['description'] as String?,
+        price: data['price'] != null
+            ? double.tryParse(data['price'].toString())
+            : null,
+        traineeLimit: data['trainee_limit'] as int?,
+        features: (data['features'] as List<dynamic>?)?.cast<String>(),
+        sortOrder: data['sort_order'] as int?,
+        isActive: data['is_active'] as bool?,
+      );
 
-    if (result['success'] == true) {
-      state = state.copyWith(isSaving: false);
-      await loadTiers();
-      return true;
-    } else {
+      if (tier != null) {
+        state = state.copyWith(isSaving: false);
+        await loadTiers();
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: 'Failed to update tier',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        error: result['error'] as String?,
+        error: 'Failed to update tier: ${e.toString()}',
       );
       return false;
     }
@@ -485,16 +519,24 @@ class AdminTiersNotifier extends StateNotifier<AdminTiersState> {
   Future<bool> toggleTierActive(int id) async {
     state = state.copyWith(isSaving: true, error: null);
 
-    final result = await _repository.toggleTierActive(id);
+    try {
+      final tier = await _repository.toggleTierActive(id);
 
-    if (result['success'] == true) {
-      state = state.copyWith(isSaving: false);
-      await loadTiers();
-      return true;
-    } else {
+      if (tier != null) {
+        state = state.copyWith(isSaving: false);
+        await loadTiers();
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: 'Failed to toggle tier',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        error: result['error'] as String?,
+        error: 'Failed to toggle tier: ${e.toString()}',
       );
       return false;
     }
@@ -503,16 +545,24 @@ class AdminTiersNotifier extends StateNotifier<AdminTiersState> {
   Future<bool> deleteTier(int id) async {
     state = state.copyWith(isSaving: true, error: null);
 
-    final result = await _repository.deleteTier(id);
+    try {
+      final success = await _repository.deleteTier(id);
 
-    if (result['success'] == true) {
-      state = state.copyWith(isSaving: false);
-      await loadTiers();
-      return true;
-    } else {
+      if (success) {
+        state = state.copyWith(isSaving: false);
+        await loadTiers();
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: 'Failed to delete tier',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        error: result['error'] as String?,
+        error: 'Failed to delete tier: ${e.toString()}',
       );
       return false;
     }
@@ -521,16 +571,23 @@ class AdminTiersNotifier extends StateNotifier<AdminTiersState> {
   Future<bool> seedDefaultTiers() async {
     state = state.copyWith(isSaving: true, error: null);
 
-    final result = await _repository.seedDefaultTiers();
+    try {
+      final tiers = await _repository.seedDefaultTiers();
 
-    if (result['success'] == true) {
-      state = state.copyWith(isSaving: false);
-      await loadTiers();
-      return true;
-    } else {
+      if (tiers.isNotEmpty) {
+        state = state.copyWith(isSaving: false, tiers: tiers);
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: 'Failed to seed default tiers',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        error: result['error'] as String?,
+        error: 'Failed to seed default tiers: ${e.toString()}',
       );
       return false;
     }
@@ -584,17 +641,16 @@ class AdminCouponsNotifier extends StateNotifier<AdminCouponsState> {
   Future<void> loadCoupons({String? status}) async {
     state = state.copyWith(isLoading: true, error: null, statusFilter: status);
 
-    final result = await _repository.getCoupons(status: status);
-
-    if (result['success'] == true) {
+    try {
+      final coupons = await _repository.getCoupons(status: status);
       state = state.copyWith(
         isLoading: false,
-        coupons: result['data'] as List<CouponListItemModel>,
+        coupons: coupons,
       );
-    } else {
+    } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: result['error'] as String?,
+        error: 'Failed to load coupons: ${e.toString()}',
       );
     }
   }
@@ -602,16 +658,35 @@ class AdminCouponsNotifier extends StateNotifier<AdminCouponsState> {
   Future<bool> createCoupon(Map<String, dynamic> data) async {
     state = state.copyWith(isSaving: true, error: null);
 
-    final result = await _repository.createCoupon(data);
+    try {
+      final coupon = await _repository.createCoupon(
+        code: data['code'] as String,
+        description: data['description'] as String?,
+        couponType: data['coupon_type'] as String,
+        discountValue: double.tryParse(data['discount_value']?.toString() ?? '0') ?? 0.0,
+        appliesTo: data['applies_to'] as String,
+        applicableTiers: (data['applicable_tiers'] as List<dynamic>?)?.cast<String>(),
+        maxUses: data['max_uses'] as int?,
+        maxUsesPerUser: data['max_uses_per_user'] as int?,
+        validFrom: data['valid_from'] != null ? DateTime.tryParse(data['valid_from'] as String) : null,
+        validUntil: data['valid_until'] != null ? DateTime.tryParse(data['valid_until'] as String) : null,
+      );
 
-    if (result['success'] == true) {
-      state = state.copyWith(isSaving: false);
-      await loadCoupons(status: state.statusFilter);
-      return true;
-    } else {
+      if (coupon != null) {
+        state = state.copyWith(isSaving: false);
+        await loadCoupons(status: state.statusFilter);
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: 'Failed to create coupon',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        error: result['error'] as String?,
+        error: 'Failed to create coupon: ${e.toString()}',
       );
       return false;
     }
@@ -620,16 +695,24 @@ class AdminCouponsNotifier extends StateNotifier<AdminCouponsState> {
   Future<bool> revokeCoupon(int id) async {
     state = state.copyWith(isSaving: true, error: null);
 
-    final result = await _repository.revokeCoupon(id);
+    try {
+      final coupon = await _repository.revokeCoupon(id);
 
-    if (result['success'] == true) {
-      state = state.copyWith(isSaving: false);
-      await loadCoupons(status: state.statusFilter);
-      return true;
-    } else {
+      if (coupon != null) {
+        state = state.copyWith(isSaving: false);
+        await loadCoupons(status: state.statusFilter);
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: 'Failed to revoke coupon',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        error: result['error'] as String?,
+        error: 'Failed to revoke coupon: ${e.toString()}',
       );
       return false;
     }
@@ -638,16 +721,24 @@ class AdminCouponsNotifier extends StateNotifier<AdminCouponsState> {
   Future<bool> reactivateCoupon(int id) async {
     state = state.copyWith(isSaving: true, error: null);
 
-    final result = await _repository.reactivateCoupon(id);
+    try {
+      final coupon = await _repository.reactivateCoupon(id);
 
-    if (result['success'] == true) {
-      state = state.copyWith(isSaving: false);
-      await loadCoupons(status: state.statusFilter);
-      return true;
-    } else {
+      if (coupon != null) {
+        state = state.copyWith(isSaving: false);
+        await loadCoupons(status: state.statusFilter);
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: 'Failed to reactivate coupon',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        error: result['error'] as String?,
+        error: 'Failed to reactivate coupon: ${e.toString()}',
       );
       return false;
     }
@@ -656,16 +747,24 @@ class AdminCouponsNotifier extends StateNotifier<AdminCouponsState> {
   Future<bool> deleteCoupon(int id) async {
     state = state.copyWith(isSaving: true, error: null);
 
-    final result = await _repository.deleteCoupon(id);
+    try {
+      final success = await _repository.deleteCoupon(id);
 
-    if (result['success'] == true) {
-      state = state.copyWith(isSaving: false);
-      await loadCoupons(status: state.statusFilter);
-      return true;
-    } else {
+      if (success) {
+        state = state.copyWith(isSaving: false);
+        await loadCoupons(status: state.statusFilter);
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: 'Failed to delete coupon',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        error: result['error'] as String?,
+        error: 'Failed to delete coupon: ${e.toString()}',
       );
       return false;
     }
@@ -718,25 +817,19 @@ class CouponDetailNotifier extends StateNotifier<CouponDetailState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final results = await Future.wait([
+      final results = await Future.wait<dynamic>([
         _repository.getCoupon(_couponId),
         _repository.getCouponUsages(_couponId),
       ]);
 
-      final couponResult = results[0];
-      final usagesResult = results[1];
+      final coupon = results[0] as CouponModel?;
+      final usages = results[1] as List<CouponUsageModel>;
 
       state = state.copyWith(
         isLoading: false,
-        coupon: couponResult['success'] == true
-            ? couponResult['data'] as CouponModel
-            : null,
-        usages: usagesResult['success'] == true
-            ? usagesResult['data'] as List<CouponUsageModel>
-            : [],
-        error: couponResult['success'] != true
-            ? couponResult['error'] as String?
-            : null,
+        coupon: coupon,
+        usages: usages,
+        error: coupon == null ? 'Coupon not found' : null,
       );
     } catch (e) {
       state = state.copyWith(

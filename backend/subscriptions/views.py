@@ -14,6 +14,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 import stripe
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import (
     Subscription, PaymentHistory, SubscriptionChange,
@@ -55,6 +56,12 @@ class IsAdminUser(BasePermission):
     """Permission class to check if user is admin."""
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.is_admin()
+
+
+class IsTrainer(BasePermission):
+    """Permission class to check if user is a trainer."""
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'TRAINER'
 
 
 class AdminDashboardView(APIView):
@@ -419,6 +426,61 @@ class AdminTrainersView(APIView):
             })
 
         return Response(result)
+
+
+class AdminImpersonateTrainerView(APIView):
+    """
+    POST: Admin impersonates a trainer.
+    Returns JWT tokens for the trainer account.
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, trainer_id):
+        try:
+            trainer = User.objects.get(id=trainer_id, role=User.Role.TRAINER)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Trainer not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Generate tokens for trainer with impersonation metadata
+        refresh = RefreshToken.for_user(trainer)
+        refresh['impersonating'] = True
+        refresh['original_user_id'] = request.user.id
+        refresh['is_admin_impersonation'] = True
+
+        logger.info(f"Admin {request.user.email} started impersonating trainer {trainer.email}")
+
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'trainer': {
+                'id': trainer.id,
+                'email': trainer.email,
+                'first_name': trainer.first_name,
+                'last_name': trainer.last_name,
+                'role': trainer.role,
+            },
+            'message': f'Now logged in as {trainer.email}'
+        })
+
+
+class AdminEndImpersonationView(APIView):
+    """
+    POST: End admin impersonation session and return to admin account.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # The frontend should have stored the original admin tokens
+        # This endpoint just logs the end of impersonation
+        logger.info(f"Impersonation session ended for user {request.user.email}")
+
+        return Response({
+            'message': 'Impersonation session ended',
+            'return_to_admin': True
+        })
 
 
 class AdminPastDueView(APIView):

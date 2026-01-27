@@ -33,11 +33,15 @@ import '../../features/admin/presentation/screens/admin_subscriptions_screen.dar
 import '../../features/admin/presentation/screens/admin_subscription_detail_screen.dart';
 import '../../features/admin/presentation/screens/admin_past_due_screen.dart';
 import '../../features/admin/presentation/screens/admin_upcoming_payments_screen.dart';
+import '../../features/admin/presentation/screens/admin_tiers_screen.dart';
+import '../../features/admin/presentation/screens/admin_coupons_screen.dart';
+import '../../features/admin/presentation/screens/admin_coupon_detail_screen.dart';
 import '../../features/payments/presentation/screens/stripe_connect_screen.dart';
 import '../../features/payments/presentation/screens/trainer_pricing_screen.dart';
 import '../../features/payments/presentation/screens/trainer_payments_screen.dart';
 import '../../features/payments/presentation/screens/my_subscription_screen.dart';
 import '../../features/payments/presentation/screens/trainer_pricing_view_screen.dart';
+import '../../features/payments/presentation/screens/trainer_coupons_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../shared/widgets/main_navigation_shell.dart';
 import '../../shared/widgets/trainer_navigation_shell.dart';
@@ -185,6 +189,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'trainer-payments',
         builder: (context, state) => const TrainerPaymentsScreen(),
       ),
+      GoRoute(
+        path: '/trainer/coupons',
+        name: 'trainer-coupons',
+        builder: (context, state) => const TrainerCouponsScreen(),
+      ),
 
       // Admin Shell - separate navigation for admin users
       StatefulShellRoute.indexedStack(
@@ -256,6 +265,24 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/admin/upcoming',
         name: 'admin-upcoming-payments',
         builder: (context, state) => const AdminUpcomingPaymentsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/tiers',
+        name: 'admin-tiers',
+        builder: (context, state) => const AdminTiersScreen(),
+      ),
+      GoRoute(
+        path: '/admin/coupons',
+        name: 'admin-coupons',
+        builder: (context, state) => const AdminCouponsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/coupons/:id',
+        name: 'admin-coupon-detail',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return AdminCouponDetailScreen(couponId: id);
+        },
       ),
 
       // Main app shell with bottom navigation (for trainees)

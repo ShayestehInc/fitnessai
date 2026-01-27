@@ -110,4 +110,33 @@ class AuthRepository {
       return {'success': false, 'error': e.toString()};
     }
   }
+
+  /// Set tokens directly (for admin impersonation) and load user
+  Future<Map<String, dynamic>> setTokensAndLoadUser(
+    String accessToken,
+    String refreshToken,
+  ) async {
+    try {
+      // Save the new tokens
+      await _apiClient.saveTokens(accessToken, refreshToken);
+
+      // Fetch user info with new tokens
+      final userResponse = await _apiClient.dio.get(
+        '${ApiConstants.apiBaseUrl}/auth/users/me/',
+      );
+      final user = UserModel.fromJson(userResponse.data);
+
+      return {
+        'success': true,
+        'user': user,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data['detail'] ?? 'Failed to load user',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
 }

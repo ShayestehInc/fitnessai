@@ -581,4 +581,42 @@ class AdminRepository {
       );
     }
   }
+
+  // ============ Admin Impersonation ============
+
+  /// Impersonate a trainer (login as trainer)
+  Future<Map<String, dynamic>> impersonateTrainer(int trainerId) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.adminImpersonateTrainer(trainerId),
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to impersonate trainer',
+      };
+    }
+  }
+
+  /// End impersonation session
+  Future<Map<String, dynamic>> endImpersonation() async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.adminEndImpersonation,
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to end impersonation',
+      };
+    }
+  }
 }

@@ -126,4 +126,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return result;
     }
   }
+
+  /// Set tokens directly and load user (for admin impersonation)
+  Future<void> setTokensAndLoadUser(
+    String accessToken,
+    String refreshToken,
+  ) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _repository.setTokensAndLoadUser(
+      accessToken,
+      refreshToken,
+    );
+
+    if (result['success'] == true) {
+      state = state.copyWith(
+        user: result['user'] as UserModel,
+        isLoading: false,
+      );
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        error: result['error'] as String?,
+      );
+    }
+  }
 }

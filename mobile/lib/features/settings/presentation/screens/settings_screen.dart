@@ -71,6 +71,23 @@ class SettingsScreen extends ConsumerWidget {
 
       const SizedBox(height: 24),
 
+      // Pricing & Promotions
+      _buildSectionHeader('PRICING & PROMOTIONS'),
+      _buildSettingsTile(
+        icon: Icons.layers,
+        title: 'Subscription Tiers',
+        subtitle: 'Manage tier pricing and features',
+        onTap: () => context.push('/admin/tiers'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.local_offer,
+        title: 'Coupons',
+        subtitle: 'Create and manage platform coupons',
+        onTap: () => context.push('/admin/coupons'),
+      ),
+
+      const SizedBox(height: 24),
+
       // System
       _buildSectionHeader('SYSTEM'),
       _buildSettingsTile(
@@ -160,6 +177,12 @@ class SettingsScreen extends ConsumerWidget {
         title: 'Set Your Prices',
         subtitle: 'Configure coaching subscription pricing',
         onTap: () => context.push('/trainer/pricing'),
+      ),
+      _buildSettingsTile(
+        icon: Icons.local_offer,
+        title: 'My Coupons',
+        subtitle: 'Create discounts for your trainees',
+        onTap: () => context.push('/trainer/coupons'),
       ),
       _buildSettingsTile(
         icon: Icons.receipt_long,
