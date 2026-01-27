@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "fitness-ai-trainer": {
+      "command": "python3",
+      "args": [
+        "/Users/rezashayesteh/Desktop/shayestehinc/fitnessai/backend/mcp_server/server.py"
+      ],
+      "env": {
+        "TRAINER_JWT_TOKEN": "YOUR_TRAINER_JWT_TOKEN_HERE",
+        "DJANGO_API_BASE_URL": "http://localhost:8000/api"
+      }
+    }
+  }
+}

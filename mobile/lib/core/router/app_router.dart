@@ -43,6 +43,7 @@ import '../../features/payments/presentation/screens/my_subscription_screen.dart
 import '../../features/payments/presentation/screens/trainer_pricing_view_screen.dart';
 import '../../features/payments/presentation/screens/trainer_coupons_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
+import '../../features/ai_chat/presentation/screens/ai_chat_screen.dart';
 import '../../shared/widgets/main_navigation_shell.dart';
 import '../../shared/widgets/trainer_navigation_shell.dart';
 import '../../shared/widgets/admin_navigation_shell.dart';
@@ -193,6 +194,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/trainer/coupons',
         name: 'trainer-coupons',
         builder: (context, state) => const TrainerCouponsScreen(),
+      ),
+
+      // AI Chat for trainers
+      GoRoute(
+        path: '/trainer/ai-chat',
+        name: 'trainer-ai-chat',
+        builder: (context, state) {
+          final traineeId = state.uri.queryParameters['trainee_id'];
+          final traineeName = state.uri.queryParameters['trainee_name'];
+          return AIChatScreen(
+            initialTraineeId: traineeId != null ? int.tryParse(traineeId) : null,
+            initialTraineeName: traineeName,
+          );
+        },
       ),
 
       // Admin Shell - separate navigation for admin users

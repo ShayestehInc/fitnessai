@@ -101,6 +101,17 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
       pinned: true,
       actions: [
         IconButton(
+          icon: const Icon(Icons.psychology),
+          onPressed: () {
+            final name = '${trainee.firstName ?? ''} ${trainee.lastName ?? ''}'.trim();
+            final displayName = name.isEmpty ? trainee.email.split('@').first : name;
+            context.push(
+              '/trainer/ai-chat?trainee_id=${trainee.id}&trainee_name=$displayName',
+            );
+          },
+          tooltip: 'Ask AI about this trainee',
+        ),
+        IconButton(
           icon: const Icon(Icons.visibility),
           onPressed: () => _startImpersonation(context),
           tooltip: 'View as Trainee',

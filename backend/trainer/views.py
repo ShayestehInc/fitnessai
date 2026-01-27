@@ -650,3 +650,151 @@ class ProgressAnalyticsView(views.APIView):
         return Response({
             'trainee_progress': progress_data
         })
+
+
+class GenerateMCPTokenView(views.APIView):
+    """
+    POST: Generate a JWT token for MCP server integration.
+
+    This endpoint allows trainers to get a token for use with
+    the Fitness AI MCP server (for Claude Desktop integration).
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def post(self, request):
+        trainer = request.user
+
+        # Generate tokens
+        refresh = RefreshToken.for_user(trainer)
+
+        # Add custom claims for MCP
+        refresh['mcp_server'] = True
+        refresh['email'] = trainer.email
+        refresh['role'] = trainer.role
+        refresh['trainer_id'] = trainer.id
+
+        access_token = str(refresh.access_token)
+
+        return Response({
+            'access_token': access_token,
+            'refresh_token': str(refresh),
+            'trainer_email': trainer.email,
+            'message': 'Use the access_token as TRAINER_JWT_TOKEN in your MCP server configuration.',
+            'note': 'Access tokens expire after the configured JWT lifetime. Use refresh_token to get new access tokens.',
+        })
+
+
+class AIChatView(views.APIView):
+    """
+    POST: Send a message to AI assistant and get a response.
+
+    The AI has access to trainer's trainees data and can help with:
+    - Analyzing trainee progress
+    - Suggesting program modifications
+    - Drafting messages to trainees
+    - Identifying trainees needing attention
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def post(self, request):
+        from .ai_chat import get_ai_chat
+
+        message = request.data.get('message', '').strip()
+        if not message:
+            return Response(
+                {'error': 'Message is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Optional: specific trainee to focus on
+        trainee_id = request.data.get('trainee_id')
+        if trainee_id:
+            try:
+                trainee_id = int(trainee_id)
+                # Verify trainee belongs to this trainer
+                if not User.objects.filter(
+                    id=trainee_id,
+                    parent_trainer=request.user,
+                    role=User.Role.TRAINEE
+                ).exists():
+                    return Response(
+                        {'error': 'Trainee not found'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            except (ValueError, TypeError):
+                trainee_id = None
+
+        # Optional: conversation history for multi-turn chat
+        conversation_history = request.data.get('conversation_history', [])
+
+        # Get AI chat instance and send message
+        ai_chat = get_ai_chat(request.user)
+        result = ai_chat.chat(
+            message=message,
+            conversation_history=conversation_history,
+            trainee_id=trainee_id,
+        )
+
+        if result.get('error'):
+            return Response(
+                {'error': result['error']},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response({
+            'response': result['response'],
+            'trainee_context_used': result.get('trainee_context_used'),
+            'provider': result.get('provider'),
+            'model': result.get('model'),
+            'usage': result.get('usage'),
+        })
+
+
+class AIChatTraineeContextView(views.APIView):
+    """
+    GET: Get trainee context that would be sent to AI.
+
+    Useful for debugging and understanding what data AI has access to.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request, trainee_id):
+        from .ai_chat import TraineeContextBuilder
+
+        # Verify trainee belongs to this trainer
+        if not User.objects.filter(
+            id=trainee_id,
+            parent_trainer=request.user,
+            role=User.Role.TRAINEE
+        ).exists():
+            return Response(
+                {'error': 'Trainee not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        context_builder = TraineeContextBuilder(request.user)
+        summary = context_builder.get_trainee_summary(trainee_id)
+
+        return Response(summary)
+
+
+class AIProvidersView(views.APIView):
+    """
+    GET: List available AI providers and their configuration status.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request):
+        from .ai_chat import get_available_providers
+        from .ai_config import get_ai_config
+
+        providers = get_available_providers()
+        current_config = get_ai_config()
+
+        return Response({
+            'providers': providers,
+            'current': {
+                'provider': current_config.provider.value,
+                'model': current_config.model_name,
+            }
+        })

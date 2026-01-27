@@ -40,6 +40,12 @@ class ApiConstants {
   static const String programTemplates = '$apiBaseUrl/trainer/program-templates/';
   static const String trainerAnalyticsAdherence = '$apiBaseUrl/trainer/analytics/adherence/';
   static const String trainerAnalyticsProgress = '$apiBaseUrl/trainer/analytics/progress/';
+  static const String trainerMcpToken = '$apiBaseUrl/trainer/mcp/token/';
+
+  // AI Chat endpoints
+  static const String trainerAiChat = '$apiBaseUrl/trainer/ai/chat/';
+  static String trainerAiContext(int traineeId) =>
+      '$apiBaseUrl/trainer/ai/context/$traineeId/';
 
   // Feature request endpoints
   static const String featureRequests = '$apiBaseUrl/features/';

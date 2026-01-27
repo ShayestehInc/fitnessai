@@ -19,6 +19,11 @@ class TrainerDashboardScreen extends ConsumerWidget {
         title: const Text('Trainer Dashboard'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.psychology),
+            onPressed: () => context.push('/trainer/ai-chat'),
+            tooltip: 'AI Assistant',
+          ),
+          IconButton(
             icon: const Icon(Icons.person_add),
             onPressed: () => context.push('/trainer/invite'),
             tooltip: 'Invite Trainee',
