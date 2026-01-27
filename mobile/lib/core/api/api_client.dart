@@ -10,11 +10,12 @@ class ApiClient {
   ApiClient() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: ApiConstants.apiBaseUrl,
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
         headers: {
           'Content-Type': ApiConstants.contentType,
+          'ngrok-skip-browser-warning': 'true',  // Bypass ngrok interstitial
+          'Accept': 'application/json',
         },
       ),
     );
