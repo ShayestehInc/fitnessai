@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/admin_models.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../providers/admin_provider.dart';
@@ -48,11 +47,12 @@ class _AdminPastDueScreenState extends ConsumerState<AdminPastDueScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Past Due Accounts'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -81,13 +81,13 @@ class _AdminPastDueScreenState extends ConsumerState<AdminPastDueScreen> {
                           Icon(
                             Icons.check_circle,
                             size: 64,
-                            color: Colors.green.withOpacity(0.5),
+                            color: Colors.green.withValues(alpha: 0.5),
                           ),
                           const SizedBox(height: 16),
-                          const Text(
+                          Text(
                             'No past due accounts!',
                             style: TextStyle(
-                              color: AppTheme.foreground,
+                              color: theme.textTheme.bodyLarge?.color,
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
@@ -95,7 +95,7 @@ class _AdminPastDueScreenState extends ConsumerState<AdminPastDueScreen> {
                           const SizedBox(height: 8),
                           Text(
                             'All subscriptions are up to date.',
-                            style: TextStyle(color: AppTheme.mutedForeground),
+                            style: TextStyle(color: theme.textTheme.bodySmall?.color),
                           ),
                         ],
                       ),
@@ -109,16 +109,16 @@ class _AdminPastDueScreenState extends ConsumerState<AdminPastDueScreen> {
                             margin: const EdgeInsets.all(16),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1),
+                              color: Colors.red.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.red.withOpacity(0.3)),
+                              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                             ),
                             child: Row(
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.2),
+                                    color: Colors.red.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Icon(
@@ -143,7 +143,7 @@ class _AdminPastDueScreenState extends ConsumerState<AdminPastDueScreen> {
                                       Text(
                                         'Total: \$${_calculateTotalPastDue()}',
                                         style: TextStyle(
-                                          color: AppTheme.mutedForeground,
+                                          color: theme.textTheme.bodySmall?.color,
                                           fontSize: 14,
                                         ),
                                       ),
@@ -188,14 +188,15 @@ class _PastDueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final tierColor = _getTierColor(subscription.tier);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.red.withOpacity(0.3)),
+        side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: InkWell(
         onTap: () => context.push('/admin/subscriptions/${subscription.id}'),
@@ -208,7 +209,7 @@ class _PastDueCard extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: Colors.red.withOpacity(0.2),
+                    backgroundColor: Colors.red.withValues(alpha: 0.2),
                     child: Text(
                       subscription.trainerEmail[0].toUpperCase(),
                       style: const TextStyle(
@@ -224,8 +225,8 @@ class _PastDueCard extends StatelessWidget {
                       children: [
                         Text(
                           subscription.trainerEmail,
-                          style: const TextStyle(
-                            color: AppTheme.foreground,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
                           ),
@@ -239,7 +240,7 @@ class _PastDueCard extends StatelessWidget {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: tierColor.withOpacity(0.2),
+                                color: tierColor.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -262,7 +263,7 @@ class _PastDueCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -271,10 +272,10 @@ class _PastDueCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Past Due Amount',
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),
@@ -291,10 +292,10 @@ class _PastDueCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text(
+                        Text(
                           'Days Overdue',
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),

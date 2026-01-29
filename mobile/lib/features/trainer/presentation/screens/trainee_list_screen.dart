@@ -11,6 +11,7 @@ class TraineeListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final traineesAsync = ref.watch(traineesProvider);
     final invitationsAsync = ref.watch(invitationsProvider);
 
@@ -46,6 +47,8 @@ class TraineeListScreen extends ConsumerWidget {
     AsyncValue<List<TraineeModel>> traineesAsync,
     AsyncValue<List<InvitationModel>> invitationsAsync,
   ) {
+    final theme = Theme.of(context);
+
     // Handle loading state
     if (traineesAsync.isLoading && invitationsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -86,17 +89,17 @@ class TraineeListScreen extends ConsumerWidget {
             Icon(
               Icons.group_off,
               size: 64,
-              color: Colors.grey[400],
+              color: theme.textTheme.bodySmall?.color,
             ),
             const SizedBox(height: 16),
             Text(
               'No Trainees Yet',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Invite clients to get started',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: theme.textTheme.bodySmall?.color),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -172,19 +175,21 @@ class TraineeListScreen extends ConsumerWidget {
   }
 
   Widget _buildInvitationCard(BuildContext context, WidgetRef ref, InvitationModel invitation) {
+    final theme = Theme.of(context);
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.orange.withOpacity(0.3), width: 1),
+        side: BorderSide(color: Colors.orange.withValues(alpha: 0.3), width: 1),
       ),
-      color: Colors.orange.withOpacity(0.05),
+      color: Colors.orange.withValues(alpha: 0.05),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: Colors.orange.withOpacity(0.2),
+              backgroundColor: Colors.orange.withValues(alpha: 0.2),
               child: const Icon(Icons.mail_outline, color: Colors.orange),
             ),
             const SizedBox(width: 12),
@@ -222,7 +227,7 @@ class TraineeListScreen extends ConsumerWidget {
                         Text(
                           'Expires ${_formatDate(invitation.expiresAt!)}',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -29,14 +28,15 @@ class _AdminSubscriptionDetailScreenState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(adminSubscriptionDetailProvider(widget.subscriptionId));
     final sub = state.subscription;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Subscription Details'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           if (sub != null)
             PopupMenuButton<String>(
@@ -65,34 +65,34 @@ class _AdminSubscriptionDetailScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Trainer info card
-                        _buildTrainerCard(sub),
+                        _buildTrainerCard(context, sub),
                         const SizedBox(height: 16),
 
                         // Subscription status card
-                        _buildSubscriptionCard(sub),
+                        _buildSubscriptionCard(context, sub),
                         const SizedBox(height: 16),
 
                         // Payment info card
-                        _buildPaymentCard(sub),
+                        _buildPaymentCard(context, sub),
                         const SizedBox(height: 16),
 
                         // Admin notes
-                        _buildNotesCard(sub),
+                        _buildNotesCard(context, sub),
                         const SizedBox(height: 16),
 
                         // Quick actions
-                        _buildQuickActions(sub),
+                        _buildQuickActions(context, sub),
                         const SizedBox(height: 24),
 
                         // Recent payments
                         if (sub.recentPayments.isNotEmpty) ...[
-                          _buildRecentPayments(sub),
+                          _buildRecentPayments(context, sub),
                           const SizedBox(height: 24),
                         ],
 
                         // Change history
                         if (sub.recentChanges.isNotEmpty) ...[
-                          _buildChangeHistory(sub),
+                          _buildChangeHistory(context, sub),
                         ],
                       ],
                     ),
@@ -101,24 +101,25 @@ class _AdminSubscriptionDetailScreenState
     );
   }
 
-  Widget _buildTrainerCard(AdminSubscription sub) {
+  Widget _buildTrainerCard(BuildContext context, AdminSubscription sub) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: AppTheme.primary.withOpacity(0.2),
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
             child: Text(
               (sub.trainerName.isNotEmpty ? sub.trainerName : sub.trainerEmail)[0]
                   .toUpperCase(),
               style: TextStyle(
-                color: AppTheme.primary,
+                color: theme.colorScheme.primary,
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               ),
@@ -131,8 +132,8 @@ class _AdminSubscriptionDetailScreenState
               children: [
                 Text(
                   sub.trainerName.isNotEmpty ? sub.trainerName : 'No name',
-                  style: const TextStyle(
-                    color: AppTheme.foreground,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
                     fontWeight: FontWeight.w600,
                     fontSize: 18,
                   ),
@@ -140,19 +141,19 @@ class _AdminSubscriptionDetailScreenState
                 Text(
                   sub.trainerEmail,
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.people, size: 16, color: AppTheme.mutedForeground),
+                    Icon(Icons.people, size: 16, color: theme.textTheme.bodySmall?.color),
                     const SizedBox(width: 4),
                     Text(
                       '${sub.traineeCount} / ${sub.maxTrainees == -1 ? '∞' : sub.maxTrainees} trainees',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 13,
                       ),
                     ),
@@ -166,24 +167,25 @@ class _AdminSubscriptionDetailScreenState
     );
   }
 
-  Widget _buildSubscriptionCard(AdminSubscription sub) {
+  Widget _buildSubscriptionCard(BuildContext context, AdminSubscription sub) {
+    final theme = Theme.of(context);
     final tierColor = _getTierColor(sub.tier);
     final statusColor = _getStatusColor(sub.status);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Subscription',
             style: TextStyle(
-              color: AppTheme.foreground,
+              color: theme.textTheme.bodyLarge?.color,
               fontWeight: FontWeight.w600,
               fontSize: 16,
             ),
@@ -198,7 +200,7 @@ class _AdminSubscriptionDetailScreenState
                     Text(
                       'Tier',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 12,
                       ),
                     ),
@@ -206,7 +208,7 @@ class _AdminSubscriptionDetailScreenState
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: tierColor.withOpacity(0.2),
+                        color: tierColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -227,7 +229,7 @@ class _AdminSubscriptionDetailScreenState
                     Text(
                       'Status',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 12,
                       ),
                     ),
@@ -235,7 +237,7 @@ class _AdminSubscriptionDetailScreenState
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.2),
+                        color: statusColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -256,15 +258,15 @@ class _AdminSubscriptionDetailScreenState
                     Text(
                       'Price',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 12,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '\$${sub.monthlyPrice}/mo',
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
                       ),
@@ -279,14 +281,15 @@ class _AdminSubscriptionDetailScreenState
     );
   }
 
-  Widget _buildPaymentCard(AdminSubscription sub) {
+  Widget _buildPaymentCard(BuildContext context, AdminSubscription sub) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: sub.isPastDue ? Colors.red.withOpacity(0.1) : AppTheme.card,
+        color: sub.isPastDue ? Colors.red.withValues(alpha: 0.1) : theme.cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: sub.isPastDue ? Colors.red.withOpacity(0.3) : AppTheme.border,
+          color: sub.isPastDue ? Colors.red.withValues(alpha: 0.3) : theme.dividerColor,
         ),
       ),
       child: Column(
@@ -297,7 +300,7 @@ class _AdminSubscriptionDetailScreenState
               Text(
                 'Payment Info',
                 style: TextStyle(
-                  color: sub.isPastDue ? Colors.red : AppTheme.foreground,
+                  color: sub.isPastDue ? Colors.red : theme.textTheme.bodyLarge?.color,
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
                 ),
@@ -309,30 +312,34 @@ class _AdminSubscriptionDetailScreenState
             ],
           ),
           const SizedBox(height: 16),
-          _buildInfoRow('Next Payment', sub.nextPaymentDate ?? 'N/A'),
+          _buildInfoRow(context, 'Next Payment', sub.nextPaymentDate ?? 'N/A'),
           if (sub.daysUntilPayment != null)
             _buildInfoRow(
+              context,
               'Days Until Payment',
               '${sub.daysUntilPayment} days',
               valueColor: sub.daysUntilPayment! <= 3 ? Colors.orange : null,
             ),
-          _buildInfoRow('Last Payment', sub.lastPaymentDate ?? 'Never'),
+          _buildInfoRow(context, 'Last Payment', sub.lastPaymentDate ?? 'Never'),
           if (sub.lastPaymentAmount != null)
-            _buildInfoRow('Last Amount', '\$${sub.lastPaymentAmount}'),
+            _buildInfoRow(context, 'Last Amount', '\$${sub.lastPaymentAmount}'),
           const Divider(height: 24),
           _buildInfoRow(
+            context,
             'Past Due Amount',
             '\$${sub.pastDueAmount}',
             valueColor: double.parse(sub.pastDueAmount) > 0 ? Colors.red : Colors.green,
           ),
           if (sub.daysPastDue != null && sub.daysPastDue! > 0)
             _buildInfoRow(
+              context,
               'Days Past Due',
               '${sub.daysPastDue} days',
               valueColor: Colors.red,
             ),
           if (sub.failedPaymentCount > 0)
             _buildInfoRow(
+              context,
               'Failed Attempts',
               sub.failedPaymentCount.toString(),
               valueColor: Colors.red,
@@ -342,7 +349,8 @@ class _AdminSubscriptionDetailScreenState
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {Color? valueColor}) {
+  Widget _buildInfoRow(BuildContext context, String label, String value, {Color? valueColor}) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -350,12 +358,12 @@ class _AdminSubscriptionDetailScreenState
         children: [
           Text(
             label,
-            style: TextStyle(color: AppTheme.mutedForeground),
+            style: TextStyle(color: theme.textTheme.bodySmall?.color),
           ),
           Text(
             value,
             style: TextStyle(
-              color: valueColor ?? AppTheme.foreground,
+              color: valueColor ?? theme.textTheme.bodyLarge?.color,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -364,13 +372,14 @@ class _AdminSubscriptionDetailScreenState
     );
   }
 
-  Widget _buildNotesCard(AdminSubscription sub) {
+  Widget _buildNotesCard(BuildContext context, AdminSubscription sub) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,10 +387,10 @@ class _AdminSubscriptionDetailScreenState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Admin Notes',
                 style: TextStyle(
-                  color: AppTheme.foreground,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
                 ),
@@ -389,7 +398,7 @@ class _AdminSubscriptionDetailScreenState
               IconButton(
                 icon: const Icon(Icons.edit, size: 18),
                 onPressed: () => _showEditNotesDialog(sub),
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
               ),
             ],
           ),
@@ -398,8 +407,8 @@ class _AdminSubscriptionDetailScreenState
             sub.adminNotes.isEmpty ? 'No notes added' : sub.adminNotes,
             style: TextStyle(
               color: sub.adminNotes.isEmpty
-                  ? AppTheme.mutedForeground
-                  : AppTheme.foreground,
+                  ? theme.textTheme.bodySmall?.color
+                  : theme.textTheme.bodyLarge?.color,
               fontStyle: sub.adminNotes.isEmpty ? FontStyle.italic : FontStyle.normal,
             ),
           ),
@@ -408,14 +417,15 @@ class _AdminSubscriptionDetailScreenState
     );
   }
 
-  Widget _buildQuickActions(AdminSubscription sub) {
+  Widget _buildQuickActions(BuildContext context, AdminSubscription sub) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Quick Actions',
           style: TextStyle(
-            color: AppTheme.foreground,
+            color: theme.textTheme.bodyLarge?.color,
             fontWeight: FontWeight.w600,
             fontSize: 16,
           ),
@@ -460,20 +470,21 @@ class _AdminSubscriptionDetailScreenState
     return ActionChip(
       avatar: Icon(icon, size: 18, color: color),
       label: Text(label),
-      backgroundColor: color.withOpacity(0.1),
-      side: BorderSide(color: color.withOpacity(0.3)),
+      backgroundColor: color.withValues(alpha: 0.1),
+      side: BorderSide(color: color.withValues(alpha: 0.3)),
       onPressed: onTap,
     );
   }
 
-  Widget _buildRecentPayments(AdminSubscription sub) {
+  Widget _buildRecentPayments(BuildContext context, AdminSubscription sub) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Recent Payments',
           style: TextStyle(
-            color: AppTheme.foreground,
+            color: theme.textTheme.bodyLarge?.color,
             fontWeight: FontWeight.w600,
             fontSize: 16,
           ),
@@ -483,9 +494,9 @@ class _AdminSubscriptionDetailScreenState
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.card,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.border),
+                border: Border.all(color: theme.dividerColor),
               ),
               child: Row(
                 children: [
@@ -503,15 +514,15 @@ class _AdminSubscriptionDetailScreenState
                       children: [
                         Text(
                           '\$${payment.amount}',
-                          style: const TextStyle(
-                            color: AppTheme.foreground,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
                           payment.description,
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),
@@ -521,7 +532,7 @@ class _AdminSubscriptionDetailScreenState
                   Text(
                     _formatDate(payment.paymentDate),
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 12,
                     ),
                   ),
@@ -532,14 +543,15 @@ class _AdminSubscriptionDetailScreenState
     );
   }
 
-  Widget _buildChangeHistory(AdminSubscription sub) {
+  Widget _buildChangeHistory(BuildContext context, AdminSubscription sub) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Change History',
           style: TextStyle(
-            color: AppTheme.foreground,
+            color: theme.textTheme.bodyLarge?.color,
             fontWeight: FontWeight.w600,
             fontSize: 16,
           ),
@@ -549,9 +561,9 @@ class _AdminSubscriptionDetailScreenState
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.card,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.border),
+                border: Border.all(color: theme.dividerColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -564,7 +576,7 @@ class _AdminSubscriptionDetailScreenState
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: _getChangeTypeColor(change.changeType).withOpacity(0.2),
+                          color: _getChangeTypeColor(change.changeType).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -580,7 +592,7 @@ class _AdminSubscriptionDetailScreenState
                       Text(
                         _formatDate(change.createdAt),
                         style: TextStyle(
-                          color: AppTheme.mutedForeground,
+                          color: theme.textTheme.bodySmall?.color,
                           fontSize: 12,
                         ),
                       ),
@@ -590,14 +602,14 @@ class _AdminSubscriptionDetailScreenState
                     const SizedBox(height: 8),
                     Text(
                       '${change.fromTier} → ${change.toTier}',
-                      style: const TextStyle(color: AppTheme.foreground),
+                      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                     ),
                   ],
                   if (change.fromStatus != null && change.toStatus != null) ...[
                     const SizedBox(height: 8),
                     Text(
                       '${change.fromStatus} → ${change.toStatus}',
-                      style: const TextStyle(color: AppTheme.foreground),
+                      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                     ),
                   ],
                   if (change.reason.isNotEmpty) ...[
@@ -605,7 +617,7 @@ class _AdminSubscriptionDetailScreenState
                     Text(
                       'Reason: ${change.reason}',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 12,
                       ),
                     ),
@@ -615,7 +627,7 @@ class _AdminSubscriptionDetailScreenState
                     Text(
                       'By: ${change.changedByEmail}',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 11,
                       ),
                     ),
@@ -645,13 +657,14 @@ class _AdminSubscriptionDetailScreenState
   }
 
   void _showChangeTierDialog(AdminSubscription sub) {
+    final theme = Theme.of(context);
     String selectedTier = sub.tier;
     final reasonController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
+        backgroundColor: theme.cardColor,
         title: const Text('Change Tier'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -706,13 +719,14 @@ class _AdminSubscriptionDetailScreenState
   }
 
   void _showChangeStatusDialog(AdminSubscription sub) {
+    final theme = Theme.of(context);
     String selectedStatus = sub.status;
     final reasonController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
+        backgroundColor: theme.cardColor,
         title: const Text('Change Status'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -767,13 +781,14 @@ class _AdminSubscriptionDetailScreenState
   }
 
   void _showRecordPaymentDialog(AdminSubscription sub) {
+    final theme = Theme.of(context);
     final amountController = TextEditingController(text: sub.monthlyPrice);
     final descriptionController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
+        backgroundColor: theme.cardColor,
         title: const Text('Record Payment'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -826,12 +841,13 @@ class _AdminSubscriptionDetailScreenState
   }
 
   void _showEditNotesDialog(AdminSubscription sub) {
+    final theme = Theme.of(context);
     final notesController = TextEditingController(text: sub.adminNotes);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
+        backgroundColor: theme.cardColor,
         title: const Text('Edit Notes'),
         content: TextField(
           controller: notesController,
@@ -866,10 +882,11 @@ class _AdminSubscriptionDetailScreenState
   }
 
   void _clearPastDue(AdminSubscription sub) {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
+        backgroundColor: theme.cardColor,
         title: const Text('Clear Past Due'),
         content: Text(
           'This will record a payment of \$${sub.pastDueAmount} and clear the past due status. Continue?',

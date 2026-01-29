@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -166,6 +165,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: AnimatedBuilder(
         animation: _fadeOut,
@@ -180,16 +181,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppTheme.background,
-                    AppTheme.background,
-                    AppTheme.primary.withOpacity(0.05),
+                    theme.scaffoldBackgroundColor,
+                    theme.scaffoldBackgroundColor,
+                    theme.colorScheme.primary.withValues(alpha: 0.05),
                   ],
                 ),
               ),
               child: Stack(
                 children: [
                   // Animated background circles
-                  ..._buildBackgroundElements(),
+                  ..._buildBackgroundElements(theme),
 
                   // Main content
                   Center(
@@ -204,7 +205,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               scale: _logoScale.value * _pulseAnimation.value,
                               child: Transform.rotate(
                                 angle: _logoRotation.value,
-                                child: _buildLogo(),
+                                child: _buildLogo(theme),
                               ),
                             );
                           },
@@ -221,8 +222,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                 ShaderMask(
                                   shaderCallback: (bounds) => LinearGradient(
                                     colors: [
-                                      AppTheme.primary,
-                                      AppTheme.primary.withOpacity(0.7),
+                                      theme.colorScheme.primary,
+                                      theme.colorScheme.primary.withValues(alpha: 0.7),
                                     ],
                                   ).createShader(bounds),
                                   child: const Text(
@@ -240,7 +241,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                   'Your Personal Fitness Coach',
                                   style: TextStyle(
                                     fontSize: 16,
-                                    color: AppTheme.mutedForeground,
+                                    color: theme.textTheme.bodySmall?.color,
                                     letterSpacing: 1,
                                   ),
                                 ),
@@ -266,7 +267,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation(
-                              AppTheme.primary.withOpacity(0.5),
+                              theme.colorScheme.primary.withValues(alpha: 0.5),
                             ),
                           ),
                         ),
@@ -282,7 +283,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
   }
 
-  Widget _buildLogo() {
+  Widget _buildLogo(ThemeData theme) {
     return Container(
       width: 120,
       height: 120,
@@ -291,14 +292,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.primary,
-            AppTheme.primary.withOpacity(0.8),
+            theme.colorScheme.primary,
+            theme.colorScheme.primary.withValues(alpha: 0.8),
           ],
         ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primary.withOpacity(0.4),
+            color: theme.colorScheme.primary.withValues(alpha: 0.4),
             blurRadius: 30,
             spreadRadius: 5,
           ),
@@ -321,7 +322,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               child: Icon(
                 Icons.auto_awesome,
                 size: 24,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
               ),
             ),
           ],
@@ -330,7 +331,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
   }
 
-  List<Widget> _buildBackgroundElements() {
+  List<Widget> _buildBackgroundElements(ThemeData theme) {
     return [
       // Top right circle
       Positioned(
@@ -348,8 +349,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      AppTheme.primary.withOpacity(0.1),
-                      AppTheme.primary.withOpacity(0.0),
+                      theme.colorScheme.primary.withValues(alpha: 0.1),
+                      theme.colorScheme.primary.withValues(alpha: 0.0),
                     ],
                   ),
                 ),
@@ -374,8 +375,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      AppTheme.primary.withOpacity(0.08),
-                      AppTheme.primary.withOpacity(0.0),
+                      theme.colorScheme.primary.withValues(alpha: 0.08),
+                      theme.colorScheme.primary.withValues(alpha: 0.0),
                     ],
                   ),
                 ),

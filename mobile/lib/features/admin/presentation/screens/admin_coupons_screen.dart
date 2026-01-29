@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/tier_coupon_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -26,13 +25,14 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(adminCouponsProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Coupons'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           PopupMenuButton<String?>(
             icon: const Icon(Icons.filter_list),
@@ -77,6 +77,7 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
               child: Row(
                 children: [
                   _buildFilterChip(
+                    context,
                     'Status: $_statusFilter',
                     () {
                       setState(() => _statusFilter = null);
@@ -123,13 +124,13 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
                                 Icon(
                                   Icons.local_offer_outlined,
                                   size: 64,
-                                  color: AppTheme.mutedForeground,
+                                  color: theme.textTheme.bodySmall?.color,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No coupons found',
                                   style: TextStyle(
-                                    color: AppTheme.mutedForeground,
+                                    color: theme.textTheme.bodySmall?.color,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -139,7 +140,7 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
                                   icon: const Icon(Icons.add),
                                   label: const Text('Create Coupon'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.primary,
+                                    backgroundColor: theme.colorScheme.primary,
                                   ),
                                 ),
                               ],
@@ -177,11 +178,12 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, VoidCallback onRemove) {
+  Widget _buildFilterChip(BuildContext context, String label, VoidCallback onRemove) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.primary.withOpacity(0.2),
+        color: theme.colorScheme.primary.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -190,7 +192,7 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
           Text(
             label,
             style: TextStyle(
-              color: AppTheme.primary,
+              color: theme.colorScheme.primary,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -201,7 +203,7 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
             child: Icon(
               Icons.close,
               size: 16,
-              color: AppTheme.primary,
+              color: theme.colorScheme.primary,
             ),
           ),
         ],
@@ -232,10 +234,11 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
   }
 
   Future<void> _revokeCoupon(CouponListItemModel coupon) async {
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
+        backgroundColor: theme.cardColor,
         title: const Text('Revoke Coupon'),
         content: Text(
           'Are you sure you want to revoke "${coupon.code}"? It will no longer be usable.',
@@ -285,10 +288,11 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
   }
 
   Future<void> _confirmDelete(CouponListItemModel coupon) async {
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
+        backgroundColor: theme.cardColor,
         title: const Text('Delete Coupon'),
         content: Text(
           'Are you sure you want to delete "${coupon.code}"? This cannot be undone.',
@@ -340,15 +344,16 @@ class _CouponCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final statusColor = _getStatusColor(coupon.status);
-    final typeColor = _getTypeColor(coupon.couponType);
+    final typeColor = _getTypeColor(context, coupon.couponType);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: InkWell(
         onTap: onTap,
@@ -364,7 +369,7 @@ class _CouponCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: typeColor.withOpacity(0.2),
+                      color: typeColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -382,7 +387,7 @@ class _CouponCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.2),
+                      color: statusColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -405,8 +410,8 @@ class _CouponCard extends StatelessWidget {
                       children: [
                         Text(
                           coupon.discountDisplay,
-                          style: const TextStyle(
-                            color: AppTheme.foreground,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
                             fontWeight: FontWeight.w600,
                             fontSize: 20,
                           ),
@@ -415,7 +420,7 @@ class _CouponCard extends StatelessWidget {
                         Text(
                           _getTypeLabel(coupon.couponType),
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),
@@ -428,7 +433,7 @@ class _CouponCard extends StatelessWidget {
                       Text(
                         _getAppliesToLabel(coupon.appliesTo),
                         style: TextStyle(
-                          color: AppTheme.mutedForeground,
+                          color: theme.textTheme.bodySmall?.color,
                           fontSize: 12,
                         ),
                       ),
@@ -436,7 +441,7 @@ class _CouponCard extends StatelessWidget {
                       Text(
                         _formatUsage(coupon),
                         style: TextStyle(
-                          color: AppTheme.mutedForeground,
+                          color: theme.textTheme.bodySmall?.color,
                           fontSize: 12,
                         ),
                       ),
@@ -449,7 +454,7 @@ class _CouponCard extends StatelessWidget {
                 Text(
                   coupon.description,
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 13,
                   ),
                   maxLines: 2,
@@ -463,13 +468,13 @@ class _CouponCard extends StatelessWidget {
                     Icon(
                       Icons.schedule,
                       size: 14,
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       'Expires: ${_formatDate(coupon.validUntil!)}',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 12,
                       ),
                     ),
@@ -531,7 +536,8 @@ class _CouponCard extends StatelessWidget {
     }
   }
 
-  Color _getTypeColor(String type) {
+  Color _getTypeColor(BuildContext context, String type) {
+    final theme = Theme.of(context);
     switch (type) {
       case 'percent':
         return Colors.purple;
@@ -540,7 +546,7 @@ class _CouponCard extends StatelessWidget {
       case 'free_trial':
         return Colors.green;
       default:
-        return AppTheme.primary;
+        return theme.colorScheme.primary;
     }
   }
 
@@ -656,8 +662,9 @@ class _CouponDialogState extends State<_CouponDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Dialog(
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 400,
@@ -669,10 +676,10 @@ class _CouponDialogState extends State<_CouponDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Create Coupon',
                   style: TextStyle(
-                    color: AppTheme.foreground,
+                    color: theme.textTheme.bodyLarge?.color,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                   ),
@@ -801,8 +808,8 @@ class _CouponDialogState extends State<_CouponDialog> {
                           : 'No expiry date',
                       style: TextStyle(
                         color: _validUntil != null
-                            ? AppTheme.foreground
-                            : AppTheme.mutedForeground,
+                            ? theme.textTheme.bodyLarge?.color
+                            : theme.textTheme.bodySmall?.color,
                       ),
                     ),
                   ),
@@ -820,7 +827,7 @@ class _CouponDialogState extends State<_CouponDialog> {
                     ElevatedButton(
                       onPressed: _isSaving ? null : _save,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
+                        backgroundColor: theme.colorScheme.primary,
                       ),
                       child: _isSaving
                           ? const SizedBox(

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
 
@@ -19,17 +18,18 @@ class TrainerPricingViewScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pricingAsync = ref.watch(trainerPublicPricingProvider(trainerId));
     final checkoutState = ref.watch(checkoutProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         title: Text(
           trainerName ?? 'Trainer Pricing',
-          style: const TextStyle(color: AppTheme.foreground),
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.foreground),
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
         elevation: 0,
@@ -53,18 +53,20 @@ class TrainerPricingViewScreen extends ConsumerWidget {
     TrainerPublicPricingModel pricing,
     CheckoutState checkoutState,
   ) {
+    final theme = Theme.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Trainer Header
-          _buildTrainerHeader(pricing),
+          _buildTrainerHeader(context, pricing),
           const SizedBox(height: 24),
 
           // Warning if no Stripe account
           if (!pricing.canAcceptPayments) ...[
             _buildWarningCard(
+              context,
               'This trainer hasn\'t completed their payment setup yet. Check back later.',
             ),
             const SizedBox(height: 24),
@@ -73,6 +75,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
           // No offerings
           if (!pricing.hasAnyOffering) ...[
             _buildWarningCard(
+              context,
               'This trainer hasn\'t set up any coaching packages yet.',
             ),
           ],
@@ -103,7 +106,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(checkoutState.error ?? 'Failed to start checkout'),
-                      backgroundColor: AppTheme.destructive,
+                      backgroundColor: theme.colorScheme.error,
                     ),
                   );
                 }
@@ -137,7 +140,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(checkoutState.error ?? 'Failed to start checkout'),
-                      backgroundColor: AppTheme.destructive,
+                      backgroundColor: theme.colorScheme.error,
                     ),
                   );
                 }
@@ -148,20 +151,21 @@ class TrainerPricingViewScreen extends ConsumerWidget {
           // Error display
           if (checkoutState.error != null) ...[
             const SizedBox(height: 16),
-            _buildErrorCard(checkoutState.error!),
+            _buildErrorCard(context, checkoutState.error!),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildTrainerHeader(TrainerPublicPricingModel pricing) {
+  Widget _buildTrainerHeader(BuildContext context, TrainerPublicPricingModel pricing) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         children: [
@@ -169,12 +173,12 @@ class TrainerPricingViewScreen extends ConsumerWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.1),
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(30),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.person,
-              color: AppTheme.primary,
+              color: theme.colorScheme.primary,
               size: 30,
             ),
           ),
@@ -185,8 +189,8 @@ class TrainerPricingViewScreen extends ConsumerWidget {
               children: [
                 Text(
                   pricing.trainerName ?? 'Trainer',
-                  style: const TextStyle(
-                    color: AppTheme.foreground,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -194,7 +198,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
                 Text(
                   pricing.trainerEmail ?? '',
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 14,
                   ),
                 ),
@@ -205,7 +209,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const Row(
@@ -242,12 +246,13 @@ class TrainerPricingViewScreen extends ConsumerWidget {
     required bool isLoading,
     required VoidCallback onSubscribe,
   }) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,10 +262,10 @@ class TrainerPricingViewScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: AppTheme.primary, size: 24),
+                child: Icon(icon, color: theme.colorScheme.primary, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -269,8 +274,8 @@ class TrainerPricingViewScreen extends ConsumerWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -285,13 +290,13 @@ class TrainerPricingViewScreen extends ConsumerWidget {
           Text(
             description,
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 14,
             ),
           ),
 
           const SizedBox(height: 16),
-          const Divider(color: AppTheme.border),
+          Divider(color: theme.dividerColor),
           const SizedBox(height: 16),
 
           // Price
@@ -300,8 +305,8 @@ class TrainerPricingViewScreen extends ConsumerWidget {
             children: [
               Text(
                 price,
-                style: const TextStyle(
-                  color: AppTheme.primary,
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
@@ -312,7 +317,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
                   child: Text(
                     period,
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 16,
                     ),
                   ),
@@ -336,8 +341,8 @@ class TrainerPricingViewScreen extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     feature,
-                    style: const TextStyle(
-                      color: AppTheme.foreground,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
                       fontSize: 14,
                     ),
                   ),
@@ -354,21 +359,21 @@ class TrainerPricingViewScreen extends ConsumerWidget {
             child: ElevatedButton(
               onPressed: isEnabled && !isLoading ? onSubscribe : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: AppTheme.primaryForeground,
-                disabledBackgroundColor: AppTheme.muted,
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                disabledBackgroundColor: theme.disabledColor,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
               child: isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: AppTheme.primaryForeground,
+                        color: theme.colorScheme.onPrimary,
                       ),
                     )
                   : Text(
@@ -385,13 +390,13 @@ class TrainerPricingViewScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildWarningCard(String message) {
+  Widget _buildWarningCard(BuildContext context, String message) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.1),
+        color: Colors.orange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -411,23 +416,24 @@ class TrainerPricingViewScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildErrorCard(String error) {
+  Widget _buildErrorCard(BuildContext context, String error) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.destructive.withOpacity(0.1),
+        color: theme.colorScheme.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.destructive.withOpacity(0.3)),
+        border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppTheme.destructive, size: 20),
+          Icon(Icons.error_outline, color: theme.colorScheme.error, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               error,
-              style: const TextStyle(
-                color: AppTheme.destructive,
+              style: TextStyle(
+                color: theme.colorScheme.error,
                 fontSize: 13,
               ),
             ),
@@ -438,6 +444,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
   }
 
   Widget _buildErrorState(BuildContext context, String error) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -447,13 +454,13 @@ class TrainerPricingViewScreen extends ConsumerWidget {
             Icon(
               Icons.error_outline,
               size: 64,
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Unable to Load Pricing',
               style: TextStyle(
-                color: AppTheme.foreground,
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -463,7 +470,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
               error,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 14,
               ),
             ),

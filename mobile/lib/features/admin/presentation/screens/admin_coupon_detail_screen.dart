@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/tier_coupon_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -27,14 +26,15 @@ class _AdminCouponDetailScreenState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(couponDetailProvider(widget.couponId));
     final coupon = state.coupon;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(coupon?.code ?? 'Coupon Details'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           if (coupon != null)
             IconButton(
@@ -92,13 +92,13 @@ class _AdminCouponDetailScreenState
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildHeader(coupon),
+                            _buildHeader(context, coupon),
                             const SizedBox(height: 24),
-                            _buildDetailsSection(coupon),
+                            _buildDetailsSection(context, coupon),
                             const SizedBox(height: 24),
-                            _buildUsageSection(coupon),
+                            _buildUsageSection(context, coupon),
                             const SizedBox(height: 24),
-                            _buildUsageHistory(state.usages),
+                            _buildUsageHistory(context, state.usages),
                           ],
                         ),
                       ),
@@ -106,15 +106,16 @@ class _AdminCouponDetailScreenState
     );
   }
 
-  Widget _buildHeader(CouponModel coupon) {
+  Widget _buildHeader(BuildContext context, CouponModel coupon) {
+    final theme = Theme.of(context);
     final statusColor = _getStatusColor(coupon.status);
-    final typeColor = _getTypeColor(coupon.couponType);
+    final typeColor = _getTypeColor(context, coupon.couponType);
 
     return Card(
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -123,7 +124,7 @@ class _AdminCouponDetailScreenState
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
-                color: typeColor.withOpacity(0.2),
+                color: typeColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -139,8 +140,8 @@ class _AdminCouponDetailScreenState
             const SizedBox(height: 16),
             Text(
               coupon.discountDisplay,
-              style: const TextStyle(
-                color: AppTheme.foreground,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontWeight: FontWeight.w600,
                 fontSize: 32,
               ),
@@ -149,7 +150,7 @@ class _AdminCouponDetailScreenState
             Text(
               coupon.typeDisplay,
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 14,
               ),
             ),
@@ -157,7 +158,7 @@ class _AdminCouponDetailScreenState
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.2),
+                color: statusColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -175,51 +176,55 @@ class _AdminCouponDetailScreenState
     );
   }
 
-  Widget _buildDetailsSection(CouponModel coupon) {
+  Widget _buildDetailsSection(BuildContext context, CouponModel coupon) {
+    final theme = Theme.of(context);
     return Card(
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Details',
               style: TextStyle(
-                color: AppTheme.foreground,
+                color: theme.textTheme.bodyLarge?.color,
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
             ),
             const SizedBox(height: 16),
-            _buildDetailRow('Applies To', coupon.appliesToDisplay),
+            _buildDetailRow(context, 'Applies To', coupon.appliesToDisplay),
             if (coupon.description.isNotEmpty)
-              _buildDetailRow('Description', coupon.description),
+              _buildDetailRow(context, 'Description', coupon.description),
             _buildDetailRow(
+              context,
               'Valid From',
               coupon.validFrom != null
                   ? _formatDateTime(coupon.validFrom!)
                   : 'Immediately',
             ),
             _buildDetailRow(
+              context,
               'Valid Until',
               coupon.validUntil != null
                   ? _formatDateTime(coupon.validUntil!)
                   : 'No expiry',
             ),
             if (coupon.applicableTiers.isNotEmpty)
-              _buildDetailRow('Applicable Tiers', coupon.applicableTiers.join(', ')),
+              _buildDetailRow(context, 'Applicable Tiers', coupon.applicableTiers.join(', ')),
             if (coupon.createdByAdminEmail != null)
-              _buildDetailRow('Created By (Admin)', coupon.createdByAdminEmail!),
+              _buildDetailRow(context, 'Created By (Admin)', coupon.createdByAdminEmail!),
             if (coupon.createdByTrainerEmail != null)
-              _buildDetailRow('Created By (Trainer)', coupon.createdByTrainerEmail!),
+              _buildDetailRow(context, 'Created By (Trainer)', coupon.createdByTrainerEmail!),
             if (coupon.stripeCouponId != null)
-              _buildDetailRow('Stripe ID', coupon.stripeCouponId!),
+              _buildDetailRow(context, 'Stripe ID', coupon.stripeCouponId!),
             _buildDetailRow(
+              context,
               'Created At',
               coupon.createdAt != null
                   ? _formatDateTime(coupon.createdAt!)
@@ -231,26 +236,27 @@ class _AdminCouponDetailScreenState
     );
   }
 
-  Widget _buildUsageSection(CouponModel coupon) {
+  Widget _buildUsageSection(BuildContext context, CouponModel coupon) {
+    final theme = Theme.of(context);
     final usagePercent = coupon.maxUses > 0
         ? (coupon.currentUses / coupon.maxUses).clamp(0.0, 1.0)
         : 0.0;
 
     return Card(
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Usage',
               style: TextStyle(
-                color: AppTheme.foreground,
+                color: theme.textTheme.bodyLarge?.color,
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
@@ -264,8 +270,8 @@ class _AdminCouponDetailScreenState
                     children: [
                       Text(
                         coupon.usageDisplay,
-                        style: const TextStyle(
-                          color: AppTheme.foreground,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
                           fontWeight: FontWeight.w600,
                           fontSize: 20,
                         ),
@@ -274,9 +280,9 @@ class _AdminCouponDetailScreenState
                         const SizedBox(height: 8),
                         LinearProgressIndicator(
                           value: usagePercent,
-                          backgroundColor: AppTheme.muted,
+                          backgroundColor: theme.dividerColor,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            usagePercent >= 0.9 ? Colors.red : AppTheme.primary,
+                            usagePercent >= 0.9 ? Colors.red : theme.colorScheme.primary,
                           ),
                         ),
                       ],
@@ -290,14 +296,14 @@ class _AdminCouponDetailScreenState
                     Text(
                       'Max per user',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 12,
                       ),
                     ),
                     Text(
                       '${coupon.maxUsesPerUser}',
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontWeight: FontWeight.w600,
                         fontSize: 18,
                       ),
@@ -312,12 +318,13 @@ class _AdminCouponDetailScreenState
     );
   }
 
-  Widget _buildUsageHistory(List<CouponUsageModel> usages) {
+  Widget _buildUsageHistory(BuildContext context, List<CouponUsageModel> usages) {
+    final theme = Theme.of(context);
     return Card(
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -327,10 +334,10 @@ class _AdminCouponDetailScreenState
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Usage History',
                   style: TextStyle(
-                    color: AppTheme.foreground,
+                    color: theme.textTheme.bodyLarge?.color,
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
                   ),
@@ -338,7 +345,7 @@ class _AdminCouponDetailScreenState
                 Text(
                   '${usages.length} uses',
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 14,
                   ),
                 ),
@@ -354,13 +361,13 @@ class _AdminCouponDetailScreenState
                       Icon(
                         Icons.history,
                         size: 48,
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'No usage yet',
                         style: TextStyle(
-                          color: AppTheme.mutedForeground,
+                          color: theme.textTheme.bodySmall?.color,
                         ),
                       ),
                     ],
@@ -378,19 +385,19 @@ class _AdminCouponDetailScreenState
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
-                      backgroundColor: AppTheme.primary.withOpacity(0.2),
+                      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
                       child: Text(
                         usage.userEmail?[0].toUpperCase() ?? '?',
                         style: TextStyle(
-                          color: AppTheme.primary,
+                          color: theme.colorScheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                     title: Text(
                       usage.userEmail ?? 'Unknown user',
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -398,7 +405,7 @@ class _AdminCouponDetailScreenState
                         ? Text(
                             _formatDateTime(usage.usedAt!),
                             style: TextStyle(
-                              color: AppTheme.mutedForeground,
+                              color: theme.textTheme.bodySmall?.color,
                               fontSize: 12,
                             ),
                           )
@@ -419,7 +426,8 @@ class _AdminCouponDetailScreenState
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -430,7 +438,7 @@ class _AdminCouponDetailScreenState
             child: Text(
               label,
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 14,
               ),
             ),
@@ -438,8 +446,8 @@ class _AdminCouponDetailScreenState
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                color: AppTheme.foreground,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 14,
               ),
             ),
@@ -464,7 +472,8 @@ class _AdminCouponDetailScreenState
     }
   }
 
-  Color _getTypeColor(String type) {
+  Color _getTypeColor(BuildContext context, String type) {
+    final theme = Theme.of(context);
     switch (type) {
       case 'percent':
         return Colors.purple;
@@ -473,7 +482,7 @@ class _AdminCouponDetailScreenState
       case 'free_trial':
         return Colors.green;
       default:
-        return AppTheme.primary;
+        return theme.colorScheme.primary;
     }
   }
 

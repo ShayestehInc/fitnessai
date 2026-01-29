@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../providers/onboarding_provider.dart';
 
 class Step1AboutYouScreen extends ConsumerStatefulWidget {
@@ -34,6 +33,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingStateProvider);
     final notifier = ref.read(onboardingStateProvider.notifier);
+    final theme = Theme.of(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -42,13 +42,13 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
         children: [
           Text(
             'About You',
-            style: Theme.of(context).textTheme.displaySmall,
+            style: theme.textTheme.displaySmall,
           ),
           const SizedBox(height: 8),
           Text(
             'Tell us a bit about yourself so we can calculate your personalized nutrition goals.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.mutedForeground,
+            style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.textTheme.bodySmall?.color,
                 ),
           ),
           const SizedBox(height: 32),
@@ -56,7 +56,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
           // First Name input
           Text(
             'First Name',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
           TextField(
@@ -74,7 +74,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
           // Sex selector
           Text(
             'Sex',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
           Row(
@@ -103,7 +103,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
           // Age input
           Text(
             'Age',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
           TextField(
@@ -129,7 +129,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
             children: [
               Text(
                 'Height',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: theme.textTheme.titleMedium,
               ),
               _UnitToggle(
                 leftLabel: 'ft/in',
@@ -196,7 +196,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
             children: [
               Text(
                 'Weight',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: theme.textTheme.titleMedium,
               ),
               _UnitToggle(
                 leftLabel: 'lbs',
@@ -248,7 +248,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
             const SizedBox(height: 16),
             Text(
               state.error!,
-              style: TextStyle(color: AppTheme.destructive),
+              style: TextStyle(color: theme.colorScheme.error),
             ),
           ],
         ],
@@ -282,15 +282,16 @@ class _SelectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 24),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primary.withOpacity(0.1) : AppTheme.card,
+          color: isSelected ? theme.colorScheme.primary.withValues(alpha: 0.1) : theme.cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppTheme.primary : AppTheme.border,
+            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -299,13 +300,13 @@ class _SelectionCard extends StatelessWidget {
             Icon(
               icon,
               size: 48,
-              color: isSelected ? AppTheme.primary : AppTheme.mutedForeground,
+              color: isSelected ? theme.colorScheme.primary : theme.textTheme.bodySmall?.color,
             ),
             const SizedBox(height: 8),
             Text(
               title,
               style: TextStyle(
-                color: isSelected ? AppTheme.primary : AppTheme.foreground,
+                color: isSelected ? theme.colorScheme.primary : theme.textTheme.bodyLarge?.color,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
@@ -331,36 +332,38 @@ class _UnitToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onToggle,
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: AppTheme.zinc800,
+          color: theme.dividerColor,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildOption(leftLabel, !isRight),
-            _buildOption(rightLabel, isRight),
+            _buildOption(context, leftLabel, !isRight),
+            _buildOption(context, rightLabel, isRight),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildOption(String label, bool isSelected) {
+  Widget _buildOption(BuildContext context, String label, bool isSelected) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primary : Colors.transparent,
+        color: isSelected ? theme.colorScheme.primary : Colors.transparent,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: isSelected ? Colors.white : AppTheme.mutedForeground,
+          color: isSelected ? Colors.white : theme.textTheme.bodySmall?.color,
           fontSize: 12,
           fontWeight: FontWeight.w500,
         ),

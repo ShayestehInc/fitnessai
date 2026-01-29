@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../providers/payment_provider.dart';
 
 class TrainerPricingScreen extends ConsumerStatefulWidget {
@@ -47,6 +46,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(trainerPricingProvider);
+    final theme = Theme.of(context);
 
     ref.listen<TrainerPricingState>(trainerPricingProvider, (previous, next) {
       if (previous?.pricing == null && next.pricing != null) {
@@ -63,15 +63,15 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
-        title: const Text(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        title: Text(
           'Set Your Prices',
-          style: TextStyle(color: AppTheme.foreground),
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.foreground),
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
         elevation: 0,
@@ -134,13 +134,14 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
   }
 
   Widget _buildHeader() {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Pricing Configuration',
           style: TextStyle(
-            color: AppTheme.foreground,
+            color: theme.textTheme.bodyLarge?.color,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -149,7 +150,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
         Text(
           'Set your coaching prices. Trainees will see these when subscribing to your services.',
           style: TextStyle(
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
             fontSize: 14,
           ),
         ),
@@ -166,13 +167,14 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
     required TextEditingController priceController,
     required String priceSuffix,
   }) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: enabled ? AppTheme.primary.withOpacity(0.5) : AppTheme.border,
+          color: enabled ? theme.colorScheme.primary.withValues(alpha: 0.5) : theme.dividerColor,
         ),
       ),
       child: Column(
@@ -184,13 +186,13 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: enabled
-                      ? AppTheme.primary.withOpacity(0.1)
-                      : AppTheme.muted,
+                      ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                      : theme.disabledColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   icon,
-                  color: enabled ? AppTheme.primary : AppTheme.mutedForeground,
+                  color: enabled ? theme.colorScheme.primary : theme.textTheme.bodySmall?.color,
                   size: 24,
                 ),
               ),
@@ -201,8 +203,8 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -210,7 +212,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
                     Text(
                       description,
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 13,
                       ),
                     ),
@@ -220,21 +222,21 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
               Switch(
                 value: enabled,
                 onChanged: onEnabledChanged,
-                activeColor: AppTheme.primary,
+                activeColor: theme.colorScheme.primary,
               ),
             ],
           ),
 
           if (enabled) ...[
             const SizedBox(height: 16),
-            const Divider(color: AppTheme.border),
+            Divider(color: theme.dividerColor),
             const SizedBox(height: 16),
             Row(
               children: [
-                const Text(
+                Text(
                   '\$',
                   style: TextStyle(
-                    color: AppTheme.foreground,
+                    color: theme.textTheme.bodyLarge?.color,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -244,15 +246,15 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
                   child: TextField(
                     controller: priceController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: const TextStyle(
-                      color: AppTheme.foreground,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                     decoration: InputDecoration(
                       hintText: '0.00',
                       hintStyle: TextStyle(
-                        color: AppTheme.mutedForeground.withOpacity(0.5),
+                        color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5),
                       ),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.zero,
@@ -263,7 +265,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
                   Text(
                     priceSuffix,
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 16,
                     ),
                   ),
@@ -276,27 +278,28 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
   }
 
   Widget _buildPreviewCard() {
+    final theme = Theme.of(context);
     final monthlyPrice = double.tryParse(_monthlyPriceController.text) ?? 0;
     final oneTimePrice = double.tryParse(_oneTimePriceController.text) ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.visibility, color: AppTheme.mutedForeground, size: 20),
+              Icon(Icons.visibility, color: theme.textTheme.bodySmall?.color, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Preview (what trainees see)',
                 style: TextStyle(
-                  color: AppTheme.mutedForeground,
+                  color: theme.textTheme.bodySmall?.color,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -304,7 +307,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppTheme.border),
+          Divider(color: theme.dividerColor),
           const SizedBox(height: 16),
 
           if (_monthlyEnabled && monthlyPrice > 0) ...[
@@ -328,7 +331,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
             Text(
               'Enable at least one pricing option to allow trainees to subscribe.',
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 13,
                 fontStyle: FontStyle.italic,
               ),
@@ -339,22 +342,23 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
   }
 
   Widget _buildPreviewRow(String title, String price, IconData icon) {
+    final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(icon, color: AppTheme.primary, size: 20),
+        Icon(icon, color: theme.colorScheme.primary, size: 20),
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
-            color: AppTheme.foreground,
+          style: TextStyle(
+            color: theme.textTheme.bodyLarge?.color,
             fontSize: 14,
           ),
         ),
         const Spacer(),
         Text(
           price,
-          style: const TextStyle(
-            color: AppTheme.primary,
+          style: TextStyle(
+            color: theme.colorScheme.primary,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -364,6 +368,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
   }
 
   Widget _buildSaveButton(TrainerPricingState state) {
+    final theme = Theme.of(context);
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -381,20 +386,20 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
                 );
               },
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primary,
-          foregroundColor: AppTheme.primaryForeground,
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
         ),
         child: state.isSaving
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: AppTheme.primaryForeground,
+                  color: theme.colorScheme.onPrimary,
                 ),
               )
             : const Text(
@@ -409,22 +414,23 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
   }
 
   Widget _buildErrorCard(String error) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.destructive.withOpacity(0.1),
+        color: theme.colorScheme.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.destructive.withOpacity(0.3)),
+        border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppTheme.destructive, size: 20),
+          Icon(Icons.error_outline, color: theme.colorScheme.error, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               error,
-              style: const TextStyle(
-                color: AppTheme.destructive,
+              style: TextStyle(
+                color: theme.colorScheme.error,
                 fontSize: 13,
               ),
             ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../core/services/biometric_service.dart';
 import '../../../../core/services/api_config_service.dart';
 import '../providers/auth_provider.dart';
@@ -29,7 +29,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
@@ -40,24 +39,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   void _setupAnimations() {
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-      ),
-    );
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
+        curve: Curves.easeOut,
       ),
     );
 
@@ -76,7 +65,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         _biometricName = name;
       });
 
-      // Auto-trigger biometric if enabled
       if (available && enabled) {
         _handleBiometricLogin();
       }
@@ -102,7 +90,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final authState = ref.read(authStateProvider);
 
     if (authState.user != null) {
-      // Enable biometric if remember me is checked
       if (_rememberMe && _biometricAvailable) {
         await _biometricService.enableBiometricLogin(
           _emailController.text.trim(),
@@ -173,6 +160,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
+  Future<void> _handleGoogleLogin() async {
+    // TODO: Implement Google Sign-In
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Google Sign-In coming soon!')),
+    );
+  }
+
+  Future<void> _handleAppleLogin() async {
+    // TODO: Implement Apple Sign-In
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Apple Sign-In coming soon!')),
+    );
+  }
+
   void _showServerConfigDialog() {
     final controller = TextEditingController(
       text: ApiConfigService.getBaseUrlSync(),
@@ -180,147 +181,194 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
-        title: const Text('Server Configuration'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Enter your backend server URL:',
-              style: TextStyle(color: AppTheme.mutedForeground, fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              style: const TextStyle(color: AppTheme.foreground),
-              decoration: InputDecoration(
-                hintText: 'https://your-ngrok-url.ngrok.io',
-                filled: true,
-                fillColor: AppTheme.background,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+      builder: (context) {
+        final dialogTheme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: dialogTheme.cardColor,
+          title: const Text('Server Configuration'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter your backend server URL:',
+                style: TextStyle(
+                    color: dialogTheme.textTheme.bodySmall?.color,
+                    fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                style: TextStyle(color: dialogTheme.textTheme.bodyLarge?.color),
+                decoration: InputDecoration(
+                  hintText: 'https://your-ngrok-url.ngrok.io',
+                  filled: true,
+                  fillColor: dialogTheme.scaffoldBackgroundColor,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Default: ${ApiConfigService.defaultBaseUrl}',
-              style: TextStyle(color: AppTheme.mutedForeground, fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await ApiConfigService.resetToDefault();
-              if (mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Reset to default URL')),
-                );
-              }
-            },
-            child: const Text('Reset'),
+              const SizedBox(height: 8),
+              Text(
+                'Default: ${ApiConfigService.defaultBaseUrl}',
+                style: TextStyle(
+                    color: dialogTheme.textTheme.bodySmall?.color,
+                    fontSize: 12),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final url = controller.text.trim();
-              if (url.isNotEmpty) {
-                await ApiConfigService.setBaseUrl(url);
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await ApiConfigService.resetToDefault();
                 if (mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Server URL updated to: $url')),
+                    const SnackBar(content: Text('Reset to default URL')),
                   );
                 }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
+              },
+              child: const Text('Reset'),
             ),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final url = controller.text.trim();
+                if (url.isNotEmpty) {
+                  await ApiConfigService.setBaseUrl(url);
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Server URL updated to: $url')),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: dialogTheme.colorScheme.primary,
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+    final theme = Theme.of(context);
     final size = MediaQuery.of(context).size;
 
+    // Colors matching the reference design
+    final inputFillColor = theme.brightness == Brightness.light
+        ? const Color(0xFFF5F5F8)
+        : theme.cardColor;
+    final accentColor = theme.colorScheme.primary;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Background gradient
-          _buildBackground(size),
-
-          // Main content
           SafeArea(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: SlideTransition(
-                    position: _slideAnimation,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(height: size.height * 0.08),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: size.height * 0.1),
 
-                        // Logo and title
-                        _buildHeader(),
+                      // Logo and Brand
+                      _buildLogo(theme, accentColor),
 
-                        SizedBox(height: size.height * 0.06),
+                      SizedBox(height: size.height * 0.06),
 
-                        // Login form
-                        _buildLoginForm(authState),
+                      // Login Form
+                      _buildLoginForm(inputFillColor, accentColor),
 
-                        const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
-                        // Login button
-                        _buildLoginButton(authState),
+                      // Forgot Password
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Coming soon!')),
+                            );
+                          },
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            'Forgot your password?',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
 
-                        // Biometric login
-                        if (_biometricAvailable && _biometricEnabled) ...[
-                          const SizedBox(height: 20),
-                          _buildBiometricButton(),
-                        ],
+                      const SizedBox(height: 24),
 
-                        const SizedBox(height: 24),
+                      // Login Button
+                      _buildLoginButton(authState, accentColor),
 
-                        // Divider
-                        _buildDivider(),
-
-                        const SizedBox(height: 24),
-
-                        // Register link
-                        _buildRegisterLink(),
-
-                        const SizedBox(height: 32),
+                      // Biometric login
+                      if (_biometricAvailable && _biometricEnabled) ...[
+                        const SizedBox(height: 16),
+                        _buildBiometricButton(theme, accentColor),
                       ],
-                    ),
+
+                      const SizedBox(height: 32),
+
+                      // Divider
+                      _buildDivider(theme),
+
+                      const SizedBox(height: 32),
+
+                      // Social Login Buttons
+                      _buildSocialButtons(theme),
+
+                      // Extra space for the fixed bottom trainer link
+                      const SizedBox(height: 80),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
 
-          // Server config button (on top of everything)
+          // Trainer Link - Fixed at bottom
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: MediaQuery.of(context).padding.bottom + 16,
+            child: _buildTrainerLink(theme),
+          ),
+
+          // Server config button
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             right: 16,
             child: IconButton(
-              icon: Icon(Icons.settings, color: AppTheme.mutedForeground),
+              icon: Icon(
+                Icons.settings,
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5),
+              ),
               onPressed: _showServerConfigDialog,
               tooltip: 'Server Settings',
             ),
@@ -330,170 +378,90 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  Widget _buildBackground(Size size) {
-    return Stack(
-      children: [
-        // Top gradient circle
-        Positioned(
-          top: -size.width * 0.5,
-          right: -size.width * 0.3,
-          child: Container(
-            width: size.width * 1.2,
-            height: size.width * 1.2,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  AppTheme.primary.withOpacity(0.15),
-                  AppTheme.primary.withOpacity(0.0),
-                ],
-              ),
-            ),
-          ),
-        ),
-        // Bottom gradient circle
-        Positioned(
-          bottom: -size.width * 0.3,
-          left: -size.width * 0.4,
-          child: Container(
-            width: size.width * 0.8,
-            height: size.width * 0.8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  AppTheme.primary.withOpacity(0.1),
-                  AppTheme.primary.withOpacity(0.0),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeader() {
+  Widget _buildLogo(ThemeData theme, Color accentColor) {
     return Column(
       children: [
-        // Logo
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppTheme.primary,
-                AppTheme.primary.withOpacity(0.8),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primary.withOpacity(0.3),
-                blurRadius: 20,
-                spreadRadius: 2,
+        // Logo Icon
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Stylized icon like the reference
+            ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  accentColor.withValues(alpha: 0.8),
+                  accentColor,
+                ],
+              ).createShader(bounds),
+              child: const Icon(
+                Icons.bolt,
+                size: 40,
+                color: Colors.white,
               ),
-            ],
-          ),
-          child: Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  Icons.fitness_center,
-                  size: 44,
-                  color: Colors.white,
-                ),
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Icon(
-                    Icons.auto_awesome,
-                    size: 20,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                ),
-              ],
             ),
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Title
-        ShaderMask(
-          shaderCallback: (bounds) => LinearGradient(
-            colors: [
-              AppTheme.primary,
-              AppTheme.primary.withOpacity(0.7),
-            ],
-          ).createShader(bounds),
-          child: const Text(
-            'FitnessAI',
-            style: TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 1.5,
+            const SizedBox(width: 8),
+            // Brand name with letter spacing
+            Text(
+              'fitnessai',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.w300,
+                letterSpacing: 6,
+                color: theme.textTheme.bodyLarge?.color,
+              ),
             ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Welcome back! Sign in to continue',
-          style: TextStyle(
-            fontSize: 16,
-            color: AppTheme.mutedForeground,
-          ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildLoginForm(AuthState authState) {
+  Widget _buildLoginForm(Color inputFillColor, Color accentColor) {
     return Form(
       key: _formKey,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Email field
-          Text(
-            'Email',
-            style: TextStyle(
-              color: AppTheme.foreground,
-              fontWeight: FontWeight.w500,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 8),
+          // Email Field
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             autocorrect: false,
-            style: const TextStyle(color: AppTheme.foreground),
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
             decoration: InputDecoration(
-              hintText: 'Enter your email',
-              prefixIcon: Icon(
-                Icons.email_outlined,
-                color: AppTheme.mutedForeground,
+              hintText: 'email',
+              hintStyle: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
               ),
               filled: true,
-              fillColor: AppTheme.card,
+              fillColor: inputFillColor,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: AppTheme.border),
+                borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: AppTheme.border),
+                borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: AppTheme.primary, width: 2),
+                borderSide: BorderSide(color: accentColor, width: 1.5),
               ),
               errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Colors.red),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: const BorderSide(color: Colors.red),
               ),
@@ -508,54 +476,58 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               return null;
             },
           ),
-          const SizedBox(height: 20),
 
-          // Password field
-          Text(
-            'Password',
-            style: TextStyle(
-              color: AppTheme.foreground,
-              fontWeight: FontWeight.w500,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
+
+          // Password Field
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
-            style: const TextStyle(color: AppTheme.foreground),
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
             decoration: InputDecoration(
-              hintText: 'Enter your password',
-              prefixIcon: Icon(
-                Icons.lock_outlined,
-                color: AppTheme.mutedForeground,
+              hintText: 'password',
+              hintStyle: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+              ),
+              filled: true,
+              fillColor: inputFillColor,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
               ),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  color: AppTheme.mutedForeground,
+                  color: Colors.grey[400],
                 ),
                 onPressed: () {
                   setState(() => _obscurePassword = !_obscurePassword);
                 },
               ),
-              filled: true,
-              fillColor: AppTheme.card,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: AppTheme.border),
+                borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: AppTheme.border),
+                borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: AppTheme.primary, width: 2),
+                borderSide: BorderSide(color: accentColor, width: 1.5),
               ),
               errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Colors.red),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: const BorderSide(color: Colors.red),
               ),
@@ -567,93 +539,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               return null;
             },
           ),
-          const SizedBox(height: 16),
-
-          // Remember me & Forgot password
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: Checkbox(
-                      value: _rememberMe,
-                      onChanged: (value) {
-                        setState(() => _rememberMe = value ?? false);
-                      },
-                      activeColor: AppTheme.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() => _rememberMe = !_rememberMe);
-                    },
-                    child: Text(
-                      _biometricAvailable
-                          ? 'Enable $_biometricName'
-                          : 'Remember me',
-                      style: TextStyle(
-                        color: AppTheme.mutedForeground,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              TextButton(
-                onPressed: () {
-                  // TODO: Implement forgot password
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Coming soon!')),
-                  );
-                },
-                child: Text(
-                  'Forgot Password?',
-                  style: TextStyle(
-                    color: AppTheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildLoginButton(AuthState authState) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primary,
-            AppTheme.primary.withOpacity(0.8),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primary.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+  Widget _buildLoginButton(AuthState authState, Color accentColor) {
+    return SizedBox(
+      height: 50,
       child: ElevatedButton(
         onPressed: authState.isLoading ? null : _handleLogin,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
+          backgroundColor: accentColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(28),
           ),
         ),
         child: authState.isLoading
@@ -665,116 +566,148 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   valueColor: AlwaysStoppedAnimation(Colors.white),
                 ),
               )
-            : const Text(
-                'Sign In',
+            : Text(
+                'Log In',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
                 ),
               ),
       ),
     );
   }
 
-  Widget _buildBiometricButton() {
+  Widget _buildBiometricButton(ThemeData theme, Color accentColor) {
     return Center(
-      child: GestureDetector(
-        onTap: _isAuthenticating ? null : _handleBiometricLogin,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          decoration: BoxDecoration(
-            color: AppTheme.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.border),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_isAuthenticating)
-                const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                Icon(
-                  _biometricName == 'Face ID'
-                      ? Icons.face
-                      : Icons.fingerprint,
-                  color: AppTheme.primary,
-                  size: 28,
+      child: TextButton.icon(
+        onPressed: _isAuthenticating ? null : _handleBiometricLogin,
+        icon: _isAuthenticating
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: accentColor,
                 ),
-              const SizedBox(width: 12),
-              Text(
-                'Sign in with $_biometricName',
-                style: TextStyle(
-                  color: AppTheme.foreground,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
+              )
+            : Icon(
+                _biometricName == 'Face ID' ? Icons.face : Icons.fingerprint,
+                color: accentColor,
               ),
-            ],
+        label: Text(
+          'Use $_biometricName',
+          style: TextStyle(
+            color: accentColor,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildDivider() {
+  Widget _buildDivider(ThemeData theme) {
     return Row(
       children: [
         Expanded(
           child: Container(
             height: 1,
-            color: AppTheme.border,
+            color: theme.dividerColor.withValues(alpha: 0.5),
           ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'OR',
+            'or Log in with',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+              color: Colors.grey[400],
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ),
         Expanded(
           child: Container(
             height: 1,
-            color: AppTheme.border,
+            color: theme.dividerColor.withValues(alpha: 0.5),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildRegisterLink() {
+  Widget _buildSocialButtons(ThemeData theme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Google Button
+        _buildSocialButton(
+          onTap: _handleGoogleLogin,
+          icon: const FaIcon(
+            FontAwesomeIcons.google,
+            size: 24,
+            color: Colors.red,
+          ),
+          theme: theme,
+        ),
+
+        const SizedBox(width: 24),
+
+        // Apple Button
+        _buildSocialButton(
+          onTap: _handleAppleLogin,
+          icon: Icon(
+            Icons.apple,
+            size: 28,
+            color: theme.brightness == Brightness.light
+                ? Colors.black
+                : Colors.white,
+          ),
+          theme: theme,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialButton({
+    required VoidCallback onTap,
+    required Widget icon,
+    required ThemeData theme,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: theme.brightness == Brightness.light
+              ? Colors.white
+              : theme.cardColor,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(child: icon),
+      ),
+    );
+  }
+
+  Widget _buildTrainerLink(ThemeData theme) {
     return Center(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            "Don't have an account? ",
-            style: TextStyle(
-              color: AppTheme.mutedForeground,
-              fontSize: 15,
-            ),
+      child: TextButton(
+        onPressed: () => context.go('/register'),
+        child: Text(
+          'Are you a trainer?',
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
           ),
-          GestureDetector(
-            onTap: () => context.go('/register'),
-            child: Text(
-              'Sign Up',
-              style: TextStyle(
-                color: AppTheme.primary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

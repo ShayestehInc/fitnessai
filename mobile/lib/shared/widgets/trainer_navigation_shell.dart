@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/theme/app_theme.dart';
 import '../../features/admin/presentation/widgets/admin_impersonation_banner.dart';
 
 class TrainerNavigationShell extends ConsumerWidget {
@@ -14,13 +13,15 @@ class TrainerNavigationShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: AdminImpersonationBannerWrapper(child: navigationShell),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: AppTheme.card,
+          color: theme.cardColor,
           border: Border(
-            top: BorderSide(color: AppTheme.border, width: 1),
+            top: BorderSide(color: theme.dividerColor, width: 1),
           ),
         ),
         child: SafeArea(
@@ -97,6 +98,10 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final mutedColor = theme.textTheme.bodySmall?.color ?? Colors.grey;
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -107,14 +112,14 @@ class _NavItem extends StatelessWidget {
           children: [
             Icon(
               isSelected ? activeIcon : icon,
-              color: isSelected ? AppTheme.primary : AppTheme.mutedForeground,
+              color: isSelected ? primaryColor : mutedColor,
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? AppTheme.primary : AppTheme.mutedForeground,
+                color: isSelected ? primaryColor : mutedColor,
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),

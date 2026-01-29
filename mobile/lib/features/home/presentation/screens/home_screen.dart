@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../nutrition/presentation/widgets/macro_progress_circle.dart';
 import '../providers/home_provider.dart';
@@ -24,12 +23,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final authState = ref.watch(authStateProvider);
     final homeState = ref.watch(homeStateProvider);
     final user = authState.user;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () =>
@@ -67,7 +67,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/ai-command'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: theme.colorScheme.primary,
         icon: const Icon(Icons.mic),
         label: const Text('Log'),
       ),
@@ -75,6 +75,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildHeader(String name) {
+    final theme = Theme.of(context);
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
     final trainer = user?.trainer;
@@ -88,14 +89,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Text(
               'Hello,',
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 16,
               ),
             ),
             Text(
               name,
-              style: const TextStyle(
-                color: AppTheme.foreground,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
               ),
@@ -106,7 +107,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   CircleAvatar(
                     radius: 12,
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: theme.colorScheme.primary,
                     backgroundImage: trainer.profileImage != null
                         ? NetworkImage(trainer.profileImage!)
                         : null,
@@ -128,7 +129,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Text(
                     'Coached by ${trainer.firstName ?? trainer.email.split('@').first}',
                     style: TextStyle(
-                      color: AppTheme.primary,
+                      color: theme.colorScheme.primary,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -145,23 +146,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 // TODO: Notifications
               },
               icon: const Icon(Icons.notifications_outlined),
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
             ),
             PopupMenuButton(
               icon: CircleAvatar(
                 radius: 18,
-                backgroundColor: AppTheme.primary,
+                backgroundColor: theme.colorScheme.primary,
                 child: const Icon(Icons.person, color: Colors.white, size: 20),
               ),
-              color: AppTheme.card,
+              color: theme.cardColor,
               itemBuilder: (context) => [
                 PopupMenuItem(
                   child: Row(
                     children: [
-                      Icon(Icons.settings, color: AppTheme.foreground),
+                      Icon(Icons.settings, color: theme.textTheme.bodyLarge?.color),
                       const SizedBox(width: 8),
                       Text('Settings',
-                          style: TextStyle(color: AppTheme.foreground)),
+                          style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
                     ],
                   ),
                   onTap: () {
@@ -174,10 +175,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 PopupMenuItem(
                   child: Row(
                     children: [
-                      Icon(Icons.logout, color: AppTheme.destructive),
+                      Icon(Icons.logout, color: theme.colorScheme.error),
                       const SizedBox(width: 8),
                       Text('Logout',
-                          style: TextStyle(color: AppTheme.destructive)),
+                          style: TextStyle(color: theme.colorScheme.error)),
                     ],
                   ),
                   onTap: () async {
@@ -235,6 +236,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildProgramCard(HomeState state) {
+    final theme = Theme.of(context);
     final program = state.activeProgram;
 
     return Container(
@@ -243,14 +245,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.primary.withOpacity(0.15),
-            AppTheme.primary.withOpacity(0.05),
+            theme.colorScheme.primary.withValues(alpha: 0.15),
+            theme.colorScheme.primary.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,12 +262,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.fitness_center, color: AppTheme.primary, size: 20),
+                  Icon(Icons.fitness_center, color: theme.colorScheme.primary, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'Current Program',
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 12,
                     ),
                   ),
@@ -275,7 +277,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary,
+                    color: theme.colorScheme.primary,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
@@ -293,7 +295,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Text(
             program?.name ?? 'No active program',
             style: TextStyle(
-              color: program != null ? AppTheme.foreground : AppTheme.mutedForeground,
+              color: program != null ? theme.textTheme.bodyLarge?.color : theme.textTheme.bodySmall?.color,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
@@ -302,15 +304,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: 0.35, // TODO: Calculate actual progress
-              backgroundColor: AppTheme.zinc700,
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+              backgroundColor: theme.dividerColor,
+              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
               borderRadius: BorderRadius.circular(4),
             ),
             const SizedBox(height: 8),
             Text(
               '35% complete',
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 12,
               ),
             ),
@@ -321,8 +323,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: OutlinedButton(
               onPressed: () => context.push('/logbook'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primary,
-                side: BorderSide(color: AppTheme.primary),
+                foregroundColor: theme.colorScheme.primary,
+                side: BorderSide(color: theme.colorScheme.primary),
               ),
               child: const Text('View Programs'),
             ),
@@ -333,13 +335,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildQuickActions() {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Quick Actions',
           style: TextStyle(
-            color: AppTheme.foreground,
+            color: theme.textTheme.bodyLarge?.color,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -397,6 +400,7 @@ class _MiniMacroCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Stack(
@@ -408,14 +412,14 @@ class _MiniMacroCircle extends StatelessWidget {
               child: CircularProgressIndicator(
                 value: progress,
                 strokeWidth: 6,
-                backgroundColor: AppTheme.zinc700,
+                backgroundColor: theme.dividerColor,
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
             ),
             Text(
               '${(progress * 100).round()}%',
-              style: const TextStyle(
-                color: AppTheme.foreground,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -434,7 +438,7 @@ class _MiniMacroCircle extends StatelessWidget {
         Text(
           '$current / $goal g',
           style: TextStyle(
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
             fontSize: 10,
           ),
         ),
@@ -456,23 +460,24 @@ class _QuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: AppTheme.card,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.border),
+          border: Border.all(color: theme.dividerColor),
         ),
         child: Column(
           children: [
-            Icon(icon, color: AppTheme.primary),
+            Icon(icon, color: theme.colorScheme.primary),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
-                color: AppTheme.foreground,
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 12,
               ),
             ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/chat_models.dart';
 
 class ChatMessageBubble extends StatelessWidget {
@@ -14,10 +13,11 @@ class ChatMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final isUser = message.role == 'user';
 
     if (message.isLoading) {
-      return _buildLoadingBubble();
+      return _buildLoadingBubble(context);
     }
 
     return Padding(
@@ -28,7 +28,7 @@ class ChatMessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isUser) ...[
-            _buildAvatar(isUser),
+            _buildAvatar(context, isUser),
             const SizedBox(width: 8),
           ],
           Flexible(
@@ -45,8 +45,8 @@ class ChatMessageBubble extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isUser
-                          ? AppTheme.primary
-                          : AppTheme.card,
+                          ? theme.colorScheme.primary
+                          : theme.cardColor,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(16),
                         topRight: const Radius.circular(16),
@@ -55,12 +55,12 @@ class ChatMessageBubble extends StatelessWidget {
                       ),
                       border: isUser
                           ? null
-                          : Border.all(color: AppTheme.border),
+                          : Border.all(color: theme.dividerColor),
                     ),
                     child: SelectableText(
                       message.content,
                       style: TextStyle(
-                        color: isUser ? Colors.white : AppTheme.foreground,
+                        color: isUser ? Colors.white : theme.textTheme.bodyLarge?.color,
                         fontSize: 14,
                         height: 1.5,
                       ),
@@ -74,7 +74,7 @@ class ChatMessageBubble extends StatelessWidget {
                     Text(
                       _formatTime(message.timestamp),
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 11,
                       ),
                     ),
@@ -85,7 +85,7 @@ class ChatMessageBubble extends StatelessWidget {
                         child: Icon(
                           Icons.copy,
                           size: 14,
-                          color: AppTheme.mutedForeground,
+                          color: theme.textTheme.bodySmall?.color,
                         ),
                       ),
                     ],
@@ -96,34 +96,38 @@ class ChatMessageBubble extends StatelessWidget {
           ),
           if (isUser) ...[
             const SizedBox(width: 8),
-            _buildAvatar(isUser),
+            _buildAvatar(context, isUser),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildAvatar(bool isUser) {
+  Widget _buildAvatar(BuildContext context, bool isUser) {
+    final theme = Theme.of(context);
+
     return CircleAvatar(
       radius: 16,
       backgroundColor: isUser
-          ? AppTheme.primary.withValues(alpha: 0.2)
-          : AppTheme.primary.withValues(alpha: 0.1),
+          ? theme.colorScheme.primary.withValues(alpha: 0.2)
+          : theme.colorScheme.primary.withValues(alpha: 0.1),
       child: Icon(
         isUser ? Icons.person : Icons.psychology,
         size: 18,
-        color: AppTheme.primary,
+        color: theme.colorScheme.primary,
       ),
     );
   }
 
-  Widget _buildLoadingBubble() {
+  Widget _buildLoadingBubble(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildAvatar(false),
+          _buildAvatar(context, false),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(
@@ -131,23 +135,23 @@ class ChatMessageBubble extends StatelessWidget {
               vertical: 12,
             ),
             decoration: BoxDecoration(
-              color: AppTheme.card,
+              color: theme.cardColor,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 topRight: Radius.circular(16),
                 bottomLeft: Radius.circular(4),
                 bottomRight: Radius.circular(16),
               ),
-              border: Border.all(color: AppTheme.border),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildTypingDot(0),
+                _buildTypingDot(context, 0),
                 const SizedBox(width: 4),
-                _buildTypingDot(1),
+                _buildTypingDot(context, 1),
                 const SizedBox(width: 4),
-                _buildTypingDot(2),
+                _buildTypingDot(context, 2),
               ],
             ),
           ),
@@ -156,7 +160,9 @@ class ChatMessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildTypingDot(int index) {
+  Widget _buildTypingDot(BuildContext context, int index) {
+    final theme = Theme.of(context);
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 600 + (index * 200)),
@@ -165,7 +171,7 @@ class ChatMessageBubble extends StatelessWidget {
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: AppTheme.mutedForeground.withValues(alpha: 0.3 + (value * 0.7)),
+            color: (theme.textTheme.bodySmall?.color ?? Colors.grey).withValues(alpha: 0.3 + (value * 0.7)),
             shape: BoxShape.circle,
           ),
         );

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -41,13 +40,14 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(adminSubscriptionsProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Subscriptions'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -75,10 +75,10 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
                       )
                     : null,
                 filled: true,
-                fillColor: AppTheme.card,
+                fillColor: theme.cardColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppTheme.border),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
               ),
               onSubmitted: (_) => _applyFilters(),
@@ -93,6 +93,7 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
                 children: [
                   if (_statusFilter != null)
                     _buildFilterChip(
+                      context,
                       'Status: ${_statusFilter!}',
                       () {
                         setState(() => _statusFilter = null);
@@ -102,6 +103,7 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
                   if (_tierFilter != null) ...[
                     const SizedBox(width: 8),
                     _buildFilterChip(
+                      context,
                       'Tier: ${_tierFilter!}',
                       () {
                         setState(() => _tierFilter = null);
@@ -154,10 +156,10 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
                         ),
                       )
                     : state.subscriptions.isEmpty
-                        ? const Center(
+                        ? Center(
                             child: Text(
                               'No subscriptions found',
-                              style: TextStyle(color: AppTheme.mutedForeground),
+                              style: TextStyle(color: theme.textTheme.bodySmall?.color),
                             ),
                           )
                         : RefreshIndicator(
@@ -178,11 +180,12 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
     );
   }
 
-  Widget _buildFilterChip(String label, VoidCallback onRemove) {
+  Widget _buildFilterChip(BuildContext context, String label, VoidCallback onRemove) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.primary.withOpacity(0.2),
+        color: theme.colorScheme.primary.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -191,7 +194,7 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
           Text(
             label,
             style: TextStyle(
-              color: AppTheme.primary,
+              color: theme.colorScheme.primary,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -202,7 +205,7 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
             child: Icon(
               Icons.close,
               size: 16,
-              color: AppTheme.primary,
+              color: theme.colorScheme.primary,
             ),
           ),
         ],
@@ -211,9 +214,10 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
   }
 
   void _showFilterSheet(BuildContext context) {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -227,10 +231,10 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Filter Subscriptions',
                     style: TextStyle(
-                      color: AppTheme.foreground,
+                      color: theme.textTheme.bodyLarge?.color,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -244,10 +248,10 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
               const SizedBox(height: 20),
 
               // Status filter
-              const Text(
+              Text(
                 'Status',
                 style: TextStyle(
-                  color: AppTheme.foreground,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -266,18 +270,18 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
                         });
                       });
                     },
-                    selectedColor: AppTheme.primary.withOpacity(0.2),
-                    checkmarkColor: AppTheme.primary,
+                    selectedColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                    checkmarkColor: theme.colorScheme.primary,
                   );
                 }).toList(),
               ),
               const SizedBox(height: 20),
 
               // Tier filter
-              const Text(
+              Text(
                 'Tier',
                 style: TextStyle(
-                  color: AppTheme.foreground,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -296,8 +300,8 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
                         });
                       });
                     },
-                    selectedColor: AppTheme.primary.withOpacity(0.2),
-                    checkmarkColor: AppTheme.primary,
+                    selectedColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                    checkmarkColor: theme.colorScheme.primary,
                   );
                 }).toList(),
               ),
@@ -312,7 +316,7 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
                     _applyFilters();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: theme.colorScheme.primary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -343,15 +347,16 @@ class _SubscriptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final tierColor = _getTierColor(subscription.tier);
     final statusColor = _getStatusColor(subscription.status);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: InkWell(
         onTap: () => context.push('/admin/subscriptions/${subscription.id}'),
@@ -365,7 +370,7 @@ class _SubscriptionCard extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: tierColor.withOpacity(0.2),
+                    backgroundColor: tierColor.withValues(alpha: 0.2),
                     child: Text(
                       subscription.trainerEmail[0].toUpperCase(),
                       style: TextStyle(
@@ -381,8 +386,8 @@ class _SubscriptionCard extends StatelessWidget {
                       children: [
                         Text(
                           subscription.trainerEmail,
-                          style: const TextStyle(
-                            color: AppTheme.foreground,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
                           ),
@@ -392,7 +397,7 @@ class _SubscriptionCard extends StatelessWidget {
                           Text(
                             subscription.trainerName!,
                             style: TextStyle(
-                              color: AppTheme.mutedForeground,
+                              color: theme.textTheme.bodySmall?.color,
                               fontSize: 13,
                             ),
                           ),
@@ -401,7 +406,7 @@ class _SubscriptionCard extends StatelessWidget {
                   ),
                   Icon(
                     Icons.chevron_right,
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                   ),
                 ],
               ),
@@ -414,7 +419,7 @@ class _SubscriptionCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: tierColor.withOpacity(0.2),
+                      color: tierColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -432,7 +437,7 @@ class _SubscriptionCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.2),
+                      color: statusColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -450,8 +455,8 @@ class _SubscriptionCard extends StatelessWidget {
                   // Amount
                   Text(
                     '\$${subscription.tierEnum.price}/mo',
-                    style: const TextStyle(
-                      color: AppTheme.foreground,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -464,7 +469,7 @@ class _SubscriptionCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -484,7 +489,7 @@ class _SubscriptionCard extends StatelessWidget {
                         Text(
                           '${subscription.daysPastDue} days',
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),
@@ -503,13 +508,13 @@ class _SubscriptionCard extends StatelessWidget {
                     Icon(
                       Icons.calendar_today,
                       size: 14,
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       'Next payment: ${_formatDate(subscription.nextPaymentDate!)}',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 12,
                       ),
                     ),

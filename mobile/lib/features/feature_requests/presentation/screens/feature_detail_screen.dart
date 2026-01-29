@@ -119,7 +119,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -139,9 +139,9 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,7 +172,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity(0.1),
+                    color: Colors.purple.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -227,7 +227,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
                     return Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.grey.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Center(
@@ -255,7 +255,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,
             border: Border(
-              top: BorderSide(color: Colors.grey.withOpacity(0.2)),
+              top: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
             ),
           ),
           child: SafeArea(
@@ -295,7 +295,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.1),
+        color: Colors.grey.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -331,7 +331,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -349,7 +349,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.2),
+        color: Colors.grey.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -369,11 +369,11 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: comment.isAdminResponse
-            ? Colors.green.withOpacity(0.1)
-            : Colors.grey.withOpacity(0.1),
+            ? Colors.green.withValues(alpha: 0.1)
+            : Colors.grey.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: comment.isAdminResponse
-            ? Border.all(color: Colors.green.withOpacity(0.3))
+            ? Border.all(color: Colors.green.withValues(alpha: 0.3))
             : null,
       ),
       child: Column(

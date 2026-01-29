@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/program_week_model.dart';
 import '../../../exercises/data/models/exercise_model.dart';
 import '../../../exercises/presentation/providers/exercise_provider.dart';
@@ -47,33 +46,34 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       body: Column(
         children: [
           // Day selector
-          _buildDaySelector(),
+          _buildDaySelector(context),
 
           // Day content
           Expanded(
-            child: _buildDayContent(_week.days[_selectedDayIndex]),
+            child: _buildDayContent(context, _week.days[_selectedDayIndex]),
           ),
         ],
       ),
       floatingActionButton: _week.days[_selectedDayIndex].isRestDay
           ? null
           : FloatingActionButton.extended(
-              onPressed: () => _showAddExerciseSheet(),
+              onPressed: () => _showAddExerciseSheet(context),
               icon: const Icon(Icons.add),
               label: const Text('Add Exercise'),
             ),
     );
   }
 
-  Widget _buildDaySelector() {
+  Widget _buildDaySelector(BuildContext context) {
+    final theme = Theme.of(context);
     final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return Container(
       height: 70,
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.card,
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        color: theme.cardColor,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -90,10 +90,10 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.primary
+                    ? theme.colorScheme.primary
                     : day.isRestDay
-                        ? Colors.grey.withOpacity(0.1)
-                        : AppTheme.muted,
+                        ? Colors.grey.withValues(alpha: 0.1)
+                        : theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -115,7 +115,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                         ? Colors.white
                         : day.isRestDay
                             ? Colors.grey
-                            : AppTheme.primary,
+                            : theme.colorScheme.primary,
                   ),
                 ],
               ),
@@ -126,9 +126,9 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     );
   }
 
-  Widget _buildDayContent(WorkoutDay day) {
+  Widget _buildDayContent(BuildContext context, WorkoutDay day) {
     if (day.isRestDay) {
-      return _buildRestDayContent(day);
+      return _buildRestDayContent(context, day);
     }
 
     return ReorderableListView.builder(
@@ -146,17 +146,17 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
           return Container(
             key: const ValueKey('header'),
             margin: const EdgeInsets.only(bottom: 16),
-            child: _buildDayHeader(day),
+            child: _buildDayHeader(context, day),
           );
         }
 
         final exercise = day.exercises[index - 1];
-        return _buildExerciseCard(exercise, index - 1);
+        return _buildExerciseCard(context, exercise, index - 1);
       },
     );
   }
 
-  Widget _buildRestDayContent(WorkoutDay day) {
+  Widget _buildRestDayContent(BuildContext context, WorkoutDay day) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -183,11 +183,13 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     );
   }
 
-  Widget _buildDayHeader(WorkoutDay day) {
+  Widget _buildDayHeader(BuildContext context, WorkoutDay day) {
+    final theme = Theme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.primary.withOpacity(0.1),
+        color: theme.colorScheme.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -263,14 +265,16 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     );
   }
 
-  Widget _buildExerciseCard(WorkoutExercise exercise, int index) {
+  Widget _buildExerciseCard(BuildContext context, WorkoutExercise exercise, int index) {
+    final theme = Theme.of(context);
+
     return Card(
       key: ValueKey(exercise.exerciseId.toString() + index.toString()),
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -292,12 +296,12 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      _buildMiniChip(exercise.muscleGroup),
+                      _buildMiniChip(context, exercise.muscleGroup),
                       const SizedBox(width: 8),
                       Text(
                         '${exercise.sets} × ${exercise.reps}',
                         style: TextStyle(
-                          color: AppTheme.primary,
+                          color: theme.colorScheme.primary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -310,7 +314,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
             // Edit button
             IconButton(
               icon: const Icon(Icons.edit_outlined, size: 20),
-              onPressed: () => _showEditExerciseDialog(exercise, index),
+              onPressed: () => _showEditExerciseDialog(context, exercise, index),
             ),
 
             // Delete button
@@ -324,11 +328,13 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     );
   }
 
-  Widget _buildMiniChip(String text) {
+  Widget _buildMiniChip(BuildContext context, String text) {
+    final theme = Theme.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: AppTheme.muted,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -339,11 +345,13 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     );
   }
 
-  void _showAddExerciseSheet() {
+  void _showAddExerciseSheet(BuildContext context) {
+    final theme = Theme.of(context);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -410,13 +418,14 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     });
   }
 
-  void _showEditExerciseDialog(WorkoutExercise exercise, int index) {
+  void _showEditExerciseDialog(BuildContext context, WorkoutExercise exercise, int index) {
+    final theme = Theme.of(context);
     int sets = exercise.sets;
     int reps = exercise.reps;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -664,6 +673,7 @@ class _ExercisePickerSheetState extends ConsumerState<_ExercisePickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final filter = ExerciseFilter(
       muscleGroup: _selectedMuscleGroup,
       search: _searchController.text.isNotEmpty ? _searchController.text : null,
@@ -706,7 +716,7 @@ class _ExercisePickerSheetState extends ConsumerState<_ExercisePickerSheet> {
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor: AppTheme.muted,
+              fillColor: theme.colorScheme.surfaceContainerHighest,
             ),
             onChanged: (value) => setState(() {}),
           ),
@@ -765,10 +775,10 @@ class _ExercisePickerSheetState extends ConsumerState<_ExercisePickerSheet> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.1),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.fitness_center, color: AppTheme.primary, size: 20),
+                      child: Icon(Icons.fitness_center, color: theme.colorScheme.primary, size: 20),
                     ),
                     title: Text(exercise.name),
                     subtitle: Text(exercise.muscleGroupDisplay),

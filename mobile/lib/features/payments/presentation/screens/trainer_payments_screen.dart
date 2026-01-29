@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
 
@@ -35,25 +34,26 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(trainerPaymentsProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
-        title: const Text(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        title: Text(
           'Payment History',
-          style: TextStyle(color: AppTheme.foreground),
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.foreground),
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppTheme.primary,
-          labelColor: AppTheme.foreground,
-          unselectedLabelColor: AppTheme.mutedForeground,
+          indicatorColor: theme.colorScheme.primary,
+          labelColor: theme.textTheme.bodyLarge?.color,
+          unselectedLabelColor: theme.textTheme.bodySmall?.color,
           tabs: const [
             Tab(text: 'Payments'),
             Tab(text: 'Subscribers'),
@@ -83,13 +83,14 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
   }
 
   Widget _buildStatsSummary(TrainerPaymentsState state) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         children: [
@@ -103,7 +104,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
           Container(
             width: 1,
             height: 40,
-            color: AppTheme.border,
+            color: theme.dividerColor,
           ),
           Expanded(
             child: _buildStatItem(
@@ -118,17 +119,18 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
   }
 
   Widget _buildStatItem(String label, String value, IconData icon) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: AppTheme.primary, size: 20),
+            Icon(icon, color: theme.colorScheme.primary, size: 20),
             const SizedBox(width: 8),
             Text(
               value,
-              style: const TextStyle(
-                color: AppTheme.foreground,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -139,7 +141,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
         Text(
           label,
           style: TextStyle(
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
             fontSize: 12,
           ),
         ),
@@ -171,13 +173,14 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
   }
 
   Widget _buildPaymentCard(TraineePaymentModel payment) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         children: [
@@ -185,10 +188,10 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: payment.isSucceeded
-                  ? Colors.green.withOpacity(0.1)
+                  ? Colors.green.withValues(alpha: 0.1)
                   : payment.isPending
-                      ? Colors.orange.withOpacity(0.1)
-                      : AppTheme.destructive.withOpacity(0.1),
+                      ? Colors.orange.withValues(alpha: 0.1)
+                      : theme.colorScheme.error.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -201,7 +204,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
                   ? Colors.green
                   : payment.isPending
                       ? Colors.orange
-                      : AppTheme.destructive,
+                      : theme.colorScheme.error,
               size: 24,
             ),
           ),
@@ -212,8 +215,8 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
               children: [
                 Text(
                   payment.traineeEmail ?? 'Trainee',
-                  style: const TextStyle(
-                    color: AppTheme.foreground,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -223,7 +226,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
                       ? 'Monthly Subscription'
                       : 'One-Time Payment',
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 13,
                   ),
                 ),
@@ -231,7 +234,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
                   Text(
                     _formatDate(payment.paidAt!),
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 12,
                     ),
                   ),
@@ -243,8 +246,8 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
             children: [
               Text(
                 payment.formattedAmount,
-                style: const TextStyle(
-                  color: AppTheme.foreground,
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -281,13 +284,14 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
   }
 
   Widget _buildSubscriberCard(TraineeSubscriptionModel subscription) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,12 +302,12 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(22),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.person,
-                  color: AppTheme.primary,
+                  color: theme.colorScheme.primary,
                   size: 22,
                 ),
               ),
@@ -314,8 +318,8 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
                   children: [
                     Text(
                       subscription.traineeEmail ?? 'Trainee',
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -323,7 +327,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
                     Text(
                       subscription.formattedAmount,
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 13,
                       ),
                     ),
@@ -335,7 +339,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
           ),
 
           const SizedBox(height: 12),
-          const Divider(color: AppTheme.border),
+          Divider(color: theme.dividerColor),
           const SizedBox(height: 8),
 
           Row(
@@ -347,7 +351,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
                     Text(
                       'Member since',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 12,
                       ),
                     ),
@@ -355,8 +359,8 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
                       subscription.createdAt != null
                           ? _formatDate(subscription.createdAt!)
                           : '-',
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontSize: 13,
                       ),
                     ),
@@ -371,14 +375,14 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
                       Text(
                         'Renews in',
                         style: TextStyle(
-                          color: AppTheme.mutedForeground,
+                          color: theme.textTheme.bodySmall?.color,
                           fontSize: 12,
                         ),
                       ),
                       Text(
                         '${subscription.daysUntilRenewal} days',
-                        style: const TextStyle(
-                          color: AppTheme.foreground,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
                           fontSize: 13,
                         ),
                       ),
@@ -393,6 +397,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
   }
 
   Widget _buildStatusBadge(String status) {
+    final theme = Theme.of(context);
     Color color;
     String label;
 
@@ -411,22 +416,22 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
         label = 'Past Due';
         break;
       case 'canceled':
-        color = AppTheme.mutedForeground;
+        color = theme.textTheme.bodySmall?.color ?? Colors.grey;
         label = 'Canceled';
         break;
       case 'failed':
-        color = AppTheme.destructive;
+        color = theme.colorScheme.error;
         label = 'Failed';
         break;
       default:
-        color = AppTheme.mutedForeground;
+        color = theme.textTheme.bodySmall?.color ?? Colors.grey;
         label = status;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -445,18 +450,19 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
     required String title,
     required String message,
   }) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: AppTheme.mutedForeground),
+            Icon(icon, size: 64, color: theme.textTheme.bodySmall?.color),
             const SizedBox(height: 16),
             Text(
               title,
-              style: const TextStyle(
-                color: AppTheme.foreground,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -466,7 +472,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
               message,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 14,
               ),
             ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../logging/presentation/providers/logging_provider.dart';
 import '../providers/nutrition_provider.dart';
 import '../providers/food_search_provider.dart';
@@ -63,11 +62,12 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
   @override
   Widget build(BuildContext context) {
     final loggingState = ref.watch(loggingStateProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -84,23 +84,23 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             Tab(text: 'AI Entry'),
             Tab(text: 'Search'),
           ],
-          indicatorColor: AppTheme.primary,
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: AppTheme.mutedForeground,
+          indicatorColor: theme.colorScheme.primary,
+          labelColor: theme.colorScheme.primary,
+          unselectedLabelColor: theme.textTheme.bodySmall?.color,
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildManualEntry(),
-          _buildAIQuickEntry(loggingState),
-          _buildFoodSearch(),
+          _buildManualEntry(theme),
+          _buildAIQuickEntry(loggingState, theme),
+          _buildFoodSearch(theme),
         ],
       ),
     );
   }
 
-  Widget _buildManualEntry() {
+  Widget _buildManualEntry(ThemeData theme) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -114,7 +114,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           Text(
             'Manually enter macros for your food',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 14,
             ),
           ),
@@ -125,16 +125,16 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             Text(
               'Meal',
               style: TextStyle(
-                color: AppTheme.foreground,
+                color: theme.textTheme.bodyLarge?.color,
                 fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: AppTheme.card,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.border),
+                border: Border.all(color: theme.dividerColor),
               ),
               child: Row(
                 children: List.generate(4, (index) {
@@ -147,7 +147,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppTheme.primary.withOpacity(0.2)
+                              ? theme.colorScheme.primary.withValues(alpha: 0.2)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -156,8 +156,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: isSelected
-                                ? AppTheme.primary
-                                : AppTheme.mutedForeground,
+                                ? theme.colorScheme.primary
+                                : theme.textTheme.bodySmall?.color,
                             fontWeight:
                                 isSelected ? FontWeight.w600 : FontWeight.normal,
                             fontSize: 14,
@@ -176,7 +176,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           Text(
             'Food Name',
             style: TextStyle(
-              color: AppTheme.foreground,
+              color: theme.textTheme.bodyLarge?.color,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -186,10 +186,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             decoration: InputDecoration(
               hintText: 'e.g., Chicken Breast',
               filled: true,
-              fillColor: AppTheme.card,
+              fillColor: theme.cardColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppTheme.border),
+                borderSide: BorderSide(color: theme.dividerColor),
               ),
             ),
             onChanged: (_) => setState(() {}),
@@ -200,7 +200,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           Text(
             'Serving Size (optional)',
             style: TextStyle(
-              color: AppTheme.foreground,
+              color: theme.textTheme.bodyLarge?.color,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -210,10 +210,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             decoration: InputDecoration(
               hintText: 'e.g., 150g, 1 cup',
               filled: true,
-              fillColor: AppTheme.card,
+              fillColor: theme.cardColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppTheme.border),
+                borderSide: BorderSide(color: theme.dividerColor),
               ),
             ),
           ),
@@ -235,6 +235,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                   controller: _proteinController,
                   color: const Color(0xFFEC4899), // Pink
                   suffix: 'g',
+                  theme: theme,
                 ),
               ),
               const SizedBox(width: 12),
@@ -244,6 +245,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                   controller: _carbsController,
                   color: const Color(0xFF22C55E), // Green
                   suffix: 'g',
+                  theme: theme,
                 ),
               ),
               const SizedBox(width: 12),
@@ -253,6 +255,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                   controller: _fatController,
                   color: const Color(0xFF3B82F6), // Blue
                   suffix: 'g',
+                  theme: theme,
                 ),
               ),
             ],
@@ -263,9 +266,9 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.card,
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.border),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -276,7 +279,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                     Text(
                       'Calories',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 14,
                       ),
                     ),
@@ -284,7 +287,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                     Text(
                       'Auto-calculated from macros',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 12,
                       ),
                     ),
@@ -292,8 +295,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                 ),
                 Text(
                   '${_calculatedCalories} cal',
-                  style: const TextStyle(
-                    color: AppTheme.foreground,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -312,7 +315,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                   : null,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: AppTheme.primary,
+                backgroundColor: theme.colorScheme.primary,
               ),
               child: _isManualSaving
                   ? const SizedBox(
@@ -344,14 +347,14 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildQuickAddChip('Chicken Breast (150g)', 46, 0, 5),
-              _buildQuickAddChip('Rice (1 cup)', 5, 45, 0),
-              _buildQuickAddChip('Eggs (2 large)', 12, 1, 10),
-              _buildQuickAddChip('Greek Yogurt (170g)', 17, 6, 1),
-              _buildQuickAddChip('Banana', 1, 27, 0),
-              _buildQuickAddChip('Oatmeal (1 cup)', 6, 27, 3),
-              _buildQuickAddChip('Almonds (28g)', 6, 6, 14),
-              _buildQuickAddChip('Avocado (half)', 1, 6, 11),
+              _buildQuickAddChip('Chicken Breast (150g)', 46, 0, 5, theme),
+              _buildQuickAddChip('Rice (1 cup)', 5, 45, 0, theme),
+              _buildQuickAddChip('Eggs (2 large)', 12, 1, 10, theme),
+              _buildQuickAddChip('Greek Yogurt (170g)', 17, 6, 1, theme),
+              _buildQuickAddChip('Banana', 1, 27, 0, theme),
+              _buildQuickAddChip('Oatmeal (1 cup)', 6, 27, 3, theme),
+              _buildQuickAddChip('Almonds (28g)', 6, 6, 14, theme),
+              _buildQuickAddChip('Avocado (half)', 1, 6, 11, theme),
             ],
           ),
         ],
@@ -364,6 +367,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     required TextEditingController controller,
     required Color color,
     required String suffix,
+    required ThemeData theme,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -385,10 +389,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             hintText: '0',
             suffixText: suffix,
             filled: true,
-            fillColor: AppTheme.card,
+            fillColor: theme.cardColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppTheme.border),
+              borderSide: BorderSide(color: theme.dividerColor),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
@@ -401,11 +405,11 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     );
   }
 
-  Widget _buildQuickAddChip(String name, int protein, int carbs, int fat) {
+  Widget _buildQuickAddChip(String name, int protein, int carbs, int fat, ThemeData theme) {
     return ActionChip(
       label: Text(name),
-      backgroundColor: AppTheme.card,
-      side: BorderSide(color: AppTheme.border),
+      backgroundColor: theme.cardColor,
+      side: BorderSide(color: theme.dividerColor),
       onPressed: () {
         _foodNameController.text = name.split('(').first.trim();
         _proteinController.text = protein.toString();
@@ -477,7 +481,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     }
   }
 
-  Widget _buildAIQuickEntry(LoggingState loggingState) {
+  Widget _buildAIQuickEntry(LoggingState loggingState, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -486,9 +490,9 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
+              color: Colors.orange.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -515,7 +519,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           Text(
             'Use natural language to log your food. For example:\n"3 eggs, 200g chicken breast, and a cup of rice"',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 14,
             ),
           ),
@@ -526,10 +530,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             decoration: InputDecoration(
               hintText: 'Enter what you ate...',
               filled: true,
-              fillColor: AppTheme.card,
+              fillColor: theme.cardColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppTheme.border),
+                borderSide: BorderSide(color: theme.dividerColor),
               ),
             ),
           ),
@@ -539,17 +543,17 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.destructive.withOpacity(0.1),
+                color: theme.colorScheme.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline, color: AppTheme.destructive),
+                  Icon(Icons.error_outline, color: theme.colorScheme.error),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       loggingState.error!,
-                      style: TextStyle(color: AppTheme.destructive),
+                      style: TextStyle(color: theme.colorScheme.error),
                     ),
                   ),
                 ],
@@ -558,7 +562,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
 
           if (loggingState.parsedData != null) ...[
             const SizedBox(height: 16),
-            _buildParsedPreview(loggingState),
+            _buildParsedPreview(loggingState, theme),
           ],
 
           const Spacer(),
@@ -625,7 +629,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     );
   }
 
-  Widget _buildParsedPreview(LoggingState state) {
+  Widget _buildParsedPreview(LoggingState state, ThemeData theme) {
     final nutrition = state.parsedData?.nutrition;
     if (nutrition == null) return const SizedBox.shrink();
 
@@ -634,21 +638,21 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.check_circle, color: AppTheme.primary, size: 20),
+              Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Parsed Successfully',
                 style: TextStyle(
-                  color: AppTheme.foreground,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -664,13 +668,13 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                   Expanded(
                     child: Text(
                       meal.name,
-                      style: const TextStyle(color: AppTheme.foreground),
+                      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                     ),
                   ),
                   Text(
                     '${meal.calories.toInt()}cal | P:${meal.protein.toInt()} C:${meal.carbs.toInt()} F:${meal.fat.toInt()}',
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 12,
                     ),
                   ),
@@ -683,7 +687,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     );
   }
 
-  Widget _buildFoodSearch() {
+  Widget _buildFoodSearch(ThemeData theme) {
     final searchState = ref.watch(foodSearchProvider);
     final selectedFood = searchState.selectedFood;
 
@@ -718,10 +722,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                             )
                           : null,
                   filled: true,
-                  fillColor: AppTheme.card,
+                  fillColor: theme.cardColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppTheme.border),
+                    borderSide: BorderSide(color: theme.dividerColor),
                   ),
                 ),
                 onChanged: (value) {
@@ -738,7 +742,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -762,16 +766,16 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
         // Results or empty state
         Expanded(
           child: selectedFood != null
-              ? _buildSelectedFoodPreview(selectedFood)
+              ? _buildSelectedFoodPreview(selectedFood, theme)
               : searchState.results.isEmpty
-                  ? _buildSearchEmptyState(searchState)
-                  : _buildSearchResults(searchState.results),
+                  ? _buildSearchEmptyState(searchState, theme)
+                  : _buildSearchResults(searchState.results, theme),
         ),
       ],
     );
   }
 
-  Widget _buildSearchEmptyState(FoodSearchState state) {
+  Widget _buildSearchEmptyState(FoodSearchState state, ThemeData theme) {
     if (state.query.isNotEmpty && !state.isSearching) {
       return Center(
         child: Column(
@@ -780,13 +784,13 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             Icon(
               Icons.search_off,
               size: 64,
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
             ),
             const SizedBox(height: 16),
             Text(
               'No foods found for "${state.query}"',
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 16,
               ),
             ),
@@ -794,7 +798,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             Text(
               'Try a different search term',
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 14,
               ),
             ),
@@ -810,13 +814,13 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           Icon(
             Icons.restaurant_menu,
             size: 64,
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
           ),
           const SizedBox(height: 16),
           Text(
             'Search for foods to add',
             style: TextStyle(
-              color: AppTheme.foreground,
+              color: theme.textTheme.bodyLarge?.color,
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -825,7 +829,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           Text(
             'Search our database of thousands of foods',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 14,
             ),
             textAlign: TextAlign.center,
@@ -835,7 +839,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     );
   }
 
-  Widget _buildSearchResults(List<FoodSearchResult> results) {
+  Widget _buildSearchResults(List<FoodSearchResult> results, ThemeData theme) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: results.length,
@@ -843,6 +847,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
         final food = results[index];
         return _FoodSearchResultCard(
           food: food,
+          theme: theme,
           onTap: () {
             ref.read(foodSearchProvider.notifier).selectFood(food);
           },
@@ -851,7 +856,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     );
   }
 
-  Widget _buildSelectedFoodPreview(FoodSearchResult food) {
+  Widget _buildSelectedFoodPreview(FoodSearchResult food, ThemeData theme) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -871,17 +876,17 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.card,
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.border),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   food.name,
-                  style: const TextStyle(
-                    color: AppTheme.foreground,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
@@ -891,7 +896,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                   Text(
                     food.brand,
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 14,
                     ),
                   ),
@@ -900,7 +905,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                 Text(
                   'Serving: ${food.displayServingSize}',
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 13,
                   ),
                 ),
@@ -917,24 +922,28 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                       '${food.calories.toInt()}',
                       'cal',
                       Colors.orange,
+                      theme,
                     ),
                     _buildNutrientColumn(
                       'Protein',
                       '${food.protein.toInt()}',
                       'g',
                       const Color(0xFFEC4899),
+                      theme,
                     ),
                     _buildNutrientColumn(
                       'Carbs',
                       '${food.carbs.toInt()}',
                       'g',
                       const Color(0xFF22C55E),
+                      theme,
                     ),
                     _buildNutrientColumn(
                       'Fat',
                       '${food.fat.toInt()}',
                       'g',
                       const Color(0xFF3B82F6),
+                      theme,
                     ),
                   ],
                 ),
@@ -947,16 +956,16 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           Text(
             'Add to Meal',
             style: TextStyle(
-              color: AppTheme.foreground,
+              color: theme.textTheme.bodyLarge?.color,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: AppTheme.card,
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.border),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               children: List.generate(4, (index) {
@@ -969,7 +978,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? AppTheme.primary.withOpacity(0.2)
+                            ? theme.colorScheme.primary.withValues(alpha: 0.2)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -978,8 +987,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: isSelected
-                              ? AppTheme.primary
-                              : AppTheme.mutedForeground,
+                              ? theme.colorScheme.primary
+                              : theme.textTheme.bodySmall?.color,
                           fontWeight:
                               isSelected ? FontWeight.w600 : FontWeight.normal,
                           fontSize: 14,
@@ -1000,7 +1009,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
               onPressed: () => _addSearchedFood(food),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: AppTheme.primary,
+                backgroundColor: theme.colorScheme.primary,
               ),
               child: const Text(
                 'Add Food',
@@ -1016,13 +1025,13 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     );
   }
 
-  Widget _buildNutrientColumn(String label, String value, String unit, Color color) {
+  Widget _buildNutrientColumn(String label, String value, String unit, Color color, ThemeData theme) {
     return Column(
       children: [
         Text(
           label,
           style: TextStyle(
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
             fontSize: 12,
           ),
         ),
@@ -1081,10 +1090,12 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
 
 class _FoodSearchResultCard extends StatelessWidget {
   final FoodSearchResult food;
+  final ThemeData theme;
   final VoidCallback onTap;
 
   const _FoodSearchResultCard({
     required this.food,
+    required this.theme,
     required this.onTap,
   });
 
@@ -1092,10 +1103,10 @@ class _FoodSearchResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: InkWell(
         onTap: onTap,
@@ -1109,12 +1120,12 @@ class _FoodSearchResultCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.restaurant,
-                  color: AppTheme.primary,
+                  color: theme.colorScheme.primary,
                   size: 24,
                 ),
               ),
@@ -1127,8 +1138,8 @@ class _FoodSearchResultCard extends StatelessWidget {
                   children: [
                     Text(
                       food.name,
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontWeight: FontWeight.w500,
                         fontSize: 15,
                       ),
@@ -1140,7 +1151,7 @@ class _FoodSearchResultCard extends StatelessWidget {
                       Text(
                         food.brand,
                         style: TextStyle(
-                          color: AppTheme.mutedForeground,
+                          color: theme.textTheme.bodySmall?.color,
                           fontSize: 12,
                         ),
                         maxLines: 1,
@@ -1151,7 +1162,7 @@ class _FoodSearchResultCard extends StatelessWidget {
                     Text(
                       '${food.calories.toInt()} cal | P:${food.protein.toInt()}g C:${food.carbs.toInt()}g F:${food.fat.toInt()}g',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 12,
                       ),
                     ),
@@ -1162,7 +1173,7 @@ class _FoodSearchResultCard extends StatelessWidget {
               // Arrow
               Icon(
                 Icons.chevron_right,
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
               ),
             ],
           ),

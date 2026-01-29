@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/nutrition_models.dart';
 import '../providers/nutrition_provider.dart';
 import '../widgets/macro_progress_circle.dart';
@@ -25,10 +24,11 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(nutritionStateProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: state.isLoading && state.dailySummary == null
             ? const Center(child: CircularProgressIndicator())
@@ -66,6 +66,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
   }
 
   Widget _buildHeader(NutritionState state) {
+    final theme = Theme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -77,7 +78,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.2),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -85,7 +86,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                         ? '${state.goals!.caloriesGoal} cal goal'
                         : 'Set your goals',
                     style: TextStyle(
-                      color: AppTheme.primary,
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
                     ),
@@ -98,7 +99,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
               Text(
                 'Latest: ${state.latestCheckIn!.weightKg.toStringAsFixed(1)} kg',
                 style: TextStyle(
-                  color: AppTheme.mutedForeground,
+                  color: theme.textTheme.bodySmall?.color,
                   fontSize: 12,
                 ),
               ),
@@ -109,8 +110,8 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
           icon: const Icon(Icons.scale, size: 16),
           label: const Text('Check In'),
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppTheme.foreground,
-            side: BorderSide(color: AppTheme.border),
+            foregroundColor: theme.textTheme.bodyLarge?.color,
+            side: BorderSide(color: theme.dividerColor),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           ),
         ),
@@ -119,10 +120,11 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
   }
 
   Widget _buildDateNavigator(NutritionState state) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -132,15 +134,15 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
             onPressed: () =>
                 ref.read(nutritionStateProvider.notifier).goToPreviousDay(),
             icon: const Icon(Icons.chevron_left),
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
           ),
           GestureDetector(
             onTap: () =>
                 ref.read(nutritionStateProvider.notifier).goToToday(),
             child: Text(
               state.formattedDate,
-              style: const TextStyle(
-                color: AppTheme.foreground,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
@@ -150,7 +152,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
             onPressed: () =>
                 ref.read(nutritionStateProvider.notifier).goToNextDay(),
             icon: const Icon(Icons.chevron_right),
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
           ),
         ],
       ),
@@ -194,6 +196,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
   }
 
   Widget _buildMealsSection(NutritionState state) {
+    final theme = Theme.of(context);
     final meals = state.dailySummary?.meals ?? [];
     final perMealTargets = state.dailySummary?.perMealTargets ??
         state.goals?.let((g) => PerMealTargets(
@@ -209,10 +212,10 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Meals',
               style: TextStyle(
-                color: AppTheme.foreground,
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -222,7 +225,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Add Food'),
               style: TextButton.styleFrom(
-                foregroundColor: AppTheme.primary,
+                foregroundColor: theme.colorScheme.primary,
               ),
             ),
           ],
@@ -286,12 +289,13 @@ class _MealCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         children: [
@@ -303,8 +307,8 @@ class _MealCard extends StatelessWidget {
               children: [
                 Text(
                   'Meal $mealNumber',
-                  style: const TextStyle(
-                    color: AppTheme.foreground,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
                   ),
@@ -335,18 +339,18 @@ class _MealCard extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: AppTheme.border),
+                  top: BorderSide(color: theme.dividerColor),
                 ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add, color: AppTheme.primary, size: 18),
+                  Icon(Icons.add, color: theme.colorScheme.primary, size: 18),
                   const SizedBox(width: 8),
                   Text(
                     'Add Food',
                     style: TextStyle(
-                      color: AppTheme.primary,
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -373,20 +377,21 @@ class _MacroChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final isComplete = value >= target && target > 0;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isComplete
-            ? AppTheme.primary.withOpacity(0.2)
-            : AppTheme.zinc800,
+            ? theme.colorScheme.primary.withValues(alpha: 0.2)
+            : theme.dividerColor,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         '$label: $value',
         style: TextStyle(
-          color: isComplete ? AppTheme.primary : AppTheme.mutedForeground,
+          color: isComplete ? theme.colorScheme.primary : theme.textTheme.bodySmall?.color,
           fontSize: 11,
           fontWeight: FontWeight.w500,
         ),
@@ -402,11 +407,12 @@ class _FoodEntryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: AppTheme.border),
+          top: BorderSide(color: theme.dividerColor),
         ),
       ),
       child: Row(
@@ -415,8 +421,8 @@ class _FoodEntryRow extends StatelessWidget {
           Expanded(
             child: Text(
               entry.name,
-              style: const TextStyle(
-                color: AppTheme.foreground,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 14,
               ),
               overflow: TextOverflow.ellipsis,
@@ -425,7 +431,7 @@ class _FoodEntryRow extends StatelessWidget {
           Text(
             '${entry.calories} cal',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 12,
             ),
           ),

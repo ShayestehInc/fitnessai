@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../providers/admin_impersonation_provider.dart';
@@ -32,13 +31,14 @@ class _AdminTrainersScreenState extends ConsumerState<AdminTrainersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(adminTrainersProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Trainers'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: Column(
         children: [
@@ -60,10 +60,10 @@ class _AdminTrainersScreenState extends ConsumerState<AdminTrainersScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: AppTheme.card,
+                fillColor: theme.cardColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppTheme.border),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
               ),
               onSubmitted: (value) {
@@ -77,10 +77,10 @@ class _AdminTrainersScreenState extends ConsumerState<AdminTrainersScreen> {
             child: state.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : state.trainers.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'No trainers found',
-                          style: TextStyle(color: AppTheme.mutedForeground),
+                          style: TextStyle(color: theme.textTheme.bodySmall?.color),
                         ),
                       )
                     : RefreshIndicator(
@@ -108,11 +108,12 @@ class _TrainerCard extends ConsumerWidget {
   const _TrainerCard({required this.trainer});
 
   Future<void> _impersonateTrainer(BuildContext context, WidgetRef ref) async {
+    final theme = Theme.of(context);
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
+        backgroundColor: theme.cardColor,
         title: const Text('Login as Trainer'),
         content: Text(
           'You will be logged in as ${trainer.displayName} (${trainer.email}). '
@@ -126,7 +127,7 @@ class _TrainerCard extends ConsumerWidget {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
+              backgroundColor: theme.colorScheme.primary,
             ),
             child: const Text('Continue'),
           ),
@@ -164,16 +165,17 @@ class _TrainerCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final sub = trainer.subscription;
     final tierColor = _getTierColor(sub?.tier);
     final statusColor = _getStatusColor(sub?.status);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: InkWell(
         onTap: sub?.id != null
@@ -189,11 +191,11 @@ class _TrainerCard extends ConsumerWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: AppTheme.primary.withOpacity(0.2),
+                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
                     child: Text(
                       trainer.displayName[0].toUpperCase(),
                       style: TextStyle(
-                        color: AppTheme.primary,
+                        color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -205,8 +207,8 @@ class _TrainerCard extends ConsumerWidget {
                       children: [
                         Text(
                           trainer.displayName,
-                          style: const TextStyle(
-                            color: AppTheme.foreground,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
                           ),
@@ -214,7 +216,7 @@ class _TrainerCard extends ConsumerWidget {
                         Text(
                           trainer.email,
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 13,
                           ),
                         ),
@@ -223,7 +225,7 @@ class _TrainerCard extends ConsumerWidget {
                   ),
                   // Login as trainer button
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, color: AppTheme.mutedForeground),
+                    icon: Icon(Icons.more_vert, color: theme.textTheme.bodySmall?.color),
                     onSelected: (value) {
                       if (value == 'impersonate') {
                         _impersonateTrainer(context, ref);
@@ -259,7 +261,7 @@ class _TrainerCard extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.2),
+                        color: Colors.red.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
@@ -279,7 +281,7 @@ class _TrainerCard extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: tierColor.withOpacity(0.2),
+                        color: tierColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -297,7 +299,7 @@ class _TrainerCard extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.2),
+                        color: statusColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -313,7 +315,7 @@ class _TrainerCard extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.2),
+                        color: Colors.grey.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
@@ -330,12 +332,12 @@ class _TrainerCard extends ConsumerWidget {
                   // Trainee count
                   Row(
                     children: [
-                      Icon(Icons.people, size: 16, color: AppTheme.mutedForeground),
+                      Icon(Icons.people, size: 16, color: theme.textTheme.bodySmall?.color),
                       const SizedBox(width: 4),
                       Text(
                         '${trainer.traineeCount} trainees',
                         style: TextStyle(
-                          color: AppTheme.mutedForeground,
+                          color: theme.textTheme.bodySmall?.color,
                           fontSize: 13,
                         ),
                       ),
@@ -350,7 +352,7 @@ class _TrainerCard extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(

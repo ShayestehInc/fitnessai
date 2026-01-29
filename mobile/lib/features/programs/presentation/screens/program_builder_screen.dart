@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/program_week_model.dart';
 import 'week_editor_screen.dart';
 
@@ -150,11 +149,11 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       body: Column(
         children: [
           // Week selector tabs
-          _buildWeekSelector(),
+          _buildWeekSelector(context),
 
           // Week content
           Expanded(
-            child: _buildWeekContent(_programState.weeks[_selectedWeekIndex]),
+            child: _buildWeekContent(context, _programState.weeks[_selectedWeekIndex]),
           ),
         ],
       ),
@@ -166,12 +165,14 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  Widget _buildWeekSelector() {
+  Widget _buildWeekSelector(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       height: 60,
       decoration: BoxDecoration(
-        color: AppTheme.card,
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        color: theme.cardColor,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -188,10 +189,10 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.primary
+                    ? theme.colorScheme.primary
                     : week.isDeload
-                        ? Colors.orange.withOpacity(0.1)
-                        : AppTheme.muted,
+                        ? Colors.orange.withValues(alpha: 0.1)
+                        : theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(20),
                 border: week.isDeload && !isSelected
                     ? Border.all(color: Colors.orange)
@@ -223,19 +224,19 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  Widget _buildWeekContent(ProgramWeek week) {
+  Widget _buildWeekContent(BuildContext context, ProgramWeek week) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Week header card
-          _buildWeekHeaderCard(week),
+          _buildWeekHeaderCard(context, week),
 
           const SizedBox(height: 20),
 
           // Quick actions
-          _buildQuickActions(week),
+          _buildQuickActions(context, week),
 
           const SizedBox(height: 20),
 
@@ -247,7 +248,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           const SizedBox(height: 12),
 
           ...week.days.asMap().entries.map((entry) =>
-            _buildDayCard(entry.key, entry.value, week)),
+            _buildDayCard(context, entry.key, entry.value, week)),
 
           const SizedBox(height: 80), // Space for FAB
         ],
@@ -255,14 +256,16 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  Widget _buildWeekHeaderCard(ProgramWeek week) {
+  Widget _buildWeekHeaderCard(BuildContext context, ProgramWeek week) {
+    final theme = Theme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: week.isDeload
-              ? [Colors.orange.withOpacity(0.1), Colors.orange.withOpacity(0.05)]
-              : [AppTheme.primary.withOpacity(0.1), AppTheme.primary.withOpacity(0.05)],
+              ? [Colors.orange.withValues(alpha: 0.1), Colors.orange.withValues(alpha: 0.05)]
+              : [theme.colorScheme.primary.withValues(alpha: 0.1), theme.colorScheme.primary.withValues(alpha: 0.05)],
         ),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -272,8 +275,8 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: week.isDeload
-                  ? Colors.orange.withOpacity(0.2)
-                  : AppTheme.primary.withOpacity(0.2),
+                  ? Colors.orange.withValues(alpha: 0.2)
+                  : theme.colorScheme.primary.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -281,7 +284,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: week.isDeload ? Colors.orange : AppTheme.primary,
+                color: week.isDeload ? Colors.orange : theme.colorScheme.primary,
               ),
             ),
           ),
@@ -307,7 +310,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.2),
+                      color: Colors.orange.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
@@ -328,11 +331,12 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  Widget _buildQuickActions(ProgramWeek week) {
+  Widget _buildQuickActions(BuildContext context, ProgramWeek week) {
     return Row(
       children: [
         Expanded(
           child: _buildActionButton(
+            context,
             icon: Icons.content_copy,
             label: 'Copy to All',
             onTap: () => _copyToAllWeeks(week),
@@ -341,6 +345,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
         const SizedBox(width: 8),
         Expanded(
           child: _buildActionButton(
+            context,
             icon: Icons.trending_up,
             label: 'Add Volume',
             onTap: () => _adjustVolume(week, increase: true),
@@ -349,6 +354,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
         const SizedBox(width: 8),
         Expanded(
           child: _buildActionButton(
+            context,
             icon: Icons.trending_down,
             label: week.isDeload ? 'Remove Deload' : 'Mark Deload',
             color: Colors.orange,
@@ -359,14 +365,17 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  Widget _buildActionButton({
+  Widget _buildActionButton(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
     Color? color,
   }) {
+    final theme = Theme.of(context);
+
     return Material(
-      color: (color ?? AppTheme.primary).withOpacity(0.1),
+      color: (color ?? theme.colorScheme.primary).withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
@@ -375,12 +384,12 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           child: Column(
             children: [
-              Icon(icon, color: color ?? AppTheme.primary, size: 20),
+              Icon(icon, color: color ?? theme.colorScheme.primary, size: 20),
               const SizedBox(height: 4),
               Text(
                 label,
                 style: TextStyle(
-                  color: color ?? AppTheme.primary,
+                  color: color ?? theme.colorScheme.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -393,7 +402,8 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  Widget _buildDayCard(int index, WorkoutDay day, ProgramWeek week) {
+  Widget _buildDayCard(BuildContext context, int index, WorkoutDay day, ProgramWeek week) {
+    final theme = Theme.of(context);
     final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     return Card(
@@ -402,7 +412,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: day.isRestDay ? Colors.grey.withOpacity(0.3) : AppTheme.border,
+          color: day.isRestDay ? Colors.grey.withValues(alpha: 0.3) : theme.dividerColor,
         ),
       ),
       child: Theme(
@@ -414,13 +424,13 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             height: 40,
             decoration: BoxDecoration(
               color: day.isRestDay
-                  ? Colors.grey.withOpacity(0.1)
-                  : AppTheme.primary.withOpacity(0.1),
+                  ? Colors.grey.withValues(alpha: 0.1)
+                  : theme.colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               day.isRestDay ? Icons.bed : Icons.fitness_center,
-              color: day.isRestDay ? Colors.grey : AppTheme.primary,
+              color: day.isRestDay ? Colors.grey : theme.colorScheme.primary,
               size: 20,
             ),
           ),
@@ -450,13 +460,14 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                     ),
                   ),
                 ]
-              : day.exercises.map((exercise) => _buildExerciseRow(exercise, week)).toList(),
+              : day.exercises.map((exercise) => _buildExerciseRow(context, exercise, week)).toList(),
         ),
       ),
     );
   }
 
-  Widget _buildExerciseRow(WorkoutExercise exercise, ProgramWeek week) {
+  Widget _buildExerciseRow(BuildContext context, WorkoutExercise exercise, ProgramWeek week) {
+    final theme = Theme.of(context);
     // Apply modifiers for deload weeks
     final adjustedSets = (exercise.sets * week.volumeModifier).round();
     final adjustedReps = (exercise.reps * week.intensityModifier).round();
@@ -464,7 +475,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: AppTheme.border.withOpacity(0.5))),
+        border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5))),
       ),
       child: Row(
         children: [
@@ -472,7 +483,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppTheme.muted,
+              color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(6),
             ),
             child: const Icon(Icons.fitness_center, size: 16, color: Colors.grey),
@@ -500,7 +511,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -508,12 +519,12 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                   Text(
                     '$adjustedSets × $adjustedReps',
                     style: TextStyle(
-                      color: AppTheme.primary,
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(Icons.edit, size: 14, color: AppTheme.primary),
+                  Icon(Icons.edit, size: 14, color: theme.colorScheme.primary),
                 ],
               ),
             ),
@@ -524,12 +535,13 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   }
 
   void _showEditExerciseDialog(WorkoutExercise exercise) {
+    final theme = Theme.of(context);
     int sets = exercise.sets;
     int reps = exercise.reps;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),

@@ -145,7 +145,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: _getStatusColor(feature.status).withOpacity(0.2),
+                                color: _getStatusColor(feature.status).withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -164,7 +164,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.grey.withOpacity(0.2),
+                                color: Colors.grey.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(

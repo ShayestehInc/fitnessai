@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/user_profile_model.dart';
 import '../providers/onboarding_provider.dart';
 
@@ -11,6 +10,7 @@ class Step4DietSetupScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingStateProvider);
     final notifier = ref.read(onboardingStateProvider.notifier);
+    final theme = Theme.of(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -22,11 +22,11 @@ class Step4DietSetupScreen extends ConsumerWidget {
             onTap: () => notifier.goBack(),
             child: Row(
               children: [
-                Icon(Icons.arrow_back, color: AppTheme.mutedForeground),
+                Icon(Icons.arrow_back, color: theme.textTheme.bodySmall?.color),
                 const SizedBox(width: 8),
                 Text(
                   'Back',
-                  style: TextStyle(color: AppTheme.mutedForeground),
+                  style: TextStyle(color: theme.textTheme.bodySmall?.color),
                 ),
               ],
             ),
@@ -35,13 +35,13 @@ class Step4DietSetupScreen extends ConsumerWidget {
 
           Text(
             'Diet Setup',
-            style: Theme.of(context).textTheme.displaySmall,
+            style: theme.textTheme.displaySmall,
           ),
           const SizedBox(height: 8),
           Text(
             'Customize your nutrition preferences.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.mutedForeground,
+            style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.textTheme.bodySmall?.color,
                 ),
           ),
           const SizedBox(height: 32),
@@ -52,7 +52,7 @@ class Step4DietSetupScreen extends ConsumerWidget {
             children: [
               Text(
                 'Check-in Days',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: theme.textTheme.titleMedium,
               ),
               GestureDetector(
                 onTap: () {
@@ -66,13 +66,13 @@ class Step4DietSetupScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: notifier.allDaysSelected
-                        ? AppTheme.primary
-                        : AppTheme.card,
+                        ? theme.colorScheme.primary
+                        : theme.cardColor,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: notifier.allDaysSelected
-                          ? AppTheme.primary
-                          : AppTheme.border,
+                          ? theme.colorScheme.primary
+                          : theme.dividerColor,
                     ),
                   ),
                   child: Text(
@@ -80,7 +80,7 @@ class Step4DietSetupScreen extends ConsumerWidget {
                     style: TextStyle(
                       color: notifier.allDaysSelected
                           ? Colors.white
-                          : AppTheme.mutedForeground,
+                          : theme.textTheme.bodySmall?.color,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -93,7 +93,7 @@ class Step4DietSetupScreen extends ConsumerWidget {
           Text(
             'Select days to weigh in and track progress',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 12,
             ),
           ),
@@ -107,13 +107,13 @@ class Step4DietSetupScreen extends ConsumerWidget {
           // Diet type
           Text(
             'Diet Type',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Text(
             'Choose your preferred macro distribution',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 12,
             ),
           ),
@@ -131,11 +131,11 @@ class Step4DietSetupScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppTheme.primary.withOpacity(0.1)
-                          : AppTheme.card,
+                          ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                          : theme.cardColor,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isSelected ? AppTheme.primary : AppTheme.border,
+                        color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -145,8 +145,8 @@ class Step4DietSetupScreen extends ConsumerWidget {
                           ProfileEnums.dietTypeLabels[type] ?? type,
                           style: TextStyle(
                             color: isSelected
-                                ? AppTheme.primary
-                                : AppTheme.foreground,
+                                ? theme.colorScheme.primary
+                                : theme.textTheme.bodyLarge?.color,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -154,7 +154,7 @@ class Step4DietSetupScreen extends ConsumerWidget {
                         Text(
                           _getDietDescription(type),
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 10,
                           ),
                           textAlign: TextAlign.center,
@@ -171,13 +171,13 @@ class Step4DietSetupScreen extends ConsumerWidget {
           // Meals per day
           Text(
             'Meals Per Day',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Text(
             'How many meals do you typically eat?',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 12,
             ),
           ),
@@ -209,7 +209,7 @@ class Step4DietSetupScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               state.error!,
-              style: TextStyle(color: AppTheme.destructive),
+              style: TextStyle(color: theme.colorScheme.error),
             ),
           ],
         ],
@@ -242,6 +242,7 @@ class _WeekDaySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: ProfileEnums.weekDays.map((day) {
@@ -252,17 +253,17 @@ class _WeekDaySelector extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.primary : AppTheme.card,
+              color: isSelected ? theme.colorScheme.primary : theme.cardColor,
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: isSelected ? AppTheme.primary : AppTheme.border,
+                color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
               ),
             ),
             child: Center(
               child: Text(
                 ProfileEnums.weekDayLabels[day]!.substring(0, 1),
                 style: TextStyle(
-                  color: isSelected ? Colors.white : AppTheme.mutedForeground,
+                  color: isSelected ? Colors.white : theme.textTheme.bodySmall?.color,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -285,6 +286,7 @@ class _MealsSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Row(
@@ -292,12 +294,12 @@ class _MealsSlider extends StatelessWidget {
           children: [
             Text(
               '2',
-              style: TextStyle(color: AppTheme.mutedForeground),
+              style: TextStyle(color: theme.textTheme.bodySmall?.color),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               decoration: BoxDecoration(
-                color: AppTheme.primary,
+                color: theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -310,17 +312,17 @@ class _MealsSlider extends StatelessWidget {
             ),
             Text(
               '6',
-              style: TextStyle(color: AppTheme.mutedForeground),
+              style: TextStyle(color: theme.textTheme.bodySmall?.color),
             ),
           ],
         ),
         const SizedBox(height: 8),
         SliderTheme(
           data: SliderThemeData(
-            activeTrackColor: AppTheme.primary,
-            inactiveTrackColor: AppTheme.zinc700,
-            thumbColor: AppTheme.primary,
-            overlayColor: AppTheme.primary.withOpacity(0.2),
+            activeTrackColor: theme.colorScheme.primary,
+            inactiveTrackColor: theme.dividerColor,
+            thumbColor: theme.colorScheme.primary,
+            overlayColor: theme.colorScheme.primary.withValues(alpha: 0.2),
           ),
           child: Slider(
             value: value.toDouble(),

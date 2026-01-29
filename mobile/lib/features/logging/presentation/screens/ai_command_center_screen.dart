@@ -92,7 +92,7 @@ class _AICommandCenterScreenState
                   Text(
                     'Example: "Ate 3 eggs and did 5x5 squats at 225"',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                   ),
                   const SizedBox(height: 24),

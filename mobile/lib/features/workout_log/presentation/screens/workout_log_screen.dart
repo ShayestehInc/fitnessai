@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../providers/workout_provider.dart';
 import '../../data/models/workout_models.dart';
 
@@ -23,10 +22,11 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(workoutStateProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: state.isLoading && state.dailySummary == null
             ? const Center(child: CircularProgressIndicator())
@@ -63,7 +63,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/ai-command'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: theme.colorScheme.primary,
         icon: const Icon(Icons.mic),
         label: const Text('Log Workout'),
       ),
@@ -71,6 +71,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
   }
 
   Widget _buildHeader(WorkoutState state) {
+    final theme = Theme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -83,17 +84,18 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
             // TODO: Open calendar picker
           },
           icon: const Icon(Icons.calendar_month),
-          color: AppTheme.mutedForeground,
+          color: theme.textTheme.bodySmall?.color,
         ),
       ],
     );
   }
 
   Widget _buildDateNavigator(WorkoutState state) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -103,14 +105,14 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
             onPressed: () =>
                 ref.read(workoutStateProvider.notifier).goToPreviousDay(),
             icon: const Icon(Icons.chevron_left),
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
           ),
           GestureDetector(
             onTap: () => ref.read(workoutStateProvider.notifier).goToToday(),
             child: Text(
               state.formattedDate,
-              style: const TextStyle(
-                color: AppTheme.foreground,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
@@ -120,7 +122,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
             onPressed: () =>
                 ref.read(workoutStateProvider.notifier).goToNextDay(),
             icon: const Icon(Icons.chevron_right),
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
           ),
         ],
       ),
@@ -128,19 +130,20 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
   }
 
   Widget _buildProgramCard(ProgramModel program) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.primary.withOpacity(0.2),
-            AppTheme.primary.withOpacity(0.1),
+            theme.colorScheme.primary.withValues(alpha: 0.2),
+            theme.colorScheme.primary.withValues(alpha: 0.1),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,12 +153,12 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.fitness_center, color: AppTheme.primary),
+                  Icon(Icons.fitness_center, color: theme.colorScheme.primary),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'Current Program',
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 12,
                     ),
                   ),
@@ -164,7 +167,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary,
+                  color: theme.colorScheme.primary,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -181,8 +184,8 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
           const SizedBox(height: 12),
           Text(
             program.name,
-            style: const TextStyle(
-              color: AppTheme.foreground,
+            style: TextStyle(
+              color: theme.textTheme.bodyLarge?.color,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
@@ -191,7 +194,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
           Text(
             '${program.startDate} - ${program.endDate}',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 12,
             ),
           ),
@@ -201,15 +204,16 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
   }
 
   Widget _buildExercisesSection(WorkoutState state) {
+    final theme = Theme.of(context);
     final exercises = state.dailySummary?.exercises ?? [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Exercises',
           style: TextStyle(
-            color: AppTheme.foreground,
+            color: theme.textTheme.bodyLarge?.color,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -224,25 +228,26 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
   }
 
   Widget _buildEmptyState() {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         children: [
           Icon(
             Icons.fitness_center,
             size: 64,
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No workouts logged',
             style: TextStyle(
-              color: AppTheme.foreground,
+              color: theme.textTheme.bodyLarge?.color,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
@@ -251,7 +256,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
           Text(
             'Tap the button below to log your workout',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 14,
             ),
             textAlign: TextAlign.center,
@@ -269,12 +274,13 @@ class _ExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         children: [
@@ -286,12 +292,12 @@ class _ExerciseCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppTheme.zinc800,
+                    color: theme.dividerColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     Icons.fitness_center,
-                    color: AppTheme.primary,
+                    color: theme.colorScheme.primary,
                     size: 20,
                   ),
                 ),
@@ -299,8 +305,8 @@ class _ExerciseCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     exercise.exerciseName,
-                    style: const TextStyle(
-                      color: AppTheme.foreground,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
                     ),
@@ -309,7 +315,7 @@ class _ExerciseCard extends StatelessWidget {
                 Text(
                   '${exercise.sets.length} sets',
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 12,
                   ),
                 ),
@@ -322,7 +328,7 @@ class _ExerciseCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: AppTheme.zinc900,
+                color: theme.scaffoldBackgroundColor,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(12),
                   bottomRight: Radius.circular(12),
@@ -338,7 +344,7 @@ class _ExerciseCard extends StatelessWidget {
                         child: Text(
                           'Set',
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),
@@ -347,7 +353,7 @@ class _ExerciseCard extends StatelessWidget {
                         child: Text(
                           'Weight',
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),
@@ -357,7 +363,7 @@ class _ExerciseCard extends StatelessWidget {
                         child: Text(
                           'Reps',
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                           textAlign: TextAlign.right,
@@ -375,8 +381,8 @@ class _ExerciseCard extends StatelessWidget {
                               width: 40,
                               child: Text(
                                 '${set.setNumber}',
-                                style: const TextStyle(
-                                  color: AppTheme.foreground,
+                                style: TextStyle(
+                                  color: theme.textTheme.bodyLarge?.color,
                                   fontSize: 14,
                                 ),
                               ),
@@ -386,8 +392,8 @@ class _ExerciseCard extends StatelessWidget {
                                 set.weight != null
                                     ? '${set.weight} ${set.unit}'
                                     : '-',
-                                style: const TextStyle(
-                                  color: AppTheme.foreground,
+                                style: TextStyle(
+                                  color: theme.textTheme.bodyLarge?.color,
                                   fontSize: 14,
                                 ),
                               ),
@@ -399,8 +405,8 @@ class _ExerciseCard extends StatelessWidget {
                                 children: [
                                   Text(
                                     '${set.reps}',
-                                    style: const TextStyle(
-                                      color: AppTheme.foreground,
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyLarge?.color,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -410,8 +416,8 @@ class _ExerciseCard extends StatelessWidget {
                                         ? Icons.check_circle
                                         : Icons.radio_button_unchecked,
                                     color: set.completed
-                                        ? AppTheme.primary
-                                        : AppTheme.mutedForeground,
+                                        ? theme.colorScheme.primary
+                                        : theme.textTheme.bodySmall?.color,
                                     size: 18,
                                   ),
                                 ],

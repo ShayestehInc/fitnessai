@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../onboarding/data/models/user_profile_model.dart';
 import '../providers/settings_provider.dart';
 
@@ -25,18 +24,19 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(settingsStateProvider);
     final notifier = ref.read(settingsStateProvider.notifier);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.foreground),
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           'Fitness Goals',
-          style: TextStyle(color: AppTheme.foreground),
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         elevation: 0,
       ),
@@ -55,7 +55,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'How active are you on a typical week?',
-                    style: TextStyle(color: AppTheme.mutedForeground),
+                    style: TextStyle(color: theme.textTheme.bodySmall?.color),
                   ),
                   const SizedBox(height: 16),
                   ...ProfileEnums.activityLevels.map((level) {
@@ -67,11 +67,11 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppTheme.primary.withOpacity(0.1)
-                              : AppTheme.card,
+                              ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                              : theme.cardColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isSelected ? AppTheme.primary : AppTheme.border,
+                            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
                             width: isSelected ? 2 : 1,
                           ),
                         ),
@@ -83,7 +83,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                               onChanged: (value) {
                                 if (value != null) notifier.updateActivityLevel(value);
                               },
-                              activeColor: AppTheme.primary,
+                              activeColor: theme.colorScheme.primary,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -94,8 +94,8 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                                     ProfileEnums.activityLevelLabels[level] ?? level,
                                     style: TextStyle(
                                       color: isSelected
-                                          ? AppTheme.primary
-                                          : AppTheme.foreground,
+                                          ? theme.colorScheme.primary
+                                          : theme.textTheme.bodyLarge?.color,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -103,7 +103,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                                   Text(
                                     ProfileEnums.activityLevelDescriptions[level] ?? '',
                                     style: TextStyle(
-                                      color: AppTheme.mutedForeground,
+                                      color: theme.textTheme.bodySmall?.color,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -126,7 +126,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'What do you want to achieve?',
-                    style: TextStyle(color: AppTheme.mutedForeground),
+                    style: TextStyle(color: theme.textTheme.bodySmall?.color),
                   ),
                   const SizedBox(height: 16),
                   ...ProfileEnums.goals.map((goal) {
@@ -138,11 +138,11 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppTheme.primary.withOpacity(0.1)
-                              : AppTheme.card,
+                              ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                              : theme.cardColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isSelected ? AppTheme.primary : AppTheme.border,
+                            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
                             width: isSelected ? 2 : 1,
                           ),
                         ),
@@ -154,7 +154,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                               onChanged: (value) {
                                 if (value != null) notifier.updateGoal(value);
                               },
-                              activeColor: AppTheme.primary,
+                              activeColor: theme.colorScheme.primary,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -165,8 +165,8 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                                     ProfileEnums.goalLabels[goal] ?? goal,
                                     style: TextStyle(
                                       color: isSelected
-                                          ? AppTheme.primary
-                                          : AppTheme.foreground,
+                                          ? theme.colorScheme.primary
+                                          : theme.textTheme.bodyLarge?.color,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -174,7 +174,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                                   Text(
                                     ProfileEnums.goalDescriptions[goal] ?? '',
                                     style: TextStyle(
-                                      color: AppTheme.mutedForeground,
+                                      color: theme.textTheme.bodySmall?.color,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -220,7 +220,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                     const SizedBox(height: 16),
                     Text(
                       state.error!,
-                      style: TextStyle(color: AppTheme.destructive),
+                      style: TextStyle(color: theme.colorScheme.error),
                     ),
                   ],
                 ],

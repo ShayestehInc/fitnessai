@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../onboarding/data/models/user_profile_model.dart';
 import '../providers/settings_provider.dart';
 
@@ -25,18 +24,19 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(settingsStateProvider);
     final notifier = ref.read(settingsStateProvider.notifier);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.foreground),
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           'Diet Preferences',
-          style: TextStyle(color: AppTheme.foreground),
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         elevation: 0,
       ),
@@ -68,13 +68,13 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                               horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: notifier.allDaysSelected
-                                ? AppTheme.primary
-                                : AppTheme.card,
+                                ? theme.colorScheme.primary
+                                : theme.cardColor,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: notifier.allDaysSelected
-                                  ? AppTheme.primary
-                                  : AppTheme.border,
+                                  ? theme.colorScheme.primary
+                                  : theme.dividerColor,
                             ),
                           ),
                           child: Text(
@@ -82,7 +82,7 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                             style: TextStyle(
                               color: notifier.allDaysSelected
                                   ? Colors.white
-                                  : AppTheme.mutedForeground,
+                                  : theme.textTheme.bodySmall?.color,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -95,7 +95,7 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                   Text(
                     'Select days to weigh in and track progress',
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 12,
                     ),
                   ),
@@ -111,11 +111,11 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: isSelected ? AppTheme.primary : AppTheme.card,
+                            color: isSelected ? theme.colorScheme.primary : theme.cardColor,
                             borderRadius: BorderRadius.circular(22),
                             border: Border.all(
                               color:
-                                  isSelected ? AppTheme.primary : AppTheme.border,
+                                  isSelected ? theme.colorScheme.primary : theme.dividerColor,
                             ),
                           ),
                           child: Center(
@@ -124,7 +124,7 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                               style: TextStyle(
                                 color: isSelected
                                     ? Colors.white
-                                    : AppTheme.mutedForeground,
+                                    : theme.textTheme.bodySmall?.color,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -144,7 +144,7 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                   Text(
                     'Choose your preferred macro distribution',
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 12,
                     ),
                   ),
@@ -162,12 +162,12 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppTheme.primary.withOpacity(0.1)
-                                  : AppTheme.card,
+                                  ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                                  : theme.cardColor,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color:
-                                    isSelected ? AppTheme.primary : AppTheme.border,
+                                    isSelected ? theme.colorScheme.primary : theme.dividerColor,
                                 width: isSelected ? 2 : 1,
                               ),
                             ),
@@ -177,8 +177,8 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                                   ProfileEnums.dietTypeLabels[type] ?? type,
                                   style: TextStyle(
                                     color: isSelected
-                                        ? AppTheme.primary
-                                        : AppTheme.foreground,
+                                        ? theme.colorScheme.primary
+                                        : theme.textTheme.bodyLarge?.color,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -186,7 +186,7 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                                 Text(
                                   _getDietDescription(type),
                                   style: TextStyle(
-                                    color: AppTheme.mutedForeground,
+                                    color: theme.textTheme.bodySmall?.color,
                                     fontSize: 10,
                                   ),
                                   textAlign: TextAlign.center,
@@ -209,7 +209,7 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                   Text(
                     'How many meals do you typically eat?',
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 12,
                     ),
                   ),
@@ -221,13 +221,13 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                         children: [
                           Text(
                             '2',
-                            style: TextStyle(color: AppTheme.mutedForeground),
+                            style: TextStyle(color: theme.textTheme.bodySmall?.color),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 24, vertical: 8),
                             decoration: BoxDecoration(
-                              color: AppTheme.primary,
+                              color: theme.colorScheme.primary,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -240,17 +240,17 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                           ),
                           Text(
                             '6',
-                            style: TextStyle(color: AppTheme.mutedForeground),
+                            style: TextStyle(color: theme.textTheme.bodySmall?.color),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       SliderTheme(
                         data: SliderThemeData(
-                          activeTrackColor: AppTheme.primary,
-                          inactiveTrackColor: AppTheme.zinc700,
-                          thumbColor: AppTheme.primary,
-                          overlayColor: AppTheme.primary.withOpacity(0.2),
+                          activeTrackColor: theme.colorScheme.primary,
+                          inactiveTrackColor: theme.dividerColor,
+                          thumbColor: theme.colorScheme.primary,
+                          overlayColor: theme.colorScheme.primary.withValues(alpha: 0.2),
                         ),
                         child: Slider(
                           value: (state.profile?.mealsPerDay ?? 4).toDouble(),
@@ -297,7 +297,7 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                     const SizedBox(height: 16),
                     Text(
                       state.error!,
-                      style: TextStyle(color: AppTheme.destructive),
+                      style: TextStyle(color: theme.colorScheme.error),
                     ),
                   ],
                 ],

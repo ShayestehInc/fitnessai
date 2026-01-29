@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/tier_coupon_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -23,13 +22,14 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(adminTiersProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Subscription Tiers'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           if (state.tiers.isEmpty && !state.isLoading)
             TextButton.icon(
@@ -92,13 +92,13 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
                           Icon(
                             Icons.layers_outlined,
                             size: 64,
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                           ),
                           const SizedBox(height: 16),
                           Text(
                             'No subscription tiers',
                             style: TextStyle(
-                              color: AppTheme.mutedForeground,
+                              color: theme.textTheme.bodySmall?.color,
                               fontSize: 16,
                             ),
                           ),
@@ -120,7 +120,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
                             icon: const Icon(Icons.add_box),
                             label: const Text('Create Default Tiers'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primary,
+                              backgroundColor: theme.colorScheme.primary,
                             ),
                           ),
                         ],
@@ -192,10 +192,11 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
   }
 
   Future<void> _confirmDelete(SubscriptionTierModel tier) async {
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
+        backgroundColor: theme.cardColor,
         title: const Text('Delete Tier'),
         content: Text(
           'Are you sure you want to delete "${tier.displayName}"? This cannot be undone.',
@@ -246,15 +247,16 @@ class _TierCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tierColor = _getTierColor(tier.name);
+    final theme = Theme.of(context);
+    final tierColor = _getTierColor(context, tier.name);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: tier.isActive ? AppTheme.border : Colors.red.withOpacity(0.3),
+          color: tier.isActive ? theme.dividerColor : Colors.red.withValues(alpha: 0.3),
         ),
       ),
       child: Padding(
@@ -268,7 +270,7 @@ class _TierCard extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: tierColor.withOpacity(0.2),
+                    color: tierColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
@@ -288,8 +290,8 @@ class _TierCard extends StatelessWidget {
                         children: [
                           Text(
                             tier.displayName,
-                            style: const TextStyle(
-                              color: AppTheme.foreground,
+                            style: TextStyle(
+                              color: theme.textTheme.bodyLarge?.color,
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
                             ),
@@ -300,7 +302,7 @@ class _TierCard extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.2),
+                                color: Colors.red.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
@@ -318,7 +320,7 @@ class _TierCard extends StatelessWidget {
                       Text(
                         tier.name.toLowerCase(),
                         style: TextStyle(
-                          color: AppTheme.mutedForeground,
+                          color: theme.textTheme.bodySmall?.color,
                           fontSize: 12,
                         ),
                       ),
@@ -340,7 +342,7 @@ class _TierCard extends StatelessWidget {
               Text(
                 tier.description,
                 style: TextStyle(
-                  color: AppTheme.mutedForeground,
+                  color: theme.textTheme.bodySmall?.color,
                   fontSize: 13,
                 ),
               ),
@@ -351,7 +353,7 @@ class _TierCard extends StatelessWidget {
                 Icon(
                   Icons.people_outline,
                   size: 16,
-                  color: AppTheme.mutedForeground,
+                  color: theme.textTheme.bodySmall?.color,
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -359,7 +361,7 @@ class _TierCard extends StatelessWidget {
                       ? 'Unlimited trainees'
                       : '${tier.traineeLimit} trainees max',
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 13,
                   ),
                 ),
@@ -375,13 +377,13 @@ class _TierCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.muted.withOpacity(0.3),
+                      color: theme.dividerColor.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       feature,
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 11,
                       ),
                     ),
@@ -421,7 +423,8 @@ class _TierCard extends StatelessWidget {
     );
   }
 
-  Color _getTierColor(String tierName) {
+  Color _getTierColor(BuildContext context, String tierName) {
+    final theme = Theme.of(context);
     switch (tierName.toUpperCase()) {
       case 'FREE':
         return Colors.grey;
@@ -432,7 +435,7 @@ class _TierCard extends StatelessWidget {
       case 'ENTERPRISE':
         return Colors.orange;
       default:
-        return AppTheme.primary;
+        return theme.colorScheme.primary;
     }
   }
 
@@ -532,10 +535,11 @@ class _TierDialogState extends State<_TierDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final isEditing = widget.tier != null;
 
     return Dialog(
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 400,
@@ -549,8 +553,8 @@ class _TierDialogState extends State<_TierDialog> {
               children: [
                 Text(
                   isEditing ? 'Edit Tier' : 'Create Tier',
-                  style: const TextStyle(
-                    color: AppTheme.foreground,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                   ),
@@ -659,7 +663,7 @@ class _TierDialogState extends State<_TierDialog> {
                     ElevatedButton(
                       onPressed: _isSaving ? null : _save,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
+                        backgroundColor: theme.colorScheme.primary,
                       ),
                       child: _isSaving
                           ? const SizedBox(

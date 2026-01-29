@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/program_model.dart';
 import '../providers/program_provider.dart';
 import 'program_builder_screen.dart';
@@ -146,14 +145,15 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildTemplatesTab(templatesAsync),
-          _buildMyProgramsTab(),
+          _buildTemplatesTab(context, templatesAsync),
+          _buildMyProgramsTab(context),
         ],
       ),
     );
   }
 
-  Widget _buildTemplatesTab(AsyncValue<List<ProgramTemplateModel>> templatesAsync) {
+  Widget _buildTemplatesTab(BuildContext context, AsyncValue<List<ProgramTemplateModel>> templatesAsync) {
+    final theme = Theme.of(context);
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(programTemplatesProvider);
@@ -166,7 +166,10 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppTheme.primary.withOpacity(0.1), AppTheme.primary.withOpacity(0.05)],
+                colors: [
+                  theme.colorScheme.primary.withValues(alpha: 0.1),
+                  theme.colorScheme.primary.withValues(alpha: 0.05),
+                ],
               ),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -175,26 +178,23 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.2),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.calendar_month, color: AppTheme.primary, size: 28),
+                  child: Icon(Icons.calendar_month, color: theme.colorScheme.primary, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Program Templates',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       Text(
                         'Choose a template or create your own',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                        style: theme.textTheme.bodySmall,
                       ),
                     ],
                   ),
@@ -206,9 +206,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
           const SizedBox(height: 24),
 
           // Goal Filter
-          const Text(
+          Text(
             'Filter by Goal',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -216,8 +216,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                _buildGoalChip('All', null, true),
+                _buildGoalChip(context, 'All', null, true),
                 ...ProgramGoals.all.map((goal) => _buildGoalChip(
+                  context,
                   ProgramGoals.displayName(goal),
                   goal,
                   false,
@@ -229,13 +230,13 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
           const SizedBox(height: 24),
 
           // Default Templates
-          const Text(
+          Text(
             'Popular Templates',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
 
-          ..._defaultTemplates.map((template) => _buildTemplateCard(template)),
+          ..._defaultTemplates.map((template) => _buildTemplateCard(context, template)),
 
           // Custom Templates from API
           templatesAsync.when(
@@ -250,12 +251,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'Custom Templates',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-                  ...templates.map((t) => _buildApiTemplateCard(t)),
+                  ...templates.map((t) => _buildApiTemplateCard(context, t)),
                 ],
               );
             },
@@ -267,7 +268,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     );
   }
 
-  Widget _buildGoalChip(String label, String? goal, bool isSelected) {
+  Widget _buildGoalChip(BuildContext context, String label, String? goal, bool isSelected) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
@@ -276,21 +278,17 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
         onSelected: (selected) {
           // TODO: Implement filtering
         },
-        selectedColor: AppTheme.primary.withOpacity(0.2),
+        selectedColor: theme.colorScheme.primary.withValues(alpha: 0.2),
       ),
     );
   }
 
-  Widget _buildTemplateCard(_DefaultTemplate template) {
+  Widget _buildTemplateCard(BuildContext context, _DefaultTemplate template) {
+    final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
-      ),
       child: InkWell(
-        onTap: () => _showTemplateDetail(template),
+        onTap: () => _showTemplateDetail(context, template),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -302,7 +300,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: _getGoalColor(template.goal).withOpacity(0.1),
+                      color: _getGoalColor(template.goal).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -317,31 +315,28 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       children: [
                         Text(
                           template.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            _buildTag(template.difficulty, _getDifficultyColor(template.difficulty)),
+                            _buildTag(context, template.difficulty, _getDifficultyColor(template.difficulty)),
                             const SizedBox(width: 8),
-                            _buildTag('${template.durationWeeks} weeks', Colors.blue),
+                            _buildTag(context, '${template.durationWeeks} weeks', Colors.blue),
                             const SizedBox(width: 8),
-                            _buildTag('${template.daysPerWeek}x/week', Colors.green),
+                            _buildTag(context, '${template.daysPerWeek}x/week', Colors.green),
                           ],
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Colors.grey[400]),
+                  Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
                 ],
               ),
               const SizedBox(height: 12),
               Text(
                 template.description,
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: theme.textTheme.bodySmall,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -356,7 +351,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
-                        color: isRest ? Colors.grey.withOpacity(0.1) : AppTheme.primary.withOpacity(0.1),
+                        color: isRest
+                            ? theme.dividerColor.withValues(alpha: 0.3)
+                            : theme.colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Column(
@@ -366,14 +363,14 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: isRest ? Colors.grey : AppTheme.primary,
+                              color: isRest ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Icon(
                             isRest ? Icons.bed : Icons.fitness_center,
                             size: 12,
-                            color: isRest ? Colors.grey : AppTheme.primary,
+                            color: isRest ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
                           ),
                         ],
                       ),
@@ -388,25 +385,21 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     );
   }
 
-  Widget _buildApiTemplateCard(ProgramTemplateModel template) {
+  Widget _buildApiTemplateCard(BuildContext context, ProgramTemplateModel template) {
+    final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
-      ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppTheme.primary.withOpacity(0.1),
+            color: theme.colorScheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.calendar_month, color: AppTheme.primary),
+          child: Icon(Icons.calendar_month, color: theme.colorScheme.primary),
         ),
-        title: Text(template.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(template.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
         subtitle: Text('${template.durationWeeks} weeks • ${template.difficultyDisplay}'),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
@@ -416,11 +409,11 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     );
   }
 
-  Widget _buildTag(String text, Color color) {
+  Widget _buildTag(BuildContext context, String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -441,7 +434,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       case 'strength': return Colors.red;
       case 'endurance': return Colors.blue;
       case 'recomp': return Colors.teal;
-      default: return AppTheme.primary;
+      default: return Theme.of(context).colorScheme.primary;
     }
   }
 
@@ -454,21 +447,22 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     }
   }
 
-  Widget _buildMyProgramsTab() {
+  Widget _buildMyProgramsTab(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.folder_open, size: 64, color: Colors.grey[400]),
+          Icon(Icons.folder_open, size: 64, color: theme.textTheme.bodySmall?.color),
           const SizedBox(height: 16),
           Text(
             'No Custom Programs Yet',
-            style: Theme.of(context).textTheme.titleLarge,
+            style: theme.textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Create your own program templates',
-            style: TextStyle(color: Colors.grey),
+            style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
@@ -481,11 +475,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     );
   }
 
-  void _showTemplateDetail(_DefaultTemplate template) {
+  void _showTemplateDetail(BuildContext context, _DefaultTemplate template) {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -506,7 +501,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: theme.dividerColor,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -524,16 +519,16 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       children: [
                         Text(
                           template.name,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          style: theme.textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            _buildTag(template.difficulty, _getDifficultyColor(template.difficulty)),
+                            _buildTag(context, template.difficulty, _getDifficultyColor(template.difficulty)),
                             const SizedBox(width: 8),
-                            _buildTag(ProgramGoals.displayName(template.goal), _getGoalColor(template.goal)),
+                            _buildTag(context, ProgramGoals.displayName(template.goal), _getGoalColor(template.goal)),
                           ],
                         ),
                       ],
@@ -548,18 +543,18 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               // Stats
               Row(
                 children: [
-                  Expanded(child: _buildStatCard('Duration', '${template.durationWeeks} weeks', Icons.calendar_today)),
+                  Expanded(child: _buildStatCard(context, 'Duration', '${template.durationWeeks} weeks', Icons.calendar_today)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildStatCard('Frequency', '${template.daysPerWeek}x/week', Icons.repeat)),
+                  Expanded(child: _buildStatCard(context, 'Frequency', '${template.daysPerWeek}x/week', Icons.repeat)),
                 ],
               ),
 
               const SizedBox(height: 24),
 
               // Weekly Schedule
-              const Text(
+              Text(
                 'Weekly Schedule',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               ...template.schedule.asMap().entries.map((entry) {
@@ -568,7 +563,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: entry.value == 'Rest' ? Colors.grey.withOpacity(0.1) : AppTheme.primary.withOpacity(0.1),
+                    color: entry.value == 'Rest'
+                        ? theme.dividerColor.withValues(alpha: 0.3)
+                        : theme.colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -583,7 +580,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       Icon(
                         entry.value == 'Rest' ? Icons.bed : Icons.fitness_center,
                         size: 18,
-                        color: entry.value == 'Rest' ? Colors.grey : AppTheme.primary,
+                        color: entry.value == 'Rest' ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
                       Text(entry.value),
@@ -654,19 +651,20 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon) {
+  Widget _buildStatCard(BuildContext context, String label, String value, IconData icon) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.muted,
+        color: theme.dividerColor.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          Icon(icon, color: AppTheme.primary),
+          Icon(icon, color: theme.colorScheme.primary),
           const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+          Text(value, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text(label, style: theme.textTheme.bodySmall),
         ],
       ),
     );
@@ -677,6 +675,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
   }
 
   void _showNewProgramSetupDialog(BuildContext context) {
+    final theme = Theme.of(context);
     String programName = '';
     int durationWeeks = 4;
     String difficulty = 'intermediate';
@@ -685,7 +684,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -707,25 +706,22 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: theme.dividerColor,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const Text(
+              Text(
                 'Create New Program',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
 
               // Program name
               TextField(
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Program Name',
                   hintText: 'e.g., My Custom PPL',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
                 ),
                 onChanged: (value) => programName = value,
               ),

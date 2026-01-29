@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
 
@@ -35,25 +34,26 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(traineeSubscriptionProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
-        title: const Text(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        title: Text(
           'My Subscriptions',
-          style: TextStyle(color: AppTheme.foreground),
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.foreground),
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppTheme.primary,
-          labelColor: AppTheme.foreground,
-          unselectedLabelColor: AppTheme.mutedForeground,
+          indicatorColor: theme.colorScheme.primary,
+          labelColor: theme.textTheme.bodyLarge?.color,
+          unselectedLabelColor: theme.textTheme.bodySmall?.color,
           tabs: const [
             Tab(text: 'Subscriptions'),
             Tab(text: 'Payment History'),
@@ -110,16 +110,17 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
   }
 
   Widget _buildSubscriptionCard(TraineeSubscriptionModel subscription) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: subscription.isActiveStatus
-              ? AppTheme.primary.withOpacity(0.3)
-              : AppTheme.border,
+              ? theme.colorScheme.primary.withValues(alpha: 0.3)
+              : theme.dividerColor,
         ),
       ),
       child: Column(
@@ -131,15 +132,15 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: subscription.isActiveStatus
-                      ? AppTheme.primary.withOpacity(0.1)
-                      : AppTheme.muted,
+                      ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                      : theme.disabledColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   Icons.person,
                   color: subscription.isActiveStatus
-                      ? AppTheme.primary
-                      : AppTheme.mutedForeground,
+                      ? theme.colorScheme.primary
+                      : theme.textTheme.bodySmall?.color,
                   size: 24,
                 ),
               ),
@@ -150,8 +151,8 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
                   children: [
                     Text(
                       subscription.trainerName ?? subscription.trainerEmail ?? 'Trainer',
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -159,7 +160,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
                     Text(
                       subscription.formattedAmount,
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 14,
                       ),
                     ),
@@ -171,7 +172,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
           ),
 
           const SizedBox(height: 16),
-          const Divider(color: AppTheme.border),
+          Divider(color: theme.dividerColor),
           const SizedBox(height: 12),
 
           // Details
@@ -202,8 +203,8 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
               child: OutlinedButton(
                 onPressed: () => _showCancelDialog(subscription),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.destructive,
-                  side: const BorderSide(color: AppTheme.destructive),
+                  foregroundColor: theme.colorScheme.error,
+                  side: BorderSide(color: theme.colorScheme.error),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -242,13 +243,14 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
   }
 
   Widget _buildPaymentCard(TraineePaymentModel payment) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         children: [
@@ -256,10 +258,10 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: payment.isSucceeded
-                  ? Colors.green.withOpacity(0.1)
+                  ? Colors.green.withValues(alpha: 0.1)
                   : payment.isPending
-                      ? Colors.orange.withOpacity(0.1)
-                      : AppTheme.destructive.withOpacity(0.1),
+                      ? Colors.orange.withValues(alpha: 0.1)
+                      : theme.colorScheme.error.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -272,7 +274,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
                   ? Colors.green
                   : payment.isPending
                       ? Colors.orange
-                      : AppTheme.destructive,
+                      : theme.colorScheme.error,
               size: 24,
             ),
           ),
@@ -285,8 +287,8 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
                   payment.isSubscription
                       ? 'Monthly Subscription'
                       : 'One-Time Payment',
-                  style: const TextStyle(
-                    color: AppTheme.foreground,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -294,7 +296,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
                 Text(
                   payment.trainerName ?? payment.trainerEmail ?? '',
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 13,
                   ),
                 ),
@@ -302,7 +304,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
                   Text(
                     _formatDate(payment.paidAt!),
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 12,
                     ),
                   ),
@@ -314,8 +316,8 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
             children: [
               Text(
                 payment.formattedAmount,
-                style: const TextStyle(
-                  color: AppTheme.foreground,
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -329,6 +331,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
   }
 
   Widget _buildStatusBadge(String status) {
+    final theme = Theme.of(context);
     Color color;
     String label;
 
@@ -347,22 +350,22 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
         label = 'Past Due';
         break;
       case 'canceled':
-        color = AppTheme.mutedForeground;
+        color = theme.textTheme.bodySmall?.color ?? Colors.grey;
         label = 'Canceled';
         break;
       case 'failed':
-        color = AppTheme.destructive;
+        color = theme.colorScheme.error;
         label = 'Failed';
         break;
       default:
-        color = AppTheme.mutedForeground;
+        color = theme.textTheme.bodySmall?.color ?? Colors.grey;
         label = status;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -377,10 +380,11 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
   }
 
   Widget _buildSectionHeader(String title) {
+    final theme = Theme.of(context);
     return Text(
       title,
       style: TextStyle(
-        color: AppTheme.mutedForeground,
+        color: theme.textTheme.bodySmall?.color,
         fontSize: 12,
         fontWeight: FontWeight.w600,
         letterSpacing: 1,
@@ -389,6 +393,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
   }
 
   Widget _buildDetailRow(String label, String value) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -397,14 +402,14 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
           Text(
             label,
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 13,
             ),
           ),
           Text(
             value,
-            style: const TextStyle(
-              color: AppTheme.foreground,
+            style: TextStyle(
+              color: theme.textTheme.bodyLarge?.color,
               fontSize: 13,
             ),
           ),
@@ -418,18 +423,19 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
     required String title,
     required String message,
   }) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: AppTheme.mutedForeground),
+            Icon(icon, size: 64, color: theme.textTheme.bodySmall?.color),
             const SizedBox(height: 16),
             Text(
               title,
-              style: const TextStyle(
-                color: AppTheme.foreground,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -439,7 +445,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
               message,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 14,
               ),
             ),
@@ -450,24 +456,25 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
   }
 
   void _showCancelDialog(TraineeSubscriptionModel subscription) {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
-        title: const Text(
+        backgroundColor: theme.cardColor,
+        title: Text(
           'Cancel Subscription',
-          style: TextStyle(color: AppTheme.foreground),
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         content: Text(
           'Are you sure you want to cancel your subscription with ${subscription.trainerName ?? subscription.trainerEmail}? You will lose access at the end of your current billing period.',
-          style: TextStyle(color: AppTheme.mutedForeground),
+          style: TextStyle(color: theme.textTheme.bodySmall?.color),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(
               'Keep Subscription',
-              style: TextStyle(color: AppTheme.mutedForeground),
+              style: TextStyle(color: theme.textTheme.bodySmall?.color),
             ),
           ),
           TextButton(
@@ -477,9 +484,9 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
                   .read(traineeSubscriptionProvider.notifier)
                   .cancelSubscription(subscription.id);
             },
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: AppTheme.destructive),
+              style: TextStyle(color: theme.colorScheme.error),
             ),
           ),
         ],

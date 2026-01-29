@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../onboarding/data/models/user_profile_model.dart';
 import '../providers/settings_provider.dart';
 
@@ -56,20 +55,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(settingsStateProvider);
     final notifier = ref.read(settingsStateProvider.notifier);
+    final theme = Theme.of(context);
 
     _initControllers(state);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.foreground),
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           'Edit Profile',
-          style: TextStyle(color: AppTheme.foreground),
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         elevation: 0,
       ),
@@ -97,11 +97,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 20),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppTheme.primary.withOpacity(0.1)
-                                  : AppTheme.card,
+                                  ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                                  : theme.cardColor,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isSelected ? AppTheme.primary : AppTheme.border,
+                                color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
                                 width: isSelected ? 2 : 1,
                               ),
                             ),
@@ -109,14 +109,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               children: [
                                 Icon(
                                   sex == 'male' ? Icons.male : Icons.female,
-                                  color: isSelected ? AppTheme.primary : AppTheme.mutedForeground,
+                                  color: isSelected ? theme.colorScheme.primary : theme.textTheme.bodySmall?.color,
                                   size: 32,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   sex == 'male' ? 'Male' : 'Female',
                                   style: TextStyle(
-                                    color: isSelected ? AppTheme.primary : AppTheme.foreground,
+                                    color: isSelected ? theme.colorScheme.primary : theme.textTheme.bodyLarge?.color,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -138,10 +138,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     decoration: InputDecoration(
                       hintText: 'Enter your age',
                       filled: true,
-                      fillColor: AppTheme.card,
+                      fillColor: theme.cardColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppTheme.border),
+                        borderSide: BorderSide(color: theme.dividerColor),
                       ),
                     ),
                     onChanged: (value) {
@@ -161,13 +161,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.1),
+                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
                             state.useMetric ? 'Metric' : 'Imperial',
                             style: TextStyle(
-                              color: AppTheme.primary,
+                              color: theme.colorScheme.primary,
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
                             ),
@@ -186,10 +186,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       decoration: InputDecoration(
                         hintText: 'Height (cm)',
                         filled: true,
-                        fillColor: AppTheme.card,
+                        fillColor: theme.cardColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppTheme.border),
+                          borderSide: BorderSide(color: theme.dividerColor),
                         ),
                       ),
                       onChanged: (value) {
@@ -207,10 +207,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             decoration: InputDecoration(
                               hintText: 'Feet',
                               filled: true,
-                              fillColor: AppTheme.card,
+                              fillColor: theme.cardColor,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: AppTheme.border),
+                                borderSide: BorderSide(color: theme.dividerColor),
                               ),
                             ),
                             onChanged: (_) => _updateHeightFromImperial(notifier),
@@ -224,10 +224,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             decoration: InputDecoration(
                               hintText: 'Inches',
                               filled: true,
-                              fillColor: AppTheme.card,
+                              fillColor: theme.cardColor,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: AppTheme.border),
+                                borderSide: BorderSide(color: theme.dividerColor),
                               ),
                             ),
                             onChanged: (_) => _updateHeightFromImperial(notifier),
@@ -244,10 +244,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     decoration: InputDecoration(
                       hintText: state.useMetric ? 'Weight (kg)' : 'Weight (lbs)',
                       filled: true,
-                      fillColor: AppTheme.card,
+                      fillColor: theme.cardColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppTheme.border),
+                        borderSide: BorderSide(color: theme.dividerColor),
                       ),
                     ),
                     onChanged: (value) {
@@ -289,7 +289,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     const SizedBox(height: 16),
                     Text(
                       state.error!,
-                      style: TextStyle(color: AppTheme.destructive),
+                      style: TextStyle(color: theme.colorScheme.error),
                     ),
                   ],
                 ],

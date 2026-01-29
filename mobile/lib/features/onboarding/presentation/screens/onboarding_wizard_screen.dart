@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/onboarding_provider.dart';
 import 'step1_about_you_screen.dart';
@@ -15,6 +14,7 @@ class OnboardingWizardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingStateProvider);
+    final theme = Theme.of(context);
 
     // Navigate to home when completed
     if (state.isCompleted) {
@@ -26,12 +26,12 @@ class OnboardingWizardScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
             // Progress indicator
-            _buildProgressIndicator(state.currentStep),
+            _buildProgressIndicator(context, state.currentStep),
 
             // Step content
             Expanded(
@@ -43,7 +43,8 @@ class OnboardingWizardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProgressIndicator(int currentStep) {
+  Widget _buildProgressIndicator(BuildContext context, int currentStep) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Row(
@@ -60,8 +61,8 @@ class OnboardingWizardScreen extends ConsumerWidget {
                     height: 4,
                     decoration: BoxDecoration(
                       color: isCompleted || isCurrent
-                          ? AppTheme.primary
-                          : AppTheme.zinc700,
+                          ? theme.colorScheme.primary
+                          : theme.dividerColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

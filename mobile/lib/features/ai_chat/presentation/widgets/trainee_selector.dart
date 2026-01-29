@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/chat_models.dart';
 import '../providers/ai_chat_provider.dart';
 
@@ -9,21 +8,22 @@ class TraineeSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final chatState = ref.watch(aiChatProvider);
     final traineesAsync = ref.watch(traineesForChatProvider);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppTheme.card,
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        color: theme.cardColor,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
           Icon(
             Icons.person_search,
             size: 20,
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -37,7 +37,7 @@ class TraineeSelector extends ConsumerWidget {
               loading: () => Text(
                 'Loading trainees...',
                 style: TextStyle(
-                  color: AppTheme.mutedForeground,
+                  color: theme.textTheme.bodySmall?.color,
                   fontSize: 14,
                 ),
               ),
@@ -58,7 +58,7 @@ class TraineeSelector extends ConsumerWidget {
               },
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
             ),
         ],
       ),
@@ -71,11 +71,13 @@ class TraineeSelector extends ConsumerWidget {
     List<TraineeOption> trainees,
     AIChatState chatState,
   ) {
+    final theme = Theme.of(context);
+
     if (trainees.isEmpty) {
       return Text(
         'No trainees found',
         style: TextStyle(
-          color: AppTheme.mutedForeground,
+          color: theme.textTheme.bodySmall?.color,
           fontSize: 14,
         ),
       );
@@ -90,8 +92,8 @@ class TraineeSelector extends ConsumerWidget {
               chatState.selectedTraineeName ?? 'All trainees',
               style: TextStyle(
                 color: chatState.selectedTraineeId != null
-                    ? AppTheme.primary
-                    : AppTheme.foreground,
+                    ? theme.colorScheme.primary
+                    : theme.textTheme.bodyLarge?.color,
                 fontSize: 14,
                 fontWeight: chatState.selectedTraineeId != null
                     ? FontWeight.w600
@@ -102,7 +104,7 @@ class TraineeSelector extends ConsumerWidget {
           Icon(
             Icons.keyboard_arrow_down,
             size: 20,
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
           ),
         ],
       ),
@@ -114,9 +116,11 @@ class TraineeSelector extends ConsumerWidget {
     WidgetRef ref,
     List<TraineeOption> trainees,
   ) {
+    final theme = Theme.of(context);
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -149,6 +153,7 @@ class _TraineeBottomSheetState extends ConsumerState<_TraineeBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final chatState = ref.watch(aiChatProvider);
 
     return Column(
@@ -160,7 +165,7 @@ class _TraineeBottomSheetState extends ConsumerState<_TraineeBottomSheet> {
           width: 40,
           height: 4,
           decoration: BoxDecoration(
-            color: AppTheme.border,
+            color: theme.dividerColor,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -173,7 +178,7 @@ class _TraineeBottomSheetState extends ConsumerState<_TraineeBottomSheet> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: AppTheme.foreground,
+              color: theme.textTheme.bodyLarge?.color,
             ),
           ),
         ),
@@ -186,10 +191,10 @@ class _TraineeBottomSheetState extends ConsumerState<_TraineeBottomSheet> {
               hintText: 'Search trainees...',
               prefixIcon: const Icon(Icons.search),
               filled: true,
-              fillColor: AppTheme.background,
+              fillColor: theme.scaffoldBackgroundColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppTheme.border),
+                borderSide: BorderSide(color: theme.dividerColor),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -209,10 +214,10 @@ class _TraineeBottomSheetState extends ConsumerState<_TraineeBottomSheet> {
         // "All trainees" option
         ListTile(
           leading: CircleAvatar(
-            backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
             child: Icon(
               Icons.groups,
-              color: AppTheme.primary,
+              color: theme.colorScheme.primary,
               size: 20,
             ),
           ),
@@ -220,12 +225,12 @@ class _TraineeBottomSheetState extends ConsumerState<_TraineeBottomSheet> {
           subtitle: Text(
             'Get insights across all your trainees',
             style: TextStyle(
-              color: AppTheme.mutedForeground,
+              color: theme.textTheme.bodySmall?.color,
               fontSize: 12,
             ),
           ),
           trailing: chatState.selectedTraineeId == null
-              ? Icon(Icons.check, color: AppTheme.primary)
+              ? Icon(Icons.check, color: theme.colorScheme.primary)
               : null,
           onTap: () {
             ref.read(aiChatProvider.notifier).selectTrainee(null, null);
@@ -246,11 +251,11 @@ class _TraineeBottomSheetState extends ConsumerState<_TraineeBottomSheet> {
 
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
                   child: Text(
                     trainee.name[0].toUpperCase(),
                     style: TextStyle(
-                      color: AppTheme.primary,
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -259,12 +264,12 @@ class _TraineeBottomSheetState extends ConsumerState<_TraineeBottomSheet> {
                 subtitle: Text(
                   trainee.email,
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 12,
                   ),
                 ),
                 trailing: isSelected
-                    ? Icon(Icons.check, color: AppTheme.primary)
+                    ? Icon(Icons.check, color: theme.colorScheme.primary)
                     : null,
                 onTap: () {
                   ref.read(aiChatProvider.notifier).selectTrainee(

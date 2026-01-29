@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/exercise_model.dart';
 import '../providers/exercise_provider.dart';
 
@@ -24,6 +23,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final filter = ExerciseFilter(
       muscleGroup: _selectedMuscleGroup,
       search: _searchController.text.isNotEmpty ? _searchController.text : null,
@@ -60,11 +60,6 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                         },
                       )
                     : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: AppTheme.card,
               ),
               onChanged: (value) => setState(() {}),
             ),
@@ -77,11 +72,11 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
-                _buildFilterChip('All', null),
+                _buildFilterChip(context, 'All', null),
                 const SizedBox(width: 8),
                 ...MuscleGroups.all.map((group) => Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: _buildFilterChip(MuscleGroups.displayName(group), group),
+                  child: _buildFilterChip(context, MuscleGroups.displayName(group), group),
                 )),
               ],
             ),
@@ -97,9 +92,9 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
                     const SizedBox(height: 16),
-                    Text('Error: ${error}'),
+                    Text('Error: $error'),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () => ref.invalidate(exercisesProvider(filter)),
@@ -110,9 +105,9 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
               ),
               data: (exercises) {
                 if (exercises.isEmpty) {
-                  return _buildEmptyState();
+                  return _buildEmptyState(context);
                 }
-                return _buildExerciseList(exercises);
+                return _buildExerciseList(context, exercises);
               },
             ),
           ),
@@ -121,7 +116,8 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, String? value) {
+  Widget _buildFilterChip(BuildContext context, String label, String? value) {
+    final theme = Theme.of(context);
     final isSelected = _selectedMuscleGroup == value;
     return FilterChip(
       label: Text(label),
@@ -131,37 +127,38 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
           _selectedMuscleGroup = selected ? value : null;
         });
       },
-      selectedColor: AppTheme.primary.withOpacity(0.2),
-      checkmarkColor: AppTheme.primary,
+      selectedColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+      checkmarkColor: theme.colorScheme.primary,
       labelStyle: TextStyle(
-        color: isSelected ? AppTheme.primary : null,
+        color: isSelected ? theme.colorScheme.primary : theme.textTheme.bodyMedium?.color,
         fontWeight: isSelected ? FontWeight.bold : null,
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.fitness_center, size: 64, color: Colors.grey[400]),
+          Icon(Icons.fitness_center, size: 64, color: theme.textTheme.bodySmall?.color),
           const SizedBox(height: 16),
           Text(
             'No exercises found',
-            style: Theme.of(context).textTheme.titleLarge,
+            style: theme.textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Try adjusting your search or filters',
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: theme.textTheme.bodySmall?.color),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildExerciseList(List<ExerciseModel> exercises) {
+  Widget _buildExerciseList(BuildContext context, List<ExerciseModel> exercises) {
     // Group exercises by muscle group
     final grouped = <String, List<ExerciseModel>>{};
     for (final exercise in exercises) {
@@ -174,7 +171,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: exercises.length,
         itemBuilder: (context, index) {
-          return _buildExerciseCard(exercises[index]);
+          return _buildExerciseCard(context, exercises[index]);
         },
       );
     }
@@ -187,12 +184,13 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
       itemBuilder: (context, index) {
         final muscleGroup = sortedKeys[index];
         final groupExercises = grouped[muscleGroup]!;
-        return _buildMuscleGroupSection(muscleGroup, groupExercises);
+        return _buildMuscleGroupSection(context, muscleGroup, groupExercises);
       },
     );
   }
 
-  Widget _buildMuscleGroupSection(String muscleGroup, List<ExerciseModel> exercises) {
+  Widget _buildMuscleGroupSection(BuildContext context, String muscleGroup, List<ExerciseModel> exercises) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -203,20 +201,19 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   _getMuscleGroupIcon(muscleGroup),
-                  color: AppTheme.primary,
+                  color: theme.colorScheme.primary,
                   size: 20,
                 ),
               ),
               const SizedBox(width: 12),
               Text(
                 MuscleGroups.displayName(muscleGroup),
-                style: const TextStyle(
-                  fontSize: 18,
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -224,33 +221,29 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.muted,
+                  color: theme.dividerColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${exercises.length}',
-                  style: const TextStyle(fontSize: 12),
+                  style: theme.textTheme.bodySmall,
                 ),
               ),
             ],
           ),
         ),
-        ...exercises.map((e) => _buildExerciseCard(e)),
+        ...exercises.map((e) => _buildExerciseCard(context, e)),
         const SizedBox(height: 8),
       ],
     );
   }
 
-  Widget _buildExerciseCard(ExerciseModel exercise) {
+  Widget _buildExerciseCard(BuildContext context, ExerciseModel exercise) {
+    final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
-      ),
       child: InkWell(
-        onTap: () => _showExerciseDetail(exercise),
+        onTap: () => _showExerciseDetail(context, exercise),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -260,12 +253,12 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.fitness_center,
-                  color: AppTheme.primary,
+                  color: theme.colorScheme.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -275,29 +268,25 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                   children: [
                     Text(
                       exercise.name,
-                      style: const TextStyle(
+                      style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        fontSize: 15,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.category, size: 14, color: Colors.grey[500]),
+                        Icon(Icons.category, size: 14, color: theme.textTheme.bodySmall?.color),
                         const SizedBox(width: 4),
                         Text(
                           exercise.muscleGroupDisplay,
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
+                          style: theme.textTheme.bodySmall,
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.grey[400]),
+              Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
             ],
           ),
         ),
@@ -323,11 +312,12 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     }
   }
 
-  void _showExerciseDetail(ExerciseModel exercise) {
+  void _showExerciseDetail(BuildContext context, ExerciseModel exercise) {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -348,24 +338,24 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: theme.dividerColor,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               Text(
                 exercise.name,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 16),
-              _buildDetailRow(Icons.category, 'Muscle Group', exercise.muscleGroupDisplay),
+              _buildDetailRow(context, Icons.category, 'Muscle Group', exercise.muscleGroupDisplay),
               if (exercise.description != null && exercise.description!.isNotEmpty) ...[
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'Description',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(exercise.description!),
@@ -394,16 +384,17 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
+  Widget _buildDetailRow(BuildContext context, IconData icon, String label, String value) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppTheme.primary),
+          Icon(icon, size: 20, color: theme.colorScheme.primary),
           const SizedBox(width: 12),
           Text(
             '$label: ',
-            style: const TextStyle(color: Colors.grey),
+            style: TextStyle(color: theme.textTheme.bodySmall?.color),
           ),
           Expanded(
             child: Text(

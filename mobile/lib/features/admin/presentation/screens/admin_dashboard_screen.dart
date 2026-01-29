@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -23,13 +22,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(adminDashboardProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -66,23 +66,23 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   children: [
                     if (state.stats != null) ...[
                       // MRR Card
-                      _buildMRRCard(state.stats!),
+                      _buildMRRCard(context, state.stats!),
                       const SizedBox(height: 16),
 
                       // Quick Stats
-                      _buildQuickStats(state.stats!),
+                      _buildQuickStats(context, state.stats!),
                       const SizedBox(height: 24),
 
                       // Tier Breakdown
-                      _buildTierBreakdown(state.stats!),
+                      _buildTierBreakdown(context, state.stats!),
                       const SizedBox(height: 24),
 
                       // Alerts Section
-                      _buildAlertsSection(state),
+                      _buildAlertsSection(context, state),
                       const SizedBox(height: 24),
 
                       // Payment Schedule
-                      _buildPaymentSchedule(state.stats!),
+                      _buildPaymentSchedule(context, state.stats!),
                     ] else ...[
                       // No data state
                       Center(
@@ -93,13 +93,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               Icon(
                                 Icons.dashboard_outlined,
                                 size: 64,
-                                color: AppTheme.mutedForeground,
+                                color: theme.textTheme.bodySmall?.color,
                               ),
                               const SizedBox(height: 16),
                               Text(
                                 'No dashboard data available',
                                 style: TextStyle(
-                                  color: AppTheme.mutedForeground,
+                                  color: theme.textTheme.bodySmall?.color,
                                   fontSize: 16,
                                 ),
                               ),
@@ -120,12 +120,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildMRRCard(AdminDashboardStats stats) {
+  Widget _buildMRRCard(BuildContext context, AdminDashboardStats stats) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppTheme.primary, AppTheme.primary.withOpacity(0.7)],
+          colors: [theme.colorScheme.primary, theme.colorScheme.primary.withValues(alpha: 0.7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -183,11 +184,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildQuickStats(AdminDashboardStats stats) {
+  Widget _buildQuickStats(BuildContext context, AdminDashboardStats stats) {
     return Row(
       children: [
         Expanded(
           child: _buildStatCard(
+            context,
             'Total Trainers',
             stats.totalTrainers.toString(),
             Icons.person,
@@ -197,6 +199,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
+            context,
             'Past Due',
             stats.pastDueCount.toString(),
             Icons.warning,
@@ -207,6 +210,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
+            context,
             'Total Past Due',
             '\$${stats.totalPastDue}',
             Icons.attach_money,
@@ -217,16 +221,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color,
+  Widget _buildStatCard(BuildContext context, String label, String value, IconData icon, Color color,
       {VoidCallback? onTap}) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.card,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.border),
+          border: Border.all(color: theme.dividerColor),
         ),
         child: Column(
           children: [
@@ -244,7 +249,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             Text(
               label,
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 11,
               ),
               textAlign: TextAlign.center,
@@ -255,7 +260,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildTierBreakdown(AdminDashboardStats stats) {
+  Widget _buildTierBreakdown(BuildContext context, AdminDashboardStats stats) {
+    final theme = Theme.of(context);
     final tiers = [
       ('FREE', 'Free', Colors.grey, stats.tierBreakdown['FREE'] ?? 0),
       ('STARTER', 'Starter', Colors.blue, stats.tierBreakdown['STARTER'] ?? 0),
@@ -266,9 +272,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,10 +282,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Subscription Tiers',
                 style: TextStyle(
-                  color: AppTheme.foreground,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -293,14 +299,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           const SizedBox(height: 16),
           ...tiers.map((tier) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _buildTierRow(tier.$2, tier.$4, tier.$3),
+                child: _buildTierRow(context, tier.$2, tier.$4, tier.$3),
               )),
         ],
       ),
     );
   }
 
-  Widget _buildTierRow(String name, int count, Color color) {
+  Widget _buildTierRow(BuildContext context, String name, int count, Color color) {
+    final theme = Theme.of(context);
     return Row(
       children: [
         Container(
@@ -315,13 +322,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         Expanded(
           child: Text(
             name,
-            style: const TextStyle(color: AppTheme.foreground),
+            style: TextStyle(color: theme.textTheme.bodyLarge?.color),
           ),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -336,7 +343,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildAlertsSection(AdminDashboardState state) {
+  Widget _buildAlertsSection(BuildContext context, AdminDashboardState state) {
+    final theme = Theme.of(context);
     if (state.pastDueSubscriptions.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -344,9 +352,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,7 +389,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       Expanded(
                         child: Text(
                           sub.trainerEmail,
-                          style: const TextStyle(color: AppTheme.foreground),
+                          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                         ),
                       ),
                       Text(
@@ -396,7 +404,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         Text(
                           '${sub.daysPastDue}d',
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),
@@ -410,13 +418,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildPaymentSchedule(AdminDashboardStats stats) {
+  Widget _buildPaymentSchedule(BuildContext context, AdminDashboardStats stats) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,10 +433,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Upcoming Payments',
                 style: TextStyle(
-                  color: AppTheme.foreground,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -439,17 +448,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildPaymentRow('Today', stats.paymentsDueToday, Colors.red),
+          _buildPaymentRow(context, 'Today', stats.paymentsDueToday, Colors.red),
           const SizedBox(height: 12),
-          _buildPaymentRow('This Week', stats.paymentsDueThisWeek, Colors.orange),
+          _buildPaymentRow(context, 'This Week', stats.paymentsDueThisWeek, Colors.orange),
           const SizedBox(height: 12),
-          _buildPaymentRow('This Month', stats.paymentsDueThisMonth, Colors.blue),
+          _buildPaymentRow(context, 'This Month', stats.paymentsDueThisMonth, Colors.blue),
         ],
       ),
     );
   }
 
-  Widget _buildPaymentRow(String label, int count, Color color) {
+  Widget _buildPaymentRow(BuildContext context, String label, int count, Color color) {
+    final theme = Theme.of(context);
     return Row(
       children: [
         Container(
@@ -464,13 +474,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(color: AppTheme.foreground),
+            style: TextStyle(color: theme.textTheme.bodyLarge?.color),
           ),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(

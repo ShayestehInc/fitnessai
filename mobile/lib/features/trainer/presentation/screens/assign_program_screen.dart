@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../programs/data/models/program_model.dart';
 import '../../../programs/presentation/providers/program_provider.dart';
 import '../../../programs/presentation/screens/program_builder_screen.dart';
@@ -21,6 +20,8 @@ class AssignProgramScreen extends ConsumerStatefulWidget {
 class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Assign Program'),
@@ -38,14 +39,14 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.calendar_month,
-                    color: AppTheme.primary,
+                    color: theme.colorScheme.primary,
                     size: 32,
                   ),
                   const SizedBox(width: 12),
@@ -88,30 +89,33 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
 
             // Create new program
             _buildOptionCard(
+              context,
               icon: Icons.add_circle_outline,
               title: 'Create New Program',
               subtitle: 'Build a custom program from scratch',
-              onTap: () => _showCreateNewProgramDialog(),
+              onTap: () => _showCreateNewProgramDialog(context),
             ),
 
             const SizedBox(height: 12),
 
             // Use template
             _buildOptionCard(
+              context,
               icon: Icons.copy_all,
               title: 'Use a Template',
               subtitle: 'Start with a pre-built program template',
-              onTap: () => _showTemplatesSheet(),
+              onTap: () => _showTemplatesSheet(context),
             ),
 
             const SizedBox(height: 12),
 
             // Assign existing
             _buildOptionCard(
+              context,
               icon: Icons.folder_open,
               title: 'Assign Existing Program',
               subtitle: 'Copy a program from another trainee',
-              onTap: () => _showExistingProgramsSheet(),
+              onTap: () => _showExistingProgramsSheet(context),
             ),
           ],
         ),
@@ -119,17 +123,20 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     );
   }
 
-  Widget _buildOptionCard({
+  Widget _buildOptionCard(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: InkWell(
         onTap: onTap,
@@ -141,10 +148,10 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: AppTheme.primary),
+                child: Icon(icon, color: theme.colorScheme.primary),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -180,7 +187,8 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     );
   }
 
-  void _showCreateNewProgramDialog() {
+  void _showCreateNewProgramDialog(BuildContext context) {
+    final theme = Theme.of(context);
     String programName = '';
     int durationWeeks = 4;
     String difficulty = 'intermediate';
@@ -189,7 +197,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -335,7 +343,8 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     );
   }
 
-  void _showTemplatesSheet() {
+  void _showTemplatesSheet(BuildContext context) {
+    final theme = Theme.of(context);
     // Default templates list
     final templates = [
       _ProgramTemplate(
@@ -423,7 +432,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -466,7 +475,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                 itemCount: templates.length,
                 itemBuilder: (context, index) {
                   final template = templates[index];
-                  return _buildTemplateCard(template);
+                  return _buildTemplateCard(context, template);
                 },
               ),
             ),
@@ -476,18 +485,20 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     );
   }
 
-  Widget _buildTemplateCard(_ProgramTemplate template) {
+  Widget _buildTemplateCard(BuildContext context, _ProgramTemplate template) {
+    final theme = Theme.of(context);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: InkWell(
         onTap: () {
           Navigator.pop(context);
-          _showTemplatePreview(template);
+          _showTemplatePreview(context, template);
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -498,7 +509,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
@@ -552,7 +563,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -579,11 +590,13 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     }
   }
 
-  void _showTemplatePreview(_ProgramTemplate template) {
+  void _showTemplatePreview(BuildContext context, _ProgramTemplate template) {
+    final theme = Theme.of(context);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -647,11 +660,11 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard('Duration', '${template.durationWeeks} weeks', Icons.calendar_today),
+                    child: _buildStatCard(context, 'Duration', '${template.durationWeeks} weeks', Icons.calendar_today),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildStatCard('Frequency', '${template.daysPerWeek}x/week', Icons.repeat),
+                    child: _buildStatCard(context, 'Frequency', '${template.daysPerWeek}x/week', Icons.repeat),
                   ),
                 ],
               ),
@@ -669,7 +682,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: entry.value == 'Rest' ? Colors.grey.withOpacity(0.1) : AppTheme.primary.withOpacity(0.1),
+                    color: entry.value == 'Rest' ? Colors.grey.withValues(alpha: 0.1) : theme.colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -684,7 +697,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                       Icon(
                         entry.value == 'Rest' ? Icons.bed : Icons.fitness_center,
                         size: 18,
-                        color: entry.value == 'Rest' ? Colors.grey : AppTheme.primary,
+                        color: entry.value == 'Rest' ? Colors.grey : theme.colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
                       Text(entry.value),
@@ -701,7 +714,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                     child: OutlinedButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        _showTemplatesSheet();
+                        _showTemplatesSheet(context);
                       },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -750,16 +763,18 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon) {
+  Widget _buildStatCard(BuildContext context, String label, String value, IconData icon) {
+    final theme = Theme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.muted,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          Icon(icon, color: AppTheme.primary),
+          Icon(icon, color: theme.colorScheme.primary),
           const SizedBox(height: 8),
           Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
@@ -768,13 +783,14 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     );
   }
 
-  void _showExistingProgramsSheet() {
+  void _showExistingProgramsSheet(BuildContext context) {
+    final theme = Theme.of(context);
     final existingPrograms = ref.read(programTemplatesProvider);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.card,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -847,7 +863,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                           ElevatedButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
-                              _showCreateNewProgramDialog();
+                              _showCreateNewProgramDialog(context);
                             },
                             icon: const Icon(Icons.add),
                             label: const Text('Create New Program'),
@@ -863,7 +879,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                     itemCount: programs.length,
                     itemBuilder: (context, index) {
                       final program = programs[index];
-                      return _buildExistingProgramCard(program);
+                      return _buildExistingProgramCard(context, program);
                     },
                   );
                 },
@@ -875,16 +891,18 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     );
   }
 
-  Widget _buildExistingProgramCard(ProgramTemplateModel program) {
+  Widget _buildExistingProgramCard(BuildContext context, ProgramTemplateModel program) {
+    final theme = Theme.of(context);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: InkWell(
-        onTap: () => _assignExistingProgram(program),
+        onTap: () => _assignExistingProgram(context, program),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -894,10 +912,10 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.calendar_month, color: AppTheme.primary),
+                child: Icon(Icons.calendar_month, color: theme.colorScheme.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -925,7 +943,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                 ),
               ),
               ElevatedButton(
-                onPressed: () => _assignExistingProgram(program),
+                onPressed: () => _assignExistingProgram(context, program),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
@@ -938,7 +956,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     );
   }
 
-  void _assignExistingProgram(ProgramTemplateModel program) {
+  void _assignExistingProgram(BuildContext context, ProgramTemplateModel program) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

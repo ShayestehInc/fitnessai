@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -14,13 +14,8 @@ class SettingsScreen extends ConsumerWidget {
     final role = user?.role ?? 'TRAINEE';
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
-        title: const Text(
-          'Settings',
-          style: TextStyle(color: AppTheme.foreground),
-        ),
+        title: const Text('Settings'),
         elevation: 0,
       ),
       body: ListView(
@@ -36,78 +31,109 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   List<Widget> _buildAdminSettings(BuildContext context, WidgetRef ref, String? email) {
+    int index = 0;
     return [
       // Admin Info
-      _buildSectionHeader('ADMIN ACCOUNT'),
+      _buildSectionHeader(context, 'ADMIN ACCOUNT', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.admin_panel_settings,
         title: 'Admin Profile',
         subtitle: email ?? 'admin@fitnessai.com',
         onTap: null,
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Platform Management
-      _buildSectionHeader('PLATFORM'),
+      _buildSectionHeader(context, 'PLATFORM', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.dashboard,
         title: 'Dashboard',
         subtitle: 'View platform statistics',
         onTap: () => context.go('/admin'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.people,
         title: 'Manage Trainers',
         subtitle: 'View and manage all trainers',
         onTap: () => context.go('/admin/trainers'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.credit_card,
         title: 'Subscriptions',
         subtitle: 'Manage billing and subscriptions',
         onTap: () => context.go('/admin/subscriptions'),
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Pricing & Promotions
-      _buildSectionHeader('PRICING & PROMOTIONS'),
+      _buildSectionHeader(context, 'PRICING & PROMOTIONS', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.layers,
         title: 'Subscription Tiers',
         subtitle: 'Manage tier pricing and features',
         onTap: () => context.push('/admin/tiers'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.local_offer,
         title: 'Coupons',
         subtitle: 'Create and manage platform coupons',
         onTap: () => context.push('/admin/coupons'),
+        index: index++,
+      ),
+
+      const SizedBox(height: 24),
+
+      // Appearance
+      _buildSectionHeader(context, 'APPEARANCE', index++),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.palette_outlined,
+        title: 'Appearance',
+        subtitle: 'Theme, colors, and display',
+        onTap: () => context.push('/theme-settings'),
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // System
-      _buildSectionHeader('SYSTEM'),
+      _buildSectionHeader(context, 'SYSTEM', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.notifications_outlined,
         title: 'Notifications',
         subtitle: 'Configure system notifications',
         onTap: () {},
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.security,
         title: 'Security',
         subtitle: 'Manage platform security settings',
         onTap: () {},
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Account Actions
-      _buildSectionHeader('ACCOUNT'),
+      _buildSectionHeader(context, 'ACCOUNT', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.logout,
         title: 'Logout',
         subtitle: 'Sign out of admin account',
@@ -118,118 +144,152 @@ class SettingsScreen extends ConsumerWidget {
             context.go('/login');
           }
         },
+        index: index++,
       ),
     ];
   }
 
   List<Widget> _buildTrainerSettings(BuildContext context, WidgetRef ref, String? email) {
+    int index = 0;
     return [
       // Profile Section
-      _buildSectionHeader('PROFILE'),
+      _buildSectionHeader(context, 'PROFILE', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.person_outline,
         title: 'Business Profile',
         subtitle: 'Update your trainer profile',
         onTap: () => context.push('/edit-profile'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.email_outlined,
         title: 'Email',
         subtitle: email ?? 'Not set',
         onTap: null,
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Business Section
-      _buildSectionHeader('BUSINESS'),
+      _buildSectionHeader(context, 'BUSINESS', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.credit_card,
         title: 'Subscription',
         subtitle: 'Manage your subscription plan',
         onTap: () => context.push('/trainer/subscription'),
+        index: index++,
       ),
       _buildSettingsTile(
-        icon: Icons.people_outline,
-        title: 'My Trainees',
-        subtitle: 'View and manage your trainees',
-        onTap: () => context.go('/trainer/trainees'),
-      ),
-      _buildSettingsTile(
+        context: context,
         icon: Icons.bar_chart,
         title: 'Analytics',
         subtitle: 'View trainee progress analytics',
         onTap: () {},
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Payments Section
-      _buildSectionHeader('PAYMENTS'),
+      _buildSectionHeader(context, 'PAYMENTS', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.account_balance,
         title: 'Payment Setup',
         subtitle: 'Connect Stripe to receive payments',
         onTap: () => context.push('/trainer/stripe-connect'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.attach_money,
         title: 'Set Your Prices',
         subtitle: 'Configure coaching subscription pricing',
         onTap: () => context.push('/trainer/pricing'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.local_offer,
         title: 'My Coupons',
         subtitle: 'Create discounts for your trainees',
         onTap: () => context.push('/trainer/coupons'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.receipt_long,
         title: 'Payment History',
         subtitle: 'View received payments and subscribers',
         onTap: () => context.push('/trainer/payments'),
+        index: index++,
+      ),
+
+      const SizedBox(height: 24),
+
+      // Appearance
+      _buildSectionHeader(context, 'APPEARANCE', index++),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.palette_outlined,
+        title: 'Appearance',
+        subtitle: 'Theme, colors, and display',
+        onTap: () => context.push('/theme-settings'),
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Notifications
-      _buildSectionHeader('NOTIFICATIONS'),
+      _buildSectionHeader(context, 'NOTIFICATIONS', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.notifications_outlined,
         title: 'Push Notifications',
         subtitle: 'Manage notification preferences',
         onTap: () {},
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.email_outlined,
         title: 'Email Notifications',
         subtitle: 'Configure email alerts',
         onTap: () {},
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Feature Requests
-      _buildSectionHeader('FEEDBACK'),
+      _buildSectionHeader(context, 'FEEDBACK', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.lightbulb_outline,
         title: 'Feature Requests',
         subtitle: 'Suggest new features or vote on ideas',
         onTap: () => context.push('/feature-requests'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.help_outline,
         title: 'Help & Support',
         subtitle: 'Get help with using the platform',
         onTap: () {},
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Account Section
-      _buildSectionHeader('ACCOUNT'),
+      _buildSectionHeader(context, 'ACCOUNT', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.logout,
         title: 'Logout',
         subtitle: 'Sign out of your account',
@@ -240,84 +300,103 @@ class SettingsScreen extends ConsumerWidget {
             context.go('/login');
           }
         },
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Danger Zone
-      _buildSectionHeader('DANGER ZONE'),
+      _buildSectionHeader(context, 'DANGER ZONE', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.delete_forever,
         title: 'Delete Account',
         subtitle: 'Permanently delete your account and all data',
         isDestructive: true,
         onTap: () => _showDeleteAccountDialog(context, ref),
+        index: index++,
       ),
     ];
   }
 
   List<Widget> _buildTraineeSettings(BuildContext context, WidgetRef ref, String? email) {
+    int index = 0;
     return [
       // Profile Section
-      _buildSectionHeader('PROFILE'),
+      _buildSectionHeader(context, 'PROFILE', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.person_outline,
         title: 'Edit Profile',
         subtitle: 'Update your personal information',
         onTap: () => context.push('/edit-profile'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.fitness_center,
         title: 'Fitness Goals',
         subtitle: 'Change your activity level and goals',
         onTap: () => context.push('/edit-goals'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.restaurant_menu,
         title: 'Diet Preferences',
         subtitle: 'Update diet type and meal settings',
         onTap: () => context.push('/edit-diet'),
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Tracking Settings
-      _buildSectionHeader('TRACKING'),
+      _buildSectionHeader(context, 'TRACKING', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.monitor_weight_outlined,
         title: 'Check-in Days',
         subtitle: 'Set your weigh-in schedule',
         onTap: () => context.push('/edit-diet'),
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.notifications_outlined,
         title: 'Reminders',
         subtitle: 'Configure workout and meal reminders',
         onTap: () {},
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Subscription Section
-      _buildSectionHeader('SUBSCRIPTION'),
+      _buildSectionHeader(context, 'SUBSCRIPTION', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.credit_card,
         title: 'My Subscriptions',
         subtitle: 'Manage coaching subscriptions',
         onTap: () => context.push('/my-subscription'),
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Account Section
-      _buildSectionHeader('ACCOUNT'),
+      _buildSectionHeader(context, 'ACCOUNT', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.email_outlined,
         title: 'Email',
         subtitle: email ?? 'Not set',
         onTap: null,
+        index: index++,
       ),
       _buildSettingsTile(
+        context: context,
         icon: Icons.logout,
         title: 'Logout',
         subtitle: 'Sign out of your account',
@@ -328,97 +407,133 @@ class SettingsScreen extends ConsumerWidget {
             context.go('/login');
           }
         },
+        index: index++,
       ),
 
       const SizedBox(height: 24),
 
       // Danger Zone
-      _buildSectionHeader('DANGER ZONE'),
+      _buildSectionHeader(context, 'DANGER ZONE', index++),
       _buildSettingsTile(
+        context: context,
         icon: Icons.delete_forever,
         title: 'Delete Account',
         subtitle: 'Permanently delete your account and all data',
         isDestructive: true,
         onTap: () => _showDeleteAccountDialog(context, ref),
+        index: index++,
       ),
     ];
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: AppTheme.mutedForeground,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1,
+  Widget _buildSectionHeader(BuildContext context, String title, int index) {
+    final theme = Theme.of(context);
+    return StaggeredListItem(
+      index: index,
+      delay: const Duration(milliseconds: 30),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8, top: 8),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildSettingsTile({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback? onTap,
+    required int index,
     bool isDestructive = false,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isDestructive ? AppTheme.destructive : AppTheme.primary,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isDestructive ? AppTheme.destructive : AppTheme.foreground,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: AppTheme.mutedForeground,
-            fontSize: 12,
-          ),
-        ),
-        trailing: onTap != null
-            ? Icon(Icons.chevron_right, color: AppTheme.mutedForeground)
-            : null,
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final destructiveColor = theme.colorScheme.error;
+
+    return StaggeredListItem(
+      index: index,
+      delay: const Duration(milliseconds: 30),
+      child: AnimatedPress(
         onTap: onTap,
+        scaleDown: onTap != null ? 0.98 : 1.0,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
+          ),
+          child: ListTile(
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: (isDestructive ? destructiveColor : primaryColor).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: isDestructive ? destructiveColor : primaryColor,
+                size: 22,
+              ),
+            ),
+            title: Text(
+              title,
+              style: TextStyle(
+                color: isDestructive ? destructiveColor : theme.textTheme.bodyLarge?.color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            subtitle: Text(
+              subtitle,
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 12,
+              ),
+            ),
+            trailing: onTap != null
+                ? Icon(
+                    Icons.chevron_right,
+                    color: theme.textTheme.bodySmall?.color,
+                  )
+                : null,
+          ),
+        ),
       ),
     );
   }
 
   void _showDeleteAccountDialog(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
-        title: const Text(
+        backgroundColor: theme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
           'Delete Account',
-          style: TextStyle(color: AppTheme.foreground),
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
-        content: const Text(
+        content: Text(
           'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.',
-          style: TextStyle(color: AppTheme.mutedForeground),
+          style: TextStyle(color: theme.textTheme.bodySmall?.color),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(
               'Cancel',
-              style: TextStyle(color: AppTheme.mutedForeground),
+              style: TextStyle(color: theme.textTheme.bodySmall?.color),
             ),
           ),
           TextButton(
@@ -431,14 +546,14 @@ class SettingsScreen extends ConsumerWidget {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(result['error'] ?? 'Failed to delete account'),
-                    backgroundColor: AppTheme.destructive,
+                    backgroundColor: theme.colorScheme.error,
                   ),
                 );
               }
             },
             child: Text(
               'Delete',
-              style: TextStyle(color: AppTheme.destructive),
+              style: TextStyle(color: theme.colorScheme.error),
             ),
           ),
         ],

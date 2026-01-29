@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import '../../../../core/theme/app_theme.dart';
 
 class MacroProgressCircle extends StatelessWidget {
   final String label;
@@ -29,6 +28,8 @@ class MacroProgressCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -39,7 +40,7 @@ class MacroProgressCircle extends StatelessWidget {
             painter: _CircleProgressPainter(
               progress: progress,
               color: color,
-              backgroundColor: AppTheme.zinc800,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
               strokeWidth: size * 0.1,
             ),
             child: Center(
@@ -49,7 +50,7 @@ class MacroProgressCircle extends StatelessWidget {
                   Text(
                     showRemaining ? '$remaining' : '$current',
                     style: TextStyle(
-                      color: AppTheme.foreground,
+                      color: theme.textTheme.bodyLarge?.color,
                       fontSize: size * 0.22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -57,7 +58,7 @@ class MacroProgressCircle extends StatelessWidget {
                   Text(
                     showRemaining ? 'left' : 'g',
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: size * 0.12,
                     ),
                   ),
@@ -78,7 +79,7 @@ class MacroProgressCircle extends StatelessWidget {
         Text(
           '$current / $goal g',
           style: TextStyle(
-            color: AppTheme.mutedForeground,
+            color: theme.textTheme.bodySmall?.color,
             fontSize: 12,
           ),
         ),
@@ -157,14 +158,16 @@ class CalorieProgressCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return SizedBox(
       width: size,
       height: size,
       child: CustomPaint(
         painter: _CircleProgressPainter(
           progress: progress,
-          color: AppTheme.primary,
-          backgroundColor: AppTheme.zinc800,
+          color: theme.colorScheme.primary,
+          backgroundColor: theme.colorScheme.surfaceContainerHighest,
           strokeWidth: size * 0.08,
         ),
         child: Center(
@@ -174,7 +177,7 @@ class CalorieProgressCircle extends StatelessWidget {
               Text(
                 '$remaining',
                 style: TextStyle(
-                  color: AppTheme.foreground,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: size * 0.25,
                   fontWeight: FontWeight.bold,
                 ),
@@ -182,7 +185,7 @@ class CalorieProgressCircle extends StatelessWidget {
               Text(
                 'calories left',
                 style: TextStyle(
-                  color: AppTheme.mutedForeground,
+                  color: theme.textTheme.bodySmall?.color,
                   fontSize: size * 0.08,
                 ),
               ),
@@ -190,7 +193,7 @@ class CalorieProgressCircle extends StatelessWidget {
               Text(
                 '$consumed / $goal',
                 style: TextStyle(
-                  color: AppTheme.mutedForeground,
+                  color: theme.textTheme.bodySmall?.color,
                   fontSize: size * 0.07,
                 ),
               ),

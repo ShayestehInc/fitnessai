@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/user_profile_model.dart';
 import '../providers/onboarding_provider.dart';
 
@@ -11,6 +10,7 @@ class Step3GoalScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingStateProvider);
     final notifier = ref.read(onboardingStateProvider.notifier);
+    final theme = Theme.of(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -22,11 +22,11 @@ class Step3GoalScreen extends ConsumerWidget {
             onTap: () => notifier.goBack(),
             child: Row(
               children: [
-                Icon(Icons.arrow_back, color: AppTheme.mutedForeground),
+                Icon(Icons.arrow_back, color: theme.textTheme.bodySmall?.color),
                 const SizedBox(width: 8),
                 Text(
                   'Back',
-                  style: TextStyle(color: AppTheme.mutedForeground),
+                  style: TextStyle(color: theme.textTheme.bodySmall?.color),
                 ),
               ],
             ),
@@ -35,13 +35,13 @@ class Step3GoalScreen extends ConsumerWidget {
 
           Text(
             'Your Goal',
-            style: Theme.of(context).textTheme.displaySmall,
+            style: theme.textTheme.displaySmall,
           ),
           const SizedBox(height: 8),
           Text(
             'What would you like to achieve?',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.mutedForeground,
+            style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.textTheme.bodySmall?.color,
                 ),
           ),
           const SizedBox(height: 32),
@@ -83,7 +83,7 @@ class Step3GoalScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               state.error!,
-              style: TextStyle(color: AppTheme.destructive),
+              style: TextStyle(color: theme.colorScheme.error),
             ),
           ],
         ],
@@ -120,7 +120,8 @@ class _GoalCard extends StatelessWidget {
     }
   }
 
-  Color get _iconColor {
+  Color _iconColor(BuildContext context) {
+    final theme = Theme.of(context);
     switch (goal) {
       case 'build_muscle':
         return Colors.blue;
@@ -129,21 +130,23 @@ class _GoalCard extends StatelessWidget {
       case 'recomp':
         return Colors.purple;
       default:
-        return AppTheme.primary;
+        return theme.colorScheme.primary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final iconColor = _iconColor(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primary.withOpacity(0.1) : AppTheme.card,
+          color: isSelected ? theme.colorScheme.primary.withValues(alpha: 0.1) : theme.cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppTheme.primary : AppTheme.border,
+            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -152,12 +155,12 @@ class _GoalCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _iconColor.withOpacity(0.2),
+                color: iconColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 _icon,
-                color: _iconColor,
+                color: iconColor,
                 size: 32,
               ),
             ),
@@ -169,7 +172,7 @@ class _GoalCard extends StatelessWidget {
                   Text(
                     label,
                     style: TextStyle(
-                      color: isSelected ? AppTheme.primary : AppTheme.foreground,
+                      color: isSelected ? theme.colorScheme.primary : theme.textTheme.bodyLarge?.color,
                       fontWeight: FontWeight.w600,
                       fontSize: 18,
                     ),
@@ -178,7 +181,7 @@ class _GoalCard extends StatelessWidget {
                   Text(
                     description,
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 14,
                     ),
                   ),
@@ -186,7 +189,7 @@ class _GoalCard extends StatelessWidget {
               ),
             ),
             if (isSelected)
-              Icon(Icons.check_circle, color: AppTheme.primary, size: 28),
+              Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 28),
           ],
         ),
       ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../providers/payment_provider.dart';
 
 class StripeConnectScreen extends ConsumerStatefulWidget {
@@ -24,17 +23,18 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(stripeConnectProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
-        title: const Text(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        title: Text(
           'Payment Setup',
-          style: TextStyle(color: AppTheme.foreground),
+          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.foreground),
+          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
         elevation: 0,
@@ -69,6 +69,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
   }
 
   Widget _buildHeader() {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -77,12 +78,12 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.account_balance,
-                color: AppTheme.primary,
+                color: theme.colorScheme.primary,
                 size: 32,
               ),
             ),
@@ -91,10 +92,10 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Stripe Connect',
                     style: TextStyle(
-                      color: AppTheme.foreground,
+                      color: theme.textTheme.bodyLarge?.color,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -102,7 +103,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
                   Text(
                     'Receive payments from your trainees',
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 14,
                     ),
                   ),
@@ -115,19 +116,19 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppTheme.card,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppTheme.border),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Row(
             children: [
-              Icon(Icons.info_outline, color: AppTheme.mutedForeground, size: 20),
+              Icon(Icons.info_outline, color: theme.textTheme.bodySmall?.color, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Connect your Stripe account to receive payments directly when trainees subscribe to your coaching.',
                   style: TextStyle(
-                    color: AppTheme.mutedForeground,
+                    color: theme.textTheme.bodySmall?.color,
                     fontSize: 13,
                   ),
                 ),
@@ -140,15 +141,16 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
   }
 
   Widget _buildStatusCard(StripeConnectState state) {
+    final theme = Theme.of(context);
     final isConnected = state.isConnected;
     final isReady = state.isReadyForPayments;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,10 +161,10 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: isReady
-                      ? Colors.green.withOpacity(0.1)
+                      ? Colors.green.withValues(alpha: 0.1)
                       : isConnected
-                          ? Colors.orange.withOpacity(0.1)
-                          : AppTheme.muted,
+                          ? Colors.orange.withValues(alpha: 0.1)
+                          : theme.disabledColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -175,7 +177,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
                       ? Colors.green
                       : isConnected
                           ? Colors.orange
-                          : AppTheme.mutedForeground,
+                          : theme.textTheme.bodySmall?.color,
                   size: 24,
                 ),
               ),
@@ -190,8 +192,8 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
                           : isConnected
                               ? 'Setup In Progress'
                               : 'Not Connected',
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -203,7 +205,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
                               ? 'Complete onboarding to accept payments'
                               : 'Connect Stripe to receive payments',
                       style: TextStyle(
-                        color: AppTheme.mutedForeground,
+                        color: theme.textTheme.bodySmall?.color,
                         fontSize: 13,
                       ),
                     ),
@@ -215,7 +217,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
 
           if (isConnected) ...[
             const SizedBox(height: 16),
-            const Divider(color: AppTheme.border),
+            Divider(color: theme.dividerColor),
             const SizedBox(height: 16),
 
             // Status Details
@@ -240,18 +242,19 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
   }
 
   Widget _buildStatusRow(String label, bool value) {
+    final theme = Theme.of(context);
     return Row(
       children: [
         Icon(
           value ? Icons.check_circle : Icons.circle_outlined,
-          color: value ? Colors.green : AppTheme.mutedForeground,
+          color: value ? Colors.green : theme.textTheme.bodySmall?.color,
           size: 18,
         ),
         const SizedBox(width: 8),
         Text(
           label,
           style: TextStyle(
-            color: value ? AppTheme.foreground : AppTheme.mutedForeground,
+            color: value ? theme.textTheme.bodyLarge?.color : theme.textTheme.bodySmall?.color,
             fontSize: 14,
           ),
         ),
@@ -260,6 +263,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
   }
 
   Widget _buildActions(StripeConnectState state) {
+    final theme = Theme.of(context);
     final isConnected = state.isConnected;
     final isReady = state.isReadyForPayments;
 
@@ -276,8 +280,8 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
             icon: const Icon(Icons.link),
             label: Text(isConnected ? 'Continue Setup' : 'Connect with Stripe'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: AppTheme.primaryForeground,
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -297,8 +301,8 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
             icon: const Icon(Icons.open_in_new),
             label: const Text('Open Stripe Dashboard'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: AppTheme.primaryForeground,
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -311,8 +315,8 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
             icon: const Icon(Icons.attach_money),
             label: const Text('Set Your Prices'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppTheme.foreground,
-              side: const BorderSide(color: AppTheme.border),
+              foregroundColor: theme.textTheme.bodyLarge?.color,
+              side: BorderSide(color: theme.dividerColor),
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -329,7 +333,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
           icon: const Icon(Icons.refresh, size: 18),
           label: const Text('Refresh Status'),
           style: TextButton.styleFrom(
-            foregroundColor: AppTheme.mutedForeground,
+            foregroundColor: theme.textTheme.bodySmall?.color,
           ),
         ),
       ],
@@ -337,22 +341,23 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
   }
 
   Widget _buildErrorCard(String error) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.destructive.withOpacity(0.1),
+        color: theme.colorScheme.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.destructive.withOpacity(0.3)),
+        border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppTheme.destructive, size: 20),
+          Icon(Icons.error_outline, color: theme.colorScheme.error, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               error,
-              style: const TextStyle(
-                color: AppTheme.destructive,
+              style: TextStyle(
+                color: theme.colorScheme.error,
                 fontSize: 13,
               ),
             ),

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../exercises/presentation/providers/exercise_provider.dart';
+import '../../../exercises/data/models/exercise_model.dart';
+import '../../../programs/presentation/providers/program_provider.dart';
+import '../../../programs/data/models/program_model.dart';
 import '../providers/trainer_provider.dart';
 import '../widgets/quick_stats_grid.dart';
 import '../widgets/trainee_card.dart';
@@ -10,9 +14,12 @@ class TrainerDashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final statsAsync = ref.watch(trainerStatsProvider);
     final traineesAsync = ref.watch(traineesProvider);
     final impersonation = ref.watch(impersonationProvider);
+    final exercisesAsync = ref.watch(exercisesProvider(const ExerciseFilter()));
+    final programsAsync = ref.watch(programTemplatesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -63,13 +70,41 @@ class TrainerDashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
 
+                    // Programs Carousel
+                    _buildSectionHeader(
+                      context,
+                      'Your Programs',
+                      onViewAll: () => context.push('/trainer/programs'),
+                    ),
+                    const SizedBox(height: 12),
+                    programsAsync.when(
+                      data: (programs) => _buildProgramsCarousel(context, programs),
+                      loading: () => _buildCarouselShimmer(),
+                      error: (e, _) => Text('Error: $e'),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Exercises Carousel
+                    _buildSectionHeader(
+                      context,
+                      'Exercise Library',
+                      onViewAll: () => context.push('/trainer/exercises'),
+                    ),
+                    const SizedBox(height: 12),
+                    exercisesAsync.when(
+                      data: (exercises) => _buildExercisesCarousel(context, exercises),
+                      loading: () => _buildCarouselShimmer(),
+                      error: (e, _) => Text('Error: $e'),
+                    ),
+                    const SizedBox(height: 24),
+
                     // Recent Trainees
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Your Trainees',
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: theme.textTheme.titleLarge,
                         ),
                         TextButton(
                           onPressed: () => context.push('/trainer/trainees'),
@@ -124,11 +159,251 @@ class TrainerDashboardScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildSectionHeader(BuildContext context, String title, {VoidCallback? onViewAll}) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.titleLarge,
+        ),
+        if (onViewAll != null)
+          TextButton(
+            onPressed: onViewAll,
+            child: const Text('View All'),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCarouselShimmer() {
+    return SizedBox(
+      height: 140,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          return Container(
+            width: 160,
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildProgramsCarousel(BuildContext context, List<ProgramTemplateModel> programs) {
+    final theme = Theme.of(context);
+
+    if (programs.isEmpty) {
+      return Container(
+        height: 140,
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.calendar_month, size: 32, color: theme.textTheme.bodySmall?.color),
+              const SizedBox(height: 8),
+              Text(
+                'No programs yet',
+                style: TextStyle(color: theme.textTheme.bodySmall?.color),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => context.push('/trainer/programs'),
+                child: const Text('Create Program'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 140,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: programs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final program = programs[index];
+          return _buildProgramCard(context, program);
+        },
+      ),
+    );
+  }
+
+  Widget _buildProgramCard(BuildContext context, ProgramTemplateModel program) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: () => context.push('/trainer/programs/${program.id}'),
+      child: Container(
+        width: 180,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.calendar_month,
+                color: theme.colorScheme.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              program.name,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                Icon(Icons.schedule, size: 14, color: theme.textTheme.bodySmall?.color),
+                const SizedBox(width: 4),
+                Text(
+                  '${program.durationWeeks} weeks',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExercisesCarousel(BuildContext context, List<ExerciseModel> exercises) {
+    final theme = Theme.of(context);
+
+    if (exercises.isEmpty) {
+      return Container(
+        height: 140,
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.fitness_center, size: 32, color: theme.textTheme.bodySmall?.color),
+              const SizedBox(height: 8),
+              Text(
+                'No exercises yet',
+                style: TextStyle(color: theme.textTheme.bodySmall?.color),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 140,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: exercises.length.clamp(0, 10),
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final exercise = exercises[index];
+          return _buildExerciseCard(context, exercise);
+        },
+      ),
+    );
+  }
+
+  Widget _buildExerciseCard(BuildContext context, ExerciseModel exercise) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: () => context.push('/trainer/exercises'),
+      child: Container(
+        width: 140,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.fitness_center,
+                color: theme.colorScheme.secondary,
+                size: 18,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              exercise.name,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.dividerColor,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                exercise.muscleGroupDisplay,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.textTheme.bodySmall?.color,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildImpersonationBanner(
     BuildContext context,
     WidgetRef ref,
     ImpersonationState state,
   ) {
+    final theme = Theme.of(context);
+
     return Column(
       children: [
         Container(
@@ -151,7 +426,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                     ),
                     Text(
                       state.trainee?.email ?? '',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
                     ),
                   ],
                 ),
@@ -160,7 +435,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: Colors.white.withValues(alpha: 0.24),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
@@ -188,16 +463,16 @@ class TrainerDashboardScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.person, size: 64, color: Colors.grey),
+                Icon(Icons.person, size: 64, color: theme.textTheme.bodySmall?.color),
                 const SizedBox(height: 16),
                 Text(
                   'Viewing ${state.trainee?.firstName ?? state.trainee?.email ?? "Trainee"}\'s Experience',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: theme.textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Navigate to see what your trainee sees',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: theme.textTheme.bodySmall?.color),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
@@ -214,6 +489,8 @@ class TrainerDashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -222,18 +499,18 @@ class TrainerDashboardScreen extends ConsumerWidget {
             Icon(
               Icons.group_add,
               size: 64,
-              color: Colors.grey[400],
+              color: theme.textTheme.bodySmall?.color,
             ),
             const SizedBox(height: 16),
             Text(
               'No Trainees Yet',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Invite your first trainee to get started',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: theme.textTheme.bodySmall?.color),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(

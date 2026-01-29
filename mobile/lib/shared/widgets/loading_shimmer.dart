@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
 
 /// A shimmer loading effect widget that provides better UX than a spinner
 class LoadingShimmer extends StatefulWidget {
@@ -44,6 +43,8 @@ class _LoadingShimmerState extends State<LoadingShimmer>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -56,9 +57,9 @@ class _LoadingShimmerState extends State<LoadingShimmer>
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value + 1, 0),
               colors: [
-                AppTheme.card,
-                AppTheme.card.withOpacity(0.5),
-                AppTheme.card,
+                theme.cardColor,
+                theme.cardColor.withValues(alpha: 0.5),
+                theme.cardColor,
               ],
             ),
           ),
@@ -74,8 +75,10 @@ class ScreenLoadingShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -166,7 +169,8 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.color ?? AppTheme.primary;
+    final theme = Theme.of(context);
+    final color = widget.color ?? theme.colorScheme.primary;
 
     return Center(
       child: Column(
@@ -183,7 +187,7 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -211,7 +215,7 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
                   child: Text(
                     widget.message!,
                     style: TextStyle(
-                      color: AppTheme.mutedForeground,
+                      color: theme.textTheme.bodySmall?.color,
                       fontSize: 14,
                     ),
                   ),

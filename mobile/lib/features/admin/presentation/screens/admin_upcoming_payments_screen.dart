@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/admin_models.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../providers/admin_provider.dart';
@@ -49,11 +48,12 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Upcoming Payments'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: Column(
         children: [
@@ -62,9 +62,9 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Text(
+                Text(
                   'Show payments due in:',
-                  style: TextStyle(color: AppTheme.foreground),
+                  style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -72,11 +72,11 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _buildDayChip(7, 'Next 7 days'),
+                        _buildDayChip(context, 7, 'Next 7 days'),
                         const SizedBox(width: 8),
-                        _buildDayChip(14, 'Next 14 days'),
+                        _buildDayChip(context, 14, 'Next 14 days'),
                         const SizedBox(width: 8),
-                        _buildDayChip(30, 'Next 30 days'),
+                        _buildDayChip(context, 30, 'Next 30 days'),
                       ],
                     ),
                   ),
@@ -114,13 +114,13 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
                                 Icon(
                                   Icons.calendar_today,
                                   size: 64,
-                                  color: AppTheme.mutedForeground.withOpacity(0.5),
+                                  color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5),
                                 ),
                                 const SizedBox(height: 16),
-                                const Text(
+                                Text(
                                   'No upcoming payments',
                                   style: TextStyle(
-                                    color: AppTheme.foreground,
+                                    color: theme.textTheme.bodyLarge?.color,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -128,7 +128,7 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
                                 const SizedBox(height: 8),
                                 Text(
                                   'No payments due in the next $_selectedDays days.',
-                                  style: TextStyle(color: AppTheme.mutedForeground),
+                                  style: TextStyle(color: theme.textTheme.bodySmall?.color),
                                 ),
                               ],
                             ),
@@ -142,21 +142,21 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
                                   margin: const EdgeInsets.symmetric(horizontal: 16),
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primary.withOpacity(0.1),
+                                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
+                                    border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
                                   ),
                                   child: Row(
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.primary.withOpacity(0.2),
+                                          color: theme.colorScheme.primary.withValues(alpha: 0.2),
                                           borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: Icon(
                                           Icons.payments,
-                                          color: AppTheme.primary,
+                                          color: theme.colorScheme.primary,
                                           size: 28,
                                         ),
                                       ),
@@ -168,7 +168,7 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
                                             Text(
                                               '${_subscriptions.length} Payments',
                                               style: TextStyle(
-                                                color: AppTheme.primary,
+                                                color: theme.colorScheme.primary,
                                                 fontSize: 20,
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -176,7 +176,7 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
                                             Text(
                                               'Expected: \$${_calculateExpectedRevenue()}',
                                               style: TextStyle(
-                                                color: AppTheme.mutedForeground,
+                                                color: theme.textTheme.bodySmall?.color,
                                                 fontSize: 14,
                                               ),
                                             ),
@@ -209,7 +209,8 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
     );
   }
 
-  Widget _buildDayChip(int days, String label) {
+  Widget _buildDayChip(BuildContext context, int days, String label) {
+    final theme = Theme.of(context);
     final isSelected = _selectedDays == days;
     return GestureDetector(
       onTap: () {
@@ -219,16 +220,16 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primary : AppTheme.card,
+          color: isSelected ? theme.colorScheme.primary : theme.cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? AppTheme.primary : AppTheme.border,
+            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : AppTheme.foreground,
+            color: isSelected ? Colors.white : theme.textTheme.bodyLarge?.color,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             fontSize: 13,
           ),
@@ -253,15 +254,16 @@ class _UpcomingPaymentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final tierColor = _getTierColor(subscription.tier);
     final daysUntil = _calculateDaysUntil(subscription.nextPaymentDate);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.card,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppTheme.border),
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: InkWell(
         onTap: () => context.push('/admin/subscriptions/${subscription.id}'),
@@ -275,7 +277,7 @@ class _UpcomingPaymentCard extends StatelessWidget {
                 width: 60,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: _getDateColor(daysUntil).withOpacity(0.1),
+                  color: _getDateColor(daysUntil).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -312,8 +314,8 @@ class _UpcomingPaymentCard extends StatelessWidget {
                   children: [
                     Text(
                       subscription.trainerEmail,
-                      style: const TextStyle(
-                        color: AppTheme.foreground,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
@@ -328,7 +330,7 @@ class _UpcomingPaymentCard extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: tierColor.withOpacity(0.2),
+                            color: tierColor.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -345,7 +347,7 @@ class _UpcomingPaymentCard extends StatelessWidget {
                           Text(
                             _formatDate(subscription.nextPaymentDate!),
                             style: TextStyle(
-                              color: AppTheme.mutedForeground,
+                              color: theme.textTheme.bodySmall?.color,
                               fontSize: 12,
                             ),
                           ),
@@ -359,7 +361,7 @@ class _UpcomingPaymentCard extends StatelessWidget {
               Text(
                 '\$${subscription.tierEnum.price.toStringAsFixed(0)}',
                 style: TextStyle(
-                  color: AppTheme.primary,
+                  color: theme.colorScheme.primary,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),

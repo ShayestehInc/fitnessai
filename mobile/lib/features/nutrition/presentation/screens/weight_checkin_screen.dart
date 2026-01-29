@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../providers/nutrition_provider.dart';
 
 class WeightCheckInScreen extends ConsumerStatefulWidget {
@@ -28,11 +27,12 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(nutritionStateProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -48,20 +48,20 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
+                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: AppTheme.primary),
+                  Icon(Icons.info_outline, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Regular weigh-ins help track your progress. '
                       'Try to weigh yourself at the same time each day.',
                       style: TextStyle(
-                        color: AppTheme.foreground,
+                        color: theme.textTheme.bodyLarge?.color,
                         fontSize: 14,
                       ),
                     ),
@@ -83,6 +83,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
                   leftLabel: 'lbs',
                   rightLabel: 'kg',
                   isRight: _useMetric,
+                  theme: theme,
                   onToggle: () {
                     setState(() {
                       _useMetric = !_useMetric;
@@ -106,16 +107,16 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
               decoration: InputDecoration(
                 hintText: _useMetric ? '75.0' : '165.0',
                 hintStyle: TextStyle(
-                  color: AppTheme.mutedForeground,
+                  color: theme.textTheme.bodySmall?.color,
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
                 suffixText: _useMetric ? 'kg' : 'lbs',
                 filled: true,
-                fillColor: AppTheme.card,
+                fillColor: theme.cardColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppTheme.border),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -137,10 +138,10 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
               decoration: InputDecoration(
                 hintText: 'How are you feeling today?',
                 filled: true,
-                fillColor: AppTheme.card,
+                fillColor: theme.cardColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppTheme.border),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
               ),
             ),
@@ -156,9 +157,9 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.card,
+                  color: theme.cardColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.border),
+                  border: Border.all(color: theme.dividerColor),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -168,8 +169,8 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
                       children: [
                         Text(
                           '${state.latestCheckIn!.weightKg.toStringAsFixed(1)} kg',
-                          style: const TextStyle(
-                            color: AppTheme.foreground,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
@@ -177,13 +178,13 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
                         Text(
                           state.latestCheckIn!.date,
                           style: TextStyle(
-                            color: AppTheme.mutedForeground,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),
                       ],
                     ),
-                    Icon(Icons.history, color: AppTheme.mutedForeground),
+                    Icon(Icons.history, color: theme.textTheme.bodySmall?.color),
                   ],
                 ),
               ),
@@ -212,7 +213,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
               const SizedBox(height: 16),
               Text(
                 state.error!,
-                style: TextStyle(color: AppTheme.destructive),
+                style: TextStyle(color: theme.colorScheme.error),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -246,12 +247,14 @@ class _UnitToggle extends StatelessWidget {
   final String leftLabel;
   final String rightLabel;
   final bool isRight;
+  final ThemeData theme;
   final VoidCallback onToggle;
 
   const _UnitToggle({
     required this.leftLabel,
     required this.rightLabel,
     required this.isRight,
+    required this.theme,
     required this.onToggle,
   });
 
@@ -262,7 +265,7 @@ class _UnitToggle extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: AppTheme.zinc800,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -280,13 +283,13 @@ class _UnitToggle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primary : Colors.transparent,
+        color: isSelected ? theme.colorScheme.primary : Colors.transparent,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: isSelected ? Colors.white : AppTheme.mutedForeground,
+          color: isSelected ? Colors.white : theme.textTheme.bodySmall?.color,
           fontSize: 12,
           fontWeight: FontWeight.w500,
         ),

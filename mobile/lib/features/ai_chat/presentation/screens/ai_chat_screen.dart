@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/chat_models.dart';
 import '../providers/ai_chat_provider.dart';
 import '../widgets/chat_message_bubble.dart';
@@ -72,6 +71,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(aiChatProvider);
 
     // Scroll to bottom when messages change
@@ -82,10 +82,10 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('AI Assistant'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           if (state.messages.isNotEmpty)
             IconButton(
@@ -95,7 +95,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    backgroundColor: AppTheme.card,
+                    backgroundColor: theme.cardColor,
                     title: const Text('Clear Conversation'),
                     content: const Text(
                       'Are you sure you want to clear the conversation history?',
@@ -156,7 +156,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
           // Messages list
           Expanded(
             child: state.messages.isEmpty
-                ? _buildEmptyState()
+                ? _buildEmptyState(context)
                 : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.symmetric(
@@ -185,13 +185,15 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
           ),
 
           // Input area
-          _buildInputArea(state),
+          _buildInputArea(context, state),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -201,7 +203,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
             Icon(
               Icons.psychology_outlined,
               size: 64,
-              color: AppTheme.primary.withValues(alpha: 0.5),
+              color: theme.colorScheme.primary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -209,7 +211,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.foreground,
+                color: theme.textTheme.bodyLarge?.color,
               ),
             ),
             const SizedBox(height: 8),
@@ -218,7 +220,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
               'or request help drafting messages.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppTheme.mutedForeground,
+                color: theme.textTheme.bodySmall?.color,
                 fontSize: 14,
               ),
             ),
@@ -228,9 +230,9 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
               runSpacing: 8,
               alignment: WrapAlignment.center,
               children: [
-                _buildSuggestionChip('Who needs attention this week?'),
-                _buildSuggestionChip('Generate a weekly summary'),
-                _buildSuggestionChip('Compare trainee compliance'),
+                _buildSuggestionChip(context, 'Who needs attention this week?'),
+                _buildSuggestionChip(context, 'Generate a weekly summary'),
+                _buildSuggestionChip(context, 'Compare trainee compliance'),
               ],
             ),
           ],
@@ -239,14 +241,16 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
     );
   }
 
-  Widget _buildSuggestionChip(String text) {
+  Widget _buildSuggestionChip(BuildContext context, String text) {
+    final theme = Theme.of(context);
+
     return ActionChip(
       label: Text(
         text,
-        style: TextStyle(fontSize: 12, color: AppTheme.foreground),
+        style: TextStyle(fontSize: 12, color: theme.textTheme.bodyLarge?.color),
       ),
-      backgroundColor: AppTheme.card,
-      side: BorderSide(color: AppTheme.border),
+      backgroundColor: theme.cardColor,
+      side: BorderSide(color: theme.dividerColor),
       onPressed: () {
         _messageController.text = text;
         _sendMessage();
@@ -254,12 +258,14 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
     );
   }
 
-  Widget _buildInputArea(AIChatState state) {
+  Widget _buildInputArea(BuildContext context, AIChatState state) {
+    final theme = Theme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
-        border: Border(top: BorderSide(color: AppTheme.border)),
+        color: theme.cardColor,
+        border: Border(top: BorderSide(color: theme.dividerColor)),
       ),
       child: SafeArea(
         child: Row(
@@ -272,20 +278,20 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
                   hintText: state.selectedTraineeName != null
                       ? 'Ask about ${state.selectedTraineeName}...'
                       : 'Ask about your trainees...',
-                  hintStyle: TextStyle(color: AppTheme.mutedForeground),
+                  hintStyle: TextStyle(color: theme.textTheme.bodySmall?.color),
                   filled: true,
-                  fillColor: AppTheme.background,
+                  fillColor: theme.scaffoldBackgroundColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: AppTheme.border),
+                    borderSide: BorderSide(color: theme.dividerColor),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: AppTheme.border),
+                    borderSide: BorderSide(color: theme.dividerColor),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: AppTheme.primary),
+                    borderSide: BorderSide(color: theme.colorScheme.primary),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -302,7 +308,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
             const SizedBox(width: 12),
             Container(
               decoration: BoxDecoration(
-                color: AppTheme.primary,
+                color: theme.colorScheme.primary,
                 shape: BoxShape.circle,
               ),
               child: IconButton(
