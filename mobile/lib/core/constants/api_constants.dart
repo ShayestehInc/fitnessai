@@ -75,6 +75,11 @@ class ApiConstants {
       '$apiBaseUrl/admin/impersonate/$trainerId/';
   static String get adminEndImpersonation => '$apiBaseUrl/admin/impersonate/end/';
 
+  // Admin user management
+  static String get adminUsers => '$apiBaseUrl/admin/users/';
+  static String get adminCreateUser => '$apiBaseUrl/admin/users/create/';
+  static String adminUserDetail(int userId) => '$apiBaseUrl/admin/users/$userId/';
+
   // Admin coupon management
   static String get adminCoupons => '$apiBaseUrl/admin/coupons/';
 

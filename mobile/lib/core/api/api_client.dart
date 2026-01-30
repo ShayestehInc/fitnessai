@@ -47,7 +47,16 @@ class ApiClient {
         onError: (error, handler) async {
           print('API Error: ${error.response?.statusCode} for ${error.requestOptions.path}');
           print('API Error message: ${error.message}');
-          if (error.response?.statusCode == 401) {
+
+          // Don't try to refresh token for auth endpoints (login, register, refresh)
+          final path = error.requestOptions.path;
+          final isAuthEndpoint = path.contains('/auth/jwt/create') ||
+                                  path.contains('/auth/jwt/refresh') ||
+                                  path.contains('/auth/users/') ||
+                                  path.contains('/auth/google') ||
+                                  path.contains('/auth/apple');
+
+          if (error.response?.statusCode == 401 && !isAuthEndpoint) {
             // Try to refresh token
             final refreshed = await _refreshToken();
             if (refreshed) {

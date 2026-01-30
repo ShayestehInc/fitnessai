@@ -582,6 +582,131 @@ class AdminRepository {
     }
   }
 
+  // ============ Admin User Management ============
+
+  /// Get all Admin and Trainer users
+  Future<Map<String, dynamic>> getUsers({String? role, String? search}) async {
+    try {
+      final params = <String, dynamic>{};
+      if (role != null) params['role'] = role;
+      if (search != null) params['search'] = search;
+
+      final response = await _apiClient.dio.get(
+        ApiConstants.adminUsers,
+        queryParameters: params.isNotEmpty ? params : null,
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load users',
+      };
+    }
+  }
+
+  /// Get a single user by ID
+  Future<Map<String, dynamic>> getUser(int userId) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.adminUserDetail(userId),
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load user',
+      };
+    }
+  }
+
+  /// Create a new Admin or Trainer user
+  Future<Map<String, dynamic>> createUser({
+    required String email,
+    required String password,
+    required String role,
+    String? firstName,
+    String? lastName,
+  }) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.adminCreateUser,
+        data: {
+          'email': email,
+          'password': password,
+          'role': role,
+          'first_name': firstName ?? '',
+          'last_name': lastName ?? '',
+        },
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to create user',
+      };
+    }
+  }
+
+  /// Update an Admin or Trainer user
+  Future<Map<String, dynamic>> updateUser(
+    int userId, {
+    String? firstName,
+    String? lastName,
+    String? role,
+    bool? isActive,
+    String? password,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (firstName != null) data['first_name'] = firstName;
+      if (lastName != null) data['last_name'] = lastName;
+      if (role != null) data['role'] = role;
+      if (isActive != null) data['is_active'] = isActive;
+      if (password != null && password.isNotEmpty) data['password'] = password;
+
+      final response = await _apiClient.dio.patch(
+        ApiConstants.adminUserDetail(userId),
+        data: data,
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to update user',
+      };
+    }
+  }
+
+  /// Delete an Admin or Trainer user
+  Future<Map<String, dynamic>> deleteUser(int userId) async {
+    try {
+      final response = await _apiClient.dio.delete(
+        ApiConstants.adminUserDetail(userId),
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to delete user',
+      };
+    }
+  }
+
   // ============ Admin Impersonation ============
 
   /// Impersonate a trainer (login as trainer)

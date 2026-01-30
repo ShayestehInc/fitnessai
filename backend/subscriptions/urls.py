@@ -14,6 +14,11 @@ urlpatterns = [
     # Admin dashboard
     path('dashboard/', views.AdminDashboardView.as_view(), name='admin-dashboard'),
 
+    # Admin user management
+    path('users/', views.AdminUsersListView.as_view(), name='admin-users-list'),
+    path('users/create/', views.AdminCreateUserView.as_view(), name='admin-create-user'),
+    path('users/<int:user_id>/', views.AdminUserDetailView.as_view(), name='admin-user-detail'),
+
     # Admin views
     path('trainers/', views.AdminTrainersView.as_view(), name='admin-trainers'),
     path('past-due/', views.AdminPastDueView.as_view(), name='admin-past-due'),

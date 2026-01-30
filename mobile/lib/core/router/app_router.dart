@@ -37,6 +37,9 @@ import '../../features/admin/presentation/screens/admin_upcoming_payments_screen
 import '../../features/admin/presentation/screens/admin_tiers_screen.dart';
 import '../../features/admin/presentation/screens/admin_coupons_screen.dart';
 import '../../features/admin/presentation/screens/admin_coupon_detail_screen.dart';
+import '../../features/admin/presentation/screens/admin_create_user_screen.dart';
+import '../../features/admin/presentation/screens/admin_users_screen.dart';
+import '../../features/admin/presentation/screens/admin_edit_user_screen.dart';
 import '../../features/payments/presentation/screens/stripe_connect_screen.dart';
 import '../../features/payments/presentation/screens/trainer_pricing_screen.dart';
 import '../../features/payments/presentation/screens/trainer_payments_screen.dart';
@@ -272,6 +275,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // Admin detail routes (outside shell)
+      GoRoute(
+        path: '/admin/users',
+        name: 'admin-users',
+        builder: (context, state) => const AdminUsersScreen(),
+      ),
+      GoRoute(
+        path: '/admin/users/create',
+        name: 'admin-create-user',
+        builder: (context, state) => const AdminCreateUserScreen(),
+      ),
+      GoRoute(
+        path: '/admin/users/:id/edit',
+        name: 'admin-edit-user',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return AdminEditUserScreen(userId: id);
+        },
+      ),
       GoRoute(
         path: '/admin/subscriptions/:id',
         name: 'admin-subscription-detail',

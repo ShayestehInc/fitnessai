@@ -64,6 +64,262 @@ class IsTrainer(BasePermission):
         return request.user.is_authenticated and request.user.role == 'TRAINER'
 
 
+class AdminUsersListView(APIView):
+    """
+    List all Admin and Trainer users.
+    GET /api/admin/users/
+    Query params: ?role=ADMIN|TRAINER&search=...
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request):
+        role_filter = request.query_params.get('role', '').upper()
+        search = request.query_params.get('search', '').strip()
+
+        # Get admins and trainers
+        queryset = User.objects.filter(role__in=[User.Role.ADMIN, User.Role.TRAINER])
+
+        if role_filter in ['ADMIN', 'TRAINER']:
+            queryset = queryset.filter(role=role_filter)
+
+        if search:
+            queryset = queryset.filter(
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
+            )
+
+        users = queryset.order_by('-created_at')
+
+        result = []
+        for user in users:
+            result.append({
+                'id': user.id,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.role,
+                'is_active': user.is_active,
+                'created_at': user.created_at.isoformat(),
+                'trainee_count': user.get_active_trainees_count() if user.role == User.Role.TRAINER else 0,
+            })
+
+        return Response(result)
+
+
+class AdminUserDetailView(APIView):
+    """
+    Get, update, or delete an Admin/Trainer user.
+    GET /api/admin/users/<id>/
+    PATCH /api/admin/users/<id>/
+    DELETE /api/admin/users/<id>/
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get_user(self, user_id):
+        try:
+            return User.objects.get(
+                id=user_id,
+                role__in=[User.Role.ADMIN, User.Role.TRAINER]
+            )
+        except User.DoesNotExist:
+            return None
+
+    def get(self, request, user_id):
+        user = self.get_user(user_id)
+        if not user:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response({
+            'id': user.id,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user.role,
+            'is_active': user.is_active,
+            'created_at': user.created_at.isoformat(),
+            'trainee_count': user.get_active_trainees_count() if user.role == User.Role.TRAINER else 0,
+        })
+
+    def patch(self, request, user_id):
+        user = self.get_user(user_id)
+        if not user:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Prevent self-demotion or self-deactivation
+        if user.id == request.user.id:
+            if 'role' in request.data and request.data['role'] != user.role:
+                return Response(
+                    {'error': 'You cannot change your own role'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if 'is_active' in request.data and not request.data['is_active']:
+                return Response(
+                    {'error': 'You cannot deactivate your own account'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Update fields
+        if 'first_name' in request.data:
+            user.first_name = request.data['first_name'].strip()
+        if 'last_name' in request.data:
+            user.last_name = request.data['last_name'].strip()
+        if 'is_active' in request.data:
+            user.is_active = request.data['is_active']
+        if 'role' in request.data:
+            new_role = request.data['role'].upper()
+            if new_role in ['ADMIN', 'TRAINER']:
+                user.role = new_role
+
+        # Update password if provided
+        if 'password' in request.data and request.data['password']:
+            password = request.data['password']
+            if len(password) < 8:
+                return Response(
+                    {'error': 'Password must be at least 8 characters'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user.set_password(password)
+
+        user.save()
+
+        logger.info(f"Admin {request.user.email} updated user {user.email}")
+
+        return Response({
+            'id': user.id,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user.role,
+            'is_active': user.is_active,
+            'created_at': user.created_at.isoformat(),
+        })
+
+    def delete(self, request, user_id):
+        user = self.get_user(user_id)
+        if not user:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Prevent self-deletion
+        if user.id == request.user.id:
+            return Response(
+                {'error': 'You cannot delete your own account'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if trainer has trainees
+        if user.role == User.Role.TRAINER:
+            trainee_count = user.get_active_trainees_count()
+            if trainee_count > 0:
+                return Response(
+                    {'error': f'Cannot delete trainer with {trainee_count} active trainees. Reassign or remove trainees first.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        email = user.email
+        user.delete()
+
+        logger.info(f"Admin {request.user.email} deleted user {email}")
+
+        return Response({'success': True, 'message': f'User {email} deleted'})
+
+
+class AdminCreateUserView(APIView):
+    """
+    Admin endpoint to create Admin or Trainer accounts.
+    POST /api/admin/users/create/
+    Body: {"email": "...", "password": "...", "role": "ADMIN"|"TRAINER", "first_name": "...", "last_name": "..."}
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        password = request.data.get('password', '')
+        role = request.data.get('role', '').upper()
+        first_name = request.data.get('first_name', '').strip()
+        last_name = request.data.get('last_name', '').strip()
+
+        # Validation
+        if not email:
+            return Response(
+                {'error': 'Email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not password:
+            return Response(
+                {'error': 'Password is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if len(password) < 8:
+            return Response(
+                {'error': 'Password must be at least 8 characters'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if role not in ['ADMIN', 'TRAINER']:
+            return Response(
+                {'error': 'Role must be ADMIN or TRAINER'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if user already exists
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {'error': 'A user with this email already exists'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Create the user
+            user = User.objects.create_user(
+                email=email,
+                password=password,
+                role=role,
+                first_name=first_name,
+                last_name=last_name,
+            )
+
+            # If creating a trainer, create a FREE subscription for them
+            if role == 'TRAINER':
+                Subscription.objects.create(
+                    trainer=user,
+                    tier='FREE',
+                    status='active',
+                )
+
+            logger.info(f"Admin {request.user.email} created {role} account: {email}")
+
+            return Response({
+                'success': True,
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'role': user.role,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'created_at': user.created_at.isoformat(),
+                }
+            }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f"Error creating user: {str(e)}")
+            return Response(
+                {'error': 'Failed to create user'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class AdminDashboardView(APIView):
     """
     Admin dashboard with overview statistics.
