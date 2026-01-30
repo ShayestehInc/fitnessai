@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/trainer_provider.dart';
 import '../../data/models/trainee_model.dart';
+import 'program_options_screen.dart';
+import 'edit_trainee_goals_screen.dart';
+import 'remove_trainee_screen.dart';
 import 'dart:math' as math;
 
 class TraineeDetailScreen extends ConsumerStatefulWidget {
@@ -97,7 +100,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
     final displayName = name.isEmpty ? trainee.email.split('@').first : name;
 
     return SliverAppBar(
-      expandedHeight: 200,
+      expandedHeight: 240,
       pinned: true,
       actions: [
         IconButton(
@@ -118,16 +121,13 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
         ),
         PopupMenuButton<String>(
           onSelected: (value) {
-            if (value == 'edit') {
-              // Edit trainee
-            } else if (value == 'message') {
+            if (value == 'message') {
               // Message trainee
             } else if (value == 'remove') {
-              _showRemoveDialog(context);
+              _openRemoveTrainee(context, trainee);
             }
           },
           itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text('Edit Goals')),
             const PopupMenuItem(value: 'message', child: Text('Send Message')),
             const PopupMenuItem(
               value: 'remove',
@@ -293,7 +293,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
         // Quick Actions
         _buildSectionTitle('Quick Actions'),
         const SizedBox(height: 12),
-        _buildQuickActions(),
+        _buildQuickActions(trainee),
         const SizedBox(height: 32),
       ],
     );
@@ -480,7 +480,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             ),
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              onPressed: () {},
+              onPressed: () => _openEditGoals(context, trainee),
             ),
           ],
         ),
@@ -518,85 +518,129 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
     }
 
     final program = trainee.programs.first;
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.green.withValues(alpha: 0.3)),
-      ),
-      color: Colors.green.withValues(alpha: 0.05),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
+
+    // Calculate current week and total weeks
+    int currentWeek = 1;
+    int totalWeeks = 8;
+    double progress = 0.0;
+
+    if (program.startDate != null && program.endDate != null) {
+      try {
+        final startDate = DateTime.parse(program.startDate!);
+        final endDate = DateTime.parse(program.endDate!);
+        final now = DateTime.now();
+
+        final totalDuration = endDate.difference(startDate).inDays;
+        final elapsed = now.difference(startDate).inDays;
+
+        totalWeeks = (totalDuration / 7).ceil();
+        if (totalWeeks < 1) totalWeeks = 1;
+
+        currentWeek = (elapsed / 7).floor() + 1;
+        if (currentWeek < 1) currentWeek = 1;
+        if (currentWeek > totalWeeks) currentWeek = totalWeeks;
+
+        progress = totalDuration > 0 ? (elapsed / totalDuration).clamp(0.0, 1.0) : 0.0;
+      } catch (_) {
+        // Use defaults if date parsing fails
+      }
+    }
+
+    return InkWell(
+      onTap: () => _openProgramOptions(trainee, program),
+      borderRadius: BorderRadius.circular(16),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.green.withValues(alpha: 0.3)),
+        ),
+        color: Colors.green.withValues(alpha: 0.05),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.fitness_center, color: Colors.green),
                   ),
-                  child: const Icon(Icons.fitness_center, color: Colors.green),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(program.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('${program.startDate} - ${program.endDate}', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                    ],
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(program.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text('${program.startDate} - ${program.endDate}', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                      ],
+                    ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text('Active', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
-                  child: const Text('Active', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Progress bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: 0.4, // Calculate actual progress
-                backgroundColor: Colors.grey.withValues(alpha: 0.2),
-                valueColor: const AlwaysStoppedAnimation(Colors.green),
-                minHeight: 8,
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            Text('Week 3 of 8', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-          ],
+              const SizedBox(height: 16),
+              // Progress bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                  valueColor: const AlwaysStoppedAnimation(Colors.green),
+                  minHeight: 8,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Week $currentWeek of $totalWeeks', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                  Text('Tap to change', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildQuickActions() {
+  void _openProgramOptions(TraineeDetailModel trainee, ProgramSummary program) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ProgramOptionsScreen(
+          traineeId: trainee.id,
+          program: program,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(TraineeDetailModel trainee) {
     return Row(
       children: [
-        Expanded(
-          child: _ActionButton(
-            icon: Icons.edit_note,
-            label: 'Edit Goals',
-            color: Colors.blue,
-            onTap: () {},
-          ),
-        ),
-        const SizedBox(width: 12),
         Expanded(
           child: _ActionButton(
             icon: Icons.message,
             label: 'Message',
             color: Colors.green,
-            onTap: () {},
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Messaging coming soon')),
+              );
+            },
           ),
         ),
         const SizedBox(width: 12),
@@ -605,7 +649,11 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             icon: Icons.calendar_month,
             label: 'Schedule',
             color: Colors.orange,
-            onTap: () {},
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Scheduling coming soon')),
+              );
+            },
           ),
         ),
       ],
@@ -1258,37 +1306,25 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
     }
   }
 
-  void _showRemoveDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Trainee?'),
-        content: const Text('This will unassign this trainee from your account.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final result = await ref.read(trainerRepositoryProvider).removeTrainee(widget.traineeId);
+  void _openEditGoals(BuildContext context, TraineeDetailModel trainee) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => EditTraineeGoalsScreen(trainee: trainee),
+      ),
+    );
+  }
 
-              if (context.mounted) {
-                if (result['success']) {
-                  ref.invalidate(traineesProvider);
-                  context.pop();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(result['error'] ?? 'Failed to remove'), backgroundColor: Colors.red),
-                  );
-                }
-              }
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
-          ),
-        ],
+  void _openRemoveTrainee(BuildContext context, TraineeDetailModel trainee) {
+    final name = '${trainee.firstName ?? ''} ${trainee.lastName ?? ''}'.trim();
+    final displayName = name.isEmpty ? trainee.email.split('@').first : name;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => RemoveTraineeScreen(
+          traineeId: trainee.id,
+          traineeName: displayName,
+          traineeEmail: trainee.email,
+        ),
       ),
     );
   }

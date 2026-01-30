@@ -45,8 +45,11 @@ dependencies:
   local_auth: ^2.1.8
   flutter_secure_storage: ^9.0.0
 
-  # Social Auth (UI ready, backend integration needed)
+  # Social Auth
   font_awesome_flutter: ^10.6.0
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.1
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:

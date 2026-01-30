@@ -288,6 +288,50 @@ class RemoveTraineeView(views.APIView):
         })
 
 
+class UpdateTraineeGoalsView(views.APIView):
+    """
+    PATCH: Update trainee's fitness goals and activity level.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def patch(self, request, pk):
+        try:
+            trainee = User.objects.get(
+                id=pk,
+                parent_trainer=request.user,
+                role=User.Role.TRAINEE
+            )
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Trainee not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get or create profile
+        profile, _ = trainee.profile.get_or_create() if hasattr(trainee, 'profile') else (None, False)
+
+        if not profile:
+            from users.models import UserProfile
+            profile, _ = UserProfile.objects.get_or_create(user=trainee)
+
+        # Update fields
+        goal = request.data.get('goal')
+        activity_level = request.data.get('activity_level')
+
+        if goal:
+            profile.goal = goal
+        if activity_level:
+            profile.activity_level = activity_level
+
+        profile.save()
+
+        return Response({
+            'message': 'Goals updated successfully',
+            'goal': profile.goal,
+            'activity_level': profile.activity_level,
+        })
+
+
 class InvitationListCreateView(generics.ListCreateAPIView):
     """
     GET: List all invitations sent by the trainer.

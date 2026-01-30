@@ -19,4 +19,7 @@ urlpatterns = [
 
     # Payment API endpoints (Stripe Connect)
     path('api/payments/', include(payment_urlpatterns)),
+
+    # Calendar integration
+    path('api/calendar/', include('calendars.urls')),
 ]

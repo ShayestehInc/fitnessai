@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'subscriptions',
     'trainer',
     'features',
+    'calendars',
 ]
 
 MIDDLEWARE = [
@@ -176,6 +177,24 @@ STRIPE_CONNECT_RETURN_URL = os.getenv('STRIPE_CONNECT_RETURN_URL', f'{FRONTEND_U
 STRIPE_CONNECT_REFRESH_URL = os.getenv('STRIPE_CONNECT_REFRESH_URL', f'{FRONTEND_URL}/trainer/stripe-connect/refresh')
 STRIPE_CHECKOUT_SUCCESS_URL = os.getenv('STRIPE_CHECKOUT_SUCCESS_URL', f'{FRONTEND_URL}/payment/success')
 STRIPE_CHECKOUT_CANCEL_URL = os.getenv('STRIPE_CHECKOUT_CANCEL_URL', f'{FRONTEND_URL}/payment/cancel')
+
+# Google Calendar Integration
+GOOGLE_CALENDAR_CLIENT_ID = os.getenv('GOOGLE_CALENDAR_CLIENT_ID', '')
+GOOGLE_CALENDAR_CLIENT_SECRET = os.getenv('GOOGLE_CALENDAR_CLIENT_SECRET', '')
+GOOGLE_CALENDAR_REDIRECT_URI = os.getenv('GOOGLE_CALENDAR_REDIRECT_URI', f'{FRONTEND_URL}/calendar/google/callback')
+
+# Microsoft Calendar Integration
+MICROSOFT_CALENDAR_CLIENT_ID = os.getenv('MICROSOFT_CALENDAR_CLIENT_ID', '')
+MICROSOFT_CALENDAR_CLIENT_SECRET = os.getenv('MICROSOFT_CALENDAR_CLIENT_SECRET', '')
+MICROSOFT_CALENDAR_REDIRECT_URI = os.getenv('MICROSOFT_CALENDAR_REDIRECT_URI', f'{FRONTEND_URL}/calendar/microsoft/callback')
+
+# Calendar encryption key (for storing tokens securely)
+CALENDAR_ENCRYPTION_KEY = os.getenv('CALENDAR_ENCRYPTION_KEY', '')
+
+# Social Authentication (Google & Apple Sign-In)
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
+APPLE_CLIENT_ID = os.getenv('APPLE_CLIENT_ID', '')  # Bundle ID (e.g., com.yourapp.bundleid)
+APPLE_TEAM_ID = os.getenv('APPLE_TEAM_ID', '')
 
 # Djoser Configuration - Use email for authentication
 DJOSER = {

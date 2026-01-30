@@ -5,7 +5,7 @@ from django.urls import path
 from .views import (
     TrainerDashboardView, TrainerStatsView,
     TraineeListView, TraineeDetailView, TraineeActivityView,
-    TraineeProgressView, RemoveTraineeView,
+    TraineeProgressView, RemoveTraineeView, UpdateTraineeGoalsView,
     InvitationListCreateView, InvitationDetailView, ResendInvitationView,
     StartImpersonationView, EndImpersonationView,
     ProgramTemplateListCreateView, ProgramTemplateDetailView,
@@ -24,6 +24,7 @@ urlpatterns = [
     path('trainees/<int:pk>/activity/', TraineeActivityView.as_view(), name='trainee-activity'),
     path('trainees/<int:pk>/progress/', TraineeProgressView.as_view(), name='trainee-progress'),
     path('trainees/<int:pk>/remove/', RemoveTraineeView.as_view(), name='trainee-remove'),
+    path('trainees/<int:pk>/goals/', UpdateTraineeGoalsView.as_view(), name='trainee-goals'),
 
     # Invitations
     path('invitations/', InvitationListCreateView.as_view(), name='invitation-list-create'),

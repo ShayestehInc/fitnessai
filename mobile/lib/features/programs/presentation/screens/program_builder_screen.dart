@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../trainer/presentation/providers/trainer_provider.dart';
 import '../../data/models/program_week_model.dart';
 import 'week_editor_screen.dart';
 
 class ProgramBuilderScreen extends ConsumerStatefulWidget {
+  final int? traineeId;
   final String? templateName;
   final int? durationWeeks;
   final String? difficulty;
   final String? goal;
   final List<String>? weeklySchedule;
+  final DateTime? startDate;
 
   const ProgramBuilderScreen({
     super.key,
+    this.traineeId,
     this.templateName,
     this.durationWeeks,
     this.difficulty,
     this.goal,
     this.weeklySchedule,
+    this.startDate,
   });
 
   @override
@@ -27,10 +33,12 @@ class ProgramBuilderScreen extends ConsumerStatefulWidget {
 class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   late ProgramBuilderState _programState;
   int _selectedWeekIndex = 0;
+  late DateTime _startDate;
 
   @override
   void initState() {
     super.initState();
+    _startDate = widget.startDate ?? DateTime.now();
     _initializeProgram();
   }
 
@@ -140,14 +148,26 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       appBar: AppBar(
         title: Text(_programState.name),
         actions: [
-          TextButton(
-            onPressed: _saveProgram,
-            child: const Text('Save'),
-          ),
+          _isSaving
+              ? const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : TextButton(
+                  onPressed: _saveProgram,
+                  child: const Text('Save'),
+                ),
         ],
       ),
       body: Column(
         children: [
+          // Start date selector (only show if assigning to trainee)
+          if (widget.traineeId != null) _buildStartDateSelector(context),
+
           // Week selector tabs
           _buildWeekSelector(context),
 
@@ -163,6 +183,55 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
         label: const Text('Edit Week'),
       ),
     );
+  }
+
+  Widget _buildStartDateSelector(BuildContext context) {
+    final theme = Theme.of(context);
+    final endDate = _startDate.add(Duration(days: _programState.durationWeeks * 7));
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.calendar_today, size: 20, color: theme.colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Program Duration', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                Text(
+                  '${_formatDate(_startDate)} - ${_formatDate(endDate)}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _startDate,
+                firstDate: DateTime.now().subtract(const Duration(days: 7)),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+              );
+              if (picked != null) {
+                setState(() => _startDate = picked);
+              }
+            },
+            child: const Text('Change'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   Widget _buildWeekSelector(BuildContext context) {
@@ -404,7 +473,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
 
   Widget _buildDayCard(BuildContext context, int index, WorkoutDay day, ProgramWeek week) {
     final theme = Theme.of(context);
-    final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final dayLabel = 'Day ${index + 1}';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -435,7 +504,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             ),
           ),
           title: Text(
-            dayNames[index],
+            dayLabel,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
@@ -850,11 +919,110 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  void _saveProgram() {
-    // TODO: Save to API
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Program saved! (Backend integration coming soon)')),
-    );
-    context.pop();
+  bool _isSaving = false;
+
+  Future<void> _saveProgram() async {
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final apiClient = ref.read(apiClientProvider);
+
+      // Build schedule template from the program state
+      final scheduleTemplate = _programState.weeks.map((week) => {
+        'week_number': week.weekNumber,
+        'is_deload': week.isDeload,
+        'intensity_modifier': week.intensityModifier,
+        'volume_modifier': week.volumeModifier,
+        'days': week.days.map((day) => {
+          'name': day.name,
+          'is_rest_day': day.isRestDay,
+          'exercises': day.exercises.map((e) => {
+            'exercise_id': e.exerciseId,
+            'exercise_name': e.exerciseName,
+            'muscle_group': e.muscleGroup,
+            'sets': e.sets,
+            'reps': e.reps,
+          }).toList(),
+        }).toList(),
+      }).toList();
+
+      // Step 1: Create the program template
+      final templateResponse = await apiClient.dio.post(
+        ApiConstants.programTemplates,
+        data: {
+          'name': _programState.name,
+          'description': _programState.description ?? '',
+          'duration_weeks': _programState.durationWeeks,
+          'difficulty_level': _programState.difficulty,
+          'goal_type': _programState.goal,
+          'schedule_template': scheduleTemplate,
+          'is_public': false,
+        },
+      );
+
+      final templateId = templateResponse.data['id'] as int;
+
+      // Step 2: If we have a traineeId, assign the template to the trainee
+      if (widget.traineeId != null) {
+        // End current program if one exists (trainee can only have one active program)
+        final trainee = ref.read(traineeDetailProvider(widget.traineeId!)).valueOrNull;
+        if (trainee != null && trainee.programs.isNotEmpty) {
+          final currentProgram = trainee.programs.first;
+          await apiClient.dio.delete(ApiConstants.programDetail(currentProgram.id));
+        }
+
+        // Assign the new program
+        await apiClient.dio.post(
+          ApiConstants.assignProgramTemplate(templateId),
+          data: {
+            'trainee_id': widget.traineeId,
+            'start_date': _formatDate(_startDate),
+          },
+        );
+
+        if (mounted) {
+          // Invalidate the trainee detail provider to refresh the data
+          ref.invalidate(traineeDetailProvider(widget.traineeId!));
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Program saved and assigned successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Pop back to trainee detail screen (pop twice: builder -> assign -> detail)
+          final navigator = Navigator.of(context);
+          navigator.pop(); // Pop ProgramBuilderScreen
+          navigator.pop(); // Pop AssignProgramScreen
+        }
+      } else {
+        // Just saving as a template without assigning
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Program template saved successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pop(true);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save program: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 }

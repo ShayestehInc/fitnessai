@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../programs/data/models/program_model.dart';
 import '../../../programs/presentation/providers/program_provider.dart';
 import '../../../programs/presentation/screens/program_builder_screen.dart';
+import '../providers/trainer_provider.dart';
 
 class AssignProgramScreen extends ConsumerStatefulWidget {
   final int traineeId;
@@ -21,6 +24,12 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final traineeAsync = ref.watch(traineeDetailProvider(widget.traineeId));
+
+    // Check if trainee has an active program
+    final activeProgram = traineeAsync.whenOrNull(
+      data: (trainee) => trainee?.programs.isNotEmpty == true ? trainee!.programs.first : null,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -35,6 +44,48 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Warning banner if there's an active program
+            if (activeProgram != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Active Program Will Be Replaced',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Current: ${activeProgram.name}',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
             // Header
             Container(
               padding: const EdgeInsets.all(16),
@@ -54,9 +105,9 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Create or Assign a Program',
-                          style: TextStyle(
+                        Text(
+                          activeProgram != null ? 'Replace Current Program' : 'Create or Assign a Program',
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
@@ -314,6 +365,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => ProgramBuilderScreen(
+                          traineeId: widget.traineeId,
                           templateName: programName,
                           durationWeeks: durationWeeks,
                           difficulty: difficulty,
@@ -321,12 +373,9 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                         ),
                       ),
                     ).then((result) {
-                      if (result == true) {
+                      if (result == true && mounted) {
                         // Program was saved, go back
                         context.pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Program assigned successfully!')),
-                        );
                       }
                     });
                   },
@@ -677,7 +726,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
               ),
               const SizedBox(height: 12),
               ...template.schedule.asMap().entries.map((entry) {
-                final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                final dayLabel = 'Day ${entry.key + 1}';
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
@@ -688,9 +737,9 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                   child: Row(
                     children: [
                       SizedBox(
-                        width: 100,
+                        width: 60,
                         child: Text(
-                          days[entry.key],
+                          dayLabel,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -732,6 +781,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => ProgramBuilderScreen(
+                              traineeId: widget.traineeId,
                               templateName: template.name,
                               durationWeeks: template.durationWeeks,
                               difficulty: template.difficulty,
@@ -740,11 +790,8 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                             ),
                           ),
                         ).then((result) {
-                          if (result == true) {
+                          if (result == true && mounted) {
                             context.pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Program assigned successfully!')),
-                            );
                           }
                         });
                       },
@@ -957,32 +1004,155 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
   }
 
   void _assignExistingProgram(BuildContext context, ProgramTemplateModel program) {
+    DateTime selectedStartDate = DateTime.now();
+    final theme = Theme.of(context);
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Assign Program'),
-        content: Text('Assign "${program.name}" to this trainee?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Close sheet
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final endDate = selectedStartDate.add(Duration(days: program.durationWeeks * 7));
 
-              // TODO: API call to assign program
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('"${program.name}" assigned successfully!')),
-              );
-              context.pop(); // Go back to trainee detail
-            },
-            child: const Text('Assign'),
-          ),
-        ],
+          return AlertDialog(
+            title: const Text('Assign Program'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Assign "${program.name}" to this trainee?'),
+                const SizedBox(height: 20),
+                // Start date picker
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Start Date',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatDate(selectedStartDate),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: dialogContext,
+                                initialDate: selectedStartDate,
+                                firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                              );
+                              if (picked != null) {
+                                setDialogState(() => selectedStartDate = picked);
+                              }
+                            },
+                            child: const Text('Change'),
+                          ),
+                        ],
+                      ),
+                      const Divider(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'End Date',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                          Text(
+                            _formatDate(endDate),
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(dialogContext); // Close dialog
+                  Navigator.pop(context); // Close sheet
+
+                  try {
+                    final apiClient = ref.read(apiClientProvider);
+
+                    // End current program if one exists
+                    final trainee = ref.read(traineeDetailProvider(widget.traineeId)).valueOrNull;
+                    if (trainee != null && trainee.programs.isNotEmpty) {
+                      final currentProgram = trainee.programs.first;
+                      await apiClient.dio.delete(ApiConstants.programDetail(currentProgram.id));
+                    }
+
+                    // Assign the new program
+                    await apiClient.dio.post(
+                      ApiConstants.assignProgramTemplate(program.id),
+                      data: {
+                        'trainee_id': widget.traineeId,
+                        'start_date': '${selectedStartDate.year}-${selectedStartDate.month.toString().padLeft(2, '0')}-${selectedStartDate.day.toString().padLeft(2, '0')}',
+                      },
+                    );
+
+                    if (mounted) {
+                      // Invalidate the trainee detail provider to refresh the data
+                      ref.invalidate(traineeDetailProvider(widget.traineeId));
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('"${program.name}" assigned successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      context.pop(); // Go back to trainee detail
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to assign program: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Assign'),
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }
 

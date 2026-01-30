@@ -15,7 +15,7 @@ class ProgramTemplateModel with _$ProgramTemplateModel {
     @JsonKey(name: 'difficulty_level') @Default('intermediate') String difficultyLevel,
     @JsonKey(name: 'goal_type') @Default('build_muscle') String goalType,
     @JsonKey(name: 'is_public') @Default(false) bool isPublic,
-    @JsonKey(name: 'schedule_template') Map<String, dynamic>? scheduleTemplate,
+    @JsonKey(name: 'schedule_template') dynamic scheduleTemplate,
     @JsonKey(name: 'created_by') int? createdBy,
     @JsonKey(name: 'created_at') String? createdAt,
     @JsonKey(name: 'updated_at') String? updatedAt,

@@ -34,6 +34,20 @@
 	<string>We sync your workouts to your health ring.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Google Sign-In -->
+	<key>GIDClientID</key>
+	<string>678085268098-oiujkrm9mavo40jtpgjq9vbu0ki25nl0.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.678085268098-oiujkrm9mavo40jtpgjq9vbu0ki25nl0</string>
+			</array>
+		</dict>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

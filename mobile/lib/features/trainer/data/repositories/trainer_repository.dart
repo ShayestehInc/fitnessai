@@ -131,6 +131,32 @@ class TrainerRepository {
     }
   }
 
+  Future<Map<String, dynamic>> updateTraineeGoals(
+    int traineeId, {
+    String? goal,
+    String? activityLevel,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (goal != null) data['goal'] = goal;
+      if (activityLevel != null) data['activity_level'] = activityLevel;
+
+      final response = await _apiClient.dio.patch(
+        '${ApiConstants.trainerTrainees}$traineeId/goals/',
+        data: data,
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to update goals',
+      };
+    }
+  }
+
   // Invitations
   Future<Map<String, dynamic>> getInvitations() async {
     try {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import 'delete_account_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -194,6 +195,19 @@ class SettingsScreen extends ConsumerWidget {
 
       const SizedBox(height: 24),
 
+      // Scheduling Section
+      _buildSectionHeader(context, 'SCHEDULING', index++),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.calendar_month,
+        title: 'Calendar Integration',
+        subtitle: 'Connect Google or Microsoft calendar',
+        onTap: () => context.push('/trainer/calendar'),
+        index: index++,
+      ),
+
+      const SizedBox(height: 24),
+
       // Payments Section
       _buildSectionHeader(context, 'PAYMENTS', index++),
       _buildSettingsTile(
@@ -313,7 +327,7 @@ class SettingsScreen extends ConsumerWidget {
         title: 'Delete Account',
         subtitle: 'Permanently delete your account and all data',
         isDestructive: true,
-        onTap: () => _showDeleteAccountDialog(context, ref),
+        onTap: () => _openDeleteAccountScreen(context),
         index: index++,
       ),
     ];
@@ -420,7 +434,7 @@ class SettingsScreen extends ConsumerWidget {
         title: 'Delete Account',
         subtitle: 'Permanently delete your account and all data',
         isDestructive: true,
-        onTap: () => _showDeleteAccountDialog(context, ref),
+        onTap: () => _openDeleteAccountScreen(context),
         index: index++,
       ),
     ];
@@ -512,51 +526,10 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showDeleteAccountDialog(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Delete Account',
-          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
-        ),
-        content: Text(
-          'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.',
-          style: TextStyle(color: theme.textTheme.bodySmall?.color),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: theme.textTheme.bodySmall?.color),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              final result = await ref.read(authStateProvider.notifier).deleteAccount();
-              if (result['success'] == true && context.mounted) {
-                context.go('/login');
-              } else if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(result['error'] ?? 'Failed to delete account'),
-                    backgroundColor: theme.colorScheme.error,
-                  ),
-                );
-              }
-            },
-            child: Text(
-              'Delete',
-              style: TextStyle(color: theme.colorScheme.error),
-            ),
-          ),
-        ],
+  void _openDeleteAccountScreen(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const DeleteAccountScreen(),
       ),
     );
   }

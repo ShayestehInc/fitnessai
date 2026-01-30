@@ -45,6 +45,7 @@ import '../../features/payments/presentation/screens/trainer_pricing_view_screen
 import '../../features/payments/presentation/screens/trainer_coupons_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/ai_chat/presentation/screens/ai_chat_screen.dart';
+import '../../features/calendar/presentation/screens/calendar_connection_screen.dart';
 import '../../shared/widgets/main_navigation_shell.dart';
 import '../../shared/widgets/trainer_navigation_shell.dart';
 import '../../shared/widgets/admin_navigation_shell.dart';
@@ -209,6 +210,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             initialTraineeName: traineeName,
           );
         },
+      ),
+
+      // Calendar integration for trainers
+      GoRoute(
+        path: '/trainer/calendar',
+        name: 'trainer-calendar',
+        builder: (context, state) => const CalendarConnectionScreen(),
       ),
 
       // Admin Shell - separate navigation for admin users

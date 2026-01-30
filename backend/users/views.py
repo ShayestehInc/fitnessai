@@ -4,10 +4,13 @@ User views for profile management and onboarding.
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User, UserProfile
-from .serializers import UserProfileSerializer, OnboardingStepSerializer
+from .serializers import UserProfileSerializer, OnboardingStepSerializer, UserSerializer
+from .social_auth import verify_google_token, verify_apple_token, SocialAuthError
 from workouts.services.macro_calculator import MacroCalculatorService
 from workouts.models import NutritionGoal
 
@@ -142,4 +145,114 @@ class UserProfileViewSet(viewsets.ModelViewSet):
                 'per_meal_carbs': nutrition_goal.per_meal_carbs,
                 'per_meal_fat': nutrition_goal.per_meal_fat,
             }
+        })
+
+
+class GoogleLoginView(APIView):
+    """
+    Handle Google Sign-In authentication.
+
+    Users cannot self-register via social login. An Admin or Trainer must
+    first create their account. This endpoint only authenticates existing users.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        id_token = request.data.get('id_token')
+
+        if not id_token:
+            return Response(
+                {'error': 'ID token is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Verify token with Google
+            user_info = verify_google_token(id_token)
+        except SocialAuthError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Look up existing user - DO NOT create new users
+        try:
+            user = User.objects.get(email=user_info['email'])
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Account not found. Please contact your trainer or admin.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if user is active
+        if not user.is_active:
+            return Response(
+                {'error': 'Your account has been deactivated.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Update name if not set (first social login)
+        if not user.first_name and user_info.get('first_name'):
+            user.first_name = user_info['first_name']
+            user.last_name = user_info.get('last_name', '')
+            user.save()
+
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': UserSerializer(user).data,
+        })
+
+
+class AppleLoginView(APIView):
+    """
+    Handle Apple Sign-In authentication.
+
+    Users cannot self-register via social login. An Admin or Trainer must
+    first create their account. This endpoint only authenticates existing users.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        id_token = request.data.get('id_token')
+
+        if not id_token:
+            return Response(
+                {'error': 'ID token is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Verify token with Apple
+            user_info = verify_apple_token(id_token)
+        except SocialAuthError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Look up existing user - DO NOT create new users
+        try:
+            user = User.objects.get(email=user_info['email'])
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Account not found. Please contact your trainer or admin.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if user is active
+        if not user.is_active:
+            return Response(
+                {'error': 'Your account has been deactivated.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': UserSerializer(user).data,
         })

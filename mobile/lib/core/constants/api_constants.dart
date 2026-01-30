@@ -11,6 +11,10 @@ class ApiConstants {
   static String get refreshToken => '$apiBaseUrl/auth/jwt/refresh/';
   static String get currentUser => '$apiBaseUrl/auth/users/me/';
 
+  // Social auth endpoints
+  static String get googleLogin => '$apiBaseUrl/users/auth/google/';
+  static String get appleLogin => '$apiBaseUrl/users/auth/apple/';
+
   // User profile endpoints
   static String get profiles => '$apiBaseUrl/users/profiles/';
   static String get onboardingStep => '$apiBaseUrl/users/profiles/onboarding/';
@@ -24,6 +28,7 @@ class ApiConstants {
   static String get nutritionSummary => '$apiBaseUrl/workouts/daily-logs/nutrition-summary/';
   static String get workoutSummary => '$apiBaseUrl/workouts/daily-logs/workout-summary/';
   static String get programs => '$apiBaseUrl/workouts/programs/';
+  static String programDetail(int id) => '$apiBaseUrl/workouts/programs/$id/';
   static String get exercises => '$apiBaseUrl/workouts/exercises/';
 
   // Nutrition endpoints
@@ -40,6 +45,8 @@ class ApiConstants {
   static String get startImpersonation => '$apiBaseUrl/trainer/impersonate/';
   static String get endImpersonation => '$apiBaseUrl/trainer/impersonate/end/';
   static String get programTemplates => '$apiBaseUrl/trainer/program-templates/';
+  static String assignProgramTemplate(int templateId) =>
+      '$apiBaseUrl/trainer/program-templates/$templateId/assign/';
   static String get trainerAnalyticsAdherence => '$apiBaseUrl/trainer/analytics/adherence/';
   static String get trainerAnalyticsProgress => '$apiBaseUrl/trainer/analytics/progress/';
   static String get trainerMcpToken => '$apiBaseUrl/trainer/mcp/token/';
@@ -98,6 +105,22 @@ class ApiConstants {
 
   // Coupon validation
   static String get validateCoupon => '$apiBaseUrl/payments/coupons/validate/';
+
+  // Calendar integration endpoints
+  static String get calendarConnections => '$apiBaseUrl/calendar/connections/';
+  static String get googleAuthUrl => '$apiBaseUrl/calendar/google/auth/';
+  static String get googleCallback => '$apiBaseUrl/calendar/google/callback/';
+  static String get microsoftAuthUrl => '$apiBaseUrl/calendar/microsoft/auth/';
+  static String get microsoftCallback => '$apiBaseUrl/calendar/microsoft/callback/';
+  static String calendarDisconnect(String provider) =>
+      '$apiBaseUrl/calendar/$provider/disconnect/';
+  static String calendarSync(String provider) =>
+      '$apiBaseUrl/calendar/$provider/sync/';
+  static String get calendarEvents => '$apiBaseUrl/calendar/events/';
+  static String get calendarEventCreate => '$apiBaseUrl/calendar/events/create/';
+  static String get trainerAvailability => '$apiBaseUrl/calendar/availability/';
+  static String trainerAvailabilityDetail(int id) =>
+      '$apiBaseUrl/calendar/availability/$id/';
 
   // Headers (these can stay const)
   static const String contentType = 'application/json';

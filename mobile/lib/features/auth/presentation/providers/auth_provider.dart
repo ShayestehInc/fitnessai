@@ -162,4 +162,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     }
   }
+
+  /// Sign in with Google
+  Future<void> loginWithGoogle() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _repository.loginWithGoogle();
+
+    if (result['success'] == true) {
+      state = state.copyWith(
+        user: result['user'] as UserModel,
+        isLoading: false,
+      );
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        error: result['error'] as String?,
+      );
+    }
+  }
+
+  /// Sign in with Apple
+  Future<void> loginWithApple() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _repository.loginWithApple();
+
+    if (result['success'] == true) {
+      state = state.copyWith(
+        user: result['user'] as UserModel,
+        isLoading: false,
+      );
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        error: result['error'] as String?,
+      );
+    }
+  }
 }

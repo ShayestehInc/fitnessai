@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../core/services/biometric_service.dart';
-import '../../../../core/services/api_config_service.dart';
+import '../../data/models/user_model.dart';
 import '../providers/auth_provider.dart';
+import 'server_config_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -161,101 +162,62 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _handleGoogleLogin() async {
-    // TODO: Implement Google Sign-In
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Google Sign-In coming soon!')),
-    );
+    await ref.read(authStateProvider.notifier).loginWithGoogle();
+
+    final authState = ref.read(authStateProvider);
+
+    if (authState.user != null && mounted) {
+      _navigateBasedOnRole(authState.user!);
+    } else if (authState.error != null && mounted) {
+      // Don't show snackbar for cancelled sign-in
+      if (authState.error != 'Sign-in cancelled') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authState.error!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _handleAppleLogin() async {
-    // TODO: Implement Apple Sign-In
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Apple Sign-In coming soon!')),
-    );
+    await ref.read(authStateProvider.notifier).loginWithApple();
+
+    final authState = ref.read(authStateProvider);
+
+    if (authState.user != null && mounted) {
+      _navigateBasedOnRole(authState.user!);
+    } else if (authState.error != null && mounted) {
+      // Don't show snackbar for cancelled sign-in
+      if (authState.error != 'Sign-in cancelled') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authState.error!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void _showServerConfigDialog() {
-    final controller = TextEditingController(
-      text: ApiConfigService.getBaseUrlSync(),
-    );
+  void _navigateBasedOnRole(UserModel user) {
+    if (user.isAdmin) {
+      context.go('/admin');
+    } else if (user.isTrainer) {
+      context.go('/trainer');
+    } else if (user.isTrainee && !user.onboardingCompleted) {
+      context.go('/onboarding');
+    } else {
+      context.go('/home');
+    }
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        final dialogTheme = Theme.of(context);
-        return AlertDialog(
-          backgroundColor: dialogTheme.cardColor,
-          title: const Text('Server Configuration'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Enter your backend server URL:',
-                style: TextStyle(
-                    color: dialogTheme.textTheme.bodySmall?.color,
-                    fontSize: 14),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                style: TextStyle(color: dialogTheme.textTheme.bodyLarge?.color),
-                decoration: InputDecoration(
-                  hintText: 'https://your-ngrok-url.ngrok.io',
-                  filled: true,
-                  fillColor: dialogTheme.scaffoldBackgroundColor,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Default: ${ApiConfigService.defaultBaseUrl}',
-                style: TextStyle(
-                    color: dialogTheme.textTheme.bodySmall?.color,
-                    fontSize: 12),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                await ApiConfigService.resetToDefault();
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Reset to default URL')),
-                  );
-                }
-              },
-              child: const Text('Reset'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final url = controller.text.trim();
-                if (url.isNotEmpty) {
-                  await ApiConfigService.setBaseUrl(url);
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Server URL updated to: $url')),
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: dialogTheme.colorScheme.primary,
-              ),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
+  void _openServerConfig() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ServerConfigScreen(),
+      ),
     );
   }
 
@@ -369,7 +331,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 Icons.settings,
                 color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5),
               ),
-              onPressed: _showServerConfigDialog,
+              onPressed: _openServerConfig,
               tooltip: 'Server Settings',
             ),
           ),
