@@ -5,6 +5,7 @@ import '../../../exercises/presentation/providers/exercise_provider.dart';
 import '../../../exercises/data/models/exercise_model.dart';
 import '../../../programs/presentation/providers/program_provider.dart';
 import '../../../programs/data/models/program_model.dart';
+import '../../../programs/data/models/program_week_model.dart';
 import '../../../programs/presentation/screens/program_builder_screen.dart';
 import '../providers/trainer_provider.dart';
 import '../widgets/quick_stats_grid.dart';
@@ -371,6 +372,26 @@ class TrainerDashboardScreen extends ConsumerWidget {
                     child: OutlinedButton.icon(
                       onPressed: () {
                         Navigator.pop(context);
+                        // Parse existing weeks from schedule_template
+                        List<ProgramWeek>? existingWeeks;
+                        if (program.scheduleTemplate != null) {
+                          try {
+                            final scheduleData = program.scheduleTemplate;
+                            List<dynamic>? weeksData;
+                            if (scheduleData is List) {
+                              weeksData = scheduleData;
+                            } else if (scheduleData is Map<String, dynamic>) {
+                              weeksData = scheduleData['weeks'] as List<dynamic>?;
+                            }
+                            if (weeksData != null && weeksData.isNotEmpty) {
+                              existingWeeks = weeksData
+                                  .map((w) => ProgramWeek.fromJson(w as Map<String, dynamic>))
+                                  .toList();
+                            }
+                          } catch (e) {
+                            debugPrint('Error parsing schedule template: $e');
+                          }
+                        }
                         // Navigate to program builder to edit
                         Navigator.push(
                           context,
@@ -380,6 +401,8 @@ class TrainerDashboardScreen extends ConsumerWidget {
                               durationWeeks: program.durationWeeks,
                               difficulty: program.difficultyLevel,
                               goal: program.goalType,
+                              existingTemplateId: program.id,
+                              existingWeeks: existingWeeks,
                             ),
                           ),
                         );

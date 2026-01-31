@@ -7,11 +7,14 @@ import '../../../exercises/presentation/providers/exercise_provider.dart';
 class WeekEditorScreen extends ConsumerStatefulWidget {
   final ProgramWeek week;
   final Function(ProgramWeek) onSave;
+  /// Callback to apply superset to all weeks. Parameters: dayIndex, exerciseNames, groupId
+  final Function(int dayIndex, List<String> exerciseNames, String groupId)? onApplySupersetToAllWeeks;
 
   const WeekEditorScreen({
     super.key,
     required this.week,
     required this.onSave,
+    this.onApplySupersetToAllWeeks,
   });
 
   @override
@@ -55,6 +58,92 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       return;
     }
 
+    // Show dialog to choose scope
+    _showSupersetScopeDialog();
+  }
+
+  void _showSupersetScopeDialog() {
+    final theme = Theme.of(context);
+    final day = _week.days[_selectedDayIndex];
+    final selectedExerciseNames = _selectedExerciseIndices
+        .map((i) => day.exercises[i].exerciseName)
+        .toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (dialogContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(dialogContext).padding.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Icon(Icons.link, size: 48, color: theme.colorScheme.secondary),
+            const SizedBox(height: 16),
+            Text(
+              'Create Superset',
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Group ${selectedExerciseNames.length} exercises together',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      _applySupersetToThisWeek();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('This Week'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: widget.onApplySupersetToAllWeeks != null
+                        ? () {
+                            Navigator.pop(dialogContext);
+                            _applySupersetToAllWeeks();
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('All Weeks'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _applySupersetToThisWeek() {
     setState(() {
       final groupId = DateTime.now().millisecondsSinceEpoch.toString();
       final day = _week.days[_selectedDayIndex];
@@ -73,7 +162,40 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Superset created!'), backgroundColor: Colors.green),
+      const SnackBar(content: Text('Superset created for this week!'), backgroundColor: Colors.green),
+    );
+  }
+
+  void _applySupersetToAllWeeks() {
+    final groupId = DateTime.now().millisecondsSinceEpoch.toString();
+    final day = _week.days[_selectedDayIndex];
+
+    // Get exercise names for the selected exercises
+    final exerciseNames = _selectedExerciseIndices
+        .map((i) => day.exercises[i].exerciseName)
+        .toList();
+
+    // Apply to this week first
+    setState(() {
+      final updatedExercises = List<WorkoutExercise>.from(day.exercises);
+
+      for (final index in _selectedExerciseIndices) {
+        updatedExercises[index] = updatedExercises[index].copyWith(supersetGroupId: groupId);
+      }
+
+      final updatedDays = List<WorkoutDay>.from(_week.days);
+      updatedDays[_selectedDayIndex] = day.copyWith(exercises: updatedExercises);
+      _week = _week.copyWith(days: updatedDays);
+
+      _isSelectionMode = false;
+      _selectedExerciseIndices.clear();
+    });
+
+    // Call parent to apply to all other weeks
+    widget.onApplySupersetToAllWeeks?.call(_selectedDayIndex, exerciseNames, groupId);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Superset created for all weeks!'), backgroundColor: Colors.green),
     );
   }
 

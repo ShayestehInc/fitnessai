@@ -683,22 +683,73 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
   }
 
   Widget _buildExerciseRow(ThemeData theme, WorkoutExercise exercise, int dayIndex, bool isEditable) {
+    final isInSuperset = exercise.isInSuperset;
+
+    // Get superset position info
+    final week = _weeks[_selectedWeekIndex];
+    final day = week.days[dayIndex];
+    final exerciseIndex = day.exercises.indexOf(exercise);
+    final isFirstInSuperset = isInSuperset &&
+        (exerciseIndex == 0 || day.exercises[exerciseIndex - 1].supersetGroupId != exercise.supersetGroupId);
+
     return Container(
+      margin: EdgeInsets.only(left: isInSuperset ? 8 : 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)))),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
+          left: isInSuperset
+              ? BorderSide(color: theme.colorScheme.secondary, width: 3)
+              : BorderSide.none,
+        ),
+      ),
       child: Row(
         children: [
-          Container(
-            width: 32, height: 32,
-            decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(6)),
-            child: const Icon(Icons.fitness_center, size: 16, color: Colors.grey),
-          ),
+          // Superset indicator or exercise icon
+          if (isInSuperset)
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(Icons.link, size: 16, color: theme.colorScheme.secondary),
+            )
+          else
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(6)),
+              child: const Icon(Icons.fitness_center, size: 16, color: Colors.grey),
+            ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(exercise.exerciseName, style: TextStyle(fontWeight: FontWeight.w500, color: !isEditable ? Colors.grey : null)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(exercise.exerciseName, style: TextStyle(fontWeight: FontWeight.w500, color: !isEditable ? Colors.grey : null)),
+                    ),
+                    if (isFirstInSuperset)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        margin: const EdgeInsets.only(left: 8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.secondary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'SUPERSET',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.secondary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 Text(exercise.muscleGroup, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),
@@ -708,11 +759,22 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
               onTap: () => _showEditExerciseDialog(exercise, dayIndex),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: theme.colorScheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(
+                  color: isInSuperset
+                      ? theme.colorScheme.secondary.withValues(alpha: 0.15)
+                      : theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Row(children: [
-                  Text('${exercise.sets} × ${exercise.reps}', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+                  Text(
+                    '${exercise.sets} × ${exercise.reps}',
+                    style: TextStyle(
+                      color: isInSuperset ? theme.colorScheme.secondary : theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(width: 4),
-                  Icon(Icons.edit, size: 14, color: theme.colorScheme.primary),
+                  Icon(Icons.edit, size: 14, color: isInSuperset ? theme.colorScheme.secondary : theme.colorScheme.primary),
                 ]),
               ),
             )

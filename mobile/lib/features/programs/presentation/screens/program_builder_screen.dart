@@ -15,6 +15,10 @@ class ProgramBuilderScreen extends ConsumerStatefulWidget {
   final String? goal;
   final List<String>? weeklySchedule;
   final DateTime? startDate;
+  /// If provided, we're editing an existing template
+  final int? existingTemplateId;
+  /// Existing weeks data when editing
+  final List<ProgramWeek>? existingWeeks;
 
   const ProgramBuilderScreen({
     super.key,
@@ -25,6 +29,8 @@ class ProgramBuilderScreen extends ConsumerStatefulWidget {
     this.goal,
     this.weeklySchedule,
     this.startDate,
+    this.existingTemplateId,
+    this.existingWeeks,
   });
 
   @override
@@ -44,6 +50,19 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   }
 
   void _initializeProgram() {
+    // If editing existing template with weeks data, use that
+    if (widget.existingWeeks != null && widget.existingWeeks!.isNotEmpty) {
+      _programState = ProgramBuilderState(
+        name: widget.templateName ?? 'Custom Program',
+        description: null,
+        difficulty: widget.difficulty ?? 'intermediate',
+        goal: widget.goal ?? 'build_muscle',
+        durationWeeks: widget.existingWeeks!.length,
+        weeks: widget.existingWeeks!,
+      );
+      return;
+    }
+
     final weekCount = widget.durationWeeks ?? 4;
     final schedule = widget.weeklySchedule ?? ['Workout A', 'Rest', 'Workout B', 'Rest', 'Workout A', 'Rest', 'Rest'];
 
@@ -555,23 +574,48 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     // Apply modifiers for deload weeks
     final adjustedSets = (exercise.sets * week.volumeModifier).round();
     final adjustedReps = (exercise.reps * week.intensityModifier).round();
+    final isInSuperset = exercise.isInSuperset;
+
+    // Get superset position info
+    final day = week.days[dayIndex];
+    final exerciseIndex = day.exercises.indexOf(exercise);
+    final isFirstInSuperset = isInSuperset &&
+        (exerciseIndex == 0 || day.exercises[exerciseIndex - 1].supersetGroupId != exercise.supersetGroupId);
 
     return Container(
+      margin: EdgeInsets.only(left: isInSuperset ? 8 : 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5))),
+        border: Border(
+          top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
+          left: isInSuperset
+              ? BorderSide(color: theme.colorScheme.secondary, width: 3)
+              : BorderSide.none,
+        ),
       ),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(6),
+          // Superset indicator or exercise icon
+          if (isInSuperset)
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(Icons.link, size: 16, color: theme.colorScheme.secondary),
+            )
+          else
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.fitness_center, size: 16, color: Colors.grey),
             ),
-            child: const Icon(Icons.fitness_center, size: 16, color: Colors.grey),
-          ),
           const SizedBox(width: 12),
           Expanded(
             child: GestureDetector(
@@ -579,9 +623,32 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    exercise.exerciseName,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          exercise.exerciseName,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      if (isFirstInSuperset)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          margin: const EdgeInsets.only(left: 8),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.secondary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'SUPERSET',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.secondary,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   Text(
                     exercise.muscleGroup.replaceAll('_', ' ').split(' ').map((w) =>
@@ -598,7 +665,9 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                color: isInSuperset
+                    ? theme.colorScheme.secondary.withValues(alpha: 0.15)
+                    : theme.colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -606,12 +675,12 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                   Text(
                     '$adjustedSets × $adjustedReps',
                     style: TextStyle(
-                      color: theme.colorScheme.primary,
+                      color: isInSuperset ? theme.colorScheme.secondary : theme.colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(Icons.edit, size: 14, color: theme.colorScheme.primary),
+                  Icon(Icons.edit, size: 14, color: isInSuperset ? theme.colorScheme.secondary : theme.colorScheme.primary),
                 ],
               ),
             ),
@@ -1288,6 +1357,35 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               _programState = _programState.copyWith(weeks: updatedWeeks);
             });
           },
+          onApplySupersetToAllWeeks: (dayIndex, exerciseNames, groupId) {
+            setState(() {
+              final updatedWeeks = List<ProgramWeek>.from(_programState.weeks);
+
+              // Apply superset to all weeks (except current which is handled by onSave)
+              for (int weekIndex = 0; weekIndex < updatedWeeks.length; weekIndex++) {
+                if (weekIndex == _selectedWeekIndex) continue; // Skip current week
+
+                final week = updatedWeeks[weekIndex];
+                if (dayIndex >= week.days.length) continue;
+
+                final day = week.days[dayIndex];
+                final updatedExercises = List<WorkoutExercise>.from(day.exercises);
+
+                // Find exercises by name and apply superset groupId
+                for (int i = 0; i < updatedExercises.length; i++) {
+                  if (exerciseNames.contains(updatedExercises[i].exerciseName)) {
+                    updatedExercises[i] = updatedExercises[i].copyWith(supersetGroupId: groupId);
+                  }
+                }
+
+                final updatedDays = List<WorkoutDay>.from(week.days);
+                updatedDays[dayIndex] = day.copyWith(exercises: updatedExercises);
+                updatedWeeks[weekIndex] = week.copyWith(days: updatedDays);
+              }
+
+              _programState = _programState.copyWith(weeks: updatedWeeks);
+            });
+          },
         ),
       ),
     );
@@ -1303,40 +1401,42 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     try {
       final apiClient = ref.read(apiClientProvider);
 
-      // Build schedule template from the program state
-      final scheduleTemplate = _programState.weeks.map((week) => {
-        'week_number': week.weekNumber,
-        'is_deload': week.isDeload,
-        'intensity_modifier': week.intensityModifier,
-        'volume_modifier': week.volumeModifier,
-        'days': week.days.map((day) => {
-          'name': day.name,
-          'is_rest_day': day.isRestDay,
-          'exercises': day.exercises.map((e) => {
-            'exercise_id': e.exerciseId,
-            'exercise_name': e.exerciseName,
-            'muscle_group': e.muscleGroup,
-            'sets': e.sets,
-            'reps': e.reps,
-          }).toList(),
-        }).toList(),
-      }).toList();
+      // Build schedule template from the program state using model's toJson()
+      final scheduleTemplate = _programState.weeks.map((week) => week.toJson()).toList();
 
-      // Step 1: Create the program template
-      final templateResponse = await apiClient.dio.post(
-        ApiConstants.programTemplates,
-        data: {
-          'name': _programState.name,
-          'description': _programState.description ?? '',
-          'duration_weeks': _programState.durationWeeks,
-          'difficulty_level': _programState.difficulty,
-          'goal_type': _programState.goal,
-          'schedule_template': scheduleTemplate,
-          'is_public': false,
-        },
-      );
+      int templateId;
 
-      final templateId = templateResponse.data['id'] as int;
+      // Check if we're updating an existing template or creating a new one
+      if (widget.existingTemplateId != null) {
+        // Update existing template
+        await apiClient.dio.patch(
+          '${ApiConstants.programTemplates}${widget.existingTemplateId}/',
+          data: {
+            'name': _programState.name,
+            'description': _programState.description ?? '',
+            'duration_weeks': _programState.durationWeeks,
+            'difficulty_level': _programState.difficulty,
+            'goal_type': _programState.goal,
+            'schedule_template': scheduleTemplate,
+          },
+        );
+        templateId = widget.existingTemplateId!;
+      } else {
+        // Create new program template
+        final templateResponse = await apiClient.dio.post(
+          ApiConstants.programTemplates,
+          data: {
+            'name': _programState.name,
+            'description': _programState.description ?? '',
+            'duration_weeks': _programState.durationWeeks,
+            'difficulty_level': _programState.difficulty,
+            'goal_type': _programState.goal,
+            'schedule_template': scheduleTemplate,
+            'is_public': false,
+          },
+        );
+        templateId = templateResponse.data['id'] as int;
+      }
 
       // Step 2: If we have a traineeId, assign the template to the trainee
       if (widget.traineeId != null) {

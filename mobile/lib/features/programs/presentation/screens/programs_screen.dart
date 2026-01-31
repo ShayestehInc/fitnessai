@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/program_model.dart';
+import '../../data/models/program_week_model.dart';
 import '../providers/program_provider.dart';
 import 'program_builder_screen.dart';
 import '../../../workout_log/presentation/screens/workout_calendar_screen.dart';
@@ -691,6 +692,27 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
   }
 
   void _editDraftProgram(BuildContext context, ProgramTemplateModel draft) {
+    // Parse existing weeks from schedule_template
+    List<ProgramWeek>? existingWeeks;
+    if (draft.scheduleTemplate != null) {
+      try {
+        final scheduleData = draft.scheduleTemplate;
+        List<dynamic>? weeksData;
+        if (scheduleData is List) {
+          weeksData = scheduleData;
+        } else if (scheduleData is Map<String, dynamic>) {
+          weeksData = scheduleData['weeks'] as List<dynamic>?;
+        }
+        if (weeksData != null && weeksData.isNotEmpty) {
+          existingWeeks = weeksData
+              .map((w) => ProgramWeek.fromJson(w as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (e) {
+        debugPrint('Error parsing schedule template: $e');
+      }
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -699,6 +721,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
           durationWeeks: draft.durationWeeks,
           difficulty: draft.difficultyLevel,
           goal: draft.goalType,
+          existingTemplateId: draft.id,
+          existingWeeks: existingWeeks,
         ),
       ),
     );
