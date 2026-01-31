@@ -804,6 +804,16 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                               itemCount: currentWorkout?.exercises.length ?? 0,
                               itemBuilder: (context, index) {
                                 final exercise = currentWorkout!.exercises[index];
+                                final exercises = currentWorkout!.exercises;
+                                final isInSuperset = exercise.isInSuperset;
+
+                                // Check superset position
+                                final isFirstInSuperset = isInSuperset &&
+                                    (index == 0 || exercises[index - 1].supersetGroupId != exercise.supersetGroupId);
+                                final isLastInSuperset = isInSuperset &&
+                                    (index == exercises.length - 1 || exercises[index + 1].supersetGroupId != exercise.supersetGroupId);
+                                final isMiddleInSuperset = isInSuperset && !isFirstInSuperset && !isLastInSuperset;
+
                                 return InkWell(
                                   onTap: _isTrainerMode
                                       ? () {
@@ -813,43 +823,96 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                                       : null,
                                   borderRadius: BorderRadius.circular(12),
                                   child: Container(
-                                    margin: const EdgeInsets.only(bottom: 12),
+                                    margin: EdgeInsets.only(
+                                      bottom: isInSuperset && !isLastInSuperset ? 0 : 12,
+                                      left: isInSuperset ? 8 : 0,
+                                    ),
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
                                       color: theme.scaffoldBackgroundColor,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: theme.dividerColor),
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: Radius.circular(isMiddleInSuperset || isLastInSuperset ? 0 : 12),
+                                        topRight: Radius.circular(isMiddleInSuperset || isLastInSuperset ? 0 : 12),
+                                        bottomLeft: Radius.circular(isMiddleInSuperset || isFirstInSuperset ? 0 : 12),
+                                        bottomRight: Radius.circular(isMiddleInSuperset || isFirstInSuperset ? 0 : 12),
+                                      ),
+                                      border: Border.all(
+                                        color: isInSuperset
+                                            ? theme.colorScheme.secondary
+                                            : theme.dividerColor,
+                                        width: isInSuperset ? 2 : 1,
+                                      ),
                                     ),
                                     child: Row(
                                       children: [
-                                        Container(
-                                          width: 40,
-                                          height: 40,
-                                          decoration: BoxDecoration(
-                                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              '${index + 1}',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: theme.colorScheme.primary,
+                                        // Superset indicator or number
+                                        if (isInSuperset)
+                                          Container(
+                                            width: 40,
+                                            height: 40,
+                                            decoration: BoxDecoration(
+                                              color: theme.colorScheme.secondary.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Center(
+                                              child: Icon(
+                                                Icons.link,
+                                                size: 20,
+                                                color: theme.colorScheme.secondary,
+                                              ),
+                                            ),
+                                          )
+                                        else
+                                          Container(
+                                            width: 40,
+                                            height: 40,
+                                            decoration: BoxDecoration(
+                                              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                '${index + 1}',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: theme.colorScheme.primary,
+                                                ),
                                               ),
                                             ),
                                           ),
-                                        ),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                exercise.exerciseName,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 15,
-                                                ),
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      exercise.exerciseName,
+                                                      style: const TextStyle(
+                                                        fontWeight: FontWeight.w600,
+                                                        fontSize: 15,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (isFirstInSuperset)
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: theme.colorScheme.secondary.withValues(alpha: 0.15),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: Text(
+                                                        'SUPERSET',
+                                                        style: TextStyle(
+                                                          fontSize: 9,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: theme.colorScheme.secondary,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
                                               ),
                                               const SizedBox(height: 2),
                                               Text(
@@ -868,14 +931,18 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                                             vertical: 6,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                            color: isInSuperset
+                                                ? theme.colorScheme.secondary.withValues(alpha: 0.15)
+                                                : theme.colorScheme.primary.withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(
                                             '${exercise.sets} × ${exercise.reps}',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
-                                              color: theme.colorScheme.primary,
+                                              color: isInSuperset
+                                                  ? theme.colorScheme.secondary
+                                                  : theme.colorScheme.primary,
                                             ),
                                           ),
                                         ),

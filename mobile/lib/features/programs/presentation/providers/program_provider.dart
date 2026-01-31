@@ -25,3 +25,23 @@ final traineeProgramsProvider = FutureProvider.autoDispose.family<List<TraineePr
   }
   return [];
 });
+
+/// All programs created by the trainer (assigned to their trainees)
+final trainerProgramsProvider = FutureProvider.autoDispose<List<TraineeProgramModel>>((ref) async {
+  final repository = ref.watch(programRepositoryProvider);
+  final result = await repository.getAllTrainerPrograms();
+  if (result['success']) {
+    return result['data'] as List<TraineeProgramModel>;
+  }
+  return [];
+});
+
+/// Trainer's custom templates (non-public)
+final myTemplatesProvider = FutureProvider.autoDispose<List<ProgramTemplateModel>>((ref) async {
+  final repository = ref.watch(programRepositoryProvider);
+  final result = await repository.getMyTemplates();
+  if (result['success']) {
+    return result['data'] as List<ProgramTemplateModel>;
+  }
+  return [];
+});

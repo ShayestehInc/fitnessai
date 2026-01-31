@@ -32,7 +32,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Exercise Bank'),
+        title: const Text('Exercise Library'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -408,8 +408,204 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
   }
 
   void _showAddExerciseDialog(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Custom exercise creation coming soon!')),
+    final theme = Theme.of(context);
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final videoUrlController = TextEditingController();
+    final customMuscleGroupController = TextEditingController();
+    String selectedMuscleGroup = MuscleGroups.chest;
+    bool isLoading = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  'Add Custom Exercise',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Exercise name
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Exercise Name *',
+                    hintText: 'e.g., Incline Dumbbell Press',
+                    prefixIcon: Icon(Icons.fitness_center),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 16),
+
+                // Muscle group dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedMuscleGroup,
+                  decoration: const InputDecoration(
+                    labelText: 'Muscle Group *',
+                    prefixIcon: Icon(Icons.category),
+                  ),
+                  items: MuscleGroups.all.map((group) {
+                    return DropdownMenuItem(
+                      value: group,
+                      child: Text(MuscleGroups.displayName(group)),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selectedMuscleGroup = value);
+                    }
+                  },
+                ),
+
+                // Custom muscle group text field (shown when "Other" is selected)
+                if (selectedMuscleGroup == MuscleGroups.other) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: customMuscleGroupController,
+                    decoration: InputDecoration(
+                      labelText: 'Custom Muscle Group (optional)',
+                      hintText: 'e.g., Forearms, Neck, Hip Flexors...',
+                      prefixIcon: const Icon(Icons.edit),
+                      helperText: 'Leave empty to use "Other"',
+                      helperStyle: TextStyle(color: theme.hintColor),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                ],
+                const SizedBox(height: 16),
+
+                // Description
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description (optional)',
+                    hintText: 'How to perform this exercise...',
+                    prefixIcon: Icon(Icons.description),
+                    alignLabelWithHint: true,
+                  ),
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+                const SizedBox(height: 16),
+
+                // Video URL
+                TextField(
+                  controller: videoUrlController,
+                  decoration: const InputDecoration(
+                    labelText: 'Video URL (optional)',
+                    hintText: 'https://youtube.com/...',
+                    prefixIcon: Icon(Icons.play_circle_outline),
+                  ),
+                  keyboardType: TextInputType.url,
+                ),
+                const SizedBox(height: 24),
+
+                // Submit button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isLoading
+                        ? null
+                        : () async {
+                            final name = nameController.text.trim();
+                            if (name.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter an exercise name'),
+                                ),
+                              );
+                              return;
+                            }
+
+                            setDialogState(() => isLoading = true);
+
+                            // Use custom muscle group if "Other" is selected and custom value provided
+                            final muscleGroup = selectedMuscleGroup == MuscleGroups.other &&
+                                    customMuscleGroupController.text.trim().isNotEmpty
+                                ? customMuscleGroupController.text.trim().toLowerCase().replaceAll(' ', '_')
+                                : selectedMuscleGroup;
+
+                            final repository = ref.read(exerciseRepositoryProvider);
+                            final data = {
+                              'name': name,
+                              'muscle_group': muscleGroup,
+                              if (descriptionController.text.trim().isNotEmpty)
+                                'description': descriptionController.text.trim(),
+                              if (videoUrlController.text.trim().isNotEmpty)
+                                'video_url': videoUrlController.text.trim(),
+                            };
+
+                            final result = await repository.createCustomExercise(data);
+
+                            if (!context.mounted) return;
+
+                            if (result['success'] == true) {
+                              Navigator.pop(context);
+                              // Refresh the exercise list
+                              ref.invalidate(exercisesProvider);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Exercise "$name" created'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } else {
+                              setDialogState(() => isLoading = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(result['error'] ?? 'Failed to create exercise'),
+                                  backgroundColor: theme.colorScheme.error,
+                                ),
+                              );
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Create Exercise'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

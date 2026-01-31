@@ -93,4 +93,64 @@ class ProgramRepository {
       };
     }
   }
+
+  /// Get all programs created by this trainer (for their trainees)
+  Future<Map<String, dynamic>> getAllTrainerPrograms() async {
+    try {
+      final response = await _apiClient.dio.get(ApiConstants.programs);
+
+      final List<dynamic> results = response.data['results'] ?? response.data;
+      final programs = results.map((e) => TraineeProgramModel.fromJson(e)).toList();
+
+      return {
+        'success': true,
+        'data': programs,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load programs',
+      };
+    }
+  }
+
+  /// Get trainer's custom templates (non-public ones they created)
+  Future<Map<String, dynamic>> getMyTemplates() async {
+    try {
+      final response = await _apiClient.dio.get(ApiConstants.programTemplates);
+
+      final List<dynamic> results = response.data['results'] ?? response.data;
+      final templates = results
+          .map((e) => ProgramTemplateModel.fromJson(e))
+          .where((t) => !t.isPublic) // Only custom templates
+          .toList();
+
+      return {
+        'success': true,
+        'data': templates,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load templates',
+      };
+    }
+  }
+
+  /// Delete a program template
+  Future<Map<String, dynamic>> deleteTemplate(int templateId) async {
+    try {
+      await _apiClient.dio.delete(
+        '${ApiConstants.programTemplates}$templateId/',
+      );
+      return {
+        'success': true,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to delete template',
+      };
+    }
+  }
 }

@@ -21,6 +21,8 @@ class WeekEditorScreen extends ConsumerStatefulWidget {
 class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
   late ProgramWeek _week;
   int _selectedDayIndex = 0;
+  bool _isSelectionMode = false;
+  final Set<int> _selectedExerciseIndices = {};
 
   @override
   void initState() {
@@ -28,19 +30,95 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     _week = widget.week;
   }
 
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      _selectedExerciseIndices.clear();
+    });
+  }
+
+  void _toggleExerciseSelection(int index) {
+    setState(() {
+      if (_selectedExerciseIndices.contains(index)) {
+        _selectedExerciseIndices.remove(index);
+      } else {
+        _selectedExerciseIndices.add(index);
+      }
+    });
+  }
+
+  void _createSuperset() {
+    if (_selectedExerciseIndices.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select at least 2 exercises to create a superset')),
+      );
+      return;
+    }
+
+    setState(() {
+      final groupId = DateTime.now().millisecondsSinceEpoch.toString();
+      final day = _week.days[_selectedDayIndex];
+      final updatedExercises = List<WorkoutExercise>.from(day.exercises);
+
+      for (final index in _selectedExerciseIndices) {
+        updatedExercises[index] = updatedExercises[index].copyWith(supersetGroupId: groupId);
+      }
+
+      final updatedDays = List<WorkoutDay>.from(_week.days);
+      updatedDays[_selectedDayIndex] = day.copyWith(exercises: updatedExercises);
+      _week = _week.copyWith(days: updatedDays);
+
+      _isSelectionMode = false;
+      _selectedExerciseIndices.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Superset created!'), backgroundColor: Colors.green),
+    );
+  }
+
+  void _removeFromSuperset(int index) {
+    setState(() {
+      final day = _week.days[_selectedDayIndex];
+      final updatedExercises = List<WorkoutExercise>.from(day.exercises);
+      updatedExercises[index] = updatedExercises[index].copyWith(clearSupersetGroup: true);
+
+      final updatedDays = List<WorkoutDay>.from(_week.days);
+      updatedDays[_selectedDayIndex] = day.copyWith(exercises: updatedExercises);
+      _week = _week.copyWith(days: updatedDays);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final currentDay = _week.days[_selectedDayIndex];
+    final hasExercises = currentDay.exercises.isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Week ${_week.weekNumber}'),
+        title: Text(_isSelectionMode ? '${_selectedExerciseIndices.length} selected' : 'Week ${_week.weekNumber}'),
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _toggleSelectionMode,
+              )
+            : null,
         actions: [
-          TextButton(
-            onPressed: () {
-              widget.onSave(_week);
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
+          if (!_isSelectionMode && hasExercises && !currentDay.isRestDay)
+            IconButton(
+              icon: const Icon(Icons.link),
+              tooltip: 'Create Superset',
+              onPressed: _toggleSelectionMode,
+            ),
+          if (!_isSelectionMode)
+            TextButton(
+              onPressed: () {
+                widget.onSave(_week);
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
         ],
       ),
       body: Column(
@@ -48,19 +126,40 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
           // Day selector
           _buildDaySelector(context),
 
+          // Selection mode banner
+          if (_isSelectionMode)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: theme.colorScheme.primaryContainer,
+              child: Text(
+                'Select exercises to group as a superset',
+                style: TextStyle(color: theme.colorScheme.onPrimaryContainer),
+              ),
+            ),
+
           // Day content
           Expanded(
-            child: _buildDayContent(context, _week.days[_selectedDayIndex]),
+            child: _buildDayContent(context, currentDay),
           ),
         ],
       ),
-      floatingActionButton: _week.days[_selectedDayIndex].isRestDay
+      floatingActionButton: currentDay.isRestDay
           ? null
-          : FloatingActionButton.extended(
-              onPressed: () => _showAddExerciseSheet(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Exercise'),
-            ),
+          : _isSelectionMode
+              ? FloatingActionButton.extended(
+                  onPressed: _selectedExerciseIndices.length >= 2 ? _createSuperset : null,
+                  backgroundColor: _selectedExerciseIndices.length >= 2
+                      ? theme.colorScheme.primary
+                      : Colors.grey,
+                  icon: const Icon(Icons.link),
+                  label: const Text('Create Superset'),
+                )
+              : FloatingActionButton.extended(
+                  onPressed: () => _showAddExerciseSheet(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Exercise'),
+                ),
     );
   }
 
@@ -267,64 +366,151 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
 
   Widget _buildExerciseCard(BuildContext context, WorkoutExercise exercise, int index) {
     final theme = Theme.of(context);
+    final isSelected = _selectedExerciseIndices.contains(index);
+    final isInSuperset = exercise.isInSuperset;
+
+    // Check if this is part of a superset group and its position
+    final day = _week.days[_selectedDayIndex];
+    final supersetInfo = _getSupersetInfo(day.exercises, index);
 
     return Card(
       key: ValueKey(exercise.exerciseId.toString() + index.toString()),
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(
+        bottom: supersetInfo.isLastInGroup ? 8 : 0,
+        left: isInSuperset ? 8 : 0,
+      ),
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.dividerColor),
+        borderRadius: BorderRadius.circular(supersetInfo.isMiddle ? 0 : 12),
+        side: BorderSide(
+          color: isInSuperset ? theme.colorScheme.secondary : theme.dividerColor,
+          width: isInSuperset ? 2 : 1,
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            // Drag handle
-            Icon(Icons.drag_handle, color: Colors.grey[400]),
-            const SizedBox(width: 12),
+      child: InkWell(
+        onTap: _isSelectionMode ? () => _toggleExerciseSelection(index) : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Selection checkbox or drag handle
+              if (_isSelectionMode)
+                Checkbox(
+                  value: isSelected,
+                  onChanged: (_) => _toggleExerciseSelection(index),
+                )
+              else
+                Icon(Icons.drag_handle, color: Colors.grey[400]),
+              const SizedBox(width: 8),
 
-            // Exercise info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    exercise.exerciseName,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+              // Superset indicator
+              if (isInSuperset && !_isSelectionMode) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildMiniChip(context, exercise.muscleGroup),
-                      const SizedBox(width: 8),
+                      Icon(Icons.link, size: 12, color: theme.colorScheme.secondary),
+                      const SizedBox(width: 2),
                       Text(
-                        '${exercise.sets} × ${exercise.reps}',
+                        'SS',
                         style: TextStyle(
-                          color: theme.colorScheme.primary,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.secondary,
                         ),
                       ),
                     ],
                   ),
-                ],
+                ),
+                const SizedBox(width: 8),
+              ],
+
+              // Exercise info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      exercise.exerciseName,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        _buildMiniChip(context, exercise.muscleGroup),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${exercise.sets} × ${exercise.reps}',
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (exercise.restSeconds != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            _formatRestTime(exercise.restSeconds!),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            // Edit button
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 20),
-              onPressed: () => _showEditExerciseDialog(context, exercise, index),
-            ),
+              if (!_isSelectionMode) ...[
+                // Superset menu (if in superset)
+                if (isInSuperset)
+                  IconButton(
+                    icon: const Icon(Icons.link_off, size: 20),
+                    tooltip: 'Remove from superset',
+                    onPressed: () => _removeFromSuperset(index),
+                  ),
 
-            // Delete button
-            IconButton(
-              icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
-              onPressed: () => _removeExercise(index),
-            ),
-          ],
+                // Edit button
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  onPressed: () => _showEditExerciseDialog(context, exercise, index),
+                ),
+
+                // Delete button
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                  onPressed: () => _removeExercise(index),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  _SupersetInfo _getSupersetInfo(List<WorkoutExercise> exercises, int index) {
+    final exercise = exercises[index];
+    if (!exercise.isInSuperset) {
+      return _SupersetInfo(isFirst: false, isLast: false, isMiddle: false, isLastInGroup: true);
+    }
+
+    final groupId = exercise.supersetGroupId;
+    final prevInGroup = index > 0 && exercises[index - 1].supersetGroupId == groupId;
+    final nextInGroup = index < exercises.length - 1 && exercises[index + 1].supersetGroupId == groupId;
+
+    return _SupersetInfo(
+      isFirst: !prevInGroup && nextInGroup,
+      isLast: prevInGroup && !nextInGroup,
+      isMiddle: prevInGroup && nextInGroup,
+      isLastInGroup: !nextInGroup,
     );
   }
 
@@ -422,6 +608,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     final theme = Theme.of(context);
     int sets = exercise.sets;
     int reps = exercise.reps;
+    int restSeconds = exercise.restSeconds ?? 60;
 
     showModalBottomSheet(
       context: context,
@@ -501,6 +688,44 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                 ],
               ),
 
+              // Rest Time
+              Row(
+                children: [
+                  const SizedBox(width: 60, child: Text('Rest:')),
+                  IconButton(
+                    onPressed: () {
+                      if (restSeconds > 15) setModalState(() => restSeconds -= 15);
+                    },
+                    icon: const Icon(Icons.remove_circle_outline),
+                  ),
+                  Text(
+                    _formatRestTime(restSeconds),
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      if (restSeconds < 300) setModalState(() => restSeconds += 15);
+                    },
+                    icon: const Icon(Icons.add_circle_outline),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Rest time presets
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildPresetChip('30s', () => setModalState(() => restSeconds = 30)),
+                  _buildPresetChip('60s', () => setModalState(() => restSeconds = 60)),
+                  _buildPresetChip('90s', () => setModalState(() => restSeconds = 90)),
+                  _buildPresetChip('2min', () => setModalState(() => restSeconds = 120)),
+                  _buildPresetChip('3min', () => setModalState(() => restSeconds = 180)),
+                ],
+              ),
+
               const SizedBox(height: 24),
 
               // Quick presets
@@ -525,7 +750,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    _updateExercise(index, sets, reps);
+                    _updateExercise(index, sets, reps, restSeconds);
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
@@ -548,17 +773,33 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     );
   }
 
-  void _updateExercise(int index, int sets, int reps) {
+  void _updateExercise(int index, int sets, int reps, int restSeconds) {
     setState(() {
       final day = _week.days[_selectedDayIndex];
       final updatedExercises = List<WorkoutExercise>.from(day.exercises);
-      updatedExercises[index] = updatedExercises[index].copyWith(sets: sets, reps: reps);
+      updatedExercises[index] = updatedExercises[index].copyWith(
+        sets: sets,
+        reps: reps,
+        restSeconds: restSeconds,
+      );
 
       final updatedDays = List<WorkoutDay>.from(_week.days);
       updatedDays[_selectedDayIndex] = day.copyWith(exercises: updatedExercises);
 
       _week = _week.copyWith(days: updatedDays);
     });
+  }
+
+  String _formatRestTime(int seconds) {
+    if (seconds >= 60) {
+      final mins = seconds ~/ 60;
+      final secs = seconds % 60;
+      if (secs == 0) {
+        return '${mins}m';
+      }
+      return '${mins}m ${secs}s';
+    }
+    return '${seconds}s';
   }
 
   void _showRenameDayDialog() {
@@ -799,4 +1040,18 @@ class _ExercisePickerSheetState extends ConsumerState<_ExercisePickerSheet> {
     _searchController.dispose();
     super.dispose();
   }
+}
+
+class _SupersetInfo {
+  final bool isFirst;
+  final bool isLast;
+  final bool isMiddle;
+  final bool isLastInGroup;
+
+  _SupersetInfo({
+    required this.isFirst,
+    required this.isLast,
+    required this.isMiddle,
+    required this.isLastInGroup,
+  });
 }

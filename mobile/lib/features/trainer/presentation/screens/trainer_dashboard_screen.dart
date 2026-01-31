@@ -5,6 +5,7 @@ import '../../../exercises/presentation/providers/exercise_provider.dart';
 import '../../../exercises/data/models/exercise_model.dart';
 import '../../../programs/presentation/providers/program_provider.dart';
 import '../../../programs/data/models/program_model.dart';
+import '../../../programs/presentation/screens/program_builder_screen.dart';
 import '../providers/trainer_provider.dart';
 import '../widgets/quick_stats_grid.dart';
 import '../widgets/trainee_card.dart';
@@ -247,7 +248,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return GestureDetector(
-      onTap: () => context.push('/trainer/programs/${program.id}'),
+      onTap: () => _showProgramDetail(context, program),
       child: Container(
         width: 180,
         padding: const EdgeInsets.all(16),
@@ -292,6 +293,280 @@ class TrainerDashboardScreen extends ConsumerWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showProgramDetail(BuildContext context, ProgramTemplateModel program) {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: theme.dividerColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Title
+              Text(
+                program.name,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (program.description != null && program.description!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  program.description!,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.hintColor,
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 24),
+
+              // Stats row
+              Row(
+                children: [
+                  _buildStatChip(context, Icons.schedule, '${program.durationWeeks} weeks'),
+                  const SizedBox(width: 12),
+                  _buildStatChip(context, Icons.fitness_center, program.difficultyDisplay),
+                  const SizedBox(width: 12),
+                  _buildStatChip(context, Icons.flag, program.goalTypeDisplay),
+                ],
+              ),
+
+              const SizedBox(height: 32),
+
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        // Navigate to program builder to edit
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProgramBuilderScreen(
+                              templateName: program.name,
+                              durationWeeks: program.durationWeeks,
+                              difficulty: program.difficultyLevel,
+                              goal: program.goalType,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Edit'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showAssignToTraineeDialog(context, program);
+                      },
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('Assign'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatChip(BuildContext context, IconData icon, String label) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAssignToTraineeDialog(BuildContext context, ProgramTemplateModel program) {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Consumer(
+          builder: (context, ref, child) {
+            final traineesAsync = ref.watch(traineesProvider);
+
+            return Column(
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: theme.dividerColor,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Text(
+                        'Select Trainee',
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Choose a trainee to assign "${program.name}"',
+                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // Trainee list
+                Expanded(
+                  child: traineesAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (error, stack) => Center(
+                      child: Text('Error: $error'),
+                    ),
+                    data: (trainees) {
+                      if (trainees.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.people_outline, size: 64, color: theme.hintColor),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Trainees Yet',
+                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Invite trainees first',
+                                style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: trainees.length,
+                        itemBuilder: (context, index) {
+                          final trainee = trainees[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                child: Text(
+                                  trainee.displayName.isNotEmpty
+                                      ? trainee.displayName[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                trainee.displayName,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              subtitle: Text(trainee.email),
+                              trailing: Icon(Icons.chevron_right, color: theme.hintColor),
+                              onTap: () {
+                                Navigator.pop(context);
+                                // Navigate to program builder with trainee ID
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProgramBuilderScreen(
+                                      traineeId: trainee.id,
+                                      templateName: program.name,
+                                      durationWeeks: program.durationWeeks,
+                                      difficulty: program.difficultyLevel,
+                                      goal: program.goalType,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

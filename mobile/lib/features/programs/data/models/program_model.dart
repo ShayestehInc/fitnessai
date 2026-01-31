@@ -54,7 +54,7 @@ class TraineeProgramModel with _$TraineeProgramModel {
     @JsonKey(name: 'start_date') String? startDate,
     @JsonKey(name: 'end_date') String? endDate,
     @JsonKey(name: 'is_active') @Default(true) bool isActive,
-    Map<String, dynamic>? schedule,
+    dynamic schedule,
     @JsonKey(name: 'created_by') int? createdBy,
     @JsonKey(name: 'trainee') int? traineeId,
     @JsonKey(name: 'created_at') String? createdAt,

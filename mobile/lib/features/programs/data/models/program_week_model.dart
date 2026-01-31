@@ -7,6 +7,7 @@ class WorkoutExercise {
   final int reps;
   final int? restSeconds;
   final String? notes;
+  final String? supersetGroupId; // Exercises with same ID are in a superset
 
   const WorkoutExercise({
     required this.exerciseId,
@@ -16,6 +17,7 @@ class WorkoutExercise {
     required this.reps,
     this.restSeconds,
     this.notes,
+    this.supersetGroupId,
   });
 
   WorkoutExercise copyWith({
@@ -26,6 +28,8 @@ class WorkoutExercise {
     int? reps,
     int? restSeconds,
     String? notes,
+    String? supersetGroupId,
+    bool clearSupersetGroup = false,
   }) {
     return WorkoutExercise(
       exerciseId: exerciseId ?? this.exerciseId,
@@ -35,6 +39,7 @@ class WorkoutExercise {
       reps: reps ?? this.reps,
       restSeconds: restSeconds ?? this.restSeconds,
       notes: notes ?? this.notes,
+      supersetGroupId: clearSupersetGroup ? null : (supersetGroupId ?? this.supersetGroupId),
     );
   }
 
@@ -47,6 +52,7 @@ class WorkoutExercise {
       'reps': reps,
       'rest_seconds': restSeconds,
       'notes': notes,
+      'superset_group_id': supersetGroupId,
     };
   }
 
@@ -59,8 +65,11 @@ class WorkoutExercise {
       reps: json['reps'] as int,
       restSeconds: json['rest_seconds'] as int?,
       notes: json['notes'] as String?,
+      supersetGroupId: json['superset_group_id'] as String?,
     );
   }
+
+  bool get isInSuperset => supersetGroupId != null;
 }
 
 /// Represents a single workout day

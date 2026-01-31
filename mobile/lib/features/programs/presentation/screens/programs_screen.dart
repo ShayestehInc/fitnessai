@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/program_model.dart';
 import '../providers/program_provider.dart';
 import 'program_builder_screen.dart';
+import '../../../workout_log/presentation/screens/workout_calendar_screen.dart';
+import '../../../trainer/presentation/providers/trainer_provider.dart';
 
 class ProgramsScreen extends ConsumerStatefulWidget {
   const ProgramsScreen({super.key});
@@ -136,16 +138,16 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Templates'),
             Tab(text: 'My Programs'),
+            Tab(text: 'Templates'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildTemplatesTab(context),
           _buildMyProgramsTab(context),
+          _buildTemplatesTab(context),
         ],
       ),
     );
@@ -410,28 +412,416 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
   Widget _buildMyProgramsTab(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    final programsAsync = ref.watch(trainerProgramsProvider);
+    final draftsAsync = ref.watch(myTemplatesProvider);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(trainerProgramsProvider);
+        ref.invalidate(myTemplatesProvider);
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          Icon(Icons.folder_open, size: 64, color: theme.textTheme.bodySmall?.color),
-          const SizedBox(height: 16),
+          // Draft Programs Section (unassigned)
           Text(
-            'No Custom Programs Yet',
-            style: theme.textTheme.titleLarge,
+            'Draft Programs',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
-            'Create your own program templates',
+            'Programs you\'ve created but not yet assigned',
             style: theme.textTheme.bodySmall,
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _showCreateProgramDialog(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Create Program'),
+          const SizedBox(height: 12),
+
+          draftsAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, stack) => Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Error: $error'),
+            ),
+            data: (drafts) {
+              if (drafts.isEmpty) {
+                return Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Icon(Icons.drafts_outlined, size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'No draft programs',
+                          style: TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Create a program and save it as a template',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: drafts.map((draft) => _buildDraftProgramCard(context, draft, ref)).toList(),
+              );
+            },
           ),
+
+          const SizedBox(height: 24),
+
+          // Active Programs Section
+          Text(
+            'Active Trainee Programs',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Programs currently assigned to your trainees',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+
+          programsAsync.when(
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+            error: (error, stack) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Text('Error loading programs: $error'),
+              ),
+            ),
+            data: (programs) {
+              if (programs.isEmpty) {
+                return Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Icon(Icons.people_outline, size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'No active programs',
+                          style: TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Assign programs to your trainees to see them here',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: programs.map((program) => _buildProgramCard(context, program)).toList(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 80),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDraftProgramCard(BuildContext context, ProgramTemplateModel draft, WidgetRef ref) {
+    final theme = Theme.of(context);
+
+    return Dismissible(
+      key: ValueKey('draft_${draft.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      confirmDismiss: (direction) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Draft?'),
+            content: Text('Are you sure you want to delete "${draft.name}"? This cannot be undone.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ?? false;
+      },
+      onDismissed: (direction) async {
+        final repository = ref.read(programRepositoryProvider);
+        final result = await repository.deleteTemplate(draft.id);
+
+        if (context.mounted) {
+          if (result['success'] == true) {
+            ref.invalidate(myTemplatesProvider);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('"${draft.name}" deleted'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result['error'] ?? 'Failed to delete'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: theme.colorScheme.secondary.withValues(alpha: 0.3)),
+        ),
+        child: InkWell(
+          onTap: () => _editDraftProgram(context, draft),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.edit_note,
+                    color: theme.colorScheme.secondary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        draft.name,
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'DRAFT',
+                              style: TextStyle(
+                                color: theme.colorScheme.secondary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${draft.durationWeeks} weeks',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Edit button
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Edit Draft',
+                  onPressed: () => _editDraftProgram(context, draft),
+                ),
+                // Assign button
+                IconButton(
+                  icon: Icon(Icons.person_add_outlined, color: theme.colorScheme.primary),
+                  tooltip: 'Assign to Trainee',
+                  onPressed: () => _showTraineeSelectionForDraft(context, draft),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _editDraftProgram(BuildContext context, ProgramTemplateModel draft) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProgramBuilderScreen(
+          templateName: draft.name,
+          durationWeeks: draft.durationWeeks,
+          difficulty: draft.difficultyLevel,
+          goal: draft.goalType,
+        ),
+      ),
+    );
+  }
+
+  void _showTraineeSelectionForDraft(BuildContext context, ProgramTemplateModel draft) {
+    // Convert to _DefaultTemplate format for the existing dialog
+    final template = _DefaultTemplate(
+      name: draft.name,
+      description: draft.description ?? '',
+      durationWeeks: draft.durationWeeks,
+      difficulty: draft.difficultyLevel,
+      goal: draft.goalType,
+      daysPerWeek: 5, // Default
+      schedule: [],
+    );
+    _showTraineeSelectionDialog(context, template);
+  }
+
+  Widget _buildProgramCard(BuildContext context, TraineeProgramModel program) {
+    final theme = Theme.of(context);
+    final isActive = program.isActive;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isActive ? theme.colorScheme.primary.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => WorkoutCalendarScreen(
+                traineeId: program.traineeId,
+                programId: program.id,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: (isActive ? theme.colorScheme.primary : Colors.grey).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.fitness_center,
+                  color: isActive ? theme.colorScheme.primary : Colors.grey,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      program.name,
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: (isActive ? Colors.green : Colors.grey).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isActive ? 'ACTIVE' : 'INACTIVE',
+                            style: TextStyle(
+                              color: isActive ? Colors.green : Colors.grey,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (program.startDate != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            'Started ${program.startDate}',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Edit button
+              IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edit Program',
+                onPressed: () => _editProgram(context, program),
+              ),
+              Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _editProgram(BuildContext context, TraineeProgramModel program) {
+    // Navigate to program builder with existing program data
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProgramBuilderScreen(
+          traineeId: program.traineeId,
+          templateName: program.name,
+          // Pass schedule data if available
+        ),
       ),
     );
   }
@@ -559,6 +949,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                     child: OutlinedButton(
                       onPressed: () {
                         Navigator.pop(context);
+                        // Customize without assigning to a trainee (save as template)
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -575,7 +966,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Customize'),
+                      child: const Text('Save as Template'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -583,23 +974,13 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProgramBuilderScreen(
-                              templateName: template.name,
-                              durationWeeks: template.durationWeeks,
-                              difficulty: template.difficulty,
-                              goal: template.goal,
-                              weeklySchedule: template.schedule,
-                            ),
-                          ),
-                        );
+                        // Show trainee selection before using template
+                        _showTraineeSelectionDialog(context, template);
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Use Template'),
+                      child: const Text('Assign to Trainee'),
                     ),
                   ),
                 ],
@@ -627,6 +1008,151 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
           Text(value, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           Text(label, style: theme.textTheme.bodySmall),
         ],
+      ),
+    );
+  }
+
+  void _showTraineeSelectionDialog(BuildContext context, _DefaultTemplate template) {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Consumer(
+          builder: (context, ref, child) {
+            final traineesAsync = ref.watch(traineesProvider);
+
+            return Column(
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: theme.dividerColor,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Text(
+                        'Select Trainee',
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Choose a trainee to assign "${template.name}"',
+                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // Trainee list
+                Expanded(
+                  child: traineesAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (error, stack) => Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+                          const SizedBox(height: 16),
+                          Text('Error loading trainees', style: theme.textTheme.bodyLarge),
+                        ],
+                      ),
+                    ),
+                    data: (trainees) {
+                      if (trainees.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.people_outline, size: 64, color: theme.hintColor),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Trainees Yet',
+                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Invite trainees first before assigning programs',
+                                style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: trainees.length,
+                        itemBuilder: (context, index) {
+                          final trainee = trainees[index];
+                          final initial = trainee.displayName.isNotEmpty
+                              ? trainee.displayName[0].toUpperCase()
+                              : '?';
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                child: Text(
+                                  initial,
+                                  style: TextStyle(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                trainee.displayName,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              subtitle: Text(trainee.email),
+                              trailing: Icon(Icons.chevron_right, color: theme.hintColor),
+                              onTap: () {
+                                Navigator.pop(context);
+                                // Navigate to program builder with trainee ID
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProgramBuilderScreen(
+                                      traineeId: trainee.id,
+                                      templateName: template.name,
+                                      durationWeeks: template.durationWeeks,
+                                      difficulty: template.difficulty,
+                                      goal: template.goal,
+                                      weeklySchedule: template.schedule,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

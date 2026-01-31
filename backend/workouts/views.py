@@ -33,25 +33,36 @@ class ExerciseViewSet(viewsets.ModelViewSet):
     """
     serializer_class = ExerciseSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
-        """Return public exercises + trainer's custom exercises."""
+        """Return public exercises + trainer's custom exercises with optional filtering."""
         user = self.request.user
-        
+
         if user.is_trainer():
             # Trainers see public + their own custom exercises
-            return Exercise.objects.filter(
+            queryset = Exercise.objects.filter(
                 is_public=True
             ) | Exercise.objects.filter(
                 created_by=user
             )
         elif user.is_admin():
             # Admins see all exercises
-            return Exercise.objects.all()
+            queryset = Exercise.objects.all()
         else:
             # Trainees see only public exercises
-            return Exercise.objects.filter(is_public=True)
-    
+            queryset = Exercise.objects.filter(is_public=True)
+
+        # Apply filters from query parameters
+        muscle_group = self.request.query_params.get('muscle_group')
+        if muscle_group:
+            queryset = queryset.filter(muscle_group=muscle_group)
+
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+
+        return queryset.order_by('muscle_group', 'name')
+
     def perform_create(self, serializer):
         """Set created_by to current user if trainer."""
         if self.request.user.is_trainer():

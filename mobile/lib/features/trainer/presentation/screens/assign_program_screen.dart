@@ -1098,8 +1098,11 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                     );
 
                     if (mounted) {
-                      // Invalidate the trainee detail provider to refresh the data
+                      // Invalidate providers to refresh data across all screens
                       ref.invalidate(traineeDetailProvider(widget.traineeId));
+                      ref.invalidate(traineesProvider);
+                      ref.invalidate(trainerStatsProvider);
+                      ref.invalidate(trainerProgramsProvider);
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(

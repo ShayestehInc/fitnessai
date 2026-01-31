@@ -4,6 +4,7 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../trainer/presentation/providers/trainer_provider.dart';
 import '../../data/models/program_week_model.dart';
+import '../providers/program_provider.dart';
 import 'week_editor_screen.dart';
 
 class ProgramBuilderScreen extends ConsumerStatefulWidget {
@@ -1356,8 +1357,11 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
         );
 
         if (mounted) {
-          // Invalidate the trainee detail provider to refresh the data
+          // Invalidate providers to refresh the data across all screens
           ref.invalidate(traineeDetailProvider(widget.traineeId!));
+          ref.invalidate(traineesProvider);
+          ref.invalidate(trainerStatsProvider);
+          ref.invalidate(trainerProgramsProvider);
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1374,6 +1378,10 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       } else {
         // Just saving as a template without assigning
         if (mounted) {
+          // Invalidate template providers to refresh the list
+          ref.invalidate(programTemplatesProvider);
+          ref.invalidate(myTemplatesProvider);
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Program template saved successfully!'),
