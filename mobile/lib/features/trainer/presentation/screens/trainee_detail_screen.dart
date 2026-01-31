@@ -591,7 +591,34 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                       Text('Active', style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.w500)),
                     ],
                   ),
-                  Text('Tap to manage', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                  Row(
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          final name = '${trainee.firstName ?? ''} ${trainee.lastName ?? ''}'.trim();
+                          final displayName = name.isEmpty ? trainee.email.split('@').first : name;
+                          context.push('/trainer/trainees/${widget.traineeId}/calendar?name=$displayName&program_id=${program.id}');
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.calendar_month, size: 14, color: Colors.blue),
+                              SizedBox(width: 4),
+                              Text('Calendar', style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('Tap to manage', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                    ],
+                  ),
                 ],
               ),
             ],

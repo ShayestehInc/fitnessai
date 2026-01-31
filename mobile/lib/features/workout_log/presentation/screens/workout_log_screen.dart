@@ -80,9 +80,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
           style: Theme.of(context).textTheme.displaySmall,
         ),
         IconButton(
-          onPressed: () {
-            // TODO: Open calendar picker
-          },
+          onPressed: () => context.push('/workout-calendar'),
           icon: const Icon(Icons.calendar_month),
           color: theme.textTheme.bodySmall?.color,
         ),

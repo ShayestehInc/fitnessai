@@ -10,6 +10,7 @@ import '../../features/nutrition/presentation/screens/nutrition_screen.dart';
 import '../../features/nutrition/presentation/screens/add_food_screen.dart';
 import '../../features/nutrition/presentation/screens/weight_checkin_screen.dart';
 import '../../features/workout_log/presentation/screens/workout_log_screen.dart';
+import '../../features/workout_log/presentation/screens/workout_calendar_screen.dart';
 import '../../features/forums/presentation/screens/forums_screen.dart';
 import '../../features/tv/presentation/screens/tv_screen.dart';
 import '../../features/logging/presentation/screens/ai_command_center_screen.dart';
@@ -434,6 +435,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/weight-checkin',
         name: 'weight-checkin',
         builder: (context, state) => const WeightCheckInScreen(),
+      ),
+      GoRoute(
+        path: '/workout-calendar',
+        name: 'workout-calendar',
+        builder: (context, state) => const WorkoutCalendarScreen(),
+      ),
+      GoRoute(
+        path: '/trainer/trainees/:id/calendar',
+        name: 'trainee-calendar',
+        builder: (context, state) {
+          final traineeId = int.parse(state.pathParameters['id']!);
+          final traineeName = state.uri.queryParameters['name'];
+          final programIdStr = state.uri.queryParameters['program_id'];
+          final programId = programIdStr != null ? int.tryParse(programIdStr) : null;
+          return WorkoutCalendarScreen(
+            traineeId: traineeId,
+            traineeName: traineeName,
+            programId: programId,
+          );
+        },
       ),
 
       // Settings routes
