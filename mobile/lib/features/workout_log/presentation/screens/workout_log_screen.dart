@@ -129,6 +129,24 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     );
   }
 
+  String _formatStartDateLabel(String? startDate) {
+    if (startDate == null) return 'N/A';
+    try {
+      final date = DateTime.parse(startDate);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final startDay = DateTime(date.year, date.month, date.day);
+
+      if (startDay.isAfter(today)) {
+        return 'Starts on $startDate';
+      } else {
+        return 'Started $startDate';
+      }
+    } catch (_) {
+      return 'Started $startDate';
+    }
+  }
+
   Widget _buildProgramCard(ProgramModel program) {
     final theme = Theme.of(context);
     return Container(
@@ -192,7 +210,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${program.startDate} - ${program.endDate}',
+            _formatStartDateLabel(program.startDate),
             style: TextStyle(
               color: theme.textTheme.bodySmall?.color,
               fontSize: 12,

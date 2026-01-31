@@ -187,7 +187,6 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
 
   Widget _buildStartDateSelector(BuildContext context) {
     final theme = Theme.of(context);
-    final endDate = _startDate.add(Duration(days: _programState.durationWeeks * 7));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -203,9 +202,9 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Program Duration', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                const Text('Start Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                 Text(
-                  '${_formatDate(_startDate)} - ${_formatDate(endDate)}',
+                  _formatDate(_startDate),
                   style: TextStyle(color: Colors.grey[600], fontSize: 13),
                 ),
               ],
@@ -529,13 +528,28 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                     ),
                   ),
                 ]
-              : day.exercises.map((exercise) => _buildExerciseRow(context, exercise, week)).toList(),
+              : [
+                  ...day.exercises.map((exercise) => _buildExerciseRow(context, exercise, week, index)),
+                  // Add Exercise button
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showAddExerciseDialog(index),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add Exercise'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.primary,
+                        side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.5)),
+                      ),
+                    ),
+                  ),
+                ],
         ),
       ),
     );
   }
 
-  Widget _buildExerciseRow(BuildContext context, WorkoutExercise exercise, ProgramWeek week) {
+  Widget _buildExerciseRow(BuildContext context, WorkoutExercise exercise, ProgramWeek week, int dayIndex) {
     final theme = Theme.of(context);
     // Apply modifiers for deload weeks
     final adjustedSets = (exercise.sets * week.volumeModifier).round();
@@ -559,24 +573,27 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  exercise.exerciseName,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  exercise.muscleGroup.replaceAll('_', ' ').split(' ').map((w) =>
-                    w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' '),
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-              ],
+            child: GestureDetector(
+              onTap: () => _showEditExerciseDialog(exercise, dayIndex),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    exercise.exerciseName,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  Text(
+                    exercise.muscleGroup.replaceAll('_', ' ').split(' ').map((w) =>
+                      w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' '),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                ],
+              ),
             ),
           ),
           // Sets x Reps with edit button
           GestureDetector(
-            onTap: () => _showEditExerciseDialog(exercise),
+            onTap: () => _showEditExerciseDialog(exercise, dayIndex),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -603,20 +620,26 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  void _showEditExerciseDialog(WorkoutExercise exercise) {
+  void _showEditExerciseDialog(WorkoutExercise exercise, int dayIndex) {
     final theme = Theme.of(context);
     int sets = exercise.sets;
     int reps = exercise.reps;
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -632,11 +655,49 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                   ),
                 ),
               ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      exercise.exerciseName,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  // Replace button
+                  IconButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showReplaceExerciseDialog(exercise, dayIndex);
+                    },
+                    icon: const Icon(Icons.swap_horiz),
+                    tooltip: 'Replace exercise',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                      foregroundColor: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Remove button
+                  IconButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _removeExercise(exercise, dayIndex);
+                    },
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: 'Remove exercise',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.red.withValues(alpha: 0.1),
+                      foregroundColor: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
               Text(
-                exercise.exerciseName,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                exercise.muscleGroup.replaceAll('_', ' ').split(' ').map((w) =>
+                  w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' '),
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
               const SizedBox(height: 24),
 
@@ -734,6 +795,318 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // Exercise library for selection
+  static const List<Map<String, dynamic>> _exerciseLibrary = [
+    // Chest
+    {'id': 1, 'name': 'Barbell Bench Press', 'muscle': 'chest'},
+    {'id': 2, 'name': 'Incline Dumbbell Press', 'muscle': 'chest'},
+    {'id': 3, 'name': 'Dumbbell Flyes', 'muscle': 'chest'},
+    {'id': 4, 'name': 'Cable Crossover', 'muscle': 'chest'},
+    {'id': 5, 'name': 'Push-Ups', 'muscle': 'chest'},
+    {'id': 6, 'name': 'Decline Bench Press', 'muscle': 'chest'},
+    // Back
+    {'id': 30, 'name': 'Barbell Deadlift', 'muscle': 'back'},
+    {'id': 31, 'name': 'Barbell Bent-Over Row', 'muscle': 'back'},
+    {'id': 32, 'name': 'Lat Pulldown', 'muscle': 'back'},
+    {'id': 33, 'name': 'Seated Cable Row', 'muscle': 'back'},
+    {'id': 34, 'name': 'Pull-Ups', 'muscle': 'back'},
+    {'id': 35, 'name': 'T-Bar Row', 'muscle': 'back'},
+    {'id': 36, 'name': 'Dumbbell Row', 'muscle': 'back'},
+    // Shoulders
+    {'id': 15, 'name': 'Overhead Press', 'muscle': 'shoulders'},
+    {'id': 16, 'name': 'Lateral Raises', 'muscle': 'shoulders'},
+    {'id': 17, 'name': 'Front Raises', 'muscle': 'shoulders'},
+    {'id': 18, 'name': 'Rear Delt Flyes', 'muscle': 'shoulders'},
+    {'id': 40, 'name': 'Face Pulls', 'muscle': 'shoulders'},
+    {'id': 19, 'name': 'Arnold Press', 'muscle': 'shoulders'},
+    // Legs
+    {'id': 50, 'name': 'Barbell Back Squat', 'muscle': 'legs'},
+    {'id': 51, 'name': 'Romanian Deadlift', 'muscle': 'legs'},
+    {'id': 52, 'name': 'Leg Press', 'muscle': 'legs'},
+    {'id': 53, 'name': 'Leg Curl', 'muscle': 'legs'},
+    {'id': 54, 'name': 'Calf Raises', 'muscle': 'legs'},
+    {'id': 55, 'name': 'Walking Lunges', 'muscle': 'legs'},
+    {'id': 56, 'name': 'Leg Extension', 'muscle': 'legs'},
+    {'id': 57, 'name': 'Bulgarian Split Squat', 'muscle': 'legs'},
+    {'id': 58, 'name': 'Hip Thrust', 'muscle': 'legs'},
+    // Arms
+    {'id': 25, 'name': 'Tricep Pushdown', 'muscle': 'arms'},
+    {'id': 45, 'name': 'Barbell Bicep Curl', 'muscle': 'arms'},
+    {'id': 26, 'name': 'Skull Crushers', 'muscle': 'arms'},
+    {'id': 27, 'name': 'Hammer Curls', 'muscle': 'arms'},
+    {'id': 28, 'name': 'Preacher Curls', 'muscle': 'arms'},
+    {'id': 29, 'name': 'Tricep Dips', 'muscle': 'arms'},
+    // Core
+    {'id': 60, 'name': 'Plank', 'muscle': 'core'},
+    {'id': 61, 'name': 'Cable Crunches', 'muscle': 'core'},
+    {'id': 62, 'name': 'Hanging Leg Raises', 'muscle': 'core'},
+    {'id': 63, 'name': 'Russian Twists', 'muscle': 'core'},
+    {'id': 64, 'name': 'Ab Wheel Rollout', 'muscle': 'core'},
+  ];
+
+  void _showAddExerciseDialog(int dayIndex) {
+    _showExercisePicker(
+      title: 'Add Exercise',
+      onSelect: (exercise) => _addExerciseToDay(exercise, dayIndex),
+    );
+  }
+
+  void _showReplaceExerciseDialog(WorkoutExercise oldExercise, int dayIndex) {
+    _showExercisePicker(
+      title: 'Replace ${oldExercise.exerciseName}',
+      onSelect: (newExercise) => _replaceExercise(oldExercise, newExercise, dayIndex),
+    );
+  }
+
+  void _showExercisePicker({
+    required String title,
+    required void Function(Map<String, dynamic> exercise) onSelect,
+  }) {
+    final theme = Theme.of(context);
+    String searchQuery = '';
+    String? selectedMuscle;
+
+    final muscles = ['chest', 'back', 'shoulders', 'legs', 'arms', 'core'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final filteredExercises = _exerciseLibrary.where((e) {
+            final matchesSearch = searchQuery.isEmpty ||
+                e['name'].toString().toLowerCase().contains(searchQuery.toLowerCase());
+            final matchesMuscle = selectedMuscle == null || e['muscle'] == selectedMuscle;
+            return matchesSearch && matchesMuscle;
+          }).toList();
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.85,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            expand: false,
+            builder: (context, scrollController) => Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            color: theme.dividerColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        title,
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      // Search bar
+                      TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search exercises...',
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        onChanged: (value) {
+                          setModalState(() => searchQuery = value);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      // Muscle group filters
+                      SizedBox(
+                        height: 36,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            FilterChip(
+                              label: const Text('All'),
+                              selected: selectedMuscle == null,
+                              onSelected: (_) {
+                                setModalState(() => selectedMuscle = null);
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            ...muscles.map((muscle) => Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: Text(muscle[0].toUpperCase() + muscle.substring(1)),
+                                selected: selectedMuscle == muscle,
+                                onSelected: (_) {
+                                  setModalState(() => selectedMuscle = muscle);
+                                },
+                              ),
+                            )),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    itemCount: filteredExercises.length,
+                    itemBuilder: (context, index) {
+                      final exercise = filteredExercises[index];
+                      return ListTile(
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.fitness_center,
+                            color: theme.colorScheme.primary,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(exercise['name'] as String),
+                        subtitle: Text(
+                          (exercise['muscle'] as String)[0].toUpperCase() +
+                              (exercise['muscle'] as String).substring(1),
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        ),
+                        trailing: const Icon(Icons.add_circle_outline),
+                        onTap: () {
+                          Navigator.pop(context);
+                          onSelect(exercise);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _addExerciseToDay(Map<String, dynamic> exerciseData, int dayIndex) {
+    setState(() {
+      final weekIndex = _selectedWeekIndex;
+      final updatedWeeks = List<ProgramWeek>.from(_programState.weeks);
+      final week = updatedWeeks[weekIndex];
+      final day = week.days[dayIndex];
+
+      final newExercise = WorkoutExercise(
+        exerciseId: exerciseData['id'] as int,
+        exerciseName: exerciseData['name'] as String,
+        muscleGroup: exerciseData['muscle'] as String,
+        sets: 3,
+        reps: 10,
+      );
+
+      final updatedDays = List<WorkoutDay>.from(week.days);
+      updatedDays[dayIndex] = day.copyWith(
+        exercises: [...day.exercises, newExercise],
+      );
+
+      updatedWeeks[weekIndex] = week.copyWith(days: updatedDays);
+      _programState = _programState.copyWith(weeks: updatedWeeks);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Added ${exerciseData['name']}')),
+    );
+  }
+
+  void _replaceExercise(WorkoutExercise oldExercise, Map<String, dynamic> newExerciseData, int dayIndex) {
+    setState(() {
+      final weekIndex = _selectedWeekIndex;
+      final updatedWeeks = List<ProgramWeek>.from(_programState.weeks);
+      final week = updatedWeeks[weekIndex];
+
+      final updatedDays = week.days.asMap().entries.map((entry) {
+        if (entry.key != dayIndex) return entry.value;
+
+        final day = entry.value;
+        final updatedExercises = day.exercises.map((e) {
+          if (e.exerciseId == oldExercise.exerciseId) {
+            return WorkoutExercise(
+              exerciseId: newExerciseData['id'] as int,
+              exerciseName: newExerciseData['name'] as String,
+              muscleGroup: newExerciseData['muscle'] as String,
+              sets: e.sets,
+              reps: e.reps,
+            );
+          }
+          return e;
+        }).toList();
+        return day.copyWith(exercises: updatedExercises);
+      }).toList();
+
+      updatedWeeks[weekIndex] = week.copyWith(days: updatedDays);
+      _programState = _programState.copyWith(weeks: updatedWeeks);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Replaced with ${newExerciseData['name']}')),
+    );
+  }
+
+  void _removeExercise(WorkoutExercise exercise, int dayIndex) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Exercise'),
+        content: Text('Remove "${exercise.exerciseName}" from this workout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                final weekIndex = _selectedWeekIndex;
+                final updatedWeeks = List<ProgramWeek>.from(_programState.weeks);
+                final week = updatedWeeks[weekIndex];
+                final day = week.days[dayIndex];
+
+                final updatedDays = List<WorkoutDay>.from(week.days);
+                updatedDays[dayIndex] = day.copyWith(
+                  exercises: day.exercises.where((e) => e.exerciseId != exercise.exerciseId).toList(),
+                );
+
+                updatedWeeks[weekIndex] = week.copyWith(days: updatedDays);
+                _programState = _programState.copyWith(weeks: updatedWeeks);
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Removed ${exercise.exerciseName}')),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
       ),
     );
   }

@@ -1011,8 +1011,6 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) {
-          final endDate = selectedStartDate.add(Duration(days: program.durationWeeks * 7));
-
           return AlertDialog(
             title: const Text('Assign Program'),
             content: Column(
@@ -1028,61 +1026,42 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                     color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Start Date',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _formatDate(selectedStartDate),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'Start Date',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
                           ),
-                          TextButton(
-                            onPressed: () async {
-                              final picked = await showDatePicker(
-                                context: dialogContext,
-                                initialDate: selectedStartDate,
-                                firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                                lastDate: DateTime.now().add(const Duration(days: 365)),
-                              );
-                              if (picked != null) {
-                                setDialogState(() => selectedStartDate = picked);
-                              }
-                            },
-                            child: const Text('Change'),
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatDate(selectedStartDate),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                         ],
                       ),
-                      const Divider(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'End Date',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                          ),
-                          Text(
-                            _formatDate(endDate),
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                        ],
+                      TextButton(
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: dialogContext,
+                            initialDate: selectedStartDate,
+                            firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => selectedStartDate = picked);
+                          }
+                        },
+                        child: const Text('Change'),
                       ),
                     ],
                   ),

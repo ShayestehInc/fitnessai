@@ -47,56 +47,6 @@ class SettingsScreen extends ConsumerWidget {
 
       const SizedBox(height: 24),
 
-      // Platform Management
-      _buildSectionHeader(context, 'PLATFORM', index++),
-      _buildSettingsTile(
-        context: context,
-        icon: Icons.dashboard,
-        title: 'Dashboard',
-        subtitle: 'View platform statistics',
-        onTap: () => context.go('/admin'),
-        index: index++,
-      ),
-      _buildSettingsTile(
-        context: context,
-        icon: Icons.people,
-        title: 'Manage Trainers',
-        subtitle: 'View and manage all trainers',
-        onTap: () => context.go('/admin/trainers'),
-        index: index++,
-      ),
-      _buildSettingsTile(
-        context: context,
-        icon: Icons.credit_card,
-        title: 'Subscriptions',
-        subtitle: 'Manage billing and subscriptions',
-        onTap: () => context.go('/admin/subscriptions'),
-        index: index++,
-      ),
-
-      const SizedBox(height: 24),
-
-      // Pricing & Promotions
-      _buildSectionHeader(context, 'PRICING & PROMOTIONS', index++),
-      _buildSettingsTile(
-        context: context,
-        icon: Icons.layers,
-        title: 'Subscription Tiers',
-        subtitle: 'Manage tier pricing and features',
-        onTap: () => context.push('/admin/tiers'),
-        index: index++,
-      ),
-      _buildSettingsTile(
-        context: context,
-        icon: Icons.local_offer,
-        title: 'Coupons',
-        subtitle: 'Create and manage platform coupons',
-        onTap: () => context.push('/admin/coupons'),
-        index: index++,
-      ),
-
-      const SizedBox(height: 24),
-
       // Appearance
       _buildSectionHeader(context, 'APPEARANCE', index++),
       _buildSettingsTile(
@@ -117,15 +67,15 @@ class SettingsScreen extends ConsumerWidget {
         icon: Icons.notifications_outlined,
         title: 'Notifications',
         subtitle: 'Configure system notifications',
-        onTap: () {},
+        onTap: () => context.push('/admin/notifications'),
         index: index++,
       ),
       _buildSettingsTile(
         context: context,
         icon: Icons.security,
         title: 'Security',
-        subtitle: 'Manage platform security settings',
-        onTap: () {},
+        subtitle: 'Password, 2FA, and sessions',
+        onTap: () => context.push('/admin/security'),
         index: index++,
       ),
 

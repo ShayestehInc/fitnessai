@@ -18,6 +18,8 @@ import '../../features/settings/presentation/screens/edit_profile_screen.dart';
 import '../../features/settings/presentation/screens/edit_goals_screen.dart';
 import '../../features/settings/presentation/screens/edit_diet_screen.dart';
 import '../../features/settings/presentation/screens/theme_settings_screen.dart';
+import '../../features/settings/presentation/screens/admin_notifications_screen.dart';
+import '../../features/settings/presentation/screens/admin_security_screen.dart';
 import '../../features/trainer/presentation/screens/trainer_dashboard_screen.dart';
 import '../../features/trainer/presentation/screens/trainee_list_screen.dart';
 import '../../features/trainer/presentation/screens/trainee_detail_screen.dart';
@@ -459,6 +461,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/theme-settings',
         name: 'theme-settings',
         builder: (context, state) => const ThemeSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/notifications',
+        name: 'admin-notifications',
+        builder: (context, state) => const AdminNotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/security',
+        name: 'admin-security',
+        builder: (context, state) => const AdminSecurityScreen(),
       ),
 
       // Trainee subscription routes

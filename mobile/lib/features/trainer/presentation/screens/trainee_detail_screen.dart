@@ -519,28 +519,17 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
 
     final program = trainee.programs.first;
 
-    // Calculate current week and total weeks
+    // Calculate current week based on start date
     int currentWeek = 1;
-    int totalWeeks = 8;
-    double progress = 0.0;
 
-    if (program.startDate != null && program.endDate != null) {
+    if (program.startDate != null) {
       try {
         final startDate = DateTime.parse(program.startDate!);
-        final endDate = DateTime.parse(program.endDate!);
         final now = DateTime.now();
-
-        final totalDuration = endDate.difference(startDate).inDays;
         final elapsed = now.difference(startDate).inDays;
-
-        totalWeeks = (totalDuration / 7).ceil();
-        if (totalWeeks < 1) totalWeeks = 1;
 
         currentWeek = (elapsed / 7).floor() + 1;
         if (currentWeek < 1) currentWeek = 1;
-        if (currentWeek > totalWeeks) currentWeek = totalWeeks;
-
-        progress = totalDuration > 0 ? (elapsed / totalDuration).clamp(0.0, 1.0) : 0.0;
       } catch (_) {
         // Use defaults if date parsing fails
       }
@@ -577,7 +566,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(program.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text('${program.startDate} - ${program.endDate}', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                        Text(_formatStartDateLabel(program.startDate), style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                       ],
                     ),
                   ),
@@ -587,27 +576,22 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                       color: Colors.green,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text('Active', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    child: Text('Week $currentWeek', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              // Progress bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.grey.withValues(alpha: 0.2),
-                  valueColor: const AlwaysStoppedAnimation(Colors.green),
-                  minHeight: 8,
-                ),
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Week $currentWeek of $totalWeeks', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                  Text('Tap to change', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                  const Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      SizedBox(width: 4),
+                      Text('Active', style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                  Text('Tap to manage', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
                 ],
               ),
             ],
@@ -615,6 +599,24 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
         ),
       ),
     );
+  }
+
+  String _formatStartDateLabel(String? startDate) {
+    if (startDate == null) return 'N/A';
+    try {
+      final date = DateTime.parse(startDate);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final startDay = DateTime(date.year, date.month, date.day);
+
+      if (startDay.isAfter(today)) {
+        return 'Starts on $startDate';
+      } else {
+        return 'Started $startDate';
+      }
+    } catch (_) {
+      return 'Started $startDate';
+    }
   }
 
   void _openProgramOptions(TraineeDetailModel trainee, ProgramSummary program) {

@@ -13,6 +13,7 @@ class ProgramsScreen extends ConsumerStatefulWidget {
 
 class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String? _selectedGoal; // null means "All"
 
   @override
   void initState() {
@@ -216,12 +217,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                _buildGoalChip(context, 'All', null, true),
+                _buildGoalChip(context, 'All', null, _selectedGoal == null),
                 ...ProgramGoals.all.map((goal) => _buildGoalChip(
                   context,
                   ProgramGoals.displayName(goal),
                   goal,
-                  false,
+                  _selectedGoal == goal,
                 )),
               ],
             ),
@@ -236,7 +237,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
           ),
           const SizedBox(height: 12),
 
-          ..._defaultTemplates.map((template) => _buildTemplateCard(context, template)),
+          ..._filteredTemplates.map((template) => _buildTemplateCard(context, template)),
 
           // Custom Templates from API
           templatesAsync.when(
@@ -268,6 +269,13 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     );
   }
 
+  List<_DefaultTemplate> get _filteredTemplates {
+    if (_selectedGoal == null) {
+      return _defaultTemplates;
+    }
+    return _defaultTemplates.where((t) => t.goal == _selectedGoal).toList();
+  }
+
   Widget _buildGoalChip(BuildContext context, String label, String? goal, bool isSelected) {
     final theme = Theme.of(context);
     return Padding(
@@ -276,7 +284,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
         label: Text(label),
         selected: isSelected,
         onSelected: (selected) {
-          // TODO: Implement filtering
+          setState(() {
+            _selectedGoal = selected ? goal : null;
+          });
         },
         selectedColor: theme.colorScheme.primary.withValues(alpha: 0.2),
       ),
@@ -344,7 +354,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               // Weekly schedule preview
               Row(
                 children: template.schedule.asMap().entries.map((entry) {
-                  final dayName = ['M', 'T', 'W', 'T', 'F', 'S', 'S'][entry.key];
+                  final dayNumber = '${entry.key + 1}';
                   final isRest = entry.value == 'Rest';
                   return Expanded(
                     child: Container(
@@ -359,7 +369,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       child: Column(
                         children: [
                           Text(
-                            dayName,
+                            dayNumber,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -558,7 +568,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               ),
               const SizedBox(height: 12),
               ...template.schedule.asMap().entries.map((entry) {
-                final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                final dayLabel = 'Day ${entry.key + 1}';
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
@@ -573,7 +583,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       SizedBox(
                         width: 100,
                         child: Text(
-                          days[entry.key],
+                          dayLabel,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -671,7 +681,263 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
   }
 
   void _showCreateProgramDialog(BuildContext context) {
-    _showNewProgramSetupDialog(context);
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: theme.dividerColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              'Create New Program',
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'How would you like to start?',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Use Template option
+            _buildCreateOption(
+              context: context,
+              icon: Icons.content_copy,
+              title: 'Use a Template',
+              subtitle: 'Start with a proven program structure and customize it',
+              color: theme.colorScheme.primary,
+              onTap: () {
+                Navigator.pop(context);
+                _showTemplatePickerDialog(context);
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // Start from Scratch option
+            _buildCreateOption(
+              context: context,
+              icon: Icons.add_circle_outline,
+              title: 'Start from Scratch',
+              subtitle: 'Build a completely custom program from the ground up',
+              color: Colors.orange,
+              onTap: () {
+                Navigator.pop(context);
+                _showNewProgramSetupDialog(context);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreateOption({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTemplatePickerDialog(BuildContext context) {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: theme.dividerColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Choose a Template',
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Select a template to customize',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: _defaultTemplates.length,
+                itemBuilder: (context, index) {
+                  final template = _defaultTemplates[index];
+                  return _buildTemplatePickerCard(context, template);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTemplatePickerCard(BuildContext context, _DefaultTemplate template) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context);
+          // Navigate to builder with template pre-filled
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProgramBuilderScreen(
+                templateName: template.name,
+                durationWeeks: template.durationWeeks,
+                difficulty: template.difficulty,
+                goal: template.goal,
+                weeklySchedule: template.schedule,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _getGoalColor(template.goal).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  ProgramGoals.icon(template.goal),
+                  style: const TextStyle(fontSize: 24),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      template.name,
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        _buildTag(context, template.difficulty, _getDifficultyColor(template.difficulty)),
+                        const SizedBox(width: 8),
+                        _buildTag(context, '${template.durationWeeks} weeks', Colors.blue),
+                        const SizedBox(width: 8),
+                        _buildTag(context, '${template.daysPerWeek}x/week', Colors.green),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showNewProgramSetupDialog(BuildContext context) {
