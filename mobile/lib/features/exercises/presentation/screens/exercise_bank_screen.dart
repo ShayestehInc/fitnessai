@@ -240,6 +240,8 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
 
   Widget _buildExerciseCard(BuildContext context, ExerciseModel exercise) {
     final theme = Theme.of(context);
+    final hasVideo = exercise.videoUrl != null && exercise.videoUrl!.isNotEmpty;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -249,18 +251,51 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+              // Thumbnail or icon
+              if (hasVideo && _extractYouTubeVideoId(exercise.videoUrl!) != null)
+                ClipRRect(
                   borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 64,
+                    height: 48,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          'https://img.youtube.com/vi/${_extractYouTubeVideoId(exercise.videoUrl!)}/default.jpg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                            child: Icon(Icons.fitness_center, color: theme.colorScheme.primary),
+                          ),
+                        ),
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.fitness_center,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
-                child: Icon(
-                  Icons.fitness_center,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -281,6 +316,10 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                           exercise.muscleGroupDisplay,
                           style: theme.textTheme.bodySmall,
                         ),
+                        if (hasVideo) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.videocam, size: 14, color: Colors.red[400]),
+                        ],
                       ],
                     ),
                   ],
@@ -362,19 +401,13 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
               ],
               if (exercise.videoUrl != null && exercise.videoUrl!.isNotEmpty) ...[
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _openYouTubeVideo(exercise.videoUrl!),
-                    icon: const Icon(Icons.play_circle_filled),
-                    label: const Text('Watch Tutorial Video'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
+                Text(
+                  'Tutorial Video',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 12),
+                // YouTube thumbnail
+                _buildYouTubeThumbnail(context, exercise.videoUrl!),
               ],
               const SizedBox(height: 24),
             ],
@@ -382,6 +415,248 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildYouTubeThumbnail(BuildContext context, String videoUrl) {
+    final videoId = _extractYouTubeVideoId(videoUrl);
+    if (videoId == null) {
+      // Not a valid YouTube URL, show generic button
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => _openYouTubeVideo(videoUrl),
+          icon: const Icon(Icons.play_circle_filled),
+          label: const Text('Watch Tutorial Video'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+      );
+    }
+
+    final thumbnailUrl = 'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
+
+    return GestureDetector(
+      onTap: () => _showVideoPlayer(context, videoId, videoUrl),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Thumbnail image
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(
+                  thumbnailUrl,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: Colors.grey[300],
+                      child: const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[300],
+                      child: const Center(
+                        child: Icon(Icons.video_library, size: 48, color: Colors.grey),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Play button overlay
+              Container(
+                width: 68,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.play_arrow,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              // Tap to play text
+              Positioned(
+                bottom: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Tap to play',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ),
+              // YouTube branding
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.play_circle_filled, color: Colors.red, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'YouTube',
+                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showVideoPlayer(BuildContext context, String videoId, String videoUrl) {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: theme.dividerColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Thumbnail preview
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(
+                  'https://img.youtube.com/vi/$videoId/hqdefault.jpg',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Icon(Icons.video_library, size: 48, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Watch Tutorial Video',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This video will open in the YouTube app for the best viewing experience.',
+              style: TextStyle(color: theme.textTheme.bodySmall?.color),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            // Open in YouTube button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _openYouTubeVideo(videoUrl);
+                },
+                icon: const Icon(Icons.play_circle_filled),
+                label: const Text('Open in YouTube'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Cancel button
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String? _extractYouTubeVideoId(String url) {
+    // Handle various YouTube URL formats
+    // https://www.youtube.com/watch?v=VIDEO_ID
+    // https://youtu.be/VIDEO_ID
+    // https://www.youtube.com/embed/VIDEO_ID
+    // https://www.youtube.com/v/VIDEO_ID
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+
+    // youtube.com/watch?v=
+    if (uri.host.contains('youtube.com') && uri.queryParameters.containsKey('v')) {
+      return uri.queryParameters['v'];
+    }
+
+    // youtu.be/VIDEO_ID
+    if (uri.host == 'youtu.be' && uri.pathSegments.isNotEmpty) {
+      return uri.pathSegments.first;
+    }
+
+    // youtube.com/embed/VIDEO_ID or youtube.com/v/VIDEO_ID
+    if (uri.host.contains('youtube.com') && uri.pathSegments.length >= 2) {
+      final firstSegment = uri.pathSegments.first;
+      if (firstSegment == 'embed' || firstSegment == 'v') {
+        return uri.pathSegments[1];
+      }
+    }
+
+    return null;
   }
 
   Widget _buildDetailRow(BuildContext context, IconData icon, String label, String value) {
@@ -622,3 +897,4 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     }
   }
 }
+

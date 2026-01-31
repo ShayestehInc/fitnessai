@@ -694,6 +694,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     final theme = Theme.of(context);
     int sets = exercise.sets;
     int reps = exercise.reps;
+    int restSeconds = exercise.restSeconds ?? 60;
 
     showModalBottomSheet(
       context: context,
@@ -825,6 +826,33 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 ],
               ),
 
+              // Rest time slider
+              Row(
+                children: [
+                  const SizedBox(width: 60, child: Text('Rest:')),
+                  Expanded(
+                    child: Slider(
+                      value: restSeconds.toDouble(),
+                      min: 15,
+                      max: 300,
+                      divisions: 19,
+                      label: _formatRestTime(restSeconds),
+                      onChanged: (value) {
+                        setModalState(() => restSeconds = value.round());
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 50,
+                    child: Text(
+                      _formatRestTime(restSeconds),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+
               const SizedBox(height: 24),
 
               // Apply buttons
@@ -833,7 +861,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        _applyToThisWeek(exercise, sets, reps);
+                        _applyToThisWeek(exercise, sets, reps, restSeconds);
                         Navigator.pop(context);
                       },
                       child: const Text('This Week'),
@@ -843,7 +871,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        _applyToAllWeeks(exercise, sets, reps);
+                        _applyToAllWeeks(exercise, sets, reps, restSeconds);
                         Navigator.pop(context);
                       },
                       child: const Text('All Weeks'),
@@ -856,7 +884,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () {
-                    _applyProgressiveOverload(exercise, sets, reps);
+                    _applyProgressiveOverload(exercise, sets, reps, restSeconds);
                     Navigator.pop(context);
                   },
                   child: const Text('Apply with Progressive Overload (+1 rep/week)'),
@@ -867,6 +895,16 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
         ),
       ),
     );
+  }
+
+  String _formatRestTime(int seconds) {
+    if (seconds >= 60) {
+      final mins = seconds ~/ 60;
+      final secs = seconds % 60;
+      if (secs == 0) return '${mins}m';
+      return '${mins}m ${secs}s';
+    }
+    return '${seconds}s';
   }
 
   // Exercise library for selection
@@ -1181,7 +1219,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  void _applyToThisWeek(WorkoutExercise exercise, int sets, int reps) {
+  void _applyToThisWeek(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
     setState(() {
       final weekIndex = _selectedWeekIndex;
       final updatedWeeks = List<ProgramWeek>.from(_programState.weeks);
@@ -1190,7 +1228,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       final updatedDays = week.days.map((day) {
         final updatedExercises = day.exercises.map((e) {
           if (e.exerciseId == exercise.exerciseId) {
-            return e.copyWith(sets: sets, reps: reps);
+            return e.copyWith(sets: sets, reps: reps, restSeconds: restSeconds);
           }
           return e;
         }).toList();
@@ -1206,13 +1244,13 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  void _applyToAllWeeks(WorkoutExercise exercise, int sets, int reps) {
+  void _applyToAllWeeks(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
     setState(() {
       final updatedWeeks = _programState.weeks.map((week) {
         final updatedDays = week.days.map((day) {
           final updatedExercises = day.exercises.map((e) {
             if (e.exerciseId == exercise.exerciseId) {
-              return e.copyWith(sets: sets, reps: reps);
+              return e.copyWith(sets: sets, reps: reps, restSeconds: restSeconds);
             }
             return e;
           }).toList();
@@ -1229,7 +1267,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  void _applyProgressiveOverload(WorkoutExercise exercise, int sets, int reps) {
+  void _applyProgressiveOverload(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
     setState(() {
       final updatedWeeks = _programState.weeks.asMap().entries.map((entry) {
         final weekIndex = entry.key;
@@ -1253,7 +1291,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
         final updatedDays = week.days.map((day) {
           final updatedExercises = day.exercises.map((e) {
             if (e.exerciseId == exercise.exerciseId) {
-              return e.copyWith(sets: weekSets, reps: weekReps);
+              return e.copyWith(sets: weekSets, reps: weekReps, restSeconds: restSeconds);
             }
             return e;
           }).toList();

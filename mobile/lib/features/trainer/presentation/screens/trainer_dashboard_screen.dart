@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../exercises/presentation/providers/exercise_provider.dart';
 import '../../../exercises/data/models/exercise_model.dart';
 import '../../../programs/presentation/providers/program_provider.dart';
@@ -638,12 +639,13 @@ class TrainerDashboardScreen extends ConsumerWidget {
 
   Widget _buildExerciseCard(BuildContext context, ExerciseModel exercise) {
     final theme = Theme.of(context);
+    final hasVideo = exercise.videoUrl != null && exercise.videoUrl!.isNotEmpty;
+    final videoId = hasVideo ? _extractYouTubeVideoId(exercise.videoUrl!) : null;
 
     return GestureDetector(
-      onTap: () => context.push('/trainer/exercises'),
+      onTap: () => _showExerciseDetail(context, exercise),
       child: Container(
         width: 140,
-        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(12),
@@ -652,40 +654,86 @@ class TrainerDashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+            // Thumbnail or icon header
+            if (videoId != null)
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+                child: SizedBox(
+                  height: 56,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        'https://img.youtube.com/vi/$videoId/default.jpg',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                          child: Icon(Icons.fitness_center, color: theme.colorScheme.secondary),
+                        ),
+                      ),
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.fitness_center,
+                    color: theme.colorScheme.secondary,
+                    size: 18,
+                  ),
+                ),
               ),
-              child: Icon(
-                Icons.fitness_center,
-                color: theme.colorScheme.secondary,
-                size: 18,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              exercise.name,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: theme.dividerColor,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                exercise.muscleGroupDisplay,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: theme.textTheme.bodySmall?.color,
+            // Content
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(12, videoId != null ? 8 : 0, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      exercise.name,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.dividerColor,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        exercise.muscleGroupDisplay,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: theme.textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -693,6 +741,236 @@ class TrainerDashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _showExerciseDetail(BuildContext context, ExerciseModel exercise) {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: theme.dividerColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                exercise.name,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Muscle group
+              Row(
+                children: [
+                  Icon(Icons.category, size: 20, color: theme.colorScheme.primary),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Muscle Group: ',
+                    style: TextStyle(color: theme.textTheme.bodySmall?.color),
+                  ),
+                  Text(
+                    exercise.muscleGroupDisplay,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              if (exercise.description != null && exercise.description!.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text(
+                  'Description',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(exercise.description!),
+              ],
+              if (exercise.videoUrl != null && exercise.videoUrl!.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Text(
+                  'Tutorial Video',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                _buildYouTubeThumbnail(context, exercise.videoUrl!),
+              ],
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openVideoUrl(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open video')),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildYouTubeThumbnail(BuildContext context, String videoUrl) {
+    final theme = Theme.of(context);
+    final videoId = _extractYouTubeVideoId(videoUrl);
+
+    if (videoId == null) {
+      // Not a valid YouTube URL, show generic button
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => _openVideoUrl(context, videoUrl),
+          icon: const Icon(Icons.play_circle_filled),
+          label: const Text('Watch Tutorial Video'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+      );
+    }
+
+    final thumbnailUrl = 'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
+
+    return GestureDetector(
+      onTap: () => _openVideoUrl(context, videoUrl),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Thumbnail image
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(
+                  thumbnailUrl,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: theme.dividerColor,
+                      child: const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: theme.dividerColor,
+                      child: const Center(
+                        child: Icon(Icons.video_library, size: 48, color: Colors.grey),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Play button overlay
+              Container(
+                width: 68,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.play_arrow,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              // YouTube branding
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.play_circle_filled, color: Colors.red, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'YouTube',
+                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String? _extractYouTubeVideoId(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+
+    // youtube.com/watch?v=
+    if (uri.host.contains('youtube.com') && uri.queryParameters.containsKey('v')) {
+      return uri.queryParameters['v'];
+    }
+
+    // youtu.be/VIDEO_ID
+    if (uri.host == 'youtu.be' && uri.pathSegments.isNotEmpty) {
+      return uri.pathSegments.first;
+    }
+
+    // youtube.com/embed/VIDEO_ID or youtube.com/v/VIDEO_ID
+    if (uri.host.contains('youtube.com') && uri.pathSegments.length >= 2) {
+      final firstSegment = uri.pathSegments.first;
+      if (firstSegment == 'embed' || firstSegment == 'v') {
+        return uri.pathSegments[1];
+      }
+    }
+
+    return null;
   }
 
   Widget _buildImpersonationBanner(
