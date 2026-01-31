@@ -37,6 +37,15 @@ class ApiConstants {
   static String get weightCheckIns => '$apiBaseUrl/workouts/weight-checkins/';
   static String get latestWeightCheckIn => '$apiBaseUrl/workouts/weight-checkins/latest/';
 
+  // Macro presets endpoints
+  static String get macroPresets => '$apiBaseUrl/workouts/macro-presets/';
+  static String macroPreset(int id) => '$apiBaseUrl/workouts/macro-presets/$id/';
+  static String macroPresetsForTrainee(int traineeId) =>
+      '$apiBaseUrl/workouts/macro-presets/?trainee_id=$traineeId';
+  static String get allMacroPresets => '$apiBaseUrl/workouts/macro-presets/all_presets/';
+  static String copyMacroPreset(int presetId) =>
+      '$apiBaseUrl/workouts/macro-presets/$presetId/copy_to/';
+
   // Trainer endpoints
   static String get trainerDashboard => '$apiBaseUrl/trainer/dashboard/';
   static String get trainerStats => '$apiBaseUrl/trainer/dashboard/stats/';
@@ -50,6 +59,8 @@ class ApiConstants {
   static String get trainerAnalyticsAdherence => '$apiBaseUrl/trainer/analytics/adherence/';
   static String get trainerAnalyticsProgress => '$apiBaseUrl/trainer/analytics/progress/';
   static String get trainerMcpToken => '$apiBaseUrl/trainer/mcp/token/';
+  static String markMissedDay(int programId) =>
+      '$apiBaseUrl/trainer/programs/$programId/mark-missed/';
 
   // AI Chat endpoints
   static String get trainerAiChat => '$apiBaseUrl/trainer/ai/chat/';

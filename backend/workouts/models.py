@@ -107,7 +107,14 @@ class Program(models.Model):
         default=dict,
         help_text="Structured program schedule with weeks and days"
     )
-    
+
+    # List of dates that were missed (format: ["2026-01-15", "2026-01-20"])
+    missed_dates = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of dates when the trainee missed their workout"
+    )
+
     is_active = models.BooleanField(default=True)
     
     created_by = models.ForeignKey(
@@ -297,6 +304,77 @@ class NutritionGoal(models.Model):
 
     def __str__(self) -> str:
         return f"Nutrition goals for {self.trainee.email}"
+
+
+class MacroPreset(models.Model):
+    """
+    Macro presets for a trainee (e.g., Training Day, Non-Training Day, Growth Day).
+    Trainers can create multiple presets for each trainee.
+    """
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='macro_presets',
+        limit_choices_to={'role': 'TRAINEE'}
+    )
+
+    name = models.CharField(
+        max_length=100,
+        help_text="Preset name (e.g., 'Training Day', 'Rest Day', 'Growth Day')"
+    )
+
+    # Macro values for this preset
+    calories = models.PositiveIntegerField(default=2000)
+    protein = models.PositiveIntegerField(default=150, help_text="Protein in grams")
+    carbs = models.PositiveIntegerField(default=200, help_text="Carbs in grams")
+    fat = models.PositiveIntegerField(default=70, help_text="Fat in grams")
+
+    # Optional frequency hint (for display purposes)
+    frequency_per_week = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="How many times per week this preset is typically used"
+    )
+
+    # Whether this is the default preset for the trainee
+    is_default = models.BooleanField(
+        default=False,
+        help_text="If true, this preset is shown as the primary/default option"
+    )
+
+    # Display order
+    sort_order = models.PositiveIntegerField(default=0)
+
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_macro_presets',
+        limit_choices_to={'role': 'TRAINER'}
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'macro_presets'
+        ordering = ['sort_order', '-is_default', 'name']
+        indexes = [
+            models.Index(fields=['trainee']),
+            models.Index(fields=['trainee', 'is_default']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} - {self.trainee.email}"
+
+    def save(self, *args, **kwargs):
+        # Ensure only one default per trainee
+        if self.is_default:
+            MacroPreset.objects.filter(
+                trainee=self.trainee,
+                is_default=True
+            ).exclude(pk=self.pk).update(is_default=False)
+        super().save(*args, **kwargs)
 
 
 class WeightCheckIn(models.Model):

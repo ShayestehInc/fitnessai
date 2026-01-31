@@ -842,3 +842,90 @@ class AIProvidersView(views.APIView):
                 'model': current_config.model_name,
             }
         })
+
+
+class MarkMissedDayView(views.APIView):
+    """
+    POST: Mark a workout day as missed for a trainee's program.
+
+    Request body:
+    {
+        "date": "2026-01-15",
+        "action": "skip" | "push"
+    }
+
+    - skip: Mark as missed, schedule stays the same
+    - push: Mark as missed AND shift all future workouts by 1 day
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def post(self, request, program_id):
+        from datetime import datetime
+
+        # Get the program and verify trainer owns the trainee
+        try:
+            program = Program.objects.select_related('trainee').get(id=program_id)
+            if program.trainee.parent_trainer != request.user:
+                return Response(
+                    {'error': 'Program not found or not authorized'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        except Program.DoesNotExist:
+            return Response(
+                {'error': 'Program not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Validate request data
+        date_str = request.data.get('date')
+        action = request.data.get('action', 'skip')
+
+        if not date_str:
+            return Response(
+                {'error': 'Date is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            missed_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'error': 'Invalid date format. Use YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if action not in ['skip', 'push']:
+            return Response(
+                {'error': 'Action must be "skip" or "push"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if date is within program range
+        if missed_date < program.start_date:
+            return Response(
+                {'error': 'Date is before program start date'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Add to missed_dates if not already there
+        missed_dates = program.missed_dates or []
+        if date_str not in missed_dates:
+            missed_dates.append(date_str)
+            program.missed_dates = missed_dates
+
+        if action == 'push':
+            # Shift start_date forward by 1 day
+            # This effectively pushes all workouts forward
+            program.start_date = program.start_date + timedelta(days=1)
+
+            # Also extend end_date by 1 day to maintain program duration
+            program.end_date = program.end_date + timedelta(days=1)
+
+        program.save()
+
+        return Response({
+            'message': f'Day marked as missed. Action: {action}',
+            'missed_dates': program.missed_dates,
+            'start_date': str(program.start_date),
+            'end_date': str(program.end_date),
+        })

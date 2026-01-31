@@ -3,7 +3,7 @@ Serializers for workout and nutrition models.
 """
 from rest_framework import serializers
 from typing import Dict, Any, Optional
-from .models import Exercise, Program, DailyLog, NutritionGoal, WeightCheckIn
+from .models import Exercise, Program, DailyLog, NutritionGoal, WeightCheckIn, MacroPreset
 from users.models import User
 
 
@@ -154,6 +154,35 @@ class WeightCheckInSerializer(serializers.ModelSerializer):
         model = WeightCheckIn
         fields = ['id', 'trainee', 'trainee_email', 'date', 'weight_kg', 'notes', 'created_at']
         read_only_fields = ['trainee', 'created_at']
+
+
+class MacroPresetSerializer(serializers.ModelSerializer):
+    """Serializer for MacroPreset model."""
+    trainee_email = serializers.CharField(source='trainee.email', read_only=True)
+    created_by_email = serializers.CharField(source='created_by.email', read_only=True, allow_null=True)
+
+    class Meta:
+        model = MacroPreset
+        fields = [
+            'id', 'trainee', 'trainee_email', 'name',
+            'calories', 'protein', 'carbs', 'fat',
+            'frequency_per_week', 'is_default', 'sort_order',
+            'created_by', 'created_by_email', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['trainee', 'created_by', 'created_at', 'updated_at']
+
+
+class MacroPresetCreateSerializer(serializers.Serializer):
+    """Serializer for creating/updating macro presets."""
+    trainee_id = serializers.IntegerField(required=True)
+    name = serializers.CharField(max_length=100, required=True)
+    calories = serializers.IntegerField(min_value=500, max_value=10000, required=True)
+    protein = serializers.IntegerField(min_value=0, max_value=500, required=True)
+    carbs = serializers.IntegerField(min_value=0, max_value=1000, required=True)
+    fat = serializers.IntegerField(min_value=0, max_value=500, required=True)
+    frequency_per_week = serializers.IntegerField(min_value=1, max_value=7, required=False, allow_null=True)
+    is_default = serializers.BooleanField(required=False, default=False)
+    sort_order = serializers.IntegerField(required=False, default=0)
 
 
 class NutritionSummarySerializer(serializers.Serializer):

@@ -645,10 +645,24 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
               ],
             ],
           ),
-          subtitle: Text(
-            day.isRestDay ? 'Rest Day' : '${day.name} • ${day.exercises.length} exercises',
-            style: TextStyle(color: !isEditable ? Colors.grey : Colors.grey[600], fontSize: 12),
-          ),
+          subtitle: day.isRestDay
+              ? Text('Rest Day', style: TextStyle(color: !isEditable ? Colors.grey : Colors.grey[600], fontSize: 12))
+              : GestureDetector(
+                  onTap: isEditable ? () => _showEditDayNameDialog(dayIndex, day) : null,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${day.name} • ${day.exercises.length} exercises',
+                        style: TextStyle(color: !isEditable ? Colors.grey : Colors.grey[600], fontSize: 12),
+                      ),
+                      if (isEditable) ...[
+                        const SizedBox(width: 4),
+                        Icon(Icons.edit, size: 12, color: Colors.grey[600]),
+                      ],
+                    ],
+                  ),
+                ),
           children: day.isRestDay
               ? [Padding(padding: const EdgeInsets.all(16), child: Row(children: [Icon(Icons.self_improvement, color: Colors.grey[400]), const SizedBox(width: 12), Text('Recovery & rest', style: TextStyle(color: Colors.grey[600]))]))]
               : [
@@ -931,7 +945,204 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     );
   }
 
-  void _showAddExerciseDialog(int dayIndex) => _showExercisePicker(title: 'Add Exercise', onSelect: (e) => _addExercise(e, dayIndex));
+  void _showAddExerciseDialog(int dayIndex) => _showExercisePicker(
+    title: 'Add Exercise',
+    onSelect: (e) => _showAddExerciseSettingsDialog(e, dayIndex),
+  );
+
+  void _showAddExerciseSettingsDialog(Map<String, dynamic> exerciseData, int dayIndex) {
+    int sets = 3;
+    int reps = 10;
+    bool applyToAllWeeks = true;
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setModalState) {
+          final bottomPadding = MediaQuery.of(dialogContext).viewInsets.bottom + MediaQuery.of(dialogContext).padding.bottom + 24;
+
+          return Padding(
+            padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: bottomPadding),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            exerciseData['name'] as String,
+                            style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            exerciseData['muscle'] as String,
+                            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                        foregroundColor: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    const SizedBox(width: 60, child: Text('Sets:')),
+                    Expanded(
+                      child: Slider(
+                        value: sets.toDouble(),
+                        min: 1,
+                        max: 8,
+                        divisions: 7,
+                        onChanged: (v) => setModalState(() => sets = v.round()),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 40,
+                      child: Text(
+                        '$sets',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    const SizedBox(width: 60, child: Text('Reps:')),
+                    Expanded(
+                      child: Slider(
+                        value: reps.toDouble(),
+                        min: 1,
+                        max: 30,
+                        divisions: 29,
+                        onChanged: (v) => setModalState(() => reps = v.round()),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 40,
+                      child: Text(
+                        '$reps',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                // This Week / All Weeks toggle buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setModalState(() => applyToAllWeeks = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: !applyToAllWeeks ? theme.colorScheme.primary.withValues(alpha: 0.1) : null,
+                            border: Border.all(
+                              color: !applyToAllWeeks ? theme.colorScheme.primary : Colors.grey.withValues(alpha: 0.3),
+                              width: !applyToAllWeeks ? 2 : 1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'This Week',
+                              style: TextStyle(
+                                color: !applyToAllWeeks ? theme.colorScheme.primary : null,
+                                fontWeight: !applyToAllWeeks ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setModalState(() => applyToAllWeeks = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: applyToAllWeeks ? theme.colorScheme.primary.withValues(alpha: 0.1) : null,
+                            border: Border.all(
+                              color: applyToAllWeeks ? theme.colorScheme.primary : Colors.grey.withValues(alpha: 0.3),
+                              width: applyToAllWeeks ? 2 : 1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'All Weeks',
+                              style: TextStyle(
+                                color: applyToAllWeeks ? theme.colorScheme.primary : null,
+                                fontWeight: applyToAllWeeks ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Add button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      if (applyToAllWeeks) {
+                        _addExerciseAllWeeks(exerciseData, dayIndex, sets, reps);
+                      } else {
+                        _addExercise(exerciseData, dayIndex, sets, reps);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: Text(applyToAllWeeks ? 'Add to All Weeks' : 'Add to This Week'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   void _showExercisePicker({required String title, required void Function(Map<String, dynamic>) onSelect}) {
     String search = '';
@@ -968,6 +1179,188 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
           );
         },
       ),
+    );
+  }
+
+  void _showEditDayNameDialog(int dayIndex, WorkoutDay day) {
+    final theme = Theme.of(context);
+    final controller = TextEditingController(text: day.name);
+    bool applyToAllWeeks = true;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setModalState) {
+          final bottomPadding = MediaQuery.of(dialogContext).viewInsets.bottom + MediaQuery.of(dialogContext).padding.bottom + 24;
+
+          return Padding(
+            padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: bottomPadding),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Edit Day Name',
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                        foregroundColor: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Day Name',
+                    hintText: 'e.g., Push Day, Circuit A',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // This Week / All Weeks toggle buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setModalState(() => applyToAllWeeks = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: !applyToAllWeeks ? theme.colorScheme.primary.withValues(alpha: 0.1) : null,
+                            border: Border.all(
+                              color: !applyToAllWeeks ? theme.colorScheme.primary : Colors.grey.withValues(alpha: 0.3),
+                              width: !applyToAllWeeks ? 2 : 1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'This Week',
+                              style: TextStyle(
+                                color: !applyToAllWeeks ? theme.colorScheme.primary : null,
+                                fontWeight: !applyToAllWeeks ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setModalState(() => applyToAllWeeks = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: applyToAllWeeks ? theme.colorScheme.primary.withValues(alpha: 0.1) : null,
+                            border: Border.all(
+                              color: applyToAllWeeks ? theme.colorScheme.primary : Colors.grey.withValues(alpha: 0.3),
+                              width: applyToAllWeeks ? 2 : 1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'All Weeks',
+                              style: TextStyle(
+                                color: applyToAllWeeks ? theme.colorScheme.primary : null,
+                                fontWeight: applyToAllWeeks ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final newName = controller.text.trim();
+                      if (newName.isEmpty) return;
+                      Navigator.pop(dialogContext);
+                      if (applyToAllWeeks) {
+                        _updateDayNameAllWeeks(dayIndex, day.name, newName);
+                      } else {
+                        _updateDayName(dayIndex, newName);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _updateDayName(int dayIndex, String newName) {
+    setState(() {
+      final week = _weeks[_selectedWeekIndex];
+      final day = week.days[dayIndex];
+      final days = List<WorkoutDay>.from(week.days);
+      days[dayIndex] = day.copyWith(name: newName);
+      _weeks[_selectedWeekIndex] = week.copyWith(days: days);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Renamed to "$newName"')),
+    );
+  }
+
+  void _updateDayNameAllWeeks(int dayIndex, String oldName, String newName) {
+    setState(() {
+      for (int weekIndex = 0; weekIndex < _weeks.length; weekIndex++) {
+        if (!_isDayEditable(weekIndex, dayIndex)) continue;
+
+        final week = _weeks[weekIndex];
+        if (dayIndex >= week.days.length) continue;
+
+        final day = week.days[dayIndex];
+        // Only update if the day has the same name (to avoid changing unrelated days)
+        if (day.name == oldName) {
+          final days = List<WorkoutDay>.from(week.days);
+          days[dayIndex] = day.copyWith(name: newName);
+          _weeks[weekIndex] = week.copyWith(days: days);
+        }
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Renamed to "$newName" in all weeks')),
     );
   }
 
@@ -1045,11 +1438,17 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     );
   }
 
-  void _addExercise(Map<String, dynamic> data, int dayIndex) {
+  void _addExercise(Map<String, dynamic> data, int dayIndex, int sets, int reps) {
     setState(() {
       final week = _weeks[_selectedWeekIndex];
       final day = week.days[dayIndex];
-      final newEx = WorkoutExercise(exerciseId: data['id'] as int, exerciseName: data['name'] as String, muscleGroup: data['muscle'] as String, sets: 3, reps: 10);
+      final newEx = WorkoutExercise(
+        exerciseId: data['id'] as int,
+        exerciseName: data['name'] as String,
+        muscleGroup: data['muscle'] as String,
+        sets: sets,
+        reps: reps,
+      );
       final days = List<WorkoutDay>.from(week.days);
       days[dayIndex] = day.copyWith(exercises: [...day.exercises, newEx]);
       _weeks[_selectedWeekIndex] = week.copyWith(days: days);
@@ -1057,30 +1456,134 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${data['name']}')));
   }
 
+  void _addExerciseAllWeeks(Map<String, dynamic> data, int dayIndex, int sets, int reps) {
+    setState(() {
+      for (int weekIndex = 0; weekIndex < _weeks.length; weekIndex++) {
+        if (!_isDayEditable(weekIndex, dayIndex)) continue;
+
+        final week = _weeks[weekIndex];
+        if (dayIndex >= week.days.length) continue;
+
+        final day = week.days[dayIndex];
+        final newEx = WorkoutExercise(
+          exerciseId: data['id'] as int,
+          exerciseName: data['name'] as String,
+          muscleGroup: data['muscle'] as String,
+          sets: sets,
+          reps: reps,
+        );
+        final days = List<WorkoutDay>.from(week.days);
+        days[dayIndex] = day.copyWith(exercises: [...day.exercises, newEx]);
+        _weeks[weekIndex] = week.copyWith(days: days);
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Added ${data['name']} to all weeks')),
+    );
+  }
+
   void _removeExercise(WorkoutExercise exercise, int dayIndex) {
-    showDialog(
+    final theme = Theme.of(context);
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Exercise'),
-        content: Text('Remove "${exercise.exerciseName}"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                final week = _weeks[_selectedWeekIndex];
-                final day = week.days[dayIndex];
-                final days = List<WorkoutDay>.from(week.days);
-                days[dayIndex] = day.copyWith(exercises: day.exercises.where((e) => e.exerciseId != exercise.exerciseId).toList());
-                _weeks[_selectedWeekIndex] = week.copyWith(days: days);
-              });
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Removed ${exercise.exerciseName}')));
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: const Text('Remove'),
-          ),
-        ],
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).padding.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Icon(Icons.delete_outline, size: 48, color: Colors.red[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Remove "${exercise.exerciseName}"?',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Choose where to remove this exercise from:',
+              style: TextStyle(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        final week = _weeks[_selectedWeekIndex];
+                        final day = week.days[dayIndex];
+                        final days = List<WorkoutDay>.from(week.days);
+                        days[dayIndex] = day.copyWith(exercises: day.exercises.where((e) => e.exerciseName != exercise.exerciseName).toList());
+                        _weeks[_selectedWeekIndex] = week.copyWith(days: days);
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Removed ${exercise.exerciseName} from this week')));
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: Colors.red),
+                      foregroundColor: Colors.red,
+                    ),
+                    child: const Text('This Week'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        for (int weekIndex = 0; weekIndex < _weeks.length; weekIndex++) {
+                          if (!_isDayEditable(weekIndex, dayIndex)) continue;
+                          final week = _weeks[weekIndex];
+                          if (dayIndex >= week.days.length) continue;
+                          final day = week.days[dayIndex];
+                          final days = List<WorkoutDay>.from(week.days);
+                          days[dayIndex] = day.copyWith(exercises: day.exercises.where((e) => e.exerciseName != exercise.exerciseName).toList());
+                          _weeks[weekIndex] = week.copyWith(days: days);
+                        }
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Removed ${exercise.exerciseName} from all weeks')));
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('All Weeks'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

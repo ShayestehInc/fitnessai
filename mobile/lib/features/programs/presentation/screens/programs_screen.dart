@@ -123,8 +123,6 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final templatesAsync = ref.watch(programTemplatesProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Programs'),
@@ -146,14 +144,14 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildTemplatesTab(context, templatesAsync),
+          _buildTemplatesTab(context),
           _buildMyProgramsTab(context),
         ],
       ),
     );
   }
 
-  Widget _buildTemplatesTab(BuildContext context, AsyncValue<List<ProgramTemplateModel>> templatesAsync) {
+  Widget _buildTemplatesTab(BuildContext context) {
     final theme = Theme.of(context);
     return RefreshIndicator(
       onRefresh: () async {
@@ -239,29 +237,6 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
           ..._filteredTemplates.map((template) => _buildTemplateCard(context, template)),
 
-          // Custom Templates from API
-          templatesAsync.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (error, stack) => const SizedBox(),
-            data: (templates) {
-              if (templates.isEmpty) return const SizedBox();
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 24),
-                  Text(
-                    'Custom Templates',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  ...templates.map((t) => _buildApiTemplateCard(context, t)),
-                ],
-              );
-            },
-          ),
 
           const SizedBox(height: 80),
         ],
@@ -391,30 +366,6 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildApiTemplateCard(BuildContext context, ProgramTemplateModel template) {
-    final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(Icons.calendar_month, color: theme.colorScheme.primary),
-        ),
-        title: Text(template.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-        subtitle: Text('${template.durationWeeks} weeks • ${template.difficultyDisplay}'),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          // TODO: Show template detail
-        },
       ),
     );
   }

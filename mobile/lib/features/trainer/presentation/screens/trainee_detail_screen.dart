@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
 import '../../data/models/trainee_model.dart';
 import 'program_options_screen.dart';
@@ -69,9 +71,9 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             delegate: _SliverTabBarDelegate(
               TabBar(
                 controller: _tabController,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Theme.of(context).primaryColor,
+                labelColor: Theme.of(context).colorScheme.primary,
+                unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+                indicatorColor: Theme.of(context).colorScheme.primary,
                 tabs: const [
                   Tab(text: 'Overview'),
                   Tab(text: 'Analytics'),
@@ -79,6 +81,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                   Tab(text: 'Activity'),
                 ],
               ),
+              Theme.of(context).cardColor,
             ),
           ),
         ];
@@ -333,32 +336,48 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
   }
 
   Widget _buildNutritionTab(TraineeDetailModel trainee) {
-    final goal = trainee.nutritionGoal;
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Macro Targets
-        _buildSectionTitle('Daily Macro Targets'),
-        const SizedBox(height: 12),
-        if (goal != null) _buildMacroTargetsCard(goal) else _buildNoDataCard('No nutrition goals set'),
-        const SizedBox(height: 24),
-
-        // Macro Distribution
-        if (goal != null) ...[
-          _buildSectionTitle('Macro Distribution'),
-          const SizedBox(height: 12),
-          _buildMacroDistributionChart(goal),
-          const SizedBox(height: 24),
-        ],
-
-        // Adjust Nutrition
-        _buildSectionTitle('Adjustments'),
-        const SizedBox(height: 12),
-        _buildNutritionAdjustmentCard(trainee),
-        const SizedBox(height: 32),
-      ],
+    return _MacroPresetsTab(
+      traineeId: trainee.id,
+      traineeName: trainee.firstName ?? 'Trainee',
+      onEditPreset: (preset, onComplete) => _showEditPresetDialogWithCallback(
+        context,
+        trainee,
+        preset,
+        onComplete,
+      ),
+      onAddPreset: (onComplete) => _showEditPresetDialogWithCallback(
+        context,
+        trainee,
+        null,
+        onComplete,
+      ),
+      loadPresets: () => _loadMacroPresets(trainee.id),
+      loadAllPresets: _loadAllMacroPresets,
+      copyPreset: (presetId, targetTraineeId) => _copyMacroPreset(presetId, targetTraineeId),
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _loadAllMacroPresets() async {
+    final apiClient = ref.read(apiClientProvider);
+    final response = await apiClient.dio.get(ApiConstants.allMacroPresets);
+    return List<Map<String, dynamic>>.from(response.data);
+  }
+
+  Future<void> _copyMacroPreset(int presetId, int targetTraineeId) async {
+    final apiClient = ref.read(apiClientProvider);
+    await apiClient.dio.post(
+      ApiConstants.copyMacroPreset(presetId),
+      data: {'trainee_id': targetTraineeId},
+    );
+  }
+
+  void _showEditPresetDialogWithCallback(
+    BuildContext parentContext,
+    TraineeDetailModel trainee,
+    Map<String, dynamic>? existingPreset,
+    VoidCallback onComplete,
+  ) {
+    _showEditPresetDialog(parentContext, trainee, existingPreset, onComplete);
   }
 
   Widget _buildActivityTab(AsyncValue<List<ActivitySummary>> activityAsync) {
@@ -999,164 +1018,462 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
     );
   }
 
-  Widget _buildMacroTargetsCard(NutritionGoalSummary goal) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _MacroRow(
-              label: 'Calories',
-              value: goal.caloriesGoal,
-              unit: 'kcal',
-              color: Colors.orange,
-              icon: Icons.local_fire_department,
-            ),
-            const SizedBox(height: 16),
-            _MacroRow(
-              label: 'Protein',
-              value: goal.proteinGoal,
-              unit: 'g',
-              color: Colors.red,
-              icon: Icons.egg_alt,
-            ),
-            const SizedBox(height: 16),
-            _MacroRow(
-              label: 'Carbs',
-              value: goal.carbsGoal,
-              unit: 'g',
-              color: Colors.blue,
-              icon: Icons.breakfast_dining,
-            ),
-            const SizedBox(height: 16),
-            _MacroRow(
-              label: 'Fat',
-              value: goal.fatGoal,
-              unit: 'g',
-              color: Colors.amber,
-              icon: Icons.water_drop,
-            ),
-            if (goal.isTrainerAdjusted) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                    const SizedBox(width: 8),
-                    const Text('Trainer adjusted', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+  Future<List<Map<String, dynamic>>> _loadMacroPresets(int traineeId) async {
+    final apiClient = ref.read(apiClientProvider);
+    final response = await apiClient.dio.get(
+      ApiConstants.macroPresetsForTrainee(traineeId),
     );
+    return List<Map<String, dynamic>>.from(response.data);
   }
 
-  Widget _buildMacroDistributionChart(NutritionGoalSummary goal) {
-    final total = goal.proteinGoal * 4 + goal.carbsGoal * 4 + goal.fatGoal * 9;
-    final proteinPct = total > 0 ? (goal.proteinGoal * 4 / total * 100) : 0;
-    final carbsPct = total > 0 ? (goal.carbsGoal * 4 / total * 100) : 0;
-    final fatPct = total > 0 ? (goal.fatGoal * 9 / total * 100) : 0;
+  void _showEditPresetDialog(
+    BuildContext parentContext,
+    TraineeDetailModel trainee,
+    Map<String, dynamic>? existingPreset,
+    VoidCallback onSaved,
+  ) {
+    final theme = Theme.of(context);
+    final isEditing = existingPreset != null;
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+    String name = existingPreset?['name'] ?? '';
+    int protein = existingPreset?['protein'] ?? 150;
+    int carbs = existingPreset?['carbs'] ?? 200;
+    int fat = existingPreset?['fat'] ?? 70;
+    int? frequencyPerWeek = existingPreset?['frequency_per_week'];
+    bool isDefault = existingPreset?['is_default'] ?? false;
+    bool isSaving = false;
+    bool isDeleting = false;
+
+    // Calculate calories from macros: P*4 + C*4 + F*9
+    int calculateCalories() => (protein * 4) + (carbs * 4) + (fat * 9);
+
+    showModalBottomSheet(
+      context: parentContext,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 120,
-              height: 120,
-              child: CustomPaint(
-                painter: _PieChartPainter(
-                  protein: proteinPct.toDouble(),
-                  carbs: carbsPct.toDouble(),
-                  fat: fatPct.toDouble(),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setModalState) {
+          final bottomPadding = MediaQuery.of(dialogContext).viewInsets.bottom +
+              MediaQuery.of(dialogContext).padding.bottom + 24;
+
+          Future<void> savePreset() async {
+            if (name.trim().isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Please enter a preset name'),
+                  backgroundColor: Colors.red,
                 ),
+              );
+              return;
+            }
+
+            setModalState(() => isSaving = true);
+
+            try {
+              final apiClient = ref.read(apiClientProvider);
+
+              if (isEditing) {
+                await apiClient.dio.put(
+                  ApiConstants.macroPreset(existingPreset!['id']),
+                  data: {
+                    'name': name.trim(),
+                    'calories': calculateCalories(),
+                    'protein': protein,
+                    'carbs': carbs,
+                    'fat': fat,
+                    'frequency_per_week': frequencyPerWeek,
+                    'is_default': isDefault,
+                  },
+                );
+              } else {
+                await apiClient.dio.post(
+                  ApiConstants.macroPresets,
+                  data: {
+                    'trainee_id': trainee.id,
+                    'name': name.trim(),
+                    'calories': calculateCalories(),
+                    'protein': protein,
+                    'carbs': carbs,
+                    'fat': fat,
+                    'frequency_per_week': frequencyPerWeek,
+                    'is_default': isDefault,
+                  },
+                );
+              }
+
+              if (mounted) {
+                Navigator.pop(dialogContext);
+                onSaved();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(isEditing ? 'Preset updated' : 'Preset created'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            } catch (e) {
+              setModalState(() => isSaving = false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to save: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          }
+
+          Future<void> deletePreset() async {
+            setModalState(() => isDeleting = true);
+
+            try {
+              final apiClient = ref.read(apiClientProvider);
+              await apiClient.dio.delete(
+                ApiConstants.macroPreset(existingPreset!['id']),
+              );
+
+              if (mounted) {
+                Navigator.pop(dialogContext);
+                onSaved();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Preset deleted'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            } catch (e) {
+              setModalState(() => isDeleting = false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to delete: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          }
+
+          Widget buildMacroSlider({
+            required String label,
+            required int value,
+            required int min,
+            required int max,
+            required String unit,
+            required IconData icon,
+            required Color color,
+            required ValueChanged<int> onChanged,
+            int? divisions,
+          }) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(icon, color: color, size: 16),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(label, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                    const Spacer(),
+                    Text(
+                      '$value',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(unit, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                  ],
+                ),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: color,
+                    inactiveTrackColor: color.withValues(alpha: 0.2),
+                    thumbColor: color,
+                    overlayColor: color.withValues(alpha: 0.1),
+                    trackHeight: 4,
+                  ),
+                  child: Slider(
+                    value: value.toDouble(),
+                    min: min.toDouble(),
+                    max: max.toDouble(),
+                    divisions: divisions ?? (max - min),
+                    onChanged: (v) => onChanged(v.round()),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: bottomPadding,
               ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildPieLegend(Colors.red, 'Protein', '${proteinPct.toInt()}%'),
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          isEditing ? 'Edit Preset' : 'New Preset',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        icon: const Icon(Icons.close),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                          foregroundColor: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Name field
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: 'Preset Name',
+                      hintText: 'e.g., Training Day, Rest Day',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    controller: TextEditingController(text: name),
+                    onChanged: (v) => name = v,
+                  ),
+                  const SizedBox(height: 16),
+                  // Frequency dropdown
+                  DropdownButtonFormField<int?>(
+                    value: frequencyPerWeek,
+                    decoration: InputDecoration(
+                      labelText: 'Frequency (optional)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('Not specified'),
+                      ),
+                      ...List.generate(7, (i) => i + 1).map(
+                        (i) => DropdownMenuItem(
+                          value: i,
+                          child: Text('$i× per week'),
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) => setModalState(() => frequencyPerWeek = v),
+                  ),
+                  const SizedBox(height: 16),
+                  // Default toggle
+                  SwitchListTile(
+                    title: const Text('Set as Default'),
+                    subtitle: const Text('Show as primary option'),
+                    value: isDefault,
+                    onChanged: (v) => setModalState(() => isDefault = v),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  // Calculated calories display
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.local_fire_department, color: Colors.orange, size: 24),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Total Calories',
+                                style: TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                              Text(
+                                'Calculated from macros',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${calculateCalories()}',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text('kcal', style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Macro sliders
+                  buildMacroSlider(
+                    label: 'Protein',
+                    value: protein,
+                    min: 50,
+                    max: 350,
+                    unit: 'g',
+                    icon: Icons.egg_alt,
+                    color: Colors.red,
+                    divisions: 60,
+                    onChanged: (v) => setModalState(() => protein = v),
+                  ),
                   const SizedBox(height: 12),
-                  _buildPieLegend(Colors.blue, 'Carbs', '${carbsPct.toInt()}%'),
+                  buildMacroSlider(
+                    label: 'Carbs',
+                    value: carbs,
+                    min: 50,
+                    max: 500,
+                    unit: 'g',
+                    icon: Icons.bakery_dining,
+                    color: Colors.amber,
+                    divisions: 90,
+                    onChanged: (v) => setModalState(() => carbs = v),
+                  ),
                   const SizedBox(height: 12),
-                  _buildPieLegend(Colors.amber, 'Fat', '${fatPct.toInt()}%'),
+                  buildMacroSlider(
+                    label: 'Fat',
+                    value: fat,
+                    min: 20,
+                    max: 200,
+                    unit: 'g',
+                    icon: Icons.water_drop,
+                    color: Colors.purple,
+                    divisions: 36,
+                    onChanged: (v) => setModalState(() => fat = v),
+                  ),
+                  const SizedBox(height: 24),
+                  // Action buttons
+                  Row(
+                    children: [
+                      if (isEditing)
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: isDeleting || isSaving
+                                ? null
+                                : () {
+                                    showDialog(
+                                      context: dialogContext,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Delete Preset?'),
+                                        content: Text(
+                                          'Are you sure you want to delete "${existingPreset?['name']}"?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.pop(ctx);
+                                              deletePreset();
+                                            },
+                                            child: const Text(
+                                              'Delete',
+                                              style: TextStyle(color: Colors.red),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: isDeleting
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.red,
+                                    ),
+                                  )
+                                : const Text('Delete'),
+                          ),
+                        ),
+                      if (isEditing) const SizedBox(width: 12),
+                      Expanded(
+                        flex: isEditing ? 2 : 1,
+                        child: ElevatedButton(
+                          onPressed: isSaving || isDeleting ? null : savePreset,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: isSaving
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Text(isEditing ? 'Save Changes' : 'Create Preset'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPieLegend(Color color, String label, String value) {
-    return Row(
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(label),
-        const Spacer(),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildNutritionAdjustmentCard(TraineeDetailModel trainee) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const Text(
-              'Adjust your trainee\'s nutrition targets based on their progress',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.tune),
-                label: const Text('Adjust Macros'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -1363,8 +1680,9 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
 
 class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;
+  final Color backgroundColor;
 
-  _SliverTabBarDelegate(this.tabBar);
+  _SliverTabBarDelegate(this.tabBar, this.backgroundColor);
 
   @override
   double get minExtent => tabBar.preferredSize.height;
@@ -1374,13 +1692,14 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
+      color: backgroundColor,
       child: tabBar,
     );
   }
 
   @override
-  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) => false;
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) =>
+      oldDelegate.backgroundColor != backgroundColor;
 }
 
 class _QuickStatCard extends StatelessWidget {
@@ -1474,89 +1793,678 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-class _MacroRow extends StatelessWidget {
-  final String label;
-  final int value;
-  final String unit;
-  final Color color;
-  final IconData icon;
+class _MacroPresetsTab extends StatefulWidget {
+  final int traineeId;
+  final String traineeName;
+  final Function(Map<String, dynamic>, VoidCallback onComplete) onEditPreset;
+  final Function(VoidCallback onComplete) onAddPreset;
+  final Future<List<Map<String, dynamic>>> Function() loadPresets;
+  final Future<List<Map<String, dynamic>>> Function() loadAllPresets;
+  final Future<void> Function(int presetId, int targetTraineeId) copyPreset;
 
-  const _MacroRow({
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.color,
-    required this.icon,
+  const _MacroPresetsTab({
+    required this.traineeId,
+    required this.traineeName,
+    required this.onEditPreset,
+    required this.onAddPreset,
+    required this.loadPresets,
+    required this.loadAllPresets,
+    required this.copyPreset,
   });
 
   @override
+  State<_MacroPresetsTab> createState() => _MacroPresetsTabState();
+}
+
+class _MacroPresetsTabState extends State<_MacroPresetsTab> {
+  List<Map<String, dynamic>> _presets = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPresets();
+  }
+
+  Future<void> _loadPresets() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final presets = await widget.loadPresets();
+      if (mounted) {
+        setState(() {
+          _presets = presets;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showImportDialog() {
+    final theme = Theme.of(context);
+    List<Map<String, dynamic>> allTraineePresets = [];
+    bool isLoading = true;
+    String? error;
+    Set<int> selectedPresetIds = {};
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setModalState) {
+          // Load all presets on first build
+          if (isLoading && error == null) {
+            widget.loadAllPresets().then((result) {
+              // Filter out current trainee's presets
+              final filtered = result.where(
+                (t) => t['trainee_id'] != widget.traineeId,
+              ).toList();
+              setModalState(() {
+                allTraineePresets = filtered;
+                isLoading = false;
+              });
+            }).catchError((e) {
+              setModalState(() {
+                error = e.toString();
+                isLoading = false;
+              });
+            });
+          }
+
+          final bottomPadding = MediaQuery.of(dialogContext).padding.bottom + 24;
+
+          Future<void> importSelected() async {
+            if (selectedPresetIds.isEmpty) return;
+
+            setModalState(() => isLoading = true);
+
+            try {
+              for (final presetId in selectedPresetIds) {
+                await widget.copyPreset(presetId, widget.traineeId);
+              }
+
+              if (mounted) {
+                Navigator.pop(dialogContext);
+                _loadPresets();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Imported ${selectedPresetIds.length} preset(s)'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            } catch (e) {
+              setModalState(() => isLoading = false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to import: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          }
+
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(dialogContext).size.height * 0.85,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Import Presets',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            icon: const Icon(Icons.close),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                              foregroundColor: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Copy presets from another trainee to ${widget.traineeName}',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(height: 1, color: theme.dividerColor),
+                // Content
+                Expanded(
+                  child: isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : error != null
+                          ? Center(
+                              child: Text(
+                                'Error: $error',
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                            )
+                          : allTraineePresets.isEmpty
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(32),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'No Presets to Import',
+                                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Create presets for other trainees first, then you can import them here',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(color: Colors.grey[600]),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: allTraineePresets.length,
+                                  itemBuilder: (context, index) {
+                                    final traineeData = allTraineePresets[index];
+                                    final presets = List<Map<String, dynamic>>.from(
+                                      traineeData['presets'] ?? [],
+                                    );
+
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          child: Row(
+                                            children: [
+                                              CircleAvatar(
+                                                radius: 16,
+                                                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                                child: Text(
+                                                  (traineeData['trainee_name'] as String? ?? 'T')
+                                                      .substring(0, 1)
+                                                      .toUpperCase(),
+                                                  style: TextStyle(
+                                                    color: theme.colorScheme.primary,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      traineeData['trainee_name'] ?? 'Unknown',
+                                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                                    ),
+                                                    Text(
+                                                      '${presets.length} preset(s)',
+                                                      style: TextStyle(
+                                                        color: Colors.grey[600],
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        ...presets.map((preset) {
+                                          final presetId = preset['id'] as int;
+                                          final isSelected = selectedPresetIds.contains(presetId);
+                                          final protein = preset['protein'] ?? 0;
+                                          final carbs = preset['carbs'] ?? 0;
+                                          final fat = preset['fat'] ?? 0;
+                                          final calories = (protein * 4) + (carbs * 4) + (fat * 9);
+
+                                          return Card(
+                                            margin: const EdgeInsets.only(bottom: 8, left: 28),
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              side: BorderSide(
+                                                color: isSelected
+                                                    ? theme.colorScheme.primary
+                                                    : Colors.grey.withValues(alpha: 0.2),
+                                                width: isSelected ? 2 : 1,
+                                              ),
+                                            ),
+                                            child: InkWell(
+                                              onTap: () {
+                                                setModalState(() {
+                                                  if (isSelected) {
+                                                    selectedPresetIds.remove(presetId);
+                                                  } else {
+                                                    selectedPresetIds.add(presetId);
+                                                  }
+                                                });
+                                              },
+                                              borderRadius: BorderRadius.circular(12),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(12),
+                                                child: Row(
+                                                  children: [
+                                                    Checkbox(
+                                                      value: isSelected,
+                                                      onChanged: (v) {
+                                                        setModalState(() {
+                                                          if (v == true) {
+                                                            selectedPresetIds.add(presetId);
+                                                          } else {
+                                                            selectedPresetIds.remove(presetId);
+                                                          }
+                                                        });
+                                                      },
+                                                    ),
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text(
+                                                            preset['name'] ?? 'Unnamed',
+                                                            style: const TextStyle(
+                                                              fontWeight: FontWeight.bold,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(height: 4),
+                                                          Text(
+                                                            '$calories kcal • ${protein}g P • ${carbs}g C • ${fat}g F',
+                                                            style: TextStyle(
+                                                              color: Colors.grey[600],
+                                                              fontSize: 12,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }),
+                                        const SizedBox(height: 8),
+                                      ],
+                                    );
+                                  },
+                                ),
+                ),
+                // Import button
+                if (!isLoading && allTraineePresets.isNotEmpty)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      left: 24,
+                      right: 24,
+                      top: 8,
+                      bottom: bottomPadding,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: selectedPresetIds.isEmpty ? null : importSelected,
+                        icon: const Icon(Icons.file_download),
+                        label: Text(
+                          selectedPresetIds.isEmpty
+                              ? 'Select presets to import'
+                              : 'Import ${selectedPresetIds.length} preset(s)',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
+    final theme = Theme.of(context);
+
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text('Error loading presets', style: TextStyle(color: Colors.grey[600])),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _loadPresets,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadPresets,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Header with info
+          Row(
+            children: [
+              const Text(
+                'Macro Presets',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: _showImportDialog,
+                icon: const Icon(Icons.file_download_outlined, size: 18),
+                label: const Text('Import'),
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  widget.onAddPreset(_loadPresets);
+                },
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add'),
+              ),
+            ],
           ),
-          child: Icon(icon, color: color, size: 22),
+          const SizedBox(height: 8),
+          Text(
+            'Set different macro targets for ${widget.traineeName}\'s training and rest days',
+            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+
+          if (_presets.isEmpty)
+            _buildEmptyState()
+          else
+            ..._presets.map((preset) => _buildPresetCard(preset, theme)),
+
+          const SizedBox(height: 24),
+
+          // Add preset button at bottom
+          if (_presets.isNotEmpty)
+            OutlinedButton.icon(
+              onPressed: () {
+                widget.onAddPreset(_loadPresets);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Add New Preset'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Icon(Icons.restaurant_menu, size: 56, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text(
+              'No Macro Presets Yet',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Create presets like "Training Day", "Rest Day", or "Growth Day"',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _showImportDialog,
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: const Text('Import'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    widget.onAddPreset(_loadPresets);
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create New'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Text(label, style: const TextStyle(fontSize: 16)),
-        const Spacer(),
-        Text(
-          '$value',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
+      ),
+    );
+  }
+
+  Widget _buildPresetCard(Map<String, dynamic> preset, ThemeData theme) {
+    final isDefault = preset['is_default'] == true;
+    final frequency = preset['frequency_per_week'];
+    final protein = preset['protein'] ?? 0;
+    final carbs = preset['carbs'] ?? 0;
+    final fat = preset['fat'] ?? 0;
+    final calories = (protein * 4) + (carbs * 4) + (fat * 9);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isDefault ? theme.colorScheme.primary : Colors.grey.withValues(alpha: 0.2),
+          width: isDefault ? 2 : 1,
         ),
-        const SizedBox(width: 4),
-        Text(unit, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-      ],
+      ),
+      child: InkWell(
+        onTap: () {
+          widget.onEditPreset(preset, _loadPresets);
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              preset['name'] ?? 'Unnamed',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                              ),
+                            ),
+                            if (isDefault) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text(
+                                  'DEFAULT',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (frequency != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            '${frequency}× per week',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.edit_outlined, size: 20, color: Colors.grey[400]),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Calories row
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.local_fire_department, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$calories',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text('kcal', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Macros row
+              Row(
+                children: [
+                  _buildMacroItem('Protein', protein, 'g', Colors.red),
+                  const SizedBox(width: 12),
+                  _buildMacroItem('Carbs', carbs, 'g', Colors.amber.shade700),
+                  const SizedBox(width: 12),
+                  _buildMacroItem('Fat', fat, 'g', Colors.purple),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMacroItem(String label, int value, String unit, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '$value$unit',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _PieChartPainter extends CustomPainter {
-  final double protein;
-  final double carbs;
-  final double fat;
-
-  _PieChartPainter({required this.protein, required this.carbs, required this.fat});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    final proteinSweep = protein / 100 * 2 * math.pi;
-    final carbsSweep = carbs / 100 * 2 * math.pi;
-    final fatSweep = fat / 100 * 2 * math.pi;
-
-    var startAngle = -math.pi / 2;
-
-    // Protein
-    final proteinPaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 20;
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius - 10), startAngle, proteinSweep, false, proteinPaint);
-    startAngle += proteinSweep;
-
-    // Carbs
-    final carbsPaint = Paint()
-      ..color = Colors.blue
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 20;
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius - 10), startAngle, carbsSweep, false, carbsPaint);
-    startAngle += carbsSweep;
-
-    // Fat
-    final fatPaint = Paint()
-      ..color = Colors.amber
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 20;
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius - 10), startAngle, fatSweep, false, fatPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}

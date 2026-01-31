@@ -9,7 +9,7 @@ from django.utils import timezone
 from datetime import date
 from typing import Dict, Any, Optional
 
-from .models import Exercise, Program, DailyLog, NutritionGoal, WeightCheckIn
+from .models import Exercise, Program, DailyLog, NutritionGoal, WeightCheckIn, MacroPreset
 from .serializers import (
     ExerciseSerializer,
     ProgramSerializer,
@@ -20,6 +20,8 @@ from .serializers import (
     NutritionGoalSerializer,
     TrainerAdjustGoalSerializer,
     WeightCheckInSerializer,
+    MacroPresetSerializer,
+    MacroPresetCreateSerializer,
 )
 from .services.natural_language_parser import NaturalLanguageParserService
 
@@ -590,3 +592,248 @@ class WeightCheckInViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(checkin)
         return Response(serializer.data)
+
+
+class MacroPresetViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for MacroPreset CRUD operations.
+    Trainers can create/edit presets for their trainees.
+    Trainees can view their own presets.
+    """
+    serializer_class = MacroPresetSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return presets based on user role."""
+        user = self.request.user
+
+        if user.is_trainee():
+            return MacroPreset.objects.filter(trainee=user)
+        elif user.is_trainer():
+            # Trainers see presets for their trainees
+            return MacroPreset.objects.filter(
+                trainee__parent_trainer=user
+            ).select_related('trainee', 'created_by')
+        elif user.is_admin():
+            return MacroPreset.objects.all().select_related('trainee', 'created_by')
+        else:
+            return MacroPreset.objects.none()
+
+    def list(self, request, *args, **kwargs):
+        """
+        List presets. Can filter by trainee_id for trainers.
+        """
+        trainee_id = request.query_params.get('trainee_id')
+
+        if trainee_id and request.user.is_trainer():
+            from users.models import User
+            # Verify trainee belongs to this trainer
+            try:
+                trainee = User.objects.get(
+                    id=trainee_id,
+                    role=User.Role.TRAINEE,
+                    parent_trainer=request.user
+                )
+                queryset = MacroPreset.objects.filter(trainee=trainee)
+                serializer = self.get_serializer(queryset, many=True)
+                return Response(serializer.data)
+            except User.DoesNotExist:
+                return Response(
+                    {'error': 'Trainee not found or not assigned to you'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        return super().list(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        """Create a new macro preset (trainers only)."""
+        if not request.user.is_trainer():
+            return Response(
+                {'error': 'Only trainers can create macro presets'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = MacroPresetCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        trainee_id = serializer.validated_data['trainee_id']
+
+        # Verify trainee belongs to this trainer
+        from users.models import User
+        try:
+            trainee = User.objects.get(
+                id=trainee_id,
+                role=User.Role.TRAINEE,
+                parent_trainer=request.user
+            )
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Trainee not found or not assigned to you'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Create the preset
+        preset = MacroPreset.objects.create(
+            trainee=trainee,
+            name=serializer.validated_data['name'],
+            calories=serializer.validated_data['calories'],
+            protein=serializer.validated_data['protein'],
+            carbs=serializer.validated_data['carbs'],
+            fat=serializer.validated_data['fat'],
+            frequency_per_week=serializer.validated_data.get('frequency_per_week'),
+            is_default=serializer.validated_data.get('is_default', False),
+            sort_order=serializer.validated_data.get('sort_order', 0),
+            created_by=request.user
+        )
+
+        return Response(
+            MacroPresetSerializer(preset).data,
+            status=status.HTTP_201_CREATED
+        )
+
+    def update(self, request, *args, **kwargs):
+        """Update a macro preset (trainers only)."""
+        if not request.user.is_trainer():
+            return Response(
+                {'error': 'Only trainers can update macro presets'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        preset = self.get_object()
+
+        # Verify trainer owns this trainee
+        if preset.trainee.parent_trainer != request.user:
+            return Response(
+                {'error': 'Not authorized to update this preset'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Update fields
+        for field in ['name', 'calories', 'protein', 'carbs', 'fat',
+                      'frequency_per_week', 'is_default', 'sort_order']:
+            if field in request.data:
+                setattr(preset, field, request.data[field])
+
+        preset.save()
+        return Response(MacroPresetSerializer(preset).data)
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete a macro preset (trainers only)."""
+        if not request.user.is_trainer():
+            return Response(
+                {'error': 'Only trainers can delete macro presets'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        preset = self.get_object()
+
+        # Verify trainer owns this trainee
+        if preset.trainee.parent_trainer != request.user:
+            return Response(
+                {'error': 'Not authorized to delete this preset'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        preset.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def all_presets(self, request):
+        """
+        Get all presets created by this trainer, grouped by trainee.
+        Used for importing presets from one trainee to another.
+        """
+        if not request.user.is_trainer():
+            return Response(
+                {'error': 'Only trainers can access this endpoint'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        from users.models import User
+
+        # Get all trainees for this trainer
+        trainees = User.objects.filter(
+            role=User.Role.TRAINEE,
+            parent_trainer=request.user
+        ).order_by('first_name', 'last_name', 'email')
+
+        result = []
+        for trainee in trainees:
+            presets = MacroPreset.objects.filter(trainee=trainee)
+            if presets.exists():
+                name = f"{trainee.first_name or ''} {trainee.last_name or ''}".strip()
+                if not name:
+                    name = trainee.email.split('@')[0]
+
+                result.append({
+                    'trainee_id': trainee.id,
+                    'trainee_name': name,
+                    'trainee_email': trainee.email,
+                    'presets': MacroPresetSerializer(presets, many=True).data
+                })
+
+        return Response(result)
+
+    @action(detail=True, methods=['post'])
+    def copy_to(self, request, pk=None):
+        """
+        Copy a preset to another trainee.
+        POST /api/workouts/macro-presets/{id}/copy_to/
+        Body: {"trainee_id": 123}
+        """
+        if not request.user.is_trainer():
+            return Response(
+                {'error': 'Only trainers can copy presets'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Get the source preset
+        source_preset = self.get_object()
+
+        # Verify trainer owns this preset's trainee
+        if source_preset.trainee.parent_trainer != request.user:
+            return Response(
+                {'error': 'Not authorized to copy this preset'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Get target trainee
+        target_trainee_id = request.data.get('trainee_id')
+        if not target_trainee_id:
+            return Response(
+                {'error': 'trainee_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from users.models import User
+        try:
+            target_trainee = User.objects.get(
+                id=target_trainee_id,
+                role=User.Role.TRAINEE,
+                parent_trainer=request.user
+            )
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Target trainee not found or not assigned to you'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Create a copy of the preset for the target trainee
+        new_preset = MacroPreset.objects.create(
+            trainee=target_trainee,
+            name=source_preset.name,
+            calories=source_preset.calories,
+            protein=source_preset.protein,
+            carbs=source_preset.carbs,
+            fat=source_preset.fat,
+            frequency_per_week=source_preset.frequency_per_week,
+            is_default=False,  # Don't copy default status
+            sort_order=source_preset.sort_order,
+            created_by=request.user
+        )
+
+        return Response(
+            MacroPresetSerializer(new_preset).data,
+            status=status.HTTP_201_CREATED
+        )
