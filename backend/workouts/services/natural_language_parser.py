@@ -2,9 +2,11 @@
 Natural Language Parser Service for workout and nutrition logging.
 Uses OpenAI API to parse user input into structured data.
 """
+from __future__ import annotations
+
 import json
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 from django.conf import settings
 from openai import OpenAI
 from pydantic import BaseModel, ValidationError
@@ -14,17 +16,17 @@ logger = logging.getLogger(__name__)
 # OpenAI client - initialized lazily to avoid import-time errors
 _client_instance = None
 
-def get_openai_client():
+def get_openai_client() -> OpenAI | None:
     """Get or create OpenAI client instance (lazy initialization)."""
     global _client_instance
-    
+
     if _client_instance is not None:
         return _client_instance
-    
+
     if not settings.OPENAI_API_KEY:
         logger.warning("OpenAI API key not configured")
         return None
-    
+
     try:
         # Initialize client with just the API key (no proxies or other args)
         _client_instance = OpenAI(api_key=settings.OPENAI_API_KEY)
@@ -132,6 +134,8 @@ class NaturalLanguageParserService:
             
             # Extract JSON from response
             response_text = response.choices[0].message.content
+            if response_text is None:
+                return {}, "No response from AI"
             parsed_json = json.loads(response_text)
             
             # Validate with Pydantic
@@ -190,7 +194,7 @@ class NaturalLanguageParserService:
             }
         }
         
-        workout_data = {
+        workout_data: Dict[str, Any] = {
             "exercises": []
         }
         

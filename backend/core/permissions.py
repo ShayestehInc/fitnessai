@@ -7,9 +7,9 @@ from typing import Any
 
 class IsTrainer(permissions.BasePermission):
     """Permission check for Trainer role."""
-    
+
     def has_permission(self, request: Any, view: Any) -> bool:
-        return (
+        return bool(
             request.user and
             request.user.is_authenticated and
             request.user.is_trainer()
@@ -18,9 +18,9 @@ class IsTrainer(permissions.BasePermission):
 
 class IsTrainee(permissions.BasePermission):
     """Permission check for Trainee role."""
-    
+
     def has_permission(self, request: Any, view: Any) -> bool:
-        return (
+        return bool(
             request.user and
             request.user.is_authenticated and
             request.user.is_trainee()
@@ -29,9 +29,9 @@ class IsTrainee(permissions.BasePermission):
 
 class IsAdmin(permissions.BasePermission):
     """Permission check for Admin role."""
-    
+
     def has_permission(self, request: Any, view: Any) -> bool:
-        return (
+        return bool(
             request.user and
             request.user.is_authenticated and
             request.user.is_admin()
@@ -40,9 +40,9 @@ class IsAdmin(permissions.BasePermission):
 
 class IsTrainerOrAdmin(permissions.BasePermission):
     """Permission check for Trainer or Admin roles."""
-    
+
     def has_permission(self, request: Any, view: Any) -> bool:
-        return (
+        return bool(
             request.user and
             request.user.is_authenticated and
             (request.user.is_trainer() or request.user.is_admin())

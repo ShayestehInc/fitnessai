@@ -1,9 +1,12 @@
 """
 Workout and nutrition models for Fitness AI platform.
 """
+from __future__ import annotations
+
+from typing import Any
+
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from typing import Optional, Dict, Any
 
 
 class Exercise(models.Model):
@@ -26,6 +29,11 @@ class Exercise(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     video_url = models.URLField(blank=True, null=True)
+    image_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Thumbnail image URL for this exercise"
+    )
     muscle_group = models.CharField(
         max_length=20,
         choices=MuscleGroup.choices,
@@ -116,7 +124,13 @@ class Program(models.Model):
     )
 
     is_active = models.BooleanField(default=True)
-    
+
+    image_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Thumbnail image URL for this program"
+    )
+
     created_by = models.ForeignKey(
         'users.User',
         on_delete=models.SET_NULL,
@@ -367,7 +381,7 @@ class MacroPreset(models.Model):
     def __str__(self) -> str:
         return f"{self.name} - {self.trainee.email}"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # Ensure only one default per trainee
         if self.is_default:
             MacroPreset.objects.filter(
@@ -454,6 +468,12 @@ class ProgramTemplate(models.Model):
         max_length=20,
         choices=GoalType.choices,
         default=GoalType.BUILD_MUSCLE
+    )
+
+    image_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Thumbnail image URL for this program template"
     )
 
     # If public, other trainers can view and clone this template
@@ -628,7 +648,7 @@ class WeeklyNutritionPlan(models.Model):
     def __str__(self) -> str:
         return f"Week {self.week_number} Nutrition - {self.program.name}"
 
-    def get_training_day_macros(self) -> dict:
+    def get_training_day_macros(self) -> dict[str, int]:
         """Get macro targets for training days."""
         return {
             'protein': self.protein_goal,
@@ -637,7 +657,7 @@ class WeeklyNutritionPlan(models.Model):
             'calories': self.calories_goal
         }
 
-    def get_rest_day_macros(self) -> dict:
+    def get_rest_day_macros(self) -> dict[str, int]:
         """Get macro targets for rest days."""
         adjusted_carbs = int(self.carbs_goal * self.rest_day_carbs_modifier)
         carb_calorie_diff = (self.carbs_goal - adjusted_carbs) * 4

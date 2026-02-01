@@ -15,11 +15,14 @@ Usage:
     # Or with uvx (recommended for Claude Desktop)
     uvx mcp run server.py
 """
+from __future__ import annotations
+
 import asyncio
 import json
 import os
 import sys
-from typing import Any
+from collections.abc import Callable, Coroutine
+from typing import Any, cast
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -28,7 +31,7 @@ from mcp.types import Resource, TextContent, Tool
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from config import (
+from mcp_config import (
     DJANGO_API_BASE_URL,
     TRAINER_JWT_TOKEN,
     MCP_SERVER_NAME,
@@ -67,11 +70,10 @@ def create_server(jwt_token: str | None = None) -> tuple[Server, DjangoAPIClient
     return server, api_client
 
 
-def _register_resources(server: Server, api_client: DjangoAPIClient):
+def _register_resources(server: Server, api_client: DjangoAPIClient) -> None:
     """Register all resource handlers."""
 
-    @server.list_resources()
-    async def list_resources() -> list[Resource]:
+    async def list_resources_impl() -> list[Resource]:
         """List all available resources."""
         resources = []
 
@@ -128,8 +130,12 @@ def _register_resources(server: Server, api_client: DjangoAPIClient):
 
         return resources
 
-    @server.read_resource()
-    async def read_resource(uri: str) -> str:
+    list_resources = cast(
+        Callable[[], Coroutine[Any, Any, list[Resource]]],
+        server.list_resources()(list_resources_impl),
+    )
+
+    async def read_resource_impl(uri: str) -> str:
         """Read a resource by URI."""
         # Import here to avoid circular imports
         from resources.trainee import (
@@ -193,12 +199,16 @@ def _register_resources(server: Server, api_client: DjangoAPIClient):
         else:
             raise ValueError(f"Unknown resource URI scheme: {uri}")
 
+    read_resource = cast(
+        Callable[[str], Coroutine[Any, Any, str]],
+        server.read_resource()(read_resource_impl),
+    )
 
-def _register_tools(server: Server, api_client: DjangoAPIClient):
+
+def _register_tools(server: Server, api_client: DjangoAPIClient) -> None:
     """Register all tool handlers."""
 
-    @server.list_tools()
-    async def list_tools() -> list[Tool]:
+    async def list_tools_impl() -> list[Tool]:
         """List all available tools."""
         tools = []
 
@@ -379,8 +389,12 @@ def _register_tools(server: Server, api_client: DjangoAPIClient):
 
         return tools
 
-    @server.call_tool()
-    async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    list_tools = cast(
+        Callable[[], Coroutine[Any, Any, list[Tool]]],
+        server.list_tools()(list_tools_impl),
+    )
+
+    async def call_tool_impl(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Handle tool calls."""
         # Import tool implementations
         from tools.program_generator import generate_program_draft, suggest_program_modifications
@@ -415,8 +429,13 @@ def _register_tools(server: Server, api_client: DjangoAPIClient):
 
         return [TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
 
+    call_tool = cast(
+        Callable[[str, dict[str, Any]], Coroutine[Any, Any, list[TextContent]]],
+        server.call_tool()(call_tool_impl),
+    )
 
-async def main():
+
+async def main() -> None:
     """Run the MCP server."""
     print(f"Starting {MCP_SERVER_NAME} v{MCP_SERVER_VERSION}", file=sys.stderr)
     print(f"Django API: {DJANGO_API_BASE_URL}", file=sys.stderr)

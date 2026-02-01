@@ -1,8 +1,11 @@
 """
 Calendar integration services for Google and Microsoft.
 """
+from __future__ import annotations
+
 import requests
 from datetime import datetime, timedelta
+from typing import Any, Optional, Union
 from urllib.parse import urlencode
 from django.conf import settings
 from django.utils import timezone
@@ -27,10 +30,10 @@ class GoogleCalendarService:
         'https://www.googleapis.com/auth/userinfo.email',
     ]
 
-    def __init__(self):
-        self.client_id = getattr(settings, 'GOOGLE_CALENDAR_CLIENT_ID', '')
-        self.client_secret = getattr(settings, 'GOOGLE_CALENDAR_CLIENT_SECRET', '')
-        self.redirect_uri = getattr(settings, 'GOOGLE_CALENDAR_REDIRECT_URI', '')
+    def __init__(self) -> None:
+        self.client_id: str = getattr(settings, 'GOOGLE_CALENDAR_CLIENT_ID', '')
+        self.client_secret: str = getattr(settings, 'GOOGLE_CALENDAR_CLIENT_SECRET', '')
+        self.redirect_uri: str = getattr(settings, 'GOOGLE_CALENDAR_REDIRECT_URI', '')
 
     def get_authorization_url(self, state: str) -> str:
         """Generate OAuth authorization URL."""
@@ -45,7 +48,7 @@ class GoogleCalendarService:
         }
         return f"{self.AUTH_URL}?{urlencode(params)}"
 
-    def exchange_code(self, code: str) -> dict:
+    def exchange_code(self, code: str) -> dict[str, Any]:
         """Exchange authorization code for tokens."""
         data = {
             'client_id': self.client_id,
@@ -57,9 +60,10 @@ class GoogleCalendarService:
 
         response = requests.post(self.TOKEN_URL, data=data)
         response.raise_for_status()
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
-    def refresh_access_token(self, refresh_token: str) -> dict:
+    def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """Refresh an expired access token."""
         data = {
             'client_id': self.client_id,
@@ -70,16 +74,18 @@ class GoogleCalendarService:
 
         response = requests.post(self.TOKEN_URL, data=data)
         response.raise_for_status()
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
-    def get_user_info(self, access_token: str) -> dict:
+    def get_user_info(self, access_token: str) -> dict[str, Any]:
         """Get user info (email) from Google."""
         headers = {'Authorization': f'Bearer {access_token}'}
         response = requests.get(self.USERINFO_URL, headers=headers)
         response.raise_for_status()
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
-    def get_calendar_list(self, access_token: str) -> list:
+    def get_calendar_list(self, access_token: str) -> list[dict[str, Any]]:
         """Get list of user's calendars."""
         headers = {'Authorization': f'Bearer {access_token}'}
         response = requests.get(
@@ -87,27 +93,35 @@ class GoogleCalendarService:
             headers=headers
         )
         response.raise_for_status()
-        return response.json().get('items', [])
+        result: list[dict[str, Any]] = response.json().get('items', [])
+        return result
 
     def get_events(
         self,
         access_token: str,
         calendar_id: str = 'primary',
-        time_min: datetime = None,
-        time_max: datetime = None,
+        time_min: Optional[datetime] = None,
+        time_max: Optional[datetime] = None,
         max_results: int = 100
-    ) -> list:
+    ) -> list[dict[str, Any]]:
         """Fetch events from a calendar."""
         headers = {'Authorization': f'Bearer {access_token}'}
 
-        if not time_min:
-            time_min = timezone.now()
-        if not time_max:
-            time_max = time_min + timedelta(days=30)
+        effective_time_min: datetime
+        if time_min is None:
+            effective_time_min = timezone.now()
+        else:
+            effective_time_min = time_min
 
-        params = {
-            'timeMin': time_min.isoformat(),
-            'timeMax': time_max.isoformat(),
+        effective_time_max: datetime
+        if time_max is None:
+            effective_time_max = effective_time_min + timedelta(days=30)
+        else:
+            effective_time_max = time_max
+
+        params: dict[str, str | int] = {
+            'timeMin': effective_time_min.isoformat(),
+            'timeMax': effective_time_max.isoformat(),
             'maxResults': max_results,
             'singleEvents': 'true',
             'orderBy': 'startTime',
@@ -119,7 +133,8 @@ class GoogleCalendarService:
             params=params
         )
         response.raise_for_status()
-        return response.json().get('items', [])
+        result: list[dict[str, Any]] = response.json().get('items', [])
+        return result
 
     def create_event(
         self,
@@ -129,16 +144,16 @@ class GoogleCalendarService:
         end_time: datetime,
         description: str = '',
         location: str = '',
-        attendees: list = None,
+        attendees: Optional[list[str]] = None,
         calendar_id: str = 'primary'
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Create an event on the calendar."""
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json',
         }
 
-        event_data = {
+        event_data: dict[str, Any] = {
             'summary': summary,
             'description': description,
             'location': location,
@@ -161,7 +176,8 @@ class GoogleCalendarService:
             json=event_data
         )
         response.raise_for_status()
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
     def revoke_token(self, token: str) -> bool:
         """Revoke an access or refresh token."""
@@ -192,10 +208,10 @@ class MicrosoftCalendarService:
         'Calendars.ReadWrite',
     ]
 
-    def __init__(self):
-        self.client_id = getattr(settings, 'MICROSOFT_CALENDAR_CLIENT_ID', '')
-        self.client_secret = getattr(settings, 'MICROSOFT_CALENDAR_CLIENT_SECRET', '')
-        self.redirect_uri = getattr(settings, 'MICROSOFT_CALENDAR_REDIRECT_URI', '')
+    def __init__(self) -> None:
+        self.client_id: str = getattr(settings, 'MICROSOFT_CALENDAR_CLIENT_ID', '')
+        self.client_secret: str = getattr(settings, 'MICROSOFT_CALENDAR_CLIENT_SECRET', '')
+        self.redirect_uri: str = getattr(settings, 'MICROSOFT_CALENDAR_REDIRECT_URI', '')
 
     def get_authorization_url(self, state: str) -> str:
         """Generate OAuth authorization URL."""
@@ -209,7 +225,7 @@ class MicrosoftCalendarService:
         }
         return f"{self.AUTH_URL}?{urlencode(params)}"
 
-    def exchange_code(self, code: str) -> dict:
+    def exchange_code(self, code: str) -> dict[str, Any]:
         """Exchange authorization code for tokens."""
         data = {
             'client_id': self.client_id,
@@ -222,9 +238,10 @@ class MicrosoftCalendarService:
 
         response = requests.post(self.TOKEN_URL, data=data)
         response.raise_for_status()
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
-    def refresh_access_token(self, refresh_token: str) -> dict:
+    def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """Refresh an expired access token."""
         data = {
             'client_id': self.client_id,
@@ -236,16 +253,18 @@ class MicrosoftCalendarService:
 
         response = requests.post(self.TOKEN_URL, data=data)
         response.raise_for_status()
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
-    def get_user_info(self, access_token: str) -> dict:
+    def get_user_info(self, access_token: str) -> dict[str, Any]:
         """Get user info from Microsoft Graph."""
         headers = {'Authorization': f'Bearer {access_token}'}
         response = requests.get(f"{self.GRAPH_API_URL}/me", headers=headers)
         response.raise_for_status()
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
-    def get_calendars(self, access_token: str) -> list:
+    def get_calendars(self, access_token: str) -> list[dict[str, Any]]:
         """Get list of user's calendars."""
         headers = {'Authorization': f'Bearer {access_token}'}
         response = requests.get(
@@ -253,38 +272,47 @@ class MicrosoftCalendarService:
             headers=headers
         )
         response.raise_for_status()
-        return response.json().get('value', [])
+        result: list[dict[str, Any]] = response.json().get('value', [])
+        return result
 
     def get_events(
         self,
         access_token: str,
-        calendar_id: str = None,
-        time_min: datetime = None,
-        time_max: datetime = None,
+        calendar_id: Optional[str] = None,
+        time_min: Optional[datetime] = None,
+        time_max: Optional[datetime] = None,
         max_results: int = 100
-    ) -> list:
+    ) -> list[dict[str, Any]]:
         """Fetch events from a calendar."""
         headers = {'Authorization': f'Bearer {access_token}'}
 
-        if not time_min:
-            time_min = timezone.now()
-        if not time_max:
-            time_max = time_min + timedelta(days=30)
+        effective_time_min: datetime
+        if time_min is None:
+            effective_time_min = timezone.now()
+        else:
+            effective_time_min = time_min
+
+        effective_time_max: datetime
+        if time_max is None:
+            effective_time_max = effective_time_min + timedelta(days=30)
+        else:
+            effective_time_max = time_max
 
         # Use default calendar if not specified
         endpoint = f"{self.GRAPH_API_URL}/me/calendar/events"
         if calendar_id:
             endpoint = f"{self.GRAPH_API_URL}/me/calendars/{calendar_id}/events"
 
-        params = {
-            '$filter': f"start/dateTime ge '{time_min.isoformat()}' and end/dateTime le '{time_max.isoformat()}'",
+        params: dict[str, str | int] = {
+            '$filter': f"start/dateTime ge '{effective_time_min.isoformat()}' and end/dateTime le '{effective_time_max.isoformat()}'",
             '$top': max_results,
             '$orderby': 'start/dateTime',
         }
 
         response = requests.get(endpoint, headers=headers, params=params)
         response.raise_for_status()
-        return response.json().get('value', [])
+        result: list[dict[str, Any]] = response.json().get('value', [])
+        return result
 
     def create_event(
         self,
@@ -294,16 +322,16 @@ class MicrosoftCalendarService:
         end_time: datetime,
         body: str = '',
         location: str = '',
-        attendees: list = None,
-        calendar_id: str = None
-    ) -> dict:
+        attendees: Optional[list[str]] = None,
+        calendar_id: Optional[str] = None
+    ) -> dict[str, Any]:
         """Create an event on the calendar."""
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json',
         }
 
-        event_data = {
+        event_data: dict[str, Any] = {
             'subject': subject,
             'body': {
                 'contentType': 'text',
@@ -337,7 +365,8 @@ class MicrosoftCalendarService:
 
         response = requests.post(endpoint, headers=headers, json=event_data)
         response.raise_for_status()
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
 
 # =============================================================================
@@ -347,7 +376,9 @@ class MicrosoftCalendarService:
 class CalendarSyncService:
     """Service for syncing calendar events to local database."""
 
-    def __init__(self, connection: CalendarConnection):
+    service: Union[GoogleCalendarService, MicrosoftCalendarService]
+
+    def __init__(self, connection: CalendarConnection) -> None:
         self.connection = connection
         if connection.provider == CalendarConnection.Provider.GOOGLE:
             self.service = GoogleCalendarService()
@@ -357,7 +388,8 @@ class CalendarSyncService:
     def ensure_valid_token(self) -> str:
         """Ensure we have a valid access token, refreshing if needed."""
         if not self.connection.is_token_expired:
-            return self.connection.access_token
+            access_token: str = self.connection.access_token
+            return access_token
 
         try:
             token_data = self.service.refresh_access_token(self.connection.refresh_token)
@@ -366,7 +398,8 @@ class CalendarSyncService:
                 refresh_token=token_data.get('refresh_token'),
                 expires_in=token_data.get('expires_in', 3600)
             )
-            return self.connection.access_token
+            access_token = self.connection.access_token
+            return access_token
         except Exception as e:
             self.connection.mark_expired()
             raise Exception(f"Failed to refresh token: {str(e)}")
@@ -406,7 +439,7 @@ class CalendarSyncService:
             self.connection.mark_error(str(e))
             raise
 
-    def _sync_google_events(self, events: list) -> int:
+    def _sync_google_events(self, events: list[dict[str, Any]]) -> int:
         """Sync Google Calendar events."""
         synced = 0
         for event in events:
@@ -449,7 +482,7 @@ class CalendarSyncService:
 
         return synced
 
-    def _sync_microsoft_events(self, events: list) -> int:
+    def _sync_microsoft_events(self, events: list[dict[str, Any]]) -> int:
         """Sync Microsoft Calendar events."""
         synced = 0
         for event in events:

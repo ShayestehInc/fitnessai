@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/models/exercise_model.dart';
 import '../providers/exercise_provider.dart';
@@ -240,62 +242,33 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
 
   Widget _buildExerciseCard(BuildContext context, ExerciseModel exercise) {
     final theme = Theme.of(context);
-    final hasVideo = exercise.videoUrl != null && exercise.videoUrl!.isNotEmpty;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () => _showExerciseDetail(context, exercise),
+        onLongPress: () => _showExerciseQuickActions(context, exercise),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // Thumbnail or icon
-              if (hasVideo && _extractYouTubeVideoId(exercise.videoUrl!) != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(
-                    width: 64,
-                    height: 48,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.network(
-                          'https://img.youtube.com/vi/${_extractYouTubeVideoId(exercise.videoUrl!)}/default.jpg',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                            child: Icon(Icons.fitness_center, color: theme.colorScheme.primary),
-                          ),
-                        ),
-                        Center(
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
-                          ),
-                        ),
-                      ],
+              // Exercise thumbnail image
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 64,
+                  height: 48,
+                  child: Image.network(
+                    exercise.thumbnailUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                      child: Icon(Icons.fitness_center, color: theme.colorScheme.primary),
                     ),
                   ),
-                )
-              else
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.fitness_center,
-                    color: theme.colorScheme.primary,
-                  ),
                 ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -316,10 +289,6 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                           exercise.muscleGroupDisplay,
                           style: theme.textTheme.bodySmall,
                         ),
-                        if (hasVideo) ...[
-                          const SizedBox(width: 8),
-                          Icon(Icons.videocam, size: 14, color: Colors.red[400]),
-                        ],
                       ],
                     ),
                   ],
@@ -353,6 +322,9 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
 
   void _showExerciseDetail(BuildContext context, ExerciseModel exercise) {
     final theme = Theme.of(context);
+    // Capture the parent context before showing the bottom sheet
+    final parentContext = context;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -360,12 +332,12 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => DraggableScrollableSheet(
+      builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         minChildSize: 0.5,
         maxChildSize: 0.95,
         expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
+        builder: (_, scrollController) => SingleChildScrollView(
           controller: scrollController,
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -389,7 +361,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              _buildDetailRow(context, Icons.category, 'Muscle Group', exercise.muscleGroupDisplay),
+              _buildDetailRow(parentContext, Icons.category, 'Muscle Group', exercise.muscleGroupDisplay),
               if (exercise.description != null && exercise.description!.isNotEmpty) ...[
                 const SizedBox(height: 20),
                 Text(
@@ -407,8 +379,41 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 ),
                 const SizedBox(height: 12),
                 // YouTube thumbnail
-                _buildYouTubeThumbnail(context, exercise.videoUrl!),
+                _buildYouTubeThumbnail(parentContext, exercise.videoUrl!),
               ],
+              const SizedBox(height: 24),
+              // Edit buttons row
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        // Use parent context for the new dialog
+                        if (parentContext.mounted) {
+                          _showEditImageDialog(parentContext, exercise);
+                        }
+                      },
+                      icon: const Icon(Icons.image, size: 18),
+                      label: const Text('Edit Image'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        // Use parent context for the new dialog
+                        if (parentContext.mounted) {
+                          _showEditVideoDialog(parentContext, exercise);
+                        }
+                      },
+                      icon: const Icon(Icons.videocam, size: 18),
+                      label: const Text('Edit Video'),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 24),
             ],
           ),
@@ -439,7 +444,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     final thumbnailUrl = 'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
 
     return GestureDetector(
-      onTap: () => _showVideoPlayer(context, videoId, videoUrl),
+      onTap: () => _openYouTubeVideo(videoUrl),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
@@ -507,7 +512,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
-                    'Tap to play',
+                    'Open in YouTube',
                     style: TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
@@ -537,92 +542,6 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showVideoPlayer(BuildContext context, String videoId, String videoUrl) {
-    final theme = Theme.of(context);
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: theme.dividerColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // Thumbnail preview
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Image.network(
-                  'https://img.youtube.com/vi/$videoId/hqdefault.jpg',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.grey[300],
-                    child: const Center(
-                      child: Icon(Icons.video_library, size: 48, color: Colors.grey),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Watch Tutorial Video',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'This video will open in the YouTube app for the best viewing experience.',
-              style: TextStyle(color: theme.textTheme.bodySmall?.color),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            // Open in YouTube button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _openYouTubeVideo(videoUrl);
-                },
-                icon: const Icon(Icons.play_circle_filled),
-                label: const Text('Open in YouTube'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Cancel button
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -895,6 +814,704 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
         );
       }
     }
+  }
+
+  void _showExerciseQuickActions(BuildContext context, ExerciseModel exercise) {
+    final theme = Theme.of(context);
+    // Capture the parent context before showing the bottom sheet
+    final parentContext = context;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: theme.dividerColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Text(
+                exercise.name,
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.image),
+                title: const Text('Edit Image'),
+                subtitle: const Text('Change the exercise thumbnail'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  if (parentContext.mounted) {
+                    _showEditImageDialog(parentContext, exercise);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('View Details'),
+                subtitle: const Text('See full exercise information'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  if (parentContext.mounted) {
+                    _showExerciseDetail(parentContext, exercise);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditImageDialog(BuildContext context, ExerciseModel exercise) {
+    final theme = Theme.of(context);
+    final imageUrlController = TextEditingController(text: exercise.imageUrl ?? '');
+    bool isLoading = false;
+    bool isUploading = false;
+    String? previewUrl;
+    File? selectedImageFile;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  'Edit Exercise Image',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  exercise.name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Current/Preview image
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 200,
+                      height: 150,
+                      child: selectedImageFile != null
+                          ? Image.file(
+                              selectedImageFile!,
+                              fit: BoxFit.cover,
+                            )
+                          : Image.network(
+                              previewUrl ?? exercise.thumbnailUrl,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  child: const Center(child: CircularProgressIndicator()),
+                                );
+                              },
+                              errorBuilder: (_, __, ___) => Container(
+                                color: theme.colorScheme.errorContainer,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.broken_image, color: theme.colorScheme.error, size: 32),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Invalid URL',
+                                      style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Upload from Gallery button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: isLoading || isUploading
+                        ? null
+                        : () async {
+                            final picker = ImagePicker();
+                            final pickedFile = await picker.pickImage(
+                              source: ImageSource.gallery,
+                              maxWidth: 1920,
+                              maxHeight: 1080,
+                              imageQuality: 85,
+                            );
+
+                            if (pickedFile != null) {
+                              setDialogState(() {
+                                selectedImageFile = File(pickedFile.path);
+                                previewUrl = null;
+                                imageUrlController.clear();
+                              });
+                            }
+                          },
+                    icon: const Icon(Icons.photo_library),
+                    label: Text(selectedImageFile != null ? 'Change Image' : 'Upload from Gallery'),
+                  ),
+                ),
+
+                if (selectedImageFile != null) ...[
+                  const SizedBox(height: 12),
+                  // Upload button when image is selected
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: isUploading
+                          ? null
+                          : () async {
+                              setDialogState(() => isUploading = true);
+
+                              final repository = ref.read(exerciseRepositoryProvider);
+                              final result = await repository.uploadExerciseImage(
+                                exercise.id,
+                                selectedImageFile!,
+                              );
+
+                              if (!context.mounted) return;
+
+                              if (result['success'] == true) {
+                                Navigator.pop(context);
+                                ref.invalidate(exercisesProvider);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Image uploaded successfully'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              } else {
+                                setDialogState(() => isUploading = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(result['error'] ?? 'Failed to upload image'),
+                                    backgroundColor: theme.colorScheme.error,
+                                  ),
+                                );
+                              }
+                            },
+                      icon: isUploading
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.cloud_upload),
+                      label: Text(isUploading ? 'Uploading...' : 'Upload Image'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        setDialogState(() {
+                          selectedImageFile = null;
+                        });
+                      },
+                      child: const Text('Clear selection'),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                // Divider with "OR" text
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: theme.dividerColor)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'OR',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: theme.dividerColor)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Image URL input
+                TextField(
+                  controller: imageUrlController,
+                  enabled: selectedImageFile == null,
+                  decoration: InputDecoration(
+                    labelText: 'Image URL',
+                    hintText: 'https://images.unsplash.com/...',
+                    prefixIcon: const Icon(Icons.link),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.preview),
+                      tooltip: 'Preview',
+                      onPressed: selectedImageFile == null
+                          ? () {
+                              final url = imageUrlController.text.trim();
+                              if (url.isNotEmpty) {
+                                setDialogState(() => previewUrl = url);
+                              }
+                            }
+                          : null,
+                    ),
+                  ),
+                  keyboardType: TextInputType.url,
+                  onSubmitted: (value) {
+                    if (value.trim().isNotEmpty && selectedImageFile == null) {
+                      setDialogState(() => previewUrl = value.trim());
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tip: Use Unsplash or Pexels for free high-quality images',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: (isLoading || isUploading || selectedImageFile != null)
+                            ? null
+                            : () async {
+                                final newUrl = imageUrlController.text.trim();
+
+                                setDialogState(() => isLoading = true);
+
+                                final repository = ref.read(exerciseRepositoryProvider);
+                                final result = await repository.updateExercise(
+                                  exercise.id,
+                                  {'image_url': newUrl.isEmpty ? null : newUrl},
+                                );
+
+                                if (!context.mounted) return;
+
+                                if (result['success'] == true) {
+                                  Navigator.pop(context);
+                                  ref.invalidate(exercisesProvider);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Image updated'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                } else {
+                                  setDialogState(() => isLoading = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(result['error'] ?? 'Failed to update image'),
+                                      backgroundColor: theme.colorScheme.error,
+                                    ),
+                                  );
+                                }
+                              },
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Save URL'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditVideoDialog(BuildContext context, ExerciseModel exercise) {
+    final theme = Theme.of(context);
+    final videoUrlController = TextEditingController(text: exercise.videoUrl ?? '');
+    bool isLoading = false;
+    bool isUploading = false;
+    String? previewVideoId;
+    File? selectedVideoFile;
+
+    // Extract initial video ID for preview
+    if (exercise.videoUrl != null) {
+      previewVideoId = _extractYouTubeVideoId(exercise.videoUrl!);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  'Edit Exercise Video',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  exercise.name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Current/Preview video thumbnail
+                if (previewVideoId != null || selectedVideoFile != null)
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        width: 280,
+                        height: 158,
+                        child: selectedVideoFile != null
+                            ? Container(
+                                color: theme.colorScheme.surfaceContainerHighest,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.videocam, size: 48, color: theme.colorScheme.primary),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      selectedVideoFile!.path.split('/').last,
+                                      style: theme.textTheme.bodySmall,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.network(
+                                    'https://img.youtube.com/vi/$previewVideoId/hqdefault.jpg',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: Colors.grey[300],
+                                      child: const Icon(Icons.video_library, size: 48),
+                                    ),
+                                  ),
+                                  Container(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    child: const Center(
+                                      child: Icon(Icons.play_circle_filled, size: 48, color: Colors.white),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 24),
+
+                // Upload from Gallery button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: isLoading || isUploading
+                        ? null
+                        : () async {
+                            final picker = ImagePicker();
+                            final pickedFile = await picker.pickVideo(
+                              source: ImageSource.gallery,
+                              maxDuration: const Duration(minutes: 5),
+                            );
+
+                            if (pickedFile != null) {
+                              setDialogState(() {
+                                selectedVideoFile = File(pickedFile.path);
+                                previewVideoId = null;
+                                videoUrlController.clear();
+                              });
+                            }
+                          },
+                    icon: const Icon(Icons.video_library),
+                    label: Text(selectedVideoFile != null ? 'Change Video' : 'Upload from Gallery'),
+                  ),
+                ),
+
+                if (selectedVideoFile != null) ...[
+                  const SizedBox(height: 12),
+                  // Upload button when video is selected
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: isUploading
+                          ? null
+                          : () async {
+                              setDialogState(() => isUploading = true);
+
+                              final repository = ref.read(exerciseRepositoryProvider);
+                              final result = await repository.uploadExerciseVideo(
+                                exercise.id,
+                                selectedVideoFile!,
+                              );
+
+                              if (!context.mounted) return;
+
+                              if (result['success'] == true) {
+                                Navigator.pop(context);
+                                ref.invalidate(exercisesProvider);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Video uploaded successfully'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              } else {
+                                setDialogState(() => isUploading = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(result['error'] ?? 'Failed to upload video'),
+                                    backgroundColor: theme.colorScheme.error,
+                                  ),
+                                );
+                              }
+                            },
+                      icon: isUploading
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.cloud_upload),
+                      label: Text(isUploading ? 'Uploading...' : 'Upload Video'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        setDialogState(() {
+                          selectedVideoFile = null;
+                        });
+                      },
+                      child: const Text('Clear selection'),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                // Divider with "OR" text
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: theme.dividerColor)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'OR',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: theme.dividerColor)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // YouTube URL input
+                TextField(
+                  controller: videoUrlController,
+                  enabled: selectedVideoFile == null,
+                  decoration: InputDecoration(
+                    labelText: 'YouTube URL',
+                    hintText: 'https://www.youtube.com/watch?v=...',
+                    prefixIcon: const Icon(Icons.link),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.preview),
+                      tooltip: 'Preview',
+                      onPressed: selectedVideoFile == null
+                          ? () {
+                              final url = videoUrlController.text.trim();
+                              final videoId = _extractYouTubeVideoId(url);
+                              if (videoId != null) {
+                                setDialogState(() => previewVideoId = videoId);
+                              } else if (url.isNotEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Invalid YouTube URL')),
+                                );
+                              }
+                            }
+                          : null,
+                    ),
+                  ),
+                  keyboardType: TextInputType.url,
+                  onSubmitted: (value) {
+                    if (selectedVideoFile == null) {
+                      final videoId = _extractYouTubeVideoId(value.trim());
+                      if (videoId != null) {
+                        setDialogState(() => previewVideoId = videoId);
+                      }
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Paste a YouTube video URL for the exercise tutorial',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: (isLoading || isUploading || selectedVideoFile != null)
+                            ? null
+                            : () async {
+                                final newUrl = videoUrlController.text.trim();
+
+                                setDialogState(() => isLoading = true);
+
+                                final repository = ref.read(exerciseRepositoryProvider);
+                                final result = await repository.updateExercise(
+                                  exercise.id,
+                                  {'video_url': newUrl.isEmpty ? null : newUrl},
+                                );
+
+                                if (!context.mounted) return;
+
+                                if (result['success'] == true) {
+                                  Navigator.pop(context);
+                                  ref.invalidate(exercisesProvider);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Video URL updated'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                } else {
+                                  setDialogState(() => isLoading = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(result['error'] ?? 'Failed to update video'),
+                                      backgroundColor: theme.colorScheme.error,
+                                    ),
+                                  );
+                                }
+                              },
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Save URL'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

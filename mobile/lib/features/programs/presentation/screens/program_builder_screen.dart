@@ -17,6 +17,8 @@ class ProgramBuilderScreen extends ConsumerStatefulWidget {
   final DateTime? startDate;
   /// If provided, we're editing an existing template
   final int? existingTemplateId;
+  /// If provided, we're editing an existing assigned program
+  final int? existingProgramId;
   /// Existing weeks data when editing
   final List<ProgramWeek>? existingWeeks;
 
@@ -30,6 +32,7 @@ class ProgramBuilderScreen extends ConsumerStatefulWidget {
     this.weeklySchedule,
     this.startDate,
     this.existingTemplateId,
+    this.existingProgramId,
     this.existingWeeks,
   });
 
@@ -166,7 +169,22 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_programState.name),
+        title: GestureDetector(
+          onTap: _showEditProgramNameDialog,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  _programState.name,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.edit, size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
+            ],
+          ),
+        ),
         actions: [
           _isSaving
               ? const Padding(
@@ -177,9 +195,10 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                 )
-              : TextButton(
+              : IconButton(
                   onPressed: _saveProgram,
-                  child: const Text('Save'),
+                  icon: const Icon(Icons.check),
+                  tooltip: 'Save',
                 ),
         ],
       ),
@@ -549,7 +568,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                   ),
                 ]
               : [
-                  ...day.exercises.map((exercise) => _buildExerciseRow(context, exercise, week, index)),
+                  ..._buildExerciseListWithSupersetConnectors(context, day, week, index),
                   // Add Exercise button
                   Padding(
                     padding: const EdgeInsets.all(16),
@@ -569,18 +588,80 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
+  /// Builds the list of exercise rows with superset connectors between grouped exercises
+  List<Widget> _buildExerciseListWithSupersetConnectors(BuildContext context, WorkoutDay day, ProgramWeek week, int dayIndex) {
+    final widgets = <Widget>[];
+
+    for (int i = 0; i < day.exercises.length; i++) {
+      final exercise = day.exercises[i];
+      widgets.add(_buildExerciseRow(context, exercise, week, dayIndex));
+
+      // Check if this exercise and the next one are in the same superset
+      if (i < day.exercises.length - 1) {
+        final nextExercise = day.exercises[i + 1];
+        if (exercise.isInSuperset &&
+            nextExercise.isInSuperset &&
+            exercise.supersetGroupId == nextExercise.supersetGroupId) {
+          // Add superset connector between them
+          widgets.add(_buildSupersetConnector(context));
+        }
+      }
+    }
+
+    return widgets;
+  }
+
+  /// Builds the "SUPERSET" connector widget that appears between superset exercises
+  Widget _buildSupersetConnector(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: theme.colorScheme.secondary, width: 3),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(left: 16),
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.link, size: 12, color: theme.colorScheme.secondary),
+                  const SizedBox(width: 4),
+                  Text(
+                    'SUPERSET',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.secondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildExerciseRow(BuildContext context, WorkoutExercise exercise, ProgramWeek week, int dayIndex) {
     final theme = Theme.of(context);
     // Apply modifiers for deload weeks
     final adjustedSets = (exercise.sets * week.volumeModifier).round();
     final adjustedReps = (exercise.reps * week.intensityModifier).round();
     final isInSuperset = exercise.isInSuperset;
-
-    // Get superset position info
-    final day = week.days[dayIndex];
-    final exerciseIndex = day.exercises.indexOf(exercise);
-    final isFirstInSuperset = isInSuperset &&
-        (exerciseIndex == 0 || day.exercises[exerciseIndex - 1].supersetGroupId != exercise.supersetGroupId);
 
     return Container(
       margin: EdgeInsets.only(left: isInSuperset ? 8 : 0),
@@ -623,32 +704,9 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          exercise.exerciseName,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                      if (isFirstInSuperset)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          margin: const EdgeInsets.only(left: 8),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.secondary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'SUPERSET',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.secondary,
-                            ),
-                          ),
-                        ),
-                    ],
+                  Text(
+                    exercise.exerciseName,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                   Text(
                     exercise.muscleGroup.replaceAll('_', ' ').split(' ').map((w) =>
@@ -684,6 +742,44 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditProgramNameDialog() {
+    final controller = TextEditingController(text: _programState.name);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Program Name'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Program Name',
+            hintText: 'e.g., Full Body 3x/Week',
+          ),
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                setState(() {
+                  _programState = _programState.copyWith(name: newName);
+                });
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -888,6 +984,17 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                     Navigator.pop(context);
                   },
                   child: const Text('Apply with Progressive Overload (+1 rep/week)'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    _applyToAllWeeks(exercise, sets, reps, restSeconds);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Save'),
                 ),
               ),
             ],
@@ -1424,6 +1531,55 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               _programState = _programState.copyWith(weeks: updatedWeeks);
             });
           },
+          onApplyRestDayToAllWeeks: (dayIndex, isRestDay) {
+            setState(() {
+              final updatedWeeks = List<ProgramWeek>.from(_programState.weeks);
+
+              // Apply rest day change to all weeks (except current which is handled by onSave)
+              for (int weekIndex = 0; weekIndex < updatedWeeks.length; weekIndex++) {
+                if (weekIndex == _selectedWeekIndex) continue; // Skip current week
+
+                final week = updatedWeeks[weekIndex];
+                if (dayIndex >= week.days.length) continue;
+
+                final updatedDays = List<WorkoutDay>.from(week.days);
+                updatedDays[dayIndex] = WorkoutDay(
+                  name: isRestDay ? 'Rest' : 'Workout',
+                  isRestDay: isRestDay,
+                  exercises: isRestDay ? [] : updatedDays[dayIndex].exercises,
+                );
+                updatedWeeks[weekIndex] = week.copyWith(days: updatedDays);
+              }
+
+              _programState = _programState.copyWith(weeks: updatedWeeks);
+            });
+          },
+          canDelete: _programState.weeks.length > 1,
+          onDeleteWeek: () {
+            setState(() {
+              final updatedWeeks = List<ProgramWeek>.from(_programState.weeks);
+              updatedWeeks.removeAt(_selectedWeekIndex);
+
+              // Renumber remaining weeks
+              for (int i = 0; i < updatedWeeks.length; i++) {
+                updatedWeeks[i] = updatedWeeks[i].copyWith(weekNumber: i + 1);
+              }
+
+              _programState = _programState.copyWith(
+                weeks: updatedWeeks,
+                durationWeeks: updatedWeeks.length,
+              );
+
+              // Adjust selected week index if needed
+              if (_selectedWeekIndex >= updatedWeeks.length) {
+                _selectedWeekIndex = updatedWeeks.length - 1;
+              }
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Week deleted'), backgroundColor: Colors.green),
+            );
+          },
         ),
       ),
     );
@@ -1442,9 +1598,40 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       // Build schedule template from the program state using model's toJson()
       final scheduleTemplate = _programState.weeks.map((week) => week.toJson()).toList();
 
+      // Case 1: Editing an existing assigned program
+      if (widget.existingProgramId != null) {
+        await apiClient.dio.patch(
+          ApiConstants.programDetail(widget.existingProgramId!),
+          data: {
+            'name': _programState.name,
+            'schedule': scheduleTemplate,
+          },
+        );
+
+        if (mounted) {
+          // Invalidate providers to refresh the data
+          if (widget.traineeId != null) {
+            ref.invalidate(traineeDetailProvider(widget.traineeId!));
+          }
+          ref.invalidate(traineesProvider);
+          ref.invalidate(trainerProgramsProvider);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Program updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Pop back
+          Navigator.of(context).pop();
+        }
+        return;
+      }
+
       int templateId;
 
-      // Check if we're updating an existing template or creating a new one
+      // Case 2: Updating an existing template
       if (widget.existingTemplateId != null) {
         // Update existing template
         await apiClient.dio.patch(

@@ -1,12 +1,16 @@
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
-from cryptography.fernet import Fernet
+from __future__ import annotations
+
 import base64
-import os
+from datetime import timedelta
+from typing import Optional
+
+from cryptography.fernet import Fernet
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
 
 
-def get_encryption_key():
+def get_encryption_key() -> bytes:
     """Get or create encryption key for token storage."""
     key = getattr(settings, 'CALENDAR_ENCRYPTION_KEY', None)
     if key:
@@ -67,17 +71,17 @@ class CalendarConnection(models.Model):
         unique_together = [['user', 'provider']]
         ordering = ['-created_at']
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.email} - {self.get_provider_display()}"
 
-    def _encrypt(self, value):
+    def _encrypt(self, value: str) -> str:
         """Encrypt a value for storage."""
         if not value:
             return ''
         f = Fernet(get_encryption_key())
         return f.encrypt(value.encode()).decode()
 
-    def _decrypt(self, value):
+    def _decrypt(self, value: str) -> str:
         """Decrypt a stored value."""
         if not value:
             return ''
@@ -88,54 +92,59 @@ class CalendarConnection(models.Model):
             return ''
 
     @property
-    def access_token(self):
+    def access_token(self) -> str:
         return self._decrypt(self._access_token)
 
     @access_token.setter
-    def access_token(self, value):
+    def access_token(self, value: str) -> None:
         self._access_token = self._encrypt(value)
 
     @property
-    def refresh_token(self):
+    def refresh_token(self) -> str:
         return self._decrypt(self._refresh_token)
 
     @refresh_token.setter
-    def refresh_token(self, value):
+    def refresh_token(self, value: str) -> None:
         self._refresh_token = self._encrypt(value)
 
     @property
-    def is_token_expired(self):
+    def is_token_expired(self) -> bool:
         if not self.token_expires_at:
             return True
         return timezone.now() >= self.token_expires_at
 
     @property
-    def is_connected(self):
+    def is_connected(self) -> bool:
         return self.status == self.Status.CONNECTED and not self.is_token_expired
 
-    def update_tokens(self, access_token, refresh_token=None, expires_in=None):
+    def update_tokens(
+        self,
+        access_token: str,
+        refresh_token: Optional[str] = None,
+        expires_in: Optional[int] = None,
+    ) -> None:
         """Update OAuth tokens after refresh or initial auth."""
         self.access_token = access_token
         if refresh_token:
             self.refresh_token = refresh_token
         if expires_in:
-            self.token_expires_at = timezone.now() + timezone.timedelta(seconds=expires_in)
+            self.token_expires_at = timezone.now() + timedelta(seconds=expires_in)
         self.status = self.Status.CONNECTED
         self.sync_error = ''
         self.save()
 
-    def mark_expired(self):
+    def mark_expired(self) -> None:
         """Mark the connection as expired."""
         self.status = self.Status.EXPIRED
         self.save()
 
-    def mark_error(self, error_message):
+    def mark_error(self, error_message: str) -> None:
         """Mark the connection as having an error."""
         self.status = self.Status.ERROR
         self.sync_error = error_message
         self.save()
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """Disconnect and clear tokens."""
         self.status = self.Status.REVOKED
         self._access_token = ''
@@ -204,7 +213,7 @@ class CalendarEvent(models.Model):
         unique_together = [['connection', 'external_id']]
         ordering = ['start_time']
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.title} ({self.start_time.strftime('%Y-%m-%d %H:%M')})"
 
 
@@ -241,5 +250,5 @@ class TrainerAvailability(models.Model):
     class Meta:
         ordering = ['day_of_week', 'start_time']
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.trainer.email} - {self.get_day_of_week_display()} {self.start_time}-{self.end_time}"

@@ -5,9 +5,13 @@ Usage:
     python manage.py generate_mcp_token --email trainer@example.com
     python manage.py generate_mcp_token --email trainer@example.com --days 30
 """
+from __future__ import annotations
+
+from argparse import ArgumentParser
+from typing import Any
+
 from django.core.management.base import BaseCommand, CommandError
 from rest_framework_simplejwt.tokens import RefreshToken
-from datetime import timedelta
 
 from users.models import User
 
@@ -15,7 +19,7 @@ from users.models import User
 class Command(BaseCommand):
     help = 'Generate a JWT token for a trainer to use with the MCP server'
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
             '--email',
             type=str,
@@ -29,7 +33,7 @@ class Command(BaseCommand):
             help='Number of days the token should be valid (default: 7)',
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         email = options['email']
         days = options['days']
 

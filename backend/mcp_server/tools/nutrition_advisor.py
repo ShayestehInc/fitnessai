@@ -1,18 +1,22 @@
 """
 Nutrition Advisor Tool - Create nutrition recommendations for trainer approval.
 """
+from __future__ import annotations
+
 import json
-from typing import Any
+from collections.abc import Callable, Coroutine
+from typing import Any, cast
+
 from mcp.server import Server
 from mcp.types import Tool, TextContent
+
 from api_client import DjangoAPIClient
 
 
-def register_nutrition_tools(server: Server, api_client: DjangoAPIClient):
+def register_nutrition_tools(server: Server, api_client: DjangoAPIClient) -> None:
     """Register nutrition advisory tools with the MCP server."""
 
-    @server.list_tools()
-    async def list_nutrition_tools() -> list[Tool]:
+    async def list_nutrition_tools_impl() -> list[Tool]:
         """List available nutrition tools."""
         return [
             Tool(
@@ -128,8 +132,12 @@ Parameters:
             ),
         ]
 
-    @server.call_tool()
-    async def call_nutrition_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    list_nutrition_tools = cast(
+        Callable[[], Coroutine[Any, Any, list[Tool]]],
+        server.list_tools()(list_nutrition_tools_impl),
+    )
+
+    async def call_nutrition_tool_impl(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Handle tool calls for nutrition advisory."""
         if name == "suggest_macro_adjustment":
             result = await suggest_macro_adjustment(api_client, arguments)
@@ -141,6 +149,11 @@ Parameters:
             result = {"error": f"Unknown tool: {name}"}
 
         return [TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
+
+    call_nutrition_tool = cast(
+        Callable[[str, dict[str, Any]], Coroutine[Any, Any, list[TextContent]]],
+        server.call_tool()(call_nutrition_tool_impl),
+    )
 
 
 async def suggest_macro_adjustment(api_client: DjangoAPIClient, args: dict[str, Any]) -> dict[str, Any]:
@@ -210,13 +223,13 @@ async def suggest_macro_adjustment(api_client: DjangoAPIClient, args: dict[str, 
 
 
 def _generate_macro_suggestions(
-    profile: dict,
-    current_goals: dict,
-    weight_trend: dict | None,
+    profile: dict[str, Any],
+    current_goals: dict[str, Any],
+    weight_trend: dict[str, Any] | None,
     adjustment_reason: str,
 ) -> list[dict[str, Any]]:
     """Generate macro adjustment suggestions."""
-    suggestions = []
+    suggestions: list[dict[str, Any]] = []
     goal = profile.get("goal", "GENERAL_FITNESS")
     current_calories = current_goals.get("calories_goal", 2000)
     current_protein = current_goals.get("protein_goal", 150)
@@ -352,7 +365,7 @@ async def analyze_nutrition_compliance(api_client: DjangoAPIClient, args: dict[s
     }
 
 
-def _analyze_logs(logs: list[dict], goals: dict) -> dict[str, Any]:
+def _analyze_logs(logs: list[dict[str, Any]], goals: dict[str, Any]) -> dict[str, Any]:
     """Analyze nutrition logs against goals."""
     protein_goal = goals.get("protein_goal", 150)
     carbs_goal = goals.get("carbs_goal", 200)

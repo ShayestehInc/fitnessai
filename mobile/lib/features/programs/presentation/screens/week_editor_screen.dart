@@ -9,12 +9,21 @@ class WeekEditorScreen extends ConsumerStatefulWidget {
   final Function(ProgramWeek) onSave;
   /// Callback to apply superset to all weeks. Parameters: dayIndex, exerciseNames, groupId
   final Function(int dayIndex, List<String> exerciseNames, String groupId)? onApplySupersetToAllWeeks;
+  /// Callback to apply rest day change to all weeks. Parameters: dayIndex, isRestDay
+  final Function(int dayIndex, bool isRestDay)? onApplyRestDayToAllWeeks;
+  /// Callback to delete this week
+  final VoidCallback? onDeleteWeek;
+  /// Whether this week can be deleted (e.g., must have at least 1 week)
+  final bool canDelete;
 
   const WeekEditorScreen({
     super.key,
     required this.week,
     required this.onSave,
     this.onApplySupersetToAllWeeks,
+    this.onApplyRestDayToAllWeeks,
+    this.onDeleteWeek,
+    this.canDelete = true,
   });
 
   @override
@@ -234,12 +243,43 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
               onPressed: _toggleSelectionMode,
             ),
           if (!_isSelectionMode)
-            TextButton(
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              tooltip: 'More options',
+              onSelected: (value) {
+                if (value == 'delete') {
+                  _showDeleteWeekDialog();
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'delete',
+                  enabled: widget.canDelete,
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.delete_outline,
+                      color: widget.canDelete ? Colors.red : Colors.grey,
+                    ),
+                    title: Text(
+                      'Delete Week',
+                      style: TextStyle(
+                        color: widget.canDelete ? Colors.red : Colors.grey,
+                      ),
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ),
+              ],
+            ),
+          if (!_isSelectionMode)
+            IconButton(
               onPressed: () {
                 widget.onSave(_week);
                 Navigator.pop(context);
               },
-              child: const Text('Save'),
+              icon: const Icon(Icons.check),
+              tooltip: 'Save',
             ),
         ],
       ),
@@ -734,156 +774,172 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                exercise.exerciseName,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+          final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
-              // Sets
-              Row(
+          return ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: (bottomPadding > 0 ? bottomPadding : 24) + keyboardHeight,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(width: 60, child: Text('Sets:')),
-                  IconButton(
-                    onPressed: () {
-                      if (sets > 1) setModalState(() => sets--);
-                    },
-                    icon: const Icon(Icons.remove_circle_outline),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
                   Text(
-                    sets.toString(),
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    exercise.exerciseName,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  IconButton(
-                    onPressed: () {
-                      if (sets < 10) setModalState(() => sets++);
-                    },
-                    icon: const Icon(Icons.add_circle_outline),
+                  const SizedBox(height: 24),
+
+                  // Sets
+                  Row(
+                    children: [
+                      const SizedBox(width: 60, child: Text('Sets:')),
+                      IconButton(
+                        onPressed: () {
+                          if (sets > 1) setModalState(() => sets--);
+                        },
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                      Text(
+                        sets.toString(),
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          if (sets < 10) setModalState(() => sets++);
+                        },
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                    ],
+                  ),
+
+                  // Reps
+                  Row(
+                    children: [
+                      const SizedBox(width: 60, child: Text('Reps:')),
+                      IconButton(
+                        onPressed: () {
+                          if (reps > 1) setModalState(() => reps--);
+                        },
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                      Text(
+                        reps.toString(),
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          if (reps < 50) setModalState(() => reps++);
+                        },
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                    ],
+                  ),
+
+                  // Rest Time
+                  Row(
+                    children: [
+                      const SizedBox(width: 60, child: Text('Rest:')),
+                      IconButton(
+                        onPressed: () {
+                          if (restSeconds > 15) setModalState(() => restSeconds -= 15);
+                        },
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                      Text(
+                        _formatRestTime(restSeconds),
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          if (restSeconds < 300) setModalState(() => restSeconds += 15);
+                        },
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Rest time presets
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildPresetChip('30s', () => setModalState(() => restSeconds = 30)),
+                      _buildPresetChip('60s', () => setModalState(() => restSeconds = 60)),
+                      _buildPresetChip('90s', () => setModalState(() => restSeconds = 90)),
+                      _buildPresetChip('2min', () => setModalState(() => restSeconds = 120)),
+                      _buildPresetChip('3min', () => setModalState(() => restSeconds = 180)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Quick presets
+                  const Text('Quick Presets:', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildPresetChip('3×8', () => setModalState(() { sets = 3; reps = 8; })),
+                      _buildPresetChip('3×10', () => setModalState(() { sets = 3; reps = 10; })),
+                      _buildPresetChip('3×12', () => setModalState(() { sets = 3; reps = 12; })),
+                      _buildPresetChip('4×8', () => setModalState(() { sets = 4; reps = 8; })),
+                      _buildPresetChip('4×10', () => setModalState(() { sets = 4; reps = 10; })),
+                      _buildPresetChip('5×5', () => setModalState(() { sets = 5; reps = 5; })),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _updateExercise(index, sets, reps, restSeconds);
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Update'),
+                    ),
                   ),
                 ],
               ),
-
-              // Reps
-              Row(
-                children: [
-                  const SizedBox(width: 60, child: Text('Reps:')),
-                  IconButton(
-                    onPressed: () {
-                      if (reps > 1) setModalState(() => reps--);
-                    },
-                    icon: const Icon(Icons.remove_circle_outline),
-                  ),
-                  Text(
-                    reps.toString(),
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      if (reps < 50) setModalState(() => reps++);
-                    },
-                    icon: const Icon(Icons.add_circle_outline),
-                  ),
-                ],
-              ),
-
-              // Rest Time
-              Row(
-                children: [
-                  const SizedBox(width: 60, child: Text('Rest:')),
-                  IconButton(
-                    onPressed: () {
-                      if (restSeconds > 15) setModalState(() => restSeconds -= 15);
-                    },
-                    icon: const Icon(Icons.remove_circle_outline),
-                  ),
-                  Text(
-                    _formatRestTime(restSeconds),
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      if (restSeconds < 300) setModalState(() => restSeconds += 15);
-                    },
-                    icon: const Icon(Icons.add_circle_outline),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Rest time presets
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildPresetChip('30s', () => setModalState(() => restSeconds = 30)),
-                  _buildPresetChip('60s', () => setModalState(() => restSeconds = 60)),
-                  _buildPresetChip('90s', () => setModalState(() => restSeconds = 90)),
-                  _buildPresetChip('2min', () => setModalState(() => restSeconds = 120)),
-                  _buildPresetChip('3min', () => setModalState(() => restSeconds = 180)),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Quick presets
-              const Text('Quick Presets:', style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildPresetChip('3×8', () => setModalState(() { sets = 3; reps = 8; })),
-                  _buildPresetChip('3×10', () => setModalState(() { sets = 3; reps = 10; })),
-                  _buildPresetChip('3×12', () => setModalState(() { sets = 3; reps = 12; })),
-                  _buildPresetChip('4×8', () => setModalState(() { sets = 4; reps = 8; })),
-                  _buildPresetChip('4×10', () => setModalState(() { sets = 4; reps = 10; })),
-                  _buildPresetChip('5×5', () => setModalState(() { sets = 5; reps = 5; })),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    _updateExercise(index, sets, reps, restSeconds);
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text('Update'),
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -963,6 +1019,85 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
   }
 
   void _convertToRestDay() {
+    final theme = Theme.of(context);
+    final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final dayName = dayNames[_selectedDayIndex];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (dialogContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(dialogContext).padding.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Icon(Icons.bed, size: 48, color: Colors.grey[600]),
+            const SizedBox(height: 16),
+            Text(
+              'Convert to Rest Day',
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Make $dayName a rest day',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      _applyRestDayToThisWeek();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('This Week Only'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: widget.onApplyRestDayToAllWeeks != null
+                        ? () {
+                            Navigator.pop(dialogContext);
+                            _applyRestDayToAllWeeks();
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('All Weeks'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _applyRestDayToThisWeek() {
     setState(() {
       final updatedDays = List<WorkoutDay>.from(_week.days);
       updatedDays[_selectedDayIndex] = WorkoutDay(
@@ -972,9 +1107,141 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       );
       _week = _week.copyWith(days: updatedDays);
     });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Converted to rest day for this week'), backgroundColor: Colors.green),
+    );
+  }
+
+  void _showDeleteWeekDialog() {
+    if (!widget.canDelete) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Week?'),
+        content: Text(
+          'Are you sure you want to delete Week ${_week.weekNumber}? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(dialogContext); // Close dialog
+              Navigator.pop(context); // Close week editor
+              widget.onDeleteWeek?.call();
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _applyRestDayToAllWeeks() {
+    // Apply to this week first
+    setState(() {
+      final updatedDays = List<WorkoutDay>.from(_week.days);
+      updatedDays[_selectedDayIndex] = WorkoutDay(
+        name: 'Rest',
+        isRestDay: true,
+        exercises: [],
+      );
+      _week = _week.copyWith(days: updatedDays);
+    });
+
+    // Call parent to apply to all other weeks
+    widget.onApplyRestDayToAllWeeks?.call(_selectedDayIndex, true);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Converted to rest day for all weeks'), backgroundColor: Colors.green),
+    );
   }
 
   void _convertToWorkoutDay() {
+    final theme = Theme.of(context);
+    final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final dayName = dayNames[_selectedDayIndex];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (dialogContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(dialogContext).padding.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Icon(Icons.fitness_center, size: 48, color: theme.colorScheme.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Convert to Workout Day',
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Make $dayName a workout day',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      _applyWorkoutDayToThisWeek();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('This Week Only'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: widget.onApplyRestDayToAllWeeks != null
+                        ? () {
+                            Navigator.pop(dialogContext);
+                            _applyWorkoutDayToAllWeeks();
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('All Weeks'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _applyWorkoutDayToThisWeek() {
     setState(() {
       final updatedDays = List<WorkoutDay>.from(_week.days);
       updatedDays[_selectedDayIndex] = WorkoutDay(
@@ -984,6 +1251,30 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       );
       _week = _week.copyWith(days: updatedDays);
     });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Converted to workout day for this week'), backgroundColor: Colors.green),
+    );
+  }
+
+  void _applyWorkoutDayToAllWeeks() {
+    // Apply to this week first
+    setState(() {
+      final updatedDays = List<WorkoutDay>.from(_week.days);
+      updatedDays[_selectedDayIndex] = WorkoutDay(
+        name: 'Workout',
+        isRestDay: false,
+        exercises: [],
+      );
+      _week = _week.copyWith(days: updatedDays);
+    });
+
+    // Call parent to apply to all other weeks (false means convert TO workout day)
+    widget.onApplyRestDayToAllWeeks?.call(_selectedDayIndex, false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Converted to workout day for all weeks'), backgroundColor: Colors.green),
+    );
   }
 
   void _clearExercises() {

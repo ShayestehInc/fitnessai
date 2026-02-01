@@ -252,4 +252,90 @@ class AuthRepository {
       return {'success': false, 'error': e.toString()};
     }
   }
+
+  /// Upload profile image
+  Future<Map<String, dynamic>> uploadProfileImage(String filePath) async {
+    try {
+      final formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(filePath),
+      });
+
+      final response = await _apiClient.dio.post(
+        ApiConstants.profileImage,
+        data: formData,
+      );
+
+      if (response.statusCode == 200) {
+        final user = UserModel.fromJson(response.data['user']);
+        return {
+          'success': true,
+          'user': user,
+          'profile_image': response.data['profile_image'],
+        };
+      }
+
+      return {'success': false, 'error': 'Failed to upload image'};
+    } on DioException catch (e) {
+      final error = e.response?.data['error'] ?? 'Failed to upload image';
+      return {'success': false, 'error': error};
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Remove profile image
+  Future<Map<String, dynamic>> removeProfileImage() async {
+    try {
+      final response = await _apiClient.dio.delete(ApiConstants.profileImage);
+
+      if (response.statusCode == 200) {
+        final user = UserModel.fromJson(response.data['user']);
+        return {
+          'success': true,
+          'user': user,
+        };
+      }
+
+      return {'success': false, 'error': 'Failed to remove image'};
+    } on DioException catch (e) {
+      final error = e.response?.data['error'] ?? 'Failed to remove image';
+      return {'success': false, 'error': error};
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Update user profile (name, business name)
+  Future<Map<String, dynamic>> updateUserProfile({
+    String? firstName,
+    String? lastName,
+    String? businessName,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (firstName != null) data['first_name'] = firstName;
+      if (lastName != null) data['last_name'] = lastName;
+      if (businessName != null) data['business_name'] = businessName;
+
+      final response = await _apiClient.dio.patch(
+        ApiConstants.userMe,
+        data: data,
+      );
+
+      if (response.statusCode == 200) {
+        final user = UserModel.fromJson(response.data['user']);
+        return {
+          'success': true,
+          'user': user,
+        };
+      }
+
+      return {'success': false, 'error': 'Failed to update profile'};
+    } on DioException catch (e) {
+      final error = e.response?.data['error'] ?? 'Failed to update profile';
+      return {'success': false, 'error': error};
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
 }

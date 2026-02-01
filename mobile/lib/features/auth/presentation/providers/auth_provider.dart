@@ -103,7 +103,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
           role: state.user!.role,
           firstName: state.user!.firstName,
           lastName: state.user!.lastName,
+          businessName: state.user!.businessName,
           onboardingCompleted: true,
+          profileImage: state.user!.profileImage,
           trainer: state.user!.trainer,
         ),
       );
@@ -198,6 +200,77 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         error: result['error'] as String?,
       );
+    }
+  }
+
+  /// Upload profile image
+  Future<Map<String, dynamic>> uploadProfileImage(String filePath) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _repository.uploadProfileImage(filePath);
+
+    if (result['success'] == true) {
+      state = state.copyWith(
+        user: result['user'] as UserModel,
+        isLoading: false,
+      );
+      return {'success': true};
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        error: result['error'] as String?,
+      );
+      return result;
+    }
+  }
+
+  /// Remove profile image
+  Future<Map<String, dynamic>> removeProfileImage() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _repository.removeProfileImage();
+
+    if (result['success'] == true) {
+      state = state.copyWith(
+        user: result['user'] as UserModel,
+        isLoading: false,
+      );
+      return {'success': true};
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        error: result['error'] as String?,
+      );
+      return result;
+    }
+  }
+
+  /// Update user profile (name, business name)
+  Future<Map<String, dynamic>> updateUserProfile({
+    String? firstName,
+    String? lastName,
+    String? businessName,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _repository.updateUserProfile(
+      firstName: firstName,
+      lastName: lastName,
+      businessName: businessName,
+    );
+
+    if (result['success'] == true) {
+      state = state.copyWith(
+        user: result['user'] as UserModel,
+        isLoading: false,
+      );
+      return {'success': true};
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        error: result['error'] as String?,
+      );
+      return result;
     }
   }
 }

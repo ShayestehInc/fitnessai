@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path, include, URLPattern, URLResolver
 from rest_framework.routers import DefaultRouter
 from . import views
 
@@ -40,7 +40,7 @@ trainer_coupon_router = DefaultRouter()
 trainer_coupon_router.register(r'coupons', views.TrainerCouponViewSet, basename='trainer-coupons')
 
 # Payment URLs (Stripe Connect)
-payment_urlpatterns = [
+payment_urlpatterns: list[URLPattern | URLResolver] = [
     # Stripe Connect (Trainer onboarding)
     path('connect/onboard/', views.StripeConnectOnboardView.as_view(), name='stripe-connect-onboard'),
     path('connect/status/', views.StripeConnectStatusView.as_view(), name='stripe-connect-status'),

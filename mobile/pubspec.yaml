@@ -51,6 +51,9 @@ dependencies:
   sign_in_with_apple: ^6.1.1
   crypto: ^3.0.3
 
+  # Image Picker
+  image_picker: ^1.0.7
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

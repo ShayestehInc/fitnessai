@@ -2,8 +2,13 @@
 Macro Calculator Service for calculating personalized nutrition goals.
 Uses the Mifflin-St Jeor equation for BMR calculation.
 """
-from typing import Dict, Tuple, Optional
+from __future__ import annotations
+
+from typing import Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass
+
+if TYPE_CHECKING:
+    from accounts.models import UserProfile
 
 
 @dataclass
@@ -150,7 +155,7 @@ class MacroCalculatorService:
         self,
         calories: int,
         diet_type: str
-    ) -> Tuple[int, int, int]:
+    ) -> tuple[int, int, int]:
         """
         Calculate macro grams from calorie target and diet type.
 
@@ -223,7 +228,7 @@ class MacroCalculatorService:
             per_meal_fat=per_meal_fat,
         )
 
-    def calculate_goals_from_profile(self, profile) -> Optional[MacroGoals]:
+    def calculate_goals_from_profile(self, profile: UserProfile) -> MacroGoals | None:
         """
         Calculate macro goals from a UserProfile instance.
 

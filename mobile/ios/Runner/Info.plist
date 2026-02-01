@@ -32,6 +32,8 @@
 	<string>We need your activity data to calculate recovery scores.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>We sync your workouts to your health ring.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select photos to use as exercise images.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<!-- Google Sign-In -->

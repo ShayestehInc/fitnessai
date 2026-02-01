@@ -1,30 +1,35 @@
 """
 User models for Fitness AI platform.
 """
+from __future__ import annotations
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from typing import Optional
+from typing import Any, ClassVar, Optional, TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 
-class UserManager(BaseUserManager):
+class UserManager(BaseUserManager["User"]):
     """Custom user manager where email is the unique identifier."""
-    
-    def create_user(self, email: str, password: str = None, **extra_fields):
+
+    def create_user(self, email: str, password: Optional[str] = None, **extra_fields: Any) -> User:
         """Create and save a user with the given email and password."""
         if not email:
             raise ValueError('The Email field must be set')
         email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+        user: User = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
-    
-    def create_superuser(self, email: str, password: str = None, **extra_fields):
+
+    def create_superuser(self, email: str, password: Optional[str] = None, **extra_fields: Any) -> User:
         """Create and save a superuser with the given email and password."""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('role', self.model.Role.ADMIN)
+        extra_fields.setdefault('role', User.Role.ADMIN)
         
         if extra_fields.get('is_staff') is not True:
             raise ValueError('Superuser must have is_staff=True.')
@@ -38,7 +43,7 @@ class User(AbstractUser):
     """
     Custom User model with role-based access control.
     Uses email as the primary identifier (no username required).
-    
+
     Roles:
     - ADMIN: Super Admin (platform owner)
     - TRAINER: Personal trainers who manage trainees
@@ -48,22 +53,25 @@ class User(AbstractUser):
         ADMIN = 'ADMIN', 'Admin'
         TRAINER = 'TRAINER', 'Trainer'
         TRAINEE = 'TRAINEE', 'Trainee'
-    
+
     # Use email as the username field
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []  # Remove 'email' from required fields since it's now the username
-    
-    username = None  # Remove username field
-    
+    REQUIRED_FIELDS: ClassVar[list[str]] = []  # Remove 'email' from required fields since it's now the username
+
+    # Custom manager
+    objects: ClassVar[UserManager] = UserManager()  # type: ignore[assignment]
+
+    # Override username to be nullable (effectively removing it as identifier)
+    # Django pattern: set to None when using email as username field
+    username = None  # type: ignore[assignment]
+
     # Override email to make it unique (required when used as USERNAME_FIELD)
     email = models.EmailField(
         unique=True,
         help_text="Email address (used as username for login)"
     )
-    
-    # Use custom manager
-    objects = UserManager()
-    
+
+
     role = models.CharField(
         max_length=10,
         choices=Role.choices,
@@ -86,7 +94,14 @@ class User(AbstractUser):
         blank=True,
         null=True
     )
-    
+
+    business_name = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        help_text="Business name for trainers"
+    )
+
     profile_image = models.ImageField(
         upload_to='profiles/',
         blank=True,

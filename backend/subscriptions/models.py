@@ -1,11 +1,17 @@
 """
 Subscription models for Trainer billing tiers.
 """
-from django.db import models
-from django.core.validators import MinValueValidator
-from django.utils import timezone
+from __future__ import annotations
+
 from decimal import Decimal
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
+
+from django.core.validators import MinValueValidator
+from django.db import models
+from django.utils import timezone
+
+if TYPE_CHECKING:
+    from users.models import User
 
 
 class SubscriptionTier(models.Model):
@@ -65,12 +71,12 @@ class SubscriptionTier(models.Model):
     def __str__(self) -> str:
         return f"{self.display_name} (${self.price}/mo)"
 
-    def get_trainee_limit(self) -> int:
+    def get_trainee_limit(self) -> Union[int, float]:
         """Get trainee limit, treating 0 as unlimited."""
         return self.trainee_limit if self.trainee_limit > 0 else float('inf')
 
     @classmethod
-    def get_tier_by_name(cls, name: str):
+    def get_tier_by_name(cls, name: str) -> Optional[SubscriptionTier]:
         """Get tier by name, with fallback to defaults."""
         try:
             return cls.objects.get(name=name, is_active=True)
@@ -78,9 +84,9 @@ class SubscriptionTier(models.Model):
             return None
 
     @classmethod
-    def seed_default_tiers(cls):
+    def seed_default_tiers(cls) -> None:
         """Create default tiers if they don't exist."""
-        defaults = [
+        defaults: list[dict[str, Any]] = [
             {
                 'name': 'FREE',
                 'display_name': 'Free',
@@ -246,15 +252,16 @@ class Subscription(models.Model):
     def __str__(self) -> str:
         return f"{self.trainer.email} - {self.get_tier_display()} ({self.status})"
 
-    def get_tier_config(self):
+    def get_tier_config(self) -> Optional[SubscriptionTier]:
         """Get the SubscriptionTier config for this subscription's tier."""
         return SubscriptionTier.get_tier_by_name(self.tier)
 
-    def get_max_trainees(self) -> int:
+    def get_max_trainees(self) -> Union[int, float]:
         """Get maximum number of trainees allowed for this tier."""
         tier_config = self.get_tier_config()
         if tier_config:
-            return tier_config.get_trainee_limit()
+            limit = tier_config.get_trainee_limit()
+            return float(limit) if limit == float('inf') else int(limit)
         # Fallback to hardcoded values
         return self.TIER_LIMITS.get(self.tier, 0)
 
@@ -262,7 +269,7 @@ class Subscription(models.Model):
         """Get the monthly price for this tier."""
         tier_config = self.get_tier_config()
         if tier_config:
-            return tier_config.price
+            return Decimal(tier_config.price)
         # Fallback to hardcoded values
         return self.TIER_PRICING.get(self.tier, Decimal('0.00'))
 
@@ -762,7 +769,7 @@ class Coupon(models.Model):
             return False
         return True
 
-    def can_be_used_by(self, user) -> tuple[bool, str]:
+    def can_be_used_by(self, user: User) -> tuple[bool, str]:
         """Check if a user can use this coupon."""
         if not self.is_valid():
             return False, "Coupon is not valid"
@@ -789,7 +796,12 @@ class Coupon(models.Model):
             return max(Decimal('0.00'), original_amount - self.discount_value)
         return original_amount
 
-    def record_usage(self, user, subscription=None, trainee_subscription=None):
+    def record_usage(
+        self,
+        user: User,
+        subscription: Optional[Subscription] = None,
+        trainee_subscription: Optional[TraineeSubscription] = None,
+    ) -> None:
         """Record coupon usage."""
         self.current_uses += 1
         if self.max_uses > 0 and self.current_uses >= self.max_uses:
@@ -803,7 +815,7 @@ class Coupon(models.Model):
             trainee_subscription=trainee_subscription,
         )
 
-    def revoke(self):
+    def revoke(self) -> None:
         """Revoke the coupon."""
         self.status = self.Status.REVOKED
         self.save()

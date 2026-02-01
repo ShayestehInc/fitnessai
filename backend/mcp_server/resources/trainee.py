@@ -1,18 +1,22 @@
 """
 Trainee Resources - Provide AI with context about trainees.
 """
+from __future__ import annotations
+
 import json
-from typing import Any
+from collections.abc import Callable, Coroutine
+from typing import Any, cast
+
 from mcp.server import Server
-from mcp.types import Resource, TextContent
+from mcp.types import Resource
+
 from api_client import DjangoAPIClient
 
 
-def register_trainee_resources(server: Server, api_client: DjangoAPIClient):
+def register_trainee_resources(server: Server, api_client: DjangoAPIClient) -> None:
     """Register all trainee-related resources with the MCP server."""
 
-    @server.list_resources()
-    async def list_resources() -> list[Resource]:
+    async def list_resources_impl() -> list[Resource]:
         """List available trainee resources."""
         resources = []
 
@@ -68,8 +72,12 @@ def register_trainee_resources(server: Server, api_client: DjangoAPIClient):
 
         return resources
 
-    @server.read_resource()
-    async def read_resource(uri: str) -> str:
+    list_resources = cast(
+        Callable[[], Coroutine[Any, Any, list[Resource]]],
+        server.list_resources()(list_resources_impl),
+    )
+
+    async def read_resource_impl(uri: str) -> str:
         """Read a trainee resource by URI."""
         # Parse URI: trainee://{trainee_id}/{resource_type}
         if not uri.startswith("trainee://"):
@@ -99,6 +107,11 @@ def register_trainee_resources(server: Server, api_client: DjangoAPIClient):
             raise ValueError(f"Unknown resource type: {resource_type}")
 
         return json.dumps(data, indent=2, default=str)
+
+    read_resource = cast(
+        Callable[[str], Coroutine[Any, Any, str]],
+        server.read_resource()(read_resource_impl),
+    )
 
 
 async def get_trainee_profile_context(api_client: DjangoAPIClient, trainee_id: int) -> dict[str, Any]:

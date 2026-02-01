@@ -88,6 +88,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           _passwordController.text,
         );
 
+    if (!mounted) return;
+
     final authState = ref.read(authStateProvider);
 
     if (authState.user != null) {
@@ -98,19 +100,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         );
       }
 
-      if (mounted) {
-        final user = authState.user!;
-        if (user.isAdmin) {
-          context.go('/admin');
-        } else if (user.isTrainer) {
-          context.go('/trainer');
-        } else if (user.isTrainee && !user.onboardingCompleted) {
-          context.go('/onboarding');
-        } else {
-          context.go('/home');
-        }
+      if (!mounted) return;
+
+      final user = authState.user!;
+      if (user.isAdmin) {
+        context.go('/admin');
+      } else if (user.isTrainer) {
+        context.go('/trainer');
+      } else if (user.isTrainee && !user.onboardingCompleted) {
+        context.go('/onboarding');
+      } else {
+        context.go('/home');
       }
-    } else if (authState.error != null && mounted) {
+    } else if (authState.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authState.error!),
@@ -138,9 +140,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 credentials['password']!,
               );
 
+          if (!mounted) return;
+
           final authState = ref.read(authStateProvider);
 
-          if (authState.user != null && mounted) {
+          if (authState.user != null) {
             final user = authState.user!;
             if (user.isAdmin) {
               context.go('/admin');
@@ -164,11 +168,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Future<void> _handleGoogleLogin() async {
     await ref.read(authStateProvider.notifier).loginWithGoogle();
 
+    if (!mounted) return;
+
     final authState = ref.read(authStateProvider);
 
-    if (authState.user != null && mounted) {
+    if (authState.user != null) {
       _navigateBasedOnRole(authState.user!);
-    } else if (authState.error != null && mounted) {
+    } else if (authState.error != null) {
       // Don't show snackbar for cancelled sign-in
       if (authState.error != 'Sign-in cancelled') {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -184,11 +190,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Future<void> _handleAppleLogin() async {
     await ref.read(authStateProvider.notifier).loginWithApple();
 
+    if (!mounted) return;
+
     final authState = ref.read(authStateProvider);
 
-    if (authState.user != null && mounted) {
+    if (authState.user != null) {
       _navigateBasedOnRole(authState.user!);
-    } else if (authState.error != null && mounted) {
+    } else if (authState.error != null) {
       // Don't show snackbar for cancelled sign-in
       if (authState.error != 'Sign-in cancelled') {
         ScaffoldMessenger.of(context).showSnackBar(

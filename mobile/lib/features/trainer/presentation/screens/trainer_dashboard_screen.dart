@@ -639,8 +639,6 @@ class TrainerDashboardScreen extends ConsumerWidget {
 
   Widget _buildExerciseCard(BuildContext context, ExerciseModel exercise) {
     final theme = Theme.of(context);
-    final hasVideo = exercise.videoUrl != null && exercise.videoUrl!.isNotEmpty;
-    final videoId = hasVideo ? _extractYouTubeVideoId(exercise.videoUrl!) : null;
 
     return GestureDetector(
       onTap: () => _showExerciseDetail(context, exercise),
@@ -654,58 +652,44 @@ class TrainerDashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thumbnail or icon header
-            if (videoId != null)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
-                child: SizedBox(
-                  height: 56,
-                  width: double.infinity,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.network(
-                        'https://img.youtube.com/vi/$videoId/default.jpg',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                          child: Icon(Icons.fitness_center, color: theme.colorScheme.secondary),
+            // Muscle group image thumbnail
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+              child: SizedBox(
+                height: 56,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      exercise.thumbnailUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                        child: Icon(Icons.fitness_center, color: theme.colorScheme.secondary),
+                      ),
+                    ),
+                    // Gradient overlay for better text visibility
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.3),
+                          ],
                         ),
                       ),
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.9),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.fitness_center,
-                    color: theme.colorScheme.secondary,
-                    size: 18,
-                  ),
+                    ),
+                  ],
                 ),
               ),
+            ),
             // Content
             Expanded(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(12, videoId != null ? 8 : 0, 12, 12),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

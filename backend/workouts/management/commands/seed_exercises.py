@@ -1,14 +1,19 @@
 """
 Management command to seed the Master Exercise Bank with 154+ exercises including YouTube tutorial videos.
 """
+from __future__ import annotations
+
+from typing import Any
+
 from django.core.management.base import BaseCommand
+
 from workouts.models import Exercise
 
 
 class Command(BaseCommand):
     help = 'Seeds the database with 154 exercises including YouTube video tutorials'
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         exercises = self.get_exercises()
 
         created_count = 0
@@ -38,9 +43,9 @@ class Command(BaseCommand):
             )
         )
 
-    def get_exercises(self):
+    def get_exercises(self) -> list[dict[str, str]]:
         """Returns list of all exercises to seed with video URLs."""
-        exercises = []
+        exercises: list[dict[str, str]] = []
 
         # CHEST (15 exercises)
         chest_exercises = [

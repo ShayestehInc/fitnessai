@@ -27,7 +27,9 @@ class UserModel with _$UserModel {
     @JsonKey(name: 'role') required String role,
     @JsonKey(name: 'first_name') String? firstName,
     @JsonKey(name: 'last_name') String? lastName,
+    @JsonKey(name: 'business_name') String? businessName,
     @JsonKey(name: 'onboarding_completed') @Default(false) bool onboardingCompleted,
+    @JsonKey(name: 'profile_image') String? profileImage,
     TrainerModel? trainer,
   }) = _UserModel;
 

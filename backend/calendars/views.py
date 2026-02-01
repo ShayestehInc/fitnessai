@@ -1,14 +1,22 @@
 """
 Views for calendar integration.
 """
+from __future__ import annotations
+
 import secrets
+from typing import Any, cast
+
+from rest_framework.serializers import BaseSerializer
+
 from rest_framework import generics, status, views
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.conf import settings
+from django.db.models import QuerySet
 from django.core.cache import cache
 
 from core.permissions import IsTrainer
+from users.models import User
 from .models import CalendarConnection, CalendarEvent, TrainerAvailability
 from .serializers import (
     CalendarConnectionSerializer, CalendarEventSerializer,
@@ -18,15 +26,16 @@ from .serializers import (
 from .services import GoogleCalendarService, MicrosoftCalendarService, CalendarSyncService
 
 
-class CalendarConnectionListView(generics.ListAPIView):
+class CalendarConnectionListView(generics.ListAPIView[CalendarConnection]):
     """
     GET: List all calendar connections for the authenticated trainer.
     """
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = CalendarConnectionSerializer
 
-    def get_queryset(self):
-        return CalendarConnection.objects.filter(user=self.request.user)
+    def get_queryset(self) -> QuerySet[CalendarConnection]:
+        user = cast(User, self.request.user)
+        return CalendarConnection.objects.filter(user=user)
 
 
 class GoogleAuthURLView(views.APIView):
@@ -35,7 +44,8 @@ class GoogleAuthURLView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
         service = GoogleCalendarService()
 
         if not service.client_id:
@@ -46,7 +56,7 @@ class GoogleAuthURLView(views.APIView):
 
         # Generate state token for CSRF protection
         state = secrets.token_urlsafe(32)
-        cache_key = f"google_oauth_state_{request.user.id}"
+        cache_key = f"google_oauth_state_{user.id}"
         cache.set(cache_key, state, timeout=600)  # 10 minutes
 
         auth_url = service.get_authorization_url(state)
@@ -63,15 +73,17 @@ class GoogleCallbackView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
+        user = cast(User, request.user)
         serializer = OAuthCallbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        code = serializer.validated_data['code']
-        state = serializer.validated_data['state']
+        validated_data = cast(dict[str, Any], serializer.validated_data)
+        code: str = validated_data['code']
+        state: str = validated_data['state']
 
         # Verify state
-        cache_key = f"google_oauth_state_{request.user.id}"
+        cache_key = f"google_oauth_state_{user.id}"
         stored_state = cache.get(cache_key)
 
         if not stored_state or stored_state != state:
@@ -86,14 +98,14 @@ class GoogleCallbackView(views.APIView):
 
         try:
             # Exchange code for tokens
-            token_data = service.exchange_code(code)
+            token_data: dict[str, Any] = service.exchange_code(code)
 
             # Get user info
-            user_info = service.get_user_info(token_data['access_token'])
+            user_info: dict[str, Any] = service.get_user_info(token_data['access_token'])
 
             # Create or update connection
             connection, _ = CalendarConnection.objects.update_or_create(
-                user=request.user,
+                user=user,
                 provider=CalendarConnection.Provider.GOOGLE,
                 defaults={
                     'calendar_email': user_info.get('email', ''),
@@ -126,7 +138,8 @@ class MicrosoftAuthURLView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
         service = MicrosoftCalendarService()
 
         if not service.client_id:
@@ -137,7 +150,7 @@ class MicrosoftAuthURLView(views.APIView):
 
         # Generate state token for CSRF protection
         state = secrets.token_urlsafe(32)
-        cache_key = f"microsoft_oauth_state_{request.user.id}"
+        cache_key = f"microsoft_oauth_state_{user.id}"
         cache.set(cache_key, state, timeout=600)  # 10 minutes
 
         auth_url = service.get_authorization_url(state)
@@ -154,15 +167,17 @@ class MicrosoftCallbackView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
+        user = cast(User, request.user)
         serializer = OAuthCallbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        code = serializer.validated_data['code']
-        state = serializer.validated_data['state']
+        validated_data = cast(dict[str, Any], serializer.validated_data)
+        code: str = validated_data['code']
+        state: str = validated_data['state']
 
         # Verify state
-        cache_key = f"microsoft_oauth_state_{request.user.id}"
+        cache_key = f"microsoft_oauth_state_{user.id}"
         stored_state = cache.get(cache_key)
 
         if not stored_state or stored_state != state:
@@ -177,14 +192,14 @@ class MicrosoftCallbackView(views.APIView):
 
         try:
             # Exchange code for tokens
-            token_data = service.exchange_code(code)
+            token_data: dict[str, Any] = service.exchange_code(code)
 
             # Get user info
-            user_info = service.get_user_info(token_data['access_token'])
+            user_info: dict[str, Any] = service.get_user_info(token_data['access_token'])
 
             # Create or update connection
             connection, _ = CalendarConnection.objects.update_or_create(
-                user=request.user,
+                user=user,
                 provider=CalendarConnection.Provider.MICROSOFT,
                 defaults={
                     'calendar_email': user_info.get('mail') or user_info.get('userPrincipalName', ''),
@@ -217,10 +232,11 @@ class DisconnectCalendarView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request, provider):
+    def post(self, request: Request, provider: str) -> Response:
+        user = cast(User, request.user)
         try:
             connection = CalendarConnection.objects.get(
-                user=request.user,
+                user=user,
                 provider=provider
             )
         except CalendarConnection.DoesNotExist:
@@ -248,10 +264,11 @@ class SyncCalendarView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request, provider):
+    def post(self, request: Request, provider: str) -> Response:
+        user = cast(User, request.user)
         try:
             connection = CalendarConnection.objects.get(
-                user=request.user,
+                user=user,
                 provider=provider,
                 status=CalendarConnection.Status.CONNECTED
             )
@@ -278,16 +295,17 @@ class SyncCalendarView(views.APIView):
             )
 
 
-class CalendarEventsView(generics.ListAPIView):
+class CalendarEventsView(generics.ListAPIView[CalendarEvent]):
     """
     GET: List synced calendar events.
     """
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = CalendarEventSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[CalendarEvent]:
+        user = cast(User, self.request.user)
         connections = CalendarConnection.objects.filter(
-            user=self.request.user,
+            user=user,
             status=CalendarConnection.Status.CONNECTED
         )
 
@@ -307,16 +325,17 @@ class CreateCalendarEventView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
+        user = cast(User, request.user)
         serializer = CreateEventSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        data = serializer.validated_data
+        data = cast(dict[str, Any], serializer.validated_data)
         provider = data.get('provider')
 
         # Find a connected calendar
         connections = CalendarConnection.objects.filter(
-            user=request.user,
+            user=user,
             status=CalendarConnection.Status.CONNECTED
         )
 
@@ -333,11 +352,12 @@ class CreateCalendarEventView(views.APIView):
 
         try:
             sync_service = CalendarSyncService(connection)
-            access_token = sync_service.ensure_valid_token()
+            access_token: str = sync_service.ensure_valid_token()
 
+            result: dict[str, Any]
             if connection.provider == CalendarConnection.Provider.GOOGLE:
-                service = GoogleCalendarService()
-                result = service.create_event(
+                google_service = GoogleCalendarService()
+                result = google_service.create_event(
                     access_token=access_token,
                     summary=data['title'],
                     start_time=data['start_time'],
@@ -347,8 +367,8 @@ class CreateCalendarEventView(views.APIView):
                     attendees=data.get('attendee_emails', [])
                 )
             else:
-                service = MicrosoftCalendarService()
-                result = service.create_event(
+                microsoft_service = MicrosoftCalendarService()
+                result = microsoft_service.create_event(
                     access_token=access_token,
                     subject=data['title'],
                     start_time=data['start_time'],
@@ -371,7 +391,7 @@ class CreateCalendarEventView(views.APIView):
             )
 
 
-class TrainerAvailabilityListCreateView(generics.ListCreateAPIView):
+class TrainerAvailabilityListCreateView(generics.ListCreateAPIView[TrainerAvailability]):
     """
     GET: List trainer's availability slots.
     POST: Create a new availability slot.
@@ -379,19 +399,22 @@ class TrainerAvailabilityListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = TrainerAvailabilitySerializer
 
-    def get_queryset(self):
-        return TrainerAvailability.objects.filter(trainer=self.request.user)
+    def get_queryset(self) -> QuerySet[TrainerAvailability]:
+        user = cast(User, self.request.user)
+        return TrainerAvailability.objects.filter(trainer=user)
 
-    def perform_create(self, serializer):
-        serializer.save(trainer=self.request.user)
+    def perform_create(self, serializer: BaseSerializer[TrainerAvailability]) -> None:
+        user = cast(User, self.request.user)
+        serializer.save(trainer=user)
 
 
-class TrainerAvailabilityDetailView(generics.RetrieveUpdateDestroyAPIView):
+class TrainerAvailabilityDetailView(generics.RetrieveUpdateDestroyAPIView[TrainerAvailability]):
     """
     GET/PUT/PATCH/DELETE: Manage a specific availability slot.
     """
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = TrainerAvailabilitySerializer
 
-    def get_queryset(self):
-        return TrainerAvailability.objects.filter(trainer=self.request.user)
+    def get_queryset(self) -> QuerySet[TrainerAvailability]:
+        user = cast(User, self.request.user)
+        return TrainerAvailability.objects.filter(trainer=user)

@@ -3,6 +3,8 @@ URL configuration for Fitness AI project.
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from subscriptions.urls import payment_urlpatterns
 
 urlpatterns = [
@@ -18,8 +20,12 @@ urlpatterns = [
     path('api/admin/', include('subscriptions.urls')),
 
     # Payment API endpoints (Stripe Connect)
-    path('api/payments/', include(payment_urlpatterns)),
+    path('api/payments/', include((payment_urlpatterns, 'payments'))),
 
     # Calendar integration
     path('api/calendar/', include('calendars.urls')),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

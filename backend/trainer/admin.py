@@ -1,12 +1,15 @@
 """
 Admin configuration for trainer app.
 """
+from __future__ import annotations
+
 from django.contrib import admin
-from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary
+
+from .models import TraineeActivitySummary, TraineeInvitation, TrainerSession
 
 
 @admin.register(TraineeInvitation)
-class TraineeInvitationAdmin(admin.ModelAdmin):
+class TraineeInvitationAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_display = ['email', 'trainer', 'status', 'expires_at', 'created_at']
     list_filter = ['status', 'created_at']
     search_fields = ['email', 'trainer__email']
@@ -14,7 +17,7 @@ class TraineeInvitationAdmin(admin.ModelAdmin):
 
 
 @admin.register(TrainerSession)
-class TrainerSessionAdmin(admin.ModelAdmin):
+class TrainerSessionAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_display = ['trainer', 'trainee', 'started_at', 'ended_at', 'is_read_only']
     list_filter = ['is_read_only', 'started_at']
     search_fields = ['trainer__email', 'trainee__email']
@@ -22,7 +25,7 @@ class TrainerSessionAdmin(admin.ModelAdmin):
 
 
 @admin.register(TraineeActivitySummary)
-class TraineeActivitySummaryAdmin(admin.ModelAdmin):
+class TraineeActivitySummaryAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_display = ['trainee', 'date', 'logged_food', 'logged_workout', 'hit_protein_goal']
     list_filter = ['date', 'logged_food', 'logged_workout', 'hit_protein_goal']
     search_fields = ['trainee__email']

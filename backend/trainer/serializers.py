@@ -1,16 +1,21 @@
 """
 Serializers for trainer app.
 """
+from __future__ import annotations
+
+from typing import Any
+
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary
 from workouts.models import ProgramTemplate
+from users.models import User
 
-User = get_user_model()
+_UserModel = get_user_model()
 
 
-class TraineeListSerializer(serializers.ModelSerializer):
+class TraineeListSerializer(serializers.ModelSerializer[User]):
     """Serializer for listing trainees in trainer dashboard."""
     profile_complete = serializers.SerializerMethodField()
     last_activity = serializers.SerializerMethodField()
@@ -24,19 +29,19 @@ class TraineeListSerializer(serializers.ModelSerializer):
             'is_active', 'created_at'
         ]
 
-    def get_profile_complete(self, obj):
+    def get_profile_complete(self, obj: User) -> bool:
         try:
             return obj.profile.onboarding_completed
         except:
             return False
 
-    def get_last_activity(self, obj):
+    def get_last_activity(self, obj: User) -> Any:
         latest_log = obj.daily_logs.order_by('-date').first()
         if latest_log:
             return latest_log.date
         return None
 
-    def get_current_program(self, obj):
+    def get_current_program(self, obj: User) -> dict[str, Any] | None:
         active_program = obj.programs.filter(is_active=True).first()
         if active_program:
             return {
@@ -48,7 +53,7 @@ class TraineeListSerializer(serializers.ModelSerializer):
         return None
 
 
-class TraineeDetailSerializer(serializers.ModelSerializer):
+class TraineeDetailSerializer(serializers.ModelSerializer[User]):
     """Detailed serializer for single trainee view."""
     profile = serializers.SerializerMethodField()
     nutrition_goal = serializers.SerializerMethodField()
@@ -63,7 +68,7 @@ class TraineeDetailSerializer(serializers.ModelSerializer):
             'profile', 'nutrition_goal', 'programs', 'recent_activity'
         ]
 
-    def get_profile(self, obj):
+    def get_profile(self, obj: User) -> dict[str, Any] | None:
         try:
             profile = obj.profile
             return {
@@ -80,7 +85,7 @@ class TraineeDetailSerializer(serializers.ModelSerializer):
         except:
             return None
 
-    def get_nutrition_goal(self, obj):
+    def get_nutrition_goal(self, obj: User) -> dict[str, Any] | None:
         try:
             goal = obj.nutrition_goal
             return {
@@ -93,7 +98,7 @@ class TraineeDetailSerializer(serializers.ModelSerializer):
         except:
             return None
 
-    def get_programs(self, obj):
+    def get_programs(self, obj: User) -> list[dict[str, Any]]:
         programs = obj.programs.order_by('-created_at')[:5]
         return [{
             'id': p.id,
@@ -103,7 +108,7 @@ class TraineeDetailSerializer(serializers.ModelSerializer):
             'is_active': p.is_active
         } for p in programs]
 
-    def get_recent_activity(self, obj):
+    def get_recent_activity(self, obj: User) -> list[dict[str, Any]]:
         """Get last 7 days of activity summaries."""
         summaries = obj.activity_summaries.order_by('-date')[:7]
         return [{
@@ -116,7 +121,7 @@ class TraineeDetailSerializer(serializers.ModelSerializer):
         } for s in summaries]
 
 
-class TraineeActivitySerializer(serializers.ModelSerializer):
+class TraineeActivitySerializer(serializers.ModelSerializer[TraineeActivitySummary]):
     """Serializer for trainee activity summary."""
 
     class Meta:
@@ -129,7 +134,7 @@ class TraineeActivitySerializer(serializers.ModelSerializer):
         ]
 
 
-class TraineeInvitationSerializer(serializers.ModelSerializer):
+class TraineeInvitationSerializer(serializers.ModelSerializer[TraineeInvitation]):
     """Serializer for trainee invitations."""
     trainer_email = serializers.EmailField(source='trainer.email', read_only=True)
     program_template_name = serializers.CharField(
@@ -149,22 +154,22 @@ class TraineeInvitationSerializer(serializers.ModelSerializer):
         read_only_fields = ['invitation_code', 'status', 'accepted_at', 'created_at']
 
 
-class CreateInvitationSerializer(serializers.Serializer):
+class CreateInvitationSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for creating new invitations."""
     email = serializers.EmailField()
     program_template_id = serializers.IntegerField(required=False, allow_null=True)
     message = serializers.CharField(required=False, allow_blank=True, max_length=1000)
     expires_days = serializers.IntegerField(default=7, min_value=1, max_value=30)
 
-    def validate_email(self, value):
+    def validate_email(self, value: str) -> str:
         # Check if user with this email already exists
-        if User.objects.filter(email=value).exists():
+        if _UserModel.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 "A user with this email already exists."
             )
         return value
 
-    def validate_program_template_id(self, value):
+    def validate_program_template_id(self, value: int | None) -> int | None:
         if value:
             trainer = self.context['request'].user
             try:
@@ -179,7 +184,7 @@ class CreateInvitationSerializer(serializers.Serializer):
         return value
 
 
-class TrainerSessionSerializer(serializers.ModelSerializer):
+class TrainerSessionSerializer(serializers.ModelSerializer[TrainerSession]):
     """Serializer for trainer impersonation sessions."""
     trainee_email = serializers.EmailField(source='trainee.email', read_only=True)
     trainee_name = serializers.SerializerMethodField()
@@ -197,16 +202,16 @@ class TrainerSessionSerializer(serializers.ModelSerializer):
             'started_at', 'ended_at', 'actions_log'
         ]
 
-    def get_trainee_name(self, obj):
+    def get_trainee_name(self, obj: TrainerSession) -> str:
         return f"{obj.trainee.first_name} {obj.trainee.last_name}".strip() or obj.trainee.email
 
 
-class StartImpersonationSerializer(serializers.Serializer):
+class StartImpersonationSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for starting impersonation session."""
     is_read_only = serializers.BooleanField(default=True)
 
 
-class TrainerDashboardStatsSerializer(serializers.Serializer):
+class TrainerDashboardStatsSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for trainer dashboard statistics."""
     total_trainees = serializers.IntegerField()
     active_trainees = serializers.IntegerField()
@@ -218,7 +223,7 @@ class TrainerDashboardStatsSerializer(serializers.Serializer):
     trainees_pending_onboarding = serializers.IntegerField()
 
 
-class ProgramTemplateSerializer(serializers.ModelSerializer):
+class ProgramTemplateSerializer(serializers.ModelSerializer[ProgramTemplate]):
     """Serializer for program templates."""
     created_by_email = serializers.EmailField(source='created_by.email', read_only=True)
 
@@ -227,29 +232,29 @@ class ProgramTemplateSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'duration_weeks',
             'schedule_template', 'nutrition_template',
-            'difficulty_level', 'goal_type', 'is_public',
+            'difficulty_level', 'goal_type', 'image_url', 'is_public',
             'created_by', 'created_by_email', 'times_used',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_by', 'times_used', 'created_at', 'updated_at']
 
 
-class AssignProgramSerializer(serializers.Serializer):
+class AssignProgramSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for assigning a program template to a trainee."""
     trainee_id = serializers.IntegerField()
     start_date = serializers.DateField()
     customize_schedule = serializers.JSONField(required=False, default=dict)
     customize_nutrition = serializers.JSONField(required=False, default=dict)
 
-    def validate_trainee_id(self, value):
+    def validate_trainee_id(self, value: int) -> int:
         trainer = self.context['request'].user
         try:
-            trainee = User.objects.get(
+            trainee = _UserModel.objects.get(
                 id=value,
-                role=User.Role.TRAINEE,
+                role=_UserModel.Role.TRAINEE,
                 parent_trainer=trainer
             )
-        except User.DoesNotExist:
+        except _UserModel.DoesNotExist:
             raise serializers.ValidationError(
                 "Trainee not found or not assigned to you."
             )

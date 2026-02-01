@@ -9,7 +9,8 @@ from .views import (
     InvitationListCreateView, InvitationDetailView, ResendInvitationView,
     StartImpersonationView, EndImpersonationView,
     ProgramTemplateListCreateView, ProgramTemplateDetailView,
-    AssignProgramTemplateView, AdherenceAnalyticsView, ProgressAnalyticsView,
+    AssignProgramTemplateView, ProgramTemplateUploadImageView, ProgramUploadImageView,
+    AdherenceAnalyticsView, ProgressAnalyticsView,
     GenerateMCPTokenView, AIChatView, AIChatTraineeContextView, AIProvidersView,
     MarkMissedDayView
 )
@@ -40,8 +41,10 @@ urlpatterns = [
     path('program-templates/', ProgramTemplateListCreateView.as_view(), name='program-template-list-create'),
     path('program-templates/<int:pk>/', ProgramTemplateDetailView.as_view(), name='program-template-detail'),
     path('program-templates/<int:pk>/assign/', AssignProgramTemplateView.as_view(), name='program-template-assign'),
+    path('program-templates/<int:pk>/upload-image/', ProgramTemplateUploadImageView.as_view(), name='program-template-upload-image'),
 
     # Program management
+    path('programs/<int:pk>/upload-image/', ProgramUploadImageView.as_view(), name='program-upload-image'),
     path('programs/<int:program_id>/mark-missed/', MarkMissedDayView.as_view(), name='program-mark-missed'),
 
     # Analytics

@@ -20,6 +20,8 @@ class ApiConstants {
   static String get onboardingStep => '$apiBaseUrl/users/profiles/onboarding/';
   static String get completeOnboarding => '$apiBaseUrl/users/profiles/complete-onboarding/';
   static String get deleteAccount => '$apiBaseUrl/users/profiles/delete-account/';
+  static String get profileImage => '$apiBaseUrl/users/profile-image/';
+  static String get userMe => '$apiBaseUrl/users/me/';
 
   // Workout endpoints
   static String get parseNaturalLanguage => '$apiBaseUrl/workouts/daily-logs/parse-natural-language/';

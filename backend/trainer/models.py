@@ -1,10 +1,14 @@
 """
 Trainer-specific models for managing trainees, invitations, and impersonation sessions.
 """
+from __future__ import annotations
+
 import secrets
+from datetime import timedelta
+from typing import Any, Optional
+
 from django.db import models
 from django.utils import timezone
-from datetime import timedelta
 
 
 class TraineeInvitation(models.Model):
@@ -55,7 +59,7 @@ class TraineeInvitation(models.Model):
     def __str__(self) -> str:
         return f"Invitation to {self.email} from {self.trainer.email}"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.invitation_code:
             self.invitation_code = secrets.token_urlsafe(32)
         if not self.expires_at:
@@ -66,7 +70,7 @@ class TraineeInvitation(models.Model):
     def is_expired(self) -> bool:
         return timezone.now() > self.expires_at
 
-    def mark_accepted(self):
+    def mark_accepted(self) -> None:
         """Mark invitation as accepted."""
         self.status = self.Status.ACCEPTED
         self.accepted_at = timezone.now()
@@ -123,7 +127,7 @@ class TrainerSession(models.Model):
         end = self.ended_at or timezone.now()
         return int((end - self.started_at).total_seconds() / 60)
 
-    def log_action(self, action: str, details: dict = None):
+    def log_action(self, action: str, details: Optional[dict[str, Any]] = None) -> None:
         """Log an action taken during the session."""
         self.actions_log.append({
             'action': action,
@@ -132,7 +136,7 @@ class TrainerSession(models.Model):
         })
         self.save(update_fields=['actions_log'])
 
-    def end_session(self):
+    def end_session(self) -> None:
         """End the impersonation session."""
         self.ended_at = timezone.now()
         self.save(update_fields=['ended_at'])

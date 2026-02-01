@@ -1,12 +1,18 @@
 """
 Views for features app.
 """
+from __future__ import annotations
+
+from typing import Any, cast
+
 from rest_framework import generics, status, views
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
 from core.permissions import IsAdmin, IsTrainerOrAdmin
+from users.models import User
 from .models import FeatureRequest, FeatureVote, FeatureComment
 from .serializers import (
     FeatureRequestListSerializer, FeatureRequestDetailSerializer,
@@ -15,7 +21,7 @@ from .serializers import (
 )
 
 
-class FeatureRequestListCreateView(generics.ListCreateAPIView):
+class FeatureRequestListCreateView(generics.ListCreateAPIView[FeatureRequest]):
     """
     GET: List all feature requests.
     POST: Create a new feature request.
@@ -27,12 +33,12 @@ class FeatureRequestListCreateView(generics.ListCreateAPIView):
     """
     permission_classes = [IsAuthenticated]
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type:
         if self.request.method == 'POST':
             return CreateFeatureRequestSerializer
         return FeatureRequestListSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[FeatureRequest]:
         queryset = FeatureRequest.objects.all()
 
         # Filter by status
@@ -65,11 +71,12 @@ class FeatureRequestListCreateView(generics.ListCreateAPIView):
 
         return queryset
 
-    def perform_create(self, serializer):
-        serializer.save(submitted_by=self.request.user)
+    def perform_create(self, serializer: Any) -> None:
+        user = cast(User, self.request.user)
+        serializer.save(submitted_by=user)
 
 
-class FeatureRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
+class FeatureRequestDetailView(generics.RetrieveUpdateDestroyAPIView[FeatureRequest]):
     """
     GET: Retrieve a feature request.
     PUT/PATCH: Update a feature request (only owner).
@@ -79,12 +86,12 @@ class FeatureRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = FeatureRequestDetailSerializer
     queryset = FeatureRequest.objects.all()
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type:
         if self.request.method in ['PUT', 'PATCH']:
             return CreateFeatureRequestSerializer
         return FeatureRequestDetailSerializer
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         instance = self.get_object()
         # Only owner can update
         if instance.submitted_by != request.user:
@@ -100,10 +107,11 @@ class FeatureRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
             )
         return super().update(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         instance = self.get_object()
         # Only owner or admin can delete
-        if instance.submitted_by != request.user and not request.user.is_admin():
+        user = cast(User, request.user)
+        if instance.submitted_by != request.user and not user.is_admin():
             return Response(
                 {'error': 'You can only delete your own feature requests'},
                 status=status.HTTP_403_FORBIDDEN
@@ -117,8 +125,9 @@ class FeatureVoteView(views.APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, pk):
+    def get(self, request: Request, pk: int) -> Response:
         """Get current user's vote on this feature."""
+        user = cast(User, request.user)
         try:
             feature = FeatureRequest.objects.get(pk=pk)
         except FeatureRequest.DoesNotExist:
@@ -129,7 +138,7 @@ class FeatureVoteView(views.APIView):
 
         vote = FeatureVote.objects.filter(
             feature=feature,
-            user=request.user
+            user=user
         ).first()
 
         return Response({
@@ -138,8 +147,9 @@ class FeatureVoteView(views.APIView):
             'downvotes': feature.downvotes
         })
 
-    def post(self, request, pk):
+    def post(self, request: Request, pk: int) -> Response:
         """Create or update a vote."""
+        user = cast(User, request.user)
         serializer = VoteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -154,7 +164,7 @@ class FeatureVoteView(views.APIView):
         vote_type = serializer.validated_data['vote_type']
         existing_vote = FeatureVote.objects.filter(
             feature=feature,
-            user=request.user
+            user=user
         ).first()
 
         if vote_type == 'remove':
@@ -182,7 +192,7 @@ class FeatureVoteView(views.APIView):
             # New vote
             FeatureVote.objects.create(
                 feature=feature,
-                user=request.user,
+                user=user,
                 vote_type=vote_type
             )
             message = f'Voted {vote_type}'
@@ -197,23 +207,24 @@ class FeatureVoteView(views.APIView):
         })
 
 
-class FeatureCommentListCreateView(generics.ListCreateAPIView):
+class FeatureCommentListCreateView(generics.ListCreateAPIView[FeatureComment]):
     """
     GET: List comments for a feature request.
     POST: Add a comment to a feature request.
     """
     permission_classes = [IsAuthenticated]
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type:
         if self.request.method == 'POST':
             return CreateCommentSerializer
         return FeatureCommentSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[FeatureComment]:
         feature_id = self.kwargs['pk']
         return FeatureComment.objects.filter(feature_id=feature_id).order_by('created_at')
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        user = cast(User, request.user)
         feature_id = self.kwargs['pk']
 
         try:
@@ -229,9 +240,9 @@ class FeatureCommentListCreateView(generics.ListCreateAPIView):
 
         comment = FeatureComment.objects.create(
             feature=feature,
-            user=request.user,
+            user=user,
             content=serializer.validated_data['content'],
-            is_admin_response=request.user.is_admin()
+            is_admin_response=user.is_admin()
         )
 
         return Response(
@@ -246,7 +257,7 @@ class AdminUpdateStatusView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsAdmin]
 
-    def patch(self, request, pk):
+    def patch(self, request: Request, pk: int) -> Response:
         try:
             feature = FeatureRequest.objects.get(pk=pk)
         except FeatureRequest.DoesNotExist:

@@ -4,26 +4,28 @@ AI Chat Service for Trainers
 Provides LLM integration with full trainee context using LangChain.
 Supports multiple providers: OpenAI, Anthropic, Google.
 """
+from __future__ import annotations
+
 import json
 import os
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from decimal import Decimal
 from datetime import timedelta
 
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langchain_core.language_models.chat_models import BaseChatModel
+from pydantic import SecretStr
 
 from .ai_config import AIProvider, AIModelConfig, get_ai_config, get_api_key
-
-User = get_user_model()
+from users.models import User
 
 
 class DecimalEncoder(json.JSONEncoder):
     """JSON encoder that handles Decimal types."""
-    def default(self, obj):
+    def default(self, obj: Any) -> Any:
         if isinstance(obj, Decimal):
             return float(obj)
         return super().default(obj)
@@ -46,18 +48,20 @@ def get_chat_model(config: AIModelConfig) -> BaseChatModel:
         return ChatOpenAI(
             model=config.model_name,
             temperature=config.temperature,
-            max_tokens=config.max_tokens,
-            api_key=api_key,
+            api_key=SecretStr(api_key) if api_key else None,
         )
 
     elif config.provider == AIProvider.ANTHROPIC:
         from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(
-            model=config.model_name,
-            temperature=config.temperature,
-            max_tokens=config.max_tokens,
-            api_key=api_key,
-        )
+        # Note: Using kwargs dict to work around type stub limitations
+        # The actual API accepts model, max_tokens, etc. but type stubs don't reflect this
+        anthropic_kwargs: dict[str, Any] = {
+            "model": config.model_name,
+            "temperature": config.temperature,
+            "max_tokens": config.max_tokens,
+            "api_key": SecretStr(api_key) if api_key else SecretStr(""),
+        }
+        return ChatAnthropic(**anthropic_kwargs)
 
     elif config.provider == AIProvider.GOOGLE:
         from langchain_google_genai import ChatGoogleGenerativeAI
@@ -75,7 +79,7 @@ def get_chat_model(config: AIModelConfig) -> BaseChatModel:
 class TraineeContextBuilder:
     """Builds context about trainees for AI chat."""
 
-    def __init__(self, trainer: User):
+    def __init__(self, trainer: User) -> None:
         self.trainer = trainer
 
     def get_trainee_list(self) -> list[dict[str, Any]]:
@@ -237,7 +241,7 @@ Important guidelines:
 
 Remember: You are assisting the trainer, not directly communicating with trainees."""
 
-    def __init__(self, trainer: User, config: Optional[AIModelConfig] = None):
+    def __init__(self, trainer: User, config: Optional[AIModelConfig] = None) -> None:
         self.trainer = trainer
         self.context_builder = TraineeContextBuilder(trainer)
         self.config = config or get_ai_config()
@@ -265,7 +269,7 @@ Remember: You are assisting the trainer, not directly communicating with trainee
     def chat(
         self,
         message: str,
-        conversation_history: list[dict[str, str]] = None,
+        conversation_history: Optional[list[dict[str, str]]] = None,
         trainee_id: Optional[int] = None,
     ) -> dict[str, Any]:
         """
@@ -286,7 +290,7 @@ Remember: You are assisting the trainer, not directly communicating with trainee
         context = self._build_context_message(trainee_id)
 
         # Build messages list
-        messages = [SystemMessage(content=self.SYSTEM_PROMPT)]
+        messages: list[BaseMessage] = [SystemMessage(content=self.SYSTEM_PROMPT)]
 
         # Add conversation history
         for msg in conversation_history:

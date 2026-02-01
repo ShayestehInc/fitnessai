@@ -1,8 +1,13 @@
 """
 Social authentication token verification for Google and Apple Sign-In.
 """
+from __future__ import annotations
+
+from typing import Any
+
 import jwt
 import requests
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from django.conf import settings
@@ -13,7 +18,7 @@ class SocialAuthError(Exception):
     pass
 
 
-def verify_google_token(token: str) -> dict:
+def verify_google_token(token: str) -> dict[str, str]:
     """
     Verify Google ID token and return user info.
 
@@ -28,7 +33,7 @@ def verify_google_token(token: str) -> dict:
     """
     try:
         # Verify the token with Google
-        idinfo = id_token.verify_oauth2_token(
+        idinfo = id_token.verify_oauth2_token(  # type: ignore[no-untyped-call]
             token,
             google_requests.Request(),
             settings.GOOGLE_CLIENT_ID
@@ -48,14 +53,15 @@ def verify_google_token(token: str) -> dict:
         raise SocialAuthError(f'Invalid Google token: {str(e)}')
 
 
-def get_apple_public_keys() -> dict:
+def get_apple_public_keys() -> dict[str, Any]:
     """Fetch Apple's public keys for JWT verification."""
     response = requests.get('https://appleid.apple.com/auth/keys')
     response.raise_for_status()
-    return response.json()
+    result: dict[str, Any] = response.json()
+    return result
 
 
-def verify_apple_token(token: str) -> dict:
+def verify_apple_token(token: str) -> dict[str, str]:
     """
     Verify Apple ID token and return user info.
 
@@ -80,10 +86,12 @@ def verify_apple_token(token: str) -> dict:
         apple_keys = get_apple_public_keys()
 
         # Find the matching key
-        public_key = None
+        public_key: RSAPublicKey | None = None
         for key in apple_keys.get('keys', []):
             if key.get('kid') == kid:
-                public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+                loaded_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+                if isinstance(loaded_key, RSAPublicKey):
+                    public_key = loaded_key
                 break
 
         if not public_key:

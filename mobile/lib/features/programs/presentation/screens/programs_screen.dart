@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../data/models/program_model.dart';
 import '../../data/models/program_week_model.dart';
 import '../providers/program_provider.dart';
@@ -275,37 +277,57 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _showTemplateDetail(context, template),
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Thumbnail image
+            SizedBox(
+              height: 120,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _getGoalColor(template.goal).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      ProgramGoals.icon(template.goal),
-                      style: const TextStyle(fontSize: 24),
+                  Image.network(
+                    ProgramGoals.imageUrl(template.goal),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: _getGoalColor(template.goal).withValues(alpha: 0.2),
+                      child: Icon(Icons.fitness_center, size: 40, color: _getGoalColor(template.goal)),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
+                  // Gradient overlay for text readability
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.7),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Title and tags on image
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 12,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           template.name,
-                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             _buildTag(context, template.difficulty, _getDifficultyColor(template.difficulty)),
@@ -318,56 +340,62 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                template.description,
-                style: theme.textTheme.bodySmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 12),
-              // Weekly schedule preview
-              Row(
-                children: template.schedule.asMap().entries.map((entry) {
-                  final dayNumber = '${entry.key + 1}';
-                  final isRest = entry.value == 'Rest';
-                  return Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isRest
-                            ? theme.dividerColor.withValues(alpha: 0.3)
-                            : theme.colorScheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            dayNumber,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isRest ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
-                            ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    template.description,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 12),
+                  // Weekly schedule preview
+                  Row(
+                    children: template.schedule.asMap().entries.map((entry) {
+                      final dayNumber = '${entry.key + 1}';
+                      final isRest = entry.value == 'Rest';
+                      return Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isRest
+                                ? theme.dividerColor.withValues(alpha: 0.3)
+                                : theme.colorScheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                          const SizedBox(height: 2),
-                          Icon(
-                            isRest ? Icons.bed : Icons.fitness_center,
-                            size: 12,
-                            color: isRest ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
+                          child: Column(
+                            children: [
+                              Text(
+                                dayNumber,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: isRest ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Icon(
+                                isRest ? Icons.bed : Icons.fitness_center,
+                                size: 12,
+                                color: isRest ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -509,7 +537,17 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               ),
             ),
             data: (programs) {
-              if (programs.isEmpty) {
+              // Filter active programs and ensure one per trainee (most recent)
+              final activePrograms = programs.where((p) => p.isActive).toList();
+              final seenTrainees = <int>{};
+              final uniqueActivePrograms = activePrograms.where((p) {
+                if (p.traineeId == null) return true;
+                if (seenTrainees.contains(p.traineeId)) return false;
+                seenTrainees.add(p.traineeId!);
+                return true;
+              }).toList();
+
+              if (uniqueActivePrograms.isEmpty) {
                 return Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -539,7 +577,62 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               }
 
               return Column(
-                children: programs.map((program) => _buildProgramCard(context, program)).toList(),
+                children: uniqueActivePrograms.map((program) => _buildProgramCard(context, program)).toList(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 24),
+
+          // Previous Programs Section (ended/inactive)
+          Text(
+            'Previous Programs',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Programs that have ended or been deactivated',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+
+          programsAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (error, stack) => const SizedBox.shrink(),
+            data: (programs) {
+              final previousPrograms = programs.where((p) => !p.isActive).toList();
+
+              if (previousPrograms.isEmpty) {
+                return Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Icon(Icons.history, size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'No previous programs',
+                          style: TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Ended programs will appear here',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: previousPrograms.map((program) => _buildProgramCard(context, program)).toList(),
               );
             },
           ),
@@ -552,6 +645,33 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
   Widget _buildDraftProgramCard(BuildContext context, ProgramTemplateModel draft, WidgetRef ref) {
     final theme = Theme.of(context);
+
+    // Parse schedule to get days per week
+    int daysPerWeek = 0;
+    List<String> schedule = [];
+    if (draft.scheduleTemplate != null) {
+      try {
+        List<dynamic>? weeksData;
+        if (draft.scheduleTemplate is List && (draft.scheduleTemplate as List).isNotEmpty) {
+          weeksData = draft.scheduleTemplate as List;
+        } else if (draft.scheduleTemplate is Map<String, dynamic>) {
+          weeksData = draft.scheduleTemplate['weeks'] as List<dynamic>?;
+        }
+        if (weeksData != null && weeksData.isNotEmpty) {
+          final firstWeek = weeksData.first as Map<String, dynamic>;
+          final days = firstWeek['days'] as List<dynamic>?;
+          if (days != null) {
+            daysPerWeek = days.where((d) => d['is_rest_day'] != true).length;
+            schedule = days.map((d) {
+              if (d['is_rest_day'] == true) return 'Rest';
+              return d['name']?.toString() ?? 'Workout';
+            }).toList();
+          }
+        }
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
 
     return Dismissible(
       key: ValueKey('draft_${draft.id}'),
@@ -611,80 +731,226 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: theme.colorScheme.secondary.withValues(alpha: 0.3)),
-        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => _editDraftProgram(context, draft),
           borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.edit_note,
-                    color: theme.colorScheme.secondary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        draft.name,
-                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Thumbnail image with overlay
+              SizedBox(
+                height: 120,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      draft.thumbnailUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: _getGoalColor(draft.goalType).withValues(alpha: 0.2),
+                        child: Icon(Icons.fitness_center, size: 40, color: _getGoalColor(draft.goalType)),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
+                    ),
+                    // Gradient overlay for text readability
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.7),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Title and tags on image
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 12,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'DRAFT',
-                              style: TextStyle(
-                                color: theme.colorScheme.secondary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          Text(
+                            draft.name,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${draft.durationWeeks} weeks',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              _buildTag(context, draft.difficultyLevel, _getDifficultyColor(draft.difficultyLevel)),
+                              const SizedBox(width: 8),
+                              _buildTag(context, '${draft.durationWeeks} weeks', Colors.blue),
+                              if (daysPerWeek > 0) ...[
+                                const SizedBox(width: 8),
+                                _buildTag(context, '${daysPerWeek}x/week', Colors.green),
+                              ],
+                            ],
                           ),
                         ],
                       ),
+                    ),
+                    // DRAFT badge and more options
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.secondary,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'DRAFT',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // More options button
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+                          tooltip: 'More options',
+                          onSelected: (value) {
+                            switch (value) {
+                              case 'edit':
+                                _editDraftProgram(context, draft);
+                                break;
+                              case 'rename':
+                                _showRenameProgramDialog(context, draft.id, draft.name, isTemplate: true);
+                                break;
+                              case 'edit_image':
+                                _showEditProgramImageDialog(context, draft.id, draft.name, draft.imageUrl, isTemplate: true);
+                                break;
+                              case 'assign':
+                                _showTraineeSelectionForDraft(context, draft);
+                                break;
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: ListTile(
+                                leading: Icon(Icons.edit_outlined),
+                                title: Text('Edit'),
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'rename',
+                              child: ListTile(
+                                leading: Icon(Icons.drive_file_rename_outline),
+                                title: Text('Rename'),
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'edit_image',
+                              child: ListTile(
+                                leading: Icon(Icons.image_outlined),
+                                title: Text('Edit Image'),
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'assign',
+                              child: ListTile(
+                                leading: Icon(Icons.person_add_outlined, color: theme.colorScheme.primary),
+                                title: const Text('Assign to Trainee'),
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (draft.description != null && draft.description!.isNotEmpty) ...[
+                      Text(
+                        draft.description!,
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 12),
                     ],
-                  ),
+                    // Weekly schedule preview
+                    if (schedule.isNotEmpty)
+                      Row(
+                        children: schedule.asMap().entries.map((entry) {
+                          final dayNumber = '${entry.key + 1}';
+                          final isRest = entry.value == 'Rest';
+                          return Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isRest
+                                    ? theme.dividerColor.withValues(alpha: 0.3)
+                                    : theme.colorScheme.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    dayNumber,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: isRest ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Icon(
+                                    isRest ? Icons.bed : Icons.fitness_center,
+                                    size: 12,
+                                    color: isRest ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      )
+                    else
+                      Text(
+                        'Tap to configure workouts',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
                 ),
-                // Edit button
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Edit Draft',
-                  onPressed: () => _editDraftProgram(context, draft),
-                ),
-                // Assign button
-                IconButton(
-                  icon: Icon(Icons.person_add_outlined, color: theme.colorScheme.primary),
-                  tooltip: 'Assign to Trainee',
-                  onPressed: () => _showTraineeSelectionForDraft(context, draft),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -745,16 +1011,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
   Widget _buildProgramCard(BuildContext context, TraineeProgramModel program) {
     final theme = Theme.of(context);
     final isActive = program.isActive;
+    final schedule = program.weekSchedule;
+    final daysPerWeek = program.daysPerWeek;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isActive ? theme.colorScheme.primary.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
-        ),
-      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -768,69 +1030,236 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
           );
         },
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: (isActive ? theme.colorScheme.primary : Colors.grey).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.fitness_center,
-                  color: isActive ? theme.colorScheme.primary : Colors.grey,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      program.name,
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Thumbnail image with overlay
+            SizedBox(
+              height: 120,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    program.thumbnailUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: _getGoalColor(program.goalType ?? 'build_muscle').withValues(alpha: 0.2),
+                      child: Icon(Icons.fitness_center, size: 40, color: _getGoalColor(program.goalType ?? 'build_muscle')),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
+                  ),
+                  // Gradient overlay for text readability
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.7),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Title and tags on image
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 12,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: (isActive ? Colors.green : Colors.grey).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isActive ? 'ACTIVE' : 'INACTIVE',
-                            style: TextStyle(
-                              color: isActive ? Colors.green : Colors.grey,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        Text(
+                          program.name,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
-                        if (program.startDate != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            'Started ${program.startDate}',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                          ),
-                        ],
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            if (program.difficultyLevel != null)
+                              _buildTag(context, program.difficultyLevel!, _getDifficultyColor(program.difficultyLevel!)),
+                            if (program.durationWeeks != null) ...[
+                              const SizedBox(width: 8),
+                              _buildTag(context, '${program.durationWeeks} weeks', Colors.blue),
+                            ],
+                            if (daysPerWeek > 0) ...[
+                              const SizedBox(width: 8),
+                              _buildTag(context, '${daysPerWeek}x/week', Colors.green),
+                            ],
+                          ],
+                        ),
                       ],
                     ),
+                  ),
+                  // ACTIVE badge
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isActive ? Colors.green : Colors.grey,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        isActive ? 'ACTIVE' : 'INACTIVE',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // More options button
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+                        tooltip: 'More options',
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'edit':
+                              _editProgram(context, program);
+                              break;
+                            case 'rename':
+                              _showRenameProgramDialog(context, program.id, program.name, isTemplate: false);
+                              break;
+                            case 'edit_image':
+                              _showEditProgramImageDialog(context, program.id, program.name, program.imageUrl, isTemplate: false);
+                              break;
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: ListTile(
+                              leading: Icon(Icons.edit_outlined),
+                              title: Text('Edit'),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'rename',
+                            child: ListTile(
+                              leading: Icon(Icons.drive_file_rename_outline),
+                              title: Text('Rename'),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'edit_image',
+                            child: ListTile(
+                              leading: Icon(Icons.image_outlined),
+                              title: Text('Edit Image'),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Trainee name
+                  if (program.traineeName != null || program.traineeEmail != null) ...[
+                    Row(
+                      children: [
+                        Icon(Icons.person, size: 16, color: theme.colorScheme.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          program.traineeName ?? program.traineeEmail ?? 'Unknown',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                   ],
-                ),
+                  // Description
+                  if (program.description != null && program.description!.isNotEmpty) ...[
+                    Text(
+                      program.description!,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  // Weekly schedule preview
+                  if (schedule.isNotEmpty)
+                    Row(
+                      children: schedule.asMap().entries.map((entry) {
+                        final dayNumber = '${entry.key + 1}';
+                        final isRest = entry.value == 'Rest';
+                        return Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isRest
+                                  ? theme.dividerColor.withValues(alpha: 0.3)
+                                  : theme.colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  dayNumber,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isRest ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Icon(
+                                  isRest ? Icons.bed : Icons.fitness_center,
+                                  size: 12,
+                                  color: isRest ? theme.textTheme.bodySmall?.color : theme.colorScheme.primary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Tap to view workout calendar',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color, size: 20),
+                      ],
+                    ),
+                ],
               ),
-              // Edit button
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                tooltip: 'Edit Program',
-                onPressed: () => _editProgram(context, program),
-              ),
-              Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -850,8 +1279,88 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     );
   }
 
-  void _showTemplateDetail(BuildContext context, _DefaultTemplate template) {
+  void _showRenameProgramDialog(BuildContext context, int programId, String currentName, {required bool isTemplate}) {
+    final controller = TextEditingController(text: currentName);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename Program'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Program Name',
+            hintText: 'Enter new name',
+          ),
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Name cannot be empty'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+
+              // Call API to rename
+              final repository = ref.read(programRepositoryProvider);
+              Map<String, dynamic> result;
+
+              if (isTemplate) {
+                result = await repository.renameTemplate(programId, newName);
+              } else {
+                result = await repository.renameProgram(programId, newName);
+              }
+
+              if (context.mounted) {
+                if (result['success'] == true) {
+                  // Refresh the lists
+                  ref.invalidate(myTemplatesProvider);
+                  ref.invalidate(trainerProgramsProvider);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Renamed to "$newName"'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(result['error'] ?? 'Failed to rename'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditProgramImageDialog(BuildContext context, int programId, String programName, String? currentImageUrl, {required bool isTemplate}) {
     final theme = Theme.of(context);
+    final imageUrlController = TextEditingController(text: currentImageUrl ?? '');
+    bool isLoading = false;
+    bool isUploading = false;
+    String? previewUrl = currentImageUrl;
+    File? selectedImageFile;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -859,12 +1368,325 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => DraggableScrollableSheet(
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  'Edit Program Image',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  programName,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Current/Preview image
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 200,
+                      height: 150,
+                      child: selectedImageFile != null
+                          ? Image.file(
+                              selectedImageFile!,
+                              fit: BoxFit.cover,
+                            )
+                          : Image.network(
+                              previewUrl ?? ProgramGoals.imageUrl(ProgramGoals.generalFitness),
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  child: const Center(child: CircularProgressIndicator()),
+                                );
+                              },
+                              errorBuilder: (_, __, ___) => Container(
+                                color: theme.colorScheme.errorContainer,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.broken_image, color: theme.colorScheme.error, size: 32),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Invalid URL',
+                                      style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Upload from Gallery button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: isLoading || isUploading
+                        ? null
+                        : () async {
+                            final picker = ImagePicker();
+                            final pickedFile = await picker.pickImage(
+                              source: ImageSource.gallery,
+                              maxWidth: 1920,
+                              maxHeight: 1080,
+                              imageQuality: 85,
+                            );
+
+                            if (pickedFile != null) {
+                              setDialogState(() {
+                                selectedImageFile = File(pickedFile.path);
+                                previewUrl = null;
+                                imageUrlController.clear();
+                              });
+                            }
+                          },
+                    icon: const Icon(Icons.photo_library),
+                    label: Text(selectedImageFile != null ? 'Change Image' : 'Upload from Gallery'),
+                  ),
+                ),
+
+                if (selectedImageFile != null) ...[
+                  const SizedBox(height: 12),
+                  // Upload button when image is selected
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: isUploading
+                          ? null
+                          : () async {
+                              setDialogState(() => isUploading = true);
+
+                              final repository = ref.read(programRepositoryProvider);
+                              final result = await repository.uploadProgramImage(
+                                programId,
+                                selectedImageFile!,
+                                isTemplate: isTemplate,
+                              );
+
+                              if (!context.mounted) return;
+
+                              if (result['success'] == true) {
+                                Navigator.pop(context);
+                                ref.invalidate(myTemplatesProvider);
+                                ref.invalidate(trainerProgramsProvider);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Image uploaded successfully'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              } else {
+                                setDialogState(() => isUploading = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(result['error'] ?? 'Failed to upload image'),
+                                    backgroundColor: theme.colorScheme.error,
+                                  ),
+                                );
+                              }
+                            },
+                      icon: isUploading
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.cloud_upload),
+                      label: Text(isUploading ? 'Uploading...' : 'Upload Image'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        setDialogState(() {
+                          selectedImageFile = null;
+                        });
+                      },
+                      child: const Text('Clear selection'),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                // Divider with "OR" text
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: theme.dividerColor)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'OR',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: theme.dividerColor)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Image URL input
+                TextField(
+                  controller: imageUrlController,
+                  enabled: selectedImageFile == null,
+                  decoration: InputDecoration(
+                    labelText: 'Image URL',
+                    hintText: 'https://images.unsplash.com/...',
+                    prefixIcon: const Icon(Icons.link),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.preview),
+                      tooltip: 'Preview',
+                      onPressed: selectedImageFile == null
+                          ? () {
+                              final url = imageUrlController.text.trim();
+                              if (url.isNotEmpty) {
+                                setDialogState(() => previewUrl = url);
+                              }
+                            }
+                          : null,
+                    ),
+                  ),
+                  keyboardType: TextInputType.url,
+                  onSubmitted: (value) {
+                    if (value.trim().isNotEmpty && selectedImageFile == null) {
+                      setDialogState(() => previewUrl = value.trim());
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tip: Use Unsplash or Pexels for free high-quality images',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: (isLoading || isUploading || selectedImageFile != null)
+                            ? null
+                            : () async {
+                                final newUrl = imageUrlController.text.trim();
+
+                                setDialogState(() => isLoading = true);
+
+                                final repository = ref.read(programRepositoryProvider);
+                                Map<String, dynamic> result;
+
+                                if (isTemplate) {
+                                  result = await repository.updateTemplateImage(programId, newUrl.isEmpty ? null : newUrl);
+                                } else {
+                                  result = await repository.updateProgramImage(programId, newUrl.isEmpty ? null : newUrl);
+                                }
+
+                                if (!context.mounted) return;
+
+                                if (result['success'] == true) {
+                                  Navigator.pop(context);
+                                  ref.invalidate(myTemplatesProvider);
+                                  ref.invalidate(trainerProgramsProvider);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Image updated'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                } else {
+                                  setDialogState(() => isLoading = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(result['error'] ?? 'Failed to update image'),
+                                      backgroundColor: theme.colorScheme.error,
+                                    ),
+                                  );
+                                }
+                              },
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Save URL'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showTemplateDetail(BuildContext context, _DefaultTemplate template) {
+    final theme = Theme.of(context);
+    // Capture the parent context before showing the bottom sheet
+    final parentContext = context;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.8,
         minChildSize: 0.5,
         maxChildSize: 0.95,
         expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
+        builder: (_, scrollController) => SingleChildScrollView(
           controller: scrollController,
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -901,9 +1723,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            _buildTag(context, template.difficulty, _getDifficultyColor(template.difficulty)),
+                            _buildTag(parentContext, template.difficulty, _getDifficultyColor(template.difficulty)),
                             const SizedBox(width: 8),
-                            _buildTag(context, ProgramGoals.displayName(template.goal), _getGoalColor(template.goal)),
+                            _buildTag(parentContext, ProgramGoals.displayName(template.goal), _getGoalColor(template.goal)),
                           ],
                         ),
                       ],
@@ -918,9 +1740,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               // Stats
               Row(
                 children: [
-                  Expanded(child: _buildStatCard(context, 'Duration', '${template.durationWeeks} weeks', Icons.calendar_today)),
+                  Expanded(child: _buildStatCard(parentContext, 'Duration', '${template.durationWeeks} weeks', Icons.calendar_today)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildStatCard(context, 'Frequency', '${template.daysPerWeek}x/week', Icons.repeat)),
+                  Expanded(child: _buildStatCard(parentContext, 'Frequency', '${template.daysPerWeek}x/week', Icons.repeat)),
                 ],
               ),
 
@@ -972,34 +1794,38 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(sheetContext);
                         // Customize without assigning to a trainee (save as template)
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProgramBuilderScreen(
-                              templateName: template.name,
-                              durationWeeks: template.durationWeeks,
-                              difficulty: template.difficulty,
-                              goal: template.goal,
-                              weeklySchedule: template.schedule,
+                        if (parentContext.mounted) {
+                          Navigator.push(
+                            parentContext,
+                            MaterialPageRoute(
+                              builder: (context) => ProgramBuilderScreen(
+                                templateName: template.name,
+                                durationWeeks: template.durationWeeks,
+                                difficulty: template.difficulty,
+                                goal: template.goal,
+                                weeklySchedule: template.schedule,
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Save as Template'),
+                      child: const Text('Draft to My Programs'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(sheetContext);
                         // Show trainee selection before using template
-                        _showTraineeSelectionDialog(context, template);
+                        if (parentContext.mounted) {
+                          _showTraineeSelectionDialog(parentContext, template);
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -1038,6 +1864,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
   void _showTraineeSelectionDialog(BuildContext context, _DefaultTemplate template) {
     final theme = Theme.of(context);
+    // Capture the parent context before showing the bottom sheet
+    final parentContext = context;
 
     showModalBottomSheet(
       context: context,
@@ -1046,13 +1874,13 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => DraggableScrollableSheet(
+      builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.6,
         minChildSize: 0.4,
         maxChildSize: 0.9,
         expand: false,
-        builder: (context, scrollController) => Consumer(
-          builder: (context, ref, child) {
+        builder: (_, scrollController) => Consumer(
+          builder: (consumerContext, ref, child) {
             final traineesAsync = ref.watch(traineesProvider);
 
             return Column(
@@ -1125,7 +1953,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                         controller: scrollController,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: trainees.length,
-                        itemBuilder: (context, index) {
+                        itemBuilder: (listContext, index) {
                           final trainee = trainees[index];
                           final initial = trainee.displayName.isNotEmpty
                               ? trainee.displayName[0].toUpperCase()
@@ -1150,21 +1978,23 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                               subtitle: Text(trainee.email),
                               trailing: Icon(Icons.chevron_right, color: theme.hintColor),
                               onTap: () {
-                                Navigator.pop(context);
+                                Navigator.pop(sheetContext);
                                 // Navigate to program builder with trainee ID
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ProgramBuilderScreen(
-                                      traineeId: trainee.id,
-                                      templateName: template.name,
-                                      durationWeeks: template.durationWeeks,
-                                      difficulty: template.difficulty,
-                                      goal: template.goal,
-                                      weeklySchedule: template.schedule,
+                                if (parentContext.mounted) {
+                                  Navigator.push(
+                                    parentContext,
+                                    MaterialPageRoute(
+                                      builder: (context) => ProgramBuilderScreen(
+                                        traineeId: trainee.id,
+                                        templateName: template.name,
+                                        durationWeeks: template.durationWeeks,
+                                        difficulty: template.difficulty,
+                                        goal: template.goal,
+                                        weeklySchedule: template.schedule,
+                                      ),
                                     ),
-                                  ),
-                                );
+                                  );
+                                }
                               },
                             ),
                           );
@@ -1183,6 +2013,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
   void _showCreateProgramDialog(BuildContext context) {
     final theme = Theme.of(context);
+    // Capture the parent context before showing the bottom sheet
+    final parentContext = context;
 
     showModalBottomSheet(
       context: context,
@@ -1190,7 +2022,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
+      builder: (sheetContext) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1221,28 +2053,32 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
             // Use Template option
             _buildCreateOption(
-              context: context,
+              context: parentContext,
               icon: Icons.content_copy,
               title: 'Use a Template',
               subtitle: 'Start with a proven program structure and customize it',
               color: theme.colorScheme.primary,
               onTap: () {
-                Navigator.pop(context);
-                _showTemplatePickerDialog(context);
+                Navigator.pop(sheetContext);
+                if (parentContext.mounted) {
+                  _showTemplatePickerDialog(parentContext);
+                }
               },
             ),
             const SizedBox(height: 12),
 
             // Start from Scratch option
             _buildCreateOption(
-              context: context,
+              context: parentContext,
               icon: Icons.add_circle_outline,
               title: 'Start from Scratch',
               subtitle: 'Build a completely custom program from the ground up',
               color: Colors.orange,
               onTap: () {
-                Navigator.pop(context);
-                _showNewProgramSetupDialog(context);
+                Navigator.pop(sheetContext);
+                if (parentContext.mounted) {
+                  _showNewProgramSetupDialog(parentContext);
+                }
               },
             ),
             const SizedBox(height: 16),
@@ -1312,6 +2148,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
   void _showTemplatePickerDialog(BuildContext context) {
     final theme = Theme.of(context);
+    // Capture the parent context before showing the bottom sheet
+    final parentContext = context;
 
     showModalBottomSheet(
       context: context,
@@ -1320,12 +2158,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => DraggableScrollableSheet(
+      builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         minChildSize: 0.5,
         maxChildSize: 0.95,
         expand: false,
-        builder: (context, scrollController) => Column(
+        builder: (_, scrollController) => Column(
           children: [
             Padding(
               padding: const EdgeInsets.all(24),
@@ -1361,9 +2199,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                 controller: scrollController,
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 itemCount: _defaultTemplates.length,
-                itemBuilder: (context, index) {
+                itemBuilder: (listContext, index) {
                   final template = _defaultTemplates[index];
-                  return _buildTemplatePickerCard(context, template);
+                  return _buildTemplatePickerCardWithContext(parentContext, sheetContext, template);
                 },
               ),
             ),
@@ -1373,27 +2211,29 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     );
   }
 
-  Widget _buildTemplatePickerCard(BuildContext context, _DefaultTemplate template) {
-    final theme = Theme.of(context);
+  Widget _buildTemplatePickerCardWithContext(BuildContext parentContext, BuildContext sheetContext, _DefaultTemplate template) {
+    final theme = Theme.of(parentContext);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () {
-          Navigator.pop(context);
+          Navigator.pop(sheetContext);
           // Navigate to builder with template pre-filled
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProgramBuilderScreen(
-                templateName: template.name,
-                durationWeeks: template.durationWeeks,
-                difficulty: template.difficulty,
-                goal: template.goal,
-                weeklySchedule: template.schedule,
+          if (parentContext.mounted) {
+            Navigator.push(
+              parentContext,
+              MaterialPageRoute(
+                builder: (context) => ProgramBuilderScreen(
+                  templateName: template.name,
+                  durationWeeks: template.durationWeeks,
+                  difficulty: template.difficulty,
+                  goal: template.goal,
+                  weeklySchedule: template.schedule,
+                ),
               ),
-            ),
-          );
+            );
+          }
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -1423,11 +2263,11 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        _buildTag(context, template.difficulty, _getDifficultyColor(template.difficulty)),
+                        _buildTag(parentContext, template.difficulty, _getDifficultyColor(template.difficulty)),
                         const SizedBox(width: 8),
-                        _buildTag(context, '${template.durationWeeks} weeks', Colors.blue),
+                        _buildTag(parentContext, '${template.durationWeeks} weeks', Colors.blue),
                         const SizedBox(width: 8),
-                        _buildTag(context, '${template.daysPerWeek}x/week', Colors.green),
+                        _buildTag(parentContext, '${template.daysPerWeek}x/week', Colors.green),
                       ],
                     ),
                   ],
@@ -1443,6 +2283,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
   void _showNewProgramSetupDialog(BuildContext context) {
     final theme = Theme.of(context);
+    // Capture the parent context before showing the bottom sheet
+    final parentContext = context;
     String programName = '';
     int durationWeeks = 4;
     String difficulty = 'intermediate';
@@ -1455,13 +2297,13 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (stateContext, setModalState) => Padding(
           padding: EdgeInsets.only(
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            bottom: MediaQuery.of(stateContext).viewInsets.bottom + 24,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1560,18 +2402,20 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: programName.isEmpty ? null : () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ProgramBuilderScreen(
-                          templateName: programName,
-                          durationWeeks: durationWeeks,
-                          difficulty: difficulty,
-                          goal: goal,
+                    Navigator.pop(sheetContext);
+                    if (parentContext.mounted) {
+                      Navigator.push(
+                        parentContext,
+                        MaterialPageRoute(
+                          builder: (context) => ProgramBuilderScreen(
+                            templateName: programName,
+                            durationWeeks: durationWeeks,
+                            difficulty: difficulty,
+                            goal: goal,
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),

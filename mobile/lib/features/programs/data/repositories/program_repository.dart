@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/constants/api_constants.dart';
@@ -150,6 +151,113 @@ class ProgramRepository {
       return {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to delete template',
+      };
+    }
+  }
+
+  /// Rename a program template
+  Future<Map<String, dynamic>> renameTemplate(int templateId, String newName) async {
+    try {
+      await _apiClient.dio.patch(
+        '${ApiConstants.programTemplates}$templateId/',
+        data: {'name': newName},
+      );
+      return {
+        'success': true,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to rename template',
+      };
+    }
+  }
+
+  /// Rename a trainee program
+  Future<Map<String, dynamic>> renameProgram(int programId, String newName) async {
+    try {
+      await _apiClient.dio.patch(
+        '${ApiConstants.programs}$programId/',
+        data: {'name': newName},
+      );
+      return {
+        'success': true,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to rename program',
+      };
+    }
+  }
+
+  /// Update a program template's image URL
+  Future<Map<String, dynamic>> updateTemplateImage(int templateId, String? imageUrl) async {
+    try {
+      await _apiClient.dio.patch(
+        '${ApiConstants.programTemplates}$templateId/',
+        data: {'image_url': imageUrl},
+      );
+      return {
+        'success': true,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to update template image',
+      };
+    }
+  }
+
+  /// Update a trainee program's image URL
+  Future<Map<String, dynamic>> updateProgramImage(int programId, String? imageUrl) async {
+    try {
+      await _apiClient.dio.patch(
+        '${ApiConstants.programs}$programId/',
+        data: {'image_url': imageUrl},
+      );
+      return {
+        'success': true,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to update program image',
+      };
+    }
+  }
+
+  /// Upload an image file for a program or template
+  Future<Map<String, dynamic>> uploadProgramImage(int id, File imageFile, {required bool isTemplate}) async {
+    try {
+      final fileName = imageFile.path.split('/').last;
+      final formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: fileName,
+        ),
+      });
+
+      final endpoint = isTemplate
+          ? '${ApiConstants.programTemplates}$id/upload-image/'
+          : '${ApiConstants.programs}$id/upload-image/';
+
+      final response = await _apiClient.dio.post(
+        endpoint,
+        data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+        ),
+      );
+
+      return {
+        'success': true,
+        'image_url': response.data['image_url'],
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to upload image',
       };
     }
   }

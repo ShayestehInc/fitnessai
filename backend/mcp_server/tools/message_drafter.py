@@ -1,18 +1,22 @@
 """
 Message Drafter Tool - Draft messages for trainers to send to trainees.
 """
+from __future__ import annotations
+
 import json
-from typing import Any
+from collections.abc import Callable, Coroutine
+from typing import Any, cast
+
 from mcp.server import Server
 from mcp.types import Tool, TextContent
+
 from api_client import DjangoAPIClient
 
 
-def register_message_tools(server: Server, api_client: DjangoAPIClient):
+def register_message_tools(server: Server, api_client: DjangoAPIClient) -> None:
     """Register message drafting tools with the MCP server."""
 
-    @server.list_tools()
-    async def list_message_tools() -> list[Tool]:
+    async def list_message_tools_impl() -> list[Tool]:
         """List available message tools."""
         return [
             Tool(
@@ -119,8 +123,12 @@ Parameters:
             ),
         ]
 
-    @server.call_tool()
-    async def call_message_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    list_message_tools = cast(
+        Callable[[], Coroutine[Any, Any, list[Tool]]],
+        server.list_tools()(list_message_tools_impl),
+    )
+
+    async def call_message_tool_impl(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Handle tool calls for message drafting."""
         if name == "draft_checkin_message":
             result = await draft_checkin_message(api_client, arguments)
@@ -132,6 +140,11 @@ Parameters:
             result = {"error": f"Unknown tool: {name}"}
 
         return [TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
+
+    call_message_tool = cast(
+        Callable[[str, dict[str, Any]], Coroutine[Any, Any, list[TextContent]]],
+        server.call_tool()(call_message_tool_impl),
+    )
 
 
 async def draft_checkin_message(api_client: DjangoAPIClient, args: dict[str, Any]) -> dict[str, Any]:
@@ -183,7 +196,7 @@ async def draft_checkin_message(api_client: DjangoAPIClient, args: dict[str, Any
     }
 
 
-def _analyze_activity(logs: list, weight_checkins: list, focus_area: str) -> dict[str, Any]:
+def _analyze_activity(logs: list[dict[str, Any]], weight_checkins: list[dict[str, Any]], focus_area: str) -> dict[str, Any]:
     """Analyze recent activity for message context."""
     days_logged = 0
     workouts_completed = 0
@@ -214,7 +227,7 @@ def _analyze_activity(logs: list, weight_checkins: list, focus_area: str) -> dic
 
 def _generate_checkin_message(
     trainee_name: str,
-    activity_summary: dict,
+    activity_summary: dict[str, Any],
     message_tone: str,
     focus_area: str,
 ) -> str:
@@ -317,7 +330,7 @@ async def draft_feedback_message(api_client: DjangoAPIClient, args: dict[str, An
     }
 
 
-def _generate_workout_feedback(trainee_name: str, log: dict) -> str:
+def _generate_workout_feedback(trainee_name: str, log: dict[str, Any]) -> str:
     """Generate workout feedback."""
     workout_data = log.get("workout_data", {})
     exercises = workout_data.get("exercises", [])
@@ -345,7 +358,7 @@ def _generate_workout_feedback(trainee_name: str, log: dict) -> str:
     return feedback
 
 
-def _generate_nutrition_feedback(trainee_name: str, log: dict) -> str:
+def _generate_nutrition_feedback(trainee_name: str, log: dict[str, Any]) -> str:
     """Generate nutrition feedback."""
     nutrition_data = log.get("nutrition_data", {})
     totals = nutrition_data.get("totals", {})

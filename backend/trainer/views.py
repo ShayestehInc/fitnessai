@@ -1,16 +1,27 @@
 """
 Views for trainer app.
 """
+from __future__ import annotations
+
+import os
+import uuid
+from typing import Any, cast
+
 from rest_framework import generics, status, views
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
+from django.conf import settings
+from django.core.files.storage import default_storage
 from django.utils import timezone
-from django.db.models import Count, Q, Avg
+from django.db.models import Count, Q, Avg, QuerySet
 from datetime import timedelta
 
 from core.permissions import IsTrainer
+from users.models import User, UserProfile
 from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary
 from .serializers import (
     TraineeListSerializer, TraineeDetailSerializer,
@@ -21,8 +32,6 @@ from .serializers import (
 )
 from workouts.models import ProgramTemplate, Program
 
-User = get_user_model()
-
 
 class TrainerDashboardView(views.APIView):
     """
@@ -30,8 +39,8 @@ class TrainerDashboardView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def get(self, request):
-        trainer = request.user
+    def get(self, request: Request) -> Response:
+        trainer = cast(User, request.user)
         trainees = User.objects.filter(
             parent_trainer=trainer,
             role=User.Role.TRAINEE
@@ -71,8 +80,8 @@ class TrainerStatsView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def get(self, request):
-        trainer = request.user
+    def get(self, request: Request) -> Response:
+        trainer = cast(User, request.user)
         trainees = User.objects.filter(
             parent_trainer=trainer,
             role=User.Role.TRAINEE
@@ -145,35 +154,37 @@ class TrainerStatsView(views.APIView):
         return Response(serializer.data)
 
 
-class TraineeListView(generics.ListAPIView):
+class TraineeListView(generics.ListAPIView[User]):
     """
     GET: List all trainees for the authenticated trainer.
     """
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = TraineeListSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[User]:
+        user = cast(User, self.request.user)
         return User.objects.filter(
-            parent_trainer=self.request.user,
+            parent_trainer=user,
             role=User.Role.TRAINEE
         ).order_by('-created_at')
 
 
-class TraineeDetailView(generics.RetrieveAPIView):
+class TraineeDetailView(generics.RetrieveAPIView[User]):
     """
     GET: Retrieve detailed information about a specific trainee.
     """
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = TraineeDetailSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[User]:
+        user = cast(User, self.request.user)
         return User.objects.filter(
-            parent_trainer=self.request.user,
+            parent_trainer=user,
             role=User.Role.TRAINEE
         )
 
 
-class TraineeActivityView(generics.ListAPIView):
+class TraineeActivityView(generics.ListAPIView[TraineeActivitySummary]):
     """
     GET: Get activity summaries for a specific trainee.
     Query params: ?days=30 (default 30)
@@ -181,14 +192,15 @@ class TraineeActivityView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = TraineeActivitySerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[TraineeActivitySummary]:
         trainee_id = self.kwargs['pk']
         days = int(self.request.query_params.get('days', 30))
+        user = cast(User, self.request.user)
 
         # Verify trainer owns this trainee
         if not User.objects.filter(
             id=trainee_id,
-            parent_trainer=self.request.user
+            parent_trainer=user
         ).exists():
             return TraineeActivitySummary.objects.none()
 
@@ -205,12 +217,13 @@ class TraineeProgressView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def get(self, request, pk):
+    def get(self, request: Request, pk: int) -> Response:
+        user = cast(User, request.user)
         # Verify trainer owns this trainee
         try:
             trainee = User.objects.get(
                 id=pk,
-                parent_trainer=request.user,
+                parent_trainer=user,
                 role=User.Role.TRAINEE
             )
         except User.DoesNotExist:
@@ -267,11 +280,12 @@ class RemoveTraineeView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request, pk):
+    def post(self, request: Request, pk: int) -> Response:
+        user = cast(User, request.user)
         try:
             trainee = User.objects.get(
                 id=pk,
-                parent_trainer=request.user,
+                parent_trainer=user,
                 role=User.Role.TRAINEE
             )
         except User.DoesNotExist:
@@ -294,11 +308,12 @@ class UpdateTraineeGoalsView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def patch(self, request, pk):
+    def patch(self, request: Request, pk: int) -> Response:
+        user = cast(User, request.user)
         try:
             trainee = User.objects.get(
                 id=pk,
-                parent_trainer=request.user,
+                parent_trainer=user,
                 role=User.Role.TRAINEE
             )
         except User.DoesNotExist:
@@ -308,11 +323,7 @@ class UpdateTraineeGoalsView(views.APIView):
             )
 
         # Get or create profile
-        profile, _ = trainee.profile.get_or_create() if hasattr(trainee, 'profile') else (None, False)
-
-        if not profile:
-            from users.models import UserProfile
-            profile, _ = UserProfile.objects.get_or_create(user=trainee)
+        profile, _ = UserProfile.objects.get_or_create(user=trainee)
 
         # Update fields
         goal = request.data.get('goal')
@@ -332,24 +343,26 @@ class UpdateTraineeGoalsView(views.APIView):
         })
 
 
-class InvitationListCreateView(generics.ListCreateAPIView):
+class InvitationListCreateView(generics.ListCreateAPIView[TraineeInvitation]):
     """
     GET: List all invitations sent by the trainer.
     POST: Create a new invitation.
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type:
         if self.request.method == 'POST':
             return CreateInvitationSerializer
         return TraineeInvitationSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[TraineeInvitation]:
+        user = cast(User, self.request.user)
         return TraineeInvitation.objects.filter(
-            trainer=self.request.user
+            trainer=user
         ).order_by('-created_at')
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        user = cast(User, request.user)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -357,7 +370,7 @@ class InvitationListCreateView(generics.ListCreateAPIView):
         expires_days = data.pop('expires_days', 7)
 
         invitation = TraineeInvitation.objects.create(
-            trainer=request.user,
+            trainer=user,
             email=data['email'],
             message=data.get('message', ''),
             program_template_id=data.get('program_template_id'),
@@ -370,7 +383,7 @@ class InvitationListCreateView(generics.ListCreateAPIView):
         )
 
 
-class InvitationDetailView(generics.RetrieveDestroyAPIView):
+class InvitationDetailView(generics.RetrieveDestroyAPIView[TraineeInvitation]):
     """
     GET: Get invitation details.
     DELETE: Cancel/delete an invitation.
@@ -378,12 +391,13 @@ class InvitationDetailView(generics.RetrieveDestroyAPIView):
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = TraineeInvitationSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[TraineeInvitation]:
+        user = cast(User, self.request.user)
         return TraineeInvitation.objects.filter(
-            trainer=self.request.user
+            trainer=user
         )
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         instance = self.get_object()
         if instance.status == TraineeInvitation.Status.PENDING:
             instance.status = TraineeInvitation.Status.CANCELLED
@@ -397,11 +411,12 @@ class ResendInvitationView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request, pk):
+    def post(self, request: Request, pk: int) -> Response:
+        user = cast(User, request.user)
         try:
             invitation = TraineeInvitation.objects.get(
                 id=pk,
-                trainer=request.user
+                trainer=user
             )
         except TraineeInvitation.DoesNotExist:
             return Response(
@@ -430,7 +445,8 @@ class StartImpersonationView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request, trainee_id):
+    def post(self, request: Request, trainee_id: int) -> Response:
+        user = cast(User, request.user)
         serializer = StartImpersonationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -438,7 +454,7 @@ class StartImpersonationView(views.APIView):
         try:
             trainee = User.objects.get(
                 id=trainee_id,
-                parent_trainer=request.user,
+                parent_trainer=user,
                 role=User.Role.TRAINEE
             )
         except User.DoesNotExist:
@@ -449,7 +465,7 @@ class StartImpersonationView(views.APIView):
 
         # Create session record
         session = TrainerSession.objects.create(
-            trainer=request.user,
+            trainer=user,
             trainee=trainee,
             is_read_only=serializer.validated_data['is_read_only']
         )
@@ -457,7 +473,7 @@ class StartImpersonationView(views.APIView):
         # Generate tokens for trainee with impersonation metadata
         refresh = RefreshToken.for_user(trainee)
         refresh['impersonating'] = True
-        refresh['original_user_id'] = request.user.id
+        refresh['original_user_id'] = user.id
         refresh['session_id'] = session.id
         refresh['is_read_only'] = session.is_read_only
 
@@ -480,13 +496,14 @@ class EndImpersonationView(views.APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         session_id = request.data.get('session_id')
 
         if not session_id:
             # Try to find active session for this user
+            user = cast(User, request.user)
             session = TrainerSession.objects.filter(
-                trainee=request.user,
+                trainee=user,
                 ended_at__isnull=True
             ).order_by('-started_at').first()
         else:
@@ -509,7 +526,7 @@ class EndImpersonationView(views.APIView):
         })
 
 
-class ProgramTemplateListCreateView(generics.ListCreateAPIView):
+class ProgramTemplateListCreateView(generics.ListCreateAPIView[ProgramTemplate]):
     """
     GET: List program templates.
     POST: Create a new program template.
@@ -517,17 +534,19 @@ class ProgramTemplateListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = ProgramTemplateSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[ProgramTemplate]:
+        user = cast(User, self.request.user)
         # Return trainer's own templates + public templates
         return ProgramTemplate.objects.filter(
-            Q(created_by=self.request.user) | Q(is_public=True)
+            Q(created_by=user) | Q(is_public=True)
         ).order_by('-created_at')
 
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+    def perform_create(self, serializer: Any) -> None:
+        user = cast(User, self.request.user)
+        serializer.save(created_by=user)
 
 
-class ProgramTemplateDetailView(generics.RetrieveUpdateDestroyAPIView):
+class ProgramTemplateDetailView(generics.RetrieveUpdateDestroyAPIView[ProgramTemplate]):
     """
     GET: Retrieve a program template.
     PUT/PATCH: Update a program template.
@@ -536,9 +555,10 @@ class ProgramTemplateDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = ProgramTemplateSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[ProgramTemplate]:
+        user = cast(User, self.request.user)
         return ProgramTemplate.objects.filter(
-            created_by=self.request.user
+            created_by=user
         )
 
 
@@ -549,7 +569,8 @@ class AssignProgramTemplateView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request, pk):
+    def post(self, request: Request, pk: int) -> Response:
+        user = cast(User, request.user)
         serializer = AssignProgramSerializer(
             data=request.data,
             context={'request': request}
@@ -558,7 +579,7 @@ class AssignProgramTemplateView(views.APIView):
 
         try:
             template = ProgramTemplate.objects.get(
-                Q(id=pk) & (Q(created_by=request.user) | Q(is_public=True))
+                Q(id=pk) & (Q(created_by=user) | Q(is_public=True))
             )
         except ProgramTemplate.DoesNotExist:
             return Response(
@@ -579,7 +600,7 @@ class AssignProgramTemplateView(views.APIView):
             end_date=end_date,
             schedule=template.schedule_template,
             is_active=True,
-            created_by=request.user
+            created_by=user
         )
 
         # Increment usage counter
@@ -593,6 +614,170 @@ class AssignProgramTemplateView(views.APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class ProgramTemplateUploadImageView(views.APIView):
+    """
+    POST: Upload an image for a program template.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request: Request, pk: int) -> Response:
+        user = cast(User, request.user)
+
+        # Get the template
+        try:
+            template = ProgramTemplate.objects.get(id=pk, created_by=user)
+        except ProgramTemplate.DoesNotExist:
+            return Response(
+                {'error': 'Program template not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if image file was provided
+        if 'image' not in request.FILES:
+            return Response(
+                {'error': 'No image file provided. Use "image" as the field name.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        image_file = request.FILES['image']
+
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if image_file.content_type not in allowed_types:
+            return Response(
+                {'error': f'Invalid file type. Allowed types: {", ".join(allowed_types)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file size (max 10MB)
+        max_size = 10 * 1024 * 1024
+        if image_file.size > max_size:
+            return Response(
+                {'error': 'File size too large. Maximum size is 10MB.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Generate unique filename
+        file_extension = os.path.splitext(image_file.name)[1].lower()
+        if not file_extension:
+            ext_map = {
+                'image/jpeg': '.jpg',
+                'image/png': '.png',
+                'image/gif': '.gif',
+                'image/webp': '.webp',
+            }
+            file_extension = ext_map.get(image_file.content_type, '.jpg')
+
+        unique_filename = f"program-templates/{uuid.uuid4().hex}{file_extension}"
+
+        # Delete old image if it exists and is stored locally
+        if template.image_url:
+            old_url = template.image_url
+            if old_url.startswith(settings.MEDIA_URL) or '/media/' in old_url:
+                old_path = old_url.replace(settings.MEDIA_URL, '').lstrip('/')
+                if default_storage.exists(old_path):
+                    default_storage.delete(old_path)
+
+        # Save the new image
+        saved_path = default_storage.save(unique_filename, image_file)
+
+        # Build the full URL
+        image_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{saved_path}")
+
+        # Update template with new image URL
+        template.image_url = image_url
+        template.save(update_fields=['image_url', 'updated_at'])
+
+        return Response({
+            'success': True,
+            'image_url': image_url,
+            'message': 'Image uploaded successfully'
+        }, status=status.HTTP_200_OK)
+
+
+class ProgramUploadImageView(views.APIView):
+    """
+    POST: Upload an image for a program.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request: Request, pk: int) -> Response:
+        user = cast(User, request.user)
+
+        # Get the program
+        try:
+            program = Program.objects.get(id=pk, created_by=user)
+        except Program.DoesNotExist:
+            return Response(
+                {'error': 'Program not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if image file was provided
+        if 'image' not in request.FILES:
+            return Response(
+                {'error': 'No image file provided. Use "image" as the field name.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        image_file = request.FILES['image']
+
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if image_file.content_type not in allowed_types:
+            return Response(
+                {'error': f'Invalid file type. Allowed types: {", ".join(allowed_types)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file size (max 10MB)
+        max_size = 10 * 1024 * 1024
+        if image_file.size > max_size:
+            return Response(
+                {'error': 'File size too large. Maximum size is 10MB.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Generate unique filename
+        file_extension = os.path.splitext(image_file.name)[1].lower()
+        if not file_extension:
+            ext_map = {
+                'image/jpeg': '.jpg',
+                'image/png': '.png',
+                'image/gif': '.gif',
+                'image/webp': '.webp',
+            }
+            file_extension = ext_map.get(image_file.content_type, '.jpg')
+
+        unique_filename = f"programs/{uuid.uuid4().hex}{file_extension}"
+
+        # Delete old image if it exists and is stored locally
+        if program.image_url:
+            old_url = program.image_url
+            if old_url.startswith(settings.MEDIA_URL) or '/media/' in old_url:
+                old_path = old_url.replace(settings.MEDIA_URL, '').lstrip('/')
+                if default_storage.exists(old_path):
+                    default_storage.delete(old_path)
+
+        # Save the new image
+        saved_path = default_storage.save(unique_filename, image_file)
+
+        # Build the full URL
+        image_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{saved_path}")
+
+        # Update program with new image URL
+        program.image_url = image_url
+        program.save(update_fields=['image_url', 'updated_at'])
+
+        return Response({
+            'success': True,
+            'image_url': image_url,
+            'message': 'Image uploaded successfully'
+        }, status=status.HTTP_200_OK)
+
+
 class AdherenceAnalyticsView(views.APIView):
     """
     GET: Get adherence analytics across all trainees.
@@ -600,12 +785,13 @@ class AdherenceAnalyticsView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
         days = int(request.query_params.get('days', 30))
         start_date = timezone.now().date() - timedelta(days=days)
 
         trainees = User.objects.filter(
-            parent_trainer=request.user,
+            parent_trainer=user,
             role=User.Role.TRAINEE,
             is_active=True
         )
@@ -658,9 +844,10 @@ class ProgressAnalyticsView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
         trainees = User.objects.filter(
-            parent_trainer=request.user,
+            parent_trainer=user,
             role=User.Role.TRAINEE,
             is_active=True
         )
@@ -705,8 +892,8 @@ class GenerateMCPTokenView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request):
-        trainer = request.user
+    def post(self, request: Request) -> Response:
+        trainer = cast(User, request.user)
 
         # Generate tokens
         refresh = RefreshToken.for_user(trainer)
@@ -740,9 +927,10 @@ class AIChatView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         from .ai_chat import get_ai_chat
 
+        user = cast(User, request.user)
         message = request.data.get('message', '').strip()
         if not message:
             return Response(
@@ -758,7 +946,7 @@ class AIChatView(views.APIView):
                 # Verify trainee belongs to this trainer
                 if not User.objects.filter(
                     id=trainee_id,
-                    parent_trainer=request.user,
+                    parent_trainer=user,
                     role=User.Role.TRAINEE
                 ).exists():
                     return Response(
@@ -772,7 +960,7 @@ class AIChatView(views.APIView):
         conversation_history = request.data.get('conversation_history', [])
 
         # Get AI chat instance and send message
-        ai_chat = get_ai_chat(request.user)
+        ai_chat = get_ai_chat(user)
         result = ai_chat.chat(
             message=message,
             conversation_history=conversation_history,
@@ -802,13 +990,14 @@ class AIChatTraineeContextView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def get(self, request, trainee_id):
+    def get(self, request: Request, trainee_id: int) -> Response:
         from .ai_chat import TraineeContextBuilder
 
+        user = cast(User, request.user)
         # Verify trainee belongs to this trainer
         if not User.objects.filter(
             id=trainee_id,
-            parent_trainer=request.user,
+            parent_trainer=user,
             role=User.Role.TRAINEE
         ).exists():
             return Response(
@@ -816,7 +1005,7 @@ class AIChatTraineeContextView(views.APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        context_builder = TraineeContextBuilder(request.user)
+        context_builder = TraineeContextBuilder(user)
         summary = context_builder.get_trainee_summary(trainee_id)
 
         return Response(summary)
@@ -828,7 +1017,7 @@ class AIProvidersView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         from .ai_chat import get_available_providers
         from .ai_config import get_ai_config
 
@@ -859,13 +1048,14 @@ class MarkMissedDayView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
 
-    def post(self, request, program_id):
+    def post(self, request: Request, program_id: int) -> Response:
         from datetime import datetime
 
+        user = cast(User, request.user)
         # Get the program and verify trainer owns the trainee
         try:
             program = Program.objects.select_related('trainee').get(id=program_id)
-            if program.trainee.parent_trainer != request.user:
+            if program.trainee.parent_trainer != user:
                 return Response(
                     {'error': 'Program not found or not authorized'},
                     status=status.HTTP_404_NOT_FOUND

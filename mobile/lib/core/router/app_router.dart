@@ -16,6 +16,7 @@ import '../../features/tv/presentation/screens/tv_screen.dart';
 import '../../features/logging/presentation/screens/ai_command_center_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/settings/presentation/screens/edit_profile_screen.dart';
+import '../../features/settings/presentation/screens/edit_name_screen.dart';
 import '../../features/settings/presentation/screens/edit_goals_screen.dart';
 import '../../features/settings/presentation/screens/edit_diet_screen.dart';
 import '../../features/settings/presentation/screens/theme_settings_screen.dart';
@@ -467,6 +468,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/edit-profile',
         name: 'edit-profile',
         builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/edit-name',
+        name: 'edit-name',
+        builder: (context, state) => const EditNameScreen(),
       ),
       GoRoute(
         path: '/edit-goals',

@@ -1,15 +1,124 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'delete_account_screen.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _isUploadingImage = false;
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+
+    if (image == null) return;
+
+    setState(() => _isUploadingImage = true);
+
+    final result = await ref.read(authStateProvider.notifier).uploadProfileImage(image.path);
+
+    if (!mounted) return;
+    setState(() => _isUploadingImage = false);
+
+    if (result['success'] != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['error'] ?? 'Failed to upload image')),
+      );
+    }
+  }
+
+  Future<void> _removeImage() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Profile Picture'),
+        content: const Text('Are you sure you want to remove your profile picture?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isUploadingImage = true);
+
+    final result = await ref.read(authStateProvider.notifier).removeProfileImage();
+
+    if (!mounted) return;
+    setState(() => _isUploadingImage = false);
+
+    if (result['success'] != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['error'] ?? 'Failed to remove image')),
+      );
+    }
+  }
+
+  void _showImageOptions() {
+    final user = ref.read(authStateProvider).user;
+    final hasImage = user?.profileImage != null;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadImage();
+              },
+            ),
+            if (hasImage)
+              ListTile(
+                leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                title: Text(
+                  'Remove Photo',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _removeImage();
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.close),
+              title: const Text('Cancel'),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
     final role = user?.role ?? 'TRAINEE';
@@ -22,24 +131,129 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Profile Picture Section - shown for all roles
+          _buildProfilePictureSection(context, user?.profileImage, user?.displayName ?? ''),
+          const SizedBox(height: 24),
           // Role-specific settings
-          if (role == 'ADMIN') ..._buildAdminSettings(context, ref, user?.email),
-          if (role == 'TRAINER') ..._buildTrainerSettings(context, ref, user?.email),
-          if (role == 'TRAINEE') ..._buildTraineeSettings(context, ref, user?.email),
+          if (role == 'ADMIN') ..._buildAdminSettings(context, user?.email),
+          if (role == 'TRAINER') ..._buildTrainerSettings(context, user?.email),
+          if (role == 'TRAINEE') ..._buildTraineeSettings(context, user?.email),
         ],
       ),
     );
   }
 
-  List<Widget> _buildAdminSettings(BuildContext context, WidgetRef ref, String? email) {
-    int index = 0;
+  Widget _buildProfilePictureSection(BuildContext context, String? profileImage, String displayName) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+
+    return StaggeredListItem(
+      index: 0,
+      delay: const Duration(milliseconds: 30),
+      child: Center(
+        child: Column(
+          children: [
+            GestureDetector(
+              onTap: _isUploadingImage ? null : _showImageOptions,
+              child: Stack(
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: primaryColor.withValues(alpha: 0.1),
+                      border: Border.all(
+                        color: primaryColor.withValues(alpha: 0.3),
+                        width: 3,
+                      ),
+                    ),
+                    child: _isUploadingImage
+                        ? const Center(child: CircularProgressIndicator())
+                        : profileImage != null
+                            ? ClipOval(
+                                child: Image.network(
+                                  profileImage,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _buildInitials(displayName, theme),
+                                ),
+                              )
+                            : _buildInitials(displayName, theme),
+                  ),
+                  if (!_isUploadingImage)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.scaffoldBackgroundColor,
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Tap to change photo',
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInitials(String name, ThemeData theme) {
+    final initials = name.isNotEmpty
+        ? name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase()
+        : '?';
+    return Center(
+      child: Text(
+        initials,
+        style: TextStyle(
+          color: theme.colorScheme.primary,
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildAdminSettings(BuildContext context, String? email) {
+    int index = 1; // Start at 1 since profile picture is index 0
     return [
       // Admin Info
-      _buildSectionHeader(context, 'ADMIN ACCOUNT', index++),
+      _buildSectionHeader(context, 'PROFILE', index++),
       _buildSettingsTile(
         context: context,
-        icon: Icons.admin_panel_settings,
-        title: 'Admin Profile',
+        icon: Icons.badge_outlined,
+        title: 'Edit Name',
+        subtitle: 'Update your name',
+        onTap: () => context.push('/edit-name'),
+        index: index++,
+      ),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.email_outlined,
+        title: 'Email',
         subtitle: email ?? 'admin@fitnessai.com',
         onTap: null,
         index: index++,
@@ -100,17 +314,17 @@ class SettingsScreen extends ConsumerWidget {
     ];
   }
 
-  List<Widget> _buildTrainerSettings(BuildContext context, WidgetRef ref, String? email) {
-    int index = 0;
+  List<Widget> _buildTrainerSettings(BuildContext context, String? email) {
+    int index = 1; // Start at 1 since profile picture is index 0
     return [
       // Profile Section
       _buildSectionHeader(context, 'PROFILE', index++),
       _buildSettingsTile(
         context: context,
-        icon: Icons.person_outline,
-        title: 'Business Profile',
-        subtitle: 'Update your trainer profile',
-        onTap: () => context.push('/edit-profile'),
+        icon: Icons.badge_outlined,
+        title: 'Edit Name & Business',
+        subtitle: 'Update your name and business name',
+        onTap: () => context.push('/edit-name'),
         index: index++,
       ),
       _buildSettingsTile(
@@ -283,16 +497,24 @@ class SettingsScreen extends ConsumerWidget {
     ];
   }
 
-  List<Widget> _buildTraineeSettings(BuildContext context, WidgetRef ref, String? email) {
-    int index = 0;
+  List<Widget> _buildTraineeSettings(BuildContext context, String? email) {
+    int index = 1; // Start at 1 since profile picture is index 0
     return [
       // Profile Section
       _buildSectionHeader(context, 'PROFILE', index++),
       _buildSettingsTile(
         context: context,
+        icon: Icons.badge_outlined,
+        title: 'Edit Name',
+        subtitle: 'Update your name',
+        onTap: () => context.push('/edit-name'),
+        index: index++,
+      ),
+      _buildSettingsTile(
+        context: context,
         icon: Icons.person_outline,
-        title: 'Edit Profile',
-        subtitle: 'Update your personal information',
+        title: 'Body Measurements',
+        subtitle: 'Update age, height, and weight',
         onTap: () => context.push('/edit-profile'),
         index: index++,
       ),

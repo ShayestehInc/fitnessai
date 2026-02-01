@@ -1,18 +1,22 @@
 """
 Analysis Tools - Analyze trainee progress and generate insights.
 """
+from __future__ import annotations
+
 import json
-from typing import Any
+from collections.abc import Callable, Coroutine
+from typing import Any, cast
+
 from mcp.server import Server
 from mcp.types import Tool, TextContent
+
 from api_client import DjangoAPIClient
 
 
-def register_analysis_tools(server: Server, api_client: DjangoAPIClient):
+def register_analysis_tools(server: Server, api_client: DjangoAPIClient) -> None:
     """Register analysis tools with the MCP server."""
 
-    @server.list_tools()
-    async def list_analysis_tools() -> list[Tool]:
+    async def list_analysis_tools_impl() -> list[Tool]:
         """List available analysis tools."""
         return [
             Tool(
@@ -124,8 +128,12 @@ Useful for weekly planning and prioritization.
             ),
         ]
 
-    @server.call_tool()
-    async def call_analysis_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    list_analysis_tools = cast(
+        Callable[[], Coroutine[Any, Any, list[Tool]]],
+        server.list_tools()(list_analysis_tools_impl),
+    )
+
+    async def call_analysis_tool_impl(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Handle tool calls for analysis."""
         if name == "analyze_trainee_progress":
             result = await analyze_trainee_progress(api_client, arguments)
@@ -139,6 +147,11 @@ Useful for weekly planning and prioritization.
             result = {"error": f"Unknown tool: {name}"}
 
         return [TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
+
+    call_analysis_tool = cast(
+        Callable[[str, dict[str, Any]], Coroutine[Any, Any, list[TextContent]]],
+        server.call_tool()(call_analysis_tool_impl),
+    )
 
 
 async def analyze_trainee_progress(api_client: DjangoAPIClient, args: dict[str, Any]) -> dict[str, Any]:
@@ -206,7 +219,7 @@ async def analyze_trainee_progress(api_client: DjangoAPIClient, args: dict[str, 
     }
 
 
-def _analyze_weight_trend(weight_checkins: list, goal: str | None) -> dict[str, Any]:
+def _analyze_weight_trend(weight_checkins: list[dict[str, Any]], goal: str | None) -> dict[str, Any]:
     """Analyze weight check-in trends."""
     if len(weight_checkins) < 2:
         return {
@@ -246,7 +259,7 @@ def _analyze_weight_trend(weight_checkins: list, goal: str | None) -> dict[str, 
     }
 
 
-def _analyze_workout_consistency(logs: list, program: dict | None) -> dict[str, Any]:
+def _analyze_workout_consistency(logs: list[dict[str, Any]], program: dict[str, Any] | None) -> dict[str, Any]:
     """Analyze workout logging and consistency."""
     days_with_workout = 0
     total_exercises = 0
@@ -282,7 +295,7 @@ def _analyze_workout_consistency(logs: list, program: dict | None) -> dict[str, 
     }
 
 
-def _analyze_nutrition_compliance_detailed(logs: list, goals: dict) -> dict[str, Any]:
+def _analyze_nutrition_compliance_detailed(logs: list[dict[str, Any]], goals: dict[str, Any]) -> dict[str, Any]:
     """Detailed nutrition compliance analysis."""
     if not goals:
         return {
@@ -347,10 +360,10 @@ def _analyze_nutrition_compliance_detailed(logs: list, goals: dict) -> dict[str,
 
 
 def _generate_progress_insights(
-    weight_analysis: dict,
-    workout_analysis: dict,
-    nutrition_analysis: dict,
-    profile: dict,
+    weight_analysis: dict[str, Any],
+    workout_analysis: dict[str, Any],
+    nutrition_analysis: dict[str, Any],
+    profile: dict[str, Any],
 ) -> dict[str, Any]:
     """Generate insights and recommendations from analysis."""
     insights = []

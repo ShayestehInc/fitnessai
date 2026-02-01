@@ -1,21 +1,25 @@
 """
 Trainer Resources - Provide AI with trainer's exercise library and templates.
 """
+from __future__ import annotations
+
 import json
-from typing import Any
+from collections.abc import Callable, Coroutine
+from typing import Any, cast
+
 from mcp.server import Server
 from mcp.types import Resource
+
 from api_client import DjangoAPIClient
 
 
-def register_trainer_resources(server: Server, api_client: DjangoAPIClient):
+def register_trainer_resources(server: Server, api_client: DjangoAPIClient) -> None:
     """Register all trainer-related resources with the MCP server."""
 
     # Note: list_resources is registered once in trainee.py, we extend it here
     # This function adds trainer resources to the existing handler
 
-    @server.read_resource()
-    async def read_trainer_resource(uri: str) -> str:
+    async def read_trainer_resource_impl(uri: str) -> str:
         """Read a trainer resource by URI."""
         if not uri.startswith("trainer://"):
             # Not a trainer resource, let other handlers deal with it
@@ -36,13 +40,18 @@ def register_trainer_resources(server: Server, api_client: DjangoAPIClient):
 
         return json.dumps(data, indent=2, default=str)
 
+    read_trainer_resource = cast(
+        Callable[[str], Coroutine[Any, Any, str]],
+        server.read_resource()(read_trainer_resource_impl),
+    )
+
 
 async def get_exercises_context(api_client: DjangoAPIClient) -> dict[str, Any]:
     """Get trainer's exercise library."""
     exercises = await api_client.get_exercises()
 
     # Group exercises by muscle group
-    by_muscle_group = {}
+    by_muscle_group: dict[str, list[dict[str, Any]]] = {}
     for exercise in exercises:
         muscle_group = exercise.get("muscle_group", "OTHER")
         if muscle_group not in by_muscle_group:

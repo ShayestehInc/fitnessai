@@ -2,10 +2,12 @@
 AI Prompts for Natural Language Logging and Program Generation.
 All prompts are stored here as per project standards.
 """
-from typing import Dict, Any
+from __future__ import annotations
+
+from typing import Any
 
 
-def get_natural_language_log_parsing_prompt(user_input: str, context: Dict[str, Any] = None) -> str:
+def get_natural_language_log_parsing_prompt(user_input: str, context: dict[str, Any] | None = None) -> str:
     """
     Generate prompt for parsing natural language workout/nutrition logs.
     
@@ -79,8 +81,8 @@ Return ONLY the JSON, no additional text."""
 
 def get_program_generation_prompt(
     trainer_request: str,
-    trainee_context: Dict[str, Any],
-    exercise_bank: list
+    trainee_context: dict[str, Any],
+    exercise_bank: list[dict[str, Any]]
 ) -> str:
     """
     Generate prompt for AI program generation.

@@ -1,6 +1,10 @@
 """
 Feature request and voting models for trainer feedback system.
 """
+from __future__ import annotations
+
+from typing import Any, Tuple
+
 from django.db import models
 
 
@@ -77,7 +81,7 @@ class FeatureRequest(models.Model):
     def vote_score(self) -> int:
         return self.upvotes - self.downvotes
 
-    def update_vote_counts(self):
+    def update_vote_counts(self) -> None:
         """Recalculate vote counts from actual votes."""
         self.upvotes = self.votes.filter(vote_type=FeatureVote.VoteType.UP).count()
         self.downvotes = self.votes.filter(vote_type=FeatureVote.VoteType.DOWN).count()
@@ -117,16 +121,17 @@ class FeatureVote(models.Model):
     def __str__(self) -> str:
         return f"{self.user.email} {self.vote_type} on {self.feature.title}"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         super().save(*args, **kwargs)
         # Update cached vote counts
         self.feature.update_vote_counts()
 
-    def delete(self, *args, **kwargs):
+    def delete(self, *args: Any, **kwargs: Any) -> Tuple[int, dict[str, int]]:
         feature = self.feature
-        super().delete(*args, **kwargs)
+        result = super().delete(*args, **kwargs)
         # Update cached vote counts
         feature.update_vote_counts()
+        return result
 
 
 class FeatureComment(models.Model):

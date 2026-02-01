@@ -58,11 +58,11 @@ class WorkoutExercise {
 
   factory WorkoutExercise.fromJson(Map<String, dynamic> json) {
     return WorkoutExercise(
-      exerciseId: json['exercise_id'] as int,
-      exerciseName: json['exercise_name'] as String,
-      muscleGroup: json['muscle_group'] as String,
-      sets: json['sets'] as int,
-      reps: json['reps'] as int,
+      exerciseId: (json['exercise_id'] as int?) ?? 0,
+      exerciseName: (json['exercise_name'] as String?) ?? 'Unknown Exercise',
+      muscleGroup: (json['muscle_group'] as String?) ?? 'other',
+      sets: (json['sets'] as int?) ?? 3,
+      reps: (json['reps'] as int?) ?? 10,
       restSeconds: json['rest_seconds'] as int?,
       notes: json['notes'] as String?,
       supersetGroupId: json['superset_group_id'] as String?,
@@ -106,7 +106,7 @@ class WorkoutDay {
 
   factory WorkoutDay.fromJson(Map<String, dynamic> json) {
     return WorkoutDay(
-      name: json['name'] as String,
+      name: (json['name'] as String?) ?? 'Workout',
       isRestDay: json['is_rest_day'] as bool? ?? false,
       exercises: (json['exercises'] as List?)
               ?.map((e) => WorkoutExercise.fromJson(e as Map<String, dynamic>))
@@ -170,7 +170,7 @@ class ProgramWeek {
 
   factory ProgramWeek.fromJson(Map<String, dynamic> json) {
     return ProgramWeek(
-      weekNumber: json['week_number'] as int,
+      weekNumber: (json['week_number'] as int?) ?? 1,
       title: json['title'] as String?,
       notes: json['notes'] as String?,
       isDeload: json['is_deload'] as bool? ?? false,

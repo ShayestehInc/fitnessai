@@ -1,12 +1,18 @@
 """
 User views for profile management and onboarding.
 """
+from __future__ import annotations
+
+from typing import Any, cast
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.db.models import QuerySet
 
 from .models import User, UserProfile
 from .serializers import UserProfileSerializer, OnboardingStepSerializer, UserSerializer
@@ -15,7 +21,7 @@ from workouts.services.macro_calculator import MacroCalculatorService
 from workouts.models import NutritionGoal
 
 
-class UserProfileViewSet(viewsets.ModelViewSet):
+class UserProfileViewSet(viewsets.ModelViewSet[UserProfile]):
     """
     ViewSet for UserProfile CRUD operations.
     Users can only access their own profile.
@@ -23,46 +29,52 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[UserProfile]:
         """Return only the current user's profile."""
-        return UserProfile.objects.filter(user=self.request.user)
+        user = cast(User, self.request.user)
+        return UserProfile.objects.filter(user=user)
 
-    def get_object(self):
+    def get_object(self) -> UserProfile:
         """Get or create profile for current user."""
-        profile, _ = UserProfile.objects.get_or_create(user=self.request.user)
+        user = cast(User, self.request.user)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
         return profile
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Return current user's profile (singleton pattern)."""
-        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user = cast(User, request.user)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
         serializer = self.get_serializer(profile)
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'], url_path='onboarding')
-    def update_onboarding(self, request):
+    def update_onboarding(self, request: Request) -> Response:
         """
         Update profile during onboarding (partial updates).
 
         POST /api/users/profiles/onboarding/
         Body: { "first_name": "John", "sex": "male", "age": 30, ... }
         """
-        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user = cast(User, request.user)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
 
         serializer = OnboardingStepSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = cast(dict[str, Any], serializer.validated_data)
 
         # Separate user fields from profile fields
         user_fields = ['first_name', 'last_name']
 
         # Update user fields (name)
         for field in user_fields:
-            if field in serializer.validated_data:
-                setattr(request.user, field, serializer.validated_data[field])
-        request.user.save()
+            if field in validated_data:
+                setattr(user, field, validated_data[field])
+        user.save()
 
         # Update profile fields
-        for field, value in serializer.validated_data.items():
+        for field, value in validated_data.items():
             if field not in user_fields:
                 setattr(profile, field, value)
         profile.save()
@@ -70,18 +82,18 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         return Response(UserProfileSerializer(profile).data)
 
     @action(detail=False, methods=['delete'], url_path='delete-account')
-    def delete_account(self, request):
+    def delete_account(self, request: Request) -> Response:
         """
         Delete the current user's account.
 
         DELETE /api/users/profiles/delete-account/
         """
-        user = request.user
+        user = cast(User, request.user)
         user.delete()
         return Response({'success': True, 'message': 'Account deleted successfully'}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'], url_path='complete-onboarding')
-    def complete_onboarding(self, request):
+    def complete_onboarding(self, request: Request) -> Response:
         """
         Complete onboarding and calculate nutrition goals.
 
@@ -93,7 +105,8 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         3. Creates/updates NutritionGoal record
         4. Marks onboarding as complete
         """
-        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user = cast(User, request.user)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
 
         # Validate required fields
         required_fields = ['sex', 'age', 'height_cm', 'weight_kg']
@@ -117,7 +130,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
         # Create or update NutritionGoal
         nutrition_goal, _ = NutritionGoal.objects.update_or_create(
-            trainee=request.user,
+            trainee=user,
             defaults={
                 'protein_goal': goals.protein,
                 'carbs_goal': goals.carbs,
@@ -157,7 +170,7 @@ class GoogleLoginView(APIView):
     """
     permission_classes = [AllowAny]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         id_token = request.data.get('id_token')
 
         if not id_token:
@@ -215,7 +228,7 @@ class AppleLoginView(APIView):
     """
     permission_classes = [AllowAny]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         id_token = request.data.get('id_token')
 
         if not id_token:
@@ -255,4 +268,106 @@ class AppleLoginView(APIView):
             'access': str(refresh.access_token),
             'refresh': str(refresh),
             'user': UserSerializer(user).data,
+        })
+
+
+class UpdateUserProfileView(APIView):
+    """
+    Update user profile information (name, business name).
+
+    PATCH /api/users/me/
+    Body: { "first_name": "John", "last_name": "Doe", "business_name": "Fit Pro" }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request: Request) -> Response:
+        user = cast(User, request.user)
+
+        # Update allowed fields
+        allowed_fields = ['first_name', 'last_name']
+
+        # business_name only for trainers
+        if user.role == User.Role.TRAINER:
+            allowed_fields.append('business_name')
+
+        for field in allowed_fields:
+            if field in request.data:
+                setattr(user, field, request.data[field])
+
+        user.save()
+
+        return Response({
+            'success': True,
+            'user': UserSerializer(user, context={'request': request}).data,
+        })
+
+    def get(self, request: Request) -> Response:
+        """Get current user info."""
+        user = cast(User, request.user)
+        return Response(UserSerializer(user, context={'request': request}).data)
+
+
+class UploadProfileImageView(APIView):
+    """
+    Upload profile image for the current user.
+
+    POST /api/users/profile-image/
+    Content-Type: multipart/form-data
+    Body: { "image": <file> }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        image = request.FILES.get('image')
+
+        if not image:
+            return Response(
+                {'error': 'No image provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if image.content_type not in allowed_types:
+            return Response(
+                {'error': 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file size (max 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB
+        if image.size > max_size:
+            return Response(
+                {'error': 'File too large. Maximum size is 5MB'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Delete old image if exists
+        if user.profile_image:
+            user.profile_image.delete(save=False)
+
+        # Save new image
+        user.profile_image = image
+        user.save()
+
+        # Return updated user data with full URL
+        return Response({
+            'success': True,
+            'profile_image': request.build_absolute_uri(user.profile_image.url),
+            'user': UserSerializer(user, context={'request': request}).data,
+        })
+
+    def delete(self, request: Request) -> Response:
+        """Remove profile image for the current user."""
+        user = cast(User, request.user)
+
+        if user.profile_image:
+            user.profile_image.delete(save=False)
+            user.profile_image = None
+            user.save()
+
+        return Response({
+            'success': True,
+            'user': UserSerializer(user, context={'request': request}).data,
         })

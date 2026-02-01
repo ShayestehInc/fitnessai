@@ -1,18 +1,22 @@
 """
 Program Generator Tool - Create workout program drafts for trainer approval.
 """
+from __future__ import annotations
+
 import json
-from typing import Any
+from collections.abc import Callable, Coroutine
+from typing import Any, cast
+
 from mcp.server import Server
 from mcp.types import Tool, TextContent
+
 from api_client import DjangoAPIClient
 
 
-def register_program_tools(server: Server, api_client: DjangoAPIClient):
+def register_program_tools(server: Server, api_client: DjangoAPIClient) -> None:
     """Register program generation tools with the MCP server."""
 
-    @server.list_tools()
-    async def list_tools() -> list[Tool]:
+    async def list_tools_impl() -> list[Tool]:
         """List available program tools."""
         return [
             Tool(
@@ -106,8 +110,12 @@ Parameters:
             ),
         ]
 
-    @server.call_tool()
-    async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    list_tools = cast(
+        Callable[[], Coroutine[Any, Any, list[Tool]]],
+        server.list_tools()(list_tools_impl),
+    )
+
+    async def call_tool_impl(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Handle tool calls for program generation."""
         if name == "generate_program_draft":
             result = await generate_program_draft(api_client, arguments)
@@ -117,6 +125,11 @@ Parameters:
             result = {"error": f"Unknown tool: {name}"}
 
         return [TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
+
+    call_tool = cast(
+        Callable[[str, dict[str, Any]], Coroutine[Any, Any, list[TextContent]]],
+        server.call_tool()(call_tool_impl),
+    )
 
 
 async def generate_program_draft(api_client: DjangoAPIClient, args: dict[str, Any]) -> dict[str, Any]:
@@ -143,7 +156,7 @@ async def generate_program_draft(api_client: DjangoAPIClient, args: dict[str, An
         return {"error": f"Failed to fetch exercises: {e}", "status": "failed"}
 
     # Group exercises by muscle group
-    exercises_by_group = {}
+    exercises_by_group: dict[str, list[dict[str, Any]]] = {}
     for ex in exercises:
         group = ex.get("muscle_group", "OTHER")
         if group not in exercises_by_group:
@@ -188,8 +201,8 @@ def _generate_program_structure(
     days_per_week: int,
     duration_weeks: int,
     focus_areas: list[str],
-    exercises_by_group: dict[str, list],
-    trainee_profile: dict,
+    exercises_by_group: dict[str, list[dict[str, Any]]],
+    trainee_profile: dict[str, Any],
 ) -> dict[str, Any]:
     """Generate a program structure based on parameters."""
     # Define workout splits based on days per week
@@ -326,12 +339,12 @@ async def suggest_program_modifications(api_client: DjangoAPIClient, args: dict[
 
 def _generate_modification_suggestions(
     modification_type: str,
-    program: dict,
-    recent_logs: list,
+    program: dict[str, Any],
+    recent_logs: list[dict[str, Any]],
     reason: str,
 ) -> list[dict[str, Any]]:
     """Generate specific modification suggestions."""
-    suggestions = []
+    suggestions: list[dict[str, Any]] = []
 
     if modification_type == "PROGRESSIVE_OVERLOAD":
         suggestions.append({

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../programs/data/models/program_week_model.dart';
+import '../../../programs/presentation/screens/program_builder_screen.dart';
 import '../../data/models/trainee_model.dart';
 import '../providers/trainer_provider.dart';
 
@@ -210,15 +211,62 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
     }
   }
 
-  void _navigateToEditProgram(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => EditAssignedProgramScreen(
-          traineeId: widget.traineeId,
-          program: widget.program,
-        ),
-      ),
+  void _navigateToEditProgram(BuildContext context) async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      final apiClient = ref.read(apiClientProvider);
+      final response = await apiClient.dio.get(
+        ApiConstants.programDetail(widget.program.id),
+      );
+
+      final scheduleData = response.data['schedule'];
+
+      // Handle different schedule formats
+      List<dynamic>? weeksData;
+      if (scheduleData is Map<String, dynamic>) {
+        weeksData = scheduleData['weeks'] as List<dynamic>?;
+      } else if (scheduleData is List) {
+        weeksData = scheduleData;
+      }
+
+      List<ProgramWeek> weeks = [];
+      if (weeksData != null && weeksData.isNotEmpty) {
+        weeks = weeksData.map((w) => ProgramWeek.fromJson(w as Map<String, dynamic>)).toList();
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      if (weeks.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No program schedule found')),
+        );
+        return;
+      }
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ProgramBuilderScreen(
+            traineeId: widget.traineeId,
+            templateName: widget.program.name,
+            existingProgramId: widget.program.id,
+            existingWeeks: weeks,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load program: ${e.toString()}')),
+      );
+    }
   }
 
   void _navigateToEndProgram(BuildContext context) {
@@ -518,7 +566,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                   padding: EdgeInsets.all(16),
                   child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
                 )
-              : TextButton(onPressed: _saveChanges, child: const Text('Save')),
+              : IconButton(onPressed: _saveChanges, icon: const Icon(Icons.check), tooltip: 'Save'),
         ],
       ),
       body: Column(

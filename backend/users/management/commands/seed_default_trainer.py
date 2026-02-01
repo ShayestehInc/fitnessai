@@ -1,14 +1,18 @@
 """
 Management command to seed a default trainer account with demo trainees.
 """
-import random
-from django.core.management.base import BaseCommand
-from django.utils import timezone
+from __future__ import annotations
+
 from datetime import timedelta
-from users.models import User, UserProfile
+from typing import Any
+
+from django.core.management.base import BaseCommand, CommandParser
+from django.utils import timezone
+
 from subscriptions.models import Subscription
-from workouts.models import NutritionGoal, Program
 from trainer.models import TraineeActivitySummary
+from users.models import User, UserProfile
+from workouts.models import NutritionGoal, Program
 
 
 class Command(BaseCommand):
@@ -17,14 +21,14 @@ class Command(BaseCommand):
     TRAINER_EMAIL = 'demo.trainer@fitnessai.com'
     TRAINER_PASSWORD = 'TrainerDemo123!'
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             '--force',
             action='store_true',
             help='Force recreation of the demo trainer even if it already exists',
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         force = options['force']
 
         # Check if trainer already exists
@@ -87,19 +91,19 @@ class Command(BaseCommand):
         return trainer
 
     def _create_subscription(self, trainer: User) -> Subscription:
-        """Create a Tier 2 subscription for the trainer."""
+        """Create a Pro subscription for the trainer."""
         subscription = Subscription.objects.create(
             trainer=trainer,
-            tier=Subscription.Tier.TIER_2,
+            tier=Subscription.Tier.PRO,
             status=Subscription.Status.ACTIVE,
             current_period_start=timezone.now(),
             current_period_end=timezone.now() + timedelta(days=365),
         )
         return subscription
 
-    def _create_demo_trainees(self, trainer: User) -> list:
+    def _create_demo_trainees(self, trainer: User) -> list[User]:
         """Create 3 demo trainees assigned to the trainer."""
-        trainees_data = [
+        trainees_data: list[dict[str, Any]] = [
             {
                 'email': 'john.demo@fitnessai.com',
                 'first_name': 'John',
@@ -168,49 +172,54 @@ class Command(BaseCommand):
             },
         ]
 
-        trainees = []
+        trainees: list[User] = []
         for data in trainees_data:
+            email = str(data['email'])
+            first_name = str(data['first_name'])
+            last_name = str(data['last_name'])
+            profile_data: dict[str, Any] = data['profile']
+            nutrition_data: dict[str, Any] = data['nutrition_goal']
+
             # Delete existing trainee if exists
-            User.objects.filter(email=data['email']).delete()
+            User.objects.filter(email=email).delete()
 
             # Create trainee
             trainee = User.objects.create_user(
-                email=data['email'],
+                email=email,
                 password='TraineeDemo123!',
-                first_name=data['first_name'],
-                last_name=data['last_name'],
+                first_name=first_name,
+                last_name=last_name,
                 role=User.Role.TRAINEE,
                 parent_trainer=trainer,
                 is_active=True
             )
 
             # Create profile
-            profile_data = data['profile']
             UserProfile.objects.create(
                 user=trainee,
-                sex=profile_data['sex'],
-                age=profile_data['age'],
-                height_cm=profile_data['height_cm'],
-                weight_kg=profile_data['weight_kg'],
-                activity_level=profile_data['activity_level'],
-                goal=profile_data['goal'],
-                diet_type=profile_data['diet_type'],
-                meals_per_day=profile_data['meals_per_day'],
-                onboarding_completed=profile_data['onboarding_completed'],
+                sex=str(profile_data['sex']),
+                age=int(profile_data['age']),
+                height_cm=float(profile_data['height_cm']),
+                weight_kg=float(profile_data['weight_kg']),
+                activity_level=str(profile_data['activity_level']),
+                goal=str(profile_data['goal']),
+                diet_type=str(profile_data['diet_type']),
+                meals_per_day=int(profile_data['meals_per_day']),
+                onboarding_completed=bool(profile_data['onboarding_completed']),
                 check_in_days=['monday', 'thursday']
             )
 
             # Create nutrition goal
-            nutrition_data = data['nutrition_goal']
+            meals_per_day = int(profile_data['meals_per_day'])
             NutritionGoal.objects.create(
                 trainee=trainee,
-                protein_goal=nutrition_data['protein_goal'],
-                carbs_goal=nutrition_data['carbs_goal'],
-                fat_goal=nutrition_data['fat_goal'],
-                calories_goal=nutrition_data['calories_goal'],
-                per_meal_protein=nutrition_data['protein_goal'] // profile_data['meals_per_day'],
-                per_meal_carbs=nutrition_data['carbs_goal'] // profile_data['meals_per_day'],
-                per_meal_fat=nutrition_data['fat_goal'] // profile_data['meals_per_day'],
+                protein_goal=int(nutrition_data['protein_goal']),
+                carbs_goal=int(nutrition_data['carbs_goal']),
+                fat_goal=int(nutrition_data['fat_goal']),
+                calories_goal=int(nutrition_data['calories_goal']),
+                per_meal_protein=int(nutrition_data['protein_goal']) // meals_per_day,
+                per_meal_carbs=int(nutrition_data['carbs_goal']) // meals_per_day,
+                per_meal_fat=int(nutrition_data['fat_goal']) // meals_per_day,
             )
 
             trainees.append(trainee)

@@ -13,6 +13,7 @@ class ExerciseModel with _$ExerciseModel {
     @JsonKey(name: 'muscle_group') required String muscleGroup,
     String? description,
     @JsonKey(name: 'video_url') String? videoUrl,
+    @JsonKey(name: 'image_url') String? imageUrl,
     @JsonKey(name: 'is_public') @Default(true) bool isPublic,
     @JsonKey(name: 'created_by') int? createdBy,
     @JsonKey(name: 'created_at') String? createdAt,
@@ -26,6 +27,14 @@ class ExerciseModel with _$ExerciseModel {
     return muscleGroup.replaceAll('_', ' ').split(' ').map((word) =>
       word.isNotEmpty ? '${word[0].toUpperCase()}${word.substring(1)}' : ''
     ).join(' ');
+  }
+
+  /// Returns the exercise's image URL, or falls back to muscle group image
+  String get thumbnailUrl {
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      return imageUrl!;
+    }
+    return MuscleGroups.imageUrl(muscleGroup);
   }
 }
 
@@ -59,6 +68,34 @@ class MuscleGroups {
       case fullBody: return 'Full Body';
       case other: return 'Other';
       default: return muscleGroup;
+    }
+  }
+
+  /// Returns a representative image URL for the muscle group
+  static String imageUrl(String muscleGroup) {
+    // Using Unsplash images that represent each muscle group workout
+    switch (muscleGroup) {
+      case chest:
+        return 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&q=80'; // Bench press
+      case back:
+        return 'https://images.unsplash.com/photo-1603287681836-b174ce5074c2?w=400&q=80'; // Back workout
+      case shoulders:
+        return 'https://images.unsplash.com/photo-1532029837206-abbe2b7620e3?w=400&q=80'; // Shoulder press
+      case arms:
+        return 'https://images.unsplash.com/photo-1581009146145-b5ef050c149a?w=400&q=80'; // Bicep curl
+      case legs:
+        return 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=400&q=80'; // Leg workout
+      case glutes:
+        return 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400&q=80'; // Glute exercise
+      case core:
+        return 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80'; // Core/abs
+      case cardio:
+        return 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=400&q=80'; // Running/cardio
+      case fullBody:
+        return 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&q=80'; // Full body workout
+      case other:
+      default:
+        return 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80'; // Generic gym
     }
   }
 }
