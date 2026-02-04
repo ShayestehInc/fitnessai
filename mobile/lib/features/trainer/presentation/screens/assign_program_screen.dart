@@ -260,23 +260,24 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
             top: 24,
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const Text(
-                'Create New Program',
+                const Text(
+                  'Create New Program',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
@@ -386,6 +387,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),
@@ -1075,17 +1077,104 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
               ),
               ElevatedButton(
                 onPressed: () async {
+                  final trainee = ref.read(traineeDetailProvider(widget.traineeId)).valueOrNull;
+                  final hasActiveProgram = trainee != null &&
+                      trainee.programs.any((p) => p.isActive);
+
+                  // If trainee has active program, show confirmation dialog
+                  if (hasActiveProgram) {
+                    final currentProgram = trainee!.programs.firstWhere((p) => p.isActive);
+                    final confirmed = await showDialog<bool>(
+                      context: dialogContext,
+                      builder: (confirmContext) => AlertDialog(
+                        title: Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
+                            const SizedBox(width: 8),
+                            const Text('Replace Active Program?'),
+                          ],
+                        ),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'This trainee already has an active program. Assigning a new program will:',
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.stop_circle_outlined, color: Colors.red, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'End "${currentProgram.name}"',
+                                      style: const TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.play_circle_outlined, color: Colors.green, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Start "${program.name}"',
+                                      style: const TextStyle(color: Colors.green),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(confirmContext, false),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(confirmContext, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                            ),
+                            child: const Text('Replace Program'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirmed != true) return;
+                  }
+
                   Navigator.pop(dialogContext); // Close dialog
                   Navigator.pop(context); // Close sheet
 
                   try {
                     final apiClient = ref.read(apiClientProvider);
 
-                    // End current program if one exists
-                    final trainee = ref.read(traineeDetailProvider(widget.traineeId)).valueOrNull;
-                    if (trainee != null && trainee.programs.isNotEmpty) {
-                      final currentProgram = trainee.programs.first;
-                      await apiClient.dio.delete(ApiConstants.programDetail(currentProgram.id));
+                    // End current active program if one exists (set is_active = false)
+                    if (trainee != null && trainee.programs.any((p) => p.isActive)) {
+                      final currentProgram = trainee.programs.firstWhere((p) => p.isActive);
+                      await apiClient.dio.patch(
+                        ApiConstants.programDetail(currentProgram.id),
+                        data: {'is_active': false},
+                      );
                     }
 
                     // Assign the new program
@@ -1099,18 +1188,23 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
 
                     if (mounted) {
                       // Invalidate providers to refresh data across all screens
-                      ref.invalidate(traineeDetailProvider(widget.traineeId));
                       ref.invalidate(traineesProvider);
                       ref.invalidate(trainerStatsProvider);
                       ref.invalidate(trainerProgramsProvider);
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('"${program.name}" assigned successfully!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                      context.pop(); // Go back to trainee detail
+                      // Force refresh trainee detail and wait for it to complete
+                      // This ensures fresh data is loaded before we navigate back
+                      await ref.refresh(traineeDetailProvider(widget.traineeId).future);
+
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('"${program.name}" assigned successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                        context.pop(); // Go back to trainee detail
+                      }
                     }
                   } catch (e) {
                     if (mounted) {

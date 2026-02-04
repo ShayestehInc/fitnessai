@@ -307,15 +307,23 @@ class _EndProgramScreenState extends ConsumerState<EndProgramScreen> {
       await apiClient.dio.delete(ApiConstants.programDetail(widget.program.id));
 
       if (mounted) {
-        ref.invalidate(traineeDetailProvider(widget.traineeId));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Program ended successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        // Pop back to trainee detail
-        Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name?.contains('trainee') == true);
+        // Force refresh trainee data and wait for it to complete
+        // This ensures fresh data is loaded before we navigate back
+        await ref.refresh(traineeDetailProvider(widget.traineeId).future);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Program ended successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Pop back twice: once from EndProgramScreen, once from ProgramOptionsScreen
+          // This brings us back to the trainee detail screen
+          Navigator.of(context).pop(); // Pop EndProgramScreen
+          Navigator.of(context).pop(); // Pop ProgramOptionsScreen
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -1704,10 +1712,13 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
       final apiClient = ref.read(apiClientProvider);
       await apiClient.dio.patch(ApiConstants.programDetail(widget.program.id), data: {'schedule': {'weeks': _weeks.map((w) => w.toJson()).toList()}});
       if (mounted) {
-        ref.invalidate(traineeDetailProvider(widget.traineeId));
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Program updated successfully'), backgroundColor: Colors.green));
-        Navigator.pop(context);
-        Navigator.pop(context);
+        // Force refresh trainee data and wait for it to complete
+        await ref.refresh(traineeDetailProvider(widget.traineeId).future);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Program updated successfully'), backgroundColor: Colors.green));
+          Navigator.pop(context);
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/workout_provider.dart';
-import '../../data/models/workout_models.dart';
 
 class WorkoutLogScreen extends ConsumerStatefulWidget {
   const WorkoutLogScreen({super.key});
@@ -28,225 +27,191 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: state.isLoading && state.dailySummary == null
+        child: state.isLoading && state.programWeeks.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
                 onRefresh: () =>
                     ref.read(workoutStateProvider.notifier).loadInitialData(),
-                child: SingleChildScrollView(
+                child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header
-                        _buildHeader(state),
-                        const SizedBox(height: 24),
-
-                        // Date navigator
-                        _buildDateNavigator(state),
-                        const SizedBox(height: 24),
-
-                        // Program card
-                        if (state.activeProgram != null)
-                          _buildProgramCard(state.activeProgram!),
-                        const SizedBox(height: 24),
-
-                        // Exercises section
-                        _buildExercisesSection(state),
-                      ],
+                  slivers: [
+                    // Header
+                    SliverToBoxAdapter(
+                      child: _buildHeader(theme, state),
                     ),
-                  ),
+
+                    // Week tabs
+                    SliverToBoxAdapter(
+                      child: _buildWeekTabs(theme, state),
+                    ),
+
+                    // Workout cards
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: _buildWorkoutsList(theme, state),
+                    ),
+
+                    // Bottom spacing for buttons
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 140),
+                    ),
+                  ],
                 ),
               ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/ai-command'),
-        backgroundColor: theme.colorScheme.primary,
-        icon: const Icon(Icons.mic),
-        label: const Text('Log Workout'),
-      ),
+      bottomSheet: state.programWeeks.isNotEmpty
+          ? _buildBottomActions(theme, state)
+          : null,
     );
   }
 
-  Widget _buildHeader(WorkoutState state) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Logbook',
-          style: Theme.of(context).textTheme.displaySmall,
-        ),
-        IconButton(
-          onPressed: () => context.push('/workout-calendar'),
-          icon: const Icon(Icons.calendar_month),
-          color: theme.textTheme.bodySmall?.color,
-        ),
-      ],
-    );
-  }
+  Widget _buildHeader(ThemeData theme, WorkoutState state) {
+    final programName = state.activeProgram?.name ?? 'My Program';
 
-  Widget _buildDateNavigator(WorkoutState state) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            onPressed: () =>
-                ref.read(workoutStateProvider.notifier).goToPreviousDay(),
-            icon: const Icon(Icons.chevron_left),
-            color: theme.textTheme.bodySmall?.color,
-          ),
-          GestureDetector(
-            onTap: () => ref.read(workoutStateProvider.notifier).goToToday(),
-            child: Text(
-              state.formattedDate,
-              style: TextStyle(
-                color: theme.textTheme.bodyLarge?.color,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: () =>
-                ref.read(workoutStateProvider.notifier).goToNextDay(),
-            icon: const Icon(Icons.chevron_right),
-            color: theme.textTheme.bodySmall?.color,
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatStartDateLabel(String? startDate) {
-    if (startDate == null) return 'N/A';
-    try {
-      final date = DateTime.parse(startDate);
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final startDay = DateTime(date.year, date.month, date.day);
-
-      if (startDay.isAfter(today)) {
-        return 'Starts on $startDate';
-      } else {
-        return 'Started $startDate';
-      }
-    } catch (_) {
-      return 'Started $startDate';
-    }
-  }
-
-  Widget _buildProgramCard(ProgramModel program) {
-    final theme = Theme.of(context);
-    return Container(
+    return Padding(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary.withValues(alpha: 0.2),
-            theme.colorScheme.primary.withValues(alpha: 0.1),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Logbook',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      programName,
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Row(
                 children: [
-                  Icon(Icons.fitness_center, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Current Program',
-                    style: TextStyle(
-                      color: theme.textTheme.bodySmall?.color,
-                      fontSize: 12,
-                    ),
+                  IconButton(
+                    onPressed: () => context.push('/workout-calendar'),
+                    icon: const Icon(Icons.calendar_month),
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                  IconButton(
+                    onPressed: () => _showProgramOptions(context),
+                    icon: const Icon(Icons.more_vert),
+                    color: theme.textTheme.bodySmall?.color,
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Active',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
             ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            program.name,
-            style: TextStyle(
-              color: theme.textTheme.bodyLarge?.color,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _formatStartDateLabel(program.startDate),
-            style: TextStyle(
-              color: theme.textTheme.bodySmall?.color,
-              fontSize: 12,
-            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildExercisesSection(WorkoutState state) {
-    final theme = Theme.of(context);
-    final exercises = state.dailySummary?.exercises ?? [];
+  Widget _buildWeekTabs(ThemeData theme, WorkoutState state) {
+    if (state.programWeeks.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Exercises',
-          style: TextStyle(
-            color: theme.textTheme.bodyLarge?.color,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (exercises.isEmpty)
-          _buildEmptyState()
-        else
-          ...exercises.map((exercise) => _ExerciseCard(exercise: exercise)),
-      ],
+    return Container(
+      height: 56,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: state.programWeeks.length,
+        itemBuilder: (context, index) {
+          final week = state.programWeeks[index];
+          final isSelected = index == state.selectedWeekIndex;
+          final completion = (week.completionPercentage * 100).round();
+
+          return GestureDetector(
+            onTap: () => ref.read(workoutStateProvider.notifier).selectWeek(index),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.dividerColor,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Week ${week.weekNumber}',
+                    style: TextStyle(
+                      color: isSelected
+                          ? Colors.white
+                          : theme.textTheme.bodyLarge?.color,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$completion%',
+                    style: TextStyle(
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.8)
+                          : theme.textTheme.bodySmall?.color,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildEmptyState() {
-    final theme = Theme.of(context);
+  Widget _buildWorkoutsList(ThemeData theme, WorkoutState state) {
+    final week = state.selectedWeek;
+    if (week == null || week.workouts.isEmpty) {
+      return SliverToBoxAdapter(
+        child: _buildEmptyState(theme),
+      );
+    }
+
+    final workouts = week.workouts.where((w) => !w.isRestDay).toList();
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final workout = workouts[index];
+          return _WorkoutCard(
+            workout: workout,
+            onTap: () => _startWorkout(context, workout),
+          );
+        },
+        childCount: workouts.length,
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
     return Container(
       padding: const EdgeInsets.all(32),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -261,7 +226,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No workouts logged',
+            'No workouts scheduled',
             style: TextStyle(
               color: theme.textTheme.bodyLarge?.color,
               fontSize: 18,
@@ -270,7 +235,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Tap the button below to log your workout',
+            'Your trainer will assign you a program soon',
             style: TextStyle(
               color: theme.textTheme.bodySmall?.color,
               fontSize: 14,
@@ -281,172 +246,358 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
       ),
     );
   }
-}
 
-class _ExerciseCard extends StatelessWidget {
-  final ExerciseEntry exercise;
+  Widget _buildBottomActions(ThemeData theme, WorkoutState state) {
+    final todaysWorkout = state.todaysWorkout;
 
-  const _ExerciseCard({required this.exercise});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
+        color: theme.scaffoldBackgroundColor,
+        border: Border(
+          top: BorderSide(color: theme.dividerColor),
+        ),
       ),
-      child: Column(
-        children: [
-          // Exercise header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: theme.dividerColor,
-                    borderRadius: BorderRadius.circular(8),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Start Today's Workout button
+            if (todaysWorkout != null)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _startWorkout(context, todaysWorkout),
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text("Start Today's Workout"),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: Icon(
-                    Icons.fitness_center,
-                    color: theme.colorScheme.primary,
-                    size: 20,
+                ),
+              ),
+            if (todaysWorkout != null) const SizedBox(height: 12),
+
+            // Secondary actions row
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push('/ai-command'),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Workout'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    exercise.exerciseName,
-                    style: TextStyle(
-                      color: theme.textTheme.bodyLarge?.color,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showProgramOptions(context),
+                    icon: const Icon(Icons.swap_horiz),
+                    label: const Text('Change'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                  ),
-                ),
-                Text(
-                  '${exercise.sets.length} sets',
-                  style: TextStyle(
-                    color: theme.textTheme.bodySmall?.color,
-                    fontSize: 12,
                   ),
                 ),
               ],
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          // Sets
-          if (exercise.sets.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: theme.scaffoldBackgroundColor,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
+  void _startWorkout(BuildContext context, ProgramWorkoutDay workout) {
+    context.push('/active-workout', extra: workout);
+  }
+
+  void _showProgramOptions(BuildContext context) {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.dividerColor,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              child: Column(
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Icon(Icons.list_alt, color: theme.colorScheme.primary),
+                title: const Text('View All Programs'),
+                onTap: () {
+                  context.pop();
+                  context.push('/my-programs');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.swap_horiz, color: theme.colorScheme.primary),
+                title: const Text('Switch Program'),
+                onTap: () {
+                  context.pop();
+                  // TODO: Show program switcher
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.calendar_month, color: theme.colorScheme.primary),
+                title: const Text('View Calendar'),
+                onTap: () {
+                  context.pop();
+                  context.push('/workout-calendar');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutCard extends StatelessWidget {
+  final ProgramWorkoutDay workout;
+  final VoidCallback onTap;
+
+  const _WorkoutCard({
+    required this.workout,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    String statusLabel;
+    Color statusColor;
+    if (workout.isToday) {
+      statusLabel = "Today's Workout";
+      statusColor = theme.colorScheme.primary;
+    } else if (workout.isCompleted) {
+      statusLabel = 'Completed';
+      statusColor = Colors.green;
+    } else {
+      statusLabel = 'Following Workout';
+      statusColor = theme.textTheme.bodySmall?.color ?? Colors.grey;
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: workout.isToday
+                ? theme.colorScheme.primary.withValues(alpha: 0.5)
+                : theme.dividerColor,
+            width: workout.isToday ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Workout image placeholder
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: _getMuscleGroupColor(workout.exercises.isNotEmpty
+                    ? workout.exercises.first.muscleGroup
+                    : 'other'),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(15),
+                ),
+              ),
+              child: Stack(
                 children: [
-                  // Header row
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          'Set',
-                          style: TextStyle(
-                            color: theme.textTheme.bodySmall?.color,
-                            fontSize: 12,
-                          ),
-                        ),
+                  // Gradient overlay
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(15),
                       ),
-                      Expanded(
-                        child: Text(
-                          'Weight',
-                          style: TextStyle(
-                            color: theme.textTheme.bodySmall?.color,
-                            fontSize: 12,
-                          ),
-                        ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.6),
+                        ],
                       ),
-                      SizedBox(
-                        width: 60,
-                        child: Text(
-                          'Reps',
-                          style: TextStyle(
-                            color: theme.textTheme.bodySmall?.color,
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.right,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  // Set rows
-                  ...exercise.sets.map((set) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 40,
-                              child: Text(
-                                '${set.setNumber}',
-                                style: TextStyle(
-                                  color: theme.textTheme.bodyLarge?.color,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                set.weight != null
-                                    ? '${set.weight} ${set.unit}'
-                                    : '-',
-                                style: TextStyle(
-                                  color: theme.textTheme.bodyLarge?.color,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 60,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    '${set.reps}',
-                                    style: TextStyle(
-                                      color: theme.textTheme.bodyLarge?.color,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Icon(
-                                    set.completed
-                                        ? Icons.check_circle
-                                        : Icons.radio_button_unchecked,
-                                    color: set.completed
-                                        ? theme.colorScheme.primary
-                                        : theme.textTheme.bodySmall?.color,
-                                    size: 18,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                  // Muscle group icon
+                  Center(
+                    child: Icon(
+                      _getMuscleGroupIcon(workout.exercises.isNotEmpty
+                          ? workout.exercises.first.muscleGroup
+                          : 'other'),
+                      size: 48,
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  // Status badge
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
-                      )),
+                      ),
+                    ),
+                  ),
+                  // Completed check
+                  if (workout.isCompleted)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
-        ],
+
+            // Workout info
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          workout.name,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${workout.exerciseCount} exercises  ~${workout.estimatedMinutes} min',
+                          style: TextStyle(
+                            color: theme.textTheme.bodySmall?.color,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: workout.isToday
+                          ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                          : theme.dividerColor.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      workout.isToday ? Icons.play_arrow : Icons.chevron_right,
+                      color: workout.isToday
+                          ? theme.colorScheme.primary
+                          : theme.textTheme.bodySmall?.color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Color _getMuscleGroupColor(String muscleGroup) {
+    switch (muscleGroup.toLowerCase()) {
+      case 'chest':
+        return Colors.red.shade700;
+      case 'back':
+        return Colors.blue.shade700;
+      case 'shoulders':
+        return Colors.orange.shade700;
+      case 'legs':
+        return Colors.green.shade700;
+      case 'biceps':
+      case 'triceps':
+      case 'arms':
+        return Colors.purple.shade700;
+      case 'core':
+      case 'abs':
+        return Colors.teal.shade700;
+      default:
+        return Colors.blueGrey.shade700;
+    }
+  }
+
+  IconData _getMuscleGroupIcon(String muscleGroup) {
+    switch (muscleGroup.toLowerCase()) {
+      case 'chest':
+        return Icons.fitness_center;
+      case 'back':
+        return Icons.accessibility_new;
+      case 'shoulders':
+        return Icons.sports_gymnastics;
+      case 'legs':
+        return Icons.directions_run;
+      case 'biceps':
+      case 'triceps':
+      case 'arms':
+        return Icons.sports_martial_arts;
+      case 'core':
+      case 'abs':
+        return Icons.sports;
+      default:
+        return Icons.fitness_center;
+    }
   }
 }

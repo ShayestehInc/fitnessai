@@ -65,9 +65,10 @@ class TrainerRepository {
       final response = await _apiClient.dio.get(
         '${ApiConstants.trainerTrainees}$traineeId/',
       );
+      final model = TraineeDetailModel.fromJson(response.data);
       return {
         'success': true,
-        'data': TraineeDetailModel.fromJson(response.data),
+        'data': model,
       };
     } on DioException catch (e) {
       return {

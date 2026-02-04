@@ -9,8 +9,12 @@ import '../../features/onboarding/presentation/screens/onboarding_wizard_screen.
 import '../../features/nutrition/presentation/screens/nutrition_screen.dart';
 import '../../features/nutrition/presentation/screens/add_food_screen.dart';
 import '../../features/nutrition/presentation/screens/weight_checkin_screen.dart';
+import '../../features/nutrition/presentation/screens/weight_trends_screen.dart';
 import '../../features/workout_log/presentation/screens/workout_log_screen.dart';
 import '../../features/workout_log/presentation/screens/workout_calendar_screen.dart';
+import '../../features/workout_log/presentation/screens/active_workout_screen.dart';
+import '../../features/workout_log/presentation/screens/my_programs_screen.dart';
+import '../../features/workout_log/presentation/providers/workout_provider.dart';
 import '../../features/forums/presentation/screens/forums_screen.dart';
 import '../../features/tv/presentation/screens/tv_screen.dart';
 import '../../features/logging/presentation/screens/ai_command_center_screen.dart';
@@ -203,6 +207,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/trainer/coupons',
         name: 'trainer-coupons',
         builder: (context, state) => const TrainerCouponsScreen(),
+      ),
+
+      // Trainer subscription (for platform subscription management)
+      GoRoute(
+        path: '/trainer/subscription',
+        name: 'trainer-subscription',
+        builder: (context, state) => const MySubscriptionScreen(),
       ),
 
       // AI Chat for trainers
@@ -438,9 +449,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const WeightCheckInScreen(),
       ),
       GoRoute(
+        path: '/weight-trends',
+        name: 'weight-trends',
+        builder: (context, state) => const WeightTrendsScreen(),
+      ),
+      GoRoute(
         path: '/workout-calendar',
         name: 'workout-calendar',
         builder: (context, state) => const WorkoutCalendarScreen(),
+      ),
+      GoRoute(
+        path: '/active-workout',
+        name: 'active-workout',
+        builder: (context, state) {
+          final workout = state.extra as ProgramWorkoutDay;
+          return ActiveWorkoutScreen(workout: workout);
+        },
+      ),
+      GoRoute(
+        path: '/my-programs',
+        name: 'my-programs',
+        builder: (context, state) => const MyProgramsScreen(),
       ),
       GoRoute(
         path: '/trainer/trainees/:id/calendar',

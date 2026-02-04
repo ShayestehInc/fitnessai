@@ -2305,10 +2305,11 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             top: 24,
             bottom: MediaQuery.of(stateContext).viewInsets.bottom + 24,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Center(
                 child: Container(
                   width: 40,
@@ -2424,6 +2425,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),

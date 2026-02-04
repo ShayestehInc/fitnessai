@@ -35,6 +35,7 @@ class ProgramSummary with _$ProgramSummary {
     required String name,
     @JsonKey(name: 'start_date') String? startDate,
     @JsonKey(name: 'end_date') String? endDate,
+    @JsonKey(name: 'is_active') @Default(true) bool isActive,
   }) = _ProgramSummary;
 
   factory ProgramSummary.fromJson(Map<String, dynamic> json) =>

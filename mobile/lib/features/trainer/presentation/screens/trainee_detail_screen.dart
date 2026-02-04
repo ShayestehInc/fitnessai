@@ -1212,7 +1212,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                     value: value.toDouble(),
                     min: min.toDouble(),
                     max: max.toDouble(),
-                    divisions: divisions ?? (max - min),
+                    divisions: divisions ?? (max - min > 0 ? max - min : 1),
                     onChanged: (v) => onChanged(v.round()),
                   ),
                 ),

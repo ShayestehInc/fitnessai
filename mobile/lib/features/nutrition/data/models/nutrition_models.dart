@@ -110,3 +110,32 @@ class FoodItemModel with _$FoodItemModel {
   factory FoodItemModel.fromJson(Map<String, dynamic> json) =>
       _$FoodItemModelFromJson(json);
 }
+
+@freezed
+class MacroPresetModel with _$MacroPresetModel {
+  const MacroPresetModel._();
+
+  const factory MacroPresetModel({
+    required int id,
+    required String name,
+    @Default(2000) int calories,
+    @Default(150) int protein,
+    @Default(200) int carbs,
+    @Default(70) int fat,
+    @JsonKey(name: 'frequency_per_week') int? frequencyPerWeek,
+    @JsonKey(name: 'is_default') @Default(false) bool isDefault,
+    @JsonKey(name: 'sort_order') @Default(0) int sortOrder,
+    @JsonKey(name: 'created_at') String? createdAt,
+  }) = _MacroPresetModel;
+
+  factory MacroPresetModel.fromJson(Map<String, dynamic> json) =>
+      _$MacroPresetModelFromJson(json);
+
+  /// Get frequency display text
+  String get frequencyDisplay {
+    if (frequencyPerWeek == null) return '';
+    if (frequencyPerWeek == 7) return 'Daily';
+    if (frequencyPerWeek == 1) return '1x/week';
+    return '${frequencyPerWeek}x/week';
+  }
+}

@@ -33,6 +33,10 @@ class ApiConstants {
   static String programDetail(int id) => '$apiBaseUrl/workouts/programs/$id/';
   static String get exercises => '$apiBaseUrl/workouts/exercises/';
 
+  // Workout survey endpoints
+  static String get workoutReadinessSurvey => '$apiBaseUrl/workouts/surveys/readiness/';
+  static String get workoutPostSurvey => '$apiBaseUrl/workouts/surveys/post-workout/';
+
   // Nutrition endpoints
   static String get nutritionGoals => '$apiBaseUrl/workouts/nutrition-goals/';
   static String get trainerAdjustGoals => '$apiBaseUrl/workouts/nutrition-goals/trainer-adjust/';

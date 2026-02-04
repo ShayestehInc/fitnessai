@@ -38,19 +38,35 @@ class WorkoutRepository {
       final response = await _apiClient.dio.get(ApiConstants.programs);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data is List ? response.data : [];
+        // Handle both paginated response (results array) and direct list
+        List<dynamic> data;
+        if (response.data is List) {
+          data = response.data;
+        } else if (response.data is Map && response.data['results'] != null) {
+          data = response.data['results'] as List;
+        } else {
+          data = [];
+        }
+        // Debug logging
+        print('[WorkoutRepository] getPrograms: received ${data.length} programs');
+        for (final p in data) {
+          print('[WorkoutRepository] Program: id=${p['id']}, name=${p['name']}, trainee=${p['trainee']}, is_active=${p['is_active']}');
+        }
         final programs =
             data.map((json) => ProgramModel.fromJson(json)).toList();
         return {'success': true, 'programs': programs};
       }
 
+      print('[WorkoutRepository] getPrograms: status ${response.statusCode}');
       return {'success': false, 'error': 'Failed to get programs'};
     } on DioException catch (e) {
+      print('[WorkoutRepository] getPrograms error: ${e.message}, response: ${e.response?.data}');
       return {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to get programs',
       };
     } catch (e) {
+      print('[WorkoutRepository] getPrograms exception: $e');
       return {'success': false, 'error': e.toString()};
     }
   }
@@ -58,32 +74,62 @@ class WorkoutRepository {
   /// Get active program
   Future<Map<String, dynamic>> getActiveProgram() async {
     try {
+      print('[WorkoutRepository] getActiveProgram: calling ${ApiConstants.programs}');
       final response = await _apiClient.dio.get(ApiConstants.programs);
 
+      print('[WorkoutRepository] getActiveProgram: status=${response.statusCode}, response type=${response.data.runtimeType}');
+
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data is List ? response.data : [];
+        // Handle both paginated response (results array) and direct list
+        List<dynamic> data;
+        if (response.data is List) {
+          data = response.data;
+          print('[WorkoutRepository] getActiveProgram: response is direct List');
+        } else if (response.data is Map && response.data['results'] != null) {
+          data = response.data['results'] as List;
+          print('[WorkoutRepository] getActiveProgram: response is paginated Map with results');
+        } else {
+          data = [];
+          print('[WorkoutRepository] getActiveProgram: response format unknown, raw=${response.data}');
+        }
+
+        print('[WorkoutRepository] getActiveProgram: received ${data.length} programs');
+        for (int i = 0; i < data.length; i++) {
+          print('[WorkoutRepository] getActiveProgram: program[$i] = ${data[i]['id']}: ${data[i]['name']}, is_active=${data[i]['is_active']}');
+        }
+
         final programs =
             data.map((json) => ProgramModel.fromJson(json)).toList();
 
         // Find active program
-        final activeProgram = programs.firstWhere(
-          (p) => p.isActive,
-          orElse: () => programs.isNotEmpty ? programs.first : null as ProgramModel,
-        );
+        ProgramModel? activeProgram;
+        for (final p in programs) {
+          if (p.isActive) {
+            activeProgram = p;
+            break;
+          }
+        }
+        // If no active found, use first program
+        activeProgram ??= programs.isNotEmpty ? programs.first : null;
 
         if (activeProgram != null) {
+          print('[WorkoutRepository] getActiveProgram: found "${activeProgram.name}" (isActive=${activeProgram.isActive})');
           return {'success': true, 'program': activeProgram};
         }
+        print('[WorkoutRepository] getActiveProgram: no program found');
         return {'success': false, 'error': 'No active program found'};
       }
 
+      print('[WorkoutRepository] getActiveProgram: non-200 status=${response.statusCode}');
       return {'success': false, 'error': 'Failed to get programs'};
     } on DioException catch (e) {
+      print('[WorkoutRepository] getActiveProgram error: ${e.message}, response=${e.response?.data}');
       return {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to get programs',
       };
     } catch (e) {
+      print('[WorkoutRepository] getActiveProgram exception: $e');
       return {'success': false, 'error': e.toString()};
     }
   }
@@ -103,6 +149,72 @@ class WorkoutRepository {
       return {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to get workout history',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Submit pre-workout readiness survey
+  /// This notifies the trainer about the trainee's readiness before the workout
+  Future<Map<String, dynamic>> submitReadinessSurvey({
+    required String workoutName,
+    required Map<String, dynamic> surveyData,
+  }) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.workoutReadinessSurvey,
+        data: {
+          'workout_name': workoutName,
+          'survey_data': surveyData,
+          'survey_type': 'readiness',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {'success': true};
+      }
+
+      return {'success': false, 'error': 'Failed to submit survey'};
+    } on DioException catch (e) {
+      // Silently fail - don't interrupt workout if survey fails
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to submit survey',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Submit post-workout survey with workout data
+  /// This notifies the trainer about how the workout went
+  Future<Map<String, dynamic>> submitPostWorkoutSurvey({
+    required Map<String, dynamic> workoutSummary,
+    required Map<String, dynamic> surveyData,
+    Map<String, dynamic>? readinessSurvey,
+  }) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.workoutPostSurvey,
+        data: {
+          'workout_summary': workoutSummary,
+          'survey_data': surveyData,
+          'readiness_survey': readinessSurvey,
+          'survey_type': 'post_workout',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {'success': true};
+      }
+
+      return {'success': false, 'error': 'Failed to submit survey'};
+    } on DioException catch (e) {
+      // Silently fail - don't block completion if survey fails
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to submit survey',
       };
     } catch (e) {
       return {'success': false, 'error': e.toString()};

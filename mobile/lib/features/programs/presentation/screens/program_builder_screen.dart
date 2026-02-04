@@ -1665,11 +1665,99 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
 
       // Step 2: If we have a traineeId, assign the template to the trainee
       if (widget.traineeId != null) {
-        // End current program if one exists (trainee can only have one active program)
+        // Check if trainee has an active program
         final trainee = ref.read(traineeDetailProvider(widget.traineeId!)).valueOrNull;
-        if (trainee != null && trainee.programs.isNotEmpty) {
-          final currentProgram = trainee.programs.first;
-          await apiClient.dio.delete(ApiConstants.programDetail(currentProgram.id));
+        final hasActiveProgram = trainee != null &&
+            trainee.programs.any((p) => p.isActive);
+
+        // If trainee has active program, show confirmation dialog
+        if (hasActiveProgram && mounted) {
+          final currentProgram = trainee!.programs.firstWhere((p) => p.isActive);
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (confirmContext) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
+                  const SizedBox(width: 8),
+                  const Text('Replace Active Program?'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'This trainee already has an active program. Saving this program will:',
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.stop_circle_outlined, color: Colors.red, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'End "${currentProgram.name}"',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.play_circle_outlined, color: Colors.green, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Start "${_programState.name}"',
+                            style: const TextStyle(color: Colors.green),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(confirmContext, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(confirmContext, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                  ),
+                  child: const Text('Replace Program'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirmed != true) {
+            setState(() => _isSaving = false);
+            return;
+          }
+
+          // End current active program (set is_active = false)
+          await apiClient.dio.patch(
+            ApiConstants.programDetail(currentProgram.id),
+            data: {'is_active': false},
+          );
         }
 
         // Assign the new program

@@ -3,9 +3,12 @@ Views for workout and nutrition endpoints.
 """
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from rest_framework import viewsets, status
+
+logger = logging.getLogger(__name__)
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -282,20 +285,30 @@ class ProgramViewSet(viewsets.ModelViewSet[Program]):
         """Return programs based on user role."""
         user = cast(User, self.request.user)
 
+        logger.info(f"ProgramViewSet.get_queryset: user={user.email}, role={user.role}, id={user.id}")
+
         if user.is_trainer():
             # Trainers see programs for their trainees
-            return Program.objects.filter(
+            queryset = Program.objects.filter(
                 trainee__parent_trainer=user
             ).select_related('trainee', 'created_by')
+            logger.info(f"Trainer {user.email}: returning {queryset.count()} programs")
+            return queryset
         elif user.is_trainee():
             # Trainees see their own programs
-            return Program.objects.filter(
+            queryset = Program.objects.filter(
                 trainee=user
             ).select_related('trainee', 'created_by')
+            logger.info(f"Trainee {user.email}: returning {queryset.count()} programs (user_id={user.id})")
+            # Also log all programs to help debug
+            all_programs = Program.objects.filter(trainee_id=user.id)
+            logger.info(f"Direct query by trainee_id: {all_programs.count()} programs")
+            return queryset
         elif user.is_admin():
             # Admins see all programs
             return Program.objects.all().select_related('trainee', 'created_by')
         else:
+            logger.warning(f"User {user.email} with role {user.role} - returning empty queryset")
             return Program.objects.none()
 
     def perform_create(self, serializer: BaseSerializer[Program]) -> None:
@@ -303,6 +316,36 @@ class ProgramViewSet(viewsets.ModelViewSet[Program]):
         user = cast(User, self.request.user)
         if user.is_trainer():
             serializer.save(created_by=user)
+
+    @action(detail=False, methods=['get'])
+    def debug(self, request: Request) -> Response:
+        """Debug endpoint to diagnose program visibility issues."""
+        user = cast(User, request.user)
+
+        # Get all programs where this user is the trainee
+        programs_as_trainee = Program.objects.filter(trainee=user)
+        # Get all programs where trainee_id matches this user's id
+        programs_by_id = Program.objects.filter(trainee_id=user.id)
+
+        return Response({
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'role': user.role,
+                'is_trainee': user.is_trainee(),
+                'is_trainer': user.is_trainer(),
+                'is_admin': user.is_admin(),
+                'parent_trainer_id': user.parent_trainer_id,
+                'parent_trainer_email': user.parent_trainer.email if user.parent_trainer else None,
+            },
+            'programs_as_trainee_count': programs_as_trainee.count(),
+            'programs_as_trainee': [
+                {'id': p.id, 'name': p.name, 'trainee_id': p.trainee_id, 'is_active': p.is_active}
+                for p in programs_as_trainee
+            ],
+            'programs_by_id_count': programs_by_id.count(),
+            'queryset_returned': list(self.get_queryset().values('id', 'name', 'trainee_id', 'is_active')),
+        })
 
 
 class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):

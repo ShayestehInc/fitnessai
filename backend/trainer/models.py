@@ -193,3 +193,58 @@ class TraineeActivitySummary(models.Model):
 
     def __str__(self) -> str:
         return f"{self.trainee.email} - {self.date}"
+
+
+class TrainerNotification(models.Model):
+    """
+    In-app notifications for trainers.
+    Used to notify trainers about trainee activity, survey results, etc.
+    """
+
+    class NotificationType(models.TextChoices):
+        TRAINEE_READINESS = 'trainee_readiness', 'Trainee Readiness'
+        WORKOUT_COMPLETED = 'workout_completed', 'Workout Completed'
+        WORKOUT_MISSED = 'workout_missed', 'Workout Missed'
+        GOAL_HIT = 'goal_hit', 'Goal Hit'
+        CHECK_IN = 'check_in', 'Check In'
+        MESSAGE = 'message', 'Message'
+        GENERAL = 'general', 'General'
+
+    trainer = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='trainer_notifications',
+        limit_choices_to={'role': 'TRAINER'}
+    )
+    notification_type = models.CharField(
+        max_length=30,
+        choices=NotificationType.choices,
+        default=NotificationType.GENERAL
+    )
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    data = models.JSONField(
+        default=dict,
+        help_text="Additional data associated with the notification"
+    )
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'trainer_notifications'
+        indexes = [
+            models.Index(fields=['trainer', 'is_read']),
+            models.Index(fields=['trainer', 'created_at']),
+            models.Index(fields=['notification_type']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f"{self.notification_type}: {self.title}"
+
+    def mark_read(self) -> None:
+        """Mark notification as read."""
+        self.is_read = True
+        self.read_at = timezone.now()
+        self.save(update_fields=['is_read', 'read_at'])

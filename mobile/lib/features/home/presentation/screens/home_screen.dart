@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../nutrition/presentation/widgets/macro_progress_circle.dart';
 import '../providers/home_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -43,22 +42,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   // Header
                   _buildHeader(user?.displayName ?? 'User'),
-                  const SizedBox(height: 32),
-
-                  // Calorie circle
-                  _buildCalorieSection(homeState),
-                  const SizedBox(height: 32),
-
-                  // Macro progress
-                  _buildMacroSection(homeState),
-                  const SizedBox(height: 32),
-
-                  // Program card
-                  _buildProgramCard(homeState),
                   const SizedBox(height: 24),
 
-                  // Quick actions
-                  _buildQuickActions(),
+                  // Nutrition section
+                  _buildSectionHeader('Nutrition'),
+                  const SizedBox(height: 16),
+                  _buildNutritionSection(homeState),
+                  const SizedBox(height: 32),
+
+                  // Current Program section
+                  _buildSectionHeader('Current Program', showAction: true, onAction: () => context.push('/logbook')),
+                  const SizedBox(height: 16),
+                  _buildCurrentProgramSection(homeState),
+                  const SizedBox(height: 32),
+
+                  // Next Workout section
+                  if (homeState.nextWorkout != null) ...[
+                    _buildSectionHeader('Next Workout'),
+                    const SizedBox(height: 16),
+                    _buildNextWorkoutSection(homeState),
+                    const SizedBox(height: 32),
+                  ],
+
+                  // Latest Videos section
+                  if (homeState.latestVideos.isNotEmpty) ...[
+                    _buildSectionHeader('Latest'),
+                    const SizedBox(height: 16),
+                    _buildLatestVideosSection(homeState),
+                  ],
+
+                  const SizedBox(height: 80), // Space for FAB
                 ],
               ),
             ),
@@ -152,7 +165,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               icon: CircleAvatar(
                 radius: 18,
                 backgroundColor: theme.colorScheme.primary,
-                child: const Icon(Icons.person, color: Colors.white, size: 20),
+                backgroundImage: user?.profileImage != null
+                    ? NetworkImage(user!.profileImage!)
+                    : null,
+                child: user?.profileImage == null
+                    ? const Icon(Icons.person, color: Colors.white, size: 20)
+                    : null,
               ),
               color: theme.cardColor,
               itemBuilder: (context) => [
@@ -166,7 +184,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                   onTap: () {
-                    // Delay to allow popup to close
                     Future.delayed(Duration.zero, () {
                       context.push('/settings');
                     });
@@ -196,275 +213,91 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildCalorieSection(HomeState state) {
-    return Center(
-      child: CalorieProgressCircle(
-        consumed: state.caloriesConsumed,
-        goal: state.caloriesGoal,
-        size: 200,
-      ),
-    );
-  }
-
-  Widget _buildMacroSection(HomeState state) {
-    final goals = state.nutritionGoals;
-    final consumed = state.todayNutrition?.consumed;
+  Widget _buildSectionHeader(String title, {bool showAction = false, VoidCallback? onAction}) {
+    final theme = Theme.of(context);
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _MiniMacroCircle(
-          label: 'Protein',
-          current: consumed?.protein ?? 0,
-          goal: goals?.proteinGoal ?? 0,
-          color: const Color(0xFFEC4899),
-        ),
-        _MiniMacroCircle(
-          label: 'Carbs',
-          current: consumed?.carbs ?? 0,
-          goal: goals?.carbsGoal ?? 0,
-          color: const Color(0xFF22C55E),
-        ),
-        _MiniMacroCircle(
-          label: 'Fat',
-          current: consumed?.fat ?? 0,
-          goal: goals?.fatGoal ?? 0,
-          color: const Color(0xFF3B82F6),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProgramCard(HomeState state) {
-    final theme = Theme.of(context);
-    final program = state.activeProgram;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary.withValues(alpha: 0.15),
-            theme.colorScheme.primary.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.fitness_center, color: theme.colorScheme.primary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Current Program',
-                    style: TextStyle(
-                      color: theme.textTheme.bodySmall?.color,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-              if (program != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Active',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-            ],
+        Text(
+          title,
+          style: TextStyle(
+            color: theme.textTheme.bodySmall?.color,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
           ),
-          const SizedBox(height: 12),
-          Text(
-            program?.name ?? 'No active program',
-            style: TextStyle(
-              color: program != null ? theme.textTheme.bodyLarge?.color : theme.textTheme.bodySmall?.color,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            height: 1,
+            color: theme.dividerColor,
           ),
-          if (program != null) ...[
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: 0.35, // TODO: Calculate actual progress
-              backgroundColor: theme.dividerColor,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '35% complete',
-              style: TextStyle(
-                color: theme.textTheme.bodySmall?.color,
-                fontSize: 12,
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => context.push('/logbook'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: theme.colorScheme.primary,
-                side: BorderSide(color: theme.colorScheme.primary),
-              ),
-              child: const Text('View Programs'),
+        ),
+        if (showAction) ...[
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: onAction,
+            child: Icon(
+              Icons.open_in_new,
+              size: 18,
+              color: theme.colorScheme.primary,
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 
-  Widget _buildQuickActions() {
-    final theme = Theme.of(context);
+  Widget _buildNutritionSection(HomeState state) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Quick Actions',
-          style: TextStyle(
-            color: theme.textTheme.bodyLarge?.color,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+        // Large calorie circle
+        Center(
+          child: _CalorieRing(
+            remaining: state.caloriesRemaining,
+            total: state.caloriesGoal,
+            consumed: state.caloriesConsumed,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
+        // Macro circles row
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Expanded(
-              child: _QuickActionCard(
-                icon: Icons.restaurant,
-                label: 'Log Food',
-                onTap: () => context.push('/add-food'),
-              ),
+            _MacroCircle(
+              label: 'Protein',
+              current: state.proteinConsumed,
+              goal: state.proteinGoal,
+              progress: state.proteinProgress,
+              color: const Color(0xFFDC2626), // Red
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _QuickActionCard(
-                icon: Icons.fitness_center,
-                label: 'Log Workout',
-                onTap: () => context.push('/ai-command'),
-              ),
+            _MacroCircle(
+              label: 'Carbs',
+              current: state.carbsConsumed,
+              goal: state.carbsGoal,
+              progress: state.carbsProgress,
+              color: const Color(0xFF22C55E), // Green
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _QuickActionCard(
-                icon: Icons.scale,
-                label: 'Check In',
-                onTap: () => context.push('/weight-checkin'),
-              ),
+            _MacroCircle(
+              label: 'Fat',
+              current: state.fatConsumed,
+              goal: state.fatGoal,
+              progress: state.fatProgress,
+              color: const Color(0xFF3B82F6), // Blue
             ),
           ],
         ),
       ],
     );
   }
-}
 
-class _MiniMacroCircle extends StatelessWidget {
-  final String label;
-  final int current;
-  final int goal;
-  final Color color;
-
-  const _MiniMacroCircle({
-    required this.label,
-    required this.current,
-    required this.goal,
-    required this.color,
-  });
-
-  double get progress {
-    if (goal == 0) return 0;
-    return (current / goal).clamp(0.0, 1.0);
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildCurrentProgramSection(HomeState state) {
     final theme = Theme.of(context);
-    return Column(
-      children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: 60,
-              height: 60,
-              child: CircularProgressIndicator(
-                value: progress,
-                strokeWidth: 6,
-                backgroundColor: theme.dividerColor,
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
-            ),
-            Text(
-              '${(progress * 100).round()}%',
-              style: TextStyle(
-                color: theme.textTheme.bodyLarge?.color,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        Text(
-          '$current / $goal g',
-          style: TextStyle(
-            color: theme.textTheme.bodySmall?.color,
-            fontSize: 10,
-          ),
-        ),
-      ],
-    );
-  }
-}
+    final program = state.activeProgram;
 
-class _QuickActionCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _QuickActionCard({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+    if (program == null) {
+      return Container(
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(12),
@@ -472,18 +305,473 @@ class _QuickActionCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icon, color: theme.colorScheme.primary),
+            Icon(Icons.fitness_center, size: 48, color: theme.textTheme.bodySmall?.color),
+            const SizedBox(height: 12),
+            Text(
+              'No active program',
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 16,
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
-              label,
+              'Contact your trainer to get started',
               style: TextStyle(
-                color: theme.textTheme.bodyLarge?.color,
-                fontSize: 12,
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                fontSize: 13,
               ),
             ),
           ],
         ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Program name and progress
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                program.name,
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Text(
+              '${state.programProgress}%',
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Progress bar
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: state.programProgress / 100,
+            minHeight: 8,
+            backgroundColor: theme.dividerColor,
+            valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // View Programs button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => context.push('/logbook'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.primary,
+              side: BorderSide(color: theme.colorScheme.primary),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: const Text('View Programs'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNextWorkoutSection(HomeState state) {
+    final theme = Theme.of(context);
+    final nextWorkout = state.nextWorkout!;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: theme.cardColor,
       ),
+      child: Row(
+        children: [
+          // Workout image
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              bottomLeft: Radius.circular(12),
+            ),
+            child: Container(
+              width: 140,
+              height: 120,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.2),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=300',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Center(
+                      child: Icon(
+                        Icons.fitness_center,
+                        size: 40,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  // Gradient overlay
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Colors.transparent,
+                          theme.cardColor.withValues(alpha: 0.8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Workout details
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Week ${nextWorkout.weekNumber}',
+                    style: TextStyle(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    nextWorkout.dayName.toUpperCase(),
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: () {
+                      // TODO: Navigate to workout overview
+                      context.push('/logbook');
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: theme.colorScheme.primary,
+                      side: BorderSide(color: theme.colorScheme.primary),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    ),
+                    child: const Text('Overview'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLatestVideosSection(HomeState state) {
+    return Column(
+      children: state.latestVideos.map((video) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: _VideoCard(video: video),
+      )).toList(),
+    );
+  }
+}
+
+/// Large calorie ring showing remaining calories
+class _CalorieRing extends StatelessWidget {
+  final int remaining;
+  final int total;
+  final int consumed;
+
+  const _CalorieRing({
+    required this.remaining,
+    required this.total,
+    required this.consumed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final progress = total > 0 ? (consumed / total).clamp(0.0, 1.0) : 0.0;
+
+    return SizedBox(
+      width: 180,
+      height: 180,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Background ring
+          SizedBox(
+            width: 180,
+            height: 180,
+            child: CircularProgressIndicator(
+              value: 1.0,
+              strokeWidth: 12,
+              backgroundColor: theme.dividerColor,
+              valueColor: AlwaysStoppedAnimation<Color>(theme.dividerColor),
+            ),
+          ),
+          // Progress ring
+          SizedBox(
+            width: 180,
+            height: 180,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 12,
+              backgroundColor: Colors.transparent,
+              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              strokeCap: StrokeCap.round,
+            ),
+          ),
+          // Center content
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                remaining.toString(),
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontSize: 42,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Calories',
+                style: TextStyle(
+                  color: theme.textTheme.bodySmall?.color,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                'remaining',
+                style: TextStyle(
+                  color: theme.textTheme.bodySmall?.color,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Macro progress circle (Protein, Carbs, Fat)
+class _MacroCircle extends StatelessWidget {
+  final String label;
+  final int current;
+  final int goal;
+  final double progress;
+  final Color color;
+
+  const _MacroCircle({
+    required this.label,
+    required this.current,
+    required this.goal,
+    required this.progress,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final percentage = (progress * 100).clamp(0, 100).round();
+
+    return Column(
+      children: [
+        SizedBox(
+          width: 70,
+          height: 70,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Background ring
+              SizedBox(
+                width: 70,
+                height: 70,
+                child: CircularProgressIndicator(
+                  value: 1.0,
+                  strokeWidth: 6,
+                  backgroundColor: theme.dividerColor,
+                  valueColor: AlwaysStoppedAnimation<Color>(theme.dividerColor),
+                ),
+              ),
+              // Progress ring
+              SizedBox(
+                width: 70,
+                height: 70,
+                child: CircularProgressIndicator(
+                  value: progress.clamp(0.0, 1.0),
+                  strokeWidth: 6,
+                  backgroundColor: Colors.transparent,
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                  strokeCap: StrokeCap.round,
+                ),
+              ),
+              // Percentage text
+              Text(
+                '$percentage%',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: theme.textTheme.bodySmall?.color,
+            fontSize: 13,
+          ),
+        ),
+        Text(
+          '${goal}g',
+          style: TextStyle(
+            color: theme.textTheme.bodyLarge?.color,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Video card for Latest Videos section
+class _VideoCard extends StatelessWidget {
+  final VideoItem video;
+
+  const _VideoCard({required this.video});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Video thumbnail with play button
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(
+                  video.thumbnailUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                    child: Center(
+                      child: Icon(
+                        Icons.play_circle_outline,
+                        size: 48,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Play button overlay
+              Positioned.fill(
+                child: Center(
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.play_arrow,
+                      color: Colors.white,
+                      size: 36,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Video info row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    video.title,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    video.date,
+                    style: TextStyle(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Like button and count
+            Row(
+              children: [
+                Icon(
+                  video.isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: video.isLiked ? Colors.red : theme.textTheme.bodySmall?.color,
+                  size: 22,
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${video.likes}',
+                    style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

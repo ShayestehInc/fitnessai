@@ -65,7 +65,8 @@ class ProgramModel with _$ProgramModel {
     @Default('') String description,
     @JsonKey(name: 'start_date') required String startDate,
     @JsonKey(name: 'end_date') required String endDate,
-    @Default({}) Map<String, dynamic> schedule,
+    // Schedule can be a List (from API) or Map (legacy format)
+    dynamic schedule,
     @JsonKey(name: 'is_active') @Default(true) bool isActive,
   }) = _ProgramModel;
 

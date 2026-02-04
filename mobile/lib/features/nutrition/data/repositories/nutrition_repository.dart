@@ -131,4 +131,68 @@ class NutritionRepository {
       return {'success': false, 'error': e.toString()};
     }
   }
+
+  /// Get macro presets for current trainee
+  Future<Map<String, dynamic>> getMacroPresets() async {
+    try {
+      final response = await _apiClient.dio.get(ApiConstants.macroPresets);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data is List ? response.data : [];
+        final presets =
+            data.map((json) => MacroPresetModel.fromJson(json)).toList();
+        return {'success': true, 'presets': presets};
+      }
+
+      return {'success': false, 'error': 'Failed to get macro presets'};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to get macro presets',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Apply a macro preset as the current day's goals
+  Future<Map<String, dynamic>> applyMacroPreset(int presetId) async {
+    try {
+      // First get the preset details
+      final presetResponse = await _apiClient.dio.get(
+        ApiConstants.macroPreset(presetId),
+      );
+
+      if (presetResponse.statusCode != 200) {
+        return {'success': false, 'error': 'Failed to get preset'};
+      }
+
+      final preset = MacroPresetModel.fromJson(presetResponse.data);
+
+      // Update nutrition goals with preset values
+      final response = await _apiClient.dio.patch(
+        ApiConstants.nutritionGoals,
+        data: {
+          'protein_goal': preset.protein,
+          'carbs_goal': preset.carbs,
+          'fat_goal': preset.fat,
+          'calories_goal': preset.calories,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final goals = NutritionGoalModel.fromJson(response.data);
+        return {'success': true, 'goals': goals};
+      }
+
+      return {'success': false, 'error': 'Failed to apply preset'};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to apply preset',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
 }

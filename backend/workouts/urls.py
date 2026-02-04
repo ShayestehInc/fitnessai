@@ -8,6 +8,7 @@ from .views import (
     WeightCheckInViewSet,
     MacroPresetViewSet,
 )
+from .survey_views import ReadinessSurveyView, PostWorkoutSurveyView
 
 router = DefaultRouter()
 router.register(r'exercises', ExerciseViewSet, basename='exercise')
@@ -19,4 +20,7 @@ router.register(r'macro-presets', MacroPresetViewSet, basename='macropreset')
 
 urlpatterns = [
     path('', include(router.urls)),
+    # Workout surveys
+    path('surveys/readiness/', ReadinessSurveyView.as_view(), name='readiness-survey'),
+    path('surveys/post-workout/', PostWorkoutSurveyView.as_view(), name='post-workout-survey'),
 ]
