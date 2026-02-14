@@ -1,17 +1,16 @@
-# Focus: Fix All 5 Trainee-Side Bugs
+# Focus: Trainer-Selectable Workout Layouts
 
-Priority #1 from CLAUDE.md. All trainee workout functionality is broken.
+## Priority: HIGH (Priority #2 after bug fixes which shipped 2026-02-13)
 
-## Bugs to Fix (ordered by severity)
-1. **BUG-1 [CRITICAL]**: Workout data never saves to database — 100% data loss
-2. **BUG-2 [HIGH]**: Trainer never gets notified — wrong attribute used
-3. **BUG-3 [HIGH]**: Fake sample data shows instead of real programs
-4. **BUG-4 [MEDIUM]**: Debug print statements in production code
-5. **BUG-5 [MEDIUM]**: Program switcher not implemented
+## What
+Trainers choose which workout logging UI their trainees see during active workouts. Three layout variants: Classic (table overview), Card (current one-at-a-time), Minimal (compact list with quick-complete).
 
-## Success Criteria
-- Completing a workout persists all exercise data to DailyLog.workout_data
-- Trainer receives notification when trainee starts or finishes a workout
-- Trainee sees their real assigned program, not sample data
-- No print() debug statements in workout_repository.dart
-- Trainee can switch between assigned programs via bottom sheet
+## Why
+Different trainee experience levels need different UIs. Experienced lifters want to see all exercises at once (Classic). Beginners need the simple one-exercise-at-a-time view (Card — current default). Speed loggers doing high-volume training want minimal chrome (Minimal).
+
+## Who Benefits
+- **Trainers**: Can customize the trainee experience per client, showing professionalism and personalization
+- **Trainees**: Get a workout UI optimized for their experience level and training style
+
+## Success Metric
+Trainer can set layout → trainee sees the correct layout → workout logging works identically regardless of layout

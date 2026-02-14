@@ -297,4 +297,43 @@ class TrainerRepository {
       };
     }
   }
+
+  // Layout Config
+  Future<Map<String, dynamic>> getTraineeLayoutConfig(int traineeId) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.traineeLayoutConfig(traineeId),
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load layout config',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> updateTraineeLayoutConfig(
+    int traineeId, {
+    required String layoutType,
+  }) async {
+    try {
+      final response = await _apiClient.dio.put(
+        ApiConstants.traineeLayoutConfig(traineeId),
+        data: {'layout_type': layoutType},
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to update layout config',
+      };
+    }
+  }
 }

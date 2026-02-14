@@ -15,7 +15,8 @@ from typing import Any, cast
 
 from users.models import User
 from workouts.models import DailyLog
-from trainer.models import TrainerNotification
+from trainer.models import TrainerNotification, WorkoutLayoutConfig
+from core.permissions import IsTrainee
 
 logger = logging.getLogger(__name__)
 
@@ -385,3 +386,29 @@ class PostWorkoutSurveyView(APIView):
                 "Failed to create post-workout notification for trainer %s: %s",
                 trainer.id, e,
             )
+
+
+class MyLayoutConfigView(APIView):
+    """
+    GET /api/workouts/my-layout/
+
+    Returns the authenticated trainee's workout layout configuration.
+    If no config exists, returns the default ('classic').
+    """
+    permission_classes = [IsAuthenticated, IsTrainee]
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+
+        try:
+            config = WorkoutLayoutConfig.objects.get(trainee=user)
+            layout_type: str = config.layout_type
+            config_options: dict[str, Any] = config.config_options or {}
+        except WorkoutLayoutConfig.DoesNotExist:
+            layout_type = WorkoutLayoutConfig.LayoutType.CLASSIC
+            config_options = {}
+
+        return Response({
+            'layout_type': layout_type,
+            'config_options': config_options,
+        })

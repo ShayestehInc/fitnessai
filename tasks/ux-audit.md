@@ -1,26 +1,33 @@
-# UX Audit: Fix 5 Trainee-Side Bugs
+# UX Audit: Trainer-Selectable Workout Layouts
+
+## Audit Date: 2026-02-14
 
 ## Usability Issues
 | # | Severity | Screen/Component | Issue | Recommendation |
 |---|----------|-----------------|-------|----------------|
-| 1 | HIGH | WorkoutLogScreen | No error state UI — API failures show empty state | **FIXED:** Added error state with retry button |
-| 2 | HIGH | Header icon buttons | No tooltips for accessibility | **FIXED:** Added tooltips to calendar and options buttons |
-| 3 | MEDIUM | Empty states | Three empty states have identical styling | Accepted — differentiated by icon and copy, sufficient for now |
-| 4 | MEDIUM | Program switcher | Snackbar when 0/1 programs instead of disabled button | Deferred — minor UX polish, not blocking |
-| 5 | LOW | Week tabs | No scroll indicator for many weeks | Pre-existing, out of scope |
+| 1 | Medium | _WorkoutLayoutPicker | No error state when API fetch fails — silently falls back to classic | **FIXED:** Added error state with retry button |
+| 2 | Medium | _LayoutOption | Border width 1→2px on selection causes 0.5px layout shift | **FIXED:** Compensated padding (12→11, 8→7) when selected |
+| 3 | Medium | MinimalWorkoutLayout | Badge size 24x24 vs Classic 28x28 — inconsistent | **FIXED:** Standardized to 28x28 |
+| 4 | Low | MinimalWorkoutLayout | Padding horizontal:16,vertical:8 vs Classic all:16 | Minor inconsistency, acceptable |
+| 5 | Low | ClassicWorkoutLayout | Weight/reps inputs lack 'lbs'/'reps' suffix unlike Minimal | Could add suffixText for consistency (deferred) |
 
 ## Accessibility Issues
 | # | WCAG Level | Issue | Fix |
 |---|------------|-------|-----|
-| 1 | A | Icon buttons missing tooltips | **FIXED** |
-| 2 | A | Week tabs missing semantic labels | Pre-existing, deferred |
+| 1 | AA | TextFields lack explicit semanticLabel | Non-blocking, deferred |
 
 ## Missing States
-- [x] Loading / skeleton — spinner on initial load
-- [x] Empty / zero data — three variants implemented
-- [x] Error / failure — **FIXED: added retry button**
-- [x] Success / confirmation — snackbar on program switch
-- [ ] Offline / degraded — not in scope (Phase 5)
-- [x] Permission denied — auth enforced on API
+- [x] Loading / skeleton — Loading spinner in _WorkoutLayoutPicker
+- [x] Empty / zero data — Default to 'classic' when no config
+- [x] Error / failure — **FIXED: Added error state with retry button**
+- [x] Success / confirmation — SnackBar on layout update
+- [x] Offline / degraded — Falls back to 'classic' default
+- [x] Permission denied — Handled at API level
 
-## Overall UX Score: 7/10
+## Fixes Applied
+1. **Added error state to _WorkoutLayoutPicker** — When API fetch fails, shows error icon, message, and "Retry" button instead of silently falling back to classic
+2. **Fixed border flicker in _LayoutOption** — Compensated padding when border width increases from 1→2px, preventing layout shift
+3. **Standardized badge sizing** — MinimalWorkoutLayout badge changed from 24x24 to 28x28 to match ClassicWorkoutLayout
+4. **Added type guard on result['data'] cast** — `if (data is Map<String, dynamic>)` guard before casting
+
+## Overall UX Score: 7.5/10

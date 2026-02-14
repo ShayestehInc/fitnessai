@@ -8,7 +8,7 @@ from typing import Any
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary
+from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary, WorkoutLayoutConfig
 from workouts.models import ProgramTemplate
 from users.models import User
 
@@ -238,6 +238,33 @@ class ProgramTemplateSerializer(serializers.ModelSerializer[ProgramTemplate]):
         ]
         read_only_fields = ['created_by', 'times_used', 'created_at', 'updated_at']
 
+
+class WorkoutLayoutConfigSerializer(serializers.ModelSerializer[WorkoutLayoutConfig]):
+    """Serializer for workout layout configuration."""
+    configured_by_email = serializers.EmailField(
+        source='configured_by.email',
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = WorkoutLayoutConfig
+        fields = [
+            'layout_type', 'config_options',
+            'configured_by', 'configured_by_email',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['configured_by', 'created_at', 'updated_at']
+
+    def validate_config_options(self, value: dict[str, Any] | None) -> dict[str, Any]:
+        """Validate config_options is a reasonable-sized dict."""
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("config_options must be a JSON object.")
+        if len(str(value)) > 2048:
+            raise serializers.ValidationError("config_options is too large.")
+        return value
 
 class AssignProgramSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for assigning a program template to a trainee."""

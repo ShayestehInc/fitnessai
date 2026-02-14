@@ -9,6 +9,7 @@ import 'program_options_screen.dart';
 import 'edit_trainee_goals_screen.dart';
 import 'remove_trainee_screen.dart';
 import 'dart:math' as math;
+import '../../data/repositories/trainer_repository.dart';
 
 class TraineeDetailScreen extends ConsumerStatefulWidget {
   final int traineeId;
@@ -291,6 +292,12 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
         _buildSectionTitle('Current Program'),
         const SizedBox(height: 12),
         _buildCurrentProgramCard(trainee),
+        const SizedBox(height: 24),
+
+        // Workout Display Layout
+        _buildSectionTitle('Workout Display'),
+        const SizedBox(height: 12),
+        _WorkoutLayoutPicker(traineeId: trainee.id),
         const SizedBox(height: 24),
 
         // Quick Actions
@@ -2460,6 +2467,297 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
             Text(
               label,
               style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Workout layout picker segmented control for the trainer detail screen.
+class _WorkoutLayoutPicker extends ConsumerStatefulWidget {
+  final int traineeId;
+
+  const _WorkoutLayoutPicker({required this.traineeId});
+
+  @override
+  ConsumerState<_WorkoutLayoutPicker> createState() =>
+      _WorkoutLayoutPickerState();
+}
+
+class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
+  String _selectedLayout = 'classic';
+  bool _isLoading = true;
+  bool _isSaving = false;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentLayout();
+  }
+
+  Future<void> _fetchCurrentLayout() async {
+    final apiClient = ref.read(apiClientProvider);
+    final repository = TrainerRepository(apiClient);
+    final result = await repository.getTraineeLayoutConfig(widget.traineeId);
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        if (result['success'] == true && result['data'] != null) {
+          final data = result['data'];
+          if (data is Map<String, dynamic>) {
+            _selectedLayout = data['layout_type'] as String? ?? 'classic';
+          }
+          _hasError = false;
+        } else {
+          _hasError = true;
+        }
+      });
+    }
+  }
+
+  Future<void> _updateLayout(String layoutType) async {
+    if (_isSaving || layoutType == _selectedLayout) return;
+
+    final previousLayout = _selectedLayout;
+
+    setState(() {
+      _isSaving = true;
+      _selectedLayout = layoutType;
+    });
+
+    final apiClient = ref.read(apiClientProvider);
+    final repository = TrainerRepository(apiClient);
+    final result = await repository.updateTraineeLayoutConfig(
+      widget.traineeId,
+      layoutType: layoutType,
+    );
+
+    if (!mounted) return;
+
+    setState(() => _isSaving = false);
+
+    if (result['success'] == true) {
+      final label = _layoutLabel(layoutType);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Layout updated to $label'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else {
+      // Revert to previous value on failure
+      setState(() => _selectedLayout = previousLayout);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['error'] as String? ?? 'Failed to update layout'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  String _layoutLabel(String type) {
+    switch (type) {
+      case 'classic':
+        return 'Classic';
+      case 'card':
+        return 'Card';
+      case 'minimal':
+        return 'Minimal';
+      default:
+        return type;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (_isLoading) {
+      return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      );
+    }
+
+    if (_hasError) {
+      return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red.shade300, size: 32),
+              const SizedBox(height: 8),
+              Text(
+                'Failed to load layout config',
+                style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                    _hasError = false;
+                  });
+                  _fetchCurrentLayout();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Choose the workout UI this trainee sees during active workouts.',
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _LayoutOption(
+                    icon: Icons.table_chart,
+                    label: 'Classic',
+                    description: 'All exercises visible',
+                    isSelected: _selectedLayout == 'classic',
+                    onTap: () => _updateLayout('classic'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _LayoutOption(
+                    icon: Icons.view_carousel,
+                    label: 'Card',
+                    description: 'One at a time',
+                    isSelected: _selectedLayout == 'card',
+                    onTap: () => _updateLayout('card'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _LayoutOption(
+                    icon: Icons.checklist,
+                    label: 'Minimal',
+                    description: 'Compact list',
+                    isSelected: _selectedLayout == 'minimal',
+                    onTap: () => _updateLayout('minimal'),
+                  ),
+                ),
+              ],
+            ),
+            if (_isSaving)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LayoutOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String description;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _LayoutOption({
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(
+          vertical: isSelected ? 11 : 12,
+          horizontal: isSelected ? 7 : 8,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? primaryColor.withValues(alpha: 0.1)
+              : theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? primaryColor : theme.dividerColor,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 28,
+              color: isSelected ? primaryColor : theme.textTheme.bodySmall?.color,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected
+                    ? primaryColor
+                    : theme.textTheme.bodyLarge?.color,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 10,
+                color: theme.textTheme.bodySmall?.color,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
