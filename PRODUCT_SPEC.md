@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-13
+> Last updated: 2026-02-14
 
 ---
 
@@ -71,7 +71,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Post-workout survey | ✅ Done | Fixed 2026-02-13: Data saves + notification fires |
 | Workout calendar / history | 🟡 Partial | Calendar screen exists; data now persists via DailyLog |
 | Program switcher | ✅ Done | Fixed 2026-02-13: Bottom sheet with active indicator + snackbar |
-| Trainer-selectable workout layouts | ❌ Not done | **Priority 2:** Classic / Card / Minimal variants |
+| Trainer-selectable workout layouts | ✅ Done | Shipped 2026-02-14: Classic / Card / Minimal per trainee |
 | Missed day handling | ✅ Done | Skip or push (shifts program dates) |
 
 ### 3.3 Nutrition System
@@ -161,36 +161,25 @@ All 5 trainee-side bugs have been fixed and shipped.
 - Bottom sheet with full program list, active indicator (check_circle), snackbar confirmation
 - `WorkoutNotifier.switchProgram()` re-parses weeks and resets selection
 
-### 4.2 New Feature: Trainer-Selectable Workout Layouts
+### 4.2 Trainer-Selectable Workout Layouts — COMPLETED (2026-02-14)
 
-**Goal:** Trainers choose which workout logging UI their trainees see. Three variants:
+Trainers choose which workout logging UI their trainees see. Three variants:
 
 | Layout | Description | Best For |
 |--------|------------|----------|
-| `classic` | Traditional table — all sets visible at once, tap to edit | Experienced lifters who want overview |
-| `card` | One set at a time — large input fields, swipe between sets | Beginners, simpler UX |
-| `minimal` | Compact list — exercise name + quick-complete toggles | Speed loggers, high-volume training |
+| `classic` | Scrollable list — all exercises visible with full sets tables | Experienced lifters who want overview |
+| `card` | One exercise at a time — swipe between exercises (existing PageView) | Beginners, simpler UX |
+| `minimal` | Compact collapsible list — circular progress, quick-complete | Speed loggers, high-volume training |
 
-**Backend changes:**
-- New model: `WorkoutLayoutConfig` in `trainer/models.py`
-  - `trainee` (OneToOne → User)
-  - `layout_type` (CharField: classic / card / minimal, default: classic)
-  - `config_options` (JSONField: future per-layout settings like show_previous, auto_rest_timer)
-  - `configured_by` (FK → User, the trainer who set it)
-- New endpoints:
-  - `GET/PUT /api/trainer/layout-config/<trainee_id>/` — trainer sets layout for trainee
-  - `GET /api/trainer/my-layout/` — trainee fetches their own layout config
-- Migration: `WorkoutLayoutConfig` table
-
-**Mobile changes:**
-- New: `layout_config_provider.dart` — fetches config from `/api/trainer/my-layout/` on app launch
-- New: `layout_config_repository.dart` — API calls for layout config
-- Modified: `active_workout_screen.dart` — switches between layout widgets based on config
-- New widget files:
-  - `classic_workout_layout.dart` — existing table-based UI extracted
-  - `card_workout_layout.dart` — new one-set-at-a-time card UI
-  - `minimal_workout_layout.dart` — new compact list UI
-- Trainer side: Layout picker in trainee detail screen (dropdown or segmented control)
+**What was built:**
+- New `WorkoutLayoutConfig` model (OneToOne per trainee, 3 layout choices, JSONField for future config)
+- Trainer API: `GET/PUT /api/trainer/trainees/<id>/layout-config/` with auto-create default
+- Trainee API: `GET /api/workouts/my-layout/` with graceful fallback to classic
+- Trainer UI: "Workout Display" section in trainee detail Overview tab with segmented control
+- Active workout screen: layout switching via `_buildExerciseContent` switch statement
+- Two new layout widgets: `ClassicWorkoutLayout` (scrollable table), `MinimalWorkoutLayout` (collapsible list)
+- Card layout uses existing PageView (no new widget needed)
+- Full row-level security, error states with retry, optimistic updates with rollback
 
 ### 4.3 Acceptance Criteria
 
@@ -199,18 +188,18 @@ All 5 trainee-side bugs have been fixed and shipped.
 - [x] Trainee sees their real assigned program, not sample data
 - [x] No print() debug statements in workout_repository.dart
 - [x] Trainee can switch between assigned programs via bottom sheet
-- [ ] Trainer can set layout type (classic/card/minimal) per trainee
-- [ ] Trainee's active workout screen renders the correct layout variant
-- [ ] Default layout is "classic" for all existing trainees (no migration data needed)
-- [ ] Layout config survives app restart (fetched from API, cached locally)
+- [x] Trainer can set layout type (classic/card/minimal) per trainee
+- [x] Trainee's active workout screen renders the correct layout variant
+- [x] Default layout is "classic" for all existing trainees (no migration data needed)
+- [x] Layout config survives app restart (fetched from API, cached locally)
 
 ---
 
 ## 5. Roadmap
 
-### Phase 1: Foundation Fix (Current Sprint)
+### Phase 1: Foundation Fix — ✅ COMPLETED
 - ~~Fix all 5 bugs~~ ✅ Completed 2026-02-13
-- Implement workout layout system — next up
+- ~~Implement workout layout system~~ ✅ Completed 2026-02-14
 
 ### Phase 2: White-Label Infrastructure
 - TrainerBranding model: primary_color, secondary_color, logo_url, app_name

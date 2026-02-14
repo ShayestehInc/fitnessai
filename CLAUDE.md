@@ -98,7 +98,7 @@ features/
 ├── auth/               # Login, register, JWT management
 ├── onboarding/         # 4-step wizard (about you → activity → goal → diet)
 ├── home/               # Trainee home screen
-├── workout_log/        # ⚠️ BUGGY — Program display, active workout, surveys
+├── workout_log/        # Program display, active workout, surveys, 3 layout variants
 ├── logging/            # AI Command Center (natural language input)
 ├── nutrition/          # Macro tracking, food search, weight check-in
 ├── trainer/            # Trainer dashboard, trainee list, detail, invitations
@@ -154,44 +154,17 @@ features/
 
 ---
 
-## Known Bugs (as of 2026-02-13)
+## Known Bugs (as of 2026-02-14)
 
-### CRITICAL
+All previously known bugs (BUG-1 through BUG-5) were fixed on 2026-02-13.
 
-**BUG-1: Workout data never saves to database**
-- File: `backend/workouts/survey_views.py` ~line 221
-- `PostWorkoutSurveyView.post()` has `# TODO: Save workout log to database`
-- Every trainee workout is lost — data never written to `DailyLog.workout_data`
-
-**BUG-2: Trainer never gets notified of workouts**
-- File: `backend/workouts/survey_views.py` ~lines 56, 205
-- Uses `getattr(user, 'trainer', None)` — should be `user.parent_trainer`
-- Both readiness and post-workout notifications silently fail
-
-### HIGH
-
-**BUG-3: Fake sample data shows instead of real programs**
-- File: `mobile/lib/features/workout_log/presentation/providers/workout_provider.dart`
-- `_parseProgramWeeks()` falls back to `_generateSampleWeeks()` too aggressively
-- Trainee sees hardcoded "Push Day / Pull Day / Legs" even with real assigned programs
-
-### MEDIUM
-
-**BUG-4: Debug print statements in production code**
-- File: `mobile/lib/features/workout_log/data/repositories/workout_repository.dart`
-- 15+ `print('[WorkoutRepository]...')` statements
-
-**BUG-5: Program switcher not implemented**
-- File: `mobile/lib/features/workout_log/presentation/screens/workout_log_screen.dart` ~line 362
-- "Switch Program" menu item has `// TODO: Show program switcher`
+No known bugs at this time.
 
 ## Current Priorities (Ordered)
 
-1. **Fix trainee-side bugs** — All 5 bugs above
-2. **Trainer-selectable workout layouts** — Classic / Card / Minimal per trainee
-3. **White-label infrastructure** — Per-trainer branding (colors, logo, app name)
-4. **Web admin dashboard** — React/Next.js for trainer + admin
-5. **Ambassador user type** — New role with referral revenue sharing
+1. **White-label infrastructure** — Per-trainer branding (colors, logo, app name)
+2. **Web admin dashboard** — React/Next.js for trainer + admin
+3. **Ambassador user type** — New role with referral revenue sharing
 
 ---
 
