@@ -852,10 +852,7 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
         nutrition_data = daily_log.nutrition_data or {}
         meals: list[Any] = nutrition_data.get('meals', [])
 
-        # Validate indices. The meal list is flat (each item is a meal entry).
-        # meal_index is which meal group, entry_index is the entry within it.
-        # However, the current data model stores meals as a flat list.
-        # So we use entry_index directly as the index into the meals array.
+        # entry_index is a flat index into the meals array.
         target_index = entry_index
         if not isinstance(target_index, int) or target_index < 0 or target_index >= len(meals):
             return Response(

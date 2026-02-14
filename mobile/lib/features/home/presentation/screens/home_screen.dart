@@ -557,10 +557,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: () {
-                      // TODO: Navigate to workout overview
-                      context.push('/logbook');
-                    },
+                    onPressed: () => context.push('/logbook'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: theme.colorScheme.primary,
                       side: BorderSide(color: theme.colorScheme.primary),
