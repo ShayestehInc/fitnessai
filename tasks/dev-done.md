@@ -52,3 +52,14 @@
 - **MAJOR**: Added bounds checking in `ClassicWorkoutLayout.didUpdateWidget` — handles case where exercise list grows (adds empty controller lists)
 - **MAJOR**: Added same bounds checking in `MinimalWorkoutLayout.didUpdateWidget`
 - **MINOR**: Removed unused import `api_client.dart` from `trainee_detail_screen.dart`
+
+## Audit Fixes
+
+### Backend fixes
+- **SECURITY**: Added `validate_config_options()` to `WorkoutLayoutConfigSerializer` — validates config_options is a dict and rejects payloads > 2048 chars (prevents DoS via oversized JSON)
+
+### Mobile fixes
+- **UX/HACKER**: Added error state with retry button to `_WorkoutLayoutPicker._fetchCurrentLayout()` — was silently falling back to 'classic' on API failure, now shows error icon + "Retry" button
+- **UX/HACKER**: Added `is Map<String, dynamic>` type guard on `result['data']` cast in `_fetchCurrentLayout()` — prevents type cast errors on unexpected API response
+- **VISUAL**: Fixed border flicker in `_LayoutOption` — compensated padding (12→11, 8→7) when border width increases from 1→2px on selection
+- **VISUAL**: Standardized badge sizing in `MinimalWorkoutLayout` from 24x24 to 28x28 to match `ClassicWorkoutLayout`

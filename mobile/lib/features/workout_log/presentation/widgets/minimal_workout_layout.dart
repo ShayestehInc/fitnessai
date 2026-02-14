@@ -240,8 +240,8 @@ class _MinimalWorkoutLayoutState extends State<MinimalWorkoutLayout> {
         children: [
           // Set number badge
           Container(
-            width: 24,
-            height: 24,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               color: set.isCompleted
                   ? theme.colorScheme.primary

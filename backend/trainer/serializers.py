@@ -256,6 +256,16 @@ class WorkoutLayoutConfigSerializer(serializers.ModelSerializer[WorkoutLayoutCon
         ]
         read_only_fields = ['configured_by', 'created_at', 'updated_at']
 
+    def validate_config_options(self, value: dict[str, Any] | None) -> dict[str, Any]:
+        """Validate config_options is a reasonable-sized dict."""
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("config_options must be a JSON object.")
+        if len(str(value)) > 2048:
+            raise serializers.ValidationError("config_options is too large.")
+        return value
+
 class AssignProgramSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for assigning a program template to a trainee."""
     trainee_id = serializers.IntegerField()

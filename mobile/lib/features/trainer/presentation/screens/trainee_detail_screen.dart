@@ -2490,6 +2490,7 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
   String _selectedLayout = 'classic';
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _hasError = false;
 
   @override
   void initState() {
@@ -2505,8 +2506,13 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
       setState(() {
         _isLoading = false;
         if (result['success'] == true && result['data'] != null) {
-          final data = result['data'] as Map<String, dynamic>;
-          _selectedLayout = data['layout_type'] as String? ?? 'classic';
+          final data = result['data'];
+          if (data is Map<String, dynamic>) {
+            _selectedLayout = data['layout_type'] as String? ?? 'classic';
+          }
+          _hasError = false;
+        } else {
+          _hasError = true;
         }
       });
     }
@@ -2580,6 +2586,40 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
         child: const Padding(
           padding: EdgeInsets.all(24),
           child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      );
+    }
+
+    if (_hasError) {
+      return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red.shade300, size: 32),
+              const SizedBox(height: 8),
+              Text(
+                'Failed to load layout config',
+                style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                    _hasError = false;
+                  });
+                  _fetchCurrentLayout();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -2678,7 +2718,10 @@ class _LayoutOption extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: EdgeInsets.symmetric(
+          vertical: isSelected ? 11 : 12,
+          horizontal: isSelected ? 7 : 8,
+        ),
         decoration: BoxDecoration(
           color: isSelected
               ? primaryColor.withValues(alpha: 0.1)
