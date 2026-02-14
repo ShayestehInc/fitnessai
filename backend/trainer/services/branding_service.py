@@ -59,7 +59,7 @@ def validate_logo_image(image: UploadedFile) -> LogoValidationResult:
         )
 
     # 2. Validate file size
-    if image.size is not None and image.size > MAX_LOGO_SIZE_BYTES:
+    if image.size is None or image.size > MAX_LOGO_SIZE_BYTES:
         return LogoValidationResult(
             is_valid=False,
             error='Logo must be under 2MB.',
@@ -72,7 +72,7 @@ def validate_logo_image(image: UploadedFile) -> LogoValidationResult:
         if pil_image.format not in ALLOWED_PIL_FORMATS:
             return LogoValidationResult(
                 is_valid=False,
-                error=f'Invalid image format: {pil_image.format}. Allowed: JPEG, PNG, WebP.',
+                error='Invalid image format. Allowed: JPEG, PNG, WebP.',
             )
 
         width, height = pil_image.size
@@ -98,7 +98,7 @@ def validate_logo_image(image: UploadedFile) -> LogoValidationResult:
     except (OSError, ValueError) as exc:
         return LogoValidationResult(
             is_valid=False,
-            error=f'Image processing error: {exc}',
+            error='Could not process image. Please upload a valid image file.',
         )
 
     return LogoValidationResult(is_valid=True)
