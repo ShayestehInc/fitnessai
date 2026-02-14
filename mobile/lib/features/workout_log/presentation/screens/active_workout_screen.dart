@@ -366,8 +366,6 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   Future<void> _submitReadinessSurvey(ReadinessSurveyData data) async {
-    // TODO: Submit to backend
-    // This will notify the trainer about the trainee's readiness
     final repository = ref.read(workoutRepositoryProvider);
     await repository.submitReadinessSurvey(
       workoutName: widget.workout.name,
@@ -376,8 +374,6 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   Future<void> _submitPostWorkoutSurvey(PostWorkoutSurveyData data) async {
-    // TODO: Submit to backend with workout data
-    // This will notify the trainer about how the workout went
     final repository = ref.read(workoutRepositoryProvider);
 
     // Prepare workout summary
