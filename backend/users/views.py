@@ -389,25 +389,23 @@ class MyBrandingView(APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainee]
 
+    _DEFAULT_BRANDING_RESPONSE: dict[str, str | None] = {
+        'app_name': '',
+        'primary_color': TrainerBranding.DEFAULT_PRIMARY_COLOR,
+        'secondary_color': TrainerBranding.DEFAULT_SECONDARY_COLOR,
+        'logo_url': None,
+    }
+
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
         trainer = user.parent_trainer
 
         if trainer is None:
-            return Response({
-                'app_name': '',
-                'primary_color': TrainerBranding.DEFAULT_PRIMARY_COLOR,
-                'secondary_color': TrainerBranding.DEFAULT_SECONDARY_COLOR,
-                'logo_url': None,
-            })
+            return Response(self._DEFAULT_BRANDING_RESPONSE)
 
         branding = TrainerBranding.objects.filter(trainer=trainer).first()
         if branding is None:
-            return Response({
-                'app_name': '',
-                'primary_color': TrainerBranding.DEFAULT_PRIMARY_COLOR,
-                'secondary_color': TrainerBranding.DEFAULT_SECONDARY_COLOR,
-                'logo_url': None,
-            })
+            return Response(self._DEFAULT_BRANDING_RESPONSE)
+
         serializer = TrainerBrandingSerializer(branding, context={'request': request})
         return Response(serializer.data)

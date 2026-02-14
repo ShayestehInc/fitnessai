@@ -297,7 +297,10 @@ class TrainerBrandingSerializer(serializers.ModelSerializer[TrainerBranding]):
         return value
 
     def validate_app_name(self, value: str) -> str:
-        return value.strip()
+        import re
+        # Strip HTML tags to prevent stored XSS if rendered in a web context
+        cleaned = re.sub(r'<[^>]+>', '', value).strip()
+        return cleaned
 
 
 class AssignProgramSerializer(serializers.Serializer[dict[str, Any]]):

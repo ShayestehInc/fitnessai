@@ -3,8 +3,10 @@ Trainer-specific models for managing trainees, invitations, and impersonation se
 """
 from __future__ import annotations
 
+import os
 import re
 import secrets
+import uuid
 from datetime import timedelta
 from typing import Any, Optional
 
@@ -304,6 +306,20 @@ class WorkoutLayoutConfig(models.Model):
         return f"{self.trainee.email} — {self.layout_type}"
 
 
+def _branding_logo_upload_path(instance: 'TrainerBranding', filename: str) -> str:
+    """Generate a safe upload path for branding logos using UUID.
+
+    Prevents path traversal attacks by ignoring the client-supplied filename
+    and generating a UUID-based name with the original file extension.
+    """
+    ext = os.path.splitext(filename)[1].lower()
+    # Only allow known image extensions as a safety belt
+    if ext not in ('.jpg', '.jpeg', '.png', '.webp'):
+        ext = '.png'
+    safe_name = f"{uuid.uuid4().hex}{ext}"
+    return f"branding/{safe_name}"
+
+
 def validate_hex_color(value: str) -> None:
     """Validate that a value is a valid hex color string like #6366F1."""
     if not HEX_COLOR_REGEX.match(value):
@@ -347,7 +363,7 @@ class TrainerBranding(models.Model):
         help_text="Secondary brand color in hex format (e.g. #818CF8)",
     )
     logo = models.ImageField(
-        upload_to='branding/',
+        upload_to=_branding_logo_upload_path,
         blank=True,
         null=True,
         help_text="Trainer logo image (JPEG/PNG/WebP, max 2MB, 128x128 to 1024x1024)",

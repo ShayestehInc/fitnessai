@@ -25,7 +25,9 @@ class BrandingPreviewCard extends StatelessWidget {
     return StaggeredListItem(
       index: 0,
       delay: const Duration(milliseconds: 30),
-      child: Container(
+      child: Semantics(
+        label: 'Preview of how your trainees will see: $displayName',
+        child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -68,6 +70,7 @@ class BrandingPreviewCard extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -89,6 +92,19 @@ class BrandingPreviewCard extends StatelessWidget {
                 width: 64,
                 height: 64,
                 fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                  );
+                },
                 errorBuilder: (_, __, ___) => const Icon(
                   Icons.fitness_center,
                   color: Colors.white,
@@ -105,6 +121,10 @@ class BrandingPreviewCard extends StatelessWidget {
   }
 
   Widget _buildSampleButtons() {
+    // Ensure text on primary button is readable
+    final primaryTextColor =
+        primaryColor.computeLuminance() > 0.4 ? const Color(0xFF1A1A1A) : Colors.white;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -114,9 +134,9 @@ class BrandingPreviewCard extends StatelessWidget {
             color: primaryColor,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: const Text(
+          child: Text(
             'Start Workout',
-            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+            style: TextStyle(color: primaryTextColor, fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(width: 12),

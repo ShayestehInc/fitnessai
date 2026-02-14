@@ -32,6 +32,7 @@ from .serializers import (
     ProgramTemplateSerializer, AssignProgramSerializer,
     WorkoutLayoutConfigSerializer, TrainerBrandingSerializer,
 )
+from .services.branding_service import upload_trainer_logo, remove_trainer_logo, LogoValidationError
 from workouts.models import ProgramTemplate, Program
 
 
@@ -1204,64 +1205,13 @@ class TrainerBrandingLogoView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Validate file type
-        allowed_types = ['image/jpeg', 'image/png', 'image/webp']
-        if image.content_type not in allowed_types:
-            return Response(
-                {'error': 'Invalid file type. Allowed: JPEG, PNG, WebP.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Validate file size (max 2MB)
-        max_size = 2 * 1024 * 1024
-        if image.size is not None and image.size > max_size:
-            return Response(
-                {'error': 'Logo must be under 2MB.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Validate image dimensions and actual format
-        from PIL import Image as PILImage, UnidentifiedImageError
         try:
-            pil_image = PILImage.open(image)
-            # Verify actual file format matches allowed types (defense-in-depth)
-            if pil_image.format not in ('JPEG', 'PNG', 'WEBP'):
-                return Response(
-                    {'error': f'Invalid image format: {pil_image.format}. Allowed: JPEG, PNG, WebP.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            width, height = pil_image.size
-            if width < 128 or height < 128:
-                return Response(
-                    {'error': 'Logo must be at least 128x128 pixels.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if width > 1024 or height > 1024:
-                return Response(
-                    {'error': 'Logo must be at most 1024x1024 pixels.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            # Reset file pointer after reading
-            image.seek(0)
-        except UnidentifiedImageError:
+            branding = upload_trainer_logo(trainer, image)
+        except LogoValidationError as exc:
             return Response(
-                {'error': 'Could not process image. Please upload a valid image file.'},
+                {'error': exc.message},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except (OSError, ValueError) as e:
-            return Response(
-                {'error': f'Image processing error: {e}'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        branding, _created = TrainerBranding.get_or_create_for_trainer(trainer)
-
-        # Delete old logo if exists
-        if branding.logo:
-            branding.logo.delete(save=False)
-
-        branding.logo = image
-        branding.save(update_fields=['logo', 'updated_at'])
 
         serializer = TrainerBrandingSerializer(branding, context={'request': request})
         return Response(serializer.data)
@@ -1270,17 +1220,12 @@ class TrainerBrandingLogoView(views.APIView):
         trainer = cast(User, request.user)
 
         try:
-            branding = TrainerBranding.objects.get(trainer=trainer)
+            branding = remove_trainer_logo(trainer)
         except TrainerBranding.DoesNotExist:
             return Response(
                 {'error': 'No branding configured.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        if branding.logo:
-            branding.logo.delete(save=False)
-            branding.logo = None
-            branding.save(update_fields=['logo', 'updated_at'])
 
         serializer = TrainerBrandingSerializer(branding, context={'request': request})
         return Response(serializer.data)

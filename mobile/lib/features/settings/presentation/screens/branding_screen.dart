@@ -32,6 +32,18 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
   Color _primaryColor = BrandingModel.defaultBranding.primaryColorValue;
   Color _secondaryColor = BrandingModel.defaultBranding.secondaryColorValue;
 
+  /// Track the original values to detect unsaved changes.
+  String _originalAppName = '';
+  Color _originalPrimaryColor = BrandingModel.defaultBranding.primaryColorValue;
+  Color _originalSecondaryColor = BrandingModel.defaultBranding.secondaryColorValue;
+
+  /// Whether the user has made changes that differ from the saved state.
+  bool get _hasUnsavedChanges {
+    return _appNameController.text.trim() != _originalAppName ||
+        _primaryColor != _originalPrimaryColor ||
+        _secondaryColor != _originalSecondaryColor;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +73,10 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
         _appNameController.text = branding.appName;
         _primaryColor = branding.primaryColorValue;
         _secondaryColor = branding.secondaryColorValue;
+        // Store originals so we can detect changes
+        _originalAppName = branding.appName;
+        _originalPrimaryColor = branding.primaryColorValue;
+        _originalSecondaryColor = branding.secondaryColorValue;
         _isLoading = false;
       });
     } else {
@@ -87,7 +103,15 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
     setState(() => _isSaving = false);
 
     if (result.success && result.branding != null) {
-      setState(() => _branding = result.branding);
+      final saved = result.branding!;
+      setState(() {
+        _branding = saved;
+        // Update originals so the save button disables again
+        _originalAppName = saved.appName;
+        _originalPrimaryColor = saved.primaryColorValue;
+        _originalSecondaryColor = saved.secondaryColorValue;
+      });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Branding updated successfully'),
@@ -95,6 +119,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
         ),
       );
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.error ?? 'Failed to save branding'),
@@ -153,6 +178,9 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: const Text('Remove'),
           ),
         ],
@@ -170,7 +198,15 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
 
     if (result.success && result.branding != null) {
       setState(() => _branding = result.branding);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Logo removed'),
+          backgroundColor: Color(0xFF10B981),
+        ),
+      );
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.error ?? 'Failed to remove logo'),
@@ -180,20 +216,126 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
     }
   }
 
+  Future<void> _resetToDefaults() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Branding'),
+        content: const Text(
+          'This will reset your app name, colors, and remove your logo. '
+          'Your trainees will see the default FitnessAI branding.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _appNameController.text = '';
+      _primaryColor = BrandingModel.defaultBranding.primaryColorValue;
+      _secondaryColor = BrandingModel.defaultBranding.secondaryColorValue;
+    });
+
+    // Save the defaults immediately
+    await _saveBranding();
+
+    // Remove logo if one exists
+    if (_branding?.logoUrl != null && _branding!.logoUrl!.isNotEmpty) {
+      await ref.read(_brandingRepositoryProvider).removeLogo();
+      if (!mounted) return;
+      setState(() {
+        _branding = _branding?.copyWith(clearLogoUrl: true);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Branding'),
-        elevation: 0,
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldDiscard = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Unsaved Changes'),
+            content: const Text(
+              'You have unsaved branding changes. Discard them?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Keep Editing'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                ),
+                child: const Text('Discard'),
+              ),
+            ],
+          ),
+        );
+        if (shouldDiscard == true && mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Branding'),
+          elevation: 0,
+          actions: [
+            if (!_isLoading && _error == null)
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'reset') {
+                    _resetToDefaults();
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    value: 'reset',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.restart_alt,
+                          size: 20,
+                          color: theme.colorScheme.error,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Reset to Defaults',
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? _buildErrorState(theme)
+                : _buildContent(theme),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? _buildErrorState(theme)
-              : _buildContent(theme),
     );
   }
 
@@ -284,21 +426,43 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
   }
 
   Widget _buildSaveButton() {
+    final canSave = _hasUnsavedChanges && !_isSaving;
+
     return StaggeredListItem(
       index: 4,
       delay: const Duration(milliseconds: 30),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: _isSaving ? null : _saveBranding,
-          child: _isSaving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : const Text('Save Branding'),
-        ),
+      child: Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: Semantics(
+              button: true,
+              enabled: canSave,
+              label: 'Save branding changes',
+              child: ElevatedButton(
+                onPressed: canSave ? _saveBranding : null,
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Save Branding'),
+              ),
+            ),
+          ),
+          if (!_hasUnsavedChanges && !_isSaving)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'No unsaved changes',
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.5),
+                  fontSize: 12,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

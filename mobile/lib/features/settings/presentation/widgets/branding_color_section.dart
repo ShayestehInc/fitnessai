@@ -81,7 +81,10 @@ class BrandingColorSection extends StatelessWidget {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return AnimatedPress(
+    return Semantics(
+      button: true,
+      label: '$label: ${BrandingModel.colorToHex(color)}. $subtitle. Tap to change.',
+      child: AnimatedPress(
       onTap: onTap,
       scaleDown: 0.98,
       child: Container(
@@ -143,7 +146,19 @@ class BrandingColorSection extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
+  }
+
+  /// Whether a color is perceptually light (needs dark indicator).
+  static bool _isLightColor(Color color) {
+    // Relative luminance threshold: 0.5 is a good cutoff
+    return color.computeLuminance() > 0.4;
+  }
+
+  /// Get the contrasting indicator color for a given swatch.
+  static Color _indicatorColor(Color color) {
+    return _isLightColor(color) ? const Color(0xFF1A1A1A) : Colors.white;
   }
 
   void _showColorPicker({
@@ -164,34 +179,40 @@ class BrandingColorSection extends StatelessWidget {
               runSpacing: 12,
               children: _presetColors.map((color) {
                 final isSelected = color == currentColor;
-                return GestureDetector(
-                  onTap: () {
-                    onSelected(color);
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected ? Colors.white : Colors.transparent,
-                        width: 3,
+                final indicator = _indicatorColor(color);
+                return Semantics(
+                  button: true,
+                  selected: isSelected,
+                  label: 'Color ${BrandingModel.colorToHex(color)}',
+                  child: GestureDetector(
+                    onTap: () {
+                      onSelected(color);
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? indicator : Colors.transparent,
+                          width: 3,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: color.withValues(alpha: 0.5),
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
                       ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: color.withValues(alpha: 0.5),
-                                blurRadius: 8,
-                                spreadRadius: 2,
-                              ),
-                            ]
+                      child: isSelected
+                          ? Icon(Icons.check, color: indicator, size: 20)
                           : null,
                     ),
-                    child: isSelected
-                        ? const Icon(Icons.check, color: Colors.white, size: 20)
-                        : null,
                   ),
                 );
               }).toList(),

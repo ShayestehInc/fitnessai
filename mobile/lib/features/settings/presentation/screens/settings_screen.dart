@@ -353,7 +353,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.bar_chart,
         title: 'Analytics',
         subtitle: 'View trainee progress analytics',
-        onTap: () {},
+        onTap: () => _showComingSoon(context),
         index: index++,
       ),
 
@@ -442,7 +442,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.notifications_outlined,
         title: 'Push Notifications',
         subtitle: 'Manage notification preferences',
-        onTap: () {},
+        onTap: () => _showComingSoon(context),
         index: index++,
       ),
       _buildSettingsTile(
@@ -450,7 +450,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.email_outlined,
         title: 'Email Notifications',
         subtitle: 'Configure email alerts',
-        onTap: () {},
+        onTap: () => _showComingSoon(context),
         index: index++,
       ),
 
@@ -471,7 +471,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.help_outline,
         title: 'Help & Support',
         subtitle: 'Get help with using the platform',
-        onTap: () {},
+        onTap: () => _showComingSoon(context),
         index: index++,
       ),
 
@@ -565,7 +565,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.notifications_outlined,
         title: 'Reminders',
         subtitle: 'Configure workout and meal reminders',
-        onTap: () {},
+        onTap: () => _showComingSoon(context),
         index: index++,
       ),
 
@@ -708,6 +708,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showComingSoon(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Coming soon!')),
     );
   }
 

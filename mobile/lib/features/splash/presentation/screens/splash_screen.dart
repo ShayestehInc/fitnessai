@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -168,32 +167,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// Fetch trainer branding for the current trainee and apply to theme.
   /// On failure, cached branding or defaults are used.
   Future<void> _fetchTraineeBranding() async {
-    try {
-      final apiClient = ref.read(apiClientProvider);
-      final repository = BrandingRepository(apiClient);
-      final result = await repository.getMyBranding();
-
-      if (!mounted) return;
-
-      if (result.success && result.branding != null) {
-        final branding = result.branding!;
-        if (branding.isCustomized) {
-          await ref.read(themeProvider.notifier).applyTrainerBranding(
-            primaryColor: branding.primaryColorValue,
-            secondaryColor: branding.secondaryColorValue,
-            appName: branding.appName,
-            logoUrl: branding.logoUrl,
-          );
-        } else {
-          await ref.read(themeProvider.notifier).clearTrainerBranding();
-        }
-      }
-      // On failure, cached branding from SharedPreferences persists
-    } on DioException {
-      // Network error — branding is non-critical, cached values used
-    } on FormatException {
-      // Parse error — branding is non-critical, cached values used
-    }
+    final apiClient = ref.read(apiClientProvider);
+    final themeNotifier = ref.read(themeProvider.notifier);
+    await BrandingRepository.syncTraineeBranding(
+      apiClient: apiClient,
+      themeNotifier: themeNotifier,
+    );
   }
 
   @override
@@ -297,7 +276,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Widget _buildBrandedText(ThemeData theme) {
-    final themeState = ref.read(themeProvider);
+    final themeState = ref.watch(themeProvider);
     final branding = themeState.trainerBranding;
     final appName = branding?.displayName ?? 'FitnessAI';
     final subtitle = branding != null && branding.isCustomized
@@ -339,7 +318,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Widget _buildLogo(ThemeData theme) {
-    final themeState = ref.read(themeProvider);
+    final themeState = ref.watch(themeProvider);
     final logoUrl = themeState.trainerBranding?.logoUrl;
 
     // If trainer has a custom logo, show it
@@ -364,6 +343,34 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             width: 120,
             height: 120,
             fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.colorScheme.primary,
+                      theme.colorScheme.primary.withValues(alpha: 0.8),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              );
+            },
             errorBuilder: (_, __, ___) => _buildDefaultLogo(theme),
           ),
         ),

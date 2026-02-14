@@ -34,26 +34,60 @@ class BrandingLogoSection extends StatelessWidget {
         child: Column(
           children: [
             if (isUploading)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: CircularProgressIndicator(),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Uploading logo...',
+                      style: TextStyle(
+                        color: theme.textTheme.bodySmall?.color,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               )
             else if (hasLogo) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  logoUrl!,
-                  width: 96,
-                  height: 96,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+              Semantics(
+                image: true,
+                label: 'Current logo',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    logoUrl!,
                     width: 96,
                     height: 96,
-                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    child: Icon(
-                      Icons.broken_image,
-                      color: theme.colorScheme.primary,
-                      size: 32,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 96,
+                        height: 96,
+                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                        child: Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 96,
+                      height: 96,
+                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                      child: Icon(
+                        Icons.broken_image,
+                        color: theme.colorScheme.primary,
+                        size: 32,
+                      ),
                     ),
                   ),
                 ),
@@ -62,15 +96,23 @@ class BrandingLogoSection extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  TextButton.icon(
-                    onPressed: onPickLogo,
-                    icon: const Icon(Icons.swap_horiz, size: 18),
-                    label: const Text('Replace'),
+                  Semantics(
+                    button: true,
+                    label: 'Replace logo image',
+                    child: TextButton.icon(
+                      onPressed: onPickLogo,
+                      icon: const Icon(Icons.swap_horiz, size: 18),
+                      label: const Text('Replace'),
+                    ),
                   ),
-                  TextButton.icon(
-                    onPressed: onRemoveLogo,
-                    icon: Icon(Icons.delete_outline, size: 18, color: theme.colorScheme.error),
-                    label: Text('Remove', style: TextStyle(color: theme.colorScheme.error)),
+                  Semantics(
+                    button: true,
+                    label: 'Remove logo image',
+                    child: TextButton.icon(
+                      onPressed: onRemoveLogo,
+                      icon: Icon(Icons.delete_outline, size: 18, color: theme.colorScheme.error),
+                      label: Text('Remove', style: TextStyle(color: theme.colorScheme.error)),
+                    ),
                   ),
                 ],
               ),
@@ -96,10 +138,14 @@ class BrandingLogoSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: onPickLogo,
-                icon: const Icon(Icons.upload, size: 18),
-                label: const Text('Choose Image'),
+              Semantics(
+                button: true,
+                label: 'Upload a logo image',
+                child: ElevatedButton.icon(
+                  onPressed: onPickLogo,
+                  icon: const Icon(Icons.upload, size: 18),
+                  label: const Text('Choose Image'),
+                ),
               ),
             ],
           ],

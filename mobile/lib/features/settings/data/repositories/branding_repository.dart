@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/theme/theme_provider.dart';
 import '../models/branding_model.dart';
 
 /// Typed result for branding API operations.
@@ -135,6 +136,41 @@ class BrandingRepository {
       return BrandingResult(success: false, error: error.toString());
     } on FormatException catch (e) {
       return BrandingResult(success: false, error: 'Invalid response format: $e');
+    }
+  }
+
+  /// Fetch and apply trainer branding for the current trainee to the theme.
+  ///
+  /// On network or parse failure, cached branding from SharedPreferences
+  /// persists silently. This is non-critical UI customization.
+  ///
+  /// Shared between splash_screen and login_screen to avoid duplication.
+  static Future<void> syncTraineeBranding({
+    required ApiClient apiClient,
+    required ThemeNotifier themeNotifier,
+  }) async {
+    try {
+      final repository = BrandingRepository(apiClient);
+      final result = await repository.getMyBranding();
+
+      if (result.success && result.branding != null) {
+        final branding = result.branding!;
+        if (branding.isCustomized) {
+          await themeNotifier.applyTrainerBranding(
+            primaryColor: branding.primaryColorValue,
+            secondaryColor: branding.secondaryColorValue,
+            appName: branding.appName,
+            logoUrl: branding.logoUrl,
+          );
+        } else {
+          await themeNotifier.clearTrainerBranding();
+        }
+      }
+      // On failure, cached branding from SharedPreferences persists
+    } on DioException {
+      // Network error -- branding is non-critical, cached values used
+    } on FormatException {
+      // Parse error -- branding is non-critical, cached values used
     }
   }
 }
