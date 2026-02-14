@@ -71,6 +71,13 @@ class ApiConstants {
   static String traineeLayoutConfig(int traineeId) =>
       '$apiBaseUrl/trainer/trainees/$traineeId/layout-config/';
 
+  // Trainer notification endpoints
+  static String get trainerNotifications => '$apiBaseUrl/trainer/notifications/';
+  static String get trainerNotificationsUnreadCount => '$apiBaseUrl/trainer/notifications/unread-count/';
+  static String get trainerNotificationsMarkAllRead => '$apiBaseUrl/trainer/notifications/mark-all-read/';
+  static String trainerNotificationRead(int id) => '$apiBaseUrl/trainer/notifications/$id/read/';
+  static String trainerNotificationDelete(int id) => '$apiBaseUrl/trainer/notifications/$id/';
+
   // Trainer branding endpoints
   static String get trainerBranding => '$apiBaseUrl/trainer/branding/';
   static String get trainerBrandingLogo => '$apiBaseUrl/trainer/branding/logo/';

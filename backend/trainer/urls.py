@@ -16,6 +16,10 @@ from .views import (
     TraineeLayoutConfigView,
     TrainerBrandingView, TrainerBrandingLogoView,
 )
+from .notification_views import (
+    NotificationListView, UnreadCountView,
+    MarkNotificationReadView, MarkAllReadView, DeleteNotificationView,
+)
 
 urlpatterns = [
     # Dashboard
@@ -60,6 +64,13 @@ urlpatterns = [
     # Branding
     path('branding/', TrainerBrandingView.as_view(), name='trainer-branding'),
     path('branding/logo/', TrainerBrandingLogoView.as_view(), name='trainer-branding-logo'),
+
+    # Notifications
+    path('notifications/', NotificationListView.as_view(), name='notification-list'),
+    path('notifications/unread-count/', UnreadCountView.as_view(), name='notification-unread-count'),
+    path('notifications/mark-all-read/', MarkAllReadView.as_view(), name='notification-mark-all-read'),
+    path('notifications/<int:pk>/read/', MarkNotificationReadView.as_view(), name='notification-mark-read'),
+    path('notifications/<int:pk>/', DeleteNotificationView.as_view(), name='notification-delete'),
 
     # AI Chat
     path('ai/chat/', AIChatView.as_view(), name='ai-chat'),

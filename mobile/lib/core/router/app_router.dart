@@ -32,6 +32,7 @@ import '../../features/trainer/presentation/screens/trainee_list_screen.dart';
 import '../../features/trainer/presentation/screens/trainee_detail_screen.dart';
 import '../../features/trainer/presentation/screens/invite_trainee_screen.dart';
 import '../../features/trainer/presentation/screens/assign_program_screen.dart';
+import '../../features/trainer/presentation/screens/trainer_notifications_screen.dart';
 import '../../features/exercises/presentation/screens/exercise_bank_screen.dart';
 import '../../features/programs/presentation/screens/programs_screen.dart';
 import '../../features/feature_requests/presentation/screens/feature_requests_screen.dart';
@@ -180,6 +181,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           final id = int.parse(state.pathParameters['id']!);
           return TraineeDetailScreen(traineeId: id);
         },
+      ),
+      GoRoute(
+        path: '/trainer/notifications',
+        name: 'trainer-notifications',
+        builder: (context, state) => const TrainerNotificationsScreen(),
       ),
       GoRoute(
         path: '/trainer/invite',
