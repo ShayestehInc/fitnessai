@@ -54,6 +54,21 @@ class VideoItem {
   });
 }
 
+/// Weekly progress data from the API
+class WeeklyProgressData {
+  final int totalDays;
+  final int completedDays;
+  final int percentage;
+  final bool hasProgram;
+
+  const WeeklyProgressData({
+    required this.totalDays,
+    required this.completedDays,
+    required this.percentage,
+    required this.hasProgram,
+  });
+}
+
 class HomeState {
   final NutritionGoalModel? nutritionGoals;
   final DailyNutritionSummary? todayNutrition;
@@ -61,6 +76,7 @@ class HomeState {
   final NextWorkout? nextWorkout;
   final List<VideoItem> latestVideos;
   final int programProgress; // 0-100
+  final WeeklyProgressData? weeklyProgress;
   final bool isLoading;
   final String? error;
 
@@ -71,6 +87,7 @@ class HomeState {
     this.nextWorkout,
     this.latestVideos = const [],
     this.programProgress = 0,
+    this.weeklyProgress,
     this.isLoading = false,
     this.error,
   });
@@ -82,6 +99,7 @@ class HomeState {
     NextWorkout? nextWorkout,
     List<VideoItem>? latestVideos,
     int? programProgress,
+    WeeklyProgressData? weeklyProgress,
     bool? isLoading,
     String? error,
   }) {
@@ -92,6 +110,7 @@ class HomeState {
       nextWorkout: nextWorkout ?? this.nextWorkout,
       latestVideos: latestVideos ?? this.latestVideos,
       programProgress: programProgress ?? this.programProgress,
+      weeklyProgress: weeklyProgress ?? this.weeklyProgress,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -149,15 +168,18 @@ class HomeNotifier extends StateNotifier<HomeState> {
         _nutritionRepo.getNutritionGoals(),
         _nutritionRepo.getDailyNutritionSummary(_todayDate()),
         _workoutRepo.getActiveProgram(),
+        _nutritionRepo.getWeeklyProgress(),
       ]);
 
       final goalsResult = results[0];
       final nutritionResult = results[1];
       final programResult = results[2];
+      final weeklyResult = results[3];
 
       ProgramModel? program;
       NextWorkout? nextWorkout;
       int programProgress = 0;
+      WeeklyProgressData? weeklyProgress;
 
       if (programResult['success'] == true) {
         program = programResult['program'] as ProgramModel;
@@ -166,6 +188,17 @@ class HomeNotifier extends StateNotifier<HomeState> {
         final progressData = _calculateProgramProgress(program);
         programProgress = progressData['progress'] as int;
         nextWorkout = progressData['nextWorkout'] as NextWorkout?;
+      }
+
+      // Parse weekly progress from API
+      if (weeklyResult['success'] == true) {
+        final data = weeklyResult['data'] as Map<String, dynamic>;
+        weeklyProgress = WeeklyProgressData(
+          totalDays: data['total_days'] as int? ?? 0,
+          completedDays: data['completed_days'] as int? ?? 0,
+          percentage: data['percentage'] as int? ?? 0,
+          hasProgram: data['has_program'] as bool? ?? false,
+        );
       }
 
       // Load sample latest videos (in a real app, this would come from an API)
@@ -182,6 +215,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
         activeProgram: program,
         nextWorkout: nextWorkout,
         programProgress: programProgress,
+        weeklyProgress: weeklyProgress,
         latestVideos: latestVideos,
       );
     } catch (e) {

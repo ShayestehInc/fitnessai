@@ -310,6 +310,77 @@ class AuthRepository {
     }
   }
 
+  /// Request a password reset email
+  Future<Map<String, dynamic>> requestPasswordReset(String email) async {
+    try {
+      await _apiClient.dio.post(
+        ApiConstants.resetPassword,
+        data: {'email': email},
+      );
+      // Djoser returns 204 regardless of whether email exists (no enumeration)
+      return {'success': true};
+    } on DioException catch (e) {
+      // Even on error, don't reveal whether email exists
+      if (e.response?.statusCode == 204 || e.response?.statusCode == 200) {
+        return {'success': true};
+      }
+      return {
+        'success': false,
+        'error': 'Failed to send reset email. Please try again.',
+      };
+    } catch (e) {
+      return {'success': false, 'error': 'Network error. Please try again.'};
+    }
+  }
+
+  /// Confirm password reset with uid, token, and new password
+  Future<Map<String, dynamic>> confirmPasswordReset({
+    required String uid,
+    required String token,
+    required String newPassword,
+  }) async {
+    try {
+      await _apiClient.dio.post(
+        ApiConstants.resetPasswordConfirm,
+        data: {
+          'uid': uid,
+          'token': token,
+          'new_password': newPassword,
+        },
+      );
+      return {'success': true};
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) {
+        final data = e.response?.data;
+        if (data is Map) {
+          // Extract field errors from Djoser response
+          final errors = <String>[];
+          for (final entry in data.entries) {
+            final value = entry.value;
+            if (value is List) {
+              errors.addAll(value.map((v) => v.toString()));
+            } else if (value is String) {
+              errors.add(value);
+            }
+          }
+          if (errors.isNotEmpty) {
+            return {'success': false, 'error': errors.join('\n')};
+          }
+        }
+        return {
+          'success': false,
+          'error': 'Invalid or expired reset link. Please request a new one.',
+        };
+      }
+      return {
+        'success': false,
+        'error': 'Failed to reset password. Please try again.',
+      };
+    } catch (e) {
+      return {'success': false, 'error': 'Network error. Please try again.'};
+    }
+  }
+
   /// Update user profile (name, business name)
   Future<Map<String, dynamic>> updateUserProfile({
     String? firstName,

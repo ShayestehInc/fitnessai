@@ -214,10 +214,27 @@ GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
 APPLE_CLIENT_ID = os.getenv('APPLE_CLIENT_ID', '')  # Bundle ID (e.g., com.yourapp.bundleid)
 APPLE_TEAM_ID = os.getenv('APPLE_TEAM_ID', '')
 
+# Email Configuration
+# Dev: console backend prints emails to stdout
+# Prod: SMTP via env vars
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend',
+)
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@fitnessai.com')
+
 # Djoser Configuration - Use email for authentication
 DJOSER = {
     'LOGIN_FIELD': 'email',  # Use email instead of username
     'USER_CREATE_PASSWORD_RETYPE': False,
+    'PASSWORD_RESET_CONFIRM_URL': 'reset-password/{uid}/{token}',
+    'DOMAIN': os.getenv('DJOSER_DOMAIN', 'localhost:3000'),
+    'SITE_NAME': os.getenv('DJOSER_SITE_NAME', 'FitnessAI'),
     'SERIALIZERS': {
         'user_create': 'users.serializers.UserCreateSerializer',
         'user': 'users.serializers.UserSerializer',

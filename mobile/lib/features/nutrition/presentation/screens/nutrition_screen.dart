@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/nutrition_models.dart';
+import '../../data/repositories/nutrition_repository.dart';
 import '../providers/nutrition_provider.dart';
+import '../widgets/edit_food_entry_sheet.dart';
 
 class NutritionScreen extends ConsumerStatefulWidget {
   const NutritionScreen({super.key});
@@ -575,16 +578,20 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: List.generate(mealsPerDay, (index) {
         final mealNumber = index + 1;
-        final mealEntries = meals
-            .where((m) => m.name.toLowerCase().contains('meal $mealNumber'))
-            .toList();
-        final totalProtein = mealEntries.fold(0, (sum, m) => sum + m.protein);
-        final totalCarbs = mealEntries.fold(0, (sum, m) => sum + m.carbs);
-        final totalFat = mealEntries.fold(0, (sum, m) => sum + m.fat);
+        final mealEntries = <MapEntry<int, MealEntry>>[];
+        for (int i = 0; i < meals.length; i++) {
+          if (meals[i].name.toLowerCase().contains('meal $mealNumber')) {
+            mealEntries.add(MapEntry(i, meals[i]));
+          }
+        }
+        final totalProtein = mealEntries.fold(0, (sum, e) => sum + e.value.protein);
+        final totalCarbs = mealEntries.fold(0, (sum, e) => sum + e.value.carbs);
+        final totalFat = mealEntries.fold(0, (sum, e) => sum + e.value.fat);
 
         return _MealSection(
           mealNumber: mealNumber,
-          entries: mealEntries,
+          entries: mealEntries.map((e) => e.value).toList(),
+          entryIndices: mealEntries.map((e) => e.key).toList(),
           totalProtein: totalProtein,
           totalCarbs: totalCarbs,
           totalFat: totalFat,
@@ -592,10 +599,113 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
           targetCarbs: perMealTargets.carbs,
           targetFat: perMealTargets.fat,
           onAddFood: () => context.push('/add-food?meal=$mealNumber'),
+          onEditEntry: (entryIndex, entry) => _handleEditEntry(entryIndex, entry),
+          onDeleteEntry: (entryIndex) => _handleDeleteEntry(entryIndex),
           theme: theme,
         );
       }),
     );
+  }
+
+  Future<void> _handleEditEntry(int entryIndex, MealEntry entry) async {
+    final edited = await showModalBottomSheet<MealEntry>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => EditFoodEntrySheet(
+        entry: entry,
+        onDelete: () => _handleDeleteEntry(entryIndex),
+      ),
+    );
+
+    if (edited == null || !mounted) return;
+
+    // Get the daily log ID from the nutrition summary API
+    // We need to get the daily log for today's date
+    final state = ref.read(nutritionStateProvider);
+    final dateStr = _formatDate(state.selectedDate);
+    final logResult = await ref.read(nutritionStateProvider.notifier).getDailyLogId(dateStr);
+    if (logResult == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No log found for this date')),
+        );
+      }
+      return;
+    }
+
+    final nutritionRepo = NutritionRepository(ref.read(apiClientProvider));
+    final result = await nutritionRepo.editMealEntry(
+      logId: logResult,
+      mealIndex: 0,
+      entryIndex: entryIndex,
+      data: {
+        'name': edited.name,
+        'protein': edited.protein,
+        'carbs': edited.carbs,
+        'fat': edited.fat,
+        'calories': edited.calories,
+      },
+    );
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Food entry updated')),
+      );
+      ref.read(nutritionStateProvider.notifier).loadInitialData();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['error'] as String? ?? 'Failed to update'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleDeleteEntry(int entryIndex) async {
+    final state = ref.read(nutritionStateProvider);
+    final dateStr = _formatDate(state.selectedDate);
+    final logResult = await ref.read(nutritionStateProvider.notifier).getDailyLogId(dateStr);
+    if (logResult == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No log found for this date')),
+        );
+      }
+      return;
+    }
+
+    final nutritionRepo = NutritionRepository(ref.read(apiClientProvider));
+    final result = await nutritionRepo.deleteMealEntry(
+      logId: logResult,
+      mealIndex: 0,
+      entryIndex: entryIndex,
+    );
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Food entry deleted')),
+      );
+      ref.read(nutritionStateProvider.notifier).loadInitialData();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['error'] as String? ?? 'Failed to delete'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }
 
@@ -747,6 +857,7 @@ class _MacroCard extends StatelessWidget {
 class _MealSection extends StatelessWidget {
   final int mealNumber;
   final List<MealEntry> entries;
+  final List<int> entryIndices;
   final int totalProtein;
   final int totalCarbs;
   final int totalFat;
@@ -754,11 +865,14 @@ class _MealSection extends StatelessWidget {
   final int targetCarbs;
   final int targetFat;
   final VoidCallback onAddFood;
+  final void Function(int entryIndex, MealEntry entry) onEditEntry;
+  final void Function(int entryIndex) onDeleteEntry;
   final ThemeData theme;
 
   const _MealSection({
     required this.mealNumber,
     required this.entries,
+    required this.entryIndices,
     required this.totalProtein,
     required this.totalCarbs,
     required this.totalFat,
@@ -766,6 +880,8 @@ class _MealSection extends StatelessWidget {
     required this.targetCarbs,
     required this.targetFat,
     required this.onAddFood,
+    required this.onEditEntry,
+    required this.onDeleteEntry,
     required this.theme,
   });
 
@@ -798,7 +914,12 @@ class _MealSection extends StatelessWidget {
 
         // Food entries
         if (entries.isNotEmpty)
-          ...entries.map((entry) => _FoodEntryRow(entry: entry, theme: theme)),
+          for (int i = 0; i < entries.length; i++)
+            _FoodEntryRow(
+              entry: entries[i],
+              theme: theme,
+              onEdit: () => onEditEntry(entryIndices[i], entries[i]),
+            ),
 
         // Add Food button row
         Padding(
@@ -881,8 +1002,13 @@ class _MealSection extends StatelessWidget {
 class _FoodEntryRow extends StatelessWidget {
   final MealEntry entry;
   final ThemeData theme;
+  final VoidCallback onEdit;
 
-  const _FoodEntryRow({required this.entry, required this.theme});
+  const _FoodEntryRow({
+    required this.entry,
+    required this.theme,
+    required this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -933,9 +1059,7 @@ class _FoodEntryRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: () {
-              // TODO: Edit/delete food entry
-            },
+            onTap: onEdit,
             child: Icon(
               Icons.edit_outlined,
               size: 16,

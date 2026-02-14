@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_wizard_screen.dart';
@@ -101,6 +103,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/register',
         name: 'register',
         builder: (context, state) => const RegisterScreen(),
+      ),
+
+      // Password reset routes
+      GoRoute(
+        path: '/forgot-password',
+        name: 'forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password/:uid/:token',
+        name: 'reset-password',
+        builder: (context, state) {
+          final uid = state.pathParameters['uid']!;
+          final token = state.pathParameters['token']!;
+          return ResetPasswordScreen(uid: uid, token: token);
+        },
       ),
 
       // Onboarding route (outside shell)
@@ -643,13 +661,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isRegistering = state.matchedLocation == '/register';
       final isOnboarding = state.matchedLocation == '/onboarding';
       final isSplash = state.matchedLocation == '/splash';
+      final isForgotPassword = state.matchedLocation == '/forgot-password';
+      final isResetPassword = state.matchedLocation.startsWith('/reset-password');
 
       // Don't redirect from splash - it handles its own navigation
       if (isSplash) return null;
 
-      // If not logged in, redirect to login (except for register)
+      // If not logged in, redirect to login (except for register and password reset)
       if (!isLoggedIn) {
-        if (isRegistering) return null;
+        if (isRegistering || isForgotPassword || isResetPassword) return null;
         if (!isLoggingIn) return '/login';
         return null;
       }

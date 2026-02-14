@@ -11,6 +11,10 @@ class ApiConstants {
   static String get refreshToken => '$apiBaseUrl/auth/jwt/refresh/';
   static String get currentUser => '$apiBaseUrl/auth/users/me/';
 
+  // Password reset endpoints
+  static String get resetPassword => '$apiBaseUrl/auth/users/reset_password/';
+  static String get resetPasswordConfirm => '$apiBaseUrl/auth/users/reset_password_confirm/';
+
   // Social auth endpoints
   static String get googleLogin => '$apiBaseUrl/users/auth/google/';
   static String get appleLogin => '$apiBaseUrl/users/auth/apple/';
@@ -29,6 +33,9 @@ class ApiConstants {
   static String get dailyLogs => '$apiBaseUrl/workouts/daily-logs/';
   static String get nutritionSummary => '$apiBaseUrl/workouts/daily-logs/nutrition-summary/';
   static String get workoutSummary => '$apiBaseUrl/workouts/daily-logs/workout-summary/';
+  static String get weeklyProgress => '$apiBaseUrl/workouts/daily-logs/weekly-progress/';
+  static String editMealEntry(int logId) => '$apiBaseUrl/workouts/daily-logs/$logId/edit-meal-entry/';
+  static String deleteMealEntry(int logId) => '$apiBaseUrl/workouts/daily-logs/$logId/delete-meal-entry/';
   static String get programs => '$apiBaseUrl/workouts/programs/';
   static String programDetail(int id) => '$apiBaseUrl/workouts/programs/$id/';
   static String get exercises => '$apiBaseUrl/workouts/exercises/';
