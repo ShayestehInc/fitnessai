@@ -2,7 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/theme_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../settings/data/models/branding_model.dart';
+import '../../../settings/data/repositories/branding_repository.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -133,13 +136,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   void _navigateToNextScreen() async {
+    final authState = ref.read(authStateProvider);
+    final user = authState.user;
+
+    // Fetch trainer branding for trainees (silent, non-blocking)
+    if (user != null && user.isTrainee) {
+      await _fetchTraineeBranding();
+    } else {
+      // Non-trainees and logged-out users should not have trainer branding
+      await ref.read(themeProvider.notifier).clearTrainerBranding();
+    }
+
     // Start fade out
     await _fadeController.forward();
 
     if (!mounted) return;
-
-    final authState = ref.read(authStateProvider);
-    final user = authState.user;
 
     if (user == null) {
       context.go('/login');
@@ -151,6 +162,35 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       context.go('/onboarding');
     } else {
       context.go('/home');
+    }
+  }
+
+  /// Fetch trainer branding for the current trainee and apply to theme.
+  /// Fails silently — cached branding or defaults are used on error.
+  Future<void> _fetchTraineeBranding() async {
+    try {
+      final apiClient = ref.read(apiClientProvider);
+      final repository = BrandingRepository(apiClient);
+      final result = await repository.getMyBranding();
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        final branding = result['branding'] as BrandingModel;
+        if (branding.isCustomized) {
+          await ref.read(themeProvider.notifier).applyTrainerBranding(
+            primaryColor: branding.primaryColorValue,
+            secondaryColor: branding.secondaryColorValue,
+            appName: branding.appName,
+            logoUrl: branding.logoUrl,
+          );
+        } else {
+          await ref.read(themeProvider.notifier).clearTrainerBranding();
+        }
+      }
+      // On failure, cached branding from SharedPreferences persists
+    } catch (_) {
+      // Silent failure — branding is non-critical
     }
   }
 
@@ -217,36 +257,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           position: _textSlide,
                           child: FadeTransition(
                             opacity: _textOpacity,
-                            child: Column(
-                              children: [
-                                ShaderMask(
-                                  shaderCallback: (bounds) => LinearGradient(
-                                    colors: [
-                                      theme.colorScheme.primary,
-                                      theme.colorScheme.primary.withValues(alpha: 0.7),
-                                    ],
-                                  ).createShader(bounds),
-                                  child: const Text(
-                                    'FitnessAI',
-                                    style: TextStyle(
-                                      fontSize: 36,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      letterSpacing: 2,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Your Personal Fitness Coach',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: theme.textTheme.bodySmall?.color,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            child: _buildBrandedText(theme),
                           ),
                         ),
                       ],
@@ -283,7 +294,84 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
   }
 
+  Widget _buildBrandedText(ThemeData theme) {
+    final themeState = ref.read(themeProvider);
+    final branding = themeState.trainerBranding;
+    final appName = branding?.displayName ?? 'FitnessAI';
+    final subtitle = branding != null && branding.isCustomized
+        ? 'Powered by FitnessAI'
+        : 'Your Personal Fitness Coach';
+
+    return Column(
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [
+              theme.colorScheme.primary,
+              theme.colorScheme.primary.withValues(alpha: 0.7),
+            ],
+          ).createShader(bounds),
+          child: Text(
+            appName,
+            style: const TextStyle(
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 2,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 16,
+            color: theme.textTheme.bodySmall?.color,
+            letterSpacing: 1,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildLogo(ThemeData theme) {
+    final themeState = ref.read(themeProvider);
+    final logoUrl = themeState.trainerBranding?.logoUrl;
+
+    // If trainer has a custom logo, show it
+    if (logoUrl != null && logoUrl.isNotEmpty) {
+      return Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.primary.withValues(alpha: 0.4),
+              blurRadius: 30,
+              spreadRadius: 5,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: Image.network(
+            logoUrl,
+            width: 120,
+            height: 120,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildDefaultLogo(theme),
+          ),
+        ),
+      );
+    }
+
+    return _buildDefaultLogo(theme);
+  }
+
+  Widget _buildDefaultLogo(ThemeData theme) {
     return Container(
       width: 120,
       height: 120,
@@ -305,24 +393,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           ),
         ],
       ),
-      child: Center(
+      child: const Center(
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Dumbbell icon
             Icon(
               Icons.fitness_center,
               size: 50,
               color: Colors.white,
             ),
-            // AI sparkle
             Positioned(
               top: 20,
               right: 20,
               child: Icon(
                 Icons.auto_awesome,
                 size: 24,
-                color: Colors.white.withValues(alpha: 0.9),
+                color: Colors.white,
               ),
             ),
           ],

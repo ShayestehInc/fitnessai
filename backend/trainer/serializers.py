@@ -8,7 +8,7 @@ from typing import Any
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary, WorkoutLayoutConfig
+from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary, WorkoutLayoutConfig, TrainerBranding, HEX_COLOR_REGEX
 from workouts.models import ProgramTemplate
 from users.models import User
 
@@ -265,6 +265,42 @@ class WorkoutLayoutConfigSerializer(serializers.ModelSerializer[WorkoutLayoutCon
         if len(str(value)) > 2048:
             raise serializers.ValidationError("config_options is too large.")
         return value
+
+class TrainerBrandingSerializer(serializers.ModelSerializer[TrainerBranding]):
+    """Serializer for trainer branding configuration."""
+    logo_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TrainerBranding
+        fields = [
+            'app_name', 'primary_color', 'secondary_color',
+            'logo_url', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_logo_url(self, obj: TrainerBranding) -> str | None:
+        if obj.logo and hasattr(obj.logo, 'url'):
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
+
+    def validate_primary_color(self, value: str) -> str:
+        if not HEX_COLOR_REGEX.match(value):
+            raise serializers.ValidationError("Invalid hex color. Use format #RRGGBB (e.g. #6366F1).")
+        return value
+
+    def validate_secondary_color(self, value: str) -> str:
+        if not HEX_COLOR_REGEX.match(value):
+            raise serializers.ValidationError("Invalid hex color. Use format #RRGGBB (e.g. #818CF8).")
+        return value
+
+    def validate_app_name(self, value: str) -> str:
+        if len(value) > 50:
+            raise serializers.ValidationError("App name must be 50 characters or fewer.")
+        return value.strip()
+
 
 class AssignProgramSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for assigning a program template to a trainee."""

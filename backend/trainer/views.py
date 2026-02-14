@@ -23,14 +23,14 @@ from datetime import timedelta
 
 from core.permissions import IsTrainer
 from users.models import User, UserProfile
-from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary, WorkoutLayoutConfig
+from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary, WorkoutLayoutConfig, TrainerBranding
 from .serializers import (
     TraineeListSerializer, TraineeDetailSerializer,
     TraineeActivitySerializer, TraineeInvitationSerializer,
     CreateInvitationSerializer, TrainerSessionSerializer,
     StartImpersonationSerializer, TrainerDashboardStatsSerializer,
     ProgramTemplateSerializer, AssignProgramSerializer,
-    WorkoutLayoutConfigSerializer,
+    WorkoutLayoutConfigSerializer, TrainerBrandingSerializer,
 )
 from workouts.models import ProgramTemplate, Program
 
@@ -1160,3 +1160,128 @@ class TraineeLayoutConfigView(generics.RetrieveUpdateAPIView[WorkoutLayoutConfig
 
     def perform_update(self, serializer: WorkoutLayoutConfigSerializer) -> None:  # type: ignore[override]
         serializer.save(configured_by=cast(User, self.request.user))
+
+
+class TrainerBrandingView(generics.RetrieveUpdateAPIView[TrainerBranding]):
+    """
+    GET: Returns the trainer's branding config. Auto-creates with defaults if none exists.
+    PUT/PATCH: Trainer updates branding fields (app_name, primary_color, secondary_color).
+
+    Requires IsTrainer permission. Row-level security: trainer can only manage their own branding.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    serializer_class = TrainerBrandingSerializer
+
+    def get_object(self) -> TrainerBranding:
+        trainer = cast(User, self.request.user)
+        branding, _created = TrainerBranding.objects.get_or_create(
+            trainer=trainer,
+            defaults={
+                'primary_color': TrainerBranding.DEFAULT_PRIMARY_COLOR,
+                'secondary_color': TrainerBranding.DEFAULT_SECONDARY_COLOR,
+            },
+        )
+        return branding
+
+    def get_serializer_context(self) -> dict[str, Any]:
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+
+class TrainerBrandingLogoView(views.APIView):
+    """
+    POST: Upload trainer logo image.
+    DELETE: Remove trainer logo.
+
+    Accepts JPEG, PNG, WebP. Max 2MB. Min 128x128, max 1024x1024.
+    Requires IsTrainer permission.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request: Request) -> Response:
+        trainer = cast(User, request.user)
+        image = request.FILES.get('logo')
+
+        if not image:
+            return Response(
+                {'error': 'No logo image provided.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+        if image.content_type not in allowed_types:
+            return Response(
+                {'error': 'Invalid file type. Allowed: JPEG, PNG, WebP.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate file size (max 2MB)
+        max_size = 2 * 1024 * 1024
+        if image.size is not None and image.size > max_size:
+            return Response(
+                {'error': 'Logo must be under 2MB.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate image dimensions
+        try:
+            from PIL import Image as PILImage
+            pil_image = PILImage.open(image)
+            width, height = pil_image.size
+            if width < 128 or height < 128:
+                return Response(
+                    {'error': 'Logo must be at least 128x128 pixels.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if width > 1024 or height > 1024:
+                return Response(
+                    {'error': 'Logo must be at most 1024x1024 pixels.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # Reset file pointer after reading
+            image.seek(0)
+        except Exception:
+            return Response(
+                {'error': 'Could not process image. Please upload a valid image file.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        branding, _created = TrainerBranding.objects.get_or_create(
+            trainer=trainer,
+            defaults={
+                'primary_color': TrainerBranding.DEFAULT_PRIMARY_COLOR,
+                'secondary_color': TrainerBranding.DEFAULT_SECONDARY_COLOR,
+            },
+        )
+
+        # Delete old logo if exists
+        if branding.logo:
+            branding.logo.delete(save=False)
+
+        branding.logo = image
+        branding.save()
+
+        serializer = TrainerBrandingSerializer(branding, context={'request': request})
+        return Response(serializer.data)
+
+    def delete(self, request: Request) -> Response:
+        trainer = cast(User, request.user)
+
+        try:
+            branding = TrainerBranding.objects.get(trainer=trainer)
+        except TrainerBranding.DoesNotExist:
+            return Response(
+                {'error': 'No branding configured.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if branding.logo:
+            branding.logo.delete(save=False)
+            branding.logo = None
+            branding.save()
+
+        serializer = TrainerBrandingSerializer(branding, context={'request': request})
+        return Response(serializer.data)

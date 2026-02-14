@@ -1,16 +1,17 @@
-# Focus: Trainer-Selectable Workout Layouts
+# Focus: White-Label Infrastructure
 
-## Priority: HIGH (Priority #2 after bug fixes which shipped 2026-02-13)
+## Priority: HIGH (Priority #1 — next after workout layouts shipped 2026-02-14)
 
 ## What
-Trainers choose which workout logging UI their trainees see during active workouts. Three layout variants: Classic (table overview), Card (current one-at-a-time), Minimal (compact list with quick-complete).
+Per-trainer branding system. Each trainer can customize the app appearance for their trainees: primary/secondary colors, logo, app name. Trainees see their trainer's branding instead of "FitnessAI."
 
 ## Why
-Different trainee experience levels need different UIs. Experienced lifters want to see all exercises at once (Classic). Beginners need the simple one-exercise-at-a-time view (Card — current default). Speed loggers doing high-volume training want minimal chrome (Minimal).
+FitnessAI is a white-label platform — trainers are the paying customers and want their brand front-and-center. Without white-labeling, the app looks generic. Trainers can't differentiate their business. This is a core value proposition for trainer acquisition and retention.
 
 ## Who Benefits
-- **Trainers**: Can customize the trainee experience per client, showing professionalism and personalization
-- **Trainees**: Get a workout UI optimized for their experience level and training style
+- **Trainers**: Present a professional, branded experience to clients. Builds trust and loyalty.
+- **Trainees**: See their trainer's brand, reinforcing the trainer-client relationship.
+- **Platform**: Increases trainer willingness to pay (their brand, not ours).
 
 ## Success Metric
-Trainer can set layout → trainee sees the correct layout → workout logging works identically regardless of layout
+Trainer configures branding → trainee logs in → sees trainer's colors, logo, and app name throughout the app.

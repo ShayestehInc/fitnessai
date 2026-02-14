@@ -71,6 +71,13 @@ class ApiConstants {
   static String traineeLayoutConfig(int traineeId) =>
       '$apiBaseUrl/trainer/trainees/$traineeId/layout-config/';
 
+  // Trainer branding endpoints
+  static String get trainerBranding => '$apiBaseUrl/trainer/branding/';
+  static String get trainerBrandingLogo => '$apiBaseUrl/trainer/branding/logo/';
+
+  // Trainee branding endpoint
+  static String get myBranding => '$apiBaseUrl/users/my-branding/';
+
   // AI Chat endpoints
   static String get trainerAiChat => '$apiBaseUrl/trainer/ai/chat/';
   static String trainerAiContext(int traineeId) =>

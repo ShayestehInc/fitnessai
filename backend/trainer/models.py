@@ -3,12 +3,17 @@ Trainer-specific models for managing trainees, invitations, and impersonation se
 """
 from __future__ import annotations
 
+import re
 import secrets
 from datetime import timedelta
 from typing import Any, Optional
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
+
+HEX_COLOR_REGEX: re.Pattern[str] = re.compile(r'^#[0-9A-Fa-f]{6}$')
 
 
 class TraineeInvitation(models.Model):
@@ -297,3 +302,65 @@ class WorkoutLayoutConfig(models.Model):
 
     def __str__(self) -> str:
         return f"{self.trainee.email} — {self.layout_type}"
+
+
+def _validate_hex_color(value: str) -> None:
+    """Validate that a value is a valid hex color string like #6366F1."""
+    if not HEX_COLOR_REGEX.match(value):
+        raise ValidationError(
+            f"'{value}' is not a valid hex color. Use format #RRGGBB (e.g. #6366F1)."
+        )
+
+
+class TrainerBranding(models.Model):
+    """
+    Per-trainer white-label branding configuration.
+    Trainers customize colors, logo, and app name that their trainees see.
+    """
+
+    DEFAULT_PRIMARY_COLOR: str = '#6366F1'
+    DEFAULT_SECONDARY_COLOR: str = '#818CF8'
+    DEFAULT_APP_NAME: str = ''
+
+    trainer = models.OneToOneField(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='branding',
+        limit_choices_to={'role': 'TRAINER'},
+    )
+    app_name = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        help_text="Custom app name shown to trainees (e.g. 'FitPro by Coach Jane')",
+    )
+    primary_color = models.CharField(
+        max_length=7,
+        default=DEFAULT_PRIMARY_COLOR,
+        validators=[_validate_hex_color],
+        help_text="Primary brand color in hex format (e.g. #6366F1)",
+    )
+    secondary_color = models.CharField(
+        max_length=7,
+        default=DEFAULT_SECONDARY_COLOR,
+        validators=[_validate_hex_color],
+        help_text="Secondary brand color in hex format (e.g. #818CF8)",
+    )
+    logo = models.ImageField(
+        upload_to='branding/',
+        blank=True,
+        null=True,
+        help_text="Trainer logo image (JPEG/PNG/WebP, max 2MB, 128x128 to 1024x1024)",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'trainer_branding'
+        indexes = [
+            models.Index(fields=['trainer']),
+        ]
+
+    def __str__(self) -> str:
+        label = self.app_name or 'Default'
+        return f"{self.trainer.email} — {label}"

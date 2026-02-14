@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import UserProfileViewSet, GoogleLoginView, AppleLoginView, UploadProfileImageView, UpdateUserProfileView
+from .views import UserProfileViewSet, GoogleLoginView, AppleLoginView, UploadProfileImageView, UpdateUserProfileView, MyBrandingView
 
 app_name = 'users'
 
@@ -13,4 +13,5 @@ urlpatterns = [
     path('auth/apple/', AppleLoginView.as_view(), name='apple-login'),
     path('profile-image/', UploadProfileImageView.as_view(), name='profile-image'),
     path('me/', UpdateUserProfileView.as_view(), name='user-me'),
+    path('my-branding/', MyBrandingView.as_view(), name='my-branding'),
 ]

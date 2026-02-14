@@ -24,6 +24,7 @@ import '../../features/settings/presentation/screens/edit_name_screen.dart';
 import '../../features/settings/presentation/screens/edit_goals_screen.dart';
 import '../../features/settings/presentation/screens/edit_diet_screen.dart';
 import '../../features/settings/presentation/screens/theme_settings_screen.dart';
+import '../../features/settings/presentation/screens/branding_screen.dart';
 import '../../features/settings/presentation/screens/admin_notifications_screen.dart';
 import '../../features/settings/presentation/screens/admin_security_screen.dart';
 import '../../features/trainer/presentation/screens/trainer_dashboard_screen.dart';
@@ -235,6 +236,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/trainer/calendar',
         name: 'trainer-calendar',
         builder: (context, state) => const CalendarConnectionScreen(),
+      ),
+
+      // Branding settings for trainers
+      GoRoute(
+        path: '/trainer/branding',
+        name: 'trainer-branding',
+        builder: (context, state) => const BrandingScreen(),
       ),
 
       // Admin Shell - separate navigation for admin users

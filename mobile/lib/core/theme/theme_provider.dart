@@ -194,6 +194,47 @@ class CustomColorPalette {
   );
 }
 
+/// Trainer branding data applied to theme (cached from API).
+class TrainerBrandingTheme {
+  final String appName;
+  final Color primaryColor;
+  final Color secondaryColor;
+  final String? logoUrl;
+
+  const TrainerBrandingTheme({
+    required this.appName,
+    required this.primaryColor,
+    required this.secondaryColor,
+    this.logoUrl,
+  });
+
+  bool get isCustomized =>
+      appName.isNotEmpty ||
+      primaryColor != const Color(0xFF6366F1) ||
+      secondaryColor != const Color(0xFF818CF8) ||
+      logoUrl != null;
+
+  String get displayName => appName.isNotEmpty ? appName : 'FitnessAI';
+
+  Map<String, dynamic> toJson() {
+    return {
+      'app_name': appName,
+      'primary_color': primaryColor.value,
+      'secondary_color': secondaryColor.value,
+      'logo_url': logoUrl,
+    };
+  }
+
+  factory TrainerBrandingTheme.fromJson(Map<String, dynamic> json) {
+    return TrainerBrandingTheme(
+      appName: (json['app_name'] as String?) ?? '',
+      primaryColor: Color(json['primary_color'] as int),
+      secondaryColor: Color(json['secondary_color'] as int),
+      logoUrl: json['logo_url'] as String?,
+    );
+  }
+}
+
 /// Complete theme state
 class AppThemeState {
   final AppThemeMode mode;
@@ -201,6 +242,7 @@ class AppThemeState {
   final bool useSystemColors;
   final CustomColorPalette? customPalette;
   final bool useAdvancedColors; // When true, uses customPalette for more granular control
+  final TrainerBrandingTheme? trainerBranding; // Applied when trainee has trainer branding
 
   const AppThemeState({
     this.mode = AppThemeMode.dark,
@@ -208,6 +250,7 @@ class AppThemeState {
     this.useSystemColors = false,
     this.customPalette,
     this.useAdvancedColors = false,
+    this.trainerBranding,
   });
 
   AppThemeState copyWith({
@@ -216,6 +259,8 @@ class AppThemeState {
     bool? useSystemColors,
     CustomColorPalette? customPalette,
     bool? useAdvancedColors,
+    TrainerBrandingTheme? trainerBranding,
+    bool clearBranding = false,
   }) {
     return AppThemeState(
       mode: mode ?? this.mode,
@@ -223,15 +268,20 @@ class AppThemeState {
       useSystemColors: useSystemColors ?? this.useSystemColors,
       customPalette: customPalette ?? this.customPalette,
       useAdvancedColors: useAdvancedColors ?? this.useAdvancedColors,
+      trainerBranding: clearBranding ? null : (trainerBranding ?? this.trainerBranding),
     );
   }
 
   bool get isDark => mode == AppThemeMode.dark;
   bool get isLight => mode == AppThemeMode.light;
   bool get isSystem => mode == AppThemeMode.system;
+  bool get hasTrainerBranding => trainerBranding != null && trainerBranding!.isCustomized;
 
-  /// Get the effective primary color
+  /// Get the effective primary color (trainer branding overrides user preference)
   Color get effectivePrimary {
+    if (trainerBranding != null && trainerBranding!.isCustomized) {
+      return trainerBranding!.primaryColor;
+    }
     if (colorScheme == AppColorScheme.custom && customPalette != null) {
       return customPalette!.primary;
     }
@@ -240,6 +290,9 @@ class AppThemeState {
 
   /// Get the effective primary light color
   Color get effectivePrimaryLight {
+    if (trainerBranding != null && trainerBranding!.isCustomized) {
+      return trainerBranding!.secondaryColor;
+    }
     if (colorScheme == AppColorScheme.custom && customPalette != null) {
       return customPalette!.primaryLight;
     }
@@ -253,6 +306,7 @@ class ThemeNotifier extends StateNotifier<AppThemeState> {
   static const String _colorSchemeKey = 'color_scheme';
   static const String _customPaletteKey = 'custom_palette';
   static const String _useAdvancedKey = 'use_advanced_colors';
+  static const String _trainerBrandingKey = 'trainer_branding';
 
   ThemeNotifier() : super(const AppThemeState()) {
     _loadTheme();
@@ -275,11 +329,23 @@ class ThemeNotifier extends StateNotifier<AppThemeState> {
       }
     }
 
+    // Load cached trainer branding
+    TrainerBrandingTheme? trainerBranding;
+    final brandingJson = prefs.getString(_trainerBrandingKey);
+    if (brandingJson != null) {
+      try {
+        trainerBranding = TrainerBrandingTheme.fromJson(jsonDecode(brandingJson));
+      } catch (_) {
+        // Invalid JSON, ignore
+      }
+    }
+
     state = state.copyWith(
       mode: AppThemeMode.values[modeIndex.clamp(0, AppThemeMode.values.length - 1)],
       colorScheme: AppColorScheme.values[colorIndex.clamp(0, AppColorScheme.values.length - 1)],
       customPalette: customPalette,
       useAdvancedColors: useAdvanced,
+      trainerBranding: trainerBranding,
     );
   }
 
@@ -392,6 +458,34 @@ class ThemeNotifier extends StateNotifier<AppThemeState> {
     await prefs.setBool(_useAdvancedKey, false);
   }
 
+  /// Apply trainer branding to the theme (called after trainee login).
+  /// Overrides the color scheme with the trainer's brand colors.
+  Future<void> applyTrainerBranding({
+    required Color primaryColor,
+    required Color secondaryColor,
+    required String appName,
+    String? logoUrl,
+  }) async {
+    final branding = TrainerBrandingTheme(
+      appName: appName,
+      primaryColor: primaryColor,
+      secondaryColor: secondaryColor,
+      logoUrl: logoUrl,
+    );
+    state = state.copyWith(trainerBranding: branding);
+
+    // Cache branding for offline use
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_trainerBrandingKey, jsonEncode(branding.toJson()));
+  }
+
+  /// Clear trainer branding (called on logout or when trainer has no branding).
+  Future<void> clearTrainerBranding() async {
+    state = state.copyWith(clearBranding: true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_trainerBrandingKey);
+  }
+
   Future<void> _saveCustomPalette(CustomColorPalette palette) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_customPaletteKey, jsonEncode(palette.toJson()));
@@ -448,8 +542,13 @@ class AppThemeBuilder {
     final Color secondary;
     final Color errorColor;
 
-    // Use custom palette if available and using custom scheme
-    if (themeState.colorScheme == AppColorScheme.custom && themeState.customPalette != null) {
+    // Trainer branding takes highest priority
+    if (themeState.hasTrainerBranding) {
+      primary = themeState.trainerBranding!.primaryColor;
+      primaryLight = themeState.trainerBranding!.secondaryColor;
+      secondary = primaryLight;
+      errorColor = const Color(0xFFEF4444);
+    } else if (themeState.colorScheme == AppColorScheme.custom && themeState.customPalette != null) {
       final palette = themeState.customPalette!;
       primary = palette.primary;
       primaryLight = palette.primaryLight;
@@ -673,8 +772,13 @@ class AppThemeBuilder {
     final Color secondary;
     final Color errorColor;
 
-    // Use custom palette if available and using custom scheme
-    if (themeState.colorScheme == AppColorScheme.custom && themeState.customPalette != null) {
+    // Trainer branding takes highest priority
+    if (themeState.hasTrainerBranding) {
+      primary = themeState.trainerBranding!.primaryColor;
+      primaryLight = themeState.trainerBranding!.secondaryColor;
+      secondary = primaryLight;
+      errorColor = const Color(0xFFDC2626);
+    } else if (themeState.colorScheme == AppColorScheme.custom && themeState.customPalette != null) {
       final palette = themeState.customPalette!;
       primary = palette.primary;
       primaryLight = palette.primaryLight;

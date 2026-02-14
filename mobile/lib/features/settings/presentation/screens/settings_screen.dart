@@ -422,6 +422,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       const SizedBox(height: 24),
 
+      // Branding
+      _buildSectionHeader(context, 'BRANDING', index++),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.brush_outlined,
+        title: 'Branding',
+        subtitle: 'Customize your app colors, logo, and name',
+        onTap: () => context.push('/trainer/branding'),
+        index: index++,
+      ),
+
+      const SizedBox(height: 24),
+
       // Notifications
       _buildSectionHeader(context, 'NOTIFICATIONS', index++),
       _buildSettingsTile(
