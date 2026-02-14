@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../core/services/biometric_service.dart';
+import 'package:dio/dio.dart';
+import '../../../../core/theme/theme_provider.dart';
+import '../../../settings/data/repositories/branding_repository.dart';
 import '../../data/models/user_model.dart';
 import '../providers/auth_provider.dart';
 import 'server_config_screen.dart';
@@ -102,16 +105,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
       if (!mounted) return;
 
-      final user = authState.user!;
-      if (user.isAdmin) {
-        context.go('/admin');
-      } else if (user.isTrainer) {
-        context.go('/trainer');
-      } else if (user.isTrainee && !user.onboardingCompleted) {
-        context.go('/onboarding');
-      } else {
-        context.go('/home');
-      }
+      await _navigateBasedOnRole(authState.user!);
     } else if (authState.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -145,16 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           final authState = ref.read(authStateProvider);
 
           if (authState.user != null) {
-            final user = authState.user!;
-            if (user.isAdmin) {
-              context.go('/admin');
-            } else if (user.isTrainer) {
-              context.go('/trainer');
-            } else if (user.isTrainee && !user.onboardingCompleted) {
-              context.go('/onboarding');
-            } else {
-              context.go('/home');
-            }
+            await _navigateBasedOnRole(authState.user!);
           }
         }
       }
@@ -173,7 +158,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final authState = ref.read(authStateProvider);
 
     if (authState.user != null) {
-      _navigateBasedOnRole(authState.user!);
+      await _navigateBasedOnRole(authState.user!);
     } else if (authState.error != null) {
       // Don't show snackbar for cancelled sign-in
       if (authState.error != 'Sign-in cancelled') {
@@ -195,7 +180,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final authState = ref.read(authStateProvider);
 
     if (authState.user != null) {
-      _navigateBasedOnRole(authState.user!);
+      await _navigateBasedOnRole(authState.user!);
     } else if (authState.error != null) {
       // Don't show snackbar for cancelled sign-in
       if (authState.error != 'Sign-in cancelled') {
@@ -209,7 +194,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
-  void _navigateBasedOnRole(UserModel user) {
+  Future<void> _navigateBasedOnRole(UserModel user) async {
+    // Fetch and apply trainer branding for trainees before navigating
+    if (user.isTrainee) {
+      try {
+        final apiClient = ref.read(apiClientProvider);
+        final repository = BrandingRepository(apiClient);
+        final result = await repository.getMyBranding();
+        if (!mounted) return;
+        if (result.success && result.branding != null) {
+          final branding = result.branding!;
+          if (branding.isCustomized) {
+            await ref.read(themeProvider.notifier).applyTrainerBranding(
+              primaryColor: branding.primaryColorValue,
+              secondaryColor: branding.secondaryColorValue,
+              appName: branding.appName,
+              logoUrl: branding.logoUrl,
+            );
+          } else {
+            await ref.read(themeProvider.notifier).clearTrainerBranding();
+          }
+        }
+      } on DioException {
+        // Network error — branding is non-critical, cached values used
+      } on FormatException {
+        // Parse error — branding is non-critical, cached values used
+      }
+    } else {
+      await ref.read(themeProvider.notifier).clearTrainerBranding();
+    }
+
+    if (!mounted) return;
+
     if (user.isAdmin) {
       context.go('/admin');
     } else if (user.isTrainer) {

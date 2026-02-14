@@ -1174,13 +1174,7 @@ class TrainerBrandingView(generics.RetrieveUpdateAPIView[TrainerBranding]):
 
     def get_object(self) -> TrainerBranding:
         trainer = cast(User, self.request.user)
-        branding, _created = TrainerBranding.objects.get_or_create(
-            trainer=trainer,
-            defaults={
-                'primary_color': TrainerBranding.DEFAULT_PRIMARY_COLOR,
-                'secondary_color': TrainerBranding.DEFAULT_SECONDARY_COLOR,
-            },
-        )
+        branding, _created = TrainerBranding.get_or_create_for_trainer(trainer)
         return branding
 
     def get_serializer_context(self) -> dict[str, Any]:
@@ -1226,10 +1220,16 @@ class TrainerBrandingLogoView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Validate image dimensions
+        # Validate image dimensions and actual format
+        from PIL import Image as PILImage, UnidentifiedImageError
         try:
-            from PIL import Image as PILImage
             pil_image = PILImage.open(image)
+            # Verify actual file format matches allowed types (defense-in-depth)
+            if pil_image.format not in ('JPEG', 'PNG', 'WEBP'):
+                return Response(
+                    {'error': f'Invalid image format: {pil_image.format}. Allowed: JPEG, PNG, WebP.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             width, height = pil_image.size
             if width < 128 or height < 128:
                 return Response(
@@ -1243,26 +1243,25 @@ class TrainerBrandingLogoView(views.APIView):
                 )
             # Reset file pointer after reading
             image.seek(0)
-        except Exception:
+        except UnidentifiedImageError:
             return Response(
                 {'error': 'Could not process image. Please upload a valid image file.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        except (OSError, ValueError) as e:
+            return Response(
+                {'error': f'Image processing error: {e}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        branding, _created = TrainerBranding.objects.get_or_create(
-            trainer=trainer,
-            defaults={
-                'primary_color': TrainerBranding.DEFAULT_PRIMARY_COLOR,
-                'secondary_color': TrainerBranding.DEFAULT_SECONDARY_COLOR,
-            },
-        )
+        branding, _created = TrainerBranding.get_or_create_for_trainer(trainer)
 
         # Delete old logo if exists
         if branding.logo:
             branding.logo.delete(save=False)
 
         branding.logo = image
-        branding.save()
+        branding.save(update_fields=['logo', 'updated_at'])
 
         serializer = TrainerBrandingSerializer(branding, context={'request': request})
         return Response(serializer.data)
@@ -1281,7 +1280,7 @@ class TrainerBrandingLogoView(views.APIView):
         if branding.logo:
             branding.logo.delete(save=False)
             branding.logo = None
-            branding.save()
+            branding.save(update_fields=['logo', 'updated_at'])
 
         serializer = TrainerBrandingSerializer(branding, context={'request': request})
         return Response(serializer.data)

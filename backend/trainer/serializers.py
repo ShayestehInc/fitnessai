@@ -297,8 +297,6 @@ class TrainerBrandingSerializer(serializers.ModelSerializer[TrainerBranding]):
         return value
 
     def validate_app_name(self, value: str) -> str:
-        if len(value) > 50:
-            raise serializers.ValidationError("App name must be 50 characters or fewer.")
         return value.strip()
 
 

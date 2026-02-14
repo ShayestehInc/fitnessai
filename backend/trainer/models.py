@@ -304,7 +304,7 @@ class WorkoutLayoutConfig(models.Model):
         return f"{self.trainee.email} — {self.layout_type}"
 
 
-def _validate_hex_color(value: str) -> None:
+def validate_hex_color(value: str) -> None:
     """Validate that a value is a valid hex color string like #6366F1."""
     if not HEX_COLOR_REGEX.match(value):
         raise ValidationError(
@@ -337,13 +337,13 @@ class TrainerBranding(models.Model):
     primary_color = models.CharField(
         max_length=7,
         default=DEFAULT_PRIMARY_COLOR,
-        validators=[_validate_hex_color],
+        validators=[validate_hex_color],
         help_text="Primary brand color in hex format (e.g. #6366F1)",
     )
     secondary_color = models.CharField(
         max_length=7,
         default=DEFAULT_SECONDARY_COLOR,
-        validators=[_validate_hex_color],
+        validators=[validate_hex_color],
         help_text="Secondary brand color in hex format (e.g. #818CF8)",
     )
     logo = models.ImageField(
@@ -357,10 +357,18 @@ class TrainerBranding(models.Model):
 
     class Meta:
         db_table = 'trainer_branding'
-        indexes = [
-            models.Index(fields=['trainer']),
-        ]
 
     def __str__(self) -> str:
         label = self.app_name or 'Default'
         return f"{self.trainer.email} — {label}"
+
+    @classmethod
+    def get_or_create_for_trainer(cls, trainer: 'User') -> tuple['TrainerBranding', bool]:
+        """Get or create branding for a trainer with sensible defaults."""
+        return cls.objects.get_or_create(
+            trainer=trainer,
+            defaults={
+                'primary_color': cls.DEFAULT_PRIMARY_COLOR,
+                'secondary_color': cls.DEFAULT_SECONDARY_COLOR,
+            },
+        )

@@ -29,13 +29,13 @@ class Migration(migrations.Migration):
                     default='#6366F1',
                     help_text='Primary brand color in hex format (e.g. #6366F1)',
                     max_length=7,
-                    validators=[trainer.models._validate_hex_color],
+                    validators=[trainer.models.validate_hex_color],
                 )),
                 ('secondary_color', models.CharField(
                     default='#818CF8',
                     help_text='Secondary brand color in hex format (e.g. #818CF8)',
                     max_length=7,
-                    validators=[trainer.models._validate_hex_color],
+                    validators=[trainer.models.validate_hex_color],
                 )),
                 ('logo', models.ImageField(
                     blank=True,
@@ -54,9 +54,6 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'trainer_branding',
-                'indexes': [
-                    models.Index(fields=['trainer'], name='trainer_bra_trainer_idx'),
-                ],
             },
         ),
     ]

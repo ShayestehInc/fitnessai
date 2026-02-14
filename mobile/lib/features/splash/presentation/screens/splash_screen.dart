@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../settings/data/models/branding_model.dart';
 import '../../../settings/data/repositories/branding_repository.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -166,7 +166,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   /// Fetch trainer branding for the current trainee and apply to theme.
-  /// Fails silently — cached branding or defaults are used on error.
+  /// On failure, cached branding or defaults are used.
   Future<void> _fetchTraineeBranding() async {
     try {
       final apiClient = ref.read(apiClientProvider);
@@ -175,8 +175,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
       if (!mounted) return;
 
-      if (result['success'] == true) {
-        final branding = result['branding'] as BrandingModel;
+      if (result.success && result.branding != null) {
+        final branding = result.branding!;
         if (branding.isCustomized) {
           await ref.read(themeProvider.notifier).applyTrainerBranding(
             primaryColor: branding.primaryColorValue,
@@ -189,8 +189,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         }
       }
       // On failure, cached branding from SharedPreferences persists
-    } catch (_) {
-      // Silent failure — branding is non-critical
+    } on DioException {
+      // Network error — branding is non-critical, cached values used
+    } on FormatException {
+      // Parse error — branding is non-critical, cached values used
     }
   }
 

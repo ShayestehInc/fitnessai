@@ -84,12 +84,13 @@ class BrandingModel {
     String? primaryColor,
     String? secondaryColor,
     String? logoUrl,
+    bool clearLogoUrl = false,
   }) {
     return BrandingModel(
       appName: appName ?? this.appName,
       primaryColor: primaryColor ?? this.primaryColor,
       secondaryColor: secondaryColor ?? this.secondaryColor,
-      logoUrl: logoUrl ?? this.logoUrl,
+      logoUrl: clearLogoUrl ? null : (logoUrl ?? this.logoUrl),
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

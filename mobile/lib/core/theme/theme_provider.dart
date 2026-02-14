@@ -219,8 +219,8 @@ class TrainerBrandingTheme {
   Map<String, dynamic> toJson() {
     return {
       'app_name': appName,
-      'primary_color': primaryColor.value,
-      'secondary_color': secondaryColor.value,
+      'primary_color': _colorToHex(primaryColor),
+      'secondary_color': _colorToHex(secondaryColor),
       'logo_url': logoUrl,
     };
   }
@@ -228,10 +228,22 @@ class TrainerBrandingTheme {
   factory TrainerBrandingTheme.fromJson(Map<String, dynamic> json) {
     return TrainerBrandingTheme(
       appName: (json['app_name'] as String?) ?? '',
-      primaryColor: Color(json['primary_color'] as int),
-      secondaryColor: Color(json['secondary_color'] as int),
+      primaryColor: _hexToColor(json['primary_color'] as String? ?? '#6366F1'),
+      secondaryColor: _hexToColor(json['secondary_color'] as String? ?? '#818CF8'),
       logoUrl: json['logo_url'] as String?,
     );
+  }
+
+  static String _colorToHex(Color color) {
+    return '#${(color.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+  }
+
+  static Color _hexToColor(String hex) {
+    final cleaned = hex.replaceFirst('#', '');
+    if (cleaned.length != 6) return const Color(0xFF6366F1);
+    final intValue = int.tryParse(cleaned, radix: 16);
+    if (intValue == null) return const Color(0xFF6366F1);
+    return Color(0xFF000000 | intValue);
   }
 }
 
@@ -324,8 +336,10 @@ class ThemeNotifier extends StateNotifier<AppThemeState> {
     if (customPaletteJson != null) {
       try {
         customPalette = CustomColorPalette.fromJson(jsonDecode(customPaletteJson));
-      } catch (_) {
-        // Invalid JSON, use default
+      } on FormatException {
+        // Corrupted JSON in cache, use default palette
+      } on TypeError {
+        // Unexpected type in cached data, use default palette
       }
     }
 
@@ -335,8 +349,10 @@ class ThemeNotifier extends StateNotifier<AppThemeState> {
     if (brandingJson != null) {
       try {
         trainerBranding = TrainerBrandingTheme.fromJson(jsonDecode(brandingJson));
-      } catch (_) {
-        // Invalid JSON, ignore
+      } on FormatException {
+        // Corrupted JSON in cache, ignore
+      } on TypeError {
+        // Unexpected type in cached data, ignore
       }
     }
 

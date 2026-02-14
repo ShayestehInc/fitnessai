@@ -401,14 +401,13 @@ class MyBrandingView(APIView):
                 'logo_url': None,
             })
 
-        try:
-            branding = TrainerBranding.objects.get(trainer=trainer)
-            serializer = TrainerBrandingSerializer(branding, context={'request': request})
-            return Response(serializer.data)
-        except TrainerBranding.DoesNotExist:
+        branding = TrainerBranding.objects.filter(trainer=trainer).first()
+        if branding is None:
             return Response({
                 'app_name': '',
                 'primary_color': TrainerBranding.DEFAULT_PRIMARY_COLOR,
                 'secondary_color': TrainerBranding.DEFAULT_SECONDARY_COLOR,
                 'logo_url': None,
             })
+        serializer = TrainerBrandingSerializer(branding, context={'request': request})
+        return Response(serializer.data)
