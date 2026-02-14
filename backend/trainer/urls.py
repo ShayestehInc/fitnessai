@@ -12,7 +12,8 @@ from .views import (
     AssignProgramTemplateView, ProgramTemplateUploadImageView, ProgramUploadImageView,
     AdherenceAnalyticsView, ProgressAnalyticsView,
     GenerateMCPTokenView, AIChatView, AIChatTraineeContextView, AIProvidersView,
-    MarkMissedDayView
+    MarkMissedDayView,
+    TraineeLayoutConfigView,
 )
 
 urlpatterns = [
@@ -27,6 +28,7 @@ urlpatterns = [
     path('trainees/<int:pk>/progress/', TraineeProgressView.as_view(), name='trainee-progress'),
     path('trainees/<int:pk>/remove/', RemoveTraineeView.as_view(), name='trainee-remove'),
     path('trainees/<int:pk>/goals/', UpdateTraineeGoalsView.as_view(), name='trainee-goals'),
+    path('trainees/<int:trainee_id>/layout-config/', TraineeLayoutConfigView.as_view(), name='trainee-layout-config'),
 
     # Invitations
     path('invitations/', InvitationListCreateView.as_view(), name='invitation-list-create'),

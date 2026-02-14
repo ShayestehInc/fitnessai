@@ -36,6 +36,7 @@ class ApiConstants {
   // Workout survey endpoints
   static String get workoutReadinessSurvey => '$apiBaseUrl/workouts/surveys/readiness/';
   static String get workoutPostSurvey => '$apiBaseUrl/workouts/surveys/post-workout/';
+  static String get myWorkoutLayout => '$apiBaseUrl/workouts/my-layout/';
 
   // Nutrition endpoints
   static String get nutritionGoals => '$apiBaseUrl/workouts/nutrition-goals/';
@@ -67,6 +68,8 @@ class ApiConstants {
   static String get trainerMcpToken => '$apiBaseUrl/trainer/mcp/token/';
   static String markMissedDay(int programId) =>
       '$apiBaseUrl/trainer/programs/$programId/mark-missed/';
+  static String traineeLayoutConfig(int traineeId) =>
+      '$apiBaseUrl/trainer/trainees/$traineeId/layout-config/';
 
   // AI Chat endpoints
   static String get trainerAiChat => '$apiBaseUrl/trainer/ai/chat/';

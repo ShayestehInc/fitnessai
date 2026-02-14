@@ -3,13 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/workout_provider.dart';
+import '../widgets/classic_workout_layout.dart';
+import '../widgets/minimal_workout_layout.dart';
 import 'readiness_survey_screen.dart';
 import 'post_workout_survey_screen.dart';
 
 class ActiveWorkoutScreen extends ConsumerStatefulWidget {
   final ProgramWorkoutDay workout;
 
-  const ActiveWorkoutScreen({super.key, required this.workout});
+  const ActiveWorkoutScreen({
+    super.key,
+    required this.workout,
+  });
 
   @override
   ConsumerState<ActiveWorkoutScreen> createState() => _ActiveWorkoutScreenState();
@@ -18,6 +23,9 @@ class ActiveWorkoutScreen extends ConsumerStatefulWidget {
 class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   // Workout phase
   WorkoutPhase _phase = WorkoutPhase.readinessSurvey;
+
+  // Layout type — fetched once at init, cached for the session
+  String _layoutType = 'classic';
 
   // Exercise logging state
   late List<ExerciseLogState> _exerciseLogs;
@@ -36,6 +44,17 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   void initState() {
     super.initState();
     _initializeExerciseLogs();
+    _fetchLayoutConfig();
+  }
+
+  Future<void> _fetchLayoutConfig() async {
+    final repository = ref.read(workoutRepositoryProvider);
+    final config = await repository.getMyLayout();
+    if (mounted) {
+      setState(() {
+        _layoutType = config.layoutType;
+      });
+    }
   }
 
   void _initializeExerciseLogs() {
@@ -291,21 +310,41 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   Widget _buildExerciseContent(ThemeData theme) {
-    return PageView.builder(
-      itemCount: _exerciseLogs.length,
-      onPageChanged: (index) {
-        setState(() => _currentExerciseIndex = index);
-      },
-      itemBuilder: (context, index) {
-        return _ExerciseCard(
-          exerciseLog: _exerciseLogs[index],
-          onSetCompleted: (setIndex, weight, reps) {
-            _completeSet(index, setIndex, weight, reps);
+    switch (_layoutType) {
+      case 'card':
+        return PageView.builder(
+          itemCount: _exerciseLogs.length,
+          onPageChanged: (index) {
+            setState(() => _currentExerciseIndex = index);
           },
-          onAddSet: () => _addSet(index),
+          itemBuilder: (context, index) {
+            return _ExerciseCard(
+              exerciseLog: _exerciseLogs[index],
+              onSetCompleted: (setIndex, weight, reps) {
+                _completeSet(index, setIndex, weight, reps);
+              },
+              onAddSet: () => _addSet(index),
+            );
+          },
         );
-      },
-    );
+      case 'minimal':
+        return MinimalWorkoutLayout(
+          exerciseLogs: _exerciseLogs,
+          onSetCompleted: (exerciseIndex, setIndex, weight, reps) {
+            _completeSet(exerciseIndex, setIndex, weight, reps);
+          },
+          onAddSet: (exerciseIndex) => _addSet(exerciseIndex),
+        );
+      case 'classic':
+      default:
+        return ClassicWorkoutLayout(
+          exerciseLogs: _exerciseLogs,
+          onSetCompleted: (exerciseIndex, setIndex, weight, reps) {
+            _completeSet(exerciseIndex, setIndex, weight, reps);
+          },
+          onAddSet: (exerciseIndex) => _addSet(exerciseIndex),
+        );
+    }
   }
 
   void _completeSet(int exerciseIndex, int setIndex, double weight, int reps) {

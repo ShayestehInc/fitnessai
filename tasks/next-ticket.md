@@ -1,86 +1,117 @@
-# Feature: Fix All 5 Trainee-Side Workout Bugs
+# Feature: Trainer-Selectable Workout Layouts
 
 ## Priority
-Critical
+High
 
 ## User Story
-As a trainee, I want my workout data to be saved, my real program to be displayed, and my trainer to be notified when I work out, so that my training is tracked and my trainer can monitor my progress.
+As a trainer, I want to choose which workout logging UI each trainee sees (Classic table, Card swipe, or Minimal list), so that I can tailor the experience to each client's experience level and training style.
 
-As a trainer, I want to receive notifications when my trainees start and complete workouts, so that I can monitor their adherence and provide timely feedback.
+As a trainee, I want my active workout screen to use the layout my trainer selected, so that the UI matches my comfort level and training flow.
 
 ## Acceptance Criteria
-- [x] AC-1: Completing a workout via PostWorkoutSurveyView persists all exercise data to `DailyLog.workout_data` using `get_or_create` for today's date
-- [x] AC-2: If a trainee completes multiple workouts in one day, exercise data is merged (appended) into the existing DailyLog
-- [x] AC-3: Trainer receives an in-app notification (TrainerNotification) when a trainee submits a readiness survey
-- [x] AC-4: Trainer receives an in-app notification when a trainee completes a post-workout survey
-- [x] AC-5: Trainee with a real assigned program sees their actual program schedule, not hardcoded sample data
-- [x] AC-6: Trainee with zero programs sees an informative empty state ("Your trainer hasn't assigned a program yet")
-- [x] AC-7: Trainee with a program that has an empty/null schedule sees "Your trainer hasn't built your schedule yet"
-- [x] AC-8: All `print()` debug statements are removed from `workout_repository.dart`
-- [x] AC-9: "Switch Program" menu item opens a bottom sheet listing all assigned programs
-- [x] AC-10: Tapping a program in the switcher updates the active program in provider state and reloads the schedule
+- [ ] AC-1: Backend `WorkoutLayoutConfig` model exists with `trainee` (OneToOne → User), `layout_type` (classic/card/minimal, default: classic), `config_options` (JSONField), `configured_by` (FK → User trainer)
+- [ ] AC-2: `GET /api/trainer/trainees/<id>/layout-config/` returns the trainee's current layout config (creates default if none exists)
+- [ ] AC-3: `PUT /api/trainer/trainees/<id>/layout-config/` allows trainer to update layout_type for their trainee
+- [ ] AC-4: `GET /api/workouts/my-layout/` returns the authenticated trainee's layout config
+- [ ] AC-5: Trainer sees a "Workout Display" section in the trainee detail Overview tab with a segmented control to pick Classic / Card / Minimal
+- [ ] AC-6: Changing the layout in trainer UI calls the API and shows success snackbar
+- [ ] AC-7: Trainee's active workout screen renders the **Classic** layout: all exercises in a scrollable ListView, each with full sets table
+- [ ] AC-8: Trainee's active workout screen renders the **Card** layout: current PageView one-exercise-at-a-time behavior (existing UI)
+- [ ] AC-9: Trainee's active workout screen renders the **Minimal** layout: compact list with exercise name, set progress indicator, and quick-complete checkboxes
+- [ ] AC-10: Default layout is "classic" for all existing trainees (no data migration needed — API returns classic when no config row exists)
+- [ ] AC-11: Layout config survives app restart (fetched from API on workout screen load)
+- [ ] AC-12: All three layouts produce identical workout data for the post-workout survey (same ExerciseLogState / SetLogState)
+- [ ] AC-13: Only the trainee's trainer can update their layout config (row-level security)
 
 ## Edge Cases
-1. **No DailyLog exists for today**: `get_or_create` creates a new one with the workout data
-2. **DailyLog already has workout_data**: New exercises are appended to the existing exercises list (merge, don't overwrite)
-3. **DailyLog already has nutrition_data**: Workout save must NOT overwrite existing nutrition_data
-4. **Trainee has no parent_trainer**: Notification code must handle `parent_trainer is None` gracefully (no crash)
-5. **Trainee has exactly one program**: Program switcher shows the single program as active (no switch needed but UI is consistent)
-6. **Trainee has multiple programs, none marked active**: First program is used as default
-7. **Program schedule is null**: Show "schedule not built yet" empty state, NOT sample data
-8. **Program schedule is empty list/map**: Show "schedule not built yet" empty state, NOT sample data
-9. **Program schedule parsing fails (bad JSON structure)**: Show error state, NOT sample data
-10. **Survey submission with empty exercises list**: Save an empty workout (valid — user may have skipped exercises)
+1. **No WorkoutLayoutConfig exists for trainee**: API auto-creates one with `layout_type='classic'` on first GET
+2. **Trainer updates layout while trainee is mid-workout**: No disruption — layout is read at workout start and cached for the session
+3. **Trainee has no trainer (orphan)**: `my-layout` endpoint still works, returns 'classic' default
+4. **Invalid layout_type in PUT request**: Backend validates against choices, returns 400
+5. **Trainer tries to set layout for another trainer's trainee**: 404 (filtered by parent_trainer)
+6. **config_options is null/empty**: Ignored — all layouts work with zero config_options initially
+7. **Layout switch mid-session**: Not supported — layout determined at workout start. Trainer change takes effect on next workout.
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Workout save fails (DB error) | Survey still succeeds (non-blocking) | Logs error, returns success for survey but includes warning |
-| Trainer notification fails | Nothing (transparent to trainee) | Catches exception, continues without crashing |
-| Program API returns error | Error message with retry button | Shows cached data if available, error state if not |
-| Program schedule parse fails | "Schedule not available" empty state | Falls through to empty state, does NOT generate sample data |
-| Program switch fails | Error snackbar | Reverts to previous active program |
+| Layout config API fails (trainee side) | Defaults to 'classic' layout silently | Logs warning, uses fallback |
+| Layout config API fails (trainer side) | Error snackbar "Failed to update layout" | Shows error, keeps previous selection |
+| Invalid layout_type submitted | 400 "Invalid layout type" | Django validation rejects |
+| Unauthorized trainer tries to update | 404 not found | Queryset filters by parent_trainer |
+| Network timeout fetching layout | Uses cached layout or 'classic' default | Retries once, then falls back |
 
 ## UX Requirements
-- **Loading state:** CircularProgressIndicator centered (already exists)
-- **Empty state (no programs):** Icon + "No programs assigned" + "Your trainer will assign you a program soon"
-- **Empty state (empty schedule):** Icon + "Schedule not built yet" + "Your trainer hasn't built your schedule yet"
-- **Error state:** Error message with retry button (already exists)
-- **Success feedback:** Program switch shows brief snackbar confirmation
-- **Program switcher:** Bottom sheet with program list, active program has checkmark, tap to switch
+- **Trainer side — Layout picker**: Section titled "Workout Display" between "Current Program" and "Quick Actions" in trainee detail Overview tab. Segmented control with three options: Classic (icon: table_chart), Card (icon: view_carousel), Minimal (icon: checklist). Each option has a small description below. Selecting triggers immediate API save + snackbar.
+- **Loading state**: While fetching layout config, show the default 'classic' layout (no spinner needed — it's a fast single-row fetch)
+- **Classic layout**: ScrollableListView of all exercises. Each exercise shows: exercise name + target sets/reps header, then the full sets table (SET/PREVIOUS/LBS/REPS/check). All exercises visible at once. Exercise sections separated by dividers. Sticky progress bar at top.
+- **Card layout**: Current behavior — PageView.builder with one exercise per page. Swipe left/right. Exercise header with video area + sets table. This is the EXISTING `_ExerciseCard` widget.
+- **Minimal layout**: Compact list. Each exercise is a collapsible tile: tap to expand and enter weight/reps. Collapsed shows exercise name + "3/4 sets done" progress text + circular progress indicator. Expanded shows simple weight/reps input rows without the large header/video area.
+- **Success feedback (trainer)**: Snackbar "Layout updated to Classic" / "Layout updated to Card" / "Layout updated to Minimal"
+- **All layouts**: Same timer functionality, same rest timer overlay, same progress indicator at top, same finish button
 
 ## Technical Approach
 
-### BUG-1 Fix: Save workout data to DailyLog
-- **File:** `backend/workouts/survey_views.py`
-- **Change:** Add `_save_workout_to_daily_log()` method to `PostWorkoutSurveyView`
-- **Logic:** `DailyLog.objects.get_or_create(trainee=user, date=today)`, then merge workout_data
-- **Import:** `DailyLog` from `workouts.models`
+### Backend
 
-### BUG-2 Fix: Correct trainer attribute
-- **File:** `backend/workouts/survey_views.py`
-- **Change:** Replace `getattr(user, 'trainer', None)` with `user.parent_trainer` on lines ~56 and ~205
-- **Both:** ReadinessSurveyView.post() and PostWorkoutSurveyView.post()
+**New model: `WorkoutLayoutConfig`** in `trainer/models.py`
+```python
+class WorkoutLayoutConfig(models.Model):
+    class LayoutType(models.TextChoices):
+        CLASSIC = 'classic', 'Classic'
+        CARD = 'card', 'Card'
+        MINIMAL = 'minimal', 'Minimal'
 
-### BUG-3 Fix: Stop falling back to sample data
-- **File:** `mobile/lib/features/workout_log/presentation/providers/workout_provider.dart`
-- **Change:** `_parseProgramWeeks()` returns empty list instead of `_generateSampleWeeks()` when schedule is null/empty
-- **Only use sample data:** When `programs` list is empty (trainee has zero programs)
-- **Remove:** `_generateSampleWeeks()` and `_getSampleExercises()` methods entirely
+    trainee = models.OneToOneField('users.User', on_delete=models.CASCADE, related_name='workout_layout_config', limit_choices_to={'role': 'TRAINEE'})
+    layout_type = models.CharField(max_length=20, choices=LayoutType.choices, default=LayoutType.CLASSIC)
+    config_options = models.JSONField(default=dict, blank=True)
+    configured_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='configured_layouts', limit_choices_to={'role': 'TRAINER'})
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+```
 
-### BUG-4 Fix: Remove debug prints
-- **File:** `mobile/lib/features/workout_log/data/repositories/workout_repository.dart`
-- **Change:** Delete all `print('[WorkoutRepository]...')` statements
+**New migration**: `trainer/migrations/0003_add_workout_layout_config.py`
 
-### BUG-5 Fix: Implement program switcher
-- **File:** `mobile/lib/features/workout_log/presentation/screens/workout_log_screen.dart`
-- **Change:** Replace `// TODO: Show program switcher` with call to `_showProgramSwitcher()`
-- **New method:** `_showProgramSwitcher()` — bottom sheet listing all programs, tap to switch
-- **Provider change:** Add `switchProgram(ProgramModel program)` method to `WorkoutNotifier`
+**New serializer**: `WorkoutLayoutConfigSerializer` in `trainer/serializers.py`
+- Fields: `layout_type`, `config_options`, `configured_by` (read-only), `updated_at` (read-only)
+
+**New views** in `trainer/views.py`:
+- `TraineeLayoutConfigView(RetrieveUpdateAPIView)`: GET/PUT for trainer → sets layout for their trainee
+  - `get_queryset()`: filter by `trainee__parent_trainer=request.user`
+  - `get_object()`: `get_or_create` with trainee from URL param
+
+**New view** in `workouts/views.py` (or `survey_views.py`):
+- `MyLayoutConfigView(RetrieveAPIView)`: GET for trainee → returns their own layout
+  - Returns `{'layout_type': 'classic'}` default if no config exists
+
+**New URLs**:
+- `trainer/urls.py`: `path('trainees/<int:trainee_id>/layout-config/', TraineeLayoutConfigView.as_view())`
+- `workouts/urls.py`: `path('my-layout/', MyLayoutConfigView.as_view())`
+
+### Mobile
+
+**New files:**
+- `mobile/lib/features/workout_log/data/models/layout_config_model.dart` — simple model with `layoutType` string field
+- `mobile/lib/features/workout_log/presentation/widgets/classic_workout_layout.dart` — all-exercises scrollable list with sets tables
+- `mobile/lib/features/workout_log/presentation/widgets/minimal_workout_layout.dart` — collapsible compact list
+
+**Modified files:**
+- `mobile/lib/core/constants/api_constants.dart` — add layout config endpoints
+- `mobile/lib/features/workout_log/data/repositories/workout_repository.dart` — add `getMyLayout()` method
+- `mobile/lib/features/workout_log/presentation/screens/active_workout_screen.dart` — switch between layout widgets based on layout_type
+- `mobile/lib/features/trainer/data/repositories/trainer_repository.dart` — add `getTraineeLayout()` and `updateTraineeLayout()` methods
+- `mobile/lib/features/trainer/presentation/screens/trainee_detail_screen.dart` — add layout picker section
+- `mobile/lib/features/trainer/presentation/providers/trainer_provider.dart` — add layout config provider
+
+**Key design:**
+- The existing `_ExerciseCard` widget becomes the Card layout (extracted to `card_workout_layout.dart` is NOT needed — it stays inline as it is already self-contained)
+- Classic layout: new widget that shows ALL exercises in a ListView with the same `_buildSetsTable` / `_buildSetRow` logic
+- Minimal layout: new widget with `ExpansionTile` per exercise, compact set input rows
+- All three layouts share the same `ExerciseLogState` / `SetLogState` data model and same `_completeSet` / `_addSet` callbacks
 
 ## Out of Scope
-- Workout layout variants (Classic/Card/Minimal) — separate ticket
-- Offline caching of program data
-- Push notifications to trainer device
-- Readiness survey persistence to DailyLog (only workout data for now)
-- Weight/nutrition data changes
+- Per-layout config_options (show_previous, auto_rest_timer) — model supports it but no UI for now
+- Trainee self-selecting layout — trainer-only control
+- Layout preview in trainer UI
+- Workout layout analytics (which layout has better completion rates)
+- Animations between layout switches

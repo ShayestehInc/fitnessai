@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../models/workout_models.dart';
+import '../models/layout_config_model.dart';
 
 class WorkoutRepository {
   final ApiClient _apiClient;
@@ -193,6 +194,22 @@ class WorkoutRepository {
       };
     } catch (e) {
       return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Fetch the authenticated trainee's workout layout configuration.
+  /// Returns LayoutConfigModel.defaultConfig on any failure.
+  Future<LayoutConfigModel> getMyLayout() async {
+    try {
+      final response = await _apiClient.dio.get(ApiConstants.myWorkoutLayout);
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        return LayoutConfigModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      return LayoutConfigModel.defaultConfig;
+    } on DioException {
+      return LayoutConfigModel.defaultConfig;
+    } catch (_) {
+      return LayoutConfigModel.defaultConfig;
     }
   }
 }

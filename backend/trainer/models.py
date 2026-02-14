@@ -248,3 +248,52 @@ class TrainerNotification(models.Model):
         self.is_read = True
         self.read_at = timezone.now()
         self.save(update_fields=['is_read', 'read_at'])
+
+
+class WorkoutLayoutConfig(models.Model):
+    """
+    Per-trainee workout layout configuration.
+    Trainers choose which workout UI their trainees see: classic table, card swipe, or minimal list.
+    """
+
+    class LayoutType(models.TextChoices):
+        CLASSIC = 'classic', 'Classic'
+        CARD = 'card', 'Card'
+        MINIMAL = 'minimal', 'Minimal'
+
+    trainee = models.OneToOneField(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='workout_layout_config',
+        limit_choices_to={'role': 'TRAINEE'}
+    )
+    layout_type = models.CharField(
+        max_length=20,
+        choices=LayoutType.choices,
+        default=LayoutType.CLASSIC,
+        help_text="Which workout UI the trainee sees: classic (table), card (swipe), minimal (list)"
+    )
+    config_options = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Future per-layout settings (show_previous, auto_rest_timer, etc.)"
+    )
+    configured_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='configured_layouts',
+        limit_choices_to={'role': 'TRAINER'}
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'workout_layout_configs'
+        indexes = [
+            models.Index(fields=['trainee']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.trainee.email} — {self.layout_type}"

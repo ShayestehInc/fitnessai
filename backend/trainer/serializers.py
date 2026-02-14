@@ -8,7 +8,7 @@ from typing import Any
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary
+from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary, WorkoutLayoutConfig
 from workouts.models import ProgramTemplate
 from users.models import User
 
@@ -237,6 +237,32 @@ class ProgramTemplateSerializer(serializers.ModelSerializer[ProgramTemplate]):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_by', 'times_used', 'created_at', 'updated_at']
+
+
+class WorkoutLayoutConfigSerializer(serializers.ModelSerializer[WorkoutLayoutConfig]):
+    """Serializer for workout layout configuration."""
+    configured_by_email = serializers.EmailField(
+        source='configured_by.email',
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = WorkoutLayoutConfig
+        fields = [
+            'layout_type', 'config_options',
+            'configured_by', 'configured_by_email',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['configured_by', 'created_at', 'updated_at']
+
+    def validate_layout_type(self, value: str) -> str:
+        valid_choices = {choice.value for choice in WorkoutLayoutConfig.LayoutType}
+        if value not in valid_choices:
+            raise serializers.ValidationError(
+                f"Invalid layout type. Must be one of: {', '.join(sorted(valid_choices))}"
+            )
+        return value
 
 
 class AssignProgramSerializer(serializers.Serializer[dict[str, Any]]):

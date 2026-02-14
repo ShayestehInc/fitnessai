@@ -22,13 +22,14 @@ from datetime import timedelta
 
 from core.permissions import IsTrainer
 from users.models import User, UserProfile
-from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary
+from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary, WorkoutLayoutConfig
 from .serializers import (
     TraineeListSerializer, TraineeDetailSerializer,
     TraineeActivitySerializer, TraineeInvitationSerializer,
     CreateInvitationSerializer, TrainerSessionSerializer,
     StartImpersonationSerializer, TrainerDashboardStatsSerializer,
-    ProgramTemplateSerializer, AssignProgramSerializer
+    ProgramTemplateSerializer, AssignProgramSerializer,
+    WorkoutLayoutConfigSerializer,
 )
 from workouts.models import ProgramTemplate, Program
 
@@ -1119,3 +1120,41 @@ class MarkMissedDayView(views.APIView):
             'start_date': str(program.start_date),
             'end_date': str(program.end_date),
         })
+
+
+class TraineeLayoutConfigView(generics.RetrieveUpdateAPIView[WorkoutLayoutConfig]):
+    """
+    GET: Returns the workout layout config for a specific trainee.
+    PUT/PATCH: Trainer updates the layout type for their trainee.
+
+    Auto-creates a default config (layout_type='classic') if none exists.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    serializer_class = WorkoutLayoutConfigSerializer
+
+    def get_object(self) -> WorkoutLayoutConfig:
+        trainer = cast(User, self.request.user)
+        trainee_id: int = self.kwargs['trainee_id']
+
+        # Verify the trainee belongs to this trainer
+        try:
+            trainee = User.objects.get(
+                id=trainee_id,
+                role=User.Role.TRAINEE,
+                parent_trainer=trainer,
+            )
+        except User.DoesNotExist:
+            from django.http import Http404
+            raise Http404("Trainee not found or not assigned to you.")
+
+        config, _created = WorkoutLayoutConfig.objects.get_or_create(
+            trainee=trainee,
+            defaults={
+                'layout_type': WorkoutLayoutConfig.LayoutType.CLASSIC,
+                'configured_by': trainer,
+            },
+        )
+        return config
+
+    def perform_update(self, serializer: WorkoutLayoutConfigSerializer) -> None:  # type: ignore[override]
+        serializer.save(configured_by=cast(User, self.request.user))
