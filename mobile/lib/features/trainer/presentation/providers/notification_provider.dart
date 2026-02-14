@@ -53,9 +53,8 @@ class NotificationsNotifier extends AutoDisposeAsyncNotifier<List<TrainerNotific
       _currentPage++;
       final newPage = await _fetchPage(_currentPage);
       state = AsyncData([...currentState.value, ...newPage]);
-    } catch (e) {
+    } catch (_) {
       _currentPage--;
-      rethrow;
     } finally {
       _isLoadingMore = false;
     }

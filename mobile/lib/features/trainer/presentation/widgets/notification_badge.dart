@@ -35,8 +35,8 @@ class NotificationBadge extends ConsumerWidget {
                   child: Center(
                     child: Text(
                       count > 99 ? '99+' : '$count',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: theme.colorScheme.onError,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),

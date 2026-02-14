@@ -165,7 +165,7 @@ class _TrainerNotificationsScreenState
     return success;
   }
 
-  void _markAllRead(BuildContext context) async {
+  Future<void> _markAllRead(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final theme = Theme.of(context);
 
