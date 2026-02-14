@@ -146,7 +146,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               if (value == null || value.trim().isEmpty) {
                 return 'Please enter your email';
               }
-              if (!value.contains('@')) {
+              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value.trim())) {
                 return 'Please enter a valid email';
               }
               return null;

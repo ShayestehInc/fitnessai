@@ -197,6 +197,26 @@ class WorkoutRepository {
     }
   }
 
+  /// Get weekly workout progress for the current trainee
+  Future<Map<String, dynamic>> getWeeklyProgress() async {
+    try {
+      final response = await _apiClient.dio.get(ApiConstants.weeklyProgress);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': response.data};
+      }
+
+      return {'success': false, 'error': 'Failed to get weekly progress'};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to get weekly progress',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   /// Fetch the authenticated trainee's workout layout configuration.
   /// Returns LayoutConfigModel.defaultConfig on any failure.
   Future<LayoutConfigModel> getMyLayout() async {

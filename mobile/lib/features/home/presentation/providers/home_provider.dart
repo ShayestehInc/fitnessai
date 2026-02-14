@@ -168,7 +168,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
         _nutritionRepo.getNutritionGoals(),
         _nutritionRepo.getDailyNutritionSummary(_todayDate()),
         _workoutRepo.getActiveProgram(),
-        _nutritionRepo.getWeeklyProgress(),
+        _workoutRepo.getWeeklyProgress(),
       ]);
 
       final goalsResult = results[0];
@@ -267,40 +267,10 @@ class HomeNotifier extends StateNotifier<HomeState> {
       }
     }
 
-    // Calculate progress based on COMPLETED workouts, not time
-    // For now, since we don't have completion data, show 0%
-    // TODO: Track actual workout completion and calculate real progress
+    // Progress is now tracked via the weekly-progress API endpoint
+    // and displayed through weeklyProgress in HomeState.
+    // programProgress here is set to 0; the real data comes from the API.
     int progress = 0;
-
-    // Count total workout days (non-rest days) in the program
-    int totalWorkoutDays = 0;
-    int completedWorkoutDays = 0; // TODO: Get from actual completion data
-
-    if (weeks != null) {
-      for (final week in weeks) {
-        if (week is Map<String, dynamic>) {
-          final days = week['days'] as List?;
-          if (days != null) {
-            for (final day in days) {
-              if (day is Map<String, dynamic>) {
-                final isRestDay = day['is_rest_day'] as bool? ?? false;
-                final dayName = day['name'] as String? ?? '';
-                final isRestByName = dayName.toLowerCase().contains('rest');
-                // Count as workout day only if not a rest day
-                if (!isRestDay && !isRestByName) {
-                  totalWorkoutDays++;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Progress = completed workouts / total workouts
-    if (totalWorkoutDays > 0) {
-      progress = ((completedWorkoutDays / totalWorkoutDays) * 100).round();
-    }
 
     // Find next workout (skip rest days)
     NextWorkout? nextWorkout;

@@ -1,127 +1,106 @@
-# Code Review Round 2: Trainer Notifications Dashboard + Ambassador Commission Webhook
+# Code Review: Trainee Home Experience + Password Reset
 
-## Review Date: 2026-02-14
+## Review Date
+2026-02-14
 
 ## Files Reviewed
+1. `backend/config/settings.py` -- Email config, Djoser domain/site
+2. `backend/workouts/views.py` -- Weekly progress endpoint, food edit/delete actions
+3. `mobile/lib/core/constants/api_constants.dart` -- New endpoints
+4. `mobile/lib/core/router/app_router.dart` -- New routes, redirect guard
+5. `mobile/lib/features/auth/data/repositories/auth_repository.dart` -- Password reset methods
+6. `mobile/lib/features/auth/presentation/screens/forgot_password_screen.dart` -- New file
+7. `mobile/lib/features/auth/presentation/screens/reset_password_screen.dart` -- New file
+8. `mobile/lib/features/auth/presentation/screens/login_screen.dart` -- Forgot password wiring
+9. `mobile/lib/features/home/presentation/providers/home_provider.dart` -- Weekly progress
+10. `mobile/lib/features/home/presentation/screens/home_screen.dart` -- Progress bar, notification fix
+11. `mobile/lib/features/nutrition/data/repositories/nutrition_repository.dart` -- Edit/delete/weekly methods
+12. `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart` -- Wire food edit/delete
+13. `mobile/lib/features/nutrition/presentation/providers/nutrition_provider.dart` -- getDailyLogId method
+14. `mobile/lib/features/nutrition/presentation/widgets/edit_food_entry_sheet.dart` -- New file
 
-All 10 files from the Trainer Notifications and Ambassador Commission Webhook feature:
-- `backend/trainer/notification_views.py`
-- `backend/trainer/notification_serializers.py`
-- `backend/trainer/urls.py` (notification routes)
-- `backend/subscriptions/views/payment_views.py` (webhook handlers + commission method)
-- `mobile/lib/features/trainer/data/models/trainer_notification_model.dart`
-- `mobile/lib/features/trainer/data/repositories/trainer_repository.dart` (notification methods)
-- `mobile/lib/features/trainer/presentation/providers/notification_provider.dart`
-- `mobile/lib/features/trainer/presentation/widgets/notification_card.dart`
-- `mobile/lib/features/trainer/presentation/widgets/notification_badge.dart`
-- `mobile/lib/features/trainer/presentation/screens/trainer_notifications_screen.dart`
-- `mobile/lib/core/constants/api_constants.dart` (notification endpoints)
-- `mobile/lib/core/router/app_router.dart` (notification route)
-- `mobile/lib/features/trainer/presentation/screens/trainer_dashboard_screen.dart` (badge integration)
-
----
-
-## Round 1 Fix Verification (8/8 VERIFIED)
-
-| ID | Issue | Status |
-|----|-------|--------|
-| C-2 | Commission amount should use session.amount_total | FIXED -- `invoice_stub` uses `session.get('amount_total', 0)` (payment_views.py:522) |
-| C-3 | last_payment_amount should use invoice.amount_paid | FIXED -- `Decimal(str(amount_paid_cents)) / 100` (payment_views.py:602) |
-| C-4 | loadMore() race condition | FIXED -- `_isLoadingMore` guard at line 47 (notification_provider.dart) |
-| M-2 | Dismissible should use confirmDismiss | FIXED -- `confirmDismiss: (_) => onDismiss()` returns `Future<bool>` (notification_card.dart:25) |
-| M-4 | Mark-all-read confirmation dialog | FIXED -- `showDialog<bool>` with Cancel/Confirm (trainer_notifications_screen.dart:172-188) |
-| m-7 | Badge color should use theme | FIXED -- `theme.colorScheme.error` (notification_badge.dart:32) |
-| m-8 | Snackbar/Dismissible colors should use theme | FIXED -- `theme.colorScheme.primary` / `theme.colorScheme.error` for snackbars, `theme.colorScheme.error` / `theme.colorScheme.onError` for dismiss background (trainer_notifications_screen.dart:198, notification_card.dart:29-30) |
-
-All Round 1 fixes are correctly implemented and verified.
-
----
-
-## NEW Issues Found
-
-### Critical Issues (must fix before merge)
-
-None.
-
-### Major Issues (should fix)
+## Critical Issues (must fix before merge)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| M-1 | `trainer_notifications_screen.dart:168` | **`void` return type on async method:** `void _markAllRead(BuildContext context) async` -- Declaring an `async` method as `void` instead of `Future<void>` means any exceptions thrown inside the method become uncaught exceptions. Dart linter warns about this pattern (`discarded_futures`, `avoid_void_async`). If the showDialog or markAllRead throws, there's no way to catch or report it from the caller. The method also awaits showDialog and uses `context`/`mounted` after the await, which requires proper async handling. | Change signature to `Future<void> _markAllRead(BuildContext context) async {` |
-| M-2 | `notification_provider.dart:56-58` | **loadMore rethrows but _currentPage is decremented in catch:** When `_fetchPage` throws, `_currentPage` is decremented (line 57) and then the error is rethrown (line 58). The rethrow is unhandled -- `_onScroll()` at `trainer_notifications_screen.dart:35` calls `loadMore()` without `.catchError()` or try/catch, so the rethrown exception becomes an uncaught async error. This will crash the app on network failure during pagination. | Either (a) remove the `rethrow` and let the error be handled silently (current state + decremented page is enough for retry), or (b) wrap the `loadMore()` call in `_onScroll` with a try/catch. Option (a) is simplest. |
+| C1 | `backend/workouts/views.py:870-872` | **Arbitrary key injection in edit_meal_entry.** `entry_data` from `request.data.get('data')` is merged directly into the existing meal entry via `existing_entry.update(entry_data)` with no key whitelist. An attacker can inject arbitrary keys into the `nutrition_data` JSON (e.g., `{"__class__": "...", "admin": true, "garbage": "x" * 1000000}`), causing data corruption, storage bloat, or downstream parsing failures on the mobile client. | Add a whitelist: `allowed = {'name', 'protein', 'carbs', 'fat', 'calories', 'timestamp'}` and strip unrecognized keys from `entry_data` before merging: `entry_data = {k: v for k, v in entry_data.items() if k in allowed}`. |
+| C2 | `backend/workouts/views.py:883-929` | **DELETE endpoint with request body.** The `delete_meal_entry` action uses `methods=['delete']` and reads `meal_index`/`entry_index` from `request.data` (the request body). RFC 7231 states a DELETE request body has no defined semantics. Many HTTP intermediaries (proxies, CDNs, load balancers) strip bodies from DELETE requests. Dio on Flutter also does not reliably send body data with DELETE on all platforms. This will silently fail in production environments with reverse proxies. | Change to `methods=['post']` with a descriptive url_path like `'delete-meal-entry'`. The mobile already sends data in the body, so just changing the HTTP method is sufficient. Update the mobile ApiConstants and repository to use `dio.post()` instead of `dio.delete()`. |
+| C3 | `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart:628-629` + `backend/workouts/views.py:353-377` | **getDailyLogForDate will return the WRONG log.** The mobile client calls `getDailyLogForDate(date)` which issues `GET /api/workouts/daily-logs/?date=<date>`. However, `DailyLogViewSet.get_queryset()` has NO date filtering -- there is no `filterset_fields`, no `filter_backends`, and no manual query param handling for `date`. The `?date=` parameter is silently ignored. The endpoint returns ALL daily logs for the user (page 1 of paginated results). `results.first` grabs the most recent log by default ordering, NOT the log for the requested date. Every food edit and delete operation will modify the wrong DailyLog record, corrupting user data. | Add date filtering to `DailyLogViewSet`. Either: (a) add `filterset_fields = ['date', 'trainee']` and `filter_backends = [DjangoFilterBackend]` (requires `django-filter` in requirements), or (b) add manual filtering in `get_queryset()`: `date = self.request.query_params.get('date'); if date: queryset = queryset.filter(date=date)`. Option (b) is simpler and doesn't require a new dependency. |
 
-### Minor Issues (nice to fix)
+## Major Issues (should fix)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| m-1 | `notification_badge.dart:39` | **Hardcoded `Colors.white` for badge text:** Badge background uses `theme.colorScheme.error` (themed), but text color is hardcoded `Colors.white`. Should use `theme.colorScheme.onError` for consistency with the earlier m-7 fix philosophy. In most Material themes `onError` is white, but this ensures correctness on custom themes. | Change `color: Colors.white` to `color: theme.colorScheme.onError` (requires making text style non-const). |
-| m-2 | `notification_card.dart:113-119` | **Hardcoded notification type icon colors:** The switch statement uses `Colors.green`, `Colors.blue`, `Colors.orange`, `Colors.amber`, `Colors.purple`, `Colors.grey` directly rather than theme colors. While this is a deliberate design choice for semantic color-coding (and is consistent with the ticket spec), it means these colors won't adapt to different themes. | Consider using theme-derived colors (e.g., `theme.colorScheme.tertiary`), or accept as intentional. Low priority since the ticket explicitly specifies these color associations. |
-| m-3 | `trainer_notifications_screen.dart:96` | **`List<dynamic>` for grouped items:** `_groupByDate` returns `List<dynamic>` mixing `String` (date headers) and `TrainerNotificationModel` (items). This loses type safety and requires `is` checks + casts at use sites. | Use a sealed class or discriminated union: `sealed class GroupedItem` with `DateHeader` and `NotificationItem` subtypes. Lower priority since the pattern is localized to one screen. |
-| m-4 | `notification_views.py:36` | **Generic parameter on `generics.ListAPIView[TrainerNotification]`:** DRF's `ListAPIView` is not actually generic at runtime in current DRF versions. The `[TrainerNotification]` type parameter is informational only and may cause issues with some static analysis tools. | This is consistent with other views in the codebase (`TraineeListView(generics.ListAPIView[User])` at trainer/views.py:160), so keep for consistency. |
-| m-5 | `trainer_notifications_screen.dart:146-152` | **onNotificationTap doesn't await markRead:** `_onNotificationTap` calls `markRead()` (returns `Future<bool>`) without awaiting it or checking success. If the user taps and navigates but markRead fails, the optimistic update is reverted but the user has already navigated away. When they return, they'll see the notification revert to unread. | Consider awaiting markRead before navigating, or accept that the optimistic update + background revert is the intended UX. |
-| m-6 | `payment_views.py:519-521` | **Synthetic period_end is timezone.now() + 30 days:** The `invoice_stub` for checkout uses `timedelta(days=30)` for the period end, but Stripe subscriptions are calendar-month based, not 30-day based. A subscription starting Jan 15 ends Feb 15, not Feb 14. | Minor inaccuracy. The period dates are only used for commission duplicate detection (`UniqueConstraint` on `referral + period_start + period_end`). When the real `invoice.paid` event fires (which will have correct period dates), it won't collide because the synthetic dates will be different. Acceptable. |
+| M1 | `backend/workouts/views.py:829-852` | **`meal_index` parameter is required but completely ignored.** Line 833 returns 400 if `meal_index` is None, but line 852 sets `target_index = entry_index`, completely ignoring `meal_index`. This creates a false API contract. Same issue in `delete_meal_entry` (line 914). Consumers will think `meal_index` matters when it doesn't. | Either implement proper meal_index + entry_index addressing, or remove `meal_index` from the required parameters and document that `entry_index` is a flat index into the meals array. The mobile client always sends `meal_index: 0`, so removing the requirement is safe. |
+| M2 | `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart:638-651` | **NutritionRepository instantiated manually instead of using provider.** `NutritionRepository(ref.read(apiClientProvider))` creates a new instance on every edit/delete call. This bypasses the existing `nutritionRepositoryProvider` and breaks the repository pattern. | Replace with `ref.read(nutritionRepositoryProvider)` on both lines 639 and 683. |
+| M3 | `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart:610-668` | **Race condition: no UI locking during edit/delete operations.** Between `getDailyLogId` and `editMealEntry`/`deleteMealEntry`, another edit or delete could complete and shift all indices, causing the wrong entry to be modified. The user can also tap edit on multiple entries simultaneously. | Add a loading state that disables the edit icons while an operation is in flight. E.g., add `bool _isEditing = false` to `_NutritionScreenState`, set it true before the operation and false after, and pass it to `_MealSection` to disable the edit taps. |
+| M4 | `mobile/lib/features/auth/presentation/screens/forgot_password_screen.dart:16-17` + `reset_password_screen.dart:27-28` | **Uses `setState` for `_isLoading`/`_emailSent`/`_resetSuccess` instead of Riverpod.** CLAUDE.md convention: "Riverpod exclusively -- No setState for anything beyond ephemeral animation state." Loading and success states are business logic state, not animation. | Move these states into a Riverpod StateNotifier or AsyncNotifier. Create `ForgotPasswordState` and `ResetPasswordState` classes with corresponding notifiers. |
+| M5 | `mobile/lib/features/auth/presentation/screens/reset_password_screen.dart:283-287` | **Missing `const` constructor on Icon widgets.** `Icon(Icons.check_circle_outline, size: 80, color: Colors.green)` is not const. Same issue at line 96-99. CLAUDE.md: "const constructors everywhere -- Performance requirement." | Add `const` keyword: `const Icon(Icons.check_circle_outline, size: 80, color: Colors.green)`. |
+| M6 | `mobile/lib/features/home/presentation/providers/home_provider.dart:171` | **Weekly progress fetched from NutritionRepository -- wrong domain.** `_nutritionRepo.getWeeklyProgress()` is called for a workout endpoint. This breaks single-responsibility: nutrition repo should not know about workout progress. The `getWeeklyProgress()` method was added to `NutritionRepository` at line 224 of `nutrition_repository.dart`. | Move `getWeeklyProgress()` to `WorkoutRepository` and call it from there. In `HomeNotifier`, change `_nutritionRepo.getWeeklyProgress()` to `_workoutRepo.getWeeklyProgress()`. |
+| M7 | `backend/workouts/views.py:746-754` | **Missing database index on DailyLog (trainee, date).** The weekly_progress query does `DailyLog.objects.filter(trainee=user, date__range=(...))`. Without a composite index, every home screen load by every trainee does a full table scan. This will degrade as the table grows. | Add to DailyLog model: `class Meta: indexes = [models.Index(fields=['trainee', 'date'])]`. Create and run the migration. |
+| M8 | `mobile/lib/features/home/presentation/providers/home_provider.dart:273-277` | **TODO comments left in production code.** Lines 273 and 277 contain `// TODO: Track actual workout completion` and `// TODO: Get from actual completion data`. CLAUDE.md: "Allergic to TODOs. Don't leave them. If something needs doing, do it now." These TODOs also mean the local `programProgress` always shows 0%, creating a confusing UX alongside the new API-driven weekly progress that shows real data. | Remove the TODOs. Since the `weeklyProgress` API now provides real completion data, either use it for the program progress too, or remove the separate `programProgress` field entirely. |
 
----
+## Minor Issues (nice to fix)
+
+| # | File:Line | Issue | Suggested Fix |
+|---|-----------|-------|---------------|
+| m1 | `forgot_password_screen.dart:149` | **Weak email validation.** `!value.contains('@')` accepts strings like `@`, `@@`, `foo@` as valid emails. | Use `RegExp(r'^[^@]+@[^@]+\.[^@]+$')` or similar. Same issue exists in login_screen.dart:438. |
+| m2 | `backend/workouts/views.py:860-867` | **Inconsistent numeric type handling.** Backend accepts both `int` and `float` for macro fields, but mobile `MealEntry` uses `int.tryParse()`. A float like `50.5` would be stored but displayed as `50` on mobile. | Decide on int-only and enforce: `isinstance(value, int) or (isinstance(value, float) and value == int(value))`, or accept floats on both sides. |
+| m3 | `nutrition_screen.dart:583` | **Fragile meal matching.** `meals[i].name.toLowerCase().contains('meal $mealNumber')` matches "meal 1" inside "meal 10", "meal 11", etc. An entry named "Meal 10 - Rice" will incorrectly match meal 1. | Use regex with word boundary: `RegExp(r'meal ' + mealNumber.toString() + r'(\s|$|-)', caseSensitive: false)`. |
+| m4 | `auth_repository.dart:324-326` | **Dead code in requestPasswordReset catch block.** Dio does not throw for 204 status codes; they're treated as successful responses. The check `if (e.response?.statusCode == 204 ...)` in the DioException catch is unreachable. | Remove the 204 check from the catch block. |
+| m5 | `home_screen.dart:54-55` | **Force-unwrap after null check.** `homeState.weeklyProgress != null && homeState.weeklyProgress!.hasProgram` uses `!` which is fragile. | Use pattern matching: `if (homeState.weeklyProgress case final progress? when progress.hasProgram)` or store in a local variable. |
+| m6 | `backend/config/settings.py:235` | **Password reset link points to web URL that doesn't exist.** `PASSWORD_RESET_CONFIRM_URL` generates links to `localhost:3000/reset-password/{uid}/{token}`, but this is a mobile-first app with no web frontend. The email link will 404. The ticket notes this is "Out of Scope", but the default domain should at least be documented. | Add a comment in settings explaining this limitation, or create a minimal web page that redirects to the app's deep link. |
+| m7 | `nutrition_screen.dart:659` | **Full data reload after edit/delete is wasteful.** After each edit/delete, `loadInitialData()` refetches 5 API endpoints (goals, summary, weight check-in, profile, presets) when only the nutrition summary changed. | Call `refreshDailySummary()` instead of `loadInitialData()` after edit/delete. |
+| m8 | `backend/workouts/views.py:709-710` | **Redundant permission class.** `permission_classes=[IsAuthenticated, IsTrainee]` -- `IsTrainee` already checks `is_authenticated` (core/permissions.py:23-27). | Simplify to `permission_classes=[IsTrainee]`. Same at lines 807 and 884. |
 
 ## Security Concerns
 
-- All notification endpoints correctly use `[IsAuthenticated, IsTrainer]` permissions.
-- Row-level security enforced: all queries filter by `trainer=request.user`.
-- The `MarkNotificationReadView` and `DeleteNotificationView` both use `.get(pk=pk, trainer=trainer)` preventing IDOR.
-- No secrets, API keys, or tokens in any changed files.
-- Webhook endpoint correctly verifies Stripe signature before processing.
-- The `_create_ambassador_commission` method gracefully handles `MultipleObjectsReturned` (shouldn't happen due to unique constraint, but defensive).
+1. **Arbitrary key injection via edit_meal_entry (C1):** An authenticated trainee can inject any key-value pair into their meal entries. While this primarily affects their own data, it could be used to: (a) bloat the database by injecting large values, (b) confuse downstream consumers that parse nutrition_data, (c) inject XSS payloads into meal names that might be rendered in a web admin dashboard later. Fix: whitelist allowed keys.
+
+2. **No dedicated rate limit on password reset endpoint:** The global `anon: 30/minute` throttle provides some protection, but an attacker can still send 30 password reset emails per minute to flood a user's inbox. Consider adding a `password-reset: 3/hour` throttle class for the Djoser reset endpoint.
+
+3. **TOCTOU race in index-based meal editing:** The meal_index/entry_index addressing scheme is inherently racy. Between reading the current state and sending the edit, another request can shift indices. Low risk for single-device mobile clients, but exploitable via concurrent API calls. Consider using a meal entry ID instead of positional index for a more robust solution.
 
 ## Performance Concerns
 
-- `UnreadCountView` uses `.count()` (single COUNT query) -- efficient.
-- `MarkAllReadView` uses bulk `.update()` -- efficient.
-- `NotificationListView` uses pagination (20 per page) -- appropriate.
-- `_handle_invoice_paid` uses `select_related('trainer')` on the Subscription lookup -- avoids N+1.
-- Notification model has proper indexes on `(trainer, is_read)` and `(trainer, created_at)`.
-- Mobile pagination uses scroll-based loading with `_isLoadingMore` guard -- no duplicate requests.
+1. **Missing composite index on DailyLog (trainee, date) (M7):** Every trainee home screen load triggers a query filtered on `trainee` + `date__range`. Without an index, this becomes O(n) as the table grows. With 1000 trainees loading home screens, this is a significant concern.
 
-## Acceptance Criteria Spot-Check
+2. **Full data reload after food edit/delete (m7):** 5 parallel API calls when only 1 is needed. This wastes bandwidth and server resources on every food edit.
 
-| AC | Status | Evidence |
-|----|--------|----------|
-| AC-1 | PASS | `NotificationListView` with pagination, `?is_read` filter, newest-first ordering |
-| AC-2 | PASS | `UnreadCountView` returns `{"unread_count": N}`, single COUNT query |
-| AC-3 | PASS | `MarkNotificationReadView` sets `is_read=True`, `read_at=now()`, returns serialized notification |
-| AC-4 | PASS | `MarkAllReadView` bulk update, returns `{"marked_count": N}` |
-| AC-5 | PASS | `DeleteNotificationView` with trainer ownership check, returns 204 |
-| AC-6 | PASS | `_handle_invoice_paid` falls through to Subscription lookup, calls `_create_ambassador_commission` |
-| AC-7 | PASS | `_handle_checkout_completed` handles `platform_subscription` type, uses `amount_total` |
-| AC-8 | PASS | `_handle_subscription_deleted` handles platform sub, calls `ReferralService.handle_trainer_churn` |
-| AC-9 | PASS | Both `_handle_invoice_paid` and `_handle_subscription_deleted` try TraineeSubscription first, then Subscription |
-| AC-10 | PASS | `TrainerNotificationsScreen` with bell icon in dashboard, date grouping |
-| AC-11 | PASS | `NotificationCard` with type icon, title, message (max 2 lines), relative time, unread dot |
-| AC-12 | PASS | `NotificationBadge` with red badge, "99+" cap, hidden at 0 |
-| AC-13 | PASS | Mark All Read button with confirmation dialog |
-| AC-14 | PASS | Tap marks read + navigates to trainee detail via `traineeId` |
-| AC-15 | PASS | Pull-to-refresh, skeleton loader, empty state |
-| AC-16 | PASS | Swipe-to-dismiss with confirmDismiss returning Future<bool> |
-| AC-17 | PASS | `TrainerNotificationModel` with all fields |
-| AC-18 | PASS | All 5 methods in `TrainerRepository` |
-| AC-19 | PASS | Both providers with proper invalidation |
+3. **Two separate progress calculations:** The home screen now shows both `programProgress` (always 0%, computed locally) and `weeklyProgress` (from API). This is confusing and wasteful.
 
----
+## Acceptance Criteria Verification
 
-## Quality Score: 8/10
+| AC | Status | Notes |
+|----|--------|-------|
+| AC-1 | PASS | Email backend configured with console for dev, SMTP for prod via env vars |
+| AC-2 | PASS | DJOSER DOMAIN and SITE_NAME configured with env var overrides |
+| AC-3 | PASS | Uses Djoser's built-in endpoint, 204 regardless of email existence |
+| AC-4 | PASS | "Forgot password?" button navigates to ForgotPasswordScreen |
+| AC-5 | PASS | Success confirmation screen: "Check your email" with "Back to Login" |
+| AC-6 | PASS | Uses Djoser's built-in reset_password_confirm |
+| AC-7 | PASS | ResetPasswordScreen accepts uid/token via route params |
+| AC-8 | PASS (path differs) | Endpoint at `/daily-logs/weekly-progress/` not `/weekly-progress/` per ticket |
+| AC-9 | PASS | Queries non-empty workout_data with proper excludes |
+| AC-10 | PARTIAL | Progress bar uses API data correctly, BUT `programProgress` still shows hardcoded 0% in a separate section (confusing dual progress display) |
+| AC-11 | PASS | Pull-to-refresh calls loadDashboardData which fetches weekly progress |
+| AC-12 | PASS | Edit bottom sheet opens with pre-filled fields |
+| AC-13 | **FAIL** | Will modify wrong DailyLog due to C3 (no date filter on list endpoint) |
+| AC-14 | **FAIL** | Same as AC-13 -- delete from wrong DailyLog |
+| AC-15 | PASS (backend) | Backend recalculates totals; frontend reloads data |
+| AC-16 | INTENTIONAL SKIP | Dev deviated -- no optimistic UI, uses loading + refresh instead (documented) |
+| AC-17 | PASS | Notification button shows info dialog instead of being dead |
 
-## Recommendation: APPROVE
+## Quality Score: 5/10
 
-### Rationale
+The implementation covers all four user stories structurally and demonstrates good understanding of the codebase patterns. Password reset flow is clean and well-implemented. Home screen weekly progress section is well-designed with proper animation and empty/zero states. The edit food entry bottom sheet is polished.
 
-All 8 Round 1 issues have been correctly and thoroughly fixed. The implementation is solid:
+However, three critical bugs will cause data corruption in production: (1) arbitrary key injection into nutrition data, (2) DELETE with body that will fail behind proxies, and (3) food edit/delete operating on the wrong DailyLog because the date filter query param is silently ignored. These must be fixed before merge.
 
-1. **Backend** is clean -- proper permissions, row-level security, efficient queries, correct use of bulk update for mark-all-read, proper Stripe webhook handling with fallback logic.
-2. **Mobile** follows all conventions -- Riverpod exclusively, repository pattern, centralized API constants, go_router, theme-aware colors, proper optimistic updates with revert-on-failure.
-3. **Ambassador commission webhook** correctly uses actual payment amounts from Stripe (not cached values), handles edge cases (duplicate detection, inactive ambassador, churned reactivation).
-4. All 19 acceptance criteria are met.
+## Recommendation: REQUEST CHANGES
 
-The two Major issues found (M-1: void async method, M-2: unhandled rethrow in loadMore) are real but don't block shipping:
-- M-1 is a Dart best-practice violation that's unlikely to cause visible bugs in practice (the exceptions would be caught by Flutter's error handler).
-- M-2 could cause a crash on network failure during pagination, but it's an edge case and the fix is trivial (remove the rethrow).
+**Must fix before merge:** C1, C2, C3 (data corruption and silent failures in production).
 
-Both should be fixed, but they don't rise to the level of blocking the merge. The overall code quality is high and the feature is production-ready.
+**Should fix:** M1-M8 (API contract confusion, convention violations, performance issues, domain boundary violations, TODO comments).
+
+**Nice to fix:** m1-m8 (weak validation, dead code, fragile matching, minor optimizations).

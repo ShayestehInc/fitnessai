@@ -319,11 +319,7 @@ class AuthRepository {
       );
       // Djoser returns 204 regardless of whether email exists (no enumeration)
       return {'success': true};
-    } on DioException catch (e) {
-      // Even on error, don't reveal whether email exists
-      if (e.response?.statusCode == 204 || e.response?.statusCode == 200) {
-        return {'success': true};
-      }
+    } on DioException {
       return {
         'success': false,
         'error': 'Failed to send reset email. Please try again.',

@@ -158,7 +158,6 @@ class NutritionRepository {
   /// Edit a food entry in a daily log
   Future<Map<String, dynamic>> editMealEntry({
     required int logId,
-    required int mealIndex,
     required int entryIndex,
     required Map<String, dynamic> data,
   }) async {
@@ -166,7 +165,6 @@ class NutritionRepository {
       final response = await _apiClient.dio.put(
         ApiConstants.editMealEntry(logId),
         data: {
-          'meal_index': mealIndex,
           'entry_index': entryIndex,
           'data': data,
         },
@@ -190,14 +188,12 @@ class NutritionRepository {
   /// Delete a food entry from a daily log
   Future<Map<String, dynamic>> deleteMealEntry({
     required int logId,
-    required int mealIndex,
     required int entryIndex,
   }) async {
     try {
-      final response = await _apiClient.dio.delete(
+      final response = await _apiClient.dio.post(
         ApiConstants.deleteMealEntry(logId),
         data: {
-          'meal_index': mealIndex,
           'entry_index': entryIndex,
         },
       );
@@ -214,26 +210,6 @@ class NutritionRepository {
       return {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to delete food entry',
-      };
-    } catch (e) {
-      return {'success': false, 'error': e.toString()};
-    }
-  }
-
-  /// Get weekly workout progress
-  Future<Map<String, dynamic>> getWeeklyProgress() async {
-    try {
-      final response = await _apiClient.dio.get(ApiConstants.weeklyProgress);
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'data': response.data};
-      }
-
-      return {'success': false, 'error': 'Failed to get weekly progress'};
-    } on DioException catch (e) {
-      return {
-        'success': false,
-        'error': e.response?.data?['error'] ?? 'Failed to get weekly progress',
       };
     } catch (e) {
       return {'success': false, 'error': e.toString()};

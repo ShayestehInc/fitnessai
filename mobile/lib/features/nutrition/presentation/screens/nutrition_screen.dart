@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/nutrition_models.dart';
-import '../../data/repositories/nutrition_repository.dart';
 import '../providers/nutrition_provider.dart';
 import '../widgets/edit_food_entry_sheet.dart';
 
@@ -15,6 +13,8 @@ class NutritionScreen extends ConsumerStatefulWidget {
 }
 
 class _NutritionScreenState extends ConsumerState<NutritionScreen> {
+  bool _isEditingEntry = false;
+
   @override
   void initState() {
     super.initState();
@@ -608,6 +608,8 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
   }
 
   Future<void> _handleEditEntry(int entryIndex, MealEntry entry) async {
+    if (_isEditingEntry) return;
+
     final edited = await showModalBottomSheet<MealEntry>(
       context: context,
       isScrollControlled: true,
@@ -622,85 +624,95 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
 
     if (edited == null || !mounted) return;
 
-    // Get the daily log ID from the nutrition summary API
-    // We need to get the daily log for today's date
-    final state = ref.read(nutritionStateProvider);
-    final dateStr = _formatDate(state.selectedDate);
-    final logResult = await ref.read(nutritionStateProvider.notifier).getDailyLogId(dateStr);
-    if (logResult == null) {
-      if (mounted) {
+    setState(() => _isEditingEntry = true);
+
+    try {
+      final state = ref.read(nutritionStateProvider);
+      final dateStr = _formatDate(state.selectedDate);
+      final logResult = await ref.read(nutritionStateProvider.notifier).getDailyLogId(dateStr);
+      if (logResult == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No log found for this date')),
+          );
+        }
+        return;
+      }
+
+      final nutritionRepo = ref.read(nutritionRepositoryProvider);
+      final result = await nutritionRepo.editMealEntry(
+        logId: logResult,
+        entryIndex: entryIndex,
+        data: {
+          'name': edited.name,
+          'protein': edited.protein,
+          'carbs': edited.carbs,
+          'fat': edited.fat,
+          'calories': edited.calories,
+        },
+      );
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No log found for this date')),
+          const SnackBar(content: Text('Food entry updated')),
+        );
+        ref.read(nutritionStateProvider.notifier).refreshDailySummary();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['error'] as String? ?? 'Failed to update'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
-      return;
-    }
-
-    final nutritionRepo = NutritionRepository(ref.read(apiClientProvider));
-    final result = await nutritionRepo.editMealEntry(
-      logId: logResult,
-      mealIndex: 0,
-      entryIndex: entryIndex,
-      data: {
-        'name': edited.name,
-        'protein': edited.protein,
-        'carbs': edited.carbs,
-        'fat': edited.fat,
-        'calories': edited.calories,
-      },
-    );
-
-    if (!mounted) return;
-
-    if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Food entry updated')),
-      );
-      ref.read(nutritionStateProvider.notifier).loadInitialData();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] as String? ?? 'Failed to update'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+    } finally {
+      if (mounted) setState(() => _isEditingEntry = false);
     }
   }
 
   Future<void> _handleDeleteEntry(int entryIndex) async {
-    final state = ref.read(nutritionStateProvider);
-    final dateStr = _formatDate(state.selectedDate);
-    final logResult = await ref.read(nutritionStateProvider.notifier).getDailyLogId(dateStr);
-    if (logResult == null) {
-      if (mounted) {
+    if (_isEditingEntry) return;
+
+    setState(() => _isEditingEntry = true);
+
+    try {
+      final state = ref.read(nutritionStateProvider);
+      final dateStr = _formatDate(state.selectedDate);
+      final logResult = await ref.read(nutritionStateProvider.notifier).getDailyLogId(dateStr);
+      if (logResult == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No log found for this date')),
+          );
+        }
+        return;
+      }
+
+      final nutritionRepo = ref.read(nutritionRepositoryProvider);
+      final result = await nutritionRepo.deleteMealEntry(
+        logId: logResult,
+        entryIndex: entryIndex,
+      );
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No log found for this date')),
+          const SnackBar(content: Text('Food entry deleted')),
+        );
+        ref.read(nutritionStateProvider.notifier).refreshDailySummary();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['error'] as String? ?? 'Failed to delete'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
-      return;
-    }
-
-    final nutritionRepo = NutritionRepository(ref.read(apiClientProvider));
-    final result = await nutritionRepo.deleteMealEntry(
-      logId: logResult,
-      mealIndex: 0,
-      entryIndex: entryIndex,
-    );
-
-    if (!mounted) return;
-
-    if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Food entry deleted')),
-      );
-      ref.read(nutritionStateProvider.notifier).loadInitialData();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] as String? ?? 'Failed to delete'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+    } finally {
+      if (mounted) setState(() => _isEditingEntry = false);
     }
   }
 

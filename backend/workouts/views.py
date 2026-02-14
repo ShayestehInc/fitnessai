@@ -364,17 +364,24 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
 
         if user.is_trainee():
             # Trainees see only their own logs
-            return DailyLog.objects.filter(trainee=user).select_related('trainee')
+            queryset = DailyLog.objects.filter(trainee=user).select_related('trainee')
         elif user.is_trainer():
             # Trainers see logs for their trainees only
-            return DailyLog.objects.filter(
+            queryset = DailyLog.objects.filter(
                 trainee__parent_trainer=user
             ).select_related('trainee')
         elif user.is_admin():
             # Admins see all logs
-            return DailyLog.objects.all().select_related('trainee')
+            queryset = DailyLog.objects.all().select_related('trainee')
         else:
             return DailyLog.objects.none()
+
+        # Support date filtering via query parameter
+        date_param = self.request.query_params.get('date')
+        if date_param:
+            queryset = queryset.filter(date=date_param)
+
+        return queryset
     
     @action(detail=False, methods=['post'], url_path='parse-natural-language')
     def parse_natural_language(self, request: Request) -> Response:
@@ -707,7 +714,7 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
         })
 
     @action(detail=False, methods=['get'], url_path='weekly-progress',
-            permission_classes=[IsAuthenticated, IsTrainee])
+            permission_classes=[IsTrainee])
     def weekly_progress(self, request: Request) -> Response:
         """
         Get weekly workout progress for current trainee (Mon-Sun).
@@ -804,17 +811,18 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
         return workout_days
 
     @action(detail=True, methods=['put'], url_path='edit-meal-entry',
-            permission_classes=[IsAuthenticated, IsTrainee])
+            permission_classes=[IsTrainee])
     def edit_meal_entry(self, request: Request, pk: int | None = None) -> Response:
         """
         Edit a food entry in a DailyLog's nutrition_data.
 
         PUT /api/workouts/daily-logs/<id>/edit-meal-entry/
         Body: {
-            "meal_index": 0,
             "entry_index": 0,
             "data": {"name": "Chicken Bowl", "protein": 50, "carbs": 60, "fat": 20, "calories": 650}
         }
+
+        entry_index is a flat index into the meals array.
         """
         daily_log = self.get_object()
         user = cast(User, request.user)
@@ -826,13 +834,12 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        meal_index = request.data.get('meal_index')
         entry_index = request.data.get('entry_index')
         entry_data = request.data.get('data')
 
-        if meal_index is None or entry_index is None or entry_data is None:
+        if entry_index is None or entry_data is None:
             return Response(
-                {'error': 'meal_index, entry_index, and data are required'},
+                {'error': 'entry_index and data are required'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -866,6 +873,16 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
+        # Whitelist allowed keys to prevent arbitrary key injection
+        allowed_keys = {'name', 'protein', 'carbs', 'fat', 'calories', 'timestamp'}
+        entry_data = {k: v for k, v in entry_data.items() if k in allowed_keys}
+
+        if not entry_data:
+            return Response(
+                {'error': 'No valid fields provided'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Update the entry, preserving any fields not in data
         existing_entry = meals[target_index]
         if isinstance(existing_entry, dict):
@@ -880,14 +897,14 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
 
         return Response(DailyLogSerializer(daily_log).data)
 
-    @action(detail=True, methods=['delete'], url_path='delete-meal-entry',
-            permission_classes=[IsAuthenticated, IsTrainee])
+    @action(detail=True, methods=['post'], url_path='delete-meal-entry',
+            permission_classes=[IsTrainee])
     def delete_meal_entry(self, request: Request, pk: int | None = None) -> Response:
         """
         Delete a food entry from a DailyLog's nutrition_data.
 
-        DELETE /api/workouts/daily-logs/<id>/delete-meal-entry/
-        Body: {"meal_index": 0, "entry_index": 0}
+        POST /api/workouts/daily-logs/<id>/delete-meal-entry/
+        Body: {"entry_index": 0}
         """
         daily_log = self.get_object()
         user = cast(User, request.user)
@@ -899,12 +916,11 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        meal_index = request.data.get('meal_index')
         entry_index = request.data.get('entry_index')
 
-        if meal_index is None or entry_index is None:
+        if entry_index is None:
             return Response(
-                {'error': 'meal_index and entry_index are required'},
+                {'error': 'entry_index is required'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

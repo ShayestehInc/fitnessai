@@ -280,7 +280,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
+        const Icon(
           Icons.check_circle_outline,
           size: 80,
           color: Colors.green,

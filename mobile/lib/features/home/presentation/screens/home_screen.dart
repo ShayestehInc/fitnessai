@@ -51,8 +51,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 32),
 
                   // Weekly Progress section (only if trainee has a program)
-                  if (homeState.weeklyProgress != null &&
-                      homeState.weeklyProgress!.hasProgram) ...[
+                  if (homeState.weeklyProgress case final progress?
+                      when progress.hasProgram) ...[
                     _buildSectionHeader('Weekly Progress'),
                     const SizedBox(height: 16),
                     _buildWeeklyProgressSection(homeState),
