@@ -1,39 +1,46 @@
-# Code Review: Fix All 5 Trainee-Side Workout Bugs
+# Code Review: Trainer-Selectable Workout Layouts
 
-## Review Date: 2026-02-13
+## Review Date: 2026-02-14 (Round 2 — FINAL)
 
 ## Files Reviewed
-- `backend/workouts/survey_views.py`
-- `mobile/lib/features/workout_log/presentation/providers/workout_provider.dart`
-- `mobile/lib/features/workout_log/data/repositories/workout_repository.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_log_screen.dart`
+- backend/trainer/models.py, serializers.py, views.py, urls.py
+- backend/workouts/survey_views.py, urls.py
+- backend/trainer/migrations/0003_add_workout_layout_config.py
+- mobile/lib/features/workout_log/data/models/layout_config_model.dart
+- mobile/lib/features/workout_log/data/repositories/workout_repository.dart
+- mobile/lib/features/workout_log/presentation/widgets/classic_workout_layout.dart
+- mobile/lib/features/workout_log/presentation/widgets/minimal_workout_layout.dart
+- mobile/lib/features/workout_log/presentation/screens/active_workout_screen.dart
+- mobile/lib/features/trainer/data/repositories/trainer_repository.dart
+- mobile/lib/features/trainer/presentation/screens/trainee_detail_screen.dart
+- mobile/lib/core/constants/api_constants.dart
+
+## Round 1 Issues — All Fixed
+1. MyLayoutConfigView now has IsTrainee permission
+2. select_related('configured_by') added to get_or_create
+3. Redundant validate_layout_type removed
+4. Http404 import moved to top-level
+5. Race condition in _updateLayout fixed (previousLayout saved, reverted on failure)
+6. Bounds checking added in ClassicWorkoutLayout.didUpdateWidget
+7. Bounds checking added in MinimalWorkoutLayout.didUpdateWidget
+8. Unused api_client.dart import removed
 
 ## Critical Issues (must fix before merge)
-| # | File:Line | Issue | Suggested Fix |
-|---|-----------|-------|---------------|
-| 1 | survey_views.py:271-279 | Dead code: `new_workout_entry` dict is built but never used. The actual workout_data is built separately at line 287. | Remove the unused `new_workout_entry` variable or use it to construct `daily_log.workout_data` |
-| 2 | survey_views.py:287-293 | Merge logic overwrites metadata: If trainee does 2 workouts in one day, `workout_name`, `duration`, `post_survey`, `completed_at` from the 2nd workout overwrite the 1st. Only exercises are merged. | Store workouts as a list of workout sessions, or at minimum preserve prior metadata |
+None.
 
 ## Major Issues (should fix)
-| # | File:Line | Issue | Suggested Fix |
-|---|-----------|-------|---------------|
-| 3 | survey_views.py:260-297 | Race condition: Two concurrent POST requests could both `get_or_create` and then both `save`, with the second overwriting the first's merged exercises | Use `select_for_update()` on the queryset or wrap in `transaction.atomic()`. Low probability for mobile app but should be safe. |
-| 4 | workout_log_screen.dart:383-385 | Context issue: `_showProgramSwitcher(context)` is called after `context.pop()` — the bottom sheet `context` from `_showProgramOptions` is popped, then `_showProgramSwitcher` tries to use the widget's own `context`, which should be fine but the new bottom sheet might show before the first one fully closes. | Use `Future.delayed` or `WidgetsBinding.addPostFrameCallback` to open switcher after options sheet closes |
+None.
 
 ## Minor Issues (nice to fix)
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| 5 | survey_views.py:125-126, 354-355 | Lazy import of `TrainerNotification` inside try blocks | Move to top-level import — no circular dependency risk here |
-| 6 | workout_log_screen.dart:453 | Spread operator `...programs.map()` could overflow for many programs | Use ListView.builder instead if >5 programs expected. Currently acceptable. |
+| 1 | trainee_detail_screen:2508 | Cast of result['data'] to Map without type check | Add `if (data is Map<String, dynamic>)` guard |
 
 ## Security Concerns
-- None introduced. The `_save_workout_to_daily_log` properly uses ORM (no raw queries). Auth is enforced via `IsAuthenticated` permission class.
+None. All endpoints properly secured with authentication, role-based permissions, and trainer ownership verification.
 
 ## Performance Concerns
-- `get_or_create` + `save` is two DB operations but acceptable for this use case.
-- `select_related('parent_trainer')` is not used on the user queryset — accessing `user.parent_trainer` will trigger a lazy query. However, this is a single additional query per request, acceptable for a survey submission endpoint.
+None. select_related used, no N+1 patterns, transaction used for DailyLog.
 
-## Quality Score: 7/10
-## Recommendation: REQUEST CHANGES
-
-The dead code (Critical #1) and the merge logic overwriting metadata (Critical #2) must be fixed. The race condition (Major #3) should also be addressed.
+## Quality Score: 9/10 (Backend) / 8.5/10 (Mobile)
+## Recommendation: APPROVE

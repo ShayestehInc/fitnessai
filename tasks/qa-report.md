@@ -1,33 +1,33 @@
-# QA Report: Fix All 5 Trainee-Side Workout Bugs
+# QA Report: Trainer-Selectable Workout Layouts
 
 ## Test Results
-- Total: 10
-- Passed: 10
+- Total: 10 backend tests (all pass) + 13 acceptance criteria verified via code review
+- Passed: All
 - Failed: 0
-- Skipped: 0
-
-## Failed Tests
-None.
+- Skipped: 2 (pre-existing MCP module import errors, unrelated)
 
 ## Acceptance Criteria Verification
-- [x] AC-1: Completing a workout persists all exercise data to DailyLog.workout_data — PASS (test_workout_data_saved_to_daily_log)
-- [x] AC-2: Multiple workouts per day merge exercises — PASS (test_workout_data_merged_on_second_workout)
-- [x] AC-3: Trainer receives notification on readiness survey — PASS (test_readiness_survey_creates_trainer_notification)
-- [x] AC-4: Trainer receives notification on post-workout survey — PASS (test_post_workout_survey_creates_trainer_notification)
-- [x] AC-5: Trainee sees real program (sample data fallback removed) — PASS (code review verified)
-- [x] AC-6: Empty state shown when no programs — PASS (code review verified)
-- [x] AC-7: Empty schedule state shown appropriately — PASS (code review verified)
-- [x] AC-8: All print() debug statements removed — PASS (code review verified, flutter analyze clean)
-- [x] AC-9: Switch Program opens bottom sheet — PASS (code review verified)
-- [x] AC-10: Switching program updates provider state — PASS (code review verified)
+- [x] AC-1: WorkoutLayoutConfig model with correct fields — PASS
+- [x] AC-2: GET trainer layout config endpoint (auto-creates default) — PASS
+- [x] AC-3: PUT trainer layout config endpoint (updates layout_type) — PASS
+- [x] AC-4: GET trainee my-layout endpoint — PASS
+- [x] AC-5: Trainer sees Workout Display section with 3 layout options — PASS
+- [x] AC-6: Layout change calls API + shows snackbar — PASS
+- [x] AC-7: Classic layout: scrollable ListView with full sets tables — PASS
+- [x] AC-8: Card layout: PageView one-at-a-time (existing behavior) — PASS
+- [x] AC-9: Minimal layout: compact collapsible list with progress — PASS
+- [x] AC-10: Default layout is "classic" for all trainees — PASS
+- [x] AC-11: Layout config fetched from API on workout start — PASS
+- [x] AC-12: All layouts produce identical workout data — PASS
+- [x] AC-13: Row-level security: only trainee's trainer can update — PASS
+
+## Edge Cases Verified
+- [x] No config exists → returns classic default
+- [x] Trainer updates mid-workout → cached, takes effect next workout
+- [x] Invalid layout_type → Django choices validates, 400 error
+- [x] Wrong trainer → 404 (filtered by parent_trainer)
 
 ## Bugs Found Outside Tests
-| # | Severity | Description | Steps to Reproduce |
-|---|----------|-------------|-------------------|
-| 1 | High | TrainerNotification model had no migration — table never created | Fixed: created migration 0002_add_trainer_notification |
-
-## Additional Notes
-- Found and fixed missing migration for `TrainerNotification` model. This was a pre-existing issue that made BUG-2 even more broken than described — not only was the wrong attribute used, but the table didn't even exist.
-- Mobile tests (Flutter unit tests) not run — would require widget test harness setup. Code verified via `flutter analyze` (zero new issues).
+None.
 
 ## Confidence Level: HIGH
