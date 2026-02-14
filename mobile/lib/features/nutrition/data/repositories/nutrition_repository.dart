@@ -155,6 +155,103 @@ class NutritionRepository {
     }
   }
 
+  /// Edit a food entry in a daily log
+  Future<Map<String, dynamic>> editMealEntry({
+    required int logId,
+    required int entryIndex,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      final response = await _apiClient.dio.put(
+        ApiConstants.editMealEntry(logId),
+        data: {
+          'entry_index': entryIndex,
+          'data': data,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': response.data};
+      }
+
+      return {'success': false, 'error': 'Failed to edit food entry'};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to edit food entry',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Delete a food entry from a daily log
+  Future<Map<String, dynamic>> deleteMealEntry({
+    required int logId,
+    required int entryIndex,
+  }) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.deleteMealEntry(logId),
+        data: {
+          'entry_index': entryIndex,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': response.data};
+      }
+
+      return {'success': false, 'error': 'Failed to delete food entry'};
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return {'success': false, 'error': 'Entry no longer exists'};
+      }
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to delete food entry',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Get the daily log ID for a specific date
+  Future<Map<String, dynamic>> getDailyLogForDate(String date) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.dailyLogs,
+        queryParameters: {'date': date},
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        // Response could be a list or paginated result
+        final List<dynamic> results = data is List
+            ? data
+            : (data is Map && data.containsKey('results'))
+                ? data['results'] as List
+                : [];
+
+        if (results.isNotEmpty) {
+          final log = results.first as Map<String, dynamic>;
+          return {'success': true, 'logId': log['id'] as int};
+        }
+
+        return {'success': false, 'error': 'No log found for date'};
+      }
+
+      return {'success': false, 'error': 'Failed to get daily log'};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to get daily log',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   /// Apply a macro preset as the current day's goals
   Future<Map<String, dynamic>> applyMacroPreset(int presetId) async {
     try {

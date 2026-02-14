@@ -235,6 +235,45 @@ class MacroPresetCreateSerializer(serializers.Serializer[dict[str, Any]]):
     sort_order = serializers.IntegerField(required=False, default=0)
 
 
+class EditMealEntrySerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for editing a meal entry in a DailyLog's nutrition_data."""
+
+    entry_index = serializers.IntegerField(
+        min_value=0,
+        required=True,
+        help_text="Flat index into the meals array",
+    )
+    data = serializers.DictField(
+        required=True,
+        help_text="Fields to update: name, protein, carbs, fat, calories",
+    )
+
+    ALLOWED_DATA_KEYS = frozenset({'name', 'protein', 'carbs', 'fat', 'calories', 'timestamp'})
+    NUMERIC_KEYS = frozenset({'protein', 'carbs', 'fat', 'calories'})
+
+    def validate_data(self, value: dict[str, Any]) -> dict[str, Any]:
+        """Validate and whitelist the data payload."""
+        filtered = {k: v for k, v in value.items() if k in self.ALLOWED_DATA_KEYS}
+        if not filtered:
+            raise serializers.ValidationError("No valid fields provided. Allowed: name, protein, carbs, fat, calories.")
+        for key in self.NUMERIC_KEYS:
+            if key in filtered:
+                v = filtered[key]
+                if not isinstance(v, (int, float)) or v < 0:
+                    raise serializers.ValidationError(f"{key} must be a non-negative number.")
+        return filtered
+
+
+class DeleteMealEntrySerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for deleting a meal entry from a DailyLog's nutrition_data."""
+
+    entry_index = serializers.IntegerField(
+        min_value=0,
+        required=True,
+        help_text="Flat index into the meals array",
+    )
+
+
 class NutritionSummarySerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for daily nutrition summary response."""
 

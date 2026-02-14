@@ -1,127 +1,138 @@
-# Feature: Trainer Notifications Dashboard + Ambassador Commission Webhook
+# Feature: Trainee Home Experience + Password Reset
 
 ## Priority
-High — Trainer notifications are the #1 engagement feature for trainer retention. Ambassador commissions complete the referral revenue loop that's fully built but never triggers.
+High — Password reset is security-critical (locked-out users have zero recovery). Home screen progress and food edit/delete are daily-use UX gaps that erode trust.
 
-## User Story
-As a **trainer**, I want to see a notifications feed of trainee activity (readiness surveys, completed workouts, weight check-ins) so that I stay engaged and can respond to my trainees in real time.
-
-As an **ambassador**, I want my commission to be automatically created when a referred trainer pays their platform subscription so that my earnings dashboard reflects real revenue.
-
-As a **trainer who cancels**, I want the ambassador referral to be marked as churned so that commission tracking stays accurate.
+## User Stories
+1. As a **trainee**, I want to reset my password via email so that I can recover my account when I forget my login.
+2. As a **trainee**, I want to see my weekly workout progress on the home screen so that I feel motivated to stay on track.
+3. As a **trainee**, I want to edit or delete food entries in my nutrition log so that I can correct mistakes.
+4. As a **trainee**, I want the notification button on the home screen to do something useful instead of being dead.
 
 ## Acceptance Criteria
 
-### Backend — Notification API
-- [ ] AC-1: `GET /api/trainer/notifications/` — Returns paginated list of trainer's notifications, newest first. Includes `id`, `notification_type`, `title`, `message`, `data`, `is_read`, `read_at`, `created_at`. Requires IsTrainer. Supports `?is_read=true|false` filter.
-- [ ] AC-2: `GET /api/trainer/notifications/unread-count/` — Returns `{"unread_count": N}` for the authenticated trainer. Requires IsTrainer. Single COUNT query.
-- [ ] AC-3: `POST /api/trainer/notifications/<id>/read/` — Marks a single notification as read. Sets `is_read=True` and `read_at=now()`. Returns 200 with updated notification. Requires IsTrainer. Only the notification's own trainer can mark it.
-- [ ] AC-4: `POST /api/trainer/notifications/mark-all-read/` — Marks all unread notifications for the trainer as read. Returns `{"marked_count": N}`. Uses bulk update for efficiency. Requires IsTrainer.
-- [ ] AC-5: `DELETE /api/trainer/notifications/<id>/` — Deletes a single notification. Requires IsTrainer. Only the notification's own trainer can delete it.
+### Password Reset (AC-1 through AC-7)
+- [ ] AC-1: Backend email is configured (console backend for dev, SMTP for prod via env vars)
+- [ ] AC-2: Djoser `DOMAIN` and `SITE_NAME` are configured for password reset email links
+- [ ] AC-3: `POST /api/auth/users/reset_password/` with `{"email": "user@example.com"}` sends a reset email (or returns 204 silently if email not found — no email enumeration)
+- [ ] AC-4: Mobile "Forgot password?" button navigates to a new `ForgotPasswordScreen` with email input
+- [ ] AC-5: After submitting email, user sees confirmation screen: "Check your email for a reset link"
+- [ ] AC-6: `POST /api/auth/users/reset_password_confirm/` with `{uid, token, new_password}` resets the password
+- [ ] AC-7: Mobile has a `ResetPasswordScreen` accessible via deep link that accepts uid/token and lets user set new password
 
-### Backend — Ambassador Commission Webhook
-- [ ] AC-6: When `invoice.paid` fires for a trainer's platform subscription (`Subscription` model), look up the trainer. If the trainer has an active `AmbassadorReferral`, call `ReferralService.create_commission()` with the subscription amount and billing period.
-- [ ] AC-7: When `checkout.session.completed` fires for a trainer's platform subscription, create the `Subscription` record if needed and trigger the same commission logic as AC-6 for the first payment.
-- [ ] AC-8: When `customer.subscription.deleted` fires for a trainer's platform subscription, call `ReferralService.handle_trainer_churn(trainer)` to mark ambassador referrals as CHURNED.
-- [ ] AC-9: The webhook must handle both `TraineeSubscription` (existing behavior) and `Subscription` (platform) lookups for invoice events. If the subscription_id doesn't match a TraineeSubscription, try Subscription next.
+### Home Screen Progress (AC-8 through AC-11)
+- [ ] AC-8: Backend endpoint `GET /api/workouts/weekly-progress/` returns `{total_days, completed_days, percentage}` for the current week (Mon-Sun)
+- [ ] AC-9: A "completed day" is any day with non-empty `DailyLog.workout_data` for the trainee
+- [ ] AC-10: Home screen progress bar shows real percentage from the API instead of hardcoded 0%
+- [ ] AC-11: Progress refreshes on pull-to-refresh and screen focus
 
-### Mobile — Notifications Screen
-- [ ] AC-10: New `TrainerNotificationsScreen` accessible from a bell icon in the trainer dashboard app bar. Shows paginated list of notifications grouped by date (Today, Yesterday, Earlier).
-- [ ] AC-11: Each notification card shows: icon based on `notification_type`, title, message preview (max 2 lines), relative timestamp ("2m ago", "1h ago", "Yesterday"), and unread indicator (colored dot).
-- [ ] AC-12: Notification bell icon in dashboard app bar shows unread count badge (red circle with number). Badge hidden when count is 0. Count refreshes on screen focus and pull-to-refresh.
-- [ ] AC-13: "Mark All Read" button in notifications screen app bar. Shows confirmation and updates all cards instantly.
-- [ ] AC-14: Tapping a notification marks it as read and navigates to the relevant trainee detail screen (using `data.trainee_id` from the notification's JSON data field). If no trainee_id, just marks as read.
-- [ ] AC-15: Pull-to-refresh on notifications screen. Loading skeleton on first load. Empty state with illustration when no notifications exist.
-- [ ] AC-16: Swipe-to-dismiss on individual notification cards (calls DELETE endpoint).
+### Food Entry Edit/Delete (AC-12 through AC-16)
+- [ ] AC-12: Tapping the edit icon on a food entry opens an edit bottom sheet with pre-filled fields (name, protein, carbs, fat, calories)
+- [ ] AC-13: User can update any field and save — updates `DailyLog.nutrition_data` on the backend
+- [ ] AC-14: User can delete a food entry — removes it from `DailyLog.nutrition_data` meals array
+- [ ] AC-15: After edit/delete, macro totals recalculate automatically
+- [ ] AC-16: Optimistic UI update with revert on failure
 
-### Mobile — Data Layer
-- [ ] AC-17: `TrainerNotification` data model in `trainer/data/models/` with fields matching the API response.
-- [ ] AC-18: Notification methods added to `TrainerRepository`: `getNotifications(page, isRead)`, `getUnreadCount()`, `markNotificationRead(id)`, `markAllRead()`, `deleteNotification(id)`.
-- [ ] AC-19: Notification providers in `trainer/presentation/providers/`: `notificationsProvider` (paginated list), `unreadNotificationCountProvider` (int), with proper invalidation on mark-read/mark-all-read/delete actions.
+### Dead Button Fix (AC-17)
+- [ ] AC-17: Home screen notification button navigates to a relevant screen (settings, or shows "No notifications" if trainee has no notification system yet)
 
 ## Edge Cases
-1. **No notifications** — Empty state shows friendly message: "All caught up! You'll see trainee activity here." with an illustration icon.
-2. **100+ unread notifications** — Badge shows "99+" instead of exact count to prevent overflow.
-3. **Notification for deleted trainee** — Tapping navigates nowhere gracefully (trainee_id no longer valid). Show snackbar "Trainee no longer available."
-4. **Concurrent mark-all-read** — Bulk update uses `filter(is_read=False)` so concurrent calls are safe (second call marks 0).
-5. **Webhook for non-existent trainer** — Log warning and return 200 (Stripe requires 200 response).
-6. **Duplicate invoice.paid for same period** — `ReferralService.create_commission()` already has duplicate detection via `UniqueConstraint` and `select_for_update()`. Safe to call multiple times.
-7. **Ambassador deactivated between referral and first payment** — `create_commission()` checks `profile.is_active` and skips if inactive.
-8. **Trainer subscription downgraded** — Commission calculated on actual payment amount from invoice, not the cached subscription amount.
-9. **Webhook signature verification fails** — Return 400, log error. Already handled.
-10. **Large notification list performance** — Paginated (20 per page), indexed on `(trainer, created_at)` and `(trainer, is_read)`.
+1. **Email not found**: Password reset returns 204 regardless (Djoser default) — no email enumeration
+2. **Expired token**: Reset confirm returns 400 with clear error — user can request a new email
+3. **Weak password**: Django validators reject it — show validation errors on the mobile screen
+4. **Zero workout days this week**: Progress shows 0% with encouraging copy ("Start your first workout!")
+5. **No program assigned**: Progress section hidden entirely (no misleading 0%)
+6. **Delete last food entry in a meal**: Meal section becomes empty — show empty state or remove meal header
+7. **Edit food entry with zero values**: Allow zeros for partial entries (e.g., "black coffee" = 0 carbs)
+8. **Network failure during food edit**: Optimistic update reverts, shows error snackbar
+9. **Multiple quick edits**: Each edit is independent — no race conditions
+10. **Password reset on already-logged-in user**: Still works — useful for proactive password changes
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Notification list API fails | Error state with retry button | Return cached provider state if available |
-| Mark-as-read API fails | Snackbar "Failed to update notification" | Revert optimistic UI update |
-| Delete notification API fails | Snackbar "Failed to delete" | Restore dismissed card |
-| Mark-all-read API fails | Snackbar "Failed to mark all read" | Revert badge count |
-| Webhook commission creation fails | N/A (no user-facing UI) | Log error, commission stays uncreated, will retry on next invoice |
-| Notification for deleted trainee | "Trainee no longer available" snackbar | Mark notification as read anyway |
+| Password reset email fails to send | "Check your email" (don't reveal failure) | Log error server-side |
+| Invalid/expired reset token | "This link has expired. Request a new one." | Return 400 |
+| Weak password on reset | Inline validation errors below password field | Return 400 with field errors |
+| Network failure on progress load | Progress section shows last cached value or skeleton | Retry on pull-to-refresh |
+| Network failure on food edit | Reverts to original values, shows error snackbar | Logs error |
+| Food edit returns 404 (deleted log) | "Entry no longer exists" snackbar | Refreshes nutrition data |
 
 ## UX Requirements
-- **Loading state:** Skeleton shimmer cards (3 placeholder notification shapes) on first load.
-- **Empty state:** Centered illustration icon (bell with checkmark), "All caught up!" headline, "Trainee activity notifications will appear here" subtitle.
-- **Error state:** Error icon + "Couldn't load notifications" + Retry button.
-- **Success feedback:** Green snackbar on mark-all-read. Smooth fade animation on individual mark-as-read (dot disappears).
-- **Badge:** Red circle, white text, positioned top-right of bell icon. Shows "99+" for counts > 99.
-- **Notification types visual mapping:**
-  - `trainee_readiness` → Green pulse icon (fitness)
-  - `workout_completed` → Blue checkmark icon
-  - `workout_missed` → Orange warning icon
-  - `goal_hit` → Gold star icon
-  - `check_in` → Purple scale icon
-  - `message` → Gray chat icon
-  - `general` → Gray info icon
-- **Swipe-to-dismiss:** Red background with trash icon revealed on swipe left.
-- **Date grouping:** "Today", "Yesterday", "Feb 12", "Feb 11", etc.
+- **Forgot Password Screen**: Email input, "Send Reset Link" button, loading state, success confirmation with "Back to Login" button
+- **Reset Password Screen**: New password + confirm password fields, strength indicator, submit button
+- **Progress Bar**: Animated fill, percentage text, encouraging copy when low/zero
+- **Food Edit Bottom Sheet**: Pre-filled form fields, save/cancel buttons, delete button (red, with confirmation)
+- **Loading states**: Skeleton shimmer for progress section, button loading indicator for password reset
+- **Empty states**: "No workouts this week" for zero progress, "Start your first workout!" CTA
+- **Success feedback**: Snackbar after food edit/delete, confirmation screen after password reset request
 
 ## Technical Approach
 
-### Backend (files to create/modify)
+### Backend
+1. **Email Configuration** (`config/settings.py`):
+   - Add `EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'` for dev
+   - Add env-var overrides for prod: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`
+   - Configure `DJOSER['DOMAIN']` and `DJOSER['SITE_NAME']` for reset email links
 
-**Create:**
-- `backend/trainer/notification_views.py` — New views: `NotificationListView`, `UnreadCountView`, `MarkNotificationReadView`, `MarkAllReadView`, `DeleteNotificationView`
-- `backend/trainer/notification_serializers.py` — `TrainerNotificationSerializer` (read-only serializer for the notification model)
+2. **Weekly Progress Endpoint** (`workouts/views.py`):
+   - New `@action` on `DailyLogViewSet` or standalone `APIView`
+   - `GET /api/workouts/weekly-progress/`
+   - Query: `DailyLog.objects.filter(trainee=user, date__range=(monday, sunday), workout_data__isnull=False).exclude(workout_data={})` count
+   - Calculate total expected days from active program schedule
+   - Return `{total_days, completed_days, percentage, week_start, week_end}`
 
-**Modify:**
-- `backend/trainer/urls.py` — Add notification URL patterns:
-  - `notifications/` → list
-  - `notifications/unread-count/` → count
-  - `notifications/<int:pk>/read/` → mark read
-  - `notifications/mark-all-read/` → mark all read
-  - `notifications/<int:pk>/` → delete
-- `backend/subscriptions/views/payment_views.py` — Modify `_handle_invoice_paid()` to also look up `Subscription` (platform) and call `ReferralService.create_commission()`. Modify `_handle_subscription_deleted()` to call `ReferralService.handle_trainer_churn()`. Modify `_handle_checkout_completed()` for first platform subscription payment.
+3. **Food Entry Edit/Delete** (`workouts/views.py`):
+   - New actions on `DailyLogViewSet`: `edit-meal-entry` and `delete-meal-entry`
+   - `PUT /api/workouts/daily-logs/<id>/edit-meal-entry/` with `{meal_index, entry_index, data}`
+   - `DELETE /api/workouts/daily-logs/<id>/delete-meal-entry/` with `{meal_index, entry_index}`
+   - Both modify `nutrition_data` JSON, recalculate totals, save with `update_fields=['nutrition_data']`
 
-### Mobile (files to create/modify)
+### Mobile
+1. **Password Reset Screens**:
+   - Create `forgot_password_screen.dart` — email input + submit
+   - Create `reset_password_screen.dart` — new password + confirm + submit (for deep link)
+   - Add API constants for reset endpoints
+   - Add repository methods
+   - Add routes to `app_router.dart`
+   - Wire "Forgot password?" button on login screen
 
-**Create:**
-- `mobile/lib/features/trainer/data/models/trainer_notification_model.dart` — `TrainerNotification` data model
-- `mobile/lib/features/trainer/presentation/screens/trainer_notifications_screen.dart` — Full notifications screen with date grouping, swipe-to-dismiss, mark-all-read
-- `mobile/lib/features/trainer/presentation/providers/notification_provider.dart` — `notificationsProvider`, `unreadNotificationCountProvider`
-- `mobile/lib/features/trainer/presentation/widgets/notification_card.dart` — Individual notification card widget with type-based icon, unread dot, relative time
-- `mobile/lib/features/trainer/presentation/widgets/notification_badge.dart` — Badge widget for bell icon overlay
+2. **Home Screen Progress**:
+   - Add `weeklyProgressProvider` in home_provider.dart
+   - Replace hardcoded 0% with real API data
+   - Add API constant and repository method
+   - Handle no-program state (hide progress section)
 
-**Modify:**
-- `mobile/lib/features/trainer/data/repositories/trainer_repository.dart` — Add notification API methods
-- `mobile/lib/features/trainer/presentation/screens/trainer_dashboard_screen.dart` — Add notification bell icon with badge to app bar
-- `mobile/lib/core/constants/api_constants.dart` — Add notification endpoint constants
-- `mobile/lib/core/router/app_router.dart` — Add `/trainer/notifications` route
+3. **Food Entry Edit/Delete**:
+   - Create `edit_food_entry_sheet.dart` — bottom sheet with pre-filled form
+   - Add edit/delete methods to nutrition repository
+   - Wire the existing edit icon button on nutrition screen
+   - Add delete with confirmation dialog
+   - Optimistic update with revert
 
-### Key Design Decisions
-1. **Separate view file** for notifications (`notification_views.py`) — Keeps trainer views file manageable, clear separation of notification concerns.
-2. **Bulk update for mark-all-read** — Single SQL UPDATE query, not N individual saves. Efficient for trainers with many notifications.
-3. **Platform subscription webhook integration** — Extend existing `_handle_invoice_paid()` to also check `Subscription` model when `TraineeSubscription` is not found, rather than creating a separate webhook endpoint.
-4. **Date grouping on mobile** — Computed client-side from `created_at` timestamps. No server-side grouping needed.
-5. **Optimistic UI updates** — Mark-as-read and delete update the UI immediately, revert on API failure.
-6. **Separate notification providers** — `unreadNotificationCountProvider` is separate from the list provider so the badge can poll independently without loading the full list.
+4. **Dead Notification Button**:
+   - Replace TODO with navigation to settings or a simple "Notifications coming soon" info dialog (not a dead button)
+
+### Files to Create
+- `mobile/lib/features/auth/presentation/screens/forgot_password_screen.dart`
+- `mobile/lib/features/auth/presentation/screens/reset_password_screen.dart`
+- `mobile/lib/features/nutrition/presentation/widgets/edit_food_entry_sheet.dart`
+
+### Files to Modify
+- `backend/config/settings.py` — Email config, Djoser domain/site
+- `backend/workouts/views.py` — Weekly progress endpoint, food edit/delete actions
+- `mobile/lib/features/auth/presentation/screens/login_screen.dart` — Wire forgot password
+- `mobile/lib/features/home/presentation/providers/home_provider.dart` — Real progress
+- `mobile/lib/features/home/presentation/screens/home_screen.dart` — Wire notification button, progress
+- `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart` — Wire food edit/delete
+- `mobile/lib/core/constants/api_constants.dart` — New endpoints
+- `mobile/lib/core/router/app_router.dart` — New routes
+- `mobile/lib/features/auth/data/repositories/auth_repository.dart` — Password reset methods (or create if doesn't exist)
+- `mobile/lib/features/nutrition/data/repositories/nutrition_repository.dart` — Edit/delete methods
 
 ## Out of Scope
-- Push notifications (APNs/FCM) — Future enhancement, this is in-app only
-- Notification preferences/settings (which types to receive) — All types shown for MVP
-- Real-time WebSocket updates — Uses polling/pull-to-refresh for MVP
-- Notification sounds/vibration — Future enhancement
-- Ambassador dashboard UI changes for commission display — Already built in Pipeline 4
-- Stripe payout to ambassadors — Out of scope per ambassador ticket
+- Custom password reset email templates (use Djoser defaults)
+- Real-time push notifications for trainees (separate feature)
+- AI food parsing integration (separate feature)
+- 2FA setup (separate feature)
+- Deep link handling for password reset (mobile deep link infra needed — for now, user copies uid/token manually or we provide a simple web page)

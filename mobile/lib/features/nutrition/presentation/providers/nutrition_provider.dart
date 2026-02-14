@@ -315,4 +315,17 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
   void setActivePreset(MacroPresetModel? preset) {
     state = state.copyWith(activePreset: preset);
   }
+
+  /// Get the daily log ID for a given date by fetching the daily logs list
+  Future<int?> getDailyLogId(String date) async {
+    try {
+      final response = await _nutritionRepo.getDailyLogForDate(date);
+      if (response['success'] == true) {
+        return response['logId'] as int?;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }

@@ -57,6 +57,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 |---------|--------|-------|
 | Email-only registration (no username) | ✅ Done | Djoser + JWT |
 | JWT auth with refresh tokens | ✅ Done | |
+| Password reset via email | ✅ Done | Shipped 2026-02-14: Forgot/Reset screens, Djoser email integration, password strength indicator |
 | 4-step onboarding wizard | ✅ Done | About You → Activity → Goal → Diet |
 | Apple/Google social auth | 🟡 Partial | Backend configured, mobile not wired |
 | Server URL configuration | ✅ Done | For multi-deployment support |
@@ -88,6 +89,8 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Weekly nutrition plans | ✅ Done | Carb cycling support |
 | Weight check-ins | ✅ Done | |
 | Weight trend charts | ✅ Done | |
+| Food entry edit/delete | ✅ Done | Shipped 2026-02-14: Edit bottom sheet, backend endpoints with input whitelisting |
+| Weekly workout progress | ✅ Done | Shipped 2026-02-14: Animated progress bar on home screen, API-driven |
 
 ### 3.4 Trainer Dashboard
 | Feature | Status | Notes |

@@ -19,8 +19,10 @@ from django.db.models import QuerySet
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.conf import settings
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, cast
+
+from core.permissions import IsTrainee
 
 from users.models import User
 from .models import Exercise, Program, DailyLog, NutritionGoal, WeightCheckIn, MacroPreset
@@ -285,30 +287,23 @@ class ProgramViewSet(viewsets.ModelViewSet[Program]):
         """Return programs based on user role."""
         user = cast(User, self.request.user)
 
-        logger.info(f"ProgramViewSet.get_queryset: user={user.email}, role={user.role}, id={user.id}")
+        logger.debug(f"ProgramViewSet.get_queryset: user_id={user.id}, role={user.role}")
 
         if user.is_trainer():
             # Trainers see programs for their trainees
-            queryset = Program.objects.filter(
+            return Program.objects.filter(
                 trainee__parent_trainer=user
             ).select_related('trainee', 'created_by')
-            logger.info(f"Trainer {user.email}: returning {queryset.count()} programs")
-            return queryset
         elif user.is_trainee():
             # Trainees see their own programs
-            queryset = Program.objects.filter(
+            return Program.objects.filter(
                 trainee=user
             ).select_related('trainee', 'created_by')
-            logger.info(f"Trainee {user.email}: returning {queryset.count()} programs (user_id={user.id})")
-            # Also log all programs to help debug
-            all_programs = Program.objects.filter(trainee_id=user.id)
-            logger.info(f"Direct query by trainee_id: {all_programs.count()} programs")
-            return queryset
         elif user.is_admin():
             # Admins see all programs
             return Program.objects.all().select_related('trainee', 'created_by')
         else:
-            logger.warning(f"User {user.email} with role {user.role} - returning empty queryset")
+            logger.warning(f"User id={user.id} with role {user.role} - returning empty queryset")
             return Program.objects.none()
 
     def perform_create(self, serializer: BaseSerializer[Program]) -> None:
@@ -362,17 +357,24 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
 
         if user.is_trainee():
             # Trainees see only their own logs
-            return DailyLog.objects.filter(trainee=user).select_related('trainee')
+            queryset = DailyLog.objects.filter(trainee=user).select_related('trainee')
         elif user.is_trainer():
             # Trainers see logs for their trainees only
-            return DailyLog.objects.filter(
+            queryset = DailyLog.objects.filter(
                 trainee__parent_trainer=user
             ).select_related('trainee')
         elif user.is_admin():
             # Admins see all logs
-            return DailyLog.objects.all().select_related('trainee')
+            queryset = DailyLog.objects.all().select_related('trainee')
         else:
             return DailyLog.objects.none()
+
+        # Support date filtering via query parameter
+        date_param = self.request.query_params.get('date')
+        if date_param:
+            queryset = queryset.filter(date=date_param)
+
+        return queryset
     
     @action(detail=False, methods=['post'], url_path='parse-natural-language')
     def parse_natural_language(self, request: Request) -> Response:
@@ -703,6 +705,252 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
             'exercises': exercises,
             'program_context': program_context,
         })
+
+    @action(detail=False, methods=['get'], url_path='weekly-progress',
+            permission_classes=[IsTrainee])
+    def weekly_progress(self, request: Request) -> Response:
+        """
+        Get weekly workout progress for current trainee (Mon-Sun).
+
+        GET /api/workouts/daily-logs/weekly-progress/
+
+        Returns total_days, completed_days, percentage, week_start, week_end.
+        A "completed day" is any day with non-empty DailyLog.workout_data.
+        """
+        user = cast(User, request.user)
+
+        # Calculate current week (Mon-Sun)
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())  # weekday() 0=Mon
+        sunday = monday + timedelta(days=6)
+
+        # Find active program to determine expected workout days
+        active_program = Program.objects.filter(
+            trainee=user,
+            is_active=True,
+        ).first()
+
+        if active_program is None:
+            return Response({
+                'total_days': 0,
+                'completed_days': 0,
+                'percentage': 0,
+                'week_start': monday.isoformat(),
+                'week_end': sunday.isoformat(),
+                'has_program': False,
+            })
+
+        # Count expected workout days per week from program schedule
+        total_days = self._count_weekly_workout_days(active_program)
+
+        # Count completed days: days with non-empty workout_data
+        completed_days = DailyLog.objects.filter(
+            trainee=user,
+            date__range=(monday, sunday),
+        ).exclude(
+            workout_data={},
+        ).exclude(
+            workout_data__isnull=True,
+        ).count()
+
+        percentage = round((completed_days / total_days) * 100) if total_days > 0 else 0
+
+        return Response({
+            'total_days': total_days,
+            'completed_days': completed_days,
+            'percentage': min(percentage, 100),
+            'week_start': monday.isoformat(),
+            'week_end': sunday.isoformat(),
+            'has_program': True,
+        })
+
+    @staticmethod
+    def _count_weekly_workout_days(program: Program) -> int:
+        """Count non-rest workout days per week from program schedule."""
+        schedule = program.schedule
+        if not schedule:
+            return 0
+
+        # Schedule is either a list of weeks or a dict with 'weeks' key
+        weeks: list[Any] = []
+        if isinstance(schedule, list) and schedule:
+            weeks = schedule
+        elif isinstance(schedule, dict):
+            if 'weeks' in schedule and isinstance(schedule['weeks'], list):
+                weeks = schedule['weeks']
+
+        if not weeks:
+            return 0
+
+        # Use the first week as representative for expected days per week
+        first_week = weeks[0]
+        if not isinstance(first_week, dict):
+            return 0
+
+        days = first_week.get('days', [])
+        if not isinstance(days, list):
+            return 0
+
+        workout_days = 0
+        for day in days:
+            if not isinstance(day, dict):
+                continue
+            is_rest = day.get('is_rest_day', False)
+            day_name = day.get('name', '')
+            is_rest_by_name = isinstance(day_name, str) and 'rest' in day_name.lower()
+            if not is_rest and not is_rest_by_name:
+                workout_days += 1
+
+        return workout_days
+
+    @action(detail=True, methods=['put'], url_path='edit-meal-entry',
+            permission_classes=[IsTrainee])
+    def edit_meal_entry(self, request: Request, pk: int | None = None) -> Response:
+        """
+        Edit a food entry in a DailyLog's nutrition_data.
+
+        PUT /api/workouts/daily-logs/<id>/edit-meal-entry/
+        Body: {
+            "entry_index": 0,
+            "data": {"name": "Chicken Bowl", "protein": 50, "carbs": 60, "fat": 20, "calories": 650}
+        }
+
+        entry_index is a flat index into the meals array.
+        """
+        daily_log = self.get_object()
+        user = cast(User, request.user)
+
+        # Row-level security: trainee can only edit their own logs
+        if daily_log.trainee != user:
+            return Response(
+                {'error': 'Not authorized to edit this log'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        entry_index = request.data.get('entry_index')
+        entry_data = request.data.get('data')
+
+        if entry_index is None or entry_data is None:
+            return Response(
+                {'error': 'entry_index and data are required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not isinstance(entry_data, dict):
+            return Response(
+                {'error': 'data must be an object'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nutrition_data = daily_log.nutrition_data or {}
+        meals: list[Any] = nutrition_data.get('meals', [])
+
+        # entry_index is a flat index into the meals array.
+        target_index = entry_index
+        if not isinstance(target_index, int) or target_index < 0 or target_index >= len(meals):
+            return Response(
+                {'error': 'Invalid entry_index: entry not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Validate numeric fields
+        for field in ['protein', 'carbs', 'fat', 'calories']:
+            if field in entry_data:
+                value = entry_data[field]
+                if not isinstance(value, (int, float)) or value < 0:
+                    return Response(
+                        {'error': f'{field} must be a non-negative number'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+        # Whitelist allowed keys to prevent arbitrary key injection
+        allowed_keys = {'name', 'protein', 'carbs', 'fat', 'calories', 'timestamp'}
+        entry_data = {k: v for k, v in entry_data.items() if k in allowed_keys}
+
+        if not entry_data:
+            return Response(
+                {'error': 'No valid fields provided'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Update the entry, preserving any fields not in data
+        existing_entry = meals[target_index]
+        if isinstance(existing_entry, dict):
+            existing_entry.update(entry_data)
+        else:
+            meals[target_index] = entry_data
+
+        # Recalculate totals
+        nutrition_data['totals'] = self._recalculate_nutrition_totals(meals)
+        daily_log.nutrition_data = nutrition_data
+        daily_log.save(update_fields=['nutrition_data', 'updated_at'])
+
+        return Response(DailyLogSerializer(daily_log).data)
+
+    @action(detail=True, methods=['post'], url_path='delete-meal-entry',
+            permission_classes=[IsTrainee])
+    def delete_meal_entry(self, request: Request, pk: int | None = None) -> Response:
+        """
+        Delete a food entry from a DailyLog's nutrition_data.
+
+        POST /api/workouts/daily-logs/<id>/delete-meal-entry/
+        Body: {"entry_index": 0}
+        """
+        daily_log = self.get_object()
+        user = cast(User, request.user)
+
+        # Row-level security
+        if daily_log.trainee != user:
+            return Response(
+                {'error': 'Not authorized to edit this log'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        entry_index = request.data.get('entry_index')
+
+        if entry_index is None:
+            return Response(
+                {'error': 'entry_index is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nutrition_data = daily_log.nutrition_data or {}
+        meals: list[Any] = nutrition_data.get('meals', [])
+
+        target_index = entry_index
+        if not isinstance(target_index, int) or target_index < 0 or target_index >= len(meals):
+            return Response(
+                {'error': 'Invalid entry_index: entry not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Remove the entry
+        meals.pop(target_index)
+
+        # Recalculate totals
+        nutrition_data['totals'] = self._recalculate_nutrition_totals(meals)
+        daily_log.nutrition_data = nutrition_data
+        daily_log.save(update_fields=['nutrition_data', 'updated_at'])
+
+        return Response(DailyLogSerializer(daily_log).data)
+
+    @staticmethod
+    def _recalculate_nutrition_totals(meals: list[dict[str, Any]]) -> dict[str, int]:
+        """Recalculate nutrition totals from a list of meal entries."""
+        return {
+            'protein': sum(
+                m.get('protein', 0) for m in meals if isinstance(m, dict)
+            ),
+            'carbs': sum(
+                m.get('carbs', 0) for m in meals if isinstance(m, dict)
+            ),
+            'fat': sum(
+                m.get('fat', 0) for m in meals if isinstance(m, dict)
+            ),
+            'calories': sum(
+                m.get('calories', 0) for m in meals if isinstance(m, dict)
+            ),
+        }
 
 
 class NutritionGoalViewSet(viewsets.ModelViewSet[NutritionGoal]):

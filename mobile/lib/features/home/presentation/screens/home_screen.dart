@@ -50,6 +50,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   _buildNutritionSection(homeState),
                   const SizedBox(height: 32),
 
+                  // Weekly Progress section (only if trainee has a program)
+                  if (homeState.weeklyProgress case final progress?
+                      when progress.hasProgram) ...[
+                    _buildSectionHeader('Weekly Progress'),
+                    const SizedBox(height: 16),
+                    _buildWeeklyProgressSection(homeState),
+                    const SizedBox(height: 32),
+                  ],
+
                   // Current Program section
                   _buildSectionHeader('Current Program', showAction: true, onAction: () => context.push('/logbook')),
                   const SizedBox(height: 16),
@@ -156,7 +165,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             IconButton(
               onPressed: () {
-                // TODO: Notifications
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Notifications'),
+                    content: const Text(
+                      'Notifications are coming soon! You\'ll be able to see updates from your trainer here.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
               },
               icon: const Icon(Icons.notifications_outlined),
               color: theme.textTheme.bodySmall?.color,
@@ -288,6 +311,79 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildWeeklyProgressSection(HomeState state) {
+    final theme = Theme.of(context);
+    final progress = state.weeklyProgress;
+    if (progress == null) return const SizedBox.shrink();
+
+    final percentage = progress.percentage;
+    final completed = progress.completedDays;
+    final total = progress.totalDays;
+
+    String message;
+    if (completed == 0) {
+      message = 'Start your first workout!';
+    } else if (percentage >= 100) {
+      message = 'Week complete — great job!';
+    } else {
+      message = '$completed of $total workout days completed';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                message,
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '$percentage%',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: percentage / 100),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOut,
+              builder: (context, value, _) {
+                return LinearProgressIndicator(
+                  value: value.clamp(0.0, 1.0),
+                  minHeight: 8,
+                  backgroundColor: theme.dividerColor,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    theme.colorScheme.primary,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -461,10 +557,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: () {
-                      // TODO: Navigate to workout overview
-                      context.push('/logbook');
-                    },
+                    onPressed: () => context.push('/logbook'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: theme.colorScheme.primary,
                       side: BorderSide(color: theme.colorScheme.primary),
