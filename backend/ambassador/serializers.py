@@ -3,7 +3,6 @@ Serializers for ambassador models and dashboard stats.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
@@ -89,36 +88,6 @@ class AmbassadorCommissionSerializer(serializers.ModelSerializer[AmbassadorCommi
             'commission_amount', 'status', 'period_start', 'period_end', 'created_at',
         ]
 
-
-@dataclass
-class MonthlyEarnings:
-    """Monthly earnings data point for dashboard chart."""
-    month: str
-    earnings: Decimal
-    referral_count: int
-
-
-class DashboardSerializer(serializers.Serializer[dict[str, Any]]):
-    """Serializer for ambassador dashboard response."""
-
-    total_referrals = serializers.IntegerField()
-    active_referrals = serializers.IntegerField()
-    pending_referrals = serializers.IntegerField()
-    churned_referrals = serializers.IntegerField()
-    total_earnings = serializers.DecimalField(max_digits=12, decimal_places=2)
-    pending_earnings = serializers.DecimalField(max_digits=12, decimal_places=2)
-    monthly_earnings = serializers.ListField(child=serializers.DictField())
-    recent_referrals = AmbassadorReferralSerializer(many=True)
-    referral_code = serializers.CharField()
-    commission_rate = serializers.DecimalField(max_digits=4, decimal_places=2)
-    is_active = serializers.BooleanField()
-
-
-class ReferralCodeSerializer(serializers.Serializer[dict[str, Any]]):
-    """Serializer for referral code sharing response."""
-
-    referral_code = serializers.CharField()
-    share_message = serializers.CharField()
 
 
 class AdminCreateAmbassadorSerializer(serializers.Serializer[dict[str, Any]]):

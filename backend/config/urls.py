@@ -5,6 +5,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from ambassador.urls import admin_urlpatterns as ambassador_admin_urlpatterns
 from subscriptions.urls import payment_urlpatterns
 
 urlpatterns = [
@@ -18,6 +19,7 @@ urlpatterns = [
 
     # Admin API endpoints
     path('api/admin/', include('subscriptions.urls')),
+    path('api/admin/ambassadors/', include((ambassador_admin_urlpatterns, 'ambassador-admin'))),
 
     # Payment API endpoints (Stripe Connect)
     path('api/payments/', include((payment_urlpatterns, 'payments'))),
