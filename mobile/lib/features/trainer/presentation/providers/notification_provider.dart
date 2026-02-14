@@ -21,6 +21,7 @@ final notificationsProvider =
 class NotificationsNotifier extends AutoDisposeAsyncNotifier<List<TrainerNotificationModel>> {
   int _currentPage = 1;
   bool _hasMore = true;
+  bool _isLoadingMore = false;
 
   bool get hasMore => _hasMore;
 
@@ -43,13 +44,21 @@ class NotificationsNotifier extends AutoDisposeAsyncNotifier<List<TrainerNotific
 
   /// Load more notifications (pagination).
   Future<void> loadMore() async {
-    if (!_hasMore) return;
+    if (!_hasMore || _isLoadingMore) return;
     final currentState = state;
     if (currentState is! AsyncData<List<TrainerNotificationModel>>) return;
 
-    _currentPage++;
-    final newPage = await _fetchPage(_currentPage);
-    state = AsyncData([...currentState.value, ...newPage]);
+    _isLoadingMore = true;
+    try {
+      _currentPage++;
+      final newPage = await _fetchPage(_currentPage);
+      state = AsyncData([...currentState.value, ...newPage]);
+    } catch (e) {
+      _currentPage--;
+      rethrow;
+    } finally {
+      _isLoadingMore = false;
+    }
   }
 
   /// Mark a single notification as read (optimistic update).

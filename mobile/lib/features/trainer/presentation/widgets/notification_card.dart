@@ -6,7 +6,7 @@ import '../../data/models/trainer_notification_model.dart';
 class NotificationCard extends StatelessWidget {
   final TrainerNotificationModel notification;
   final VoidCallback onTap;
-  final VoidCallback onDismiss;
+  final Future<bool> Function() onDismiss;
 
   const NotificationCard({
     super.key,
@@ -22,12 +22,12 @@ class NotificationCard extends StatelessWidget {
     return Dismissible(
       key: ValueKey(notification.id),
       direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDismiss(),
+      confirmDismiss: (_) => onDismiss(),
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        color: Colors.red,
-        child: const Icon(Icons.delete, color: Colors.white),
+        color: theme.colorScheme.error,
+        child: Icon(Icons.delete, color: theme.colorScheme.onError),
       ),
       child: InkWell(
         onTap: onTap,

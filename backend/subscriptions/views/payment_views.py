@@ -515,11 +515,11 @@ class StripeWebhookView(APIView):
                     },
                 )
 
-                # Create commission for first payment using session data
+                # Create commission for first payment using actual session amount
                 invoice_stub: dict[str, Any] = {
                     'period_start': int(timezone.now().timestamp()),
                     'period_end': int((timezone.now() + timedelta(days=30)).timestamp()),
-                    'amount_paid': int(platform_sub.get_monthly_price() * 100),
+                    'amount_paid': session.get('amount_total', 0),
                 }
                 self._create_ambassador_commission(trainer, invoice_stub)
 
@@ -598,7 +598,8 @@ class StripeWebhookView(APIView):
                     invoice['period_end'], tz=tz.utc
                 )
             platform_sub.last_payment_date = timezone.now().date()
-            platform_sub.last_payment_amount = platform_sub.get_monthly_price()
+            amount_paid_cents = invoice.get('amount_paid', 0)
+            platform_sub.last_payment_amount = Decimal(str(amount_paid_cents)) / 100
             platform_sub.save(update_fields=[
                 'status', 'current_period_start', 'current_period_end',
                 'last_payment_date', 'last_payment_amount', 'updated_at',

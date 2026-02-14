@@ -12,6 +12,7 @@ class NotificationBadge extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final countAsync = ref.watch(unreadNotificationCountProvider);
+    final theme = Theme.of(context);
 
     return IconButton(
       icon: Stack(
@@ -28,7 +29,7 @@ class NotificationBadge extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: theme.colorScheme.error,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(

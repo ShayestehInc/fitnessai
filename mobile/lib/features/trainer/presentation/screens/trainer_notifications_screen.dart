@@ -87,7 +87,7 @@ class _TrainerNotificationsScreenState
         return NotificationCard(
           notification: notification,
           onTap: () => _onNotificationTap(notification),
-          onDismiss: () => _onNotificationDismiss(notification),
+          onDismiss: () => _confirmAndDeleteNotification(notification),
         );
       },
     );
@@ -152,7 +152,7 @@ class _TrainerNotificationsScreenState
     }
   }
 
-  void _onNotificationDismiss(TrainerNotificationModel notification) async {
+  Future<bool> _confirmAndDeleteNotification(TrainerNotificationModel notification) async {
     final messenger = ScaffoldMessenger.of(context);
     final success = await ref
         .read(notificationsProvider.notifier)
@@ -162,10 +162,31 @@ class _TrainerNotificationsScreenState
         const SnackBar(content: Text('Failed to delete notification')),
       );
     }
+    return success;
   }
 
   void _markAllRead(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
+    final theme = Theme.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mark All as Read'),
+        content: const Text('Mark all notifications as read?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     final success =
         await ref.read(notificationsProvider.notifier).markAllRead();
     if (mounted) {
@@ -174,7 +195,7 @@ class _TrainerNotificationsScreenState
           content: Text(
             success ? 'All notifications marked as read' : 'Failed to mark all as read',
           ),
-          backgroundColor: success ? Colors.green : Colors.red,
+          backgroundColor: success ? theme.colorScheme.primary : theme.colorScheme.error,
         ),
       );
     }
