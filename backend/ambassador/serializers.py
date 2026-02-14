@@ -55,11 +55,10 @@ class AmbassadorReferralSerializer(serializers.ModelSerializer[AmbassadorReferra
     def get_trainer_subscription_tier(self, obj: AmbassadorReferral) -> str:
         """Get the referred trainer's current subscription tier.
 
-        Expects trainer to have subscription prefetched (select_related).
+        Subscription is a OneToOneField on the trainer user with related_name='subscription'.
         """
         try:
-            subscription = obj.trainer.trainee_subscription  # type: ignore[attr-defined]
-            return str(subscription.tier) if subscription else 'FREE'
+            return str(obj.trainer.subscription.tier)
         except (AttributeError, ObjectDoesNotExist):
             return 'FREE'
 

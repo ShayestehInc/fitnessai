@@ -38,7 +38,6 @@ class AuthRepository {
             'refresh_token': refreshToken,
           };
         } catch (e) {
-          print('Error fetching user info: $e');
           // If user endpoint fails, return error
           return {
             'success': false,

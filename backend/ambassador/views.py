@@ -56,12 +56,14 @@ class AmbassadorDashboardView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Single query for all status counts
+        # Single query for all status counts + total
         status_counts = AmbassadorReferral.objects.filter(ambassador=user).aggregate(
+            total_count=Count('id'),
             active_count=Count(Case(When(status=AmbassadorReferral.Status.ACTIVE, then=1))),
             pending_count=Count(Case(When(status=AmbassadorReferral.Status.PENDING, then=1))),
             churned_count=Count(Case(When(status=AmbassadorReferral.Status.CHURNED, then=1))),
         )
+        total_count = status_counts['total_count']
         active_count = status_counts['active_count']
         pending_count = status_counts['pending_count']
         churned_count = status_counts['churned_count']
@@ -96,7 +98,7 @@ class AmbassadorDashboardView(APIView):
         # Recent referrals (last 5) with annotated commission totals to avoid N+1
         recent_referrals = (
             AmbassadorReferral.objects.filter(ambassador=user)
-            .select_related('trainer')
+            .select_related('trainer', 'trainer__subscription')
             .annotate(
                 _total_commission=Sum(
                     Case(
@@ -116,7 +118,7 @@ class AmbassadorDashboardView(APIView):
         recent_serialized = AmbassadorReferralSerializer(recent_referrals, many=True).data
 
         return Response({
-            'total_referrals': profile.total_referrals,
+            'total_referrals': total_count,
             'active_referrals': active_count,
             'pending_referrals': pending_count,
             'churned_referrals': churned_count,
@@ -141,7 +143,7 @@ class AmbassadorReferralsView(APIView):
         user = cast(User, request.user)
         referrals = (
             AmbassadorReferral.objects.filter(ambassador=user)
-            .select_related('trainer')
+            .select_related('trainer', 'trainer__subscription')
             .annotate(
                 _total_commission=Sum(
                     Case(
@@ -311,7 +313,7 @@ class AdminAmbassadorDetailView(APIView):
 
         referrals = (
             AmbassadorReferral.objects.filter(ambassador=profile.user)
-            .select_related('trainer')
+            .select_related('trainer', 'trainer__subscription')
             .annotate(
                 _total_commission=Sum(
                     Case(

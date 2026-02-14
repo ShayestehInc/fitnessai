@@ -42,9 +42,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):  # type: ignore[misc]
 
         role = validated_data.pop('role', User.Role.TRAINEE)
         referral_code = validated_data.pop('referral_code', '').strip()
-        user = User.objects.create_user(**validated_data)
-        user.role = role
-        user.save(update_fields=['role'])
+        user = User.objects.create_user(role=role, **validated_data)
 
         # Process referral code for trainers (silently ignore failures)
         if referral_code and role == User.Role.TRAINER:

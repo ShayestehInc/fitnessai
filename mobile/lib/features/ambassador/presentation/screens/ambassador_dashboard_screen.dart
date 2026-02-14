@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/models/ambassador_models.dart';
 import '../providers/ambassador_provider.dart';
 
 class AmbassadorDashboardScreen extends ConsumerStatefulWidget {
@@ -133,7 +134,7 @@ class _AmbassadorDashboardScreenState
     );
   }
 
-  Widget _buildEarningsCard(ThemeData theme, dynamic data) {
+  Widget _buildEarningsCard(ThemeData theme, AmbassadorDashboardData data) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -193,7 +194,7 @@ class _AmbassadorDashboardScreenState
     );
   }
 
-  Widget _buildReferralCodeCard(ThemeData theme, dynamic data) {
+  Widget _buildReferralCodeCard(ThemeData theme, AmbassadorDashboardData data) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -254,7 +255,7 @@ class _AmbassadorDashboardScreenState
     );
   }
 
-  Widget _buildStatsRow(ThemeData theme, dynamic data) {
+  Widget _buildStatsRow(ThemeData theme, AmbassadorDashboardData data) {
     return Row(
       children: [
         Expanded(
@@ -327,7 +328,7 @@ class _AmbassadorDashboardScreenState
     );
   }
 
-  Widget _buildRecentReferrals(ThemeData theme, dynamic data) {
+  Widget _buildRecentReferrals(ThemeData theme, AmbassadorDashboardData data) {
     if (data.recentReferrals.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
@@ -368,7 +369,7 @@ class _AmbassadorDashboardScreenState
     );
   }
 
-  Widget _buildReferralTile(ThemeData theme, dynamic referral) {
+  Widget _buildReferralTile(ThemeData theme, AmbassadorReferral referral) {
     final statusColor = switch (referral.status) {
       'ACTIVE' => Colors.green,
       'PENDING' => Colors.orange,
