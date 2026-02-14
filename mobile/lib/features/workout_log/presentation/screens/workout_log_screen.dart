@@ -104,11 +104,13 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                     onPressed: () => context.push('/workout-calendar'),
                     icon: const Icon(Icons.calendar_month),
                     color: theme.textTheme.bodySmall?.color,
+                    tooltip: 'Open calendar',
                   ),
                   IconButton(
                     onPressed: () => _showProgramOptions(context),
                     icon: const Icon(Icons.more_vert),
                     color: theme.textTheme.bodySmall?.color,
+                    tooltip: 'More options',
                   ),
                 ],
               ),
@@ -185,6 +187,13 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
   }
 
   Widget _buildWorkoutsList(ThemeData theme, WorkoutState state) {
+    // Show error state if there's an error and no data to show
+    if (state.error != null && state.programs.isEmpty) {
+      return SliverToBoxAdapter(
+        child: _buildErrorState(theme, state.error!),
+      );
+    }
+
     final week = state.selectedWeek;
     if (week == null || week.workouts.isEmpty) {
       return SliverToBoxAdapter(
@@ -264,6 +273,52 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
               fontSize: 14,
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(ThemeData theme, String error) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: theme.colorScheme.error,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Something went wrong',
+            style: TextStyle(
+              color: theme.textTheme.bodyLarge?.color,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Could not load your workouts. Pull down to retry.',
+            style: TextStyle(
+              color: theme.textTheme.bodySmall?.color,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () =>
+                ref.read(workoutStateProvider.notifier).loadInitialData(),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
           ),
         ],
       ),
