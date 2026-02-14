@@ -264,7 +264,7 @@ class PostWorkoutSurveyView(APIView):
         today = timezone.now().date()
 
         with transaction.atomic():
-            daily_log, _created = DailyLog.objects.select_for_update().get_or_create(
+            daily_log, _created = DailyLog.objects.get_or_create(
                 trainee=user,
                 date=today,
             )
