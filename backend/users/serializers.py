@@ -13,26 +13,45 @@ from .models import User, UserProfile
 
 
 class UserCreateSerializer(BaseUserCreateSerializer):  # type: ignore[misc]
-    """Custom user creation serializer that includes role field."""
+    """Custom user creation serializer that includes role field and optional referral code."""
 
     role = serializers.ChoiceField(
         choices=User.Role.choices,
         default=User.Role.TRAINEE,
         required=False
     )
+    referral_code = serializers.CharField(
+        max_length=8,
+        required=False,
+        allow_blank=True,
+        help_text="Optional ambassador referral code",
+    )
 
     class Meta(BaseUserCreateSerializer.Meta):  # type: ignore[misc]
         model = User
-        fields = ['email', 'password', 'role', 'first_name', 'last_name']
+        fields = ['email', 'password', 'role', 'first_name', 'last_name', 'referral_code']
         extra_kwargs = {
             'password': {'write_only': True},
         }
 
     def create(self, validated_data: dict[str, Any]) -> User:
+        import logging
+        from ambassador.services.referral_service import ReferralService
+
+        logger = logging.getLogger(__name__)
+
         role = validated_data.pop('role', User.Role.TRAINEE)
+        referral_code = validated_data.pop('referral_code', '').strip()
         user = User.objects.create_user(**validated_data)
         user.role = role
         user.save()
+
+        # Process referral code for trainers (silently ignore failures)
+        if referral_code and role == User.Role.TRAINER:
+            result = ReferralService.process_referral_code(user, referral_code)
+            if not result.success:
+                logger.info("Referral code '%s' not applied: %s", referral_code, result.message)
+
         return user
 
 

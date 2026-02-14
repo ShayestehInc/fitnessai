@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'trainer',
     'features',
     'calendars',
+    'ambassador',
 ]
 
 MIDDLEWARE = [

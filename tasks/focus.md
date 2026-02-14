@@ -1,17 +1,17 @@
-# Focus: White-Label Infrastructure
+# Focus: Ambassador User Type & Referral System
 
-## Priority: HIGH (Priority #1 — next after workout layouts shipped 2026-02-14)
+## Priority: HIGH (Priority #4 — skipping Web Dashboard which is too large for single pipeline)
 
 ## What
-Per-trainer branding system. Each trainer can customize the app appearance for their trainees: primary/secondary colors, logo, app name. Trainees see their trainer's branding instead of "FitnessAI."
+New AMBASSADOR user role with referral system. Ambassadors sell the platform to trainers and earn monthly revenue share from each referred trainer's subscription. Complete with referral codes, revenue tracking, admin management, and ambassador dashboard.
 
 ## Why
-FitnessAI is a white-label platform — trainers are the paying customers and want their brand front-and-center. Without white-labeling, the app looks generic. Trainers can't differentiate their business. This is a core value proposition for trainer acquisition and retention.
+FitnessAI's growth depends on trainer acquisition. Currently, trainers find the platform organically. An ambassador program creates a sales channel where motivated individuals recruit trainers for a recurring commission. This is a proven SaaS growth strategy (Stripe, Shopify, HubSpot all use it).
 
 ## Who Benefits
-- **Trainers**: Present a professional, branded experience to clients. Builds trust and loyalty.
-- **Trainees**: See their trainer's brand, reinforcing the trainer-client relationship.
-- **Platform**: Increases trainer willingness to pay (their brand, not ours).
+- **Ambassadors**: Earn passive income by referring trainers to the platform
+- **Platform**: Scales trainer acquisition without scaling sales team
+- **Trainers**: Discover the platform through trusted personal referrals
 
 ## Success Metric
-Trainer configures branding → trainee logs in → sees trainer's colors, logo, and app name throughout the app.
+Admin creates ambassador → ambassador shares referral link → trainer signs up → ambassador sees referred trainer on dashboard → ambassador earns monthly commission from trainer's subscription.

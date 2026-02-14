@@ -47,3 +47,25 @@ class IsTrainerOrAdmin(permissions.BasePermission):
             request.user.is_authenticated and
             (request.user.is_trainer() or request.user.is_admin())
         )
+
+
+class IsAmbassador(permissions.BasePermission):
+    """Permission check for Ambassador role."""
+
+    def has_permission(self, request: Any, view: Any) -> bool:
+        return bool(
+            request.user and
+            request.user.is_authenticated and
+            request.user.is_ambassador()
+        )
+
+
+class IsAmbassadorOrAdmin(permissions.BasePermission):
+    """Permission check for Ambassador or Admin roles."""
+
+    def has_permission(self, request: Any, view: Any) -> bool:
+        return bool(
+            request.user and
+            request.user.is_authenticated and
+            (request.user.is_ambassador() or request.user.is_admin())
+        )
