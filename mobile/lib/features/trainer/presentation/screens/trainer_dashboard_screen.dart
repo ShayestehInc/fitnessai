@@ -11,6 +11,7 @@ import '../../../programs/presentation/screens/program_builder_screen.dart';
 import '../providers/trainer_provider.dart';
 import '../widgets/quick_stats_grid.dart';
 import '../widgets/trainee_card.dart';
+import '../widgets/notification_badge.dart';
 
 class TrainerDashboardScreen extends ConsumerWidget {
   const TrainerDashboardScreen({super.key});
@@ -28,6 +29,9 @@ class TrainerDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Trainer Dashboard'),
         actions: [
+          NotificationBadge(
+            onTap: () => context.push('/trainer/notifications'),
+          ),
           IconButton(
             icon: const Icon(Icons.psychology),
             onPressed: () => context.push('/trainer/ai-chat'),
@@ -390,7 +394,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                                   .toList();
                             }
                           } catch (e) {
-                            debugPrint('Error parsing schedule template: $e');
+                            // Schedule template parsing failed — fall through to empty weeks
                           }
                         }
                         // Navigate to program builder to edit

@@ -1,34 +1,37 @@
-# Security Audit: Ambassador Referral & Commission System
+# Security Audit: Trainer Notifications Dashboard + Ambassador Commission Webhook
 
-## Audit Date: 2026-02-14
+## Audit Date: 2026-02-14 (Pipeline 5)
 
-## Scope
-All files created or modified as part of the Ambassador feature:
-- `backend/ambassador/models.py` (AmbassadorProfile, AmbassadorReferral, AmbassadorCommission)
-- `backend/ambassador/views.py` (Dashboard, Referrals, ReferralCode, Admin CRUD views)
-- `backend/ambassador/serializers.py` (Profile, Referral, Commission, Admin serializers)
-- `backend/ambassador/services/referral_service.py` (ReferralService)
-- `backend/ambassador/urls.py` (Ambassador + Admin URL patterns)
-- `backend/ambassador/admin.py` (Django admin registration)
-- `backend/users/serializers.py` (UserCreateSerializer with referral_code field)
-- `backend/core/permissions.py` (IsAmbassador, IsAmbassadorOrAdmin)
-- `backend/config/urls.py` (URL routing for ambassador + admin ambassador endpoints)
-- `backend/config/settings.py` (REST_FRAMEWORK, CORS configuration)
-- `mobile/lib/features/ambassador/data/repositories/ambassador_repository.dart`
-- `mobile/lib/features/ambassador/data/models/ambassador_models.dart`
-- `mobile/lib/features/ambassador/presentation/providers/ambassador_provider.dart`
+## Files Reviewed
+- `backend/trainer/notification_views.py` (created)
+- `backend/trainer/notification_serializers.py` (created)
+- `backend/trainer/urls.py` (modified)
+- `backend/trainer/models.py` (TrainerNotification model -- reviewed)
+- `backend/subscriptions/views/payment_views.py` (modified -- `_handle_invoice_paid`, `_handle_checkout_completed`, `_handle_subscription_deleted`, `_create_ambassador_commission`)
+- `backend/ambassador/services/referral_service.py` (called by webhook -- reviewed)
+- `backend/core/permissions.py` (IsTrainer permission class -- reviewed)
+- `backend/config/settings.py` (DRF defaults, throttle, CORS, auth -- reviewed)
+- `mobile/lib/features/trainer/presentation/providers/notification_provider.dart` (created)
+- `mobile/lib/features/trainer/presentation/widgets/notification_card.dart` (created)
+- `mobile/lib/features/trainer/presentation/widgets/notification_badge.dart` (created)
+- `mobile/lib/features/trainer/presentation/screens/trainer_notifications_screen.dart` (created)
+- `mobile/lib/features/trainer/data/repositories/trainer_repository.dart` (modified)
+- `mobile/lib/features/trainer/data/models/trainer_notification_model.dart` (created)
+- `mobile/lib/core/constants/api_constants.dart` (modified)
 
 ## Checklist
 - [x] No secrets, API keys, passwords, or tokens in source code or docs
-- [x] No secrets in git history (grepped all ambassador files)
-- [x] All user input sanitized (referral codes stripped/uppercased, email validated, decimal ranges enforced)
-- [x] Authentication checked on all new endpoints
-- [x] Authorization -- correct role/permission guards
-- [x] No IDOR vulnerabilities
-- [ ] File uploads validated -- N/A (no file uploads in ambassador feature)
-- [x] Rate limiting on sensitive endpoints (FIXED -- added global throttle rates)
-- [x] Error messages don't leak internals
-- [x] CORS policy appropriate (FIXED -- now conditional on DEBUG)
+- [x] No secrets in git history (`.env` files in `.gitignore`, `example.env` uses placeholders only)
+- [x] All user input sanitized (notification content is server-generated, not user-supplied)
+- [x] Authentication checked on all new endpoints (all 5 notification endpoints require `IsAuthenticated`)
+- [x] Authorization -- correct role/permission guards (`IsTrainer` on all notification endpoints)
+- [x] No IDOR vulnerabilities (all queries filter by `trainer=request.user`, tested with row-level security tests)
+- [x] File uploads validated (N/A -- no file uploads in this feature)
+- [x] Rate limiting on sensitive endpoints (global DRF throttle: 120/min for authenticated users applies)
+- [x] Error messages don't leak internals (generic error messages, no stack traces exposed)
+- [x] CORS policy appropriate (restricted in production, open only in DEBUG mode)
+- [x] Webhook signature verification in place (`stripe.Webhook.construct_event` with `STRIPE_WEBHOOK_SECRET`)
+- [x] Stripe API key loaded from `settings.STRIPE_SECRET_KEY` (env var), not hardcoded
 
 ---
 
@@ -36,12 +39,12 @@ All files created or modified as part of the Ambassador feature:
 
 **Result: PASS**
 
-Grepped all ambassador files (backend + mobile) for API keys, passwords, tokens, secrets, and credentials. No secrets found.
+Grepped all new/changed files (backend and mobile) for patterns: `api_key`, `password`, `secret`, `token`, `sk_live`, `pk_live`, `sk_test`, `pk_test`, `SECRET_KEY`, `PRIVATE_KEY`, `AWS_ACCESS`, `OPENAI_API_KEY`, `AKIA`, `eyJ`. No hardcoded secrets found.
 
-- No hardcoded credentials in any ambassador file
-- `set_unusable_password()` correctly used for admin-created ambassador accounts (no default passwords)
-- All environment-variable-based secrets (`OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, etc.) remain properly isolated in `settings.py` via `os.getenv()`
-- No secrets in migration files
+- `stripe.api_key = settings.STRIPE_SECRET_KEY` (line 36 of `payment_views.py`) -- reads from environment variable, not hardcoded. Existing pattern, not new.
+- `.env` files are in `.gitignore` and not tracked by git.
+- `example.env` uses placeholder values only (e.g., `your-stripe-secret-key-here`).
+- No tokens, credentials, or API keys in any mobile Dart files.
 
 ---
 
@@ -51,10 +54,11 @@ Grepped all ambassador files (backend + mobile) for API keys, passwords, tokens,
 
 | # | Type | File:Line | Issue | Status |
 |---|------|-----------|-------|--------|
-| 1 | SQL Injection | N/A | All queries use Django ORM exclusively. No raw SQL, `RawSQL()`, `extra()`, or `cursor.execute()` anywhere in ambassador code. | PASS |
-| 2 | XSS | N/A | All responses are JSON via DRF. No HTML rendering. Referral code is alphanumeric only (A-Z, 0-9). | PASS |
+| 1 | SQL Injection | N/A | All queries use Django ORM exclusively. No raw SQL, `RawSQL()`, `extra()`, or `cursor.execute()` in any new code. | PASS |
+| 2 | XSS | N/A | All responses are JSON via DRF. Notification `title`/`message` are server-generated from stored user data (names from DB), not from HTTP request bodies. Flutter renders text natively (no HTML rendering). | PASS |
 | 3 | Command Injection | N/A | No shell commands, `os.system()`, or `subprocess` calls. | PASS |
-| 4 | Path Traversal | N/A | No file operations in ambassador feature. | PASS |
+| 4 | Path Traversal | N/A | No file operations in notification or webhook features. | PASS |
+| 5 | Parameter Injection | `notification_views.py:50-53` | `is_read` query parameter is parsed via safe string comparison (`lower() in ('true', '1', 'yes')`) and then passed as a Python boolean to `.filter(is_read=is_read)`. No injection vector. | PASS |
 
 ---
 
@@ -66,174 +70,152 @@ Grepped all ambassador files (backend + mobile) for API keys, passwords, tokens,
 
 | # | Endpoint | Method | Auth | Permission | Row-Level Security | Status |
 |---|----------|--------|------|------------|-------------------|--------|
-| 1 | `GET /api/ambassador/dashboard/` | GET | IsAuthenticated | IsAmbassador | Filters all queries by `ambassador=user` (request.user). Ambassador can only see own data. | PASS |
-| 2 | `GET /api/ambassador/referrals/` | GET | IsAuthenticated | IsAmbassador | Filters by `ambassador=user`. No user-supplied ID parameter. | PASS |
-| 3 | `GET /api/ambassador/referral-code/` | GET | IsAuthenticated | IsAmbassador | Uses `AmbassadorProfile.objects.get(user=user)`. Only own profile accessible. | PASS |
-| 4 | `GET /api/admin/ambassadors/` | GET | IsAuthenticated | IsAdmin | Admin-only. Lists all ambassadors (correct for admin). | PASS |
-| 5 | `POST /api/admin/ambassadors/create/` | POST | IsAuthenticated | IsAdmin | Admin-only. Creates ambassador with AMBASSADOR role. | PASS |
-| 6 | `GET/PUT /api/admin/ambassadors/<id>/` | GET/PUT | IsAuthenticated | IsAdmin | Admin-only. Uses ambassador profile ID (not user ID). Correct for admin access. | PASS |
+| 1 | `GET /api/trainer/notifications/` | GET | IsAuthenticated | IsTrainer | `filter(trainer=request.user)` | PASS |
+| 2 | `GET /api/trainer/notifications/unread-count/` | GET | IsAuthenticated | IsTrainer | `filter(trainer=request.user, is_read=False)` | PASS |
+| 3 | `POST /api/trainer/notifications/<pk>/read/` | POST | IsAuthenticated | IsTrainer | `.get(pk=pk, trainer=request.user)` -- returns 404 for wrong trainer | PASS |
+| 4 | `POST /api/trainer/notifications/mark-all-read/` | POST | IsAuthenticated | IsTrainer | `filter(trainer=request.user, is_read=False)` | PASS |
+| 5 | `DELETE /api/trainer/notifications/<pk>/` | DELETE | IsAuthenticated | IsTrainer | `.get(pk=pk, trainer=request.user)` -- returns 404 for wrong trainer | PASS |
+| 6 | `POST /api/payments/webhook/` | POST | None (webhook) | None | Verified via Stripe webhook signature | PASS |
 
 ### IDOR Analysis
 
-- **Ambassador dashboard/referrals**: All queries filter by `request.user`. No user-supplied ambassador ID. Impossible to access another ambassador's data.
-- **Admin endpoints**: Protected by `IsAdmin` permission. Admin is expected to access all ambassador data.
-- **Referral code endpoint**: Uses `request.user` to find own profile. No parameter injection possible.
-- **Registration referral code processing**: `process_referral_code()` takes the trainer (newly created user) and referral code string. No way to attribute a referral to a different ambassador.
+- **NotificationListView**: `get_queryset()` filters by `trainer=cast(User, self.request.user)`. A trainer can only see their own notifications. No user-supplied trainer ID parameter.
+- **MarkNotificationReadView**: Uses `.get(pk=pk, trainer=trainer)` -- the notification must belong to the authenticated trainer. If trainer A tries to mark trainer B's notification (pk=X), they get 404.
+- **DeleteNotificationView**: Same pattern -- `.get(pk=pk, trainer=trainer)`. Cross-trainer deletion is impossible.
+- **MarkAllReadView**: Filters by `trainer=request.user`. Only marks the authenticated trainer's notifications.
+- **UnreadCountView**: Counts only `trainer=request.user` notifications.
+
+**Test Coverage:** 59 tests pass for notification views, including dedicated `NotificationRowLevelSecurityTests` and `NotificationPermissionTests` that verify:
+- Trainer A cannot see/read/delete trainer B's notifications
+- Mark-all-read only affects own notifications
+- Unauthenticated users get 401
+- Trainees get 403
 
 **No IDOR vulnerabilities found.**
 
-### Role Escalation Analysis
+### Webhook Security
 
-- **UserCreateSerializer.role**: Correctly restricted to `choices=[(User.Role.TRAINEE, 'Trainee'), (User.Role.TRAINER, 'Trainer')]`. Users CANNOT register as ADMIN or AMBASSADOR through the registration endpoint. AMBASSADOR accounts can only be created by admins via `AdminCreateAmbassadorView`. PASS.
-- **AdminCreateAmbassadorView**: Hardcodes `role=User.Role.AMBASSADOR` -- not user-supplied. Cannot be manipulated. PASS.
+- `StripeWebhookView` validates the webhook payload via `stripe.Webhook.construct_event()` with `settings.STRIPE_WEBHOOK_SECRET`.
+- Invalid payloads return 400 ("Invalid payload").
+- Invalid signatures return 400 ("Invalid signature").
+- The webhook handler processes only known event types and silently ignores unknown ones (returns 200).
+- All user lookups in webhook handlers use validated data from the Stripe-verified event object.
 
 ---
 
 ## 4. DATA EXPOSURE
 
-**Result: PASS (with minor observation)**
+**Result: PASS**
 
-### Ambassador-facing serializers:
+### Serializer Field Exposure
 
-`AmbassadorReferralSerializer` exposes:
-- `trainer.id`, `trainer.email`, `trainer.first_name`, `trainer.last_name`, `trainer.is_active`, `trainer.created_at`
-- Referral status, dates, subscription tier, commission earned
+`TrainerNotificationSerializer` exposes exactly: `id`, `notification_type`, `title`, `message`, `data`, `is_read`, `read_at`, `created_at`.
 
-This is reasonable since ambassadors need to see which trainers they referred. However, exposing `trainer.id` and `trainer.is_active` is slightly more than necessary.
+- The `trainer` FK is correctly **excluded** from the serialized output. A notification does not reveal which trainer it belongs to (beyond the fact that the authenticated trainer is viewing their own).
+- The `data` JSONField contains operational data: `trainee_id`, `trainee_name`, `workout_name`, `readiness_score`, `survey_data`. This data is appropriate for the trainer to see -- it's about their own trainees.
 
-`AmbassadorCommissionSerializer` exposes:
-- `trainer_email` (via `referral.trainer.email`)
-- Commission amounts, rates, periods, status
+### Error Messages
 
-Again, reasonable for the ambassador to see their own commission data.
+All error responses use generic messages:
+- `"Notification not found"` (404)
+- No stack traces, no internal paths, no query details
 
-### Admin-facing serializers:
-- Admin serializers expose full ambassador data. Appropriate for admin role.
+### Webhook Logging
 
-### Error messages:
-- All error messages are generic: "Ambassador profile not found", "Ambassador not found", "A user with this email already exists"
-- No stack traces, no internal paths, no query details leaked
+- Logger messages in webhook handlers reference `trainer.email` and `subscription_id`, which are appropriate for server-side logs. These are not returned to the client.
+- All webhook responses return only `{"received": true}`, `{"error": "Invalid payload"}`, or `{"error": "Invalid signature"}`.
 
 ---
 
-## 5. REGISTRATION SECURITY
+## 5. WEBHOOK COMMISSION SECURITY
 
 **Result: PASS**
 
+### Commission Creation Flow
+
 | Check | Status | Details |
 |-------|--------|---------|
-| Can register as ADMIN? | BLOCKED | `UserCreateSerializer.role` choices restrict to TRAINEE/TRAINER only |
-| Can register as AMBASSADOR? | BLOCKED | Same restriction. AMBASSADOR role only assignable by admin |
-| Referral code failure blocks registration? | NO (correct) | Invalid codes are silently ignored -- registration proceeds without referral |
-| Self-referral? | BLOCKED | `process_referral_code()` checks `profile.user_id == trainer.id` |
-| Duplicate referral? | BLOCKED | `AmbassadorReferral.objects.filter(trainer=trainer).exists()` check + unique_together constraint |
+| Signature verification | PASS | `stripe.Webhook.construct_event()` validates payload + signature before any processing |
+| Duplicate prevention | PASS | `ReferralService.create_commission()` uses `select_for_update()` on referral row + checks for existing commission for same `(referral, period_start, period_end)` |
+| Zero-amount protection | PASS | `_create_ambassador_commission()` checks `base_amount <= 0` and skips (no free-tier abuse) |
+| Inactive ambassador check | PASS | `create_commission()` checks `profile.is_active` and skips if inactive |
+| Concurrent webhook safety | PASS | `select_for_update()` prevents race conditions from duplicate Stripe webhook deliveries |
+| MultipleObjectsReturned handling | PASS | `_create_ambassador_commission()` catches `MultipleObjectsReturned` and uses `.first()` as fallback |
+| Non-existent trainer handling | PASS | `User.DoesNotExist` caught, logged as warning, returns 200 (Stripe requires 200) |
+| Missing period dates handling | PASS | Checks `period_start_ts` and `period_end_ts` before proceeding |
+
+### Subscription Type Separation
+
+- `_handle_invoice_paid()` correctly separates `TraineeSubscription` (trainee-to-trainer payments) from `Subscription` (platform subscriptions). It tries `TraineeSubscription` first, and only falls back to `Subscription` if not found. No data mixing.
+- `_handle_subscription_deleted()` follows the same pattern. Trainer churn is only triggered for `Subscription` (platform) cancellations, not `TraineeSubscription` cancellations. Verified by test `test_subscription_deleted_trainee_sub_does_not_churn_referral`.
+- `_handle_checkout_completed()` uses `payment_type == 'platform_subscription'` metadata to distinguish platform checkouts from trainee-to-trainer checkouts.
 
 ---
 
-## 6. REFERRAL CODE SECURITY
+## 6. CORS/CSRF
 
-**Result: PASS (after fixes)**
+**Result: PASS**
 
-### Brute-force analysis:
-- Code space: 36^8 = 2,821,109,907,456 possible codes (~2.8 trillion)
-- At 30 requests/minute (new anon throttle), it would take ~178 million years to enumerate
-- Registration is rate-limited to 5/hour, further reducing brute-force potential
-- Invalid codes do NOT reveal whether they exist (same error message for invalid vs. inactive)
-
-### Timing attack:
-- `AmbassadorProfile.objects.get(referral_code=code, is_active=True)` -- DB query timing could theoretically leak whether a code exists vs. is inactive. However, the 36^8 code space and rate limiting make this impractical. Low risk.
-
-### Code generation:
-- Uses `secrets.choice()` (cryptographically secure random) -- not `random.choice()`. PASS.
-- Race condition in code generation: FIXED -- added `IntegrityError` retry in `AmbassadorProfile.save()`.
+- CORS is conditional on `DEBUG`: `CORS_ALLOW_ALL_ORIGINS = True` only in DEBUG mode. Production uses `CORS_ALLOWED_ORIGINS` from environment variable.
+- The API uses JWT authentication exclusively (`DEFAULT_AUTHENTICATION_CLASSES: JWTAuthentication`). No session-based authentication, so CSRF attacks are not applicable.
+- The webhook endpoint (`StripeWebhookView`) has `permission_classes = []` but does not set `authentication_classes = []`. DRF's default JWT authentication will still attempt to parse the Authorization header. Since Stripe doesn't send an Authorization header, the user will be set to `AnonymousUser`, and since `permission_classes = []` means no permission check runs, this works correctly. See Minor Observation #1 below.
 
 ---
 
-## 7. RACE CONDITIONS & CONCURRENCY
+## 7. RATE LIMITING
 
-**Result: PASS (after fixes)**
+**Result: PASS**
 
-| # | Severity | Location | Issue | Fix |
-|---|----------|----------|-------|-----|
-| RC-1 | HIGH | `referral_service.py:create_commission()` | Concurrent Stripe webhooks for the same referral+period could create duplicate commissions. No row locking, no duplicate guard. | FIXED: Added `select_for_update()` on referral row + duplicate period check + `UniqueConstraint` on `(referral, period_start, period_end)` |
-| RC-2 | MEDIUM | `models.py:AmbassadorProfile.save()` | Concurrent ambassador creation could generate same referral code (check-then-create race). `unique=True` constraint would cause unhandled `IntegrityError`. | FIXED: Added `IntegrityError` retry loop (3 attempts) in `save()` |
-| RC-3 | LOW | `referral_service.py:process_referral_code()` | Concurrent registrations with same referral code could create duplicate referrals for same trainer. Mitigated by `UniqueConstraint(fields=['ambassador', 'trainer'])` -- second insert would fail. Registration would succeed but referral silently lost (acceptable). | ACCEPTABLE -- constraint prevents data corruption |
+Global rate limiting is configured in `settings.py`:
+- `AnonRateThrottle`: 30/minute
+- `UserRateThrottle`: 120/minute
+- `RegistrationThrottle`: 5/hour
 
----
+All notification endpoints inherit the default `UserRateThrottle` (120/min). This is appropriate -- trainers polling for unread count or refreshing the list will not hit this limit under normal usage.
 
-## 8. CORS/CSRF
-
-**Result: PASS (after fix)**
-
-| # | Severity | Issue | Fix |
-|---|----------|-------|-----|
-| CORS-1 | HIGH | `CORS_ALLOW_ALL_ORIGINS = True` was set unconditionally, allowing any origin to make authenticated requests in production | FIXED: Now conditional on `DEBUG`. Production reads `CORS_ALLOWED_ORIGINS` from environment variable. |
-
-- JWT authentication is stateless, not vulnerable to CSRF attacks
-- All ambassador endpoints require Bearer token via `JWTAuthentication`
+The webhook endpoint uses `permission_classes = []`, which means DRF's default throttle classes still apply (specifically `AnonRateThrottle` at 30/min for unauthenticated requests). Stripe's webhook delivery rate is well within this limit, but if needed, the webhook view could set `throttle_classes = []` to avoid any throttling. This is an informational observation, not a vulnerability.
 
 ---
 
-## 9. RATE LIMITING
+## Minor Observations (Informational -- No Fix Needed)
 
-**Result: PASS (after fix)**
-
-| # | Severity | Issue | Fix |
-|---|----------|-------|-----|
-| RL-1 | HIGH | No throttle classes configured globally. Registration endpoint (which processes referral codes) had no rate limiting at all. | FIXED: Added `DEFAULT_THROTTLE_CLASSES` (AnonRateThrottle, UserRateThrottle) and rates: anon=30/min, user=120/min, registration=5/hour |
-| RL-2 | LOW | Created `core/throttles.py` with `RegistrationThrottle` class (scope='registration', 5/hour) for future use on Djoser user creation endpoint | Created for future integration |
-
----
-
-## Critical/High Issues Fixed (by this audit)
-
-| # | Severity | File | Issue | Fix Applied |
-|---|----------|------|-------|-------------|
-| F1 | HIGH | `backend/ambassador/services/referral_service.py` | Race condition: concurrent webhooks could create duplicate commissions for same referral+period | Added `select_for_update()` on referral row, duplicate period check before insert |
-| F2 | HIGH | `backend/ambassador/models.py:AmbassadorCommission` | No DB-level constraint preventing duplicate commissions | Added `UniqueConstraint(fields=['referral', 'period_start', 'period_end'], name='unique_commission_per_referral_period')` |
-| F3 | HIGH | `backend/config/settings.py` | `CORS_ALLOW_ALL_ORIGINS = True` unconditionally in all environments | Made conditional on `DEBUG`; production reads `CORS_ALLOWED_ORIGINS` from env |
-| F4 | HIGH | `backend/config/settings.py` | No rate limiting configured anywhere | Added `DEFAULT_THROTTLE_CLASSES` and `DEFAULT_THROTTLE_RATES` |
-| F5 | MEDIUM | `backend/ambassador/models.py:AmbassadorProfile.save()` | Race condition in referral code generation (check-then-create without lock) | Added `IntegrityError` catch with retry loop (3 attempts) |
-
-## Files Created
-
-| File | Purpose |
-|------|---------|
-| `backend/core/throttles.py` | `RegistrationThrottle` class for strict rate limiting on registration endpoint |
-
-## Migration Required
-
-The following model changes require a new migration (`python manage.py makemigrations ambassador`):
-1. `AmbassadorReferral`: Changed from `unique_together` to `UniqueConstraint` (already in models, needs migration)
-2. `AmbassadorCommission`: Added `UniqueConstraint(fields=['referral', 'period_start', 'period_end'])`
+| # | Severity | File:Line | Observation | Notes |
+|---|----------|-----------|-------------|-------|
+| 1 | Low | `payment_views.py:420` | Webhook view has `permission_classes = []` but does not explicitly set `authentication_classes = []`. | DRF's default JWT authentication will still attempt to parse incoming requests. Since Stripe doesn't send an Authorization header, the request is treated as `AnonymousUser` and `permission_classes = []` allows it through. Setting `authentication_classes = []` explicitly would be cleaner and avoid unnecessary JWT parsing overhead. Not a vulnerability -- just a best-practice recommendation. |
+| 2 | Low | `notification_views.py:32` | `page_size_query_param = 'page_size'` allows clients to request up to 50 items per page. | Capped at `max_page_size = 50`. This is reasonable and not exploitable. An abusive client could make many requests, but global rate limiting (120/min) prevents abuse. |
+| 3 | Low | `payment_views.py:519-523` | `_handle_checkout_completed` creates an `invoice_stub` dict with `amount_total` from session for first-payment commission. | The `amount_total` comes from the Stripe-verified event data (post signature verification), so it cannot be tampered with. Safe. |
+| 4 | Info | All notification endpoints | No per-endpoint throttle on mark-all-read. | A trainer could rapidly call mark-all-read, but impact is limited (idempotent operation on their own data). Global 120/min throttle applies. |
 
 ---
 
-## Minor Observations (No fix needed)
+## Critical/High Issues Found: **NONE**
 
-| # | Observation | Notes |
-|---|------------|-------|
-| O1 | `AmbassadorUserSerializer` exposes `trainer.id` and `trainer.is_active` to ambassadors | Low risk -- ambassador already knows the trainer (they referred them). Could be reduced to just name+email if desired. |
-| O2 | Referral code timing side-channel | DB query timing could theoretically leak code existence. Impractical given 36^8 code space + rate limiting. |
-| O3 | `handle_trainer_churn` uses bulk `.update()` without `select_for_update()` | Acceptable -- churning is idempotent and worst case is a missed churn that would be caught on next check. |
-| O4 | Admin ambassador creation uses `set_unusable_password()` | Correct -- ambassadors should not have passwords. They would need a separate login flow (e.g., magic link) if they ever need to log in directly. |
-| O5 | `AdminAmbassadorDetailView` returns up to 100 referrals and 50 commissions without pagination | Acceptable for admin endpoint but could be slow for very active ambassadors. Consider pagination in future. |
+No Critical or High severity issues were identified. No fixes were required.
+
+---
+
+## Test Results
+
+- **Notification view tests:** 59/59 passing (includes permission, IDOR, and row-level security tests)
+- **Subscription/webhook tests:** 31/31 passing (includes ambassador commission and churn tests)
+- **Pre-existing failure:** 2 errors from `mcp_server` module import (`ModuleNotFoundError: No module named 'mcp'`) -- unrelated to this feature
 
 ---
 
 ## Security Score: 9/10
 
-**Deductions:**
-- -0.5: Race conditions in commission creation and code generation existed before this audit caught them
-- -0.5: No per-endpoint throttle on Djoser registration (global throttle now applies, but a stricter per-endpoint throttle via `RegistrationThrottle` should be wired into Djoser config)
+The implementation demonstrates strong security practices:
+- Consistent use of row-level security (all queries filter by authenticated trainer)
+- Proper Stripe webhook signature verification
+- No secrets in code or committed files
+- Proper IDOR prevention with composite lookups (`pk=pk, trainer=trainer`)
+- Race condition protection for commission creation (`select_for_update()` + duplicate check)
+- Comprehensive test coverage including permission and row-level security tests (59 + 31 = 90 passing tests)
+
+Deductions:
+- -0.5: Webhook view could be more explicit with `authentication_classes = []` (minor best-practice gap, not a vulnerability)
+- -0.5: No per-endpoint throttle on notification mutation endpoints (global throttle applies but a dedicated throttle would be more robust)
 
 ## Recommendation: PASS
 
-All Critical and High issues have been fixed. The ambassador feature has:
-- Strong role-based access control with no privilege escalation vectors
-- Proper row-level security on all endpoints (no IDOR)
-- Cryptographically secure referral code generation with collision handling
-- Race condition protection via `select_for_update` and `UniqueConstraint`
-- Rate limiting to prevent brute-force attacks on referral codes
-- CORS properly restricted in production
-- No secrets, no injection vulnerabilities, no data exposure issues
+No Critical or High issues found. No fixes required. The implementation is secure and follows established project patterns for authentication, authorization, IDOR prevention, and webhook security.

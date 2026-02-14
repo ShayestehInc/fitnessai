@@ -5,6 +5,7 @@ import '../models/trainee_model.dart';
 import '../models/trainer_stats_model.dart';
 import '../models/invitation_model.dart';
 import '../models/impersonation_session_model.dart';
+import '../models/trainer_notification_model.dart';
 
 class TrainerRepository {
   final ApiClient _apiClient;
@@ -333,6 +334,98 @@ class TrainerRepository {
       return {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to update layout config',
+      };
+    }
+  }
+
+  // Notifications
+  Future<Map<String, dynamic>> getNotifications({int page = 1, bool? isRead}) async {
+    try {
+      final params = <String, dynamic>{'page': page};
+      if (isRead != null) params['is_read'] = isRead.toString();
+      final response = await _apiClient.dio.get(
+        ApiConstants.trainerNotifications,
+        queryParameters: params,
+      );
+      final List<dynamic> results = response.data['results'] ?? [];
+      final notifications = results
+          .map((e) => TrainerNotificationModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final hasNext = response.data['next'] != null;
+      return {
+        'success': true,
+        'data': notifications,
+        'has_next': hasNext,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load notifications',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> getUnreadNotificationCount() async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.trainerNotificationsUnreadCount,
+      );
+      return {
+        'success': true,
+        'data': response.data['unread_count'] as int? ?? 0,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load unread count',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> markNotificationRead(int notificationId) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.trainerNotificationRead(notificationId),
+      );
+      return {
+        'success': true,
+        'data': TrainerNotificationModel.fromJson(response.data as Map<String, dynamic>),
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to mark notification as read',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> markAllNotificationsRead() async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.trainerNotificationsMarkAllRead,
+      );
+      return {
+        'success': true,
+        'data': response.data['marked_count'] as int? ?? 0,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to mark all as read',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteNotification(int notificationId) async {
+    try {
+      await _apiClient.dio.delete(
+        ApiConstants.trainerNotificationDelete(notificationId),
+      );
+      return {'success': true};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to delete notification',
       };
     }
   }

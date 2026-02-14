@@ -1,17 +1,21 @@
-# Focus: Ambassador User Type & Referral System
+# Focus: Trainer Notifications Dashboard + Ambassador Commission Webhook
 
-## Priority: HIGH (Priority #4 — skipping Web Dashboard which is too large for single pipeline)
+## Priority: HIGH
 
 ## What
-New AMBASSADOR user role with referral system. Ambassadors sell the platform to trainers and earn monthly revenue share from each referred trainer's subscription. Complete with referral codes, revenue tracking, admin management, and ambassador dashboard.
+Two related features around event-driven actions:
+1. **Trainer Notifications Dashboard** — Mobile screen for trainers to view workout notifications (readiness surveys, post-workout completions) that are already being created in the DB but have no way to be viewed. Includes badge counts, mark-as-read, and a dedicated notifications screen.
+2. **Ambassador Commission Webhook** — Wire the existing `ReferralService.create_commission()` into Stripe webhook handlers so ambassadors actually earn commissions when referred trainers pay.
 
 ## Why
-FitnessAI's growth depends on trainer acquisition. Currently, trainers find the platform organically. An ambassador program creates a sales channel where motivated individuals recruit trainers for a recurring commission. This is a proven SaaS growth strategy (Stripe, Shopify, HubSpot all use it).
+- **Notifications**: Trainers (paying customers) have zero visibility into trainee activity unless they manually refresh the dashboard. Notifications are already being created (BUG-2 fix) but never displayed. This is the #1 engagement feature for trainer retention.
+- **Commissions**: The entire ambassador referral system is built but commissions are never created because the Stripe webhook doesn't call the commission service. Ambassadors refer trainers but never see earnings.
 
 ## Who Benefits
-- **Ambassadors**: Earn passive income by referring trainers to the platform
-- **Platform**: Scales trainer acquisition without scaling sales team
-- **Trainers**: Discover the platform through trusted personal referrals
+- **Trainers**: See real-time trainee activity, feel connected, stay engaged
+- **Ambassadors**: Actually earn commissions for referrals
+- **Platform**: Higher trainer retention (notifications), activated revenue channel (commissions)
 
 ## Success Metric
-Admin creates ambassador → ambassador shares referral link → trainer signs up → ambassador sees referred trainer on dashboard → ambassador earns monthly commission from trainer's subscription.
+- Trainer opens notifications tab → sees list of trainee workout events with timestamps
+- Referred trainer pays subscription → ambassador dashboard shows commission earned

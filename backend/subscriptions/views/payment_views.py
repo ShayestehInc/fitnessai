@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Any, cast
 
-from datetime import datetime, timezone as tz
+from datetime import datetime, timedelta, timezone as tz
 
 from rest_framework import status
 from rest_framework.request import Request
@@ -20,13 +20,15 @@ from decimal import Decimal
 import stripe
 
 from subscriptions.models import (
-    StripeAccount, TrainerPricing, TraineePayment, TraineeSubscription
+    Subscription, StripeAccount, TrainerPricing, TraineePayment, TraineeSubscription
 )
 from subscriptions.serializers import (
     StripeAccountSerializer,
     CreateCheckoutSessionSerializer,
 )
 from users.models import User
+from ambassador.models import AmbassadorReferral
+from ambassador.services.referral_service import ReferralService
 
 logger = logging.getLogger(__name__)
 
@@ -454,14 +456,19 @@ class StripeWebhookView(APIView):
         return Response({'received': True})
 
     def _handle_checkout_completed(self, session: dict[str, Any]) -> None:
-        """Handle successful checkout completion."""
+        """Handle successful checkout completion.
+
+        Handles both trainee-to-trainer payments and trainer platform
+        subscription checkouts. For platform subscriptions, also triggers
+        ambassador commission creation on first payment.
+        """
         session_id = session['id']
         metadata = session.get('metadata', {})
         payment_type = metadata.get('payment_type')
         trainee_id = metadata.get('trainee_id')
         trainer_id = metadata.get('trainer_id')
 
-        # Update payment record
+        # Handle trainee-to-trainer payment
         try:
             payment = TraineePayment.objects.get(stripe_checkout_session_id=session_id)
             payment.status = TraineePayment.Status.SUCCEEDED
@@ -489,17 +496,58 @@ class StripeWebhookView(APIView):
                     }
                 )
 
-            logger.info(f"Payment {session_id} marked as succeeded")
+            logger.info("Payment %s marked as succeeded", session_id)
+            return
 
         except TraineePayment.DoesNotExist:
-            logger.warning(f"Payment record not found for session {session_id}")
+            pass
+
+        # Handle trainer platform subscription checkout (for ambassador commissions)
+        if payment_type == 'platform_subscription' and trainer_id and session.get('subscription'):
+            try:
+                trainer = User.objects.get(id=trainer_id, role=User.Role.TRAINER)
+                platform_sub, _created = Subscription.objects.update_or_create(
+                    trainer=trainer,
+                    defaults={
+                        'stripe_subscription_id': session['subscription'],
+                        'status': Subscription.Status.ACTIVE,
+                        'current_period_start': timezone.now(),
+                    },
+                )
+
+                # Create commission for first payment using actual session amount
+                invoice_stub: dict[str, Any] = {
+                    'period_start': int(timezone.now().timestamp()),
+                    'period_end': int((timezone.now() + timedelta(days=30)).timestamp()),
+                    'amount_paid': session.get('amount_total', 0),
+                }
+                self._create_ambassador_commission(trainer, invoice_stub)
+
+                logger.info(
+                    "Platform subscription checkout completed for trainer %s",
+                    trainer.email,
+                )
+            except User.DoesNotExist:
+                logger.warning(
+                    "Trainer not found for platform checkout: trainer_id=%s",
+                    trainer_id,
+                )
+        else:
+            logger.warning("Payment record not found for session %s", session_id)
 
     def _handle_invoice_paid(self, invoice: dict[str, Any]) -> None:
-        """Handle successful invoice payment (recurring)."""
+        """Handle successful invoice payment (recurring).
+
+        Handles both trainee-to-trainer subscriptions (TraineeSubscription)
+        and trainer platform subscriptions (Subscription). For platform
+        subscriptions, also creates ambassador commissions if the trainer
+        was referred.
+        """
         subscription_id = invoice.get('subscription')
         if not subscription_id:
             return
 
+        # Try trainee-to-trainer subscription first
         try:
             subscription = TraineeSubscription.objects.get(stripe_subscription_id=subscription_id)
 
@@ -529,47 +577,129 @@ class StripeWebhookView(APIView):
                 paid_at=timezone.now(),
             )
 
-            logger.info(f"Invoice paid for subscription {subscription_id}")
+            logger.info("Invoice paid for trainee subscription %s", subscription_id)
+            return
 
         except TraineeSubscription.DoesNotExist:
-            logger.warning(f"Subscription not found: {subscription_id}")
+            pass
+
+        # Try trainer platform subscription (for ambassador commissions)
+        try:
+            platform_sub = Subscription.objects.select_related('trainer').get(
+                stripe_subscription_id=subscription_id,
+            )
+            platform_sub.status = Subscription.Status.ACTIVE
+            if invoice.get('period_start'):
+                platform_sub.current_period_start = datetime.fromtimestamp(
+                    invoice['period_start'], tz=tz.utc
+                )
+            if invoice.get('period_end'):
+                platform_sub.current_period_end = datetime.fromtimestamp(
+                    invoice['period_end'], tz=tz.utc
+                )
+            platform_sub.last_payment_date = timezone.now().date()
+            amount_paid_cents = invoice.get('amount_paid', 0)
+            platform_sub.last_payment_amount = Decimal(str(amount_paid_cents)) / 100
+            platform_sub.save(update_fields=[
+                'status', 'current_period_start', 'current_period_end',
+                'last_payment_date', 'last_payment_amount', 'updated_at',
+            ])
+
+            # Create ambassador commission if trainer was referred
+            self._create_ambassador_commission(platform_sub.trainer, invoice)
+
+            logger.info("Invoice paid for platform subscription %s", subscription_id)
+            return
+
+        except Subscription.DoesNotExist:
+            logger.warning("Subscription not found: %s", subscription_id)
 
     def _handle_invoice_payment_failed(self, invoice: dict[str, Any]) -> None:
-        """Handle failed invoice payment."""
+        """Handle failed invoice payment.
+
+        Handles both trainee-to-trainer subscriptions and trainer platform
+        subscriptions by trying TraineeSubscription first, then Subscription.
+        """
         subscription_id = invoice.get('subscription')
         if not subscription_id:
             return
 
+        # Try trainee-to-trainer subscription first
         try:
             subscription = TraineeSubscription.objects.get(stripe_subscription_id=subscription_id)
             subscription.status = TraineeSubscription.Status.PAST_DUE
             subscription.save()
 
-            logger.info(f"Subscription {subscription_id} marked as past due")
+            logger.info("Trainee subscription %s marked as past due", subscription_id)
+            return
 
         except TraineeSubscription.DoesNotExist:
-            logger.warning(f"Subscription not found: {subscription_id}")
+            pass
+
+        # Try trainer platform subscription
+        try:
+            platform_sub = Subscription.objects.get(stripe_subscription_id=subscription_id)
+            platform_sub.status = Subscription.Status.PAST_DUE
+            platform_sub.save(update_fields=['status', 'updated_at'])
+
+            logger.info("Platform subscription %s marked as past due", subscription_id)
+
+        except Subscription.DoesNotExist:
+            logger.warning("Subscription not found: %s", subscription_id)
 
     def _handle_subscription_deleted(self, subscription_data: dict[str, Any]) -> None:
-        """Handle subscription cancellation."""
+        """Handle subscription cancellation.
+
+        Handles both trainee-to-trainer and platform subscriptions.
+        For platform subscriptions, also marks ambassador referrals as churned.
+        """
         subscription_id = subscription_data['id']
 
+        # Try trainee-to-trainer subscription first
         try:
             subscription = TraineeSubscription.objects.get(stripe_subscription_id=subscription_id)
             subscription.status = TraineeSubscription.Status.CANCELED
             subscription.canceled_at = timezone.now()
             subscription.save()
 
-            logger.info(f"Subscription {subscription_id} canceled")
+            logger.info("Trainee subscription %s canceled", subscription_id)
+            return
 
         except TraineeSubscription.DoesNotExist:
-            logger.warning(f"Subscription not found: {subscription_id}")
+            pass
+
+        # Try trainer platform subscription
+        try:
+            platform_sub = Subscription.objects.select_related('trainer').get(
+                stripe_subscription_id=subscription_id,
+            )
+            platform_sub.status = Subscription.Status.CANCELED
+            platform_sub.save(update_fields=['status', 'updated_at'])
+
+            # Mark ambassador referrals as churned
+            churned_count = ReferralService.handle_trainer_churn(platform_sub.trainer)
+            if churned_count > 0:
+                logger.info(
+                    "Churned %d ambassador referral(s) for trainer %s",
+                    churned_count, platform_sub.trainer.email,
+                )
+
+            logger.info("Platform subscription %s canceled", subscription_id)
+            return
+
+        except Subscription.DoesNotExist:
+            logger.warning("Subscription not found: %s", subscription_id)
 
     def _handle_subscription_updated(self, subscription_data: dict[str, Any]) -> None:
-        """Handle subscription updates."""
+        """Handle subscription updates.
+
+        Handles both trainee-to-trainer subscriptions and trainer platform
+        subscriptions by trying TraineeSubscription first, then Subscription.
+        """
         subscription_id = subscription_data['id']
         stripe_status = subscription_data.get('status')
 
+        # Try trainee-to-trainer subscription first
         try:
             subscription = TraineeSubscription.objects.get(stripe_subscription_id=subscription_id)
 
@@ -596,10 +726,40 @@ class StripeWebhookView(APIView):
                 )
 
             subscription.save()
-            logger.info(f"Subscription {subscription_id} updated")
+            logger.info("Trainee subscription %s updated", subscription_id)
+            return
 
         except TraineeSubscription.DoesNotExist:
-            logger.warning(f"Subscription not found: {subscription_id}")
+            pass
+
+        # Try trainer platform subscription
+        try:
+            platform_sub = Subscription.objects.get(stripe_subscription_id=subscription_id)
+
+            platform_status_map: dict[str, str] = {
+                'active': Subscription.Status.ACTIVE,
+                'past_due': Subscription.Status.PAST_DUE,
+                'canceled': Subscription.Status.CANCELED,
+                'trialing': Subscription.Status.TRIALING,
+            }
+
+            if stripe_status and stripe_status in platform_status_map:
+                platform_sub.status = platform_status_map[stripe_status]
+
+            if subscription_data.get('current_period_start'):
+                platform_sub.current_period_start = datetime.fromtimestamp(
+                    subscription_data['current_period_start'], tz=tz.utc
+                )
+            if subscription_data.get('current_period_end'):
+                platform_sub.current_period_end = datetime.fromtimestamp(
+                    subscription_data['current_period_end'], tz=tz.utc
+                )
+
+            platform_sub.save()
+            logger.info("Platform subscription %s updated", subscription_id)
+
+        except Subscription.DoesNotExist:
+            logger.warning("Subscription not found: %s", subscription_id)
 
     def _handle_account_updated(self, account: dict[str, Any]) -> None:
         """Handle Stripe Connect account updates."""
@@ -624,3 +784,83 @@ class StripeWebhookView(APIView):
 
         except StripeAccount.DoesNotExist:
             logger.warning(f"Stripe account not found: {account_id}")
+
+    def _create_ambassador_commission(
+        self,
+        trainer: User,
+        invoice: dict[str, Any],
+    ) -> None:
+        """Create ambassador commission if the trainer was referred.
+
+        Looks up active AmbassadorReferral for the trainer and calls
+        ReferralService.create_commission() with the invoice billing period.
+        """
+        try:
+            referral = AmbassadorReferral.objects.select_related(
+                'ambassador_profile',
+            ).get(
+                trainer=trainer,
+                status__in=[
+                    AmbassadorReferral.Status.PENDING,
+                    AmbassadorReferral.Status.ACTIVE,
+                ],
+            )
+        except AmbassadorReferral.DoesNotExist:
+            return
+        except AmbassadorReferral.MultipleObjectsReturned:
+            # Shouldn't happen due to unique constraint, but be safe
+            referral = AmbassadorReferral.objects.select_related(
+                'ambassador_profile',
+            ).filter(
+                trainer=trainer,
+                status__in=[
+                    AmbassadorReferral.Status.PENDING,
+                    AmbassadorReferral.Status.ACTIVE,
+                ],
+            ).first()
+            if referral is None:
+                return
+
+        # Extract billing period from invoice
+        period_start_ts = invoice.get('period_start')
+        period_end_ts = invoice.get('period_end')
+        if not period_start_ts or not period_end_ts:
+            logger.warning(
+                "Invoice missing period dates for commission, trainer=%s",
+                trainer.email,
+            )
+            return
+
+        period_start = datetime.fromtimestamp(period_start_ts, tz=tz.utc)
+        period_end = datetime.fromtimestamp(period_end_ts, tz=tz.utc)
+
+        # Use the invoice amount (amount_paid is in cents)
+        amount_paid_cents = invoice.get('amount_paid', 0)
+        base_amount = Decimal(str(amount_paid_cents)) / 100
+
+        if base_amount <= 0:
+            logger.info(
+                "Skipping zero-amount commission for trainer=%s",
+                trainer.email,
+            )
+            return
+
+        result = ReferralService.create_commission(
+            referral=referral,
+            base_amount=base_amount,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
+        if result.success:
+            logger.info(
+                "Ambassador commission created: ambassador=%s, trainer=%s, amount=$%s",
+                referral.ambassador.email,
+                trainer.email,
+                result.commission.commission_amount if result.commission else '0',
+            )
+        else:
+            logger.info(
+                "Ambassador commission not created: %s (trainer=%s)",
+                result.message, trainer.email,
+            )

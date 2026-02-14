@@ -1,56 +1,55 @@
-# Hacker Report: Ambassador Feature
+# Hacker Report: Trainer Notifications Dashboard + Ambassador Commission Webhook
 
 ## Dead Buttons & Non-Functional UI
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| 1 | Critical | admin_create_ambassador_screen.dart | Create Ambassador form | Ambassador can log in after being created | `set_unusable_password()` was called -- ambassador had no way to authenticate. No password set, no activation email sent. **FIXED**: Added password field to backend serializer, view, repository, provider, and create screen. Admin now sets a temporary password. |
-| 2 | High | admin_ambassador_detail_screen.dart | Commission rate display | Admin can edit the commission rate from the detail screen | Rate was display-only. No edit mechanism existed anywhere for individual ambassadors (only at creation time). **FIXED**: Added edit icon in AppBar, tappable Rate stat tile, and a slider dialog to update the commission rate. |
-| 3 | High | admin_ambassador_detail_screen.dart | Commission History section | Admin sees the full commission history for an ambassador | Backend API returns `commissions` in the detail response, but the mobile screen never parsed or displayed them. Data was silently discarded. **FIXED**: Added `AmbassadorCommission` model, commission parsing in `_loadDetail()`, and a full Commission History section with styled tiles. |
-| 4 | Medium | ambassador_dashboard_screen.dart | "Share Referral Code" button | Opens native share sheet (iOS/Android) | Only copies text to clipboard. The `share_plus` package is not installed. The button icon shows `Icons.share` but behavior is copy-to-clipboard. Partial fix: snackbar text clarifies "copied to clipboard." Full fix requires adding `share_plus` dependency -- documented below. |
+| 1 | Medium | TrainerNotificationsScreen | Tap notification with no traineeId | Shows "Trainee no longer available" snackbar per ticket edge case #3 | **Was**: silently did nothing when traineeId was null. **Fixed**: snackbar "Trainee no longer available" now shown. |
 
 ## Visual Misalignments & Layout Bugs
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | Medium | ambassador_referrals_screen.dart | Empty state shows raw enum "No CHURNED referrals" instead of lowercase | **FIXED**: Added `_friendlyFilterLabel()` method that maps `ACTIVE` -> `active`, `PENDING` -> `pending`, etc. Empty state now reads "No active referrals" etc. |
-| 2 | Low | admin_ambassadors_screen.dart | Email text in ambassador tile can overflow without ellipsis on narrow screens | **FIXED** (by linter): Added `overflow: TextOverflow.ellipsis` to email Text widget. |
-| 3 | Low | admin_ambassador_detail_screen.dart | Email text in profile card can overflow | **FIXED**: Added `overflow: TextOverflow.ellipsis`. |
+| 1 | Low | NotificationCard | Future timestamps from server clock skew would produce negative duration in `_formatRelativeTime`, resulting in confusing output like "-2m ago" or "0m ago" | **Fixed**: Added `diff.isNegative` guard before checking `diff.inMinutes < 1`. Now shows "Just now" for any future timestamp. |
 
 ## Broken Flows & Logic Bugs
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 1 | Critical | Ambassador avatar crash | 1. Create referral where trainer has no firstName and email local part is empty string (e.g., `@domain.com`). 2. View dashboard or referrals screen. | Avatar shows fallback character | `displayName[0]` throws `RangeError` on empty string. **FIXED**: Added `AmbassadorUser.initials` getter with empty-string guard, returns `?` as fallback. All avatar usages now use `.initials` instead of `displayName[0].toUpperCase()`. |
-| 2 | High | Admin ambassador list pull-to-refresh loses filters | 1. Search for "john" in admin ambassadors screen. 2. Pull to refresh. | Results still filtered by "john" | `RefreshIndicator` called `loadAmbassadors()` with no params, clearing the active search and filter. **FIXED**: Pull-to-refresh now passes `_searchController.text.trim()` and `_activeFilter` to `loadAmbassadors()`. |
-| 3 | High | Settings screen shows "Inactive" before data loads | 1. Navigate to ambassador settings tab. 2. Before dashboard API returns, check Status row. | Shows "--" or loading indicator | `dashState.data?.isActive == true` evaluates to `false` when `data` is null, displaying "Inactive" incorrectly. **FIXED**: Changed to show "--" when `dashState.data` is null. |
-| 4 | Medium | AmbassadorDetailData counts always zero | `referralsCount` and `commissionsCount` fields parsed from JSON keys `referrals_count` and `commissions_count` that don't exist in backend response | Counts should reflect actual data | Fields always defaulted to 0 regardless of actual list contents. **FIXED**: Changed to computed getters `referrals.length` and `commissions.length`. |
-| 5 | Low | Ambassador detail screen: _isToggling field declared but never changed | `_isToggling` was declared but the linter restructured the toggle flow with a confirmation dialog -- toggle state was not always tracked | Toggle button should show loading state during API call | Linter partially fixed this. The `_isToggling` state is now properly set/unset around the update call. |
+| 1 | Medium | Notification pagination error handling | 1. Open notifications screen 2. Scroll to bottom to trigger loadMore 3. Network fails during page fetch | Error is logged; page counter rolls back | **Was**: `catch (_)` silently swallowed the error with zero logging, violating project error-handling rule ("NO exception silencing"). Page counter correctly rolled back but nobody knew why it failed. **Fixed**: Replaced bare `catch (_)` with `catch (error, stackTrace)` that calls `developer.log()` with full error details and stack trace. |
+| 2 | Medium | Error state pull-to-refresh | 1. Open notifications screen 2. Network fails on initial load 3. Error state appears 4. Try to pull-to-refresh | User can pull-to-refresh to retry without tapping button | **Was**: Error state was a static `Center` widget -- not scrollable, so pull-to-refresh gesture was impossible. User had to tap the "Retry" button. **Fixed**: Wrapped error state in `RefreshIndicator` + `LayoutBuilder` + `SingleChildScrollView` + `AlwaysScrollableScrollPhysics`, matching the same pattern already used for the empty state. |
+| 3 | Low | Notification data JSON parsing | API returns `data: "malformed"` or `data: [1,2,3]` instead of expected Map | Model falls back to empty `{}` | **Was**: `(json['data'] as Map<String, dynamic>?) ?? {}` uses an unsafe cast -- if `data` is a List or String, `as Map<String, dynamic>?` throws a TypeError, crashing the entire notification list. **Fixed**: Changed to a safe `is Map<String, dynamic>` type check with fallback to `{}`. |
+| 4 | Low | Trainer Dashboard | 1. View program detail 2. Schedule template has unparseable JSON | Error handled gracefully | **Was**: Used `debugPrint()` in production code (same pattern as BUG-4 which was fixed previously -- all debug prints should be removed). **Fixed**: Replaced `debugPrint()` with a clarifying comment. |
 
 ## Product Improvement Suggestions
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 1 | High | Ambassador creation | Add an email invitation flow: when admin creates ambassador, system sends an email with login credentials or a magic link. | Currently admin must manually communicate the password out-of-band. A proper invitation email would be more professional and secure. |
-| 2 | High | Share referral code | Install `share_plus` and use the native share sheet instead of clipboard copy. | The share button's icon (`Icons.share`) implies a native share sheet, but it only copies to clipboard. Using the real share sheet would let ambassadors share via WhatsApp, SMS, email, etc. with one tap. |
-| 3 | High | Ambassador earnings | Add a monthly earnings chart/graph on the ambassador dashboard. | The backend already returns `monthly_earnings` data, but the mobile dashboard only shows the recent referrals list and stat tiles. A simple bar chart would make the earnings trend visible at a glance. |
-| 4 | Medium | Commission management | Add bulk approve/pay commissions for admin in the detail screen. | Currently there's no way for admin to approve or pay commissions from the mobile app. The status is display-only. |
-| 5 | Medium | Referral code customization | Let admin (or ambassador) choose a custom referral code (e.g., "JOHN20") instead of random alphanumeric. | Custom codes are more memorable and brandable. Many referral programs (e.g., Uber, Robinhood) allow this. |
-| 6 | Low | Ambassador dashboard | Add a "time since last referral" or "streak" indicator. | Gamification encourages continued engagement. Showing "Last referral: 3 days ago" or "2 referrals this month" keeps ambassadors motivated. |
-| 7 | Low | Admin list view | Show an active/inactive badge on each ambassador tile in the admin list. | Currently the only indicator is the circle avatar color (teal vs grey), which is subtle. An explicit status badge would be clearer. |
+| 1 | High | Notifications | Add periodic badge polling (e.g. every 60s) while trainer is on dashboard screen | The badge count only refreshes when the notifications provider is invalidated (screen focus, pull-to-refresh). Trainers who leave the dashboard open for extended periods won't see new notification counts. A simple `Timer.periodic` in the dashboard screen's `initState` that calls `ref.invalidate(unreadNotificationCountProvider)` every 60 seconds would keep the badge fresh. |
+| 2 | High | Notifications | Add haptic feedback on swipe-to-dismiss | The Dismissible swipe gesture feels dead without tactile feedback. Adding `HapticFeedback.lightImpact()` in the `confirmDismiss` callback would match native iOS/Android notification drawer UX. |
+| 3 | Medium | Notifications | Add notification type filter chips | Trainers with many trainees will get flooded with mixed notification types. A horizontal filter chip bar (All / Workouts / Readiness / Check-ins) at the top of the notifications screen would let them focus on what matters. The backend already supports query parameter filtering -- just add `?notification_type=workout_completed` support to the queryset. |
+| 4 | Medium | Notifications | Batch delete via long-press multi-select | Currently only one-at-a-time delete via swipe. Power users managing 20+ trainees need to clear old notifications faster. Add long-press to enter selection mode with a "Delete selected (N)" action bar. Requires a new bulk-delete backend endpoint. |
+| 5 | Medium | Notifications | Deep-link to relevant trainee context | Tapping a "workout completed" notification navigates to the generic trainee detail screen. It should deep-link to the trainee's workout log for that specific day, since the `data` JSON already contains `workout_name` and date info. Similarly, "check_in" notifications should navigate to the weight trends screen. |
+| 6 | Low | Notification Badge | Animate badge count transitions | When unread count changes (e.g. 3 -> 5 -> 0), the badge number snaps instantly. An `AnimatedSwitcher` with a scale/fade transition would make the change feel polished. |
+| 7 | Low | Ambassador Commission Webhook | Surface commission creation to admin | When the webhook creates a commission, there's zero admin-facing visibility except log files. Creating a `TrainerNotification` (or a new `AdminNotification` model) when commissions are created would close the feedback loop. |
+| 8 | Low | Webhook Resilience | `_handle_invoice_payment_failed` does not affect ambassador referral state | If a referred trainer's invoice fails, the referral stays ACTIVE even though the trainer may be about to churn. Consider adding an "AT_RISK" transient state or at least logging it as a warning so the ambassador dashboard can surface it. |
 
-## Items NOT Fixed (Need Design Decisions or Backend Changes)
-| # | Severity | Description | Steps to Reproduce | Suggested Approach |
-|---|----------|-------------|-------------------|--------------------|
-| 1 | High | No native share sheet -- `share_plus` not installed | Tap "Share Referral Code" on ambassador dashboard | Add `share_plus: ^7.0.0` to `pubspec.yaml`, run `flutter pub get`, update `_shareCode()` to use `Share.share(message)`. |
-| 2 | High | No commission approval/payment workflow in mobile | Admin views commission history but can't change status | Add approve/pay buttons on commission tiles in admin detail screen. Create backend endpoint `PATCH /api/admin/ambassadors/<id>/commissions/<id>/` for status updates. |
-| 3 | Medium | No password reset flow anywhere in the app | Ambassador forgets password -> no recovery mechanism | Implement Djoser password reset endpoints (`/api/auth/users/reset_password/`, `/api/auth/users/reset_password_confirm/`) and add a "Forgot Password" link on the login screen. |
-| 4 | Medium | `AmbassadorReferral` model has redundant FKs | `ambassador` (User FK) and `ambassador_profile` (AmbassadorProfile FK) both exist -- denormalization risk if they get out of sync | Consider removing `ambassador` FK and accessing the user through `ambassador_profile.user`. Requires migration. |
-| 5 | Low | No ambassador earnings chart despite backend support | Backend returns `monthly_earnings` list in dashboard response | Add `fl_chart` package and render a simple bar chart in `ambassador_dashboard_screen.dart` showing monthly earnings trend. |
+## Things I Could NOT Fix (Need Design Decisions or Major Changes)
+| # | Area | Issue | Steps to Reproduce | Suggested Approach |
+|---|------|-------|--------------------|--------------------|
+| 1 | Real-time | No real-time notification updates | Open notifications screen. Have trainee complete workout. Notification does NOT appear until manual pull-to-refresh. | Implement WebSocket channel (Django Channels) or Server-Sent Events for the `trainer_notifications` table. Out of scope per ticket (explicitly listed in "Out of Scope"). |
+| 2 | Testing | No end-to-end test for commission webhook flow | Commission creation is only testable via Stripe CLI `stripe trigger invoice.paid` or manual events | Add a Django management command (`simulate_webhook_event`) to inject test events locally without Stripe dependency. Also add integration tests that mock `stripe.Webhook.construct_event`. |
+| 3 | Preferences | No notification preferences screen | Trainer cannot mute specific notification types (e.g. only see workout completions, not readiness surveys) | Add a `NotificationPreference` model (per trainer, per notification_type, enabled boolean) and a settings screen. Ticket explicitly marks this as out of scope for MVP. |
+| 4 | Pagination | No "end of list" indicator | Scroll all the way down past the last page. Loading spinner appears briefly then vanishes silently. | When `hasMore` becomes false after the last page fetch, show a subtle "You've seen all notifications" message at the bottom of the list instead of just ending. Minor UX polish. |
 
 ## Summary
-- Dead UI elements found: 4
-- Visual bugs found: 3
-- Logic bugs found: 5
-- Improvements suggested: 7
-- Items fixed by hacker: 10
-- Items needing design decisions: 5
+- Dead UI elements found: 1
+- Visual bugs found: 1
+- Logic bugs found: 4
+- Improvements suggested: 8
+- Items fixed by hacker: 5
+- Items needing design decisions: 4
 
-## Chaos Score: 6/10
-The ambassador feature has the most critical bug I found in any feature during this pass: newly created ambassadors could not log in because the backend called `set_unusable_password()` with no alternative authentication mechanism. This would have been immediately discovered in production and would block the entire ambassador workflow. The second most impactful issue was the admin detail screen silently discarding commission data returned by the backend -- the data was there, nobody was showing it. The `displayName[0]` crash was lurking as a time bomb that would trigger on edge-case user data. On the positive side, the overall architecture is clean (proper repository pattern, Riverpod state management, well-structured models), the referral code processing backend is solid with proper idempotency checks, and the UI handles loading/error/empty states consistently across screens.
+## Chaos Score: 8/10
+
+The implementation is solid overall. The notification flow works end-to-end: backend creates notifications from survey views (readiness + post-workout), the API exposes them with proper pagination and read/unread filtering, and mobile displays them with good UX patterns (date grouping, optimistic updates, swipe-to-dismiss with undo snackbar, skeleton loading shimmer, proper empty/error/loading states).
+
+The ambassador commission webhook is well-structured with proper duplicate guards (`UniqueConstraint` + `select_for_update`), rate snapshot at charge time, inactive ambassador checks, and graceful handling of both first-payment and recurring-payment scenarios. The fallback pattern (try TraineeSubscription first, then Subscription) is clean and handles all event types consistently.
+
+The issues I found were all edge-case and polish-level: a missing snackbar for the deleted-trainee case (ticket edge case #3), a clock-skew guard for relative timestamps, a malformed JSON defense in the model parser, a stale `debugPrint` in production code, a silenced exception in pagination, and a non-scrollable error state. All five issues were fixed. No critical or high-severity bugs were found.

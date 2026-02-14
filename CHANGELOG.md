@@ -4,6 +4,45 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-14] — Trainer Notifications Dashboard + Ambassador Commission Webhook
+
+### Added
+- **Trainer Notification API** — 5 endpoints: `GET /api/trainer/notifications/` (paginated, `?is_read` filter), `GET /api/trainer/notifications/unread-count/`, `POST /api/trainer/notifications/<id>/read/`, `POST /api/trainer/notifications/mark-all-read/`, `DELETE /api/trainer/notifications/<id>/`. All protected by `[IsAuthenticated, IsTrainer]` with row-level security.
+- **Ambassador Commission Webhook** — `_handle_invoice_paid()` creates commissions from actual Stripe invoice `amount_paid` (not cached subscription price). `_handle_checkout_completed()` handles first platform subscription payment. `_handle_subscription_deleted()` triggers `ReferralService.handle_trainer_churn()`. `_create_ambassador_commission()` helper looks up referral, validates active ambassador, extracts billing period.
+- **Notification Bell Badge** — `NotificationBadge` widget on trainer dashboard with unread count (shows "99+" for >99), theme-colored, screen reader accessible.
+- **Notifications Screen** — Full paginated feed with date grouping ("Today", "Yesterday", "Feb 12"), `NotificationCard` with type-based icons (7 types), unread dot, relative timestamps, swipe-to-dismiss with undo snackbar, mark-all-read with confirmation dialog.
+- **Optimistic UI** — All mutations (mark-read, mark-all-read, delete) update state immediately and revert on API failure.
+- **Pagination** — `AsyncNotifierProvider` with `loadMore()` guard against concurrent requests, loading indicator at bottom of list.
+- **Accessibility** — `Semantics` wrappers on notification cards (read status + type + title + time), badge (count-aware label), mark-all-read button.
+- **90 new tests** — 59 notification view tests (auth, permissions, row-level security, pagination, filtering, idempotency) + 31 ambassador webhook tests (commission creation, churn handling, lifecycle, edge cases).
+- Database migration: `trainer/migrations/0005_*` (index optimization).
+
+### Changed
+- **Index optimization** (`trainer/models.py`) — Removed standalone `notification_type` index (never queried alone). Changed `(trainer, created_at)` to `(trainer, -created_at)` descending to match query pattern.
+- **Webhook symmetry** (`payment_views.py`) — Extended `_handle_invoice_payment_failed()` and `_handle_subscription_updated()` to handle both `TraineeSubscription` and `Subscription` models, matching dual-model pattern.
+- **Skeleton loader** — Replaced static containers with shared animated `LoadingShimmer` widget.
+- **Empty/error states** — Both wrapped in `RefreshIndicator` + `LayoutBuilder` + `SingleChildScrollView` for pull-to-refresh.
+- **Safe JSON parsing** (`trainer_notification_model.dart`) — Uses `is Map<String, dynamic>` type check instead of unsafe `as` cast for `data` field.
+
+### Security
+- No secrets in committed code (grepped all new/changed files)
+- All notification endpoints authenticated + authorized (IsTrainer)
+- Row-level security: every query filters `trainer=request.user`
+- No IDOR: trainer A cannot read/modify trainer B's notifications
+- Webhook signature verification in place (pre-existing `stripe.Webhook.construct_event`)
+- Commission creation uses `select_for_update` + `UniqueConstraint` for race condition protection
+
+### Quality
+- Code review: 8/10 — APPROVE (Round 2, all Round 1 issues fixed)
+- QA: 90/90 tests pass, 0 bugs — HIGH confidence
+- UX audit: 8/10 — 15 improvements (shimmer, undo, accessibility, conditional buttons)
+- Security audit: 9/10 — PASS (no critical/high issues)
+- Architecture review: 9/10 — APPROVE (index optimization, webhook symmetry)
+- Hacker report: 8/10 — 5 edge-case fixes (safe JSON cast, exception logging, clock skew guard)
+- Overall quality: 9/10 — SHIP
+
+---
+
 ## [2026-02-14] — Ambassador User Type & Referral Revenue Sharing
 
 ### Added
