@@ -72,119 +72,126 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         ? const Color(0xFFF5F5F8)
         : theme.cardColor;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 32),
-        Icon(
-          Icons.lock_reset_outlined,
-          size: 64,
-          color: theme.colorScheme.primary,
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Forgot your password?',
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Enter your email address and we\'ll send you a link to reset your password.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.textTheme.bodySmall?.color,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 32),
-        Form(
-          key: _formKey,
-          child: TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            autocorrect: false,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _handleSubmit(),
-            style: TextStyle(
-              fontSize: 16,
-              color: theme.textTheme.bodyLarge?.color,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 32),
+          Semantics(
+            label: 'Password reset icon',
+            excludeSemantics: true,
+            child: Icon(
+              Icons.lock_reset_outlined,
+              size: 64,
+              color: theme.colorScheme.primary,
             ),
-            decoration: InputDecoration(
-              hintText: 'Email address',
-              hintStyle: TextStyle(
-                color: Colors.grey[400],
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Forgot your password?',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Enter your email address and we\'ll send you a link to reset your password.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.textTheme.bodySmall?.color,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          Form(
+            key: _formKey,
+            child: TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              autofillHints: const [AutofillHints.email],
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _handleSubmit(),
+              style: TextStyle(
                 fontSize: 16,
+                color: theme.textTheme.bodyLarge?.color,
               ),
-              filled: true,
-              fillColor: inputFillColor,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 18,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.primary,
-                  width: 1.5,
+              decoration: InputDecoration(
+                hintText: 'Email address',
+                hintStyle: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 16,
+                ),
+                filled: true,
+                fillColor: inputFillColor,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.primary,
+                    width: 1.5,
+                  ),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: theme.colorScheme.error),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: theme.colorScheme.error),
                 ),
               ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: theme.colorScheme.error),
-              ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: theme.colorScheme.error),
-              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter your email';
+                }
+                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value.trim())) {
+                  return 'Please enter a valid email';
+                }
+                return null;
+              },
             ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter your email';
-              }
-              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value.trim())) {
-                return 'Please enter a valid email';
-              }
-              return null;
-            },
           ),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _handleSubmit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _handleSubmit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
               ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Send Reset Link',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
-            child: _isLoading
-                ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation(Colors.white),
-                    ),
-                  )
-                : const Text(
-                    'Send Reset Link',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -192,10 +199,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          Icons.mark_email_read_outlined,
-          size: 80,
-          color: theme.colorScheme.primary,
+        Semantics(
+          label: 'Email sent successfully',
+          excludeSemantics: true,
+          child: Icon(
+            Icons.mark_email_read_outlined,
+            size: 80,
+            color: theme.colorScheme.primary,
+          ),
         ),
         const SizedBox(height: 24),
         Text(
@@ -218,6 +229,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           _emailController.text.trim(),
           style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: FontWeight.w600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Check your spam folder if you don\'t see it within a few minutes.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
           ),
           textAlign: TextAlign.center,
         ),

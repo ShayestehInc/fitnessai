@@ -287,30 +287,23 @@ class ProgramViewSet(viewsets.ModelViewSet[Program]):
         """Return programs based on user role."""
         user = cast(User, self.request.user)
 
-        logger.info(f"ProgramViewSet.get_queryset: user={user.email}, role={user.role}, id={user.id}")
+        logger.debug(f"ProgramViewSet.get_queryset: user_id={user.id}, role={user.role}")
 
         if user.is_trainer():
             # Trainers see programs for their trainees
-            queryset = Program.objects.filter(
+            return Program.objects.filter(
                 trainee__parent_trainer=user
             ).select_related('trainee', 'created_by')
-            logger.info(f"Trainer {user.email}: returning {queryset.count()} programs")
-            return queryset
         elif user.is_trainee():
             # Trainees see their own programs
-            queryset = Program.objects.filter(
+            return Program.objects.filter(
                 trainee=user
             ).select_related('trainee', 'created_by')
-            logger.info(f"Trainee {user.email}: returning {queryset.count()} programs (user_id={user.id})")
-            # Also log all programs to help debug
-            all_programs = Program.objects.filter(trainee_id=user.id)
-            logger.info(f"Direct query by trainee_id: {all_programs.count()} programs")
-            return queryset
         elif user.is_admin():
             # Admins see all programs
             return Program.objects.all().select_related('trainee', 'created_by')
         else:
-            logger.warning(f"User {user.email} with role {user.role} - returning empty queryset")
+            logger.warning(f"User id={user.id} with role {user.role} - returning empty queryset")
             return Program.objects.none()
 
     def perform_create(self, serializer: BaseSerializer[Program]) -> None:

@@ -26,12 +26,48 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   bool _obscureConfirm = true;
   bool _isLoading = false;
   bool _resetSuccess = false;
+  double _passwordStrength = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_updatePasswordStrength);
+  }
 
   @override
   void dispose() {
+    _passwordController.removeListener(_updatePasswordStrength);
     _passwordController.dispose();
     _confirmController.dispose();
     super.dispose();
+  }
+
+  void _updatePasswordStrength() {
+    final password = _passwordController.text;
+    double strength = 0.0;
+
+    if (password.length >= 8) strength += 0.25;
+    if (password.length >= 12) strength += 0.15;
+    if (RegExp(r'[A-Z]').hasMatch(password)) strength += 0.2;
+    if (RegExp(r'[0-9]').hasMatch(password)) strength += 0.2;
+    if (RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) strength += 0.2;
+
+    setState(() => _passwordStrength = strength.clamp(0.0, 1.0));
+  }
+
+  Color _getStrengthColor(ThemeData theme) {
+    if (_passwordStrength < 0.3) return theme.colorScheme.error;
+    if (_passwordStrength < 0.6) return Colors.orange;
+    if (_passwordStrength < 0.8) return Colors.amber;
+    return const Color(0xFF22C55E);
+  }
+
+  String _getStrengthLabel() {
+    if (_passwordController.text.isEmpty) return '';
+    if (_passwordStrength < 0.3) return 'Weak';
+    if (_passwordStrength < 0.6) return 'Fair';
+    if (_passwordStrength < 0.8) return 'Good';
+    return 'Strong';
   }
 
   Future<void> _handleSubmit() async {
