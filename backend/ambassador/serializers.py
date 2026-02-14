@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Sum
 from rest_framework import serializers
 
 from .models import AmbassadorCommission, AmbassadorProfile, AmbassadorReferral
@@ -51,17 +53,28 @@ class AmbassadorReferralSerializer(serializers.ModelSerializer[AmbassadorReferra
         ]
 
     def get_trainer_subscription_tier(self, obj: AmbassadorReferral) -> str:
-        """Get the referred trainer's current subscription tier."""
+        """Get the referred trainer's current subscription tier.
+
+        Expects trainer to have subscription prefetched (select_related).
+        """
         try:
-            return str(obj.trainer.subscription.tier)
-        except Exception:
+            subscription = obj.trainer.trainee_subscription  # type: ignore[attr-defined]
+            return str(subscription.tier) if subscription else 'FREE'
+        except (AttributeError, ObjectDoesNotExist):
             return 'FREE'
 
     def get_total_commission_earned(self, obj: AmbassadorReferral) -> str:
-        """Get total commission earned from this specific referral."""
+        """Get total commission earned from this specific referral.
+
+        Uses annotated `_total_commission` if available (set by the view),
+        otherwise falls back to a query.
+        """
+        annotated = getattr(obj, '_total_commission', None)
+        if annotated is not None:
+            return str(annotated)
         total = obj.commissions.filter(
             status__in=[AmbassadorCommission.Status.APPROVED, AmbassadorCommission.Status.PAID],
-        ).aggregate(total=serializers.models.Sum('commission_amount'))
+        ).aggregate(total=Sum('commission_amount'))
         return str(total['total'] or Decimal('0.00'))
 
 

@@ -82,8 +82,10 @@ class ReferralService:
                 referral_code_used=referral_code,
                 status=AmbassadorReferral.Status.PENDING,
             )
-            profile.total_referrals = profile.referrals.count()
-            profile.save(update_fields=['total_referrals', 'updated_at'])
+
+        # Update cached stats outside transaction to avoid extra queries in txn
+        profile.total_referrals = profile.referrals.count()
+        profile.save(update_fields=['total_referrals', 'updated_at'])
 
         logger.info(
             "Referral created: ambassador=%s, trainer=%s, code=%s",
@@ -139,8 +141,8 @@ class ReferralService:
                 period_end=period_end.date() if hasattr(period_end, 'date') else period_end,
             )
 
-            # Update cached earnings
-            profile.refresh_cached_stats()
+        # Update cached earnings outside transaction
+        profile.refresh_cached_stats()
 
         logger.info(
             "Commission created: ambassador=%s, amount=$%s, referral=%s",

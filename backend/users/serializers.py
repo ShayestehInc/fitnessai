@@ -16,9 +16,9 @@ class UserCreateSerializer(BaseUserCreateSerializer):  # type: ignore[misc]
     """Custom user creation serializer that includes role field and optional referral code."""
 
     role = serializers.ChoiceField(
-        choices=User.Role.choices,
+        choices=[(User.Role.TRAINEE, 'Trainee'), (User.Role.TRAINER, 'Trainer')],
         default=User.Role.TRAINEE,
-        required=False
+        required=False,
     )
     referral_code = serializers.CharField(
         max_length=8,
@@ -44,7 +44,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):  # type: ignore[misc]
         referral_code = validated_data.pop('referral_code', '').strip()
         user = User.objects.create_user(**validated_data)
         user.role = role
-        user.save()
+        user.save(update_fields=['role'])
 
         # Process referral code for trainers (silently ignore failures)
         if referral_code and role == User.Role.TRAINER:

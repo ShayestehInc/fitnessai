@@ -7,7 +7,7 @@ import logging
 from decimal import Decimal
 from typing import Any, cast
 
-from django.db.models import Q, Sum
+from django.db.models import Case, Count, Q, Sum, When
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from rest_framework import status
@@ -56,10 +56,15 @@ class AmbassadorDashboardView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        referrals = AmbassadorReferral.objects.filter(ambassador=user)
-        active_count = referrals.filter(status=AmbassadorReferral.Status.ACTIVE).count()
-        pending_count = referrals.filter(status=AmbassadorReferral.Status.PENDING).count()
-        churned_count = referrals.filter(status=AmbassadorReferral.Status.CHURNED).count()
+        # Single query for all status counts
+        status_counts = AmbassadorReferral.objects.filter(ambassador=user).aggregate(
+            active_count=Count(Case(When(status=AmbassadorReferral.Status.ACTIVE, then=1))),
+            pending_count=Count(Case(When(status=AmbassadorReferral.Status.PENDING, then=1))),
+            churned_count=Count(Case(When(status=AmbassadorReferral.Status.CHURNED, then=1))),
+        )
+        active_count = status_counts['active_count']
+        pending_count = status_counts['pending_count']
+        churned_count = status_counts['churned_count']
 
         # Pending earnings (commissions not yet paid)
         pending_earnings = AmbassadorCommission.objects.filter(
@@ -88,8 +93,26 @@ class AmbassadorDashboardView(APIView):
             for entry in monthly_data
         ]
 
-        # Recent referrals (last 5)
-        recent_referrals = referrals.select_related('trainer')[:5]
+        # Recent referrals (last 5) with annotated commission totals to avoid N+1
+        recent_referrals = (
+            AmbassadorReferral.objects.filter(ambassador=user)
+            .select_related('trainer')
+            .annotate(
+                _total_commission=Sum(
+                    Case(
+                        When(
+                            commissions__status__in=[
+                                AmbassadorCommission.Status.APPROVED,
+                                AmbassadorCommission.Status.PAID,
+                            ],
+                            then='commissions__commission_amount',
+                        ),
+                        default=Decimal('0.00'),
+                    )
+                )
+            )
+            .order_by('-referred_at')[:5]
+        )
         recent_serialized = AmbassadorReferralSerializer(recent_referrals, many=True).data
 
         return Response({
@@ -116,9 +139,24 @@ class AmbassadorReferralsView(APIView):
 
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
-        referrals = AmbassadorReferral.objects.filter(
-            ambassador=user,
-        ).select_related('trainer')
+        referrals = (
+            AmbassadorReferral.objects.filter(ambassador=user)
+            .select_related('trainer')
+            .annotate(
+                _total_commission=Sum(
+                    Case(
+                        When(
+                            commissions__status__in=[
+                                AmbassadorCommission.Status.APPROVED,
+                                AmbassadorCommission.Status.PAID,
+                            ],
+                            then='commissions__commission_amount',
+                        ),
+                        default=Decimal('0.00'),
+                    )
+                )
+            )
+        )
 
         # Filter by status
         status_filter = request.query_params.get('status', '').upper()
@@ -225,15 +263,15 @@ class AdminCreateAmbassadorView(APIView):
 
         validated = cast(dict[str, Any], serializer.validated_data)
 
-        # Create user with AMBASSADOR role
-        user = User.objects.create_user(
+        # Create user with AMBASSADOR role in a single save
+        user = User(
             email=validated['email'],
-            password=None,  # Admin sets password via separate flow or email reset
             first_name=validated['first_name'],
             last_name=validated['last_name'],
+            role=User.Role.AMBASSADOR,
         )
-        user.role = User.Role.AMBASSADOR
-        user.save(update_fields=['role'])
+        user.set_unusable_password()
+        user.save()
 
         # Create ambassador profile with referral code
         profile = AmbassadorProfile.objects.create(
@@ -271,9 +309,25 @@ class AdminAmbassadorDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        referrals = AmbassadorReferral.objects.filter(
-            ambassador=profile.user,
-        ).select_related('trainer').order_by('-referred_at')
+        referrals = (
+            AmbassadorReferral.objects.filter(ambassador=profile.user)
+            .select_related('trainer')
+            .annotate(
+                _total_commission=Sum(
+                    Case(
+                        When(
+                            commissions__status__in=[
+                                AmbassadorCommission.Status.APPROVED,
+                                AmbassadorCommission.Status.PAID,
+                            ],
+                            then='commissions__commission_amount',
+                        ),
+                        default=Decimal('0.00'),
+                    )
+                )
+            )
+            .order_by('-referred_at')[:100]
+        )
 
         commissions = AmbassadorCommission.objects.filter(
             ambassador=profile.user,
@@ -299,12 +353,15 @@ class AdminAmbassadorDetailView(APIView):
 
         validated = cast(dict[str, Any], serializer.validated_data)
 
+        update_fields: list[str] = ['updated_at']
         if 'commission_rate' in validated:
             profile.commission_rate = validated['commission_rate']
+            update_fields.append('commission_rate')
         if 'is_active' in validated:
             profile.is_active = validated['is_active']
+            update_fields.append('is_active')
 
-        profile.save()
+        profile.save(update_fields=update_fields)
 
         logger.info(
             "Admin updated ambassador %s: rate=%s, active=%s",

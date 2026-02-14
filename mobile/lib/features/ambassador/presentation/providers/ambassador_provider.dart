@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/api/api_client.dart';
 import '../../data/models/ambassador_models.dart';
 import '../../data/repositories/ambassador_repository.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 final ambassadorRepositoryProvider = Provider<AmbassadorRepository>((ref) {
-  return AmbassadorRepository(ApiClient());
+  final apiClient = ref.watch(apiClientProvider);
+  return AmbassadorRepository(apiClient);
 });
 
 // Ambassador Dashboard State
