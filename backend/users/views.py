@@ -17,6 +17,9 @@ from django.db.models import QuerySet
 from .models import User, UserProfile
 from .serializers import UserProfileSerializer, OnboardingStepSerializer, UserSerializer
 from .social_auth import verify_google_token, verify_apple_token, SocialAuthError
+from core.permissions import IsTrainee
+from trainer.models import TrainerBranding
+from trainer.serializers import TrainerBrandingSerializer
 from workouts.services.macro_calculator import MacroCalculatorService
 from workouts.models import NutritionGoal
 
@@ -371,3 +374,38 @@ class UploadProfileImageView(APIView):
             'success': True,
             'user': UserSerializer(user, context={'request': request}).data,
         })
+
+
+class MyBrandingView(APIView):
+    """
+    GET: Trainee fetches their parent trainer's branding configuration.
+
+    Returns default branding values if:
+    - Trainee has no parent trainer
+    - Parent trainer has no branding configured
+
+    Requires IsTrainee permission. Row-level security: trainee can only see
+    their own trainer's branding.
+    """
+    permission_classes = [IsAuthenticated, IsTrainee]
+
+    _DEFAULT_BRANDING_RESPONSE: dict[str, str | None] = {
+        'app_name': '',
+        'primary_color': TrainerBranding.DEFAULT_PRIMARY_COLOR,
+        'secondary_color': TrainerBranding.DEFAULT_SECONDARY_COLOR,
+        'logo_url': None,
+    }
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        trainer = user.parent_trainer
+
+        if trainer is None:
+            return Response(self._DEFAULT_BRANDING_RESPONSE)
+
+        branding = TrainerBranding.objects.filter(trainer=trainer).first()
+        if branding is None:
+            return Response(self._DEFAULT_BRANDING_RESPONSE)
+
+        serializer = TrainerBrandingSerializer(branding, context={'request': request})
+        return Response(serializer.data)

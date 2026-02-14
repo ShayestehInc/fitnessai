@@ -23,15 +23,16 @@ from datetime import timedelta
 
 from core.permissions import IsTrainer
 from users.models import User, UserProfile
-from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary, WorkoutLayoutConfig
+from .models import TraineeInvitation, TrainerSession, TraineeActivitySummary, WorkoutLayoutConfig, TrainerBranding
 from .serializers import (
     TraineeListSerializer, TraineeDetailSerializer,
     TraineeActivitySerializer, TraineeInvitationSerializer,
     CreateInvitationSerializer, TrainerSessionSerializer,
     StartImpersonationSerializer, TrainerDashboardStatsSerializer,
     ProgramTemplateSerializer, AssignProgramSerializer,
-    WorkoutLayoutConfigSerializer,
+    WorkoutLayoutConfigSerializer, TrainerBrandingSerializer,
 )
+from .services.branding_service import upload_trainer_logo, remove_trainer_logo, LogoValidationError
 from workouts.models import ProgramTemplate, Program
 
 
@@ -1160,3 +1161,71 @@ class TraineeLayoutConfigView(generics.RetrieveUpdateAPIView[WorkoutLayoutConfig
 
     def perform_update(self, serializer: WorkoutLayoutConfigSerializer) -> None:  # type: ignore[override]
         serializer.save(configured_by=cast(User, self.request.user))
+
+
+class TrainerBrandingView(generics.RetrieveUpdateAPIView[TrainerBranding]):
+    """
+    GET: Returns the trainer's branding config. Auto-creates with defaults if none exists.
+    PUT/PATCH: Trainer updates branding fields (app_name, primary_color, secondary_color).
+
+    Requires IsTrainer permission. Row-level security: trainer can only manage their own branding.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    serializer_class = TrainerBrandingSerializer
+
+    def get_object(self) -> TrainerBranding:
+        trainer = cast(User, self.request.user)
+        branding, _created = TrainerBranding.get_or_create_for_trainer(trainer)
+        return branding
+
+    def get_serializer_context(self) -> dict[str, Any]:
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+
+class TrainerBrandingLogoView(views.APIView):
+    """
+    POST: Upload trainer logo image.
+    DELETE: Remove trainer logo.
+
+    Accepts JPEG, PNG, WebP. Max 2MB. Min 128x128, max 1024x1024.
+    Requires IsTrainer permission.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request: Request) -> Response:
+        trainer = cast(User, request.user)
+        image = request.FILES.get('logo')
+
+        if not image:
+            return Response(
+                {'error': 'No logo image provided.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            branding = upload_trainer_logo(trainer, image)
+        except LogoValidationError as exc:
+            return Response(
+                {'error': exc.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = TrainerBrandingSerializer(branding, context={'request': request})
+        return Response(serializer.data)
+
+    def delete(self, request: Request) -> Response:
+        trainer = cast(User, request.user)
+
+        try:
+            branding = remove_trainer_logo(trainer)
+        except TrainerBranding.DoesNotExist:
+            return Response(
+                {'error': 'No branding configured.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = TrainerBrandingSerializer(branding, context={'request': request})
+        return Response(serializer.data)

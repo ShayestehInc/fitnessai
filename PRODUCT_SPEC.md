@@ -121,7 +121,21 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Trainer payment history | ✅ Done | |
 | Trainer coupons | ✅ Done | |
 
-### 3.7 Other
+### 3.7 White-Label Branding
+| Feature | Status | Notes |
+|---------|--------|-------|
+| TrainerBranding model | ✅ Done | OneToOne to User, app_name, primary/secondary colors, logo |
+| Trainer branding screen | ✅ Done | App name, 12-preset color picker, logo upload/preview |
+| Trainee branding application | ✅ Done | Fetched on login/splash, cached in SharedPreferences |
+| Dynamic splash screen | ✅ Done | Shows trainer's logo and app name |
+| Theme color override | ✅ Done | Trainer's primary/secondary override default indigo |
+| Logo upload with validation | ✅ Done | 5-layer: content-type, size, Pillow format, dimensions, UUID filename |
+| Branding API (trainer) | ✅ Done | GET/PUT /api/trainer/branding/, POST/DELETE branding/logo/ |
+| Branding API (trainee) | ✅ Done | GET /api/users/my-branding/ |
+| Unsaved changes guard | ✅ Done | PopScope warning dialog on back navigation |
+| Reset to defaults | ✅ Done | AppBar overflow menu option |
+
+### 3.8 Other
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Calendar integration (Google/Microsoft) | 🟡 Partial | Backend API done, mobile basic |
@@ -133,7 +147,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 
 ---
 
-## 4. Current Sprint: Trainee Workout Fix + Layout System
+## 4. Current Sprint: Foundation Fix + Layout System + White-Label Branding
 
 ### 4.1 Bug Fixes — COMPLETED (2026-02-13)
 
@@ -181,7 +195,24 @@ Trainers choose which workout logging UI their trainees see. Three variants:
 - Card layout uses existing PageView (no new widget needed)
 - Full row-level security, error states with retry, optimistic updates with rollback
 
-### 4.3 Acceptance Criteria
+### 4.3 White-Label Branding Infrastructure — COMPLETED (2026-02-14)
+
+Per-trainer customizable branding so trainees see their trainer's brand instead of "FitnessAI."
+
+**What was built:**
+- `TrainerBranding` model (OneToOne to User): `app_name`, `primary_color`, `secondary_color`, `logo` (ImageField)
+- Service layer: `branding_service.py` with `validate_logo_image()`, `upload_trainer_logo()`, `remove_trainer_logo()`
+- Trainer API: `GET/PUT /api/trainer/branding/` (auto-creates with defaults), `POST/DELETE /api/trainer/branding/logo/`
+- Trainee API: `GET /api/users/my-branding/` (returns trainer's branding or defaults)
+- Mobile: `BrandingScreen` with app name field, 12-preset color picker, logo upload/preview, live preview card
+- Mobile: `ThemeNotifier.applyTrainerBranding()` overrides theme colors from trainer's config
+- Mobile: Splash screen + login screen fetch branding via shared `BrandingRepository.syncTraineeBranding()`
+- Mobile: SharedPreferences caching for offline persistence (hex-string format)
+- UX: Save button change detection, unsaved changes guard, reset to defaults, accessibility labels
+- Security: 5-layer image validation, UUID filenames, HTML tag stripping, generic error messages
+- 84 comprehensive backend tests (model, views, serializer, permissions, row-level security, edge cases)
+
+### 4.4 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
 - [x] Trainer receives notification when trainee starts or finishes a workout
@@ -192,20 +223,26 @@ Trainers choose which workout logging UI their trainees see. Three variants:
 - [x] Trainee's active workout screen renders the correct layout variant
 - [x] Default layout is "classic" for all existing trainees (no migration data needed)
 - [x] Layout config survives app restart (fetched from API, cached locally)
+- [x] TrainerBranding model with all fields, validators, and get_or_create_for_trainer() classmethod
+- [x] Trainer can customize branding (app name, colors, logo) via Settings > Branding
+- [x] Trainee sees trainer's branding on login, splash, and throughout the app
+- [x] Branding cached locally for offline persistence
+- [x] Default FitnessAI theme when no branding configured
+- [x] Row-level security: trainers see own branding, trainees see own trainer's branding
 
 ---
 
 ## 5. Roadmap
 
-### Phase 1: Foundation Fix — ✅ COMPLETED
+### Phase 1: Foundation Fix — ✅ COMPLETED (2026-02-13/14)
 - ~~Fix all 5 bugs~~ ✅ Completed 2026-02-13
 - ~~Implement workout layout system~~ ✅ Completed 2026-02-14
 
-### Phase 2: White-Label Infrastructure
-- TrainerBranding model: primary_color, secondary_color, logo_url, app_name
-- Mobile reads branding config on login, applies to ThemeData
-- Each trainer's trainees see the trainer's branding, not "FitnessAI"
-- Custom splash screen per trainer
+### Phase 2: White-Label Infrastructure — ✅ COMPLETED
+- ~~TrainerBranding model: primary_color, secondary_color, logo_url, app_name~~ ✅ Completed 2026-02-14
+- ~~Mobile reads branding config on login, applies to ThemeData~~ ✅ Completed 2026-02-14
+- ~~Each trainer's trainees see the trainer's branding, not "FitnessAI"~~ ✅ Completed 2026-02-14
+- ~~Custom splash screen per trainer~~ ✅ Completed 2026-02-14
 
 ### Phase 3: Web Admin Dashboard
 - React/Next.js with shadcn/ui

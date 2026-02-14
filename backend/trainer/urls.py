@@ -14,6 +14,7 @@ from .views import (
     GenerateMCPTokenView, AIChatView, AIChatTraineeContextView, AIProvidersView,
     MarkMissedDayView,
     TraineeLayoutConfigView,
+    TrainerBrandingView, TrainerBrandingLogoView,
 )
 
 urlpatterns = [
@@ -55,6 +56,10 @@ urlpatterns = [
 
     # MCP Server Integration
     path('mcp/token/', GenerateMCPTokenView.as_view(), name='mcp-token'),
+
+    # Branding
+    path('branding/', TrainerBrandingView.as_view(), name='trainer-branding'),
+    path('branding/logo/', TrainerBrandingLogoView.as_view(), name='trainer-branding-logo'),
 
     # AI Chat
     path('ai/chat/', AIChatView.as_view(), name='ai-chat'),
