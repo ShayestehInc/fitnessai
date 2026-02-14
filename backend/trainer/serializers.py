@@ -256,15 +256,6 @@ class WorkoutLayoutConfigSerializer(serializers.ModelSerializer[WorkoutLayoutCon
         ]
         read_only_fields = ['configured_by', 'created_at', 'updated_at']
 
-    def validate_layout_type(self, value: str) -> str:
-        valid_choices = {choice.value for choice in WorkoutLayoutConfig.LayoutType}
-        if value not in valid_choices:
-            raise serializers.ValidationError(
-                f"Invalid layout type. Must be one of: {', '.join(sorted(valid_choices))}"
-            )
-        return value
-
-
 class AssignProgramSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for assigning a program template to a trainee."""
     trainee_id = serializers.IntegerField()

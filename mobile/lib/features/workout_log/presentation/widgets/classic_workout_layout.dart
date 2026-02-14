@@ -48,7 +48,11 @@ class _ClassicWorkoutLayoutState extends State<ClassicWorkoutLayout> {
   @override
   void didUpdateWidget(covariant ClassicWorkoutLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Sync controllers if sets were added
+    // Sync controllers if exercises or sets were added
+    while (_weightControllers.length < widget.exerciseLogs.length) {
+      _weightControllers.add([]);
+      _repsControllers.add([]);
+    }
     for (int i = 0; i < widget.exerciseLogs.length; i++) {
       final sets = widget.exerciseLogs[i].sets;
       while (_weightControllers[i].length < sets.length) {

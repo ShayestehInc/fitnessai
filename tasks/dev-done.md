@@ -38,3 +38,17 @@
 3. **Trainee side**: Start a workout → observe the layout matches what trainer set
 4. **Default**: New trainee with no config → sees Classic layout
 5. **API**: `GET /api/workouts/my-layout/` returns `{"layout_type": "classic", "config_options": {}}`
+
+## Review Fixes (Round 1)
+
+### Backend fixes
+- **CRITICAL**: Added `IsTrainee` permission to `MyLayoutConfigView` — trainee endpoint now requires trainee role, not just authentication
+- **MAJOR**: Added `select_related('configured_by')` to `get_or_create` in `TraineeLayoutConfigView` — prevents N+1 query for serializer's `configured_by_email`
+- **MAJOR**: Removed redundant `validate_layout_type` from `WorkoutLayoutConfigSerializer` — Django's `choices` already validates
+- **MINOR**: Moved `Http404` import from inline to top-level in `trainer/views.py`
+
+### Mobile fixes
+- **MAJOR**: Fixed race condition in `_updateLayout` — now saves `previousLayout` before optimistic update and reverts to it on failure (instead of re-fetching from server)
+- **MAJOR**: Added bounds checking in `ClassicWorkoutLayout.didUpdateWidget` — handles case where exercise list grows (adds empty controller lists)
+- **MAJOR**: Added same bounds checking in `MinimalWorkoutLayout.didUpdateWidget`
+- **MINOR**: Removed unused import `api_client.dart` from `trainee_detail_screen.dart`

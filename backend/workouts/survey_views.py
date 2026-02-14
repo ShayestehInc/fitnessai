@@ -16,6 +16,7 @@ from typing import Any, cast
 from users.models import User
 from workouts.models import DailyLog
 from trainer.models import TrainerNotification, WorkoutLayoutConfig
+from core.permissions import IsTrainee
 
 logger = logging.getLogger(__name__)
 
@@ -394,7 +395,7 @@ class MyLayoutConfigView(APIView):
     Returns the authenticated trainee's workout layout configuration.
     If no config exists, returns the default ('classic').
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsTrainee]
 
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)

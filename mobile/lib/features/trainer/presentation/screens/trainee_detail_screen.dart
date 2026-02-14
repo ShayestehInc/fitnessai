@@ -10,7 +10,6 @@ import 'edit_trainee_goals_screen.dart';
 import 'remove_trainee_screen.dart';
 import 'dart:math' as math;
 import '../../data/repositories/trainer_repository.dart';
-import '../../../../core/api/api_client.dart';
 
 class TraineeDetailScreen extends ConsumerStatefulWidget {
   final int traineeId;
@@ -2516,6 +2515,8 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
   Future<void> _updateLayout(String layoutType) async {
     if (_isSaving || layoutType == _selectedLayout) return;
 
+    final previousLayout = _selectedLayout;
+
     setState(() {
       _isSaving = true;
       _selectedLayout = layoutType;
@@ -2541,8 +2542,8 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
         ),
       );
     } else {
-      // Revert on failure
-      _fetchCurrentLayout();
+      // Revert to previous value on failure
+      setState(() => _selectedLayout = previousLayout);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['error'] as String? ?? 'Failed to update layout'),

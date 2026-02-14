@@ -51,6 +51,11 @@ class _MinimalWorkoutLayoutState extends State<MinimalWorkoutLayout> {
   @override
   void didUpdateWidget(covariant MinimalWorkoutLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Sync controllers if exercises or sets were added
+    while (_weightControllers.length < widget.exerciseLogs.length) {
+      _weightControllers.add([]);
+      _repsControllers.add([]);
+    }
     for (int i = 0; i < widget.exerciseLogs.length; i++) {
       final sets = widget.exerciseLogs[i].sets;
       while (_weightControllers[i].length < sets.length) {

@@ -18,6 +18,7 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.utils import timezone
 from django.db.models import Count, Q, Avg, QuerySet
+from django.http import Http404
 from datetime import timedelta
 
 from core.permissions import IsTrainer
@@ -1144,10 +1145,11 @@ class TraineeLayoutConfigView(generics.RetrieveUpdateAPIView[WorkoutLayoutConfig
                 parent_trainer=trainer,
             )
         except User.DoesNotExist:
-            from django.http import Http404
             raise Http404("Trainee not found or not assigned to you.")
 
-        config, _created = WorkoutLayoutConfig.objects.get_or_create(
+        config, _created = WorkoutLayoutConfig.objects.select_related(
+            'configured_by',
+        ).get_or_create(
             trainee=trainee,
             defaults={
                 'layout_type': WorkoutLayoutConfig.LayoutType.CLASSIC,
