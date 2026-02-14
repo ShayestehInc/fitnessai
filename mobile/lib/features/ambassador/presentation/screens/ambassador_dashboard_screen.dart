@@ -55,13 +55,29 @@ class _AmbassadorDashboardScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
             const SizedBox(height: 16),
-            Text(error, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+            Text(
+              'Something went wrong',
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 14),
+              textAlign: TextAlign.center,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 24),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: () => ref.read(ambassadorDashboardProvider.notifier).loadDashboard(),
-              child: const Text('Retry'),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
             ),
           ],
         ),
@@ -79,9 +95,25 @@ class _AmbassadorDashboardScreenState
             Icon(Icons.handshake_outlined, size: 64, color: theme.textTheme.bodySmall?.color),
             const SizedBox(height: 16),
             Text(
-              'Share your referral code to start earning!',
-              style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 16),
+              'Welcome, Ambassador!',
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Share your referral code to start earning commissions on every trainer you refer.',
+              style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => ref.read(ambassadorDashboardProvider.notifier).loadDashboard(),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Refresh'),
             ),
           ],
         ),
@@ -111,25 +143,28 @@ class _AmbassadorDashboardScreenState
   }
 
   Widget _buildSuspendedBanner(ThemeData theme) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.warning_amber, color: Colors.orange, size: 20),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Account suspended. Contact admin for details.',
-              style: TextStyle(color: Colors.orange, fontSize: 13),
+    return Semantics(
+      label: 'Warning: Your ambassador account is currently suspended. Contact admin for details.',
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.orange.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.warning_amber, color: Colors.orange, size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Your account is currently suspended. Please contact the admin team for assistance.',
+                style: TextStyle(color: Colors.orange, fontSize: 13),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -244,10 +279,14 @@ class _AmbassadorDashboardScreenState
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _shareCode(data.referralCode),
-              icon: const Icon(Icons.share),
-              label: const Text('Share Referral Code'),
+            child: Semantics(
+              button: true,
+              label: 'Share referral code ${data.referralCode}',
+              child: ElevatedButton.icon(
+                onPressed: () => _shareCode(data.referralCode),
+                icon: const Icon(Icons.share),
+                label: const Text('Share Referral Code'),
+              ),
             ),
           ),
         ],
@@ -298,32 +337,35 @@ class _AmbassadorDashboardScreenState
   }
 
   Widget _buildStatTile(ThemeData theme, String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+    return Semantics(
+      label: '$label referrals: $value',
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: theme.textTheme.bodySmall?.color,
-              fontSize: 11,
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 12,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -391,7 +433,7 @@ class _AmbassadorDashboardScreenState
             radius: 20,
             backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
             child: Text(
-              referral.trainer.displayName[0].toUpperCase(),
+              referral.trainer.initials,
               style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
             ),
           ),

@@ -30,7 +30,14 @@ class AmbassadorUser {
     if (firstName != null && firstName!.isNotEmpty) {
       return '$firstName ${lastName ?? ''}'.trim();
     }
-    return email.split('@').first;
+    final localPart = email.split('@').first;
+    return localPart.isNotEmpty ? localPart : email;
+  }
+
+  String get initials {
+    final name = displayName;
+    if (name.isEmpty) return '?';
+    return name[0].toUpperCase();
   }
 }
 
@@ -188,6 +195,73 @@ class ReferralCodeData {
     return ReferralCodeData(
       referralCode: json['referral_code'] as String,
       shareMessage: json['share_message'] as String,
+    );
+  }
+}
+
+class AmbassadorCommission {
+  final int id;
+  final String trainerEmail;
+  final String commissionRate;
+  final String baseAmount;
+  final String commissionAmount;
+  final String status;
+  final String periodStart;
+  final String periodEnd;
+  final String createdAt;
+
+  const AmbassadorCommission({
+    required this.id,
+    required this.trainerEmail,
+    required this.commissionRate,
+    required this.baseAmount,
+    required this.commissionAmount,
+    required this.status,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.createdAt,
+  });
+
+  factory AmbassadorCommission.fromJson(Map<String, dynamic> json) {
+    return AmbassadorCommission(
+      id: json['id'] as int,
+      trainerEmail: json['trainer_email'] as String? ?? '',
+      commissionRate: json['commission_rate']?.toString() ?? '0.00',
+      baseAmount: json['base_amount']?.toString() ?? '0.00',
+      commissionAmount: json['commission_amount']?.toString() ?? '0.00',
+      status: json['status'] as String? ?? 'PENDING',
+      periodStart: json['period_start'] as String? ?? '',
+      periodEnd: json['period_end'] as String? ?? '',
+      createdAt: json['created_at'] as String? ?? '',
+    );
+  }
+}
+
+class AmbassadorDetailData {
+  final AmbassadorProfile profile;
+  final List<AmbassadorReferral> referrals;
+  final List<AmbassadorCommission> commissions;
+
+  const AmbassadorDetailData({
+    required this.profile,
+    required this.referrals,
+    required this.commissions,
+  });
+
+  int get referralsCount => referrals.length;
+  int get commissionsCount => commissions.length;
+
+  factory AmbassadorDetailData.fromJson(Map<String, dynamic> json) {
+    return AmbassadorDetailData(
+      profile: AmbassadorProfile.fromJson(json['profile'] as Map<String, dynamic>),
+      referrals: (json['referrals'] as List<dynamic>?)
+              ?.map((e) => AmbassadorReferral.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      commissions: (json['commissions'] as List<dynamic>?)
+              ?.map((e) => AmbassadorCommission.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 }

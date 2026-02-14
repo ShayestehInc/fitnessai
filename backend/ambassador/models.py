@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models
+from django.db import IntegrityError, models
 from django.utils import timezone
 
 if TYPE_CHECKING:
@@ -77,7 +77,18 @@ class AmbassadorProfile(models.Model):
     def save(self, *args: object, **kwargs: object) -> None:
         if not self.referral_code:
             self.referral_code = self._generate_unique_code()
-        super().save(*args, **kwargs)
+        # Retry with a new code on unique constraint collision (concurrent generation race)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                super().save(*args, **kwargs)
+                return
+            except IntegrityError as exc:
+                is_code_collision = 'referral_code' in str(exc)
+                if attempt < max_retries - 1 and is_code_collision:
+                    self.referral_code = self._generate_unique_code()
+                else:
+                    raise
 
     def _generate_unique_code(self) -> str:
         """Generate a referral code that doesn't exist yet."""
@@ -147,7 +158,12 @@ class AmbassadorReferral(models.Model):
 
     class Meta:
         db_table = 'ambassador_referrals'
-        unique_together = [['ambassador', 'trainer']]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['ambassador', 'trainer'],
+                name='unique_ambassador_trainer_referral',
+            ),
+        ]
         indexes = [
             models.Index(fields=['ambassador', 'status']),
             models.Index(fields=['trainer']),
@@ -234,6 +250,12 @@ class AmbassadorCommission(models.Model):
 
     class Meta:
         db_table = 'ambassador_commissions'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['referral', 'period_start', 'period_end'],
+                name='unique_commission_per_referral_period',
+            ),
+        ]
         indexes = [
             models.Index(fields=['ambassador', 'status']),
             models.Index(fields=['referral']),

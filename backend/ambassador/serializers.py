@@ -96,6 +96,12 @@ class AdminCreateAmbassadorSerializer(serializers.Serializer[dict[str, Any]]):
     email = serializers.EmailField()
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
+    password = serializers.CharField(
+        min_length=8,
+        max_length=128,
+        write_only=True,
+        help_text="Temporary password the ambassador will use to log in",
+    )
     commission_rate = serializers.DecimalField(
         max_digits=4,
         decimal_places=2,

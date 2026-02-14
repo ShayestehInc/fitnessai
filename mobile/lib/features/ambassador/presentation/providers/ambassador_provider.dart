@@ -149,6 +149,7 @@ class AdminAmbassadorsNotifier extends StateNotifier<AdminAmbassadorsState> {
     required String email,
     required String firstName,
     required String lastName,
+    required String password,
     required double commissionRate,
   }) async {
     try {
@@ -156,6 +157,7 @@ class AdminAmbassadorsNotifier extends StateNotifier<AdminAmbassadorsState> {
         email: email,
         firstName: firstName,
         lastName: lastName,
+        password: password,
         commissionRate: commissionRate,
       );
       await loadAmbassadors();

@@ -100,18 +100,37 @@ class _AdminAmbassadorsScreenState
                 ? const Center(child: CircularProgressIndicator())
                 : state.error != null
                     ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                            const SizedBox(height: 16),
-                            Text(state.error!, style: const TextStyle(color: Colors.red)),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _search,
-                              child: const Text('Retry'),
-                            ),
-                          ],
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Could not load ambassadors',
+                                style: TextStyle(
+                                  color: theme.textTheme.bodyLarge?.color,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                state.error!,
+                                style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 14),
+                                textAlign: TextAlign.center,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: _search,
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: const Text('Retry'),
+                              ),
+                            ],
+                          ),
                         ),
                       )
                     : state.ambassadors.isEmpty
@@ -133,7 +152,12 @@ class _AdminAmbassadorsScreenState
                         : RefreshIndicator(
                             onRefresh: () => ref
                                 .read(adminAmbassadorsProvider.notifier)
-                                .loadAmbassadors(),
+                                .loadAmbassadors(
+                                  search: _searchController.text.trim().isNotEmpty
+                                      ? _searchController.text.trim()
+                                      : null,
+                                  isActive: _activeFilter,
+                                ),
                             child: ListView.builder(
                               padding: const EdgeInsets.symmetric(horizontal: 16),
                               itemCount: state.ambassadors.length,
@@ -148,75 +172,86 @@ class _AdminAmbassadorsScreenState
   }
 
   Widget _buildAmbassadorTile(ThemeData theme, AmbassadorProfile ambassador) {
-    return GestureDetector(
-      onTap: () => context.push('/admin/ambassadors/${ambassador.id}'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
+    return Semantics(
+      button: true,
+      label: '${ambassador.user.displayName}, ${ambassador.totalReferrals} referrals, ${ambassador.isActive ? "active" : "inactive"}',
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Material(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: ambassador.isActive
-                  ? Colors.teal.withValues(alpha: 0.1)
-                  : Colors.grey.withValues(alpha: 0.1),
-              child: Icon(
-                Icons.handshake,
-                color: ambassador.isActive ? Colors.teal : Colors.grey,
-                size: 20,
+          child: InkWell(
+            onTap: () => context.push('/admin/ambassadors/${ambassador.id}'),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    ambassador.user.displayName,
-                    style: TextStyle(
-                      color: theme.textTheme.bodyLarge?.color,
-                      fontWeight: FontWeight.w500,
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: ambassador.isActive
+                        ? Colors.teal.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
+                    child: Icon(
+                      Icons.handshake,
+                      color: ambassador.isActive ? Colors.teal : Colors.grey,
+                      size: 20,
                     ),
                   ),
-                  Text(
-                    ambassador.user.email,
-                    style: TextStyle(
-                      color: theme.textTheme.bodySmall?.color,
-                      fontSize: 12,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ambassador.user.displayName,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          ambassador.user.email,
+                          style: TextStyle(
+                            color: theme.textTheme.bodySmall?.color,
+                            fontSize: 12,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${ambassador.totalReferrals} referrals',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        '\$${ambassador.totalEarnings}',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${ambassador.totalReferrals} referrals',
-                  style: TextStyle(
-                    color: theme.textTheme.bodyLarge?.color,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
-                  ),
-                ),
-                Text(
-                  '\$${ambassador.totalEarnings}',
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
-          ],
+          ),
         ),
       ),
     );

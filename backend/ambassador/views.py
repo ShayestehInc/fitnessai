@@ -7,7 +7,8 @@ import logging
 from decimal import Decimal
 from typing import Any, cast
 
-from django.db.models import Case, Count, Q, Sum, When
+from django.db import transaction
+from django.db.models import Case, Count, Q, QuerySet, Sum, When
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from rest_framework import status
@@ -31,6 +32,29 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _annotate_referrals_with_commission(
+    queryset: QuerySet[AmbassadorReferral],
+) -> QuerySet[AmbassadorReferral]:
+    """Annotate referral queryset with total earned commission.
+
+    Centralises the annotation so it is not duplicated across multiple views.
+    """
+    return queryset.annotate(
+        _total_commission=Sum(
+            Case(
+                When(
+                    commissions__status__in=[
+                        AmbassadorCommission.Status.APPROVED,
+                        AmbassadorCommission.Status.PAID,
+                    ],
+                    then='commissions__commission_amount',
+                ),
+                default=Decimal('0.00'),
+            )
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -97,21 +121,9 @@ class AmbassadorDashboardView(APIView):
 
         # Recent referrals (last 5) with annotated commission totals to avoid N+1
         recent_referrals = (
-            AmbassadorReferral.objects.filter(ambassador=user)
-            .select_related('trainer', 'trainer__subscription')
-            .annotate(
-                _total_commission=Sum(
-                    Case(
-                        When(
-                            commissions__status__in=[
-                                AmbassadorCommission.Status.APPROVED,
-                                AmbassadorCommission.Status.PAID,
-                            ],
-                            then='commissions__commission_amount',
-                        ),
-                        default=Decimal('0.00'),
-                    )
-                )
+            _annotate_referrals_with_commission(
+                AmbassadorReferral.objects.filter(ambassador=user)
+                .select_related('trainer', 'trainer__subscription')
             )
             .order_by('-referred_at')[:5]
         )
@@ -141,23 +153,9 @@ class AmbassadorReferralsView(APIView):
 
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
-        referrals = (
+        referrals = _annotate_referrals_with_commission(
             AmbassadorReferral.objects.filter(ambassador=user)
             .select_related('trainer', 'trainer__subscription')
-            .annotate(
-                _total_commission=Sum(
-                    Case(
-                        When(
-                            commissions__status__in=[
-                                AmbassadorCommission.Status.APPROVED,
-                                AmbassadorCommission.Status.PAID,
-                            ],
-                            then='commissions__commission_amount',
-                        ),
-                        default=Decimal('0.00'),
-                    )
-                )
-            )
         )
 
         # Filter by status
@@ -265,21 +263,22 @@ class AdminCreateAmbassadorView(APIView):
 
         validated = cast(dict[str, Any], serializer.validated_data)
 
-        # Create user with AMBASSADOR role in a single save
-        user = User(
-            email=validated['email'],
-            first_name=validated['first_name'],
-            last_name=validated['last_name'],
-            role=User.Role.AMBASSADOR,
-        )
-        user.set_unusable_password()
-        user.save()
+        with transaction.atomic():
+            # Create user with AMBASSADOR role and temporary password
+            user = User(
+                email=validated['email'],
+                first_name=validated['first_name'],
+                last_name=validated['last_name'],
+                role=User.Role.AMBASSADOR,
+            )
+            user.set_password(validated['password'])
+            user.save()
 
-        # Create ambassador profile with referral code
-        profile = AmbassadorProfile.objects.create(
-            user=user,
-            commission_rate=validated.get('commission_rate', Decimal('0.20')),
-        )
+            # Create ambassador profile with referral code
+            profile = AmbassadorProfile.objects.create(
+                user=user,
+                commission_rate=validated.get('commission_rate', Decimal('0.20')),
+            )
 
         logger.info("Admin created ambassador: %s (code: %s)", user.email, profile.referral_code)
 
@@ -312,33 +311,41 @@ class AdminAmbassadorDetailView(APIView):
             )
 
         referrals = (
-            AmbassadorReferral.objects.filter(ambassador=profile.user)
-            .select_related('trainer', 'trainer__subscription')
-            .annotate(
-                _total_commission=Sum(
-                    Case(
-                        When(
-                            commissions__status__in=[
-                                AmbassadorCommission.Status.APPROVED,
-                                AmbassadorCommission.Status.PAID,
-                            ],
-                            then='commissions__commission_amount',
-                        ),
-                        default=Decimal('0.00'),
-                    )
-                )
+            _annotate_referrals_with_commission(
+                AmbassadorReferral.objects.filter(ambassador=profile.user)
+                .select_related('trainer', 'trainer__subscription')
             )
-            .order_by('-referred_at')[:100]
+            .order_by('-referred_at')
         )
 
         commissions = AmbassadorCommission.objects.filter(
             ambassador=profile.user,
-        ).select_related('referral__trainer').order_by('-created_at')[:50]
+        ).select_related('referral__trainer').order_by('-created_at')
+
+        # Paginate referrals
+        referral_paginator = PageNumberPagination()
+        referral_paginator.page_size = 50
+        referral_paginator.page_query_param = 'referral_page'
+        referral_page = referral_paginator.paginate_queryset(referrals, request)
+        referral_data = AmbassadorReferralSerializer(
+            referral_page if referral_page is not None else referrals, many=True,
+        ).data
+
+        # Paginate commissions
+        commission_paginator = PageNumberPagination()
+        commission_paginator.page_size = 50
+        commission_paginator.page_query_param = 'commission_page'
+        commission_page = commission_paginator.paginate_queryset(commissions, request)
+        commission_data = AmbassadorCommissionSerializer(
+            commission_page if commission_page is not None else commissions, many=True,
+        ).data
 
         return Response({
             'profile': AmbassadorProfileSerializer(profile).data,
-            'referrals': AmbassadorReferralSerializer(referrals, many=True).data,
-            'commissions': AmbassadorCommissionSerializer(commissions, many=True).data,
+            'referrals': referral_data,
+            'referrals_count': referrals.count(),
+            'commissions': commission_data,
+            'commissions_count': commissions.count(),
         })
 
     def put(self, request: Request, ambassador_id: int) -> Response:

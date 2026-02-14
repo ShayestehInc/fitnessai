@@ -105,40 +105,64 @@ class ReferralService:
 
         On first payment, also activates the referral.
         Commission rate is snapshot from the ambassador profile at time of charge.
+        Uses select_for_update to prevent duplicate commissions from concurrent webhooks.
         """
-        profile = referral.ambassador_profile
-
-        if not profile.is_active:
-            logger.info(
-                "Skipping commission for inactive ambassador %s",
-                referral.ambassador.email,
-            )
-            return CommissionResult(
-                success=False, commission=None, message="Ambassador is inactive",
-            )
-
-        commission_rate = profile.commission_rate
-        commission_amount = (base_amount * commission_rate).quantize(Decimal('0.01'))
+        resolved_period_start = period_start.date() if hasattr(period_start, 'date') else period_start
+        resolved_period_end = period_end.date() if hasattr(period_end, 'date') else period_end
 
         with transaction.atomic():
+            # Lock the referral row to prevent concurrent commission creation
+            locked_referral = (
+                AmbassadorReferral.objects.select_for_update()
+                .select_related('ambassador_profile')
+                .get(id=referral.id)
+            )
+            profile = locked_referral.ambassador_profile
+
+            if not profile.is_active:
+                logger.info(
+                    "Skipping commission for inactive ambassador %s",
+                    locked_referral.ambassador.email,
+                )
+                return CommissionResult(
+                    success=False, commission=None, message="Ambassador is inactive",
+                )
+
+            # Guard against duplicate commission for the same period
+            if AmbassadorCommission.objects.filter(
+                referral=locked_referral,
+                period_start=resolved_period_start,
+                period_end=resolved_period_end,
+            ).exists():
+                logger.warning(
+                    "Duplicate commission attempt: referral=%s, period=%s to %s",
+                    locked_referral.id, resolved_period_start, resolved_period_end,
+                )
+                return CommissionResult(
+                    success=False, commission=None, message="Commission already exists for this period",
+                )
+
+            commission_rate = profile.commission_rate
+            commission_amount = (base_amount * commission_rate).quantize(Decimal('0.01'))
+
             # Activate referral on first payment
-            if referral.status == AmbassadorReferral.Status.PENDING:
-                referral.activate()
+            if locked_referral.status == AmbassadorReferral.Status.PENDING:
+                locked_referral.activate()
 
             # Reactivate churned referral if trainer resubscribes
-            if referral.status == AmbassadorReferral.Status.CHURNED:
-                referral.reactivate()
+            if locked_referral.status == AmbassadorReferral.Status.CHURNED:
+                locked_referral.reactivate()
 
             commission = AmbassadorCommission.objects.create(
-                ambassador=referral.ambassador,
-                referral=referral,
+                ambassador=locked_referral.ambassador,
+                referral=locked_referral,
                 ambassador_profile=profile,
                 commission_rate=commission_rate,
                 base_amount=base_amount,
                 commission_amount=commission_amount,
                 status=AmbassadorCommission.Status.PENDING,
-                period_start=period_start.date() if hasattr(period_start, 'date') else period_start,
-                period_end=period_end.date() if hasattr(period_end, 'date') else period_end,
+                period_start=resolved_period_start,
+                period_end=resolved_period_end,
             )
 
         # Update cached earnings outside transaction
@@ -153,15 +177,24 @@ class ReferralService:
         )
 
     @staticmethod
-    def handle_trainer_churn(trainer: User) -> None:
-        """Mark all referrals for a trainer as churned when they cancel subscription."""
-        referrals = AmbassadorReferral.objects.filter(
+    def handle_trainer_churn(trainer: User) -> int:
+        """Mark all active referrals for a trainer as churned when they cancel subscription.
+
+        Uses a bulk update for efficiency. Returns the number of referrals churned.
+        """
+        now = timezone.now()
+        churned_count = AmbassadorReferral.objects.filter(
             trainer=trainer,
             status=AmbassadorReferral.Status.ACTIVE,
+        ).update(
+            status=AmbassadorReferral.Status.CHURNED,
+            churned_at=now,
         )
-        for referral in referrals:
-            referral.mark_churned()
+
+        if churned_count > 0:
             logger.info(
-                "Referral churned: ambassador=%s, trainer=%s",
-                referral.ambassador.email, trainer.email,
+                "Bulk-churned %d referral(s) for trainer=%s",
+                churned_count, trainer.email,
             )
+
+        return churned_count

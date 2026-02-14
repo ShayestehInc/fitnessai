@@ -102,15 +102,31 @@ class _AmbassadorReferralsScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 16),
-            Text(error, style: const TextStyle(color: Colors.red)),
+            Text(
+              'Could not load referrals',
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 14),
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 16),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: () => ref
                   .read(ambassadorReferralsProvider.notifier)
                   .loadReferrals(status: _statusFilter),
-              child: const Text('Retry'),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
             ),
           ],
         ),
@@ -118,20 +134,46 @@ class _AmbassadorReferralsScreenState
     );
   }
 
+  String _friendlyFilterLabel(String? status) {
+    if (status == null) return '';
+    return switch (status) {
+      'ACTIVE' => 'active',
+      'PENDING' => 'pending',
+      'CHURNED' => 'churned',
+      _ => status.toLowerCase(),
+    };
+  }
+
   Widget _buildEmptyState(ThemeData theme) {
+    final filterLabel = _friendlyFilterLabel(_statusFilter);
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.people_outline, size: 64, color: theme.textTheme.bodySmall?.color),
-          const SizedBox(height: 16),
-          Text(
-            _statusFilter != null
-                ? 'No $_statusFilter referrals'
-                : 'No referrals yet',
-            style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 16),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: theme.textTheme.bodySmall?.color),
+            const SizedBox(height: 16),
+            Text(
+              _statusFilter != null
+                  ? 'No $filterLabel referrals'
+                  : 'No referrals yet',
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _statusFilter != null
+                  ? 'Try a different filter or check back later.'
+                  : 'Share your referral code to get started.',
+              style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -144,7 +186,9 @@ class _AmbassadorReferralsScreenState
       _ => Colors.grey,
     };
 
-    return Container(
+    return Semantics(
+      label: '${referral.trainer.displayName}, ${_friendlyFilterLabel(referral.status)} referral, \$${referral.totalCommissionEarned} commission',
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -161,7 +205,7 @@ class _AmbassadorReferralsScreenState
                 radius: 20,
                 backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
                 child: Text(
-                  referral.trainer.displayName[0].toUpperCase(),
+                  referral.trainer.initials,
                   style: TextStyle(
                     color: theme.colorScheme.primary,
                     fontWeight: FontWeight.bold,
@@ -218,6 +262,7 @@ class _AmbassadorReferralsScreenState
             ],
           ),
         ],
+      ),
       ),
     );
   }

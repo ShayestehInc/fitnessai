@@ -15,10 +15,14 @@ class AdminAmbassadorDetailScreen extends ConsumerStatefulWidget {
 
 class _AdminAmbassadorDetailScreenState
     extends ConsumerState<AdminAmbassadorDetailScreen> {
-  AmbassadorProfile? _profile;
-  List<AmbassadorReferral> _referrals = [];
+  AmbassadorDetailData? _detail;
   bool _isLoading = true;
+  bool _isToggling = false;
   String? _error;
+
+  AmbassadorProfile? get _profile => _detail?.profile;
+  List<AmbassadorReferral> get _referrals => _detail?.referrals ?? [];
+  List<AmbassadorCommission> get _commissions => _detail?.commissions ?? [];
 
   @override
   void initState() {
@@ -34,13 +38,10 @@ class _AdminAmbassadorDetailScreenState
 
     try {
       final repo = ref.read(ambassadorRepositoryProvider);
-      final data = await repo.getAmbassadorDetail(widget.ambassadorId);
+      final detail = await repo.getAmbassadorDetail(widget.ambassadorId);
 
       setState(() {
-        _profile = AmbassadorProfile.fromJson(data['profile'] as Map<String, dynamic>);
-        _referrals = (data['referrals'] as List<dynamic>)
-            .map((e) => AmbassadorReferral.fromJson(e as Map<String, dynamic>))
-            .toList();
+        _detail = detail;
         _isLoading = false;
       });
     } catch (e) {
@@ -52,13 +53,48 @@ class _AdminAmbassadorDetailScreenState
   }
 
   Future<void> _toggleActive() async {
-    if (_profile == null) return;
+    if (_profile == null || _isToggling) return;
 
     final newActive = !_profile!.isActive;
+    final actionLabel = newActive ? 'activate' : 'deactivate';
+    final displayName = _profile!.user.displayName;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${newActive ? 'Activate' : 'Deactivate'} Ambassador'),
+        content: Text(
+          'Are you sure you want to $actionLabel $displayName? '
+          '${newActive ? 'They will be able to earn commissions again.' : 'They will no longer earn commissions on new referrals.'}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: newActive ? Colors.green : Colors.orange,
+            ),
+            child: Text(newActive ? 'Activate' : 'Deactivate'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isToggling = true);
+
     final success = await ref.read(adminAmbassadorsProvider.notifier).updateAmbassador(
           _profile!.id,
           isActive: newActive,
         );
+
+    if (mounted) {
+      setState(() => _isToggling = false);
+    }
 
     if (success) {
       await _loadDetail();
@@ -69,6 +105,84 @@ class _AdminAmbassadorDetailScreenState
             backgroundColor: newActive ? Colors.green : Colors.orange,
           ),
         );
+      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to $actionLabel ambassador. Please try again.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showEditCommissionRateDialog() async {
+    if (_profile == null) return;
+
+    double currentRate = double.tryParse(_profile!.commissionRate) ?? 0.20;
+    double newRate = currentRate;
+
+    final result = await showDialog<double>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Edit Commission Rate'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${(newRate * 100).toStringAsFixed(0)}%',
+                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Slider(
+                    value: newRate,
+                    min: 0.05,
+                    max: 0.50,
+                    divisions: 9,
+                    label: '${(newRate * 100).toStringAsFixed(0)}%',
+                    onChanged: (value) => setDialogState(() => newRate = value),
+                  ),
+                  Text(
+                    'Ambassador earns ${(newRate * 100).toStringAsFixed(0)}% of each referred trainer\'s subscription.',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(newRate),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && result != currentRate && mounted) {
+      final success = await ref.read(adminAmbassadorsProvider.notifier).updateAmbassador(
+            _profile!.id,
+            commissionRate: result,
+          );
+      if (success) {
+        await _loadDetail();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Commission rate updated to ${(result * 100).toStringAsFixed(0)}%'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     }
   }
@@ -83,30 +197,70 @@ class _AdminAmbassadorDetailScreenState
         title: const Text('Ambassador Detail'),
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
-          if (_profile != null)
+          if (_profile != null) ...[
             IconButton(
-              icon: Icon(
-                _profile!.isActive ? Icons.pause_circle : Icons.play_circle,
-                color: _profile!.isActive ? Colors.orange : Colors.green,
-              ),
-              tooltip: _profile!.isActive ? 'Deactivate' : 'Activate',
-              onPressed: _toggleActive,
+              icon: const Icon(Icons.edit, size: 20),
+              tooltip: 'Edit Commission Rate',
+              onPressed: _showEditCommissionRateDialog,
             ),
+            _isToggling
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : IconButton(
+                    icon: Icon(
+                      _profile!.isActive ? Icons.pause_circle : Icons.play_circle,
+                      color: _profile!.isActive ? Colors.orange : Colors.green,
+                    ),
+                    tooltip: _profile!.isActive ? 'Deactivate ambassador' : 'Activate ambassador',
+                    onPressed: _toggleActive,
+                  ),
+          ],
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(_error!, style: const TextStyle(color: Colors.red)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(onPressed: _loadDetail, child: const Text('Retry')),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Could not load ambassador details',
+                          style: TextStyle(
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          style: TextStyle(
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _loadDetail,
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : RefreshIndicator(
@@ -122,6 +276,8 @@ class _AdminAmbassadorDetailScreenState
                         _buildStatsCard(theme),
                         const SizedBox(height: 24),
                         _buildReferralsList(theme),
+                        const SizedBox(height: 24),
+                        _buildCommissionsList(theme),
                       ],
                     ),
                   ),
@@ -220,30 +376,36 @@ class _AdminAmbassadorDetailScreenState
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _buildStatTile(
-              theme, 'Rate', '${profile.commissionPercent.toStringAsFixed(0)}%', Colors.purple),
+          child: GestureDetector(
+            onTap: _showEditCommissionRateDialog,
+            child: _buildStatTile(
+                theme, 'Rate', '${profile.commissionPercent.toStringAsFixed(0)}%', Colors.purple),
+          ),
         ),
       ],
     );
   }
 
   Widget _buildStatTile(ThemeData theme, String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 11)),
-        ],
+    return Semantics(
+      label: '$label: $value',
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 12)),
+          ],
+        ),
       ),
     );
   }
@@ -335,6 +497,112 @@ class _AdminAmbassadorDetailScreenState
             ),
             child: Text(
               referral.status,
+              style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommissionsList(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Commission History (${_commissions.length})',
+          style: TextStyle(
+            color: theme.textTheme.bodyLarge?.color,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_commissions.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: Center(
+              child: Text(
+                'No commissions yet',
+                style: TextStyle(color: theme.textTheme.bodySmall?.color),
+              ),
+            ),
+          )
+        else
+          ..._commissions.map((c) => _buildCommissionTile(theme, c)),
+      ],
+    );
+  }
+
+  Widget _buildCommissionTile(ThemeData theme, AmbassadorCommission commission) {
+    final statusColor = switch (commission.status) {
+      'PAID' => Colors.green,
+      'APPROVED' => Colors.blue,
+      'PENDING' => Colors.orange,
+      _ => Colors.grey,
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  commission.trainerEmail,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '${commission.periodStart} - ${commission.periodEnd}',
+                  style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '\$${commission.commissionAmount}',
+                style: const TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                'of \$${commission.baseAmount}',
+                style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 10),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              commission.status,
               style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),

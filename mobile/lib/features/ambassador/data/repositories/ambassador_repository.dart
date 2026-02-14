@@ -54,6 +54,7 @@ class AmbassadorRepository {
     required String email,
     required String firstName,
     required String lastName,
+    required String password,
     required double commissionRate,
   }) async {
     final response = await _apiClient.dio.post(
@@ -62,15 +63,16 @@ class AmbassadorRepository {
         'email': email,
         'first_name': firstName,
         'last_name': lastName,
+        'password': password,
         'commission_rate': commissionRate.toStringAsFixed(2),
       },
     );
     return AmbassadorProfile.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<Map<String, dynamic>> getAmbassadorDetail(int id) async {
+  Future<AmbassadorDetailData> getAmbassadorDetail(int id) async {
     final response = await _apiClient.dio.get(ApiConstants.adminAmbassadorDetail(id));
-    return response.data as Map<String, dynamic>;
+    return AmbassadorDetailData.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<AmbassadorProfile> updateAmbassador(int id, {double? commissionRate, bool? isActive}) async {
