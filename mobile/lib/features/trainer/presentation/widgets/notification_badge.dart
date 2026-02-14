@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/notification_provider.dart';
 
 /// Bell icon with unread notification count badge.
-/// Shows "99+" when count exceeds 99.
+/// Shows "99+" when count exceeds 99. Badge hidden when count is 0.
 class NotificationBadge extends ConsumerWidget {
   final VoidCallback onTap;
 
@@ -14,20 +14,36 @@ class NotificationBadge extends ConsumerWidget {
     final countAsync = ref.watch(unreadNotificationCountProvider);
     final theme = Theme.of(context);
 
-    return IconButton(
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Icon(Icons.notifications_outlined),
-          countAsync.when(
-            data: (count) {
-              if (count <= 0) return const SizedBox.shrink();
-              return Positioned(
+    final count = countAsync.maybeWhen(
+      data: (c) => c,
+      orElse: () => 0,
+    );
+
+    final badgeLabel = count > 0
+        ? '$count unread notifications'
+        : 'Notifications, none unread';
+
+    return Semantics(
+      button: true,
+      label: badgeLabel,
+      child: IconButton(
+        icon: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Icon(Icons.notifications_outlined),
+            if (count > 0)
+              Positioned(
                 right: -6,
                 top: -4,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.error,
                     borderRadius: BorderRadius.circular(10),
@@ -43,15 +59,12 @@ class NotificationBadge extends ConsumerWidget {
                     ),
                   ),
                 ),
-              );
-            },
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-        ],
+              ),
+          ],
+        ),
+        onPressed: onTap,
+        tooltip: 'Notifications',
       ),
-      onPressed: onTap,
-      tooltip: 'Notifications',
     );
   }
 }

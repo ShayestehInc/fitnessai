@@ -21,12 +21,17 @@ class TrainerNotificationModel {
   });
 
   factory TrainerNotificationModel.fromJson(Map<String, dynamic> json) {
+    // Safely parse the data field: must be a Map or fallback to empty.
+    final rawData = json['data'];
+    final Map<String, dynamic> parsedData =
+        rawData is Map<String, dynamic> ? rawData : {};
+
     return TrainerNotificationModel(
       id: json['id'] as int,
       notificationType: json['notification_type'] as String? ?? 'general',
       title: json['title'] as String? ?? '',
       message: json['message'] as String? ?? '',
-      data: (json['data'] as Map<String, dynamic>?) ?? {},
+      data: parsedData,
       isRead: json['is_read'] as bool? ?? false,
       readAt: json['read_at'] as String?,
       createdAt: json['created_at'] as String? ?? '',

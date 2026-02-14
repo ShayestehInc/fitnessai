@@ -394,7 +394,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                                   .toList();
                             }
                           } catch (e) {
-                            debugPrint('Error parsing schedule template: $e');
+                            // Schedule template parsing failed — fall through to empty weeks
                           }
                         }
                         // Navigate to program builder to edit

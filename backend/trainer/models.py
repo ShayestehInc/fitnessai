@@ -242,8 +242,7 @@ class TrainerNotification(models.Model):
         db_table = 'trainer_notifications'
         indexes = [
             models.Index(fields=['trainer', 'is_read']),
-            models.Index(fields=['trainer', 'created_at']),
-            models.Index(fields=['notification_type']),
+            models.Index(fields=['trainer', '-created_at']),
         ]
         ordering = ['-created_at']
 

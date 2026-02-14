@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/trainer_notification_model.dart';
 import 'trainer_provider.dart';
@@ -53,7 +55,13 @@ class NotificationsNotifier extends AutoDisposeAsyncNotifier<List<TrainerNotific
       _currentPage++;
       final newPage = await _fetchPage(_currentPage);
       state = AsyncData([...currentState.value, ...newPage]);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to load notification page $_currentPage',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'NotificationsNotifier',
+      );
       _currentPage--;
     } finally {
       _isLoadingMore = false;

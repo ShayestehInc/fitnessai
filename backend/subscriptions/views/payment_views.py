@@ -615,20 +615,37 @@ class StripeWebhookView(APIView):
             logger.warning("Subscription not found: %s", subscription_id)
 
     def _handle_invoice_payment_failed(self, invoice: dict[str, Any]) -> None:
-        """Handle failed invoice payment."""
+        """Handle failed invoice payment.
+
+        Handles both trainee-to-trainer subscriptions and trainer platform
+        subscriptions by trying TraineeSubscription first, then Subscription.
+        """
         subscription_id = invoice.get('subscription')
         if not subscription_id:
             return
 
+        # Try trainee-to-trainer subscription first
         try:
             subscription = TraineeSubscription.objects.get(stripe_subscription_id=subscription_id)
             subscription.status = TraineeSubscription.Status.PAST_DUE
             subscription.save()
 
-            logger.info(f"Subscription {subscription_id} marked as past due")
+            logger.info("Trainee subscription %s marked as past due", subscription_id)
+            return
 
         except TraineeSubscription.DoesNotExist:
-            logger.warning(f"Subscription not found: {subscription_id}")
+            pass
+
+        # Try trainer platform subscription
+        try:
+            platform_sub = Subscription.objects.get(stripe_subscription_id=subscription_id)
+            platform_sub.status = Subscription.Status.PAST_DUE
+            platform_sub.save(update_fields=['status', 'updated_at'])
+
+            logger.info("Platform subscription %s marked as past due", subscription_id)
+
+        except Subscription.DoesNotExist:
+            logger.warning("Subscription not found: %s", subscription_id)
 
     def _handle_subscription_deleted(self, subscription_data: dict[str, Any]) -> None:
         """Handle subscription cancellation.
@@ -674,10 +691,15 @@ class StripeWebhookView(APIView):
             logger.warning("Subscription not found: %s", subscription_id)
 
     def _handle_subscription_updated(self, subscription_data: dict[str, Any]) -> None:
-        """Handle subscription updates."""
+        """Handle subscription updates.
+
+        Handles both trainee-to-trainer subscriptions and trainer platform
+        subscriptions by trying TraineeSubscription first, then Subscription.
+        """
         subscription_id = subscription_data['id']
         stripe_status = subscription_data.get('status')
 
+        # Try trainee-to-trainer subscription first
         try:
             subscription = TraineeSubscription.objects.get(stripe_subscription_id=subscription_id)
 
@@ -704,10 +726,40 @@ class StripeWebhookView(APIView):
                 )
 
             subscription.save()
-            logger.info(f"Subscription {subscription_id} updated")
+            logger.info("Trainee subscription %s updated", subscription_id)
+            return
 
         except TraineeSubscription.DoesNotExist:
-            logger.warning(f"Subscription not found: {subscription_id}")
+            pass
+
+        # Try trainer platform subscription
+        try:
+            platform_sub = Subscription.objects.get(stripe_subscription_id=subscription_id)
+
+            platform_status_map: dict[str, str] = {
+                'active': Subscription.Status.ACTIVE,
+                'past_due': Subscription.Status.PAST_DUE,
+                'canceled': Subscription.Status.CANCELED,
+                'trialing': Subscription.Status.TRIALING,
+            }
+
+            if stripe_status and stripe_status in platform_status_map:
+                platform_sub.status = platform_status_map[stripe_status]
+
+            if subscription_data.get('current_period_start'):
+                platform_sub.current_period_start = datetime.fromtimestamp(
+                    subscription_data['current_period_start'], tz=tz.utc
+                )
+            if subscription_data.get('current_period_end'):
+                platform_sub.current_period_end = datetime.fromtimestamp(
+                    subscription_data['current_period_end'], tz=tz.utc
+                )
+
+            platform_sub.save()
+            logger.info("Platform subscription %s updated", subscription_id)
+
+        except Subscription.DoesNotExist:
+            logger.warning("Subscription not found: %s", subscription_id)
 
     def _handle_account_updated(self, account: dict[str, Any]) -> None:
         """Handle Stripe Connect account updates."""
