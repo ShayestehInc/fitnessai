@@ -4,6 +4,49 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-14] — White-Label Branding Infrastructure
+
+### Added
+- **TrainerBranding model** — OneToOne to User with `app_name`, `primary_color`, `secondary_color`, `logo` (ImageField). Auto-creates with defaults via `get_or_create_for_trainer()` classmethod.
+- **branding_service.py** — Service layer for image validation and logo operations. `validate_logo_image()` performs 5-layer defense-in-depth validation (content-type, file size, Pillow format, dimensions, filename). `upload_trainer_logo()` and `remove_trainer_logo()` handle business logic.
+- **Trainer API endpoints** — `GET/PUT /api/trainer/branding/` for config management, `POST/DELETE /api/trainer/branding/logo/` for logo upload/removal. IsTrainer permission, row-level security via OneToOne.
+- **Trainee API endpoint** — `GET /api/users/my-branding/` returns parent trainer's branding or defaults. IsTrainee permission.
+- **BrandingScreen** — Trainer-facing branding editor with app name field, 12-preset color picker (primary + secondary), logo upload/preview, and live preview card. Extracted into 3 sub-widgets: `BrandingPreviewCard`, `BrandingLogoSection`, `BrandingColorSection`.
+- **Theme branding override** — `ThemeNotifier.applyTrainerBranding()` / `clearTrainerBranding()` with SharedPreferences caching (hex-string format). Trainer's primary/secondary colors override default theme throughout the app.
+- **Dynamic splash screen** — Shows trainer's logo (with loading spinner) and app name instead of hardcoded "FitnessAI" when branding is configured.
+- **Shared branding sync** — `BrandingRepository.syncTraineeBranding()` static method shared between splash and login screens. Fetches, applies, and caches branding.
+- **Unsaved changes guard** — `PopScope` wrapper shows confirmation dialog when navigating away with unsaved changes.
+- **Reset to defaults** — AppBar overflow menu option to reset all branding to FitnessAI defaults.
+- **Accessibility labels** — Semantics wrappers on all interactive branding elements (buttons, color swatches, logo image, preview card).
+- **Luminance-based contrast** — Color picker indicators and preview button text adapt based on color brightness for WCAG compliance.
+- **84 comprehensive backend tests** — Model, views, serializer, permissions, row-level security, edge cases (unicode, rapid updates, multi-trainer isolation).
+- Database migration: `trainer/migrations/0004_add_trainer_branding.py`.
+- **Dead settings buttons fixed** — 5 empty `onTap` handlers in settings_screen.dart now show "Coming soon!" SnackBars.
+
+### Changed
+- `splash_screen.dart` — Uses `ref.watch(themeProvider)` for reactive branding updates during animation. Added `loadingBuilder` for logo network images.
+- `login_screen.dart` — Fetches branding after trainee login via shared `syncTraineeBranding()`.
+- `theme_provider.dart` — Extended `AppThemeState` with `trainerBranding`, `effectivePrimary`, `effectivePrimaryLight`. `TrainerBrandingTheme` uses hex-string format for consistent caching.
+- `branding_repository.dart` — All methods return typed `BrandingResult` class instead of `Map<String, dynamic>`. Specific exception catches (`DioException`, `FormatException`).
+
+### Security
+- UUID-based filenames for logo uploads (prevents path traversal)
+- HTML tag stripping in `validate_app_name()` (prevents stored XSS)
+- File size bypass fix (`is None or` instead of `is not None and`)
+- Generic error messages (no internal details leaked)
+- 5-layer image validation (content-type + Pillow format + size + dimensions + filename)
+
+### Quality
+- Code review: 8/10 — APPROVE (Round 2, all 17 Round 1 issues fixed)
+- QA: 84/84 tests pass, 0 bugs — HIGH confidence
+- UX audit: 8/10 — 9 issues fixed
+- Security audit: 9/10 — PASS (5 issues fixed)
+- Architecture review: 8.5/10 — APPROVE (service layer extracted)
+- Hacker report: 7/10 — 12 items fixed
+- Overall quality: 8.5/10 — SHIP
+
+---
+
 ## [2026-02-14] — Trainer-Selectable Workout Layouts
 
 ### Added
