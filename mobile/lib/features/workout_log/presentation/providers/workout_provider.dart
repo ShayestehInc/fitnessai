@@ -252,8 +252,9 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
   List<ProgramWeekData> _parseProgramWeeks(ProgramModel program) {
     final schedule = program.schedule;
 
-    // Handle null or empty schedule
-    if (schedule == null) return _generateSampleWeeks();
+    // Handle null or empty schedule — return empty list, NOT sample data.
+    // Sample data should only be used when the trainee has zero programs.
+    if (schedule == null) return [];
 
     // Determine the weeks list based on schedule format
     List<dynamic>? weeksList;
@@ -269,7 +270,7 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
     }
 
     if (weeksList == null || weeksList.isEmpty) {
-      return _generateSampleWeeks();
+      return [];
     }
 
     final List<ProgramWeekData> weeks = [];
@@ -327,7 +328,7 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
       ));
     }
 
-    return weeks.isEmpty ? _generateSampleWeeks() : weeks;
+    return weeks;
   }
 
   List<ProgramExercise> _parseExercises(List<dynamic> exercises) {
@@ -350,139 +351,6 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
   int _estimateWorkoutDuration(int exerciseCount) {
     // Roughly 5 minutes per exercise (including rest)
     return exerciseCount * 5 + 10; // Plus 10 for warmup
-  }
-
-  List<ProgramWeekData> _generateSampleWeeks() {
-    // Generate sample data when no program is available
-    final now = DateTime.now();
-    final dayOfWeek = now.weekday - 1; // 0 = Monday
-
-    return List.generate(4, (weekIndex) {
-      final isCurrentWeek = weekIndex == 0;
-      final workouts = [
-        ProgramWorkoutDay(
-          dayIndex: 0,
-          name: 'Push Day',
-          isToday: isCurrentWeek && dayOfWeek == 0,
-          isCompleted: isCurrentWeek && dayOfWeek > 0,
-          exerciseCount: 6,
-          estimatedMinutes: 45,
-          exercises: _getSampleExercises('push'),
-        ),
-        ProgramWorkoutDay(
-          dayIndex: 1,
-          name: 'Pull Day',
-          isToday: isCurrentWeek && dayOfWeek == 1,
-          isCompleted: isCurrentWeek && dayOfWeek > 1,
-          exerciseCount: 6,
-          estimatedMinutes: 45,
-          exercises: _getSampleExercises('pull'),
-        ),
-        ProgramWorkoutDay(
-          dayIndex: 2,
-          name: 'Legs',
-          isToday: isCurrentWeek && dayOfWeek == 2,
-          isCompleted: isCurrentWeek && dayOfWeek > 2,
-          exerciseCount: 5,
-          estimatedMinutes: 50,
-          exercises: _getSampleExercises('legs'),
-        ),
-        ProgramWorkoutDay(
-          dayIndex: 3,
-          name: 'Rest Day',
-          isRestDay: true,
-          isToday: isCurrentWeek && dayOfWeek == 3,
-          isCompleted: isCurrentWeek && dayOfWeek > 3,
-        ),
-        ProgramWorkoutDay(
-          dayIndex: 4,
-          name: 'Upper Body',
-          isToday: isCurrentWeek && dayOfWeek == 4,
-          isCompleted: isCurrentWeek && dayOfWeek > 4,
-          exerciseCount: 7,
-          estimatedMinutes: 55,
-          exercises: _getSampleExercises('upper'),
-        ),
-        ProgramWorkoutDay(
-          dayIndex: 5,
-          name: 'Lower Body',
-          isToday: isCurrentWeek && dayOfWeek == 5,
-          isCompleted: isCurrentWeek && dayOfWeek > 5,
-          exerciseCount: 5,
-          estimatedMinutes: 45,
-          exercises: _getSampleExercises('lower'),
-        ),
-        ProgramWorkoutDay(
-          dayIndex: 6,
-          name: 'Rest Day',
-          isRestDay: true,
-          isToday: isCurrentWeek && dayOfWeek == 6,
-          isCompleted: false,
-        ),
-      ];
-
-      final completedWorkouts = workouts.where((w) => w.isCompleted && !w.isRestDay).length;
-      final totalWorkouts = workouts.where((w) => !w.isRestDay).length;
-      final completion = totalWorkouts > 0 ? completedWorkouts / totalWorkouts : 0.0;
-
-      return ProgramWeekData(
-        weekNumber: weekIndex + 1,
-        completionPercentage: isCurrentWeek ? completion : (weekIndex == 0 ? 0.0 : 1.0),
-        isCurrentWeek: isCurrentWeek,
-        workouts: workouts,
-      );
-    });
-  }
-
-  List<ProgramExercise> _getSampleExercises(String type) {
-    switch (type) {
-      case 'push':
-        return const [
-          ProgramExercise(exerciseId: 1, name: 'Bench Press', muscleGroup: 'chest', targetSets: 4, targetReps: 8, lastWeight: 185, lastReps: 8),
-          ProgramExercise(exerciseId: 2, name: 'Incline Dumbbell Press', muscleGroup: 'chest', targetSets: 3, targetReps: 10, lastWeight: 60, lastReps: 10),
-          ProgramExercise(exerciseId: 3, name: 'Overhead Press', muscleGroup: 'shoulders', targetSets: 4, targetReps: 8, lastWeight: 95, lastReps: 8),
-          ProgramExercise(exerciseId: 4, name: 'Lateral Raises', muscleGroup: 'shoulders', targetSets: 3, targetReps: 12, lastWeight: 20, lastReps: 12),
-          ProgramExercise(exerciseId: 5, name: 'Tricep Pushdowns', muscleGroup: 'triceps', targetSets: 3, targetReps: 12, lastWeight: 50, lastReps: 12),
-          ProgramExercise(exerciseId: 6, name: 'Dips', muscleGroup: 'triceps', targetSets: 3, targetReps: 10, lastWeight: 0, lastReps: 10),
-        ];
-      case 'pull':
-        return const [
-          ProgramExercise(exerciseId: 7, name: 'Deadlift', muscleGroup: 'back', targetSets: 4, targetReps: 5, lastWeight: 275, lastReps: 5),
-          ProgramExercise(exerciseId: 8, name: 'Pull-ups', muscleGroup: 'back', targetSets: 4, targetReps: 8, lastWeight: 0, lastReps: 8),
-          ProgramExercise(exerciseId: 9, name: 'Barbell Rows', muscleGroup: 'back', targetSets: 4, targetReps: 8, lastWeight: 135, lastReps: 8),
-          ProgramExercise(exerciseId: 10, name: 'Face Pulls', muscleGroup: 'shoulders', targetSets: 3, targetReps: 15, lastWeight: 35, lastReps: 15),
-          ProgramExercise(exerciseId: 11, name: 'Barbell Curls', muscleGroup: 'biceps', targetSets: 3, targetReps: 10, lastWeight: 65, lastReps: 10),
-          ProgramExercise(exerciseId: 12, name: 'Hammer Curls', muscleGroup: 'biceps', targetSets: 3, targetReps: 12, lastWeight: 30, lastReps: 12),
-        ];
-      case 'legs':
-        return const [
-          ProgramExercise(exerciseId: 13, name: 'Squats', muscleGroup: 'legs', targetSets: 4, targetReps: 6, lastWeight: 225, lastReps: 6),
-          ProgramExercise(exerciseId: 14, name: 'Romanian Deadlift', muscleGroup: 'legs', targetSets: 3, targetReps: 10, lastWeight: 155, lastReps: 10),
-          ProgramExercise(exerciseId: 15, name: 'Leg Press', muscleGroup: 'legs', targetSets: 3, targetReps: 12, lastWeight: 360, lastReps: 12),
-          ProgramExercise(exerciseId: 16, name: 'Leg Curls', muscleGroup: 'legs', targetSets: 3, targetReps: 12, lastWeight: 90, lastReps: 12),
-          ProgramExercise(exerciseId: 17, name: 'Calf Raises', muscleGroup: 'legs', targetSets: 4, targetReps: 15, lastWeight: 180, lastReps: 15),
-        ];
-      case 'upper':
-        return const [
-          ProgramExercise(exerciseId: 1, name: 'Bench Press', muscleGroup: 'chest', targetSets: 4, targetReps: 8, lastWeight: 185, lastReps: 8),
-          ProgramExercise(exerciseId: 8, name: 'Pull-ups', muscleGroup: 'back', targetSets: 4, targetReps: 8, lastWeight: 0, lastReps: 8),
-          ProgramExercise(exerciseId: 3, name: 'Overhead Press', muscleGroup: 'shoulders', targetSets: 3, targetReps: 10, lastWeight: 95, lastReps: 10),
-          ProgramExercise(exerciseId: 9, name: 'Barbell Rows', muscleGroup: 'back', targetSets: 3, targetReps: 10, lastWeight: 135, lastReps: 10),
-          ProgramExercise(exerciseId: 2, name: 'Incline Dumbbell Press', muscleGroup: 'chest', targetSets: 3, targetReps: 12, lastWeight: 60, lastReps: 12),
-          ProgramExercise(exerciseId: 11, name: 'Barbell Curls', muscleGroup: 'biceps', targetSets: 3, targetReps: 10, lastWeight: 65, lastReps: 10),
-          ProgramExercise(exerciseId: 5, name: 'Tricep Pushdowns', muscleGroup: 'triceps', targetSets: 3, targetReps: 12, lastWeight: 50, lastReps: 12),
-        ];
-      case 'lower':
-        return const [
-          ProgramExercise(exerciseId: 13, name: 'Squats', muscleGroup: 'legs', targetSets: 4, targetReps: 8, lastWeight: 225, lastReps: 8),
-          ProgramExercise(exerciseId: 14, name: 'Romanian Deadlift', muscleGroup: 'legs', targetSets: 3, targetReps: 10, lastWeight: 155, lastReps: 10),
-          ProgramExercise(exerciseId: 18, name: 'Bulgarian Split Squats', muscleGroup: 'legs', targetSets: 3, targetReps: 10, lastWeight: 50, lastReps: 10),
-          ProgramExercise(exerciseId: 16, name: 'Leg Curls', muscleGroup: 'legs', targetSets: 3, targetReps: 12, lastWeight: 90, lastReps: 12),
-          ProgramExercise(exerciseId: 17, name: 'Calf Raises', muscleGroup: 'legs', targetSets: 4, targetReps: 15, lastWeight: 180, lastReps: 15),
-        ];
-      default:
-        return [];
-    }
   }
 
   Future<void> refreshDailySummary() async {
@@ -529,5 +397,26 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
 
   void clearError() {
     state = state.copyWith(error: null);
+  }
+
+  /// Switch the active program and re-parse the schedule
+  void switchProgram(ProgramModel program) {
+    final programWeeks = _parseProgramWeeks(program);
+
+    // Find which week is current
+    int selectedWeekIndex = 0;
+    for (int i = 0; i < programWeeks.length; i++) {
+      if (programWeeks[i].isCurrentWeek) {
+        selectedWeekIndex = i;
+        break;
+      }
+    }
+
+    state = state.copyWith(
+      activeProgram: program,
+      programWeeks: programWeeks,
+      selectedWeekIndex: selectedWeekIndex,
+      currentDayIndex: 0,
+    );
   }
 }

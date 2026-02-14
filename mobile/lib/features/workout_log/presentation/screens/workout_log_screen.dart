@@ -188,7 +188,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     final week = state.selectedWeek;
     if (week == null || week.workouts.isEmpty) {
       return SliverToBoxAdapter(
-        child: _buildEmptyState(theme),
+        child: _buildEmptyState(theme, state),
       );
     }
 
@@ -208,7 +208,30 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
+  Widget _buildEmptyState(ThemeData theme, WorkoutState state) {
+    // Determine which empty state to show
+    final bool hasPrograms = state.programs.isNotEmpty;
+    final bool hasActiveProgram = state.activeProgram != null;
+    final bool hasEmptySchedule = hasActiveProgram && state.programWeeks.isEmpty;
+
+    final String title;
+    final String subtitle;
+    final IconData icon;
+
+    if (!hasPrograms) {
+      title = 'No programs assigned';
+      subtitle = 'Your trainer will assign you a program soon';
+      icon = Icons.fitness_center;
+    } else if (hasEmptySchedule) {
+      title = 'Schedule not built yet';
+      subtitle = "Your trainer hasn't built your schedule yet";
+      icon = Icons.calendar_today;
+    } else {
+      title = 'No workouts this week';
+      subtitle = 'Check other weeks or contact your trainer';
+      icon = Icons.event_busy;
+    }
+
     return Container(
       padding: const EdgeInsets.all(32),
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -220,13 +243,13 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
       child: Column(
         children: [
           Icon(
-            Icons.fitness_center,
+            icon,
             size: 64,
             color: theme.textTheme.bodySmall?.color,
           ),
           const SizedBox(height: 16),
           Text(
-            'No workouts scheduled',
+            title,
             style: TextStyle(
               color: theme.textTheme.bodyLarge?.color,
               fontSize: 18,
@@ -235,7 +258,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Your trainer will assign you a program soon',
+            subtitle,
             style: TextStyle(
               color: theme.textTheme.bodySmall?.color,
               fontSize: 14,
@@ -359,7 +382,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                 title: const Text('Switch Program'),
                 onTap: () {
                   context.pop();
-                  // TODO: Show program switcher
+                  _showProgramSwitcher(context);
                 },
               ),
               ListTile(
@@ -370,6 +393,97 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                   context.push('/workout-calendar');
                 },
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showProgramSwitcher(BuildContext context) {
+    final theme = Theme.of(context);
+    final state = ref.read(workoutStateProvider);
+    final programs = state.programs;
+
+    if (programs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No programs available to switch to')),
+      );
+      return;
+    }
+
+    if (programs.length == 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You only have one program assigned')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.dividerColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Switch Program',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...programs.map((program) {
+                final isActive = program.id == state.activeProgram?.id;
+                return ListTile(
+                  leading: Icon(
+                    isActive ? Icons.check_circle : Icons.circle_outlined,
+                    color: isActive
+                        ? theme.colorScheme.primary
+                        : theme.textTheme.bodySmall?.color,
+                  ),
+                  title: Text(
+                    program.name,
+                    style: TextStyle(
+                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  subtitle: Text(program.description.isNotEmpty
+                      ? program.description
+                      : 'Started ${program.startDate}'),
+                  onTap: () {
+                    if (!isActive) {
+                      ref
+                          .read(workoutStateProvider.notifier)
+                          .switchProgram(program);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Switched to ${program.name}'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                    Navigator.of(context).pop();
+                  },
+                );
+              }),
             ],
           ),
         ),

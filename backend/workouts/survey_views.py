@@ -1,9 +1,10 @@
 """
 Views for workout readiness and post-workout surveys.
-Submits survey data and notifies trainers.
+Submits survey data, saves workout logs, and notifies trainers.
 """
 from __future__ import annotations
 
+import logging
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.request import Request
@@ -13,6 +14,9 @@ from django.utils import timezone
 from typing import Any, cast
 
 from users.models import User
+from workouts.models import DailyLog
+
+logger = logging.getLogger(__name__)
 
 
 class ReadinessSurveyView(APIView):
@@ -52,11 +56,10 @@ class ReadinessSurveyView(APIView):
         valid_scores = [s for s in scores if s > 0]
         avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0
 
-        # Get trainer to notify
-        trainer = getattr(user, 'trainer', None)
+        # Get trainer to notify (parent_trainer FK on User model)
+        trainer = user.parent_trainer
 
-        if trainer:
-            # Create notification for trainer
+        if trainer is not None:
             self._notify_trainer(
                 trainer=trainer,
                 trainee=user,
@@ -64,9 +67,6 @@ class ReadinessSurveyView(APIView):
                 survey_data=survey_data,
                 avg_score=avg_score,
             )
-
-        # Store survey data (could be saved to a model if needed)
-        # For now, we just notify the trainer
 
         return Response({
             'success': True,
@@ -122,11 +122,6 @@ class ReadinessSurveyView(APIView):
             if low_areas:
                 message += f"Low areas: {', '.join(low_areas)}"
 
-        # TODO: Send push notification to trainer
-        # For now, we could store this in a notifications model
-        # or send via email/push notification service
-
-        # Example: Create in-app notification
         try:
             from trainer.models import TrainerNotification
             TrainerNotification.objects.create(
@@ -142,9 +137,11 @@ class ReadinessSurveyView(APIView):
                     'survey_data': survey_data,
                 },
             )
-        except (ImportError, Exception):
-            # Notifications model may not exist yet
-            pass
+        except Exception as e:
+            logger.error(
+                "Failed to create readiness notification for trainer %s: %s",
+                trainer.id, e,
+            )
 
 
 class PostWorkoutSurveyView(APIView):
@@ -201,10 +198,25 @@ class PostWorkoutSurveyView(APIView):
         valid_scores = [s for s in scores if s > 0]
         avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0
 
-        # Get trainer to notify
-        trainer = getattr(user, 'trainer', None)
+        # Save workout data to DailyLog (BUG-1 fix)
+        save_error: str | None = None
+        try:
+            self._save_workout_to_daily_log(
+                user=user,
+                workout_summary=workout_summary,
+                survey_data=survey_data,
+                readiness_survey=readiness_survey,
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to save workout data for user %s: %s", user.id, e,
+            )
+            save_error = str(e)
 
-        if trainer:
+        # Get trainer to notify (parent_trainer FK on User model)
+        trainer = user.parent_trainer
+
+        if trainer is not None:
             self._notify_trainer(
                 trainer=trainer,
                 trainee=user,
@@ -218,10 +230,7 @@ class PostWorkoutSurveyView(APIView):
                 readiness_survey=readiness_survey,
             )
 
-        # TODO: Save workout log to database
-        # This could update the DailyLog model with the workout data
-
-        return Response({
+        response_data: dict[str, Any] = {
             'success': True,
             'message': 'Post-workout survey submitted',
             'stats': {
@@ -230,7 +239,62 @@ class PostWorkoutSurveyView(APIView):
                 'total_sets': total_sets,
                 'average_score': round(avg_score, 1),
             },
-        }, status=status.HTTP_201_CREATED)
+        }
+        if save_error is not None:
+            response_data['warning'] = 'Workout survey saved but workout log persistence failed'
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    def _save_workout_to_daily_log(
+        self,
+        user: User,
+        workout_summary: dict[str, Any],
+        survey_data: dict[str, Any],
+        readiness_survey: dict[str, Any] | None,
+    ) -> None:
+        """
+        Save workout data to DailyLog.workout_data.
+        Uses get_or_create for today's date to avoid duplicates.
+        Merges exercises if multiple workouts are logged in one day.
+        """
+        today = timezone.now().date()
+        daily_log, _created = DailyLog.objects.get_or_create(
+            trainee=user,
+            date=today,
+        )
+
+        exercises = workout_summary.get('exercises', [])
+        workout_name = workout_summary.get('workout_name', 'Workout')
+        duration = workout_summary.get('duration', '00:00')
+        completed_at = timezone.now().isoformat()
+
+        new_workout_entry: dict[str, Any] = {
+            'workout_name': workout_name,
+            'duration': duration,
+            'exercises': exercises,
+            'post_survey': survey_data,
+            'completed_at': completed_at,
+        }
+        if readiness_survey is not None:
+            new_workout_entry['readiness_survey'] = readiness_survey
+
+        existing_data: dict[str, Any] = daily_log.workout_data or {}
+        existing_exercises: list[dict[str, Any]] = existing_data.get('exercises', [])
+
+        # Merge: append new exercises to existing ones
+        merged_exercises = existing_exercises + exercises
+
+        daily_log.workout_data = {
+            'exercises': merged_exercises,
+            'workout_name': workout_name,
+            'duration': duration,
+            'post_survey': survey_data,
+            'completed_at': completed_at,
+        }
+        if readiness_survey is not None:
+            daily_log.workout_data['readiness_survey'] = readiness_survey
+
+        daily_log.save(update_fields=['workout_data'])
 
     def _notify_trainer(
         self,
@@ -287,9 +351,6 @@ class PostWorkoutSurveyView(APIView):
         if concerns:
             message += f"\n⚠️ {', '.join(concerns)}"
 
-        # TODO: Send push notification to trainer
-
-        # Create in-app notification
         try:
             from trainer.models import TrainerNotification
             TrainerNotification.objects.create(
@@ -311,6 +372,8 @@ class PostWorkoutSurveyView(APIView):
                     'notes': notes,
                 },
             )
-        except (ImportError, Exception):
-            # Notifications model may not exist yet
-            pass
+        except Exception as e:
+            logger.error(
+                "Failed to create post-workout notification for trainer %s: %s",
+                trainer.id, e,
+            )
