@@ -66,13 +66,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String email,
     required String password,
     required String role,
+    String? referralCode,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     final result = await _repository.register(
       email: email,
       password: password,
       role: role,
+      referralCode: referralCode,
     );
     
     if (result['success'] == true) {

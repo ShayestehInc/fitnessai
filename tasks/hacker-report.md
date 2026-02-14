@@ -1,53 +1,56 @@
-# Hacker Report: White-Label Branding
+# Hacker Report: Ambassador Feature
 
 ## Dead Buttons & Non-Functional UI
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| 1 | Medium | settings_screen.dart (Trainer) | "Analytics" tile | Navigate to analytics or show Coming soon | `onTap: () {}` -- taps, animates press, does absolutely nothing. **FIXED** |
-| 2 | Medium | settings_screen.dart (Trainer) | "Push Notifications" tile | Navigate or show Coming soon | `onTap: () {}` -- taps, does nothing. **FIXED** |
-| 3 | Medium | settings_screen.dart (Trainer) | "Email Notifications" tile | Navigate or show Coming soon | `onTap: () {}` -- taps, does nothing. **FIXED** |
-| 4 | Medium | settings_screen.dart (Trainer) | "Help & Support" tile | Navigate or show Coming soon | `onTap: () {}` -- taps, does nothing. **FIXED** |
-| 5 | Medium | settings_screen.dart (Trainee) | "Reminders" tile | Navigate or show Coming soon | `onTap: () {}` -- taps, does nothing. **FIXED** |
+| 1 | Critical | admin_create_ambassador_screen.dart | Create Ambassador form | Ambassador can log in after being created | `set_unusable_password()` was called -- ambassador had no way to authenticate. No password set, no activation email sent. **FIXED**: Added password field to backend serializer, view, repository, provider, and create screen. Admin now sets a temporary password. |
+| 2 | High | admin_ambassador_detail_screen.dart | Commission rate display | Admin can edit the commission rate from the detail screen | Rate was display-only. No edit mechanism existed anywhere for individual ambassadors (only at creation time). **FIXED**: Added edit icon in AppBar, tappable Rate stat tile, and a slider dialog to update the commission rate. |
+| 3 | High | admin_ambassador_detail_screen.dart | Commission History section | Admin sees the full commission history for an ambassador | Backend API returns `commissions` in the detail response, but the mobile screen never parsed or displayed them. Data was silently discarded. **FIXED**: Added `AmbassadorCommission` model, commission parsing in `_loadDetail()`, and a full Commission History section with styled tiles. |
+| 4 | Medium | ambassador_dashboard_screen.dart | "Share Referral Code" button | Opens native share sheet (iOS/Android) | Only copies text to clipboard. The `share_plus` package is not installed. The button icon shows `Icons.share` but behavior is copy-to-clipboard. Partial fix: snackbar text clarifies "copied to clipboard." Full fix requires adding `share_plus` dependency -- documented below. |
 
 ## Visual Misalignments & Layout Bugs
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | Low | branding_preview_card.dart | Logo Image.network shows empty space while loading (no shimmer/spinner) -- jarring pop-in when logo resolves. | **FIXED**: Added `loadingBuilder` with a white CircularProgressIndicator on the primary-color gradient background. |
-| 2 | Low | branding_logo_section.dart | Same issue: 96x96 logo in the logo section shows blank space during network load. | **FIXED**: Added `loadingBuilder` with a spinner on translucent primary background. |
-| 3 | Low | splash_screen.dart | Custom logo in splash shows blank 120x120 space while loading, then pops in mid-animation. | **FIXED**: Added `loadingBuilder` that shows a spinner on the primary gradient background, matching the default logo container style. |
+| 1 | Medium | ambassador_referrals_screen.dart | Empty state shows raw enum "No CHURNED referrals" instead of lowercase | **FIXED**: Added `_friendlyFilterLabel()` method that maps `ACTIVE` -> `active`, `PENDING` -> `pending`, etc. Empty state now reads "No active referrals" etc. |
+| 2 | Low | admin_ambassadors_screen.dart | Email text in ambassador tile can overflow without ellipsis on narrow screens | **FIXED** (by linter): Added `overflow: TextOverflow.ellipsis` to email Text widget. |
+| 3 | Low | admin_ambassador_detail_screen.dart | Email text in profile card can overflow | **FIXED**: Added `overflow: TextOverflow.ellipsis`. |
 
 ## Broken Flows & Logic Bugs
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 1 | High | Branding save button | Open branding screen, change nothing, tap "Save Branding" | Button should be disabled if no changes made | Save button was always enabled -- fires unnecessary API calls, no visual feedback that nothing changed. **FIXED**: `_hasUnsavedChanges` getter now gates the save button `onPressed`. Also shows "No unsaved changes" hint text when disabled. |
-| 2 | High | Splash screen stale branding | 1. Trainee logs in. 2. Trainer changes branding. 3. Trainee cold-restarts app. | Splash screen reactively shows updated branding from theme provider after fetch. | `_buildBrandedText()` and `_buildLogo()` used `ref.read(themeProvider)` instead of `ref.watch(themeProvider)`. The splash UI wouldn't rebuild when `_fetchTraineeBranding()` updated the provider mid-animation. **FIXED**: Changed to `ref.watch`. |
-| 3 | Medium | Leaving branding screen with unsaved changes | 1. Open branding screen. 2. Change app name or colors. 3. Tap back button. | User warned about unsaved changes | No warning -- changes silently discarded. **FIXED**: Wrapped screen in `PopScope` with `canPop: !_hasUnsavedChanges`. Shows confirmation dialog with "Keep Editing" / "Discard" options. |
-| 4 | Low | Branding reset to defaults | Trainer wants to un-brand and go back to FitnessAI defaults. | A "Reset" option exists. | No reset mechanism existed -- trainer had to manually pick indigo, clear app name. **FIXED**: Added a "Reset to Defaults" option in the AppBar's popup menu. Resets app name, colors, and removes logo with confirmation dialog. |
+| 1 | Critical | Ambassador avatar crash | 1. Create referral where trainer has no firstName and email local part is empty string (e.g., `@domain.com`). 2. View dashboard or referrals screen. | Avatar shows fallback character | `displayName[0]` throws `RangeError` on empty string. **FIXED**: Added `AmbassadorUser.initials` getter with empty-string guard, returns `?` as fallback. All avatar usages now use `.initials` instead of `displayName[0].toUpperCase()`. |
+| 2 | High | Admin ambassador list pull-to-refresh loses filters | 1. Search for "john" in admin ambassadors screen. 2. Pull to refresh. | Results still filtered by "john" | `RefreshIndicator` called `loadAmbassadors()` with no params, clearing the active search and filter. **FIXED**: Pull-to-refresh now passes `_searchController.text.trim()` and `_activeFilter` to `loadAmbassadors()`. |
+| 3 | High | Settings screen shows "Inactive" before data loads | 1. Navigate to ambassador settings tab. 2. Before dashboard API returns, check Status row. | Shows "--" or loading indicator | `dashState.data?.isActive == true` evaluates to `false` when `data` is null, displaying "Inactive" incorrectly. **FIXED**: Changed to show "--" when `dashState.data` is null. |
+| 4 | Medium | AmbassadorDetailData counts always zero | `referralsCount` and `commissionsCount` fields parsed from JSON keys `referrals_count` and `commissions_count` that don't exist in backend response | Counts should reflect actual data | Fields always defaulted to 0 regardless of actual list contents. **FIXED**: Changed to computed getters `referrals.length` and `commissions.length`. |
+| 5 | Low | Ambassador detail screen: _isToggling field declared but never changed | `_isToggling` was declared but the linter restructured the toggle flow with a confirmation dialog -- toggle state was not always tracked | Toggle button should show loading state during API call | Linter partially fixed this. The `_isToggling` state is now properly set/unset around the update call. |
 
 ## Product Improvement Suggestions
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 1 | High | Branding screen | Add "Preview as trainee" mode that shows a full mock of the home screen/splash with the trainer's branding applied. | The current miniature preview card is nice but doesn't give the trainer confidence about how the full app will look. A full-screen preview (even static) would be 10x more useful. |
-| 2 | High | Branding persistence | After trainer saves branding, push the update to connected trainees via WebSocket or push notification so they don't need to restart the app. | Currently trainees only get new branding on fresh login or cold restart. If a trainer changes branding, all connected trainees see stale branding until they restart. |
-| 3 | Medium | Color picker | Allow custom hex input -- not just the 12 preset colors. A text field at the bottom of the color picker dialog where the trainer can type any `#RRGGBB` value. | Trainers who have specific brand guidelines (e.g., Pantone-to-hex) cannot match their exact brand color from the 12 presets. |
-| 4 | Medium | Logo section | Show the logo dimensions and file size after upload (e.g., "512x512, 245KB"). | Gives the trainer confidence about the image quality and helps debug if the logo looks blurry. |
-| 5 | Low | Branding screen | Add a "Copy branding link" button that generates a shareable URL for the trainee onboarding flow pre-configured with this trainer's branding. | Would make onboarding feel more on-brand from the very first screen. |
-| 6 | Low | Login screen | The login screen still shows hardcoded "fitnessai" branding regardless of trainer context. If trainees arrive via an invite link, the login screen should show the trainer's branding. | Right now branding is only applied after login, so the first screen the trainee sees is always generic FitnessAI. |
+| 1 | High | Ambassador creation | Add an email invitation flow: when admin creates ambassador, system sends an email with login credentials or a magic link. | Currently admin must manually communicate the password out-of-band. A proper invitation email would be more professional and secure. |
+| 2 | High | Share referral code | Install `share_plus` and use the native share sheet instead of clipboard copy. | The share button's icon (`Icons.share`) implies a native share sheet, but it only copies to clipboard. Using the real share sheet would let ambassadors share via WhatsApp, SMS, email, etc. with one tap. |
+| 3 | High | Ambassador earnings | Add a monthly earnings chart/graph on the ambassador dashboard. | The backend already returns `monthly_earnings` data, but the mobile dashboard only shows the recent referrals list and stat tiles. A simple bar chart would make the earnings trend visible at a glance. |
+| 4 | Medium | Commission management | Add bulk approve/pay commissions for admin in the detail screen. | Currently there's no way for admin to approve or pay commissions from the mobile app. The status is display-only. |
+| 5 | Medium | Referral code customization | Let admin (or ambassador) choose a custom referral code (e.g., "JOHN20") instead of random alphanumeric. | Custom codes are more memorable and brandable. Many referral programs (e.g., Uber, Robinhood) allow this. |
+| 6 | Low | Ambassador dashboard | Add a "time since last referral" or "streak" indicator. | Gamification encourages continued engagement. Showing "Last referral: 3 days ago" or "2 referrals this month" keeps ambassadors motivated. |
+| 7 | Low | Admin list view | Show an active/inactive badge on each ambassador tile in the admin list. | Currently the only indicator is the circle avatar color (teal vs grey), which is subtle. An explicit status badge would be clearer. |
 
 ## Items NOT Fixed (Need Design Decisions or Backend Changes)
 | # | Severity | Description | Steps to Reproduce | Suggested Approach |
 |---|----------|-------------|-------------------|--------------------|
-| 1 | Medium | Branding not pushed to trainees in real-time | Trainer saves branding -> trainee sees old branding until cold restart | Add a WebSocket channel or background polling that refreshes branding periodically, or fire a push notification to connected trainees when branding changes. |
-| 2 | Low | Login screen not branded for invited trainees | Trainee opens invite link -> sees generic FitnessAI login | Store trainer ID in the invite deeplink, fetch and apply branding before rendering the login screen. Requires invite deeplink architecture. |
-| 3 | Low | No hex color input in color picker | Trainer wants exact brand color not in presets | Add a text field to `_showColorPicker` with hex input validation. Use `BrandingModel._hexToColor` to parse. Keep presets above for quick selection. |
+| 1 | High | No native share sheet -- `share_plus` not installed | Tap "Share Referral Code" on ambassador dashboard | Add `share_plus: ^7.0.0` to `pubspec.yaml`, run `flutter pub get`, update `_shareCode()` to use `Share.share(message)`. |
+| 2 | High | No commission approval/payment workflow in mobile | Admin views commission history but can't change status | Add approve/pay buttons on commission tiles in admin detail screen. Create backend endpoint `PATCH /api/admin/ambassadors/<id>/commissions/<id>/` for status updates. |
+| 3 | Medium | No password reset flow anywhere in the app | Ambassador forgets password -> no recovery mechanism | Implement Djoser password reset endpoints (`/api/auth/users/reset_password/`, `/api/auth/users/reset_password_confirm/`) and add a "Forgot Password" link on the login screen. |
+| 4 | Medium | `AmbassadorReferral` model has redundant FKs | `ambassador` (User FK) and `ambassador_profile` (AmbassadorProfile FK) both exist -- denormalization risk if they get out of sync | Consider removing `ambassador` FK and accessing the user through `ambassador_profile.user`. Requires migration. |
+| 5 | Low | No ambassador earnings chart despite backend support | Backend returns `monthly_earnings` list in dashboard response | Add `fl_chart` package and render a simple bar chart in `ambassador_dashboard_screen.dart` showing monthly earnings trend. |
 
 ## Summary
-- Dead UI elements found: 5
+- Dead UI elements found: 4
 - Visual bugs found: 3
-- Logic bugs found: 4
-- Improvements suggested: 6
-- Items fixed by hacker: 12
-- Items needing design decisions: 3
+- Logic bugs found: 5
+- Improvements suggested: 7
+- Items fixed by hacker: 10
+- Items needing design decisions: 5
 
-## Chaos Score: 7/10
-The branding feature is structurally solid but had several quality-of-life gaps that would frustrate a trainer trying to set up their brand. The save button being always enabled was the most user-hostile issue -- trainers would tap Save, see a success toast, and wonder if anything actually happened. The missing unsaved-changes warning was a close second. The dead settings buttons (5 of them!) are not directly related to branding but would erode trust in the settings area where branding lives. All found issues have been fixed or documented.
+## Chaos Score: 6/10
+The ambassador feature has the most critical bug I found in any feature during this pass: newly created ambassadors could not log in because the backend called `set_unusable_password()` with no alternative authentication mechanism. This would have been immediately discovered in production and would block the entire ambassador workflow. The second most impactful issue was the admin detail screen silently discarding commission data returned by the backend -- the data was there, nobody was showing it. The `displayName[0]` crash was lurking as a time bomb that would trigger on edge-case user data. On the positive side, the overall architecture is clean (proper repository pattern, Riverpod state management, well-structured models), the referral code processing backend is solid with proper idempotency checks, and the UI handles loading/error/empty states consistently across screens.

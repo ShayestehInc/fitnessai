@@ -51,6 +51,7 @@ class User(AbstractUser):
     """
     class Role(models.TextChoices):
         ADMIN = 'ADMIN', 'Admin'
+        AMBASSADOR = 'AMBASSADOR', 'Ambassador'
         TRAINER = 'TRAINER', 'Trainer'
         TRAINEE = 'TRAINEE', 'Trainee'
 
@@ -132,6 +133,10 @@ class User(AbstractUser):
     def is_admin(self) -> bool:
         """Check if user is an admin."""
         return self.role == self.Role.ADMIN
+
+    def is_ambassador(self) -> bool:
+        """Check if user is an ambassador."""
+        return self.role == self.Role.AMBASSADOR
     
     def get_active_trainees_count(self) -> int:
         """Get count of active trainees (only for trainers)."""

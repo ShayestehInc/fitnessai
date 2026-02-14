@@ -15,6 +15,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _referralCodeController = TextEditingController();
   String _selectedRole = 'TRAINEE';
 
   @override
@@ -22,6 +23,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _referralCodeController.dispose();
     super.dispose();
   }
 
@@ -39,6 +41,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
           role: _selectedRole,
+          referralCode: _referralCodeController.text.trim().isEmpty
+              ? null
+              : _referralCodeController.text.trim(),
         );
 
     final authState = ref.read(authStateProvider);
@@ -110,6 +115,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   }
                 },
               ),
+              if (_selectedRole == 'TRAINER') ...[
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _referralCodeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Referral Code (Optional)',
+                    helperText: 'Have a referral code? Enter it here.',
+                  ),
+                  textCapitalization: TextCapitalization.characters,
+                  maxLength: 8,
+                ),
+              ],
               const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,

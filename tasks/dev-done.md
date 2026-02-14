@@ -1,102 +1,100 @@
-# Dev Done: White-Label Branding Infrastructure
+# Dev Done: Ambassador User Type & Referral Revenue Sharing
 
-## Date: 2026-02-14
+## Summary
+Full implementation of the Ambassador role with referral tracking, commission management, and dashboard UI. Ambassadors recruit trainers for the platform and earn monthly commissions from referred trainers' subscriptions.
 
 ## Files Created
-### Backend
-- `backend/trainer/migrations/0004_add_trainer_branding.py` — Migration for TrainerBranding table
 
-### Mobile
-- `mobile/lib/features/settings/data/models/branding_model.dart` — BrandingModel with fromJson/toJson, hex-to-Color conversion, caching, copyWith with clearLogoUrl
-- `mobile/lib/features/settings/data/repositories/branding_repository.dart` — BrandingResult typed class + API calls: getTrainerBranding, updateTrainerBranding, uploadLogo, removeLogo, getMyBranding
-- `mobile/lib/features/settings/presentation/screens/branding_screen.dart` — Trainer branding editor orchestrator (state, API calls, layout)
-- `mobile/lib/features/settings/presentation/widgets/branding_preview_card.dart` — Preview card sub-widget
-- `mobile/lib/features/settings/presentation/widgets/branding_logo_section.dart` — Logo upload/preview sub-widget
-- `mobile/lib/features/settings/presentation/widgets/branding_color_section.dart` — Color picker sub-widget with preset grid
+### Backend — New Django App (`ambassador/`)
+- `backend/ambassador/__init__.py`
+- `backend/ambassador/apps.py` — AppConfig
+- `backend/ambassador/models.py` — AmbassadorProfile, AmbassadorReferral, AmbassadorCommission
+- `backend/ambassador/serializers.py` — All model serializers + dashboard/admin serializers
+- `backend/ambassador/views.py` — Ambassador dashboard, referrals, referral-code; Admin list, create, detail/update
+- `backend/ambassador/urls.py` — URL patterns for both ambassador and admin endpoints
+- `backend/ambassador/admin.py` — Django admin registration
+- `backend/ambassador/services/__init__.py`
+- `backend/ambassador/services/referral_service.py` — ReferralService with process_referral_code, create_commission, handle_trainer_churn
+- `backend/ambassador/migrations/__init__.py`
+- `backend/ambassador/migrations/0001_initial.py` — Auto-generated
+
+### Mobile — Ambassador Feature
+- `mobile/lib/features/ambassador/data/models/ambassador_models.dart` — Data models (AmbassadorDashboardData, AmbassadorProfile, AmbassadorReferral, etc.)
+- `mobile/lib/features/ambassador/data/repositories/ambassador_repository.dart` — API calls
+- `mobile/lib/features/ambassador/presentation/providers/ambassador_provider.dart` — Riverpod state management
+- `mobile/lib/features/ambassador/presentation/screens/ambassador_navigation_shell.dart` — 3-tab navigation
+- `mobile/lib/features/ambassador/presentation/screens/ambassador_dashboard_screen.dart` — Dashboard with earnings, referral code, stats
+- `mobile/lib/features/ambassador/presentation/screens/ambassador_referrals_screen.dart` — Filterable referral list
+- `mobile/lib/features/ambassador/presentation/screens/ambassador_settings_screen.dart` — Profile, commission, logout
+
+### Mobile — Admin Ambassador Management
+- `mobile/lib/features/admin/presentation/screens/admin_ambassadors_screen.dart` — Searchable list with active/inactive filter
+- `mobile/lib/features/admin/presentation/screens/admin_create_ambassador_screen.dart` — Form with commission rate slider
+- `mobile/lib/features/admin/presentation/screens/admin_ambassador_detail_screen.dart` — Detail with referral list, activate/deactivate
 
 ## Files Modified
+
 ### Backend
-- `backend/trainer/models.py` — Added `validate_hex_color` (public), `HEX_COLOR_REGEX`, `TrainerBranding` model with `get_or_create_for_trainer()` classmethod. Removed redundant index on OneToOneField.
-- `backend/trainer/serializers.py` — Added `TrainerBrandingSerializer` with logo_url, hex color validation. Simplified `validate_app_name` (removed redundant length check, kept strip).
-- `backend/trainer/views.py` — Added `TrainerBrandingView` (GET/PUT), `TrainerBrandingLogoView` (POST/DELETE). Uses `get_or_create_for_trainer()`, `update_fields=['logo', 'updated_at']` on save, specific Pillow exception handling, pil_image.format validation.
-- `backend/trainer/urls.py` — Added `branding/` and `branding/logo/` endpoints
-- `backend/users/views.py` — Added `MyBrandingView` using `filter().first()` pattern.
-- `backend/users/urls.py` — Added `my-branding/` endpoint
+- `backend/users/models.py` — Added AMBASSADOR to Role enum, added is_ambassador() method
+- `backend/core/permissions.py` — Added IsAmbassador, IsAmbassadorOrAdmin permission classes
+- `backend/config/settings.py` — Added 'ambassador' to INSTALLED_APPS
+- `backend/config/urls.py` — Added ambassador URL include
+- `backend/users/serializers.py` — Added referral_code field to UserCreateSerializer, process referral on registration
+- `backend/users/migrations/0005_alter_user_role.py` — Auto-generated for role choices update
 
 ### Mobile
-- `mobile/lib/core/theme/theme_provider.dart` — `TrainerBrandingTheme` with hex-string cache format (consistent with BrandingModel), specific exception catches for JSON parse. `AppThemeState` with branding support, branding-first theme colors.
-- `mobile/lib/core/constants/api_constants.dart` — Added `trainerBranding`, `trainerBrandingLogo`, `myBranding` endpoint constants
-- `mobile/lib/features/splash/presentation/screens/splash_screen.dart` — Branding fetch with `DioException`/`FormatException` catches instead of `catch (_)`. Dynamic app name + logo.
-- `mobile/lib/features/auth/presentation/screens/login_screen.dart` — Branding fetch in `_navigateBasedOnRole` for trainee login path. Specific exception catches.
-- `mobile/lib/features/settings/presentation/screens/settings_screen.dart` — Added "Branding" section in trainer settings
-- `mobile/lib/core/router/app_router.dart` — Added `/trainer/branding` route
-
-## Review Fixes Applied (Round 1)
-### Critical
-- **C1**: Branding now fetched on fresh login via `_navigateBasedOnRole` in login_screen.dart
-- **C2**: `BrandingModel.copyWith` supports `clearLogoUrl` parameter
-- **C3**: Specific Pillow exception handling (UnidentifiedImageError, OSError, ValueError) instead of catch-all
-
-### Major
-- **M1**: Repository returns typed `BrandingResult` instead of `Map<String, dynamic>`
-- **M2**: Pillow format validation after opening (defense-in-depth)
-- **M3**: Splash screen catches `DioException`/`FormatException` instead of `catch (_)`
-- **M4**: `branding.save(update_fields=['logo', 'updated_at'])` prevents race conditions
-- **M5**: branding_screen.dart split into 4 files (~305 + ~130 + ~105 + ~190 lines)
-- **M6**: TrainerBrandingTheme cache uses hex strings consistently with BrandingModel
-- **M7**: `get_or_create_for_trainer()` classmethod eliminates duplicate defaults
-
-### Minor
-- **m1**: Renamed `_validate_hex_color` to `validate_hex_color` (public, migration-safe)
-- **m2**: Removed redundant `validate_app_name` length check (model handles it), kept strip()
-- **m3**: Removed redundant index on OneToOneField `trainer`
-- **m4**: Default colors use `BrandingModel.defaultBranding` constants
-- **m5**: Specific exception catches in theme_provider.dart (FormatException, TypeError)
-- **m6**: MyBrandingView uses `filter().first()` instead of try/except
+- `mobile/lib/features/auth/data/models/user_model.dart` — Added isAmbassador getter
+- `mobile/lib/core/constants/api_constants.dart` — Added 9 ambassador endpoints
+- `mobile/lib/core/router/app_router.dart` — Added ambassador shell with 3 branches, ambassador redirect, admin ambassador routes
+- `mobile/lib/features/auth/data/repositories/auth_repository.dart` — Added referralCode parameter to register
+- `mobile/lib/features/auth/presentation/providers/auth_provider.dart` — Added referralCode parameter to register
+- `mobile/lib/features/auth/presentation/screens/register_screen.dart` — Added optional referral code field (shown only for TRAINER role)
+- `mobile/lib/features/admin/presentation/screens/admin_dashboard_screen.dart` — Added Ambassadors quick action button
 
 ## Key Design Decisions
-1. **OneToOne model** — Keeps User model clean, allows independent migration.
-2. **Hex string colors** — `#6366F1` format everywhere (API, cache, model).
-3. **Separate logo endpoint** — Multipart upload handled separately from JSON PUT.
-4. **Auto-create on GET** — `get_or_create_for_trainer()` shared classmethod.
-5. **Branding cached in SharedPreferences** — Hex-string format consistent with API.
-6. **Branding overrides theme colors** — Trainer branding takes highest priority.
-7. **Typed result class** — `BrandingResult` prevents stringly-typed key errors.
-8. **Preset color picker** — 12 preset colors matching common brand colors.
-9. **Defense-in-depth image validation** — Content-type + Pillow format + size + dimensions.
-10. **Row-level security** — OneToOne auto-create + parent_trainer lookup.
+1. **Referral code = 8-char uppercase alphanumeric** — Human-readable, auto-generated
+2. **Commission rate snapshot** — Frozen at time of charge, admin changes only affect future commissions
+3. **Silent referral code handling** — Invalid/missing codes never block registration (logged as warning)
+4. **First referral wins** — If trainer already has a referral, subsequent codes ignored
+5. **Self-referral blocked** — Email match check prevents ambassador from referring themselves
+6. **Soft-delete for ambassadors** — is_active=False preserves historical data
+7. **Referral code only for TRAINER registration** — UI field conditionally shown
+8. **Three status states** — PENDING → ACTIVE (first payment) → CHURNED (cancel); CHURNED → ACTIVE (resubscribe)
 
-## Deviations from Ticket
-- AC-15: Used 12-color preset grid instead of HSL picker. Simpler, covers common brand colors.
-- AC-18: Static preview card that updates reactively, not full theme preview.
+## Acceptance Criteria Status
+- [x] AC-1: AMBASSADOR role + is_ambassador()
+- [x] AC-2: IsAmbassador + IsAmbassadorOrAdmin permissions
+- [x] AC-3: AmbassadorProfile model
+- [x] AC-4: AmbassadorReferral model
+- [x] AC-5: AmbassadorCommission model
+- [x] AC-6: GET /api/ambassador/dashboard/
+- [x] AC-7: GET /api/ambassador/referrals/ (paginated)
+- [x] AC-8: GET /api/ambassador/referral-code/
+- [x] AC-9: GET /api/admin/ambassadors/ (with search)
+- [x] AC-10: POST /api/admin/ambassadors/create/
+- [x] AC-11: PUT /api/admin/ambassadors/<id>/
+- [x] AC-12: GET /api/admin/ambassadors/<id>/
+- [x] AC-13: referral_code field on registration
+- [x] AC-14: Commission creation service (ready for subscription webhook integration)
+- [x] AC-15: Ambassador navigation shell (3 tabs)
+- [x] AC-16: Router redirect for ambassador users
+- [x] AC-17: Dashboard screen with stats, earnings chart, recent referrals
+- [x] AC-18: Referral code card with copy + share
+- [x] AC-19: Referrals screen with status filter
+- [x] AC-20: Settings screen with profile, commission rate, earnings
+- [x] AC-21: Ambassadors button on admin dashboard
+- [x] AC-22: Admin ambassador list with search/filter
+- [x] AC-23: Admin create ambassador screen
+- [x] AC-24: Admin ambassador detail with referrals and activate/deactivate
+- [x] AC-25: Referral code field on trainer registration screen
 
-## How to Test Manually
-### Trainer Side
-1. Login as trainer → Settings → Branding
-2. Change app name → preview card updates live
-3. Pick primary/secondary colors → preview card updates
-4. Upload logo → preview shows logo
-5. Save → "Branding updated successfully" green SnackBar
-6. Remove logo → confirm dialog → logo removed
-
-### Trainee Side
-1. Have trainer configure branding first
-2. Login as trainee (fresh login, not cold restart) → branding applied immediately
-3. Splash screen shows trainer's logo and app name
-4. App theme colors = trainer's primary/secondary colors throughout
-5. Kill and reopen app → cached branding persists
-
-### Edge Cases
-1. Trainer with no branding → trainee sees default FitnessAI theme
-2. Trainer deletes logo → trainee sees default icon on next login
-3. Upload >2MB logo → "Logo must be under 2MB" error
-4. Upload non-image file (spoofed content-type) → Pillow format check rejects
-5. Invalid hex color → validation error prevents save
-6. Long app name (>50 chars) → backend rejects
-7. Offline trainee → cached branding from last fetch used
-8. Trainee with no parent_trainer → defaults returned
-9. Non-trainee user → branding cleared on splash
-
-## Test Results
-- Backend: Django system check passes. No issues.
-- Flutter analyze: All pre-existing issues. Zero new errors/warnings from this feature.
+## Manual Testing
+1. Create ambassador: Admin → Ambassadors → Create → Fill form → Submit
+2. Ambassador login: Use ambassador email → Should redirect to /ambassador
+3. Ambassador dashboard: Shows earnings, referral code, stats
+4. Copy referral code: Tap copy icon → Should show green snackbar
+5. Share referral code: Tap share button → Copies share message to clipboard
+6. Referrals screen: Filter by Active/Pending/Churned
+7. Trainer registration with code: Register → Select Trainer role → Enter referral code → Submit
+8. Admin ambassador detail: Admin → Ambassadors → Tap ambassador → See referral list
+9. Deactivate ambassador: Detail → Tap pause icon → Confirm

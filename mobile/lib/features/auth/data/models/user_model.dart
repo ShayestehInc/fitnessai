@@ -39,6 +39,7 @@ class UserModel with _$UserModel {
   bool get isTrainer => role == 'TRAINER';
   bool get isTrainee => role == 'TRAINEE';
   bool get isAdmin => role == 'ADMIN';
+  bool get isAmbassador => role == 'AMBASSADOR';
   bool get needsOnboarding => isTrainee && !onboardingCompleted;
   bool get hasTrainer => trainer != null;
 

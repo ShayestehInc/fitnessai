@@ -40,10 +40,13 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 - Views assigned program schedule
 - Subscribes to trainer via Stripe
 
-### 2.4 Ambassador (PLANNED — not yet built)
-- Admin-level user who sells the platform to trainers
-- Earns monthly percentage of each trainer's subscription they referred
-- Has dashboard showing their referred trainers and revenue
+### 2.4 Ambassador
+- Recruited by admin to sell the platform to trainers
+- Earns monthly commission (configurable rate, default 20%) on each referred trainer's subscription
+- Has dedicated dashboard showing referral stats, earnings, and recent referrals
+- Referral code system: 8-char alphanumeric codes, shared to trainers during registration
+- Three referral states: PENDING (registered) → ACTIVE (first payment) → CHURNED (cancelled)
+- Commission rate snapshot at time of charge — admin rate changes don't affect historical commissions
 
 ---
 
@@ -135,7 +138,30 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Unsaved changes guard | ✅ Done | PopScope warning dialog on back navigation |
 | Reset to defaults | ✅ Done | AppBar overflow menu option |
 
-### 3.8 Other
+### 3.8 Ambassador System
+| Feature | Status | Notes |
+|---------|--------|-------|
+| AMBASSADOR user role | ✅ Done | Added to User.Role enum with is_ambassador() helper |
+| AmbassadorProfile model | ✅ Done | OneToOne to User, referral_code, commission_rate, cached stats |
+| AmbassadorReferral model | ✅ Done | Tracks ambassador→trainer referrals with 3-state lifecycle |
+| AmbassadorCommission model | ✅ Done | Monthly commission records with rate snapshot |
+| Ambassador dashboard API | ✅ Done | GET /api/ambassador/dashboard/ with aggregated stats |
+| Ambassador referrals API | ✅ Done | GET /api/ambassador/referrals/ with pagination + status filter |
+| Ambassador referral code API | ✅ Done | GET /api/ambassador/referral-code/ with share message |
+| Admin ambassador management | ✅ Done | List, create, detail, update (commission rate, active status) |
+| Referral code on registration | ✅ Done | Optional field, silently ignored if invalid |
+| Commission creation service | ✅ Done | ReferralService with select_for_update, duplicate guards |
+| Ambassador mobile shell | ✅ Done | 3-tab navigation: Dashboard, Referrals, Settings |
+| Ambassador dashboard screen | ✅ Done | Earnings card, referral code + share, stats, recent referrals |
+| Ambassador referrals screen | ✅ Done | Filterable list with status badges, tier, commission |
+| Ambassador settings screen | ✅ Done | Profile info, commission rate, earnings, logout |
+| Admin ambassador screens | ✅ Done | List with search/filter, create with password, detail with commissions |
+| Monthly earnings chart | ❌ Not started | Backend returns data, mobile needs chart widget (fl_chart) |
+| Native share sheet | ❌ Not started | Currently clipboard-only; needs share_plus package |
+| Commission approval workflow | ❌ Not started | Admin can view but not approve/pay from mobile |
+| Ambassador password reset | ❌ Not started | Admin sets temp password; no self-service reset flow |
+
+### 3.9 Other
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Calendar integration (Google/Microsoft) | 🟡 Partial | Backend API done, mobile basic |
@@ -147,7 +173,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 
 ---
 
-## 4. Current Sprint: Foundation Fix + Layout System + White-Label Branding
+## 4. Current Sprint: Foundation Fix + Layout + Branding + Ambassador
 
 ### 4.1 Bug Fixes — COMPLETED (2026-02-13)
 
@@ -212,7 +238,27 @@ Per-trainer customizable branding so trainees see their trainer's brand instead 
 - Security: 5-layer image validation, UUID filenames, HTML tag stripping, generic error messages
 - 84 comprehensive backend tests (model, views, serializer, permissions, row-level security, edge cases)
 
-### 4.4 Acceptance Criteria
+### 4.4 Ambassador User Type & Referral Revenue Sharing — COMPLETED (2026-02-14)
+
+New AMBASSADOR role with referral tracking, commission management, and full mobile UI.
+
+**What was built:**
+- **Backend**: New `ambassador` Django app with 3 models (AmbassadorProfile, AmbassadorReferral, AmbassadorCommission)
+- 6 API endpoints: ambassador dashboard, referrals, referral-code; admin list, create, detail/update
+- `ReferralService` with `process_referral_code()`, `create_commission()`, `handle_trainer_churn()`
+- Registration integration: optional `referral_code` field, silently ignored if invalid
+- Security: `select_for_update()` for commission creation, `UniqueConstraint` for duplicate prevention, `IntegrityError` retry for code generation race conditions
+- Global rate limiting (anon: 30/min, user: 120/min) and production CORS restriction
+- **Mobile**: Ambassador navigation shell with 3 tabs (Dashboard, Referrals, Settings)
+- Dashboard: earnings card, referral code with copy/share, stats row, recent referrals list
+- Referrals screen: filterable by status, shows subscription tier and commission earned
+- Settings screen: profile info, commission rate (read-only), earnings, logout with confirmation
+- Admin ambassador management: searchable list with active/inactive filter, create with password, detail with commission history and rate editing
+- Referral code field on trainer registration screen
+- Accessibility: Semantics widgets throughout, confirmation dialogs, 48dp touch targets
+- 25 acceptance criteria, all verified PASS
+
+### 4.5 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
 - [x] Trainer receives notification when trainee starts or finishes a workout
@@ -244,28 +290,36 @@ Per-trainer customizable branding so trainees see their trainer's brand instead 
 - ~~Each trainer's trainees see the trainer's branding, not "FitnessAI"~~ ✅ Completed 2026-02-14
 - ~~Custom splash screen per trainer~~ ✅ Completed 2026-02-14
 
-### Phase 3: Web Admin Dashboard
+### Phase 3: Ambassador System — ✅ COMPLETED (2026-02-14)
+- ~~New User role: AMBASSADOR~~ ✅ Completed 2026-02-14
+- ~~Ambassador dashboard: referred trainers, earnings, referral code~~ ✅ Completed 2026-02-14
+- ~~Referral code system (8-char alphanumeric, registration integration)~~ ✅ Completed 2026-02-14
+- ~~Revenue sharing logic: configurable commission rate per ambassador~~ ✅ Completed 2026-02-14
+- ~~Admin can create/manage ambassadors and set commission rates~~ ✅ Completed 2026-02-14
+- Stripe Connect payout to ambassadors — Not yet (future enhancement)
+
+### Phase 4: Web Admin Dashboard
 - React/Next.js with shadcn/ui
 - Trainer dashboard (program builder, trainee management, analytics)
 - Admin dashboard (trainer management, tiers, revenue, platform analytics)
 - Shared auth with existing JWT system
 - TypeScript interfaces auto-generated from Django serializers
 
-### Phase 4: Ambassador System
-- New User role: AMBASSADOR
-- Ambassador dashboard: referred trainers, monthly revenue, payout history
-- Referral code system
-- Revenue sharing logic: ambassador gets X% of each referred trainer's subscription
-- Admin can set/adjust ambassador commission rates
+### Phase 5: Ambassador Enhancements
+- Monthly earnings chart (fl_chart bar chart on dashboard)
+- Native share sheet (share_plus package)
+- Commission approval/payment workflow (admin mobile + API)
+- Ambassador password reset / magic link login
 - Stripe Connect payout to ambassadors
+- Custom referral codes (ambassador-chosen, e.g., "JOHN20")
 
-### Phase 5: Offline-First + Performance
+### Phase 6: Offline-First + Performance
 - Drift (SQLite) local database for offline workout logging
 - Sync queue for uploading logs when connection returns
 - Background health data sync (HealthKit / Health Connect)
 - App performance audit (60fps target, RepaintBoundary audit)
 
-### Phase 6: Social & Community
+### Phase 7: Social & Community
 - Forums / community feed (trainee-to-trainee)
 - Trainer announcements (broadcast to all trainees)
 - Achievement / badge system

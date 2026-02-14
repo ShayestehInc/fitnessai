@@ -110,6 +110,16 @@ class ApiConstants {
   // Admin coupon management
   static String get adminCoupons => '$apiBaseUrl/admin/coupons/';
 
+  // Ambassador endpoints
+  static String get ambassadorDashboard => '$apiBaseUrl/ambassador/dashboard/';
+  static String get ambassadorReferrals => '$apiBaseUrl/ambassador/referrals/';
+  static String get ambassadorReferralCode => '$apiBaseUrl/ambassador/referral-code/';
+
+  // Admin ambassador management
+  static String get adminAmbassadors => '$apiBaseUrl/admin/ambassadors/';
+  static String get adminCreateAmbassador => '$apiBaseUrl/admin/ambassadors/create/';
+  static String adminAmbassadorDetail(int id) => '$apiBaseUrl/admin/ambassadors/$id/';
+
   // Payment endpoints (Stripe Connect)
   static String get stripeConnectOnboard => '$apiBaseUrl/payments/connect/onboard/';
   static String get stripeConnectStatus => '$apiBaseUrl/payments/connect/status/';

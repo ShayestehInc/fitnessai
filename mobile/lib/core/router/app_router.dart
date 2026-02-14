@@ -61,6 +61,13 @@ import '../../features/calendar/presentation/screens/calendar_connection_screen.
 import '../../shared/widgets/main_navigation_shell.dart';
 import '../../shared/widgets/trainer_navigation_shell.dart';
 import '../../shared/widgets/admin_navigation_shell.dart';
+import '../../features/ambassador/presentation/screens/ambassador_navigation_shell.dart';
+import '../../features/ambassador/presentation/screens/ambassador_dashboard_screen.dart';
+import '../../features/ambassador/presentation/screens/ambassador_referrals_screen.dart';
+import '../../features/ambassador/presentation/screens/ambassador_settings_screen.dart';
+import '../../features/admin/presentation/screens/admin_ambassadors_screen.dart';
+import '../../features/admin/presentation/screens/admin_create_ambassador_screen.dart';
+import '../../features/admin/presentation/screens/admin_ambassador_detail_screen.dart';
 
 // Navigation keys for branches
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -245,6 +252,47 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const BrandingScreen(),
       ),
 
+      // Ambassador Shell - separate navigation for ambassadors
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return AmbassadorNavigationShell(navigationShell: navigationShell);
+        },
+        branches: [
+          // Dashboard branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/ambassador',
+                name: 'ambassador-dashboard',
+                builder: (context, state) => const AmbassadorDashboardScreen(),
+              ),
+            ],
+          ),
+
+          // Referrals branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/ambassador/referrals',
+                name: 'ambassador-referrals',
+                builder: (context, state) => const AmbassadorReferralsScreen(),
+              ),
+            ],
+          ),
+
+          // Settings branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/ambassador/settings',
+                name: 'ambassador-settings',
+                builder: (context, state) => const AmbassadorSettingsScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
+
       // Admin Shell - separate navigation for admin users
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -350,6 +398,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
           return AdminCouponDetailScreen(couponId: id);
+        },
+      ),
+
+      // Admin ambassador routes
+      GoRoute(
+        path: '/admin/ambassadors',
+        name: 'admin-ambassadors',
+        builder: (context, state) => const AdminAmbassadorsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/ambassadors/create',
+        name: 'admin-create-ambassador',
+        builder: (context, state) => const AdminCreateAmbassadorScreen(),
+      ),
+      GoRoute(
+        path: '/admin/ambassadors/:id',
+        name: 'admin-ambassador-detail',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return AdminAmbassadorDetailScreen(ambassadorId: id);
         },
       ),
 
@@ -587,6 +655,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         // Admin goes to admin dashboard
         if (user.isAdmin) {
           return '/admin';
+        }
+
+        // Ambassadors go to ambassador dashboard
+        if (user.isAmbassador) {
+          return '/ambassador';
         }
 
         // Trainers go to trainer dashboard

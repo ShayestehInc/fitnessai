@@ -38,7 +38,6 @@ class AuthRepository {
             'refresh_token': refreshToken,
           };
         } catch (e) {
-          print('Error fetching user info: $e');
           // If user endpoint fails, return error
           return {
             'success': false,
@@ -62,15 +61,21 @@ class AuthRepository {
     required String email,
     required String password,
     required String role,
+    String? referralCode,
   }) async {
     try {
+      final data = <String, dynamic>{
+        'email': email,
+        'password': password,
+        'role': role,
+      };
+      if (referralCode != null && referralCode.isNotEmpty) {
+        data['referral_code'] = referralCode;
+      }
+
       final response = await _apiClient.dio.post(
         ApiConstants.register,
-        data: {
-          'email': email,
-          'password': password,
-          'role': role,
-        },
+        data: data,
       );
 
       if (response.statusCode == 201) {

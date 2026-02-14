@@ -247,6 +247,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   onTap: () => context.push('/admin/coupons'),
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionButton(
+                  context,
+                  icon: Icons.handshake_outlined,
+                  label: 'Ambassadors',
+                  color: Colors.teal,
+                  onTap: () => context.push('/admin/ambassadors'),
+                ),
+              ),
             ],
           ),
         ],

@@ -4,6 +4,53 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-14] — Ambassador User Type & Referral Revenue Sharing
+
+### Added
+- **AMBASSADOR user role** — New `User.Role.AMBASSADOR` with `is_ambassador()` helper method, `IsAmbassador` and `IsAmbassadorOrAdmin` permission classes.
+- **AmbassadorProfile model** — OneToOne to User with `referral_code` (unique 8-char alphanumeric, auto-generated with collision retry), `commission_rate` (DecimalField, default 0.20), `is_active`, cached `total_referrals` and `total_earnings`.
+- **AmbassadorReferral model** — Tracks ambassador-to-trainer referrals with 3-state lifecycle: PENDING (registered) -> ACTIVE (first payment) -> CHURNED (cancelled), with reactivation support.
+- **AmbassadorCommission model** — Monthly commission records with rate snapshot at creation time, `UniqueConstraint` on (referral, period_start, period_end) to prevent duplicates.
+- **Ambassador API endpoints** — `GET /api/ambassador/dashboard/` (aggregated stats, monthly earnings, recent referrals), `GET /api/ambassador/referrals/` (paginated, status-filterable), `GET /api/ambassador/referral-code/` (code + share message).
+- **Admin ambassador management API** — `GET /api/admin/ambassadors/` (search, active filter), `POST /api/admin/ambassadors/create/` (with password), `GET/PUT /api/admin/ambassadors/<id>/` (detail with paginated referrals/commissions, update rate/status).
+- **ReferralService** — `process_referral_code()` (registration integration), `create_commission()` (with `select_for_update` locking and duplicate period guard), `handle_trainer_churn()` (bulk update).
+- **Registration integration** — Optional `referral_code` field on `UserCreateSerializer`, restricted role choices to TRAINEE/TRAINER only (prevents ADMIN/AMBASSADOR self-registration).
+- **Ambassador mobile shell** — `StatefulShellRoute` with 3 tabs: Dashboard, Referrals, Settings. Router redirect for ambassador users.
+- **Ambassador dashboard screen** — Gradient earnings card, referral code card with copy/share, stats row (total/active/pending/churned), recent referrals list with status badges.
+- **Ambassador referrals screen** — Filterable list (All/Active/Pending/Churned), pull-to-refresh, status badges, subscription tier, commission earned per referral.
+- **Ambassador settings screen** — Profile info, commission rate (read-only), referral code, total earnings, logout with confirmation dialog.
+- **Admin ambassador screens** — Searchable list with active/inactive filter, create form with password + commission rate slider, detail screen with commission history and rate editing dialog.
+- **Referral code on registration** — Optional field shown when TRAINER role selected, `maxLength: 8`, `textCapitalization: characters`.
+- **Accessibility** — Semantics widgets on all interactive elements, 48dp minimum touch targets (InkWell), screen reader labels for stat tiles, nav items, and referral cards.
+- **Rate limiting** — Global `DEFAULT_THROTTLE_CLASSES` (anon: 30/min, user: 120/min), `RegistrationThrottle` (5/hour).
+- **CORS hardening** — `CORS_ALLOW_ALL_ORIGINS` now conditional on `DEBUG`; production reads `CORS_ALLOWED_ORIGINS` from environment variable.
+- Database migrations: `ambassador/migrations/0001_initial.py`, `ambassador/migrations/0002_alter_ambassadorreferral_unique_together_and_more.py`, `users/migrations/0005_alter_user_role.py`.
+- New file: `backend/core/throttles.py` with `RegistrationThrottle` class.
+
+### Changed
+- `users/serializers.py` — Role choices restricted to `[(TRAINEE, 'Trainee'), (TRAINER, 'Trainer')]`, single `create_user()` call instead of two DB writes, referral code processing integrated.
+- `config/urls.py` — Ambassador admin URLs mounted at `/api/admin/ambassadors/` (split from ambassador app URLs).
+- `config/settings.py` — Added `ambassador` to `INSTALLED_APPS`, throttle classes, conditional CORS.
+- `core/permissions.py` — Added `IsAmbassador` and `IsAmbassadorOrAdmin` permission classes.
+
+### Security
+- Registration role escalation prevention (ADMIN/AMBASSADOR roles blocked from self-registration)
+- Race condition protection: `select_for_update()` on commission creation, `IntegrityError` retry on code generation
+- DB-level `UniqueConstraint` on (referral, period_start, period_end) prevents duplicate commissions
+- Cryptographic referral code generation (`secrets.choice`, 36^8 = 2.8 trillion code space)
+- No IDOR: all ambassador queries filter by `request.user`
+
+### Quality
+- Code review: 3 rounds. Round 1: BLOCK (5/10) -> 12 fixes. Round 2: REQUEST CHANGES (7.5/10) -> 3 fixes. Round 3: APPROVE.
+- QA: 25/25 acceptance criteria PASS (4 URL routing issues fixed in QA round)
+- UX audit: 8/10 — 12 usability + 10 accessibility issues fixed
+- Security audit: 9/10 — PASS (5 critical/high issues fixed)
+- Architecture review: 8/10 — APPROVE (6 issues fixed: atomicity, DRY, pagination, typed models, bulk updates)
+- Hacker report: 6/10 chaos — 10 items fixed (unusable password, crash bug, missing commission display, filter persistence)
+- Overall quality: 8.5/10 — SHIP
+
+---
+
 ## [2026-02-14] — White-Label Branding Infrastructure
 
 ### Added

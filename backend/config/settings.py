@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'trainer',
     'features',
     'calendars',
+    'ambassador',
 ]
 
 MIDDLEWARE = [
@@ -137,10 +138,27 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',
+        'user': '120/minute',
+        'registration': '5/hour',
+    },
 }
 
-# CORS - Allow all origins for mobile app development
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS - Only allow all origins in development; restrict in production
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+        if origin.strip()
+    ]
 CORS_ALLOW_CREDENTIALS = True
 
 # CSRF trusted origins for ngrok
