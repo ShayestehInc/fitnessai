@@ -15,6 +15,7 @@ from typing import Any, cast
 
 from users.models import User
 from workouts.models import DailyLog
+from trainer.models import TrainerNotification
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,6 @@ class ReadinessSurveyView(APIView):
                 message += f"Low areas: {', '.join(low_areas)}"
 
         try:
-            from trainer.models import TrainerNotification
             TrainerNotification.objects.create(
                 trainer=trainer,
                 notification_type='trainee_readiness',
@@ -255,46 +255,55 @@ class PostWorkoutSurveyView(APIView):
         """
         Save workout data to DailyLog.workout_data.
         Uses get_or_create for today's date to avoid duplicates.
-        Merges exercises if multiple workouts are logged in one day.
+        Stores each workout session separately in a 'sessions' list so
+        multiple workouts per day don't overwrite each other.
+        Also maintains a flat 'exercises' list for backward compatibility.
         """
+        from django.db import transaction
+
         today = timezone.now().date()
-        daily_log, _created = DailyLog.objects.get_or_create(
-            trainee=user,
-            date=today,
-        )
 
-        exercises = workout_summary.get('exercises', [])
-        workout_name = workout_summary.get('workout_name', 'Workout')
-        duration = workout_summary.get('duration', '00:00')
-        completed_at = timezone.now().isoformat()
+        with transaction.atomic():
+            daily_log, _created = DailyLog.objects.select_for_update().get_or_create(
+                trainee=user,
+                date=today,
+            )
 
-        new_workout_entry: dict[str, Any] = {
-            'workout_name': workout_name,
-            'duration': duration,
-            'exercises': exercises,
-            'post_survey': survey_data,
-            'completed_at': completed_at,
-        }
-        if readiness_survey is not None:
-            new_workout_entry['readiness_survey'] = readiness_survey
+            exercises = workout_summary.get('exercises', [])
+            workout_name = workout_summary.get('workout_name', 'Workout')
+            duration = workout_summary.get('duration', '00:00')
+            completed_at = timezone.now().isoformat()
 
-        existing_data: dict[str, Any] = daily_log.workout_data or {}
-        existing_exercises: list[dict[str, Any]] = existing_data.get('exercises', [])
+            new_session: dict[str, Any] = {
+                'workout_name': workout_name,
+                'duration': duration,
+                'exercises': exercises,
+                'post_survey': survey_data,
+                'completed_at': completed_at,
+            }
+            if readiness_survey is not None:
+                new_session['readiness_survey'] = readiness_survey
 
-        # Merge: append new exercises to existing ones
-        merged_exercises = existing_exercises + exercises
+            existing_data: dict[str, Any] = daily_log.workout_data or {}
+            existing_sessions: list[dict[str, Any]] = existing_data.get('sessions', [])
+            existing_exercises: list[dict[str, Any]] = existing_data.get('exercises', [])
 
-        daily_log.workout_data = {
-            'exercises': merged_exercises,
-            'workout_name': workout_name,
-            'duration': duration,
-            'post_survey': survey_data,
-            'completed_at': completed_at,
-        }
-        if readiness_survey is not None:
-            daily_log.workout_data['readiness_survey'] = readiness_survey
+            # Append new session and merge exercises
+            updated_sessions = existing_sessions + [new_session]
+            merged_exercises = existing_exercises + exercises
 
-        daily_log.save(update_fields=['workout_data'])
+            daily_log.workout_data = {
+                'sessions': updated_sessions,
+                'exercises': merged_exercises,
+                'workout_name': workout_name,
+                'duration': duration,
+                'post_survey': survey_data,
+                'completed_at': completed_at,
+            }
+            if readiness_survey is not None:
+                daily_log.workout_data['readiness_survey'] = readiness_survey
+
+            daily_log.save(update_fields=['workout_data'])
 
     def _notify_trainer(
         self,
@@ -352,7 +361,6 @@ class PostWorkoutSurveyView(APIView):
             message += f"\n⚠️ {', '.join(concerns)}"
 
         try:
-            from trainer.models import TrainerNotification
             TrainerNotification.objects.create(
                 trainer=trainer,
                 notification_type='workout_completed',

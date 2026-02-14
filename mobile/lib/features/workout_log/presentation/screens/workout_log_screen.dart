@@ -381,8 +381,11 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                 leading: Icon(Icons.swap_horiz, color: theme.colorScheme.primary),
                 title: const Text('Switch Program'),
                 onTap: () {
-                  context.pop();
-                  _showProgramSwitcher(context);
+                  Navigator.of(context).pop();
+                  // Wait for the options sheet to fully close before opening switcher
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _showProgramSwitcher(this.context);
+                  });
                 },
               ),
               ListTile(
