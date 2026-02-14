@@ -65,12 +65,12 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Program builder (trainer) | ✅ Done | Week editor, exercise selection, sets/reps/weight |
 | Program templates | ✅ Done | Save and reuse programs across trainees |
 | Program assignment | ✅ Done | Trainer assigns program to trainee |
-| Program schedule display (trainee) | ⚠️ Buggy | **BUG-3:** Falls back to sample data too aggressively |
-| Active workout screen | ⚠️ Buggy | Works visually but **BUG-1:** data never saves |
-| Readiness survey (pre-workout) | ⚠️ Buggy | **BUG-2:** Trainer notification fails |
-| Post-workout survey | ⚠️ Buggy | **BUG-1 + BUG-2:** Data lost + notification fails |
-| Workout calendar / history | 🟡 Partial | Calendar screen exists but empty (no data persists) |
-| Program switcher | ❌ Not done | **BUG-5:** Button exists but no functionality |
+| Program schedule display (trainee) | ✅ Done | Fixed 2026-02-13: Real programs shown, empty states for missing schedules |
+| Active workout screen | ✅ Done | Fixed 2026-02-13: Workout data persists to DailyLog.workout_data |
+| Readiness survey (pre-workout) | ✅ Done | Fixed 2026-02-13: Trainer notification fires correctly via parent_trainer |
+| Post-workout survey | ✅ Done | Fixed 2026-02-13: Data saves + notification fires |
+| Workout calendar / history | 🟡 Partial | Calendar screen exists; data now persists via DailyLog |
+| Program switcher | ✅ Done | Fixed 2026-02-13: Bottom sheet with active indicator + snackbar |
 | Trainer-selectable workout layouts | ❌ Not done | **Priority 2:** Classic / Card / Minimal variants |
 | Missed day handling | ✅ Done | Skip or push (shifts program dates) |
 
@@ -99,7 +99,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | AI chat assistant | ✅ Done | Uses trainee context for personalized advice |
 | Adherence analytics | ✅ Done | |
 | Progress analytics | ✅ Done | |
-| Trainer notifications | ⚠️ Buggy | **BUG-2:** Never fires due to wrong attribute |
+| Trainer notifications | ✅ Done | Fixed 2026-02-13: Uses parent_trainer, migration created |
 
 ### 3.5 Admin Dashboard
 | Feature | Status | Notes |
@@ -135,35 +135,31 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 
 ## 4. Current Sprint: Trainee Workout Fix + Layout System
 
-### 4.1 Bug Fixes Required
+### 4.1 Bug Fixes — COMPLETED (2026-02-13)
 
-**BUG-1 [CRITICAL]: Workout data never persists**
-- Location: `backend/workouts/survey_views.py` → `PostWorkoutSurveyView.post()`
-- Problem: `# TODO: Save workout log to database` — the save was never implemented
-- Impact: 100% data loss on every completed workout
-- Fix: Add `_save_workout_to_daily_log()` method that writes to `DailyLog.workout_data` using `get_or_create` for today's date, merging exercises if multiple workouts in one day
+All 5 trainee-side bugs have been fixed and shipped.
 
-**BUG-2 [HIGH]: Trainer notifications never fire**
-- Location: `backend/workouts/survey_views.py` → lines ~56 and ~205
-- Problem: `getattr(user, 'trainer', None)` — the User model has no `.trainer` attribute. The correct attribute is `user.parent_trainer`
-- Impact: Trainer has zero visibility into when trainees are working out
-- Fix: Replace with `user.parent_trainer` in both ReadinessSurveyView and PostWorkoutSurveyView
+**BUG-1 [CRITICAL]: Workout data never persists** — ✅ FIXED
+- Added `_save_workout_to_daily_log()` method with `transaction.atomic()` + `get_or_create`
+- Multiple workouts per day merge via `sessions` list
+- 5 backend tests covering save, merge, empty exercises, and error cases
 
-**BUG-3 [HIGH]: Sample data shown instead of real programs**
-- Location: `mobile/lib/features/workout_log/presentation/providers/workout_provider.dart`
-- Problem: `_parseProgramWeeks()` calls `_generateSampleWeeks()` on any null/empty/failed parse. Real programs with valid schedules get replaced by hardcoded "Push Day / Pull Day / Legs"
-- Impact: Trainee can never see their actual assigned program
-- Fix: Only use sample data when trainee has zero programs. For empty/null schedules on real programs, show an informative empty state ("Your trainer hasn't built your schedule yet")
+**BUG-2 [HIGH]: Trainer notifications never fire** — ✅ FIXED
+- Changed `getattr(user, 'trainer', None)` to `user.parent_trainer` in both views
+- Created missing `TrainerNotification` migration (table never existed in DB)
+- 4 backend tests covering readiness/post-workout notifications
 
-**BUG-4 [MEDIUM]: Debug prints in production**
-- Location: `mobile/lib/features/workout_log/data/repositories/workout_repository.dart`
-- Problem: 15+ `print('[WorkoutRepository]...')` statements
-- Fix: Delete them all
+**BUG-3 [HIGH]: Sample data shown instead of real programs** — ✅ FIXED
+- Removed `_generateSampleWeeks()` and `_getSampleExercises()` entirely
+- Returns `[]` for null/empty schedules; UI shows appropriate empty state
+- Three distinct empty states: no programs, empty schedule, no workouts this week
 
-**BUG-5 [MEDIUM]: Program switcher not implemented**
-- Location: `mobile/lib/features/workout_log/presentation/screens/workout_log_screen.dart` ~line 362
-- Problem: Menu item exists but callback is `// TODO: Show program switcher`
-- Fix: Show bottom sheet with all assigned programs, tap to switch active program in provider state
+**BUG-4 [MEDIUM]: Debug prints in production** — ✅ FIXED
+- All 15+ `print()` statements removed from `workout_repository.dart`
+
+**BUG-5 [MEDIUM]: Program switcher not implemented** — ✅ FIXED
+- Bottom sheet with full program list, active indicator (check_circle), snackbar confirmation
+- `WorkoutNotifier.switchProgram()` re-parses weeks and resets selection
 
 ### 4.2 New Feature: Trainer-Selectable Workout Layouts
 
@@ -198,11 +194,11 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 
 ### 4.3 Acceptance Criteria
 
-- [ ] Completing a workout persists all exercise data to DailyLog.workout_data
-- [ ] Trainer receives notification when trainee starts or finishes a workout
-- [ ] Trainee sees their real assigned program, not sample data
-- [ ] No print() debug statements in workout_repository.dart
-- [ ] Trainee can switch between assigned programs via bottom sheet
+- [x] Completing a workout persists all exercise data to DailyLog.workout_data
+- [x] Trainer receives notification when trainee starts or finishes a workout
+- [x] Trainee sees their real assigned program, not sample data
+- [x] No print() debug statements in workout_repository.dart
+- [x] Trainee can switch between assigned programs via bottom sheet
 - [ ] Trainer can set layout type (classic/card/minimal) per trainee
 - [ ] Trainee's active workout screen renders the correct layout variant
 - [ ] Default layout is "classic" for all existing trainees (no migration data needed)
@@ -213,9 +209,8 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 ## 5. Roadmap
 
 ### Phase 1: Foundation Fix (Current Sprint)
-- Fix all 5 bugs
-- Implement workout layout system
-- Estimated: 1-2 days of agent pipeline runs
+- ~~Fix all 5 bugs~~ ✅ Completed 2026-02-13
+- Implement workout layout system — next up
 
 ### Phase 2: White-Label Infrastructure
 - TrainerBranding model: primary_color, secondary_color, logo_url, app_name
@@ -288,24 +283,33 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 **DailyLog.workout_data** (logged by trainee):
 ```json
 {
-  "exercises": [
+  "sessions": [
     {
-      "exercise_name": "Bench Press",
-      "exercise_id": 42,
-      "sets": [
-        {"set_number": 1, "reps": 10, "weight": 135, "unit": "lbs", "completed": true},
-        {"set_number": 2, "reps": 8, "weight": 145, "unit": "lbs", "completed": true}
+      "workout_name": "Push Day",
+      "duration": "45:30",
+      "exercises": [
+        {
+          "exercise_name": "Bench Press",
+          "exercise_id": 42,
+          "sets": [
+            {"set_number": 1, "reps": 10, "weight": 135, "unit": "lbs", "completed": true},
+            {"set_number": 2, "reps": 8, "weight": 145, "unit": "lbs", "completed": true}
+          ],
+          "timestamp": "2026-02-13T10:30:00Z"
+        }
       ],
-      "timestamp": "2026-02-13T10:30:00Z"
+      "post_survey": { "...": "..." },
+      "readiness_survey": { "...": "..." },
+      "completed_at": "2026-02-13T11:15:30Z"
     }
   ],
+  "exercises": [ "/* flat list of all exercises across all sessions for backward compat */" ],
   "workout_name": "Push Day",
   "duration": "45:30",
-  "post_survey": { ... },
-  "readiness_survey": { ... },
   "completed_at": "2026-02-13T11:15:30Z"
 }
 ```
+> **Note:** `sessions` array was added 2026-02-13 to support multiple workouts per day. Each session preserves its own metadata. The flat `exercises` key is maintained for backward compatibility.
 
 **DailyLog.nutrition_data**:
 ```json
