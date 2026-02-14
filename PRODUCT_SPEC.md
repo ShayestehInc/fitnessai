@@ -103,6 +103,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Adherence analytics | ✅ Done | |
 | Progress analytics | ✅ Done | |
 | Trainer notifications | ✅ Done | Fixed 2026-02-13: Uses parent_trainer, migration created |
+| Trainer notifications dashboard | ✅ Done | Shipped 2026-02-14: In-app notification feed with pagination, mark-read, swipe-to-dismiss, badge count |
 
 ### 3.5 Admin Dashboard
 | Feature | Status | Notes |
@@ -151,6 +152,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Admin ambassador management | ✅ Done | List, create, detail, update (commission rate, active status) |
 | Referral code on registration | ✅ Done | Optional field, silently ignored if invalid |
 | Commission creation service | ✅ Done | ReferralService with select_for_update, duplicate guards |
+| Ambassador commission webhook | ✅ Done | Shipped 2026-02-14: Stripe webhook creates commissions from invoice.paid, handles churn on subscription.deleted |
 | Ambassador mobile shell | ✅ Done | 3-tab navigation: Dashboard, Referrals, Settings |
 | Ambassador dashboard screen | ✅ Done | Earnings card, referral code + share, stats, recent referrals |
 | Ambassador referrals screen | ✅ Done | Filterable list with status badges, tier, commission |
@@ -258,7 +260,20 @@ New AMBASSADOR role with referral tracking, commission management, and full mobi
 - Accessibility: Semantics widgets throughout, confirmation dialogs, 48dp touch targets
 - 25 acceptance criteria, all verified PASS
 
-### 4.5 Acceptance Criteria
+### 4.5 Trainer Notifications Dashboard + Ambassador Commission Webhook — COMPLETED (2026-02-14)
+
+In-app notification feed for trainers and Stripe webhook integration for automatic ambassador commissions.
+
+**What was built:**
+- **Backend Notification API**: 5 views (list with pagination, unread count, mark-read, mark-all-read, delete) with `[IsAuthenticated, IsTrainer]` permissions and row-level security
+- **Ambassador Commission Webhook**: `_handle_invoice_paid()` creates ambassador commissions from actual Stripe invoice amounts, `_handle_subscription_deleted()` triggers trainer churn, `_handle_checkout_completed()` handles first platform subscription payment
+- **Mobile Notification UI**: Bell icon badge with "99+" cap, paginated list with date grouping ("Today", "Yesterday", "Feb 12"), swipe-to-dismiss with undo snackbar, mark-all-read with confirmation dialog, optimistic updates with revert-on-failure
+- **Accessibility**: Screen reader semantics on all notification cards, badge, and action buttons
+- **Database Optimization**: Index optimization — removed unused notification_type index, changed (trainer, created_at) to descending (trainer, -created_at)
+- **Webhook Symmetry**: Extended `_handle_invoice_payment_failed()` and `_handle_subscription_updated()` to handle both TraineeSubscription and Subscription models
+- **90 new tests**: 59 notification view tests + 31 ambassador webhook tests
+
+### 4.6 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
 - [x] Trainer receives notification when trainee starts or finishes a workout
