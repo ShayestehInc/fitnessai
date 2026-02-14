@@ -4,6 +4,31 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-14] — Trainee Home Experience + Password Reset
+
+### Added
+- **Password Reset Flow** — Full forgot/reset password screens using Djoser's built-in email endpoints. ForgotPasswordScreen with email input, loading state, success view with spam folder hint. ResetPasswordScreen with uid/token route params, password strength indicator, validation. Email backend configured (console for dev, SMTP for prod via env vars).
+- **Weekly Workout Progress** — New `GET /api/workouts/daily-logs/weekly-progress/` endpoint returning `{total_days, completed_days, percentage, has_program}`. Home screen shows animated progress bar (hidden when no program). Data fetched in parallel with other dashboard data.
+- **Food Entry Edit/Delete** — New `PUT /api/workouts/daily-logs/<id>/edit-meal-entry/` and `POST /api/workouts/daily-logs/<id>/delete-meal-entry/` endpoints with input key whitelisting, numeric validation, and automatic total recalculation. Mobile EditFoodEntrySheet bottom sheet with pre-filled form, save/delete buttons, confirmation dialog.
+- **EditMealEntrySerializer / DeleteMealEntrySerializer** — Proper DRF serializers for food edit/delete input validation (architecture audit improvement).
+- **Date filtering on DailyLog list** — `GET /api/workouts/daily-logs/?date=YYYY-MM-DD` now filters by date (critical fix: was silently ignoring date param).
+
+### Changed
+- **Login screen** — "Forgot password?" button now navigates to ForgotPasswordScreen (was showing "Coming soon!" snackbar).
+- **Home screen notification button** — Shows info dialog ("Notifications coming soon") instead of being a dead button.
+- **ProgramViewSet logging** — Removed verbose email logging, changed to debug level (architecture audit improvement).
+- **Nutrition edit/delete** — Uses `refreshDailySummary()` instead of `loadInitialData()` after changes (1 API call instead of 5).
+- **Weekly progress domain** — Moved `getWeeklyProgress()` from NutritionRepository to WorkoutRepository (correct domain boundary).
+
+### Security
+- Input key whitelisting on meal entry edits (prevents arbitrary JSON injection)
+- DELETE-with-body changed to POST for proxy compatibility
+- No email enumeration in password reset (204 regardless of email existence)
+- Race condition guard (`_isEditingEntry`) prevents concurrent food edits
+- Row-level security on all new endpoints (trainee can only edit own logs)
+
+---
+
 ## [2026-02-14] — Trainer Notifications Dashboard + Ambassador Commission Webhook
 
 ### Added
