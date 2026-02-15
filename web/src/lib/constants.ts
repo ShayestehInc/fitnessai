@@ -25,6 +25,19 @@ export const API_URLS = {
 
   // Invitations
   INVITATIONS: `${API_BASE}/api/trainer/invitations/`,
+  invitationDetail: (id: number) =>
+    `${API_BASE}/api/trainer/invitations/${id}/`,
+  invitationResend: (id: number) =>
+    `${API_BASE}/api/trainer/invitations/${id}/resend/`,
+
+  // Settings / Profile
+  UPDATE_PROFILE: `${API_BASE}/api/users/me/`,
+  PROFILE_IMAGE: `${API_BASE}/api/users/profile-image/`,
+  CHANGE_PASSWORD: `${API_BASE}/api/auth/users/set_password/`,
+
+  // Progress / Analytics
+  traineeProgress: (id: number) =>
+    `${API_BASE}/api/trainer/trainees/${id}/progress/`,
 } as const;
 
 export const TOKEN_KEYS = {

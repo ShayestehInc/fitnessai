@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   PopoverContent,
 } from "@/components/ui/popover";
@@ -8,14 +10,35 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useNotifications, useMarkAsRead } from "@/hooks/use-notifications";
-import { NotificationItem } from "./notification-item";
+import { NotificationItem, getNotificationTraineeId } from "./notification-item";
 import { Loader2 } from "lucide-react";
 
-export function NotificationPopover() {
+interface NotificationPopoverProps {
+  onClose: () => void;
+}
+
+export function NotificationPopover({ onClose }: NotificationPopoverProps) {
+  const router = useRouter();
   const { data, isLoading, isError, refetch } = useNotifications();
   const markAsRead = useMarkAsRead();
 
   const notifications = data?.results?.slice(0, 5) ?? [];
+
+  const handleNotificationClick = (n: (typeof notifications)[number]) => {
+    const traineeId = getNotificationTraineeId(n);
+
+    if (!n.is_read) {
+      markAsRead.mutate(n.id);
+    }
+
+    if (traineeId !== null) {
+      onClose();
+      router.push(`/trainees/${traineeId}`);
+    } else if (!n.is_read) {
+      // Non-navigable notification: give feedback that it was marked as read
+      toast.success("Marked as read");
+    }
+  };
 
   return (
     <PopoverContent align="end" className="w-80 p-0">
@@ -24,8 +47,9 @@ export function NotificationPopover() {
       </div>
       <Separator />
       {isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <div className="flex items-center justify-center py-8" role="status" aria-label="Loading notifications">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+          <span className="sr-only">Loading notifications</span>
         </div>
       ) : isError ? (
         <div className="flex flex-col items-center gap-2 py-8">
@@ -45,9 +69,7 @@ export function NotificationPopover() {
               <NotificationItem
                 key={n.id}
                 notification={n}
-                onClick={() => {
-                  if (!n.is_read) markAsRead.mutate(n.id);
-                }}
+                onClick={() => handleNotificationClick(n)}
               />
             ))}
           </div>
@@ -55,7 +77,13 @@ export function NotificationPopover() {
       )}
       <Separator />
       <div className="p-2">
-        <Button variant="ghost" size="sm" className="w-full" asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full"
+          asChild
+          onClick={onClose}
+        >
           <Link href="/notifications">View all notifications</Link>
         </Button>
       </div>

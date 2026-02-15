@@ -1,226 +1,245 @@
-# Code Review Round 2: Web Trainer Dashboard (Pipeline 9)
+# Code Review Round 2: Web Dashboard Phase 2 — Settings, Progress Charts, Notifications & Invitations
 
 ## Review Date
-2026-02-15
+2026-02-15 (Round 2)
 
-## Files Reviewed (Round 2 — Full Re-Review)
+## Scope of This Review
+Verifying fixes applied in commit `4cd602a` ("wip: review fixes round 1") against all Critical and Major issues from Round 1.
 
-Every file from Round 1 was re-read line by line, plus additional files to verify cross-cutting concerns.
-
-### Types (6)
-- `web/src/types/user.ts`
-- `web/src/types/trainer.ts`
-- `web/src/types/notification.ts`
-- `web/src/types/invitation.ts`
-- `web/src/types/activity.ts`
-- `web/src/types/api.ts`
-
-### Lib (3)
-- `web/src/lib/constants.ts`
-- `web/src/lib/token-manager.ts`
-- `web/src/lib/api-client.ts`
-
-### Providers (3)
-- `web/src/providers/auth-provider.tsx`
-- `web/src/providers/query-provider.tsx`
-- `web/src/providers/theme-provider.tsx`
-
-### Hooks (6)
-- `web/src/hooks/use-auth.ts`
-- `web/src/hooks/use-dashboard.ts`
-- `web/src/hooks/use-trainees.ts`
-- `web/src/hooks/use-notifications.ts`
-- `web/src/hooks/use-invitations.ts`
-- `web/src/hooks/use-debounce.ts`
-
-### Layout Components (5)
-- `web/src/components/layout/sidebar.tsx`
-- `web/src/components/layout/sidebar-mobile.tsx`
-- `web/src/components/layout/header.tsx`
-- `web/src/components/layout/nav-links.tsx`
-- `web/src/components/layout/user-nav.tsx`
-
-### Shared Components (5)
-- `web/src/components/shared/page-header.tsx`
-- `web/src/components/shared/empty-state.tsx`
-- `web/src/components/shared/error-state.tsx`
-- `web/src/components/shared/data-table.tsx`
-- `web/src/components/shared/loading-spinner.tsx`
-
-### Dashboard Components (5)
-- `web/src/components/dashboard/stats-cards.tsx`
-- `web/src/components/dashboard/stat-card.tsx`
-- `web/src/components/dashboard/recent-trainees.tsx`
-- `web/src/components/dashboard/inactive-trainees.tsx`
-- `web/src/components/dashboard/dashboard-skeleton.tsx`
-
-### Trainee Components (8)
-- `web/src/components/trainees/trainee-table.tsx`
-- `web/src/components/trainees/trainee-columns.tsx`
-- `web/src/components/trainees/trainee-search.tsx`
-- `web/src/components/trainees/trainee-overview-tab.tsx`
-- `web/src/components/trainees/trainee-activity-tab.tsx`
-- `web/src/components/trainees/trainee-progress-tab.tsx`
-- `web/src/components/trainees/trainee-detail-skeleton.tsx`
-- `web/src/components/trainees/trainee-table-skeleton.tsx`
-
-### Notification Components (3)
-- `web/src/components/notifications/notification-bell.tsx`
-- `web/src/components/notifications/notification-popover.tsx`
-- `web/src/components/notifications/notification-item.tsx`
-
-### Invitation Components (4)
-- `web/src/components/invitations/create-invitation-dialog.tsx`
-- `web/src/components/invitations/invitation-table.tsx`
-- `web/src/components/invitations/invitation-columns.tsx`
-- `web/src/components/invitations/invitation-status-badge.tsx`
-
-### Pages (12)
-- `web/src/app/page.tsx`
-- `web/src/app/not-found.tsx`
-- `web/src/app/layout.tsx`
-- `web/src/app/(auth)/layout.tsx`
-- `web/src/app/(auth)/login/page.tsx`
-- `web/src/app/(dashboard)/layout.tsx`
-- `web/src/app/(dashboard)/dashboard/page.tsx`
-- `web/src/app/(dashboard)/trainees/page.tsx`
-- `web/src/app/(dashboard)/trainees/[id]/page.tsx`
-- `web/src/app/(dashboard)/notifications/page.tsx`
-- `web/src/app/(dashboard)/invitations/page.tsx`
-- `web/src/app/(dashboard)/settings/page.tsx`
-
-### Config/Infra
-- `web/src/middleware.ts`
-- `web/src/app/globals.css`
-- `web/next.config.ts`
-- `web/package.json`
-- `web/Dockerfile`
-- `web/.env.example`
-- `web/.gitignore`
-- `docker-compose.yml`
-
-### Backend (contract verification)
-- `backend/trainer/views.py` (TraineeListView, InvitationListCreateView)
-- `backend/trainer/serializers.py` (CreateInvitationSerializer)
-- `backend/trainer/notification_views.py` (all views)
-- `backend/trainer/notification_serializers.py` (TrainerNotificationSerializer)
-- `backend/trainer/models.py` (TrainerNotification model)
+## Files Re-Reviewed (changed in fix round)
+- `web/src/providers/auth-provider.tsx` (refreshUser added to context)
+- `web/src/hooks/use-settings.ts` (switched from queryClient.setQueryData to refreshUser)
+- `web/src/components/settings/profile-section.tsx` (form as single object, file input reset timing)
+- `web/src/components/settings/appearance-section.tsx` (useSyncExternalStore hydration fix)
+- `web/src/components/trainees/progress-charts.tsx` (stackId, formatDate, YAxis domain)
+- `web/src/components/invitations/invitation-actions.tsx` (try/catch, status comment)
+- `web/src/components/notifications/notification-bell.tsx` (conditional popover render)
+- `web/src/hooks/use-progress.ts` (staleTime added)
 
 ---
 
 ## Round 1 Fix Verification
 
-| # | Issue | Status | Evidence |
-|---|-------|--------|----------|
-| C1+C2 | Notification types misaligned with backend; interface had `trainee`, lacked `data` and `read_at` | **FIXED** | `notification.ts:1-23` — types now use `trainee_readiness`, `workout_completed`, `workout_missed`, `goal_hit`, `check_in`, `message`, `general`. Interface has `data: Record<string, unknown>`, `is_read: boolean`, `read_at: string \| null`. Matches backend `TrainerNotificationSerializer` fields exactly. `notification-item.tsx:15-23` — `iconMap` keys match the 7 backend types with appropriate icons (Activity, Dumbbell, AlertTriangle, Target, ClipboardCheck, MessageSquare, Info). Icon type changed to `LucideIcon` (also fixes m5). |
-| C3 | Invitation creation sent `expires_in_days` + `program_template` instead of `expires_days` + `program_template_id` | **FIXED** | `invitation.ts:29` — `program_template_id?: number \| null`. `invitation.ts:30` — `expires_days?: number`. `create-invitation-dialog.tsx:26` — Zod field is `expires_days`. Matches backend `CreateInvitationSerializer` (serializers.py:160-162) exactly. |
-| C4 | JWT decode used raw `atob()` without base64url handling; no runtime type check on payload | **FIXED** | `token-manager.ts:14` — `parts[1].replace(/-/g, "+").replace(/_/g, "/")` before `atob()`. Lines 16-22 — runtime check: `typeof payload !== "object" || payload === null || typeof (payload as TokenPayload).exp !== "number"` returns null if invalid. |
-| C5 | `fetchUser` swallowed role errors, non-trainer login showed blank page | **FIXED** | `auth-provider.tsx:45-54` — catch block checks `error instanceof Error && error.message.includes("Only trainer")` and re-throws. Login page line 47 catches it: `setError(err instanceof Error ? err.message : "Login failed")`. Non-trainer users now see "Only trainer accounts can access this dashboard". |
-| C6 | Docker `NEXT_PUBLIC_API_URL=http://backend:8000` unreachable from browser | **FIXED** | `docker-compose.yml:56` — `NEXT_PUBLIC_API_URL=http://localhost:8000`. Browser will reach the backend via host-mapped port 8000. |
-| M1 | Session cookie lacked conditional `Secure` flag | **FIXED** | `token-manager.ts:31` — `const secure = window.location.protocol === "https:" ? ";Secure" : "";` appended to cookie string. |
-| M2 | `getAuthHeaders` did proactive refresh creating triple-refresh risk | **FIXED** | `api-client.ts:18-24` — `getAuthHeaders()` now simply returns the current token or throws 401. No proactive refresh call. The sole refresh happens in the 401 retry path at line 49-71. Clean single-attempt pattern. |
-| M3 | Content-Type set unconditionally even for GET/DELETE | **FIXED** | `api-client.ts:30-31` — `...(options.body ? { "Content-Type": "application/json" } : {})`. Content-Type only added when body is present. |
-| M4 | No NaN validation on trainee ID; infinite skeleton on `/trainees/abc` | **FIXED** | `trainees/[id]/page.tsx:23` — `const isValidId = !isNaN(traineeId) && traineeId > 0;`. Line 25 — passes `0` to hook when invalid. Lines 28-42 — invalid ID shows ErrorState with "Invalid trainee ID" and back button. No retry button when ID is invalid (correct — retrying won't help). |
-| M5 | Dashboard layout returned blank page when unauthenticated | **FIXED** | `layout.tsx:20-24` — `useEffect` with `router.replace("/login")` when `!isLoading && !isAuthenticated`. Line 26 shows spinner while loading or waiting for redirect. Users are actively redirected to login instead of seeing a blank page. |
-| M6+M7 | Notifications and invitations hooks lacked pagination | **FIXED** | `use-notifications.ts:9` — `useNotifications(page: number = 1)` with page param in URL. `notifications/page.tsx` — page state with Previous/Next buttons and page indicator. `use-invitations.ts:9` — `useInvitations(page: number = 1)` with page param in URL. `invitations/page.tsx` — identical pagination pattern. Both check `data?.next !== null` for hasNextPage. |
-| M8 | `undefined as T` for 204 responses was a type lie | **FIXED** | `api-client.ts:63,79` — now returns `undefined as unknown as T`. The double cast through `unknown` is the standard TypeScript pattern for intentional unsafe casts. Callers that expect void (like delete) work correctly. |
-| M9 | Duplicate CSS declarations in globals.css | **FIXED** | `globals.css:119-126` — `@layer base { * { @apply border-border outline-ring/50; } body { @apply bg-background text-foreground; } }`. No duplicate lines. Each rule appears exactly once. |
-| M10 | Auth initialization had no timeout or cleanup | **FIXED** | `auth-provider.tsx:59-60` — `AbortController` with 10-second timeout. Lines 86-89 — cleanup function clears timeout and aborts controller. Note: the `controller` is created but not actually passed to the fetch calls inside `fetchUser()` (see new issue below). |
-| M11 | TraineeListView missing select_related/prefetch_related | **FIXED** | `backend/trainer/views.py:177-185` — `.select_related('profile').prefetch_related('daily_logs', 'programs')`. This eliminates the N+1 queries for profile, daily_logs, and programs. |
+### C1: React Query cache update targets key nothing reads (FIXED - VERIFIED)
 
-**Verification summary: 17/17 Round 1 issues are FIXED.**
+**Fix applied:** `refreshUser` method exposed from `AuthProvider` context (line 28, 133 of `auth-provider.tsx`). The `useMemo` dependency array correctly includes `fetchUser` (line 135). All three mutations in `use-settings.ts` (`useUpdateProfile`, `useUploadProfileImage`, `useDeleteProfileImage`) now call `refreshUser()` in their `onSuccess` callback instead of `queryClient.setQueryData`.
+
+**Verification:** The `refreshUser` function is the same `fetchUser` callback (line 133: `refreshUser: fetchUser`). `fetchUser` calls `apiClient.get<User>(API_URLS.CURRENT_USER)` and then `setUser(userData)`, which updates the React Context state directly. This correctly propagates to all consumers of `useAuth()`, including the header nav dropdown. The `useQueryClient` import was also correctly removed from `use-settings.ts`.
+
+**Status: RESOLVED. AC-10 is now PASS.**
+
+### C2: Form state never syncs with user changes (FIXED - VERIFIED)
+
+**Fix applied:** The fixer chose not to add a `useEffect` sync (noting it would cause ESLint exhaustive-deps issues). Instead, form state was consolidated into a single `useState` object (line 31-35 of `profile-section.tsx`). The form initializes from `user` at mount time; after save, `refreshUser()` updates the auth context, but the form retains the values the user just typed (which are correct since the save succeeded).
+
+**Analysis of the approach:** This is actually the right call. The original concern was: "if the component re-renders or the user navigates away and back, the form shows stale data." With the C1 fix in place:
+- If the save succeeds: the form shows what the user typed (correct), and `refreshUser()` updates the context (header updates).
+- If the user navigates away and back: `ProfileSection` remounts, `useState` re-initializes from the now-updated `user` context value (correct).
+- If the save fails: the form keeps the user's typed values for retry (correct), and the context remains unchanged.
+
+The only edge case would be if something *else* updated the user externally while the form was open (e.g., another tab), but that's an edge case not worth adding complexity for. The approach is sound.
+
+**Status: RESOLVED.**
+
+### M1: Hydration mismatch in AppearanceSection (FIXED - VERIFIED)
+
+**Fix applied:** Uses `useSyncExternalStore` with server/client snapshots (line 16, 26 of `appearance-section.tsx`):
+```tsx
+const emptySubscribe = () => () => {};
+const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+```
+
+When `!mounted`, renders three `Skeleton` placeholders. When mounted, renders the actual theme buttons with `aria-checked` and styling.
+
+**Analysis:** This is a well-known pattern and a valid alternative to the `useState + useEffect` approach. `useSyncExternalStore` with different client/server snapshots is the React 18-blessed way to handle this. The `emptySubscribe` function correctly returns an unsubscribe callback (a no-op). The server snapshot returns `false`, client returns `true`, preventing hydration mismatch. The skeleton placeholder maintains layout stability during the brief unmounted period.
+
+**Status: RESOLVED.**
+
+### M2: Adherence chart grouped instead of stacked (FIXED - VERIFIED)
+
+**Fix applied:** All three `<Bar>` elements now have `stackId="adherence"` (lines 245, 250, 255 of `progress-charts.tsx`). YAxis domain changed from `[0, 1]` to `[0, 3]` with ticks `[0, 1, 2, 3]`. The old `tickFormatter` (yes/no) was removed. The Tooltip formatter now shows `"Yes"` / `"No"` per individual bar segment (line 237-240).
+
+**Analysis:** The stacking is correct. Each bar segment is 0 or 1, so the maximum stacked height is 3 (all three goals met). The YAxis `[0, 3]` domain and `[0, 1, 2, 3]` ticks make sense. Only the top bar (`protein`) has `radius={[2, 2, 0, 0]}` for rounded top corners, which is visually correct for a stacked bar (only the topmost segment should be rounded).
+
+**One minor note:** The tooltip formatter types `value` as `number | undefined` and `name` as `string | undefined`. The `name ?? ""` fallback is fine. The `value === 1 ? "Yes" : "No"` logic is correct for boolean 0/1 values but will show "No" for value `2` or `3` if recharts ever passes aggregate values. Since recharts tooltip shows per-segment values for stacked bars (not totals), this is correct behavior.
+
+**Status: RESOLVED. AC-14 is now PASS.**
+
+### M3: Clipboard writeText try/catch (FIXED - VERIFIED)
+
+**Fix applied:** `handleCopy` in `invitation-actions.tsx` (lines 44-52) now wraps the entire `navigator.clipboard.writeText()` call in a try/catch block. The catch clause calls `toast.error("Failed to copy code")`. The inner `.then(success, failure)` pattern handles promise rejections.
+
+**Status: RESOLVED.**
+
+### M4: Date parsing safety (FIXED - VERIFIED)
+
+**Fix applied:** A `formatDate()` helper function was added at the top of `progress-charts.tsx` (lines 27-30) using `parseISO` + `isValid` from `date-fns`. Falls back to raw `dateStr` if parsing fails. All three chart components now use `formatDate(entry.date)` instead of `format(new Date(entry.date), "MMM d")`.
+
+**Status: RESOLVED.**
+
+### M5: File input reset timing (FIXED - VERIFIED)
+
+**Fix applied:** In `profile-section.tsx`, the `e.target` reference is captured as `const input = e.target` (line 72) before calling `uploadImage.mutate()`. The `input.value = ""` is now inside both `onSuccess` (line 76) and `onError` (line 80) callbacks. This ensures the file input is only reset after the mutation completes, not immediately.
+
+**Analysis:** Capturing `e.target` in a local variable before the async callback is correct -- it prevents the synthetic event from being reused/nullified by React's event pooling (though React 17+ no longer pools, this is still good defensive practice).
+
+**Status: RESOLVED.**
+
+### m1: confirmPassword dependency (REVERTED - ACCEPTED)
+
+**Explanation:** The fixer reports ESLint exhaustive-deps does not flag `confirmPassword` as missing because it's captured via the `validate` function closure, and `validate` is already in the dependency array. I verified: `handleSubmit` at line 89 depends on `[currentPassword, newPassword, validate, changePassword]`. The `validate` function at line 42 depends on `[currentPassword, newPassword, confirmPassword]`. Since `validate` updates when `confirmPassword` changes, and `handleSubmit` depends on `validate`, the dependency chain is complete. ESLint is correct here.
+
+**Status: NOT AN ISSUE. Correctly assessed by the fixer.**
+
+### m3: staleTime on progress query (FIXED - VERIFIED)
+
+**Fix applied:** `staleTime: 5 * 60 * 1000` added to `useTraineeProgress` in `use-progress.ts` (line 14).
+
+**Status: RESOLVED.**
+
+### m6: Status derivation comment (FIXED - VERIFIED)
+
+**Fix applied:** Comment added at `invitation-actions.tsx` line 36: `// Backend keeps status=PENDING even after expiration; is_expired flag distinguishes`.
+
+**Status: RESOLVED.**
+
+### m8: Conditional popover render (FIXED - VERIFIED)
+
+**Fix applied:** `notification-bell.tsx` line 30 now renders `{open && <NotificationPopover .../>}` instead of unconditionally rendering the popover. This ensures `useNotifications()` inside the popover only fires when the popover is actually open.
+
+**Status: RESOLVED.**
 
 ---
 
-## New Issues Found in Round 2
+## Previously Identified Issues Still Open (unfixed from Round 1)
 
-### Critical Issues (must fix before merge)
+### Minor Issues (not blocking)
 
-None.
+| # | File:Line | Issue | Status |
+|---|-----------|-------|--------|
+| m2 | `security-section.tsx:108,127,148` | Error clearing sets empty string instead of removing key | NOT FIXED -- acceptable, `""` is falsy |
+| m4 | `notification-popover.tsx:24` | Magic number `5` for popover limit | NOT FIXED -- cosmetic |
+| m5 | `progress-charts.tsx:81` | YAxis domain uses string math `"dataMin - 2"` | NOT FIXED -- recharts documents this syntax |
+| m7 | `settings/page.tsx:46` | Error retry uses `window.location.reload()` | NOT FIXED -- acceptable for context-based auth |
+| m9 | `use-settings.ts:11` | `business_name` typed as `string` not `string | null` | NOT FIXED -- minor data integrity |
 
-### Major Issues (should fix)
+All remaining unfixed items are minor and non-blocking.
+
+---
+
+## New Issues Introduced by Fixes
+
+### No Critical Issues
+
+### No Major Issues
+
+### Minor Issues (new)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| M1-R2 | `web/src/providers/auth-provider.tsx:59-89` | **AbortController created but never used.** The timeout/abort pattern was added (M10 fix) but the `controller.signal` is never passed to any fetch call. `fetchUser()` calls `apiClient.get()` which calls `fetch()` internally without the signal. The 10-second timeout fires `controller.abort()` but nothing is listening. If the backend is unreachable, `initAuth()` still hangs indefinitely. The cleanup on unmount also does nothing meaningful since no fetch is using the signal. The fix for M10 is structurally present but functionally inert. | Either (a) pass the signal through: add an optional `signal` parameter to `apiClient.get()` and thread it to `fetch()`, then pass `controller.signal` in the `fetchUser` call, or (b) use `Promise.race` with a timeout promise: `await Promise.race([fetchUser(), new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10_000))])`. Option (b) is simpler and does not require changing the API client signature. |
-| M2-R2 | `web/src/app/(dashboard)/invitations/page.tsx:18` | **`hasNextPage` is `true` on initial render before data loads.** `const hasNextPage = data?.next !== null;` — when `data` is `undefined` (initial load / loading state), `undefined !== null` evaluates to `true`. This means `hasNextPage` is incorrectly `true` before any data has loaded. The same bug exists in `notifications/page.tsx:34`. In practice, the pagination controls are only rendered inside the `data ? ...` branch, so the visual impact is limited, but the boolean value is semantically wrong and could cause subtle issues if the template is refactored. | Change to `const hasNextPage = data?.next != null ? true : false;` or more idiomatically: `const hasNextPage = Boolean(data?.next);`. This correctly returns `false` when `data` is undefined or `data.next` is null. Apply the same fix to `notifications/page.tsx:34`. |
+| n1 | `auth-provider.tsx:133` | `refreshUser` is exposed as `fetchUser`, which clears tokens and sets user to null on ANY API failure (line 47-48). If the `/api/auth/users/me/` endpoint has a transient 500 error during a `refreshUser()` call triggered by a profile save, the user gets logged out even though their save succeeded. | This is pre-existing behavior in `fetchUser`, not introduced by the fix. Low risk since the endpoint is a simple read. Flagging for awareness, not blocking. |
+| n2 | `use-settings.ts:38,56,70` | `refreshUser()` returns `Promise<void>` but the returned promise is not awaited in `onSuccess`. If the re-fetch fails, the error is silently swallowed. | Since `fetchUser` already handles its own errors internally (catch block in auth-provider), this is acceptable. The save itself succeeded, and the header will update on next navigation/mount. Low priority. |
 
-### Minor Issues (nice to fix)
+Neither of these is blocking. They are pre-existing patterns, not regressions introduced by the fixes.
 
-| # | File:Line | Issue | Suggested Fix |
-|---|-----------|-------|---------------|
-| m1-R2 | `web/src/app/(dashboard)/notifications/page.tsx:28-31` | **Client-side filtering of "unread" tab is lossy with pagination.** When filter is `"unread"`, the code filters `notifications.filter((n) => !n.is_read)` on the current page's results only. If page 1 has 20 notifications and 5 are unread, the "Unread" tab shows 5 items. But there may be 15 unread notifications on later pages that the user never sees. The backend already supports `?is_read=false` query parameter (notification_views.py:50-53). Using server-side filtering would show all unread notifications correctly. | When `filter === "unread"`, pass `is_read=false` as a query parameter to the backend instead of client-side filtering. Add a `useNotifications(page, filter)` signature and append `&is_read=false` when filter is `"unread"`. |
-| m2-R2 | `web/src/components/dashboard/stats-cards.tsx:15` | **`max_trainees` of -1 displayed literally.** When `max_trainees` is -1 (meaning unlimited, from the backend conversion of `float('inf')`), the stats card description renders `"-1 max on NONE plan"`. This looks like a bug to the user. | Display "Unlimited" when `stats.max_trainees === -1`: `` description={`${stats.max_trainees === -1 ? "Unlimited" : stats.max_trainees} max on ${stats.subscription_tier} plan`} ``. Also handle `subscription_tier === "NONE"` with a friendlier label like "Free". |
-| m3-R2 | `web/src/app/page.tsx:1-5` + `web/src/middleware.ts:22-27` | **Root page redirect is unreachable.** The middleware handles `/` by redirecting to `/dashboard` or `/login` based on session cookie (middleware.ts:22-27). The `app/page.tsx` root page also redirects to `/dashboard`. Since middleware runs before page rendering, the `app/page.tsx` redirect never executes. This is dead code. Round 1 flagged this as m10 but it was not fixed. | Remove `web/src/app/page.tsx` or remove the root path handling from middleware. Keeping it in middleware is the better approach since it handles auth state. |
-| m4-R2 | `web/src/components/trainees/trainee-overview-tab.tsx:187-189` | **`formatLabel` replaces underscores with spaces but does not capitalize.** Values like `muscle_gain` become `"muscle gain"` (lowercase) while the surrounding `capitalize` CSS class only capitalizes the first letter, producing `"Muscle gain"`. Other values like `sedentary` remain lowercase: `"sedentary"`. Consider using proper title case. | Change to a proper title case function: `function formatLabel(value: string): string { return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }` to produce "Muscle Gain", "Sedentary", etc. |
-| m5-R2 | `web/package.json:30` | **Duplicate Radix meta-package still present.** Round 1 flagged this as m11 (both `"radix-ui": "^1.4.3"` and individual `@radix-ui/*` packages). This was not addressed. Having both the meta-package and individual packages is redundant and could lead to version conflicts. | Remove either the `radix-ui` meta-package or the individual `@radix-ui/*` packages. Since the individual packages are explicitly versioned, removing the meta-package line (`"radix-ui": "^1.4.3"`) is the safer approach. |
-| m6-R2 | `backend/trainer/views.py:138,148` | **Bare `except:` clauses silence all exceptions including system errors.** `TrainerStatsView.get()` has two bare `except:` blocks (lines 138 and 148). These catch `SystemExit`, `KeyboardInterrupt`, `MemoryError`, etc. This violates the project's error-handling rule ("NO exception silencing"). If the subscription model is missing or the profile access fails in an unexpected way (e.g., database connection error), the error is silently swallowed. | Change `except:` to `except Exception:` at minimum, or better, catch the specific exceptions: `except (AttributeError, trainer.subscription.RelatedObjectDoesNotExist):` and `except UserProfile.DoesNotExist:`. Log the unexpected errors rather than silencing them. |
+---
+
+## Acceptance Criteria Verification (Updated)
+
+### Settings Page (AC-1 through AC-10)
+
+| AC | Description | Status | Evidence |
+|----|-------------|--------|----------|
+| AC-1 | Three sections: Profile, Appearance, Security | PASS | `settings/page.tsx:55-57` |
+| AC-2 | Profile editable fields + save + toast | PASS | `profile-section.tsx:37-48` |
+| AC-3 | Email read-only | PASS | `profile-section.tsx:192-202` |
+| AC-4 | Profile image upload/remove | PASS | `profile-section.tsx:51-92` |
+| AC-5 | Theme toggle (Light/Dark/System) | PASS | `appearance-section.tsx:24-70` |
+| AC-6 | Password change form | PASS | `security-section.tsx:99-168` |
+| AC-7 | Validation | PASS | maxLength, min 8, confirm match |
+| AC-8 | Loading skeleton | PASS | `settings/page.tsx:11-26` |
+| AC-9 | Error state with retry | PASS | `settings/page.tsx:40-49` |
+| AC-10 | Header reflects updated name immediately | **PASS** | `refreshUser()` updates auth context; header reads from `useAuth()` |
+
+### Progress Charts (AC-11 through AC-17)
+
+| AC | Description | Status | Evidence |
+|----|-------------|--------|----------|
+| AC-11 | Fetches progress, shows 3 charts | PASS | |
+| AC-12 | Weight trend line chart + empty state | PASS | |
+| AC-13 | Volume bar chart + empty state | PASS | |
+| AC-14 | Adherence stacked bar with legend | **PASS** | `stackId="adherence"` on all 3 bars, YAxis [0,3] |
+| AC-15 | Charts responsive | PASS | |
+| AC-16 | Loading skeleton | PASS | |
+| AC-17 | Error state with retry | PASS | |
+
+### Notification Click-Through (AC-18 through AC-21)
+
+| AC | Description | Status | Evidence |
+|----|-------------|--------|----------|
+| AC-18 | Click with trainee_id navigates | PASS | |
+| AC-19 | Click without trainee_id only marks read | PASS | |
+| AC-20 | Works in both popover and full page | PASS | |
+| AC-21 | Backend includes trainee_id in data | NOT VERIFIED | No backend changes made; pre-existing |
+
+### Invitation Row Actions (AC-22 through AC-28)
+
+| AC | Description | Status | Evidence |
+|----|-------------|--------|----------|
+| AC-22 | "..." dropdown menu per row | PASS | |
+| AC-23 | PENDING: Copy, Resend, Cancel | PASS | |
+| AC-24 | EXPIRED: Copy, Resend | PASS | |
+| AC-25 | ACCEPTED/CANCELLED: Copy only | PASS | |
+| AC-26 | Copy Code + toast | PASS | Now with try/catch |
+| AC-27 | Resend + toast + refresh | PASS | |
+| AC-28 | Cancel dialog + DELETE + toast + refresh | PASS | |
+
+### Summary: 27/28 ACs PASS, 1 NOT VERIFIED (AC-21 -- backend pre-existing, out of scope for this change).
 
 ---
 
 ## Security Concerns
 
-### Verified Clean
-- **No secrets in source:** Re-scanned all files. `.env.local` is gitignored and not tracked. `.env.example` contains only placeholder URL. No API keys, passwords, or tokens in any committed file.
-- **No XSS vectors:** No `dangerouslySetInnerHTML` usage anywhere. All user content rendered through JSX auto-escaping.
-- **IDOR protection intact:** All backend views filter by `parent_trainer` in `get_queryset()`. Frontend delegates all authorization to backend.
-- **Session cookie security fixed:** Conditional `Secure` flag now applied.
-- **Token storage trade-off acknowledged:** JWT in localStorage remains the architecture (requires backend changes to move to HttpOnly cookies). Acceptable for current scope.
-- **CORS/CSRF:** JWT bearer auth in headers. No CSRF vulnerability.
-
-### Remaining Concern (unchanged from Round 1)
-- **No client-side rate limiting on login.** No lockout, CAPTCHA, or progressive delay. Backend should handle this, but frontend provides no defense against automated brute-force. Low priority for MVP.
+No new security concerns introduced by the fixes. The `refreshUser` function reuses the existing `fetchUser` which goes through the authenticated `apiClient`.
 
 ---
 
 ## Performance Concerns
 
-### Fixed
-- **N+1 queries in TraineeListView:** Now has `select_related('profile').prefetch_related('daily_logs', 'programs')`. Significant improvement.
+The `refreshUser()` call in each mutation's `onSuccess` adds one additional API call after every profile/image mutation. This is acceptable -- it's a single GET request that replaces the previous (broken) approach of writing to an unread cache key. The alternative would be to update context directly from the mutation response, but `refreshUser()` is simpler and ensures the context always reflects server truth.
 
-### Remaining (unchanged from Round 1, acceptable)
-- **Notification polling:** `useUnreadCount` polls every 30 seconds. `refetchIntervalInBackground: false` was added (fixing m12 from Round 1). Good.
-- **No data prefetching:** Trainee list -> detail navigation fetches fresh. Acceptable for MVP.
-- **Client-side rendering only:** All pages client-rendered with loading spinners. Acceptable given localStorage auth architecture.
-- **`prefetch_related('daily_logs', 'programs')` fetches ALL related objects.** For a trainee with 365 daily logs and 10 programs, all are loaded from the DB even though the serializer only uses `daily_logs.order_by('-date').first()` and `programs.filter(is_active=True).first()`. Using `Prefetch` objects with custom querysets would be more efficient, but this is an optimization, not a bug.
+The `staleTime` addition on progress queries reduces unnecessary refetches. Good improvement.
+
+The conditional popover render eliminates unnecessary notification queries. Good improvement.
 
 ---
 
 ## Quality Score: 8/10
 
-### Improvement from Round 1 (6/10 -> 8/10)
-All 6 critical and 11 major issues from Round 1 have been properly fixed. The codebase is now production-ready for the MVP scope.
+### Breakdown
+- **Functionality: 9/10** -- All critical ACs now pass. AC-21 is out of scope (backend pre-existing).
+- **Code Quality: 8/10** -- Clean fix approach. `useSyncExternalStore` is the right tool. Form state consolidation is clean.
+- **Security: 9/10** -- No issues found or introduced.
+- **Performance: 8/10** -- Reasonable. `refreshUser` adds one API call per save, acceptable trade-off.
+- **Edge Cases: 8/10** -- All ticket edge cases handled. Double-click on dropdown still technically possible but mitigated by mutation `isPending`.
+- **Architecture: 8/10** -- The React Context / mutation interaction is now correct. Auth state is updated through the proper channel.
 
-### What Keeps It at 8 (Not Higher)
-- M1-R2: The AbortController timeout is structurally present but functionally inert -- the auth init can still hang indefinitely if the backend is unreachable.
-- M2-R2: `hasNextPage` is semantically wrong before data loads (minor visual impact but incorrect logic).
-- m6-R2: Bare `except:` in the backend violates the project's explicit "no exception silencing" rule.
-- m1-R2: Notification "unread" filter works client-side only, which becomes incorrect with pagination.
-- A few unfixed minor items from Round 1 (m3, m10/m3-R2, m11/m5-R2).
+### What Improved Since Round 1
+- **C1 was the show-stopper** -- now properly resolved with a clean `refreshUser` pattern.
+- **C2 concern is moot** -- form re-initializes from context on remount, and retains typed values during the same session. Correct behavior.
+- **M1 hydration fix** uses the idiomatic React 18 approach with `useSyncExternalStore`.
+- **M2 stacked chart** now matches the spec with proper `stackId` and domain.
+- **M3-M5** all cleanly resolved.
 
-### Positives
-- All API contracts now match the backend exactly.
-- Notification types, icons, and fields are aligned.
-- Invitation creation sends the correct field names.
-- JWT decoder properly handles base64url and validates payload shape.
-- Non-trainer login shows a clear error message.
-- Docker deployment is functional.
-- Pagination added to both notifications and invitations pages.
-- N+1 queries eliminated.
-- Auth flow simplified (single refresh attempt on 401).
-- Content-Type only set when body present.
-- Invalid trainee ID handled gracefully with error state.
-- Unauthenticated dashboard redirects to login.
-- Duplicate CSS removed.
-- Clean architecture, good component separation, proper use of React Query, comprehensive loading/empty/error states.
+### What Keeps It at 8 (not higher)
+- 5 minor issues from round 1 remain unfixed (m2, m4, m5, m7, m9). None are blocking, but they represent polish debt.
+- AC-21 remains unverified (backend notification `data` field).
+- The `refreshUser` = `fetchUser` pattern logs the user out on transient API errors (pre-existing, not a regression).
 
 ---
 
 ## Recommendation: APPROVE
 
-The codebase has meaningfully improved from Round 1. All 6 critical and 11 major issues have been properly resolved. The remaining 2 major issues (M1-R2, M2-R2) are real but non-blocking -- neither will cause user-facing failures in normal operation:
+All 2 Critical issues and all 5 Major issues from Round 1 have been properly fixed. No new Critical or Major issues were introduced by the fixes. The remaining open items are all Minor severity and do not block merge.
 
-- **M1-R2 (inert AbortController):** Only manifests when the backend is completely unreachable, which is an infrastructure failure, not a normal user scenario. The user would see a loading spinner; they can refresh the page.
-- **M2-R2 (hasNextPage boolean):** Only semantically wrong, not visually wrong, because the pagination UI is inside a data-conditional branch.
-
-The minor issues are low-impact polish items that can be addressed in follow-up work. The dashboard is ready to ship as an MVP.
+The code is production-ready for this feature set.

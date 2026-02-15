@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -15,11 +16,16 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { NotificationItem } from "@/components/notifications/notification-item";
+import {
+  NotificationItem,
+  getNotificationTraineeId,
+} from "@/components/notifications/notification-item";
+import type { Notification } from "@/types/notification";
 
 type Filter = "all" | "unread";
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch } = useNotifications(page, filter);
@@ -31,6 +37,22 @@ export default function NotificationsPage() {
   const hasUnread = (unreadCountData?.unread_count ?? 0) > 0;
   const hasNextPage = Boolean(data?.next);
   const hasPrevPage = page > 1;
+
+  const handleNotificationClick = (n: Notification) => {
+    const traineeId = getNotificationTraineeId(n);
+
+    if (!n.is_read) {
+      markAsRead.mutate(n.id, {
+        onError: () => toast.error("Failed to mark notification as read"),
+      });
+    }
+
+    if (traineeId !== null) {
+      router.push(`/trainees/${traineeId}`);
+    } else if (!n.is_read) {
+      toast.success("Marked as read");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -94,13 +116,7 @@ export default function NotificationsPage() {
             <NotificationItem
               key={n.id}
               notification={n}
-              onClick={() => {
-                if (!n.is_read) {
-                  markAsRead.mutate(n.id, {
-                    onError: () => toast.error("Failed to mark notification as read"),
-                  });
-                }
-              }}
+              onClick={() => handleNotificationClick(n)}
             />
           ))}
 

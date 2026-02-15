@@ -180,9 +180,10 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Responsive layout + dark mode | ✅ Done | Shipped 2026-02-15: Fixed sidebar (desktop), sheet drawer (mobile), dark mode via CSS variables + next-themes |
 | Docker integration | ✅ Done | Shipped 2026-02-15: Multi-stage node:20-alpine build, non-root user, port 3000 |
 | Security headers | ✅ Done | Shipped 2026-02-15: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
-| Settings page | 🟡 Placeholder | "Coming soon" — needs profile editing, theme toggle, notification preferences |
-| Progress charts tab | 🟡 Placeholder | "Coming soon" — backend data available, needs frontend chart integration |
-| Notification click-through navigation | ❌ Not started | Notifications mark as read but don't navigate to relevant trainee |
+| Settings page (profile, appearance, security) | ✅ Done | Shipped 2026-02-15: Profile edit (name, business name, image upload/remove), theme toggle (Light/Dark/System), password change with Djoser error parsing |
+| Progress charts tab | ✅ Done | Shipped 2026-02-15: Weight trend (line), volume (bar), adherence (stacked bar) via recharts. Theme-aware colors, per-chart empty states |
+| Notification click-through navigation | ✅ Done | Shipped 2026-02-15: Notifications with trainee_id navigate to trainee detail. ChevronRight affordance, popover auto-close, "Marked as read" toast for non-navigable |
+| Invitation row actions | ✅ Done | Shipped 2026-02-15: Copy code, resend, cancel with confirmation dialog. Status-aware visibility (PENDING/EXPIRED/ACCEPTED/CANCELLED) |
 
 ### 3.10 Other
 | Feature | Status | Notes |
@@ -316,7 +317,19 @@ Complete Next.js 15 web dashboard for trainers with JWT auth, dashboard, trainee
 - **Security**: Security response headers, consistent cookie Secure flag, input bounds (maxLength), double-submit protection, Zod validation
 - **Quality**: Code review 8/10 APPROVE, QA 34/35 AC pass (1 fixed post-QA), UX 8/10, Security 9/10, Architecture 8/10, Hacker 6/10 (20 items fixed)
 
-### 4.10 Acceptance Criteria
+### 4.10 Web Dashboard Phase 2 (Settings, Charts, Notifications, Invitations) — COMPLETED (2026-02-15)
+
+Four dead UI surfaces in the web trainer dashboard replaced with fully functional production-ready features.
+
+**What was built:**
+- **Settings Page**: Profile editing (name, business name, image upload/remove with 5MB/MIME validation), appearance section (Light/Dark/System theme toggle with `useSyncExternalStore` for hydration safety), security section (password change with Djoser error parsing, aria-describedby/aria-invalid accessibility)
+- **Progress Charts**: Three recharts components — weight trend (LineChart), workout volume (BarChart), adherence (stacked BarChart with stackId). Theme-aware `CHART_COLORS` via CSS custom properties for dark mode and white-label readiness. Safe date parsing via `parseISO`/`isValid`. 5-minute `staleTime` on progress query.
+- **Notification Click-Through**: `getNotificationTraineeId()` shared helper handles number/string coercion. ChevronRight visual affordance. Popover closes on navigation. "Marked as read" toast for non-navigable notifications.
+- **Invitation Row Actions**: Context-sensitive dropdown (PENDING: Copy/Resend/Cancel, EXPIRED: Copy/Resend, ACCEPTED/CANCELLED: Copy only). Cancel with confirmation dialog and Loader2 spinner. Controlled dropdown closes immediately on action.
+- **Auth Enhancement**: `refreshUser()` exposed from AuthProvider — profile/image mutations trigger context refresh so header updates immediately.
+- **Quality**: Code review 8/10 APPROVE, QA 27/28 AC pass (1 partial pre-existing), UX 9/10, Security 9/10 PASS, Architecture 9/10, Hacker 7/10
+
+### 4.11 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
 - [x] Trainer receives notification when trainee starts or finishes a workout

@@ -1,168 +1,199 @@
-# Feature: Trainee Workout History + Home Screen Recent Workouts
+# Feature: Web Dashboard Phase 2 — Settings, Progress Charts, Actionable Notifications & Invitations
 
 ## Priority
-High — Trainees log workouts daily but have zero way to review past sessions. A fitness app without workout history is fundamentally broken.
+High — Four existing dead UI surfaces and missing interactions that make the dashboard feel incomplete.
 
 ## User Stories
 
-### Story 1: Workout History Screen
-As a **trainee**, I want to see a list of all my past workouts so that I can track my progress over time.
+### Story 1: Settings Page
+As a **trainer**, I want to edit my profile, change my password, and toggle between light/dark theme so that I can personalize my dashboard experience.
 
-### Story 2: Workout Detail View
-As a **trainee**, I want to tap a past workout and see every exercise, set, rep, and weight I logged so that I can plan today's session based on previous performance.
+### Story 2: Trainee Progress Charts
+As a **trainer**, I want to see weight trends, workout volume progression, and adherence data for each trainee in chart form so that I can make informed coaching decisions.
 
-### Story 3: Recent Workouts on Home Screen
-As a **trainee**, I want to see my last 3 completed workouts on the home screen so that I can quickly access recent sessions without navigating away.
+### Story 3: Notification Click-Through
+As a **trainer**, I want to click a notification and be taken to the relevant trainee's detail page so that I can immediately act on the notification.
+
+### Story 4: Invitation Row Actions
+As a **trainer**, I want to resend, cancel, or copy the invitation code for pending invitations so that I can manage my outstanding invitations effectively.
 
 ## Acceptance Criteria
 
-### Backend (AC-1 through AC-4)
-- [ ] AC-1: `GET /api/workouts/daily-logs/workout-history/` custom action returns only DailyLogs where `workout_data` contains actual exercise data (not null, not `{}`, not `{"exercises": []}`)
-- [ ] AC-2: Response includes computed summary fields per log: `workout_name`, `exercise_count`, `total_sets`, `total_volume_lbs`, `duration_display`
-- [ ] AC-3: Endpoint supports pagination via `?page=1&page_size=20` (default page_size=20)
-- [ ] AC-4: Endpoint restricted to `IsTrainee` permission with row-level security (trainee sees only their own logs)
+### Settings Page (AC-1 through AC-10)
+- [ ] AC-1: Settings page shows three sections: "Profile", "Appearance", and "Security"
+- [ ] AC-2: Profile section has editable fields for first name, last name, and business name. Save button calls `PATCH /api/users/me/` and shows success toast.
+- [ ] AC-3: Profile section shows current email as read-only (not editable — email changes are not supported in the backend).
+- [ ] AC-4: Profile section shows current profile image with upload and remove buttons. Upload calls `POST /api/users/profile-image/`, remove calls `DELETE /api/users/profile-image/`. Both update the user avatar in the header.
+- [ ] AC-5: Appearance section has a theme selector with three options: Light, Dark, System. Uses `next-themes` `useTheme()` hook. Selection is immediate (no save button needed) and persists across sessions.
+- [ ] AC-6: Security section has a "Change Password" form with current password, new password, and confirm new password fields. Calls `POST /api/auth/users/set_password/` (Djoser endpoint). Shows success toast and clears form on success. Shows inline error for wrong current password.
+- [ ] AC-7: All form fields have proper validation: names max 150 chars, business name max 200 chars, password min 8 chars, confirm must match new.
+- [ ] AC-8: Settings page shows loading skeleton while fetching current user data.
+- [ ] AC-9: Settings page shows error state with retry if user data fails to load.
+- [ ] AC-10: After successful profile save, the user nav dropdown (header) reflects the updated name immediately (React Query cache invalidation).
 
-### Workout History Screen (AC-5 through AC-10)
-- [ ] AC-5: New `/workout-history` route navigates to `WorkoutHistoryScreen`
-- [ ] AC-6: Screen shows paginated list of past workouts sorted by date (newest first)
-- [ ] AC-7: Each workout card shows: date (e.g., "Mon, Feb 10"), workout name (e.g., "Push Day"), exercise count, total sets, and duration
-- [ ] AC-8: Pull-to-refresh reloads the list from page 1
-- [ ] AC-9: Scroll to bottom loads next page (infinite scroll pagination)
-- [ ] AC-10: Tapping a workout card navigates to workout detail view
+### Progress Charts (AC-11 through AC-17)
+- [ ] AC-11: Progress tab fetches data from `GET /api/trainer/trainees/<id>/progress/` and shows three charts: Weight Trend, Workout Volume, and Adherence.
+- [ ] AC-12: Weight Trend chart is a line chart showing weight (kg) over time. X-axis: dates, Y-axis: weight. Shows "No weight data" empty state if no check-ins.
+- [ ] AC-13: Workout Volume chart is a bar chart showing daily total volume (sets × reps × weight) over last 4 weeks. Shows "No workout data" empty state if no logs.
+- [ ] AC-14: Adherence chart is a stacked bar or heatmap showing daily food logged, workout logged, and protein goal hit over last 4 weeks. Three-color legend.
+- [ ] AC-15: All charts are responsive and resize with the container.
+- [ ] AC-16: Progress tab shows loading skeleton while chart data loads.
+- [ ] AC-17: Progress tab shows error state with retry if data fetch fails.
 
-### Workout Detail Screen (AC-11 through AC-15)
-- [ ] AC-11: New `/workout-detail` route navigates to `WorkoutDetailScreen` (receives DailyLog data as extra)
-- [ ] AC-12: Screen shows workout name, date, and duration at the top
-- [ ] AC-13: Lists every exercise with: exercise name, and each set showing set number, reps, weight, and unit
-- [ ] AC-14: If readiness survey data exists in the log, shows a "Pre-Workout" section with energy, soreness, sleep quality scores
-- [ ] AC-15: If post-workout survey data exists, shows "Post-Workout" section with difficulty, energy level, and notes
+### Notification Click-Through (AC-18 through AC-21)
+- [ ] AC-18: When a notification's `data` field contains a `trainee_id`, clicking the notification navigates to `/trainees/{trainee_id}` in addition to marking it as read.
+- [ ] AC-19: When a notification's `data` field does NOT contain a `trainee_id`, clicking the notification only marks it as read (no navigation — same as current behavior).
+- [ ] AC-20: Click-through works in both the notification popover (header bell) and the full notifications page.
+- [ ] AC-21: Backend notification creation views include `trainee_id` in the `data` JSONField for notification types: `trainee_readiness`, `workout_completed`, `workout_missed`, `goal_hit`, `check_in`.
 
-### Home Screen Integration (AC-16 through AC-19)
-- [ ] AC-16: "Recent Workouts" section appears on trainee home screen after "Next Workout" and before "Latest Videos"
-- [ ] AC-17: Shows last 3 completed workouts as compact cards (date, workout name, exercise count)
-- [ ] AC-18: Tapping a recent workout card navigates to workout detail view
-- [ ] AC-19: "See All" button navigates to full workout history screen
-
-### Empty & Error States (AC-20 through AC-22)
-- [ ] AC-20: If trainee has no workout history, home section shows "No workouts yet. Complete your first workout to see it here."
-- [ ] AC-21: If workout history fails to load, show error with retry button
-- [ ] AC-22: Workout detail screen handles missing/malformed workout_data gracefully (shows "No exercise data recorded" instead of crashing)
+### Invitation Row Actions (AC-22 through AC-28)
+- [ ] AC-22: Each invitation row has a "..." dropdown menu (DropdownMenu) with context-sensitive actions.
+- [ ] AC-23: PENDING invitations show actions: "Copy Code", "Resend", "Cancel".
+- [ ] AC-24: EXPIRED invitations show actions: "Copy Code", "Resend".
+- [ ] AC-25: ACCEPTED and CANCELLED invitations show action: "Copy Code" only.
+- [ ] AC-26: "Copy Code" copies `invitation_code` to clipboard and shows success toast.
+- [ ] AC-27: "Resend" calls `POST /api/trainer/invitations/<id>/resend/`, shows success toast, and refreshes the table.
+- [ ] AC-28: "Cancel" shows a confirmation dialog, then calls `DELETE /api/trainer/invitations/<id>/`, shows success toast, and refreshes the table.
 
 ## Edge Cases
-1. Trainee with zero completed workouts → empty state on both home and history screen
-2. DailyLog exists but workout_data is null or `{}` → excluded from history
-3. DailyLog with workout_data but empty exercises array → excluded from history
-4. Very old workouts (months ago) → pagination handles large datasets
-5. Rapid scroll → pagination guard prevents duplicate API calls
-6. Network failure during pagination → error state with retry, keeps existing loaded items
-7. Workout with no readiness survey → "Pre-Workout" section hidden
-8. Workout with no post-workout survey → "Post-Workout" section hidden
-9. Very long workout name → text truncation with ellipsis
-10. Multiple sessions in one day (workout_data.sessions array) → show each session separately or aggregated
-11. Pull-to-refresh during active pagination → resets to page 1
-12. Trainee completes a workout then navigates to history → new workout appears at top
+1. Settings: Profile save with no changes — should still succeed (PATCH is idempotent).
+2. Settings: Upload very large image (>5MB) — backend returns 400, frontend shows "Image must be under 5MB" error.
+3. Settings: Upload non-image file — backend returns 400, frontend shows "Only JPEG, PNG, GIF, and WebP are allowed" error.
+4. Settings: Change password with wrong current password — Djoser returns 400 with field error, shown inline.
+5. Settings: Change password where new password is too common — Djoser returns validation errors, shown inline.
+6. Settings: Profile update fails (network) — error toast, form state preserved for retry.
+7. Progress: Trainee with zero weight check-ins — weight chart shows "No weight data" empty state.
+8. Progress: Trainee with zero workouts — volume chart shows "No workout data" empty state.
+9. Progress: Trainee with zero activity summaries — adherence chart shows "No activity data" empty state.
+10. Progress: All three charts empty — each shows individual empty state (not one global empty state).
+11. Notifications: `data` field is empty object `{}` — no navigation, just marks as read.
+12. Notifications: `data.trainee_id` points to a trainee that was removed — navigation leads to trainee detail "not found" error state (existing handling).
+13. Invitations: Resend on an invitation that was cancelled between page load and action click — backend returns 400, show error toast.
+14. Invitations: Cancel last remaining invitation — table shows empty state after refresh.
+15. Invitations: Rapid double-click on resend or cancel — mutation `isPending` disables button.
 
 ## Error States
 
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Network failure on history list | "Unable to load workout history" + retry button | Keeps existing items if any |
-| Network failure on home section | Home section hidden or shows "Couldn't load recent workouts" | Doesn't block other sections |
-| Empty history | "No workouts yet" message with encouraging copy | Returns empty list |
-| Malformed workout_data | "No exercise data recorded" in detail view | Graceful parsing with fallbacks |
-| Pagination exhausted | "You've reached the end" footer | Stops requesting more pages |
+| Profile save fails | Red error toast "Failed to update profile" | Form state preserved |
+| Password change wrong current | Inline error under current password field | Clear password fields |
+| Password change validation fail | Inline errors per field | Keep form state |
+| Image upload fails | Red error toast "Failed to upload image" | Remove preview |
+| Image too large / wrong type | Red error toast with specific message | Nothing changes |
+| Progress data fails to load | ErrorState with retry in Progress tab | Each chart independent |
+| Invitation resend fails | Red error toast "Failed to resend invitation" | Table unchanged |
+| Invitation cancel fails | Red error toast "Failed to cancel invitation" | Table unchanged |
+| Notification navigate to deleted trainee | Trainee detail ErrorState "not found" | Existing behavior |
 
 ## UX Requirements
-- **Loading state (history):** Shimmer/skeleton cards while loading first page
-- **Loading state (pagination):** Small spinner at bottom of list while loading next page
-- **Loading state (home):** Shimmer card in recent workouts section
-- **Empty state (history):** Centered icon + text + "Start a Workout" CTA button
-- **Empty state (home):** Small text "No workouts yet" — no CTA (home already has next workout section)
-- **Error state:** Red-tinted card with error icon, message, and "Retry" button
-- **Success (detail):** Clean card-based layout with exercise sections, set tables, and survey badges
-- **Mobile behavior:** All screens scrollable, responsive to different screen sizes
-- **Transitions:** Standard Material page transitions between screens
+- **Loading state (settings):** Skeleton cards for profile and security sections
+- **Loading state (progress):** Skeleton rectangles where charts will appear
+- **Empty state (progress charts):** Per-chart empty state with relevant icon and message
+- **Error state:** ErrorState component with retry (consistent with rest of dashboard)
+- **Success feedback:** Toast notifications for all mutations (save, upload, password change, resend, cancel, copy)
+- **Theme toggle:** Immediate visual feedback — no page reload needed
+- **Mobile behavior:** Settings cards stack vertically. Charts resize responsively. Action dropdown accessible on touch.
 
 ## Technical Approach
 
-### Backend
+### Chart Library
+Install `recharts` — the most popular React charting library, works natively with Next.js and supports responsive containers.
 
-**Modify:** `backend/workouts/views.py` — `DailyLogViewSet`
-- Add `workout_history` custom action with `@action(detail=False, methods=['get'])`
-- Filter: exclude logs where workout_data is null or empty (use `Exclude` with JSONField checks)
-- Compute summary fields in a dedicated serializer
-- Permission: `IsTrainee`
-- Pagination: `PageNumberPagination` with `page_size=20`
+### Settings Page
+**Modify:** `web/src/app/(dashboard)/settings/page.tsx`
+- Replace placeholder with three Card sections: Profile, Appearance, Security
+- Profile: controlled form with `useAuth()` for initial values, `useUpdateProfile()` mutation
+- Appearance: `useTheme()` from `next-themes` with three-option RadioGroup or SegmentedControl
+- Security: password change form with Zod validation
 
-**Modify:** `backend/workouts/serializers.py`
-- Add `WorkoutHistorySummarySerializer` as a new serializer class
-- Fields: `id`, `date`, `workout_name`, `exercise_count`, `total_sets`, `total_volume_lbs`, `duration_display`, `workout_data`
-- `workout_name`: extracted from `workout_data.get('workout_name')` or first session name
-- `exercise_count`: count of exercises in workout_data
-- `total_sets`: sum of all sets across all exercises
-- `total_volume_lbs`: sum of (weight * reps) for all completed sets
-- `duration_display`: from `workout_data.get('duration')` or computed from timestamps
+**Create:** `web/src/hooks/use-settings.ts`
+- `useUpdateProfile()` — `PATCH /api/users/me/` mutation, invalidates `CURRENT_USER` query
+- `useUploadProfileImage()` — `POST /api/users/profile-image/` mutation with FormData
+- `useDeleteProfileImage()` — `DELETE /api/users/profile-image/` mutation
+- `useChangePassword()` — `POST /api/auth/users/set_password/` mutation
 
-### Mobile
+**Create:** `web/src/components/settings/profile-section.tsx`
+- Name/business name form fields, email read-only, profile image upload/remove
 
-**Create:** `mobile/lib/features/workout_log/data/models/workout_history_model.dart`
-- Freezed model: `WorkoutHistorySummary` with fields matching serializer
+**Create:** `web/src/components/settings/appearance-section.tsx`
+- Theme toggle (Light/Dark/System) using `next-themes`
 
-**Create:** `mobile/lib/features/workout_log/presentation/providers/workout_history_provider.dart`
-- `WorkoutHistoryNotifier` extends `StateNotifier<WorkoutHistoryState>`
-- State: `workouts: List`, `currentPage: int`, `hasMore: bool`, `isLoadingMore: bool`, `error: String?`
-- Methods: `loadInitial()`, `loadMore()`, `refresh()`
+**Create:** `web/src/components/settings/security-section.tsx`
+- Password change form with validation
 
-**Create:** `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart`
-- `ListView.builder` with `ScrollController` for infinite scroll
-- `RefreshIndicator` for pull-to-refresh
-- Shimmer loading state for first load
-- Workout card widget per item
+### Progress Charts
+**Modify:** `web/src/components/trainees/trainee-progress-tab.tsx`
+- Replace placeholder with three chart cards
+- Pass `traineeId` prop for data fetching
 
-**Create:** `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart`
-- Receives workout data as navigation argument
-- Sections: Header, Exercise List (card per exercise with sets table), Survey sections
-- Read-only view
+**Create:** `web/src/hooks/use-progress.ts`
+- `useTraineeProgress(id: number)` — `GET /api/trainer/trainees/<id>/progress/`
 
-**Modify:** `mobile/lib/features/workout_log/data/repositories/workout_repository.dart`
-- Add `getWorkoutHistory({int page, int pageSize})` method
-- Add `getRecentWorkouts({int limit})` method (same endpoint, `page_size=3`)
+**Create:** `web/src/types/progress.ts`
+- `WeightEntry`, `VolumeEntry`, `AdherenceEntry`, `TraineeProgress`
 
-**Modify:** `mobile/lib/core/constants/api_constants.dart`
-- Add `workoutHistory` endpoint
+**Create:** `web/src/components/trainees/progress-charts.tsx`
+- `WeightChart`, `VolumeChart`, `AdherenceChart` components using recharts
 
-**Modify:** `mobile/lib/core/router/app_router.dart`
-- Add `/workout-history` route
-- Add `/workout-detail` route
+### Notification Click-Through
+**Modify:** `web/src/components/notifications/notification-item.tsx`
+- Add `useRouter()` and check `notification.data.trainee_id`
+- On click: mark as read + navigate to `/trainees/{trainee_id}` if ID present
 
-**Modify:** `mobile/lib/features/home/presentation/screens/home_screen.dart`
-- Add "Recent Workouts" section after "Next Workout"
-- Fetch 3 recent workouts in `_loadDashboardData()`
+**Modify:** `web/src/components/notifications/notification-popover.tsx`
+- Pass navigation-aware onClick to NotificationItem
 
-**Modify:** `mobile/lib/features/home/presentation/providers/home_provider.dart`
-- Add `recentWorkouts` to dashboard state
-- Fetch from workout history endpoint on init
+**Modify:** `web/src/app/(dashboard)/notifications/page.tsx`
+- Pass navigation-aware onClick to NotificationItem
+
+**Modify (Backend):** `backend/trainer/views.py` and `backend/workouts/survey_views.py`
+- Ensure `TrainerNotification.objects.create()` calls include `data={'trainee_id': trainee.id}` for relevant notification types
+
+### Invitation Row Actions
+**Modify:** `web/src/components/invitations/invitation-columns.tsx`
+- Add actions column with DropdownMenu
+
+**Create:** `web/src/components/invitations/invitation-actions.tsx`
+- Action dropdown component with Copy/Resend/Cancel logic
+
+**Modify:** `web/src/hooks/use-invitations.ts`
+- Add `useResendInvitation()` and `useCancelInvitation()` mutations
+
+**Add to:** `web/src/lib/constants.ts`
+- `invitationDetail: (id: number) => ...`
+- `invitationResend: (id: number) => ...`
+- `CHANGE_PASSWORD`, `UPDATE_PROFILE`, `PROFILE_IMAGE` endpoints
 
 ### Files to Create
-- `mobile/lib/features/workout_log/data/models/workout_history_model.dart`
-- `mobile/lib/features/workout_log/presentation/providers/workout_history_provider.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart`
+- `web/src/hooks/use-settings.ts`
+- `web/src/hooks/use-progress.ts`
+- `web/src/types/progress.ts`
+- `web/src/components/settings/profile-section.tsx`
+- `web/src/components/settings/appearance-section.tsx`
+- `web/src/components/settings/security-section.tsx`
+- `web/src/components/trainees/progress-charts.tsx`
+- `web/src/components/invitations/invitation-actions.tsx`
 
 ### Files to Modify
-- `backend/workouts/views.py` — Add `workout_history` action
-- `backend/workouts/serializers.py` — Add `WorkoutHistorySummarySerializer`
-- `mobile/lib/features/workout_log/data/repositories/workout_repository.dart` — Add history methods
-- `mobile/lib/core/constants/api_constants.dart` — Add endpoint
-- `mobile/lib/core/router/app_router.dart` — Add 2 routes
-- `mobile/lib/features/home/presentation/screens/home_screen.dart` — Add recent workouts section
-- `mobile/lib/features/home/presentation/providers/home_provider.dart` — Add recent workouts to state
+- `web/src/app/(dashboard)/settings/page.tsx`
+- `web/src/components/trainees/trainee-progress-tab.tsx`
+- `web/src/components/notifications/notification-item.tsx`
+- `web/src/components/notifications/notification-popover.tsx`
+- `web/src/app/(dashboard)/notifications/page.tsx`
+- `web/src/components/invitations/invitation-columns.tsx`
+- `web/src/hooks/use-invitations.ts`
+- `web/src/lib/constants.ts`
+- `web/src/types/notification.ts` (if needed for data typing)
+- `web/package.json` (add recharts)
+- `backend/trainer/views.py` (notification data field)
+- `backend/workouts/survey_views.py` (notification data field)
 
 ## Out of Scope
-- Workout comparison (this week vs last week) — separate ticket
-- Trainer viewing trainee workout history — separate ticket
-- Workout streak tracking / badges — separate ticket
-- Editing past workouts — read-only view only
-- Enhanced calendar with logged-vs-scheduled indicators — separate ticket
-- Export/share workout history — separate ticket
-- Workout search / filtering by exercise name — separate ticket
+- Email change (backend doesn't support it through custom views)
+- Notification preferences (enable/disable types) — no backend support yet
+- Bulk invitation actions (select multiple, cancel all)
+- Program builder on web — separate future pipeline
+- Admin dashboard — separate future pipeline
+- Trainee nutrition goal editing from web — separate ticket
+- Export progress data as CSV/PDF — separate ticket

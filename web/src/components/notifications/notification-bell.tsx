@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
@@ -9,9 +10,10 @@ import { NotificationPopover } from "./notification-popover";
 export function NotificationBell() {
   const { data } = useUnreadCount();
   const count = data?.unread_count ?? 0;
+  const [open, setOpen] = useState(false);
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
@@ -25,7 +27,7 @@ export function NotificationBell() {
           </span>
         </Button>
       </PopoverTrigger>
-      <NotificationPopover />
+      {open && <NotificationPopover onClose={() => setOpen(false)} />}
     </Popover>
   );
 }

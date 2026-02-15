@@ -1,118 +1,86 @@
-# Dev Done: Web Trainer Dashboard (Phase 4 Foundation)
+# Dev Done: Web Dashboard Phase 2 — Settings, Progress Charts, Actionable Notifications & Invitations
 
-## Date: 2026-02-15
+## Date
+2026-02-15
 
 ## Summary
-Implemented a complete Next.js 15 web dashboard for trainers: JWT auth, dashboard with stats, trainee management with search/pagination/detail tabs, notification system with polling, invitation management, responsive layout with dark mode, Docker integration, and one backend change (SearchFilter on TraineeListView).
+Implemented four features that replace placeholder/dead UI surfaces in the web trainer dashboard with fully functional production-ready components: Settings page (profile, appearance, security), trainee progress charts, notification click-through navigation, and invitation row actions.
 
-## Files Created (100 total in web/)
-
-### Types (6)
-- `web/src/types/user.ts` — User, UserRole, TrainerInfo
-- `web/src/types/trainer.ts` — DashboardStats, TraineeListItem, TraineeDetail, DashboardOverview
-- `web/src/types/notification.ts` — Notification, NotificationType, UnreadCount
-- `web/src/types/invitation.ts` — Invitation, InvitationStatus, CreateInvitationPayload
-- `web/src/types/activity.ts` — ActivitySummary
-- `web/src/types/api.ts` — PaginatedResponse<T>
-
-### Lib (4)
-- `web/src/lib/constants.ts` — All API endpoint URLs
-- `web/src/lib/token-manager.ts` — localStorage read/write, JWT decode, refresh mutex
-- `web/src/lib/api-client.ts` — Fetch wrapper with auth headers, 401 retry
-- `web/src/lib/utils.ts` — cn() utility (shadcn)
-
-### Providers (3)
-- `web/src/providers/auth-provider.tsx` — React context: user, login, logout, role gate
-- `web/src/providers/query-provider.tsx` — TanStack React Query (staleTime 30s)
-- `web/src/providers/theme-provider.tsx` — next-themes (system default)
-
-### Hooks (6)
-- `web/src/hooks/use-auth.ts` — Auth context hook
-- `web/src/hooks/use-dashboard.ts` — useDashboardStats, useDashboardOverview
-- `web/src/hooks/use-trainees.ts` — useTrainees, useTrainee, useTraineeActivity
-- `web/src/hooks/use-notifications.ts` — useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead
-- `web/src/hooks/use-invitations.ts` — useInvitations, useCreateInvitation
-- `web/src/hooks/use-debounce.ts` — Debounce hook
-
-### Layout (5)
-- `web/src/components/layout/sidebar.tsx` — Fixed left sidebar (256px)
-- `web/src/components/layout/sidebar-mobile.tsx` — Sheet drawer for mobile
-- `web/src/components/layout/header.tsx` — Top bar with hamburger, bell, avatar
-- `web/src/components/layout/nav-links.tsx` — Navigation config array
-- `web/src/components/layout/user-nav.tsx` — Avatar dropdown with logout
-
-### Shared Components (5)
-- `web/src/components/shared/page-header.tsx` — Title + description + actions
-- `web/src/components/shared/empty-state.tsx` — Icon + title + CTA
-- `web/src/components/shared/error-state.tsx` — Error card with retry
-- `web/src/components/shared/data-table.tsx` — Generic paginated table
-- `web/src/components/shared/loading-spinner.tsx` — Centered spinner
-
-### Dashboard (5)
-- `web/src/components/dashboard/stats-cards.tsx` — 4-card grid
-- `web/src/components/dashboard/stat-card.tsx` — Individual stat card
-- `web/src/components/dashboard/recent-trainees.tsx` — Last 10 trainees table
-- `web/src/components/dashboard/inactive-trainees.tsx` — Needs attention list
-- `web/src/components/dashboard/dashboard-skeleton.tsx` — Loading skeleton
-
-### Trainees (8)
-- `web/src/components/trainees/trainee-table.tsx` — Data table wrapper
-- `web/src/components/trainees/trainee-columns.tsx` — Column definitions
-- `web/src/components/trainees/trainee-search.tsx` — Debounced search input
-- `web/src/components/trainees/trainee-overview-tab.tsx` — Profile, nutrition, programs
-- `web/src/components/trainees/trainee-activity-tab.tsx` — Activity table with day filter
-- `web/src/components/trainees/trainee-progress-tab.tsx` — Placeholder for charts
-- `web/src/components/trainees/trainee-detail-skeleton.tsx` — Detail loading skeleton
-- `web/src/components/trainees/trainee-table-skeleton.tsx` — Table loading skeleton
-
-### Notifications (3)
-- `web/src/components/notifications/notification-bell.tsx` — Bell with unread badge
-- `web/src/components/notifications/notification-popover.tsx` — Dropdown with last 5
-- `web/src/components/notifications/notification-item.tsx` — Single notification row
-
-### Invitations (4)
-- `web/src/components/invitations/create-invitation-dialog.tsx` — Form dialog
-- `web/src/components/invitations/invitation-table.tsx` — Table wrapper
-- `web/src/components/invitations/invitation-columns.tsx` — Column definitions
-- `web/src/components/invitations/invitation-status-badge.tsx` — Color-coded badge
-
-### Pages (9)
-- `web/src/app/(auth)/login/page.tsx`
-- `web/src/app/(dashboard)/dashboard/page.tsx`
-- `web/src/app/(dashboard)/trainees/page.tsx`
-- `web/src/app/(dashboard)/trainees/[id]/page.tsx`
-- `web/src/app/(dashboard)/notifications/page.tsx`
-- `web/src/app/(dashboard)/invitations/page.tsx`
-- `web/src/app/(dashboard)/settings/page.tsx`
-- `web/src/app/not-found.tsx`
-- `web/src/app/page.tsx` (redirect)
-
-### Config/Layout
-- `web/src/app/layout.tsx` — Root layout with providers
-- `web/src/app/(auth)/layout.tsx` — Centered card layout
-- `web/src/app/(dashboard)/layout.tsx` — Sidebar + header + auth guard
-- `web/src/middleware.ts` — Route protection via session cookie
-
-### shadcn/ui (18 components)
-- button, card, input, label, table, badge, dialog, dropdown-menu, skeleton, tabs, avatar, separator, sheet, popover, scroll-area, tooltip, pagination, sonner
-
-### Docker
-- `web/Dockerfile` — Multi-stage node:20-alpine build
-- `web/.env.example` — NEXT_PUBLIC_API_URL
+## Files Created
+| File | Purpose |
+|------|---------|
+| `web/src/types/progress.ts` | TypeScript types for trainee progress API response |
+| `web/src/hooks/use-progress.ts` | React Query hook for fetching trainee progress data |
+| `web/src/hooks/use-settings.ts` | Mutation hooks for profile update, image upload/delete, password change |
+| `web/src/components/settings/profile-section.tsx` | Profile form with name, email (read-only), image upload/remove |
+| `web/src/components/settings/appearance-section.tsx` | Theme toggle (Light/Dark/System) using next-themes |
+| `web/src/components/settings/security-section.tsx` | Password change form with validation and Djoser error handling |
+| `web/src/components/trainees/progress-charts.tsx` | Three chart components: WeightChart (line), VolumeChart (bar), AdherenceChart (stacked bar) |
+| `web/src/components/invitations/invitation-actions.tsx` | Dropdown menu with Copy Code, Resend, Cancel actions + confirmation dialog |
 
 ## Files Modified
-- `backend/trainer/views.py` — Added SearchFilter + search_fields to TraineeListView (3 lines)
-- `docker-compose.yml` — Added web service on port 3000 (13 lines)
+| File | Changes |
+|------|---------|
+| `web/src/lib/constants.ts` | Added API endpoints for profile, image, password, progress, invitation actions |
+| `web/src/lib/api-client.ts` | Added `postFormData()` method; fixed Content-Type header to skip for FormData |
+| `web/src/hooks/use-invitations.ts` | Added `useResendInvitation()` and `useCancelInvitation()` mutations |
+| `web/src/app/(dashboard)/settings/page.tsx` | Replaced placeholder with ProfileSection + AppearanceSection + SecuritySection |
+| `web/src/components/trainees/trainee-progress-tab.tsx` | Replaced placeholder with chart components; now accepts `traineeId` prop |
+| `web/src/app/(dashboard)/trainees/[id]/page.tsx` | Passes `trainee.id` to `TraineeProgressTab` |
+| `web/src/components/notifications/notification-item.tsx` | Added `getNotificationTraineeId()` helper; ChevronRight visual indicator for navigable notifications |
+| `web/src/components/notifications/notification-popover.tsx` | Added click-through navigation to trainee detail; accepts `onClose` prop for popover dismissal |
+| `web/src/components/notifications/notification-bell.tsx` | Controlled Popover state to support closing on navigation |
+| `web/src/app/(dashboard)/notifications/page.tsx` | Added click-through navigation via `useRouter` when `trainee_id` exists in notification data |
+| `web/src/components/invitations/invitation-columns.tsx` | Added actions column with `InvitationActions` component |
+
+## Dependencies Added
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `recharts` | ^2.15.3 | Chart library for progress visualization |
 
 ## Key Decisions
-1. Tokens in localStorage (backend returns JWT in JSON body, not cookies)
-2. Refresh mutex for concurrent 401s
-3. `has_session` cookie for middleware route protection
-4. Zod v4 uses `.issues` not `.errors`
-5. Client-side fetching only (Server Components can't access localStorage)
-6. Notification polling every 30s via React Query refetchInterval
-7. Trainee search debounced 300ms, resets pagination
+1. **recharts over chart.js** — Most popular React charting library, tree-shakeable, works with Next.js SSR without configuration.
+2. **Controlled Popover for notification bell** — Needed to programmatically close the popover when navigating from a notification click.
+3. **`getNotificationTraineeId()` as exported helper** — Shared between notification-item (visual indicator) and parent components (navigation logic). Handles both number and string `trainee_id` values from the API.
+4. **FormData Content-Type fix in api-client** — Modified `buildHeaders()` to skip `Content-Type: application/json` when body is FormData, letting the browser set the correct `multipart/form-data` boundary.
+5. **Djoser password endpoint** — Used `POST /api/auth/users/set_password/` which requires `current_password` + `new_password` fields. Error responses parsed for inline field errors.
+6. **No backend changes** — All required backend APIs already exist. Notification `trainee_id` is already sent in the `data` field by `survey_views.py`.
 
-## Build/Lint Status
-- `npm run build` — PASS (0 errors, all 9 routes compile)
-- `npm run lint` — PASS (0 errors, 0 warnings)
+## Deviations from Ticket
+- None. All 28 acceptance criteria addressed.
+
+## How to Test
+1. **Settings Page** (`/settings`):
+   - Edit first name, last name, business name → save → verify toast + values persist on reload
+   - Upload profile image (valid JPEG/PNG) → verify preview updates
+   - Upload invalid file (>5MB or wrong type) → verify error toast
+   - Remove profile image → verify placeholder returns
+   - Toggle theme (Light/Dark/System) → verify colors change immediately
+   - Change password with correct current password → verify success toast, fields clear
+   - Change password with wrong current password → verify inline error
+   - Submit with password mismatch → verify inline error
+
+2. **Progress Charts** (`/trainees/{id}` → Progress tab):
+   - View weight trend line chart with proper axis labels
+   - View volume bar chart
+   - View adherence stacked bar chart with Food/Workout/Protein legend
+   - Test with trainee that has no data → verify empty states with icons
+
+3. **Notification Click-Through** (`/notifications` and bell popover):
+   - Click notification with `trainee_id` → navigates to `/trainees/{id}`
+   - Click notification without `trainee_id` → marks as read, no navigation
+   - Verify ChevronRight icon appears only on navigable notifications
+   - Verify popover closes after navigation click
+
+4. **Invitation Actions** (`/invitations`):
+   - Click three-dot menu → verify Copy Code, Resend, Cancel options appear
+   - Copy Code → verify clipboard toast
+   - Resend → verify success/error toast
+   - Cancel → verify confirmation dialog appears
+   - Confirm cancel → verify invitation status updates
+   - Verify ACCEPTED invitations don't show Resend/Cancel options
+
+## Build & Lint Status
+- `npm run build` — Compiled successfully, 0 errors
+- `npm run lint` — 0 errors, 0 warnings
+- Backend tests — Not runnable (no venv available, no backend changes made)

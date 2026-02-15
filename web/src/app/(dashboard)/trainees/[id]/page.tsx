@@ -89,7 +89,7 @@ export default function TraineeDetailPage({
           <TraineeActivityTab traineeId={trainee.id} />
         </TabsContent>
         <TabsContent value="progress" className="mt-4">
-          <TraineeProgressTab />
+          <TraineeProgressTab traineeId={trainee.id} />
         </TabsContent>
       </Tabs>
     </div>

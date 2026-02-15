@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import type { Column } from "@/components/shared/data-table";
 import type { Invitation } from "@/types/invitation";
 import { InvitationStatusBadge } from "./invitation-status-badge";
+import { InvitationActions } from "./invitation-actions";
 
 export const invitationColumns: Column<Invitation>[] = [
   {
@@ -46,5 +47,11 @@ export const invitationColumns: Column<Invitation>[] = [
         {format(new Date(row.expires_at), "MMM d, yyyy")}
       </span>
     ),
+  },
+  {
+    key: "actions",
+    header: "",
+    className: "w-12",
+    cell: (row) => <InvitationActions invitation={row} />,
   },
 ];
