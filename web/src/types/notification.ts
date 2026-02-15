@@ -1,10 +1,11 @@
 export const NotificationType = {
-  TRAINEE_JOINED: "trainee_joined",
-  TRAINEE_COMPLETED_ONBOARDING: "trainee_completed_onboarding",
-  TRAINEE_LOGGED_WORKOUT: "trainee_logged_workout",
-  TRAINEE_LOGGED_FOOD: "trainee_logged_food",
-  TRAINEE_INACTIVE: "trainee_inactive",
-  SYSTEM: "system",
+  TRAINEE_READINESS: "trainee_readiness",
+  WORKOUT_COMPLETED: "workout_completed",
+  WORKOUT_MISSED: "workout_missed",
+  GOAL_HIT: "goal_hit",
+  CHECK_IN: "check_in",
+  MESSAGE: "message",
+  GENERAL: "general",
 } as const;
 
 export type NotificationType =
@@ -15,8 +16,9 @@ export interface Notification {
   notification_type: NotificationType;
   title: string;
   message: string;
+  data: Record<string, unknown>;
   is_read: boolean;
-  trainee: number | null;
+  read_at: string | null;
   created_at: string;
 }
 

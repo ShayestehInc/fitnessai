@@ -1,56 +1,69 @@
-# Security Audit: Trainee Workout History + Home Screen Recent Workouts
+# Security Audit: Web Trainer Dashboard (Pipeline 9)
 
-**Date:** 2026-02-14
+**Date:** 2026-02-15
 **Auditor:** Security Engineer (Senior Application Security)
-**Pipeline:** 8
+**Pipeline:** 9
 
-**Files Audited (Backend):**
-- `backend/workouts/serializers.py` — `WorkoutHistorySummarySerializer`, `WorkoutDetailSerializer`
-- `backend/workouts/views.py` — `WorkoutHistoryPagination`, `workout_history` action, `workout_detail` action
-- `backend/workouts/tests/test_workout_history.py` — 30 test cases covering security, filtering, serialization
+**Files Audited (Web):**
+- `web/src/lib/token-manager.ts` -- JWT token management, cookie handling
+- `web/src/lib/api-client.ts` -- Authenticated HTTP client with 401 refresh flow
+- `web/src/lib/constants.ts` -- API URL constants, token key names
+- `web/src/providers/auth-provider.tsx` -- Auth context, login/logout, role gating
+- `web/src/middleware.ts` -- Next.js middleware for route protection
+- `web/src/hooks/use-auth.ts` -- Auth hook
+- `web/src/hooks/use-trainees.ts` -- Trainee data fetching with parameterized URLs
+- `web/src/hooks/use-invitations.ts` -- Invitation CRUD hooks
+- `web/src/hooks/use-notifications.ts` -- Notification hooks
+- `web/src/hooks/use-dashboard.ts` -- Dashboard data hooks
+- `web/src/app/(auth)/login/page.tsx` -- Login form with Zod validation
+- `web/src/app/(dashboard)/layout.tsx` -- Dashboard layout with auth guard
+- `web/src/app/(dashboard)/trainees/[id]/page.tsx` -- Trainee detail with ID validation
+- `web/src/components/invitations/create-invitation-dialog.tsx` -- Invitation creation form
+- `web/src/components/notifications/notification-item.tsx` -- Notification rendering
+- `web/src/components/trainees/trainee-columns.tsx` -- Trainee table columns
+- `web/src/components/trainees/trainee-overview-tab.tsx` -- Trainee detail display
+- `web/src/components/layout/user-nav.tsx` -- User dropdown
+- `web/next.config.ts` -- Next.js configuration
+- `web/Dockerfile` -- Docker build configuration
+- `web/.env.example` -- Environment variable template
+- `web/.env.local` -- Local environment file
+- `web/.gitignore` -- Git ignore rules
+- `web/package.json` -- Dependencies
 
-**Files Audited (Mobile):**
-- `mobile/lib/core/constants/api_constants.dart`
-- `mobile/lib/core/router/app_router.dart`
-- `mobile/lib/features/workout_log/data/models/workout_history_model.dart`
-- `mobile/lib/features/workout_log/data/repositories/workout_repository.dart`
-- `mobile/lib/features/workout_log/presentation/providers/workout_history_provider.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_history_widgets.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_detail_widgets.dart`
-- `mobile/lib/features/home/presentation/providers/home_provider.dart`
-- `mobile/lib/features/home/presentation/screens/home_screen.dart`
-
-**Files Audited (Tasks/Docs):**
-- `tasks/dev-done.md`, `tasks/next-ticket.md`, `tasks/focus.md`, `tasks/qa-report.md`, `tasks/review-findings.md`
+**Files Audited (Infrastructure):**
+- `docker-compose.yml` -- Container orchestration
+- `backend/config/settings.py` -- Django CORS, JWT, CSRF settings (lines 140-188)
 
 ---
 
 ## Executive Summary
 
-This audit covers the implementation of a read-only workout history feature: a paginated backend endpoint, a workout detail endpoint, a history screen with infinite scroll, a detail screen, and a "Recent Workouts" section on the home screen. **No Critical or High issues were found.** The implementation demonstrates strong security practices: proper row-level security via `IsTrainee` + queryset filtering, restricted serializers that exclude sensitive fields, no secrets in code or docs, and no injection vectors. Two Minor issues and one Informational item are documented below.
+This audit covers the full web trainer dashboard (Next.js 16 + React 19 + TanStack Query). The implementation follows solid security practices: all API calls include JWT Bearer tokens, role gating rejects non-TRAINER users, forms use Zod validation, no XSS vectors (React's default escaping + no `dangerouslySetInnerHTML`), no secrets in source code, and the backend provides proper CORS/CSRF/throttling configuration.
+
+**Two Medium issues were found and fixed:**
+1. Missing security response headers in `next.config.ts` (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) -- **FIXED**
+2. Cookie delete function missing `Secure` flag, causing potential cookie persistence on HTTPS -- **FIXED**
 
 **Issues Found:**
 - 0 Critical
 - 0 High
-- 2 Minor
-- 1 Informational
+- 2 Medium (both FIXED)
+- 3 Low / Informational
 
 ---
 
 ## Security Checklist
 
 - [x] No secrets, API keys, passwords, or tokens in source code or docs
-- [x] No secrets in git history (scanned entire diff from `main...HEAD`)
-- [x] All user input sanitized (read-only endpoints; no user-supplied input beyond pagination params)
-- [x] Authentication checked on all new endpoints (`IsTrainee` includes `is_authenticated` check)
-- [x] Authorization -- correct role/permission guards (`IsTrainee` on both endpoints)
-- [x] No IDOR vulnerabilities (queryset filters by `trainee=user` from `request.user`)
-- [x] File uploads validated (N/A -- no file uploads in this feature)
-- [x] Rate limiting on sensitive endpoints (inherited from DRF global throttling)
-- [x] Error messages don't leak internals
-- [x] CORS policy appropriate (inherited from existing config)
+- [x] No secrets in git history (`.env.local` is in `.gitignore`, only `.env.example` is tracked)
+- [x] All user input sanitized (Zod validation on login form and invitation form, React default escaping)
+- [x] Authentication checked on all API calls (Bearer token via `getAuthHeaders()` in every `request()`)
+- [x] Authorization -- correct role/permission guards (TRAINER role check in `auth-provider.tsx:39`)
+- [x] No IDOR vulnerabilities (backend enforces row-level security; frontend uses typed IDs)
+- [x] File uploads validated (N/A -- no file uploads in web dashboard)
+- [x] Rate limiting on sensitive endpoints (backend throttling: 30/min anon, 120/min user, 5/hr registration)
+- [x] Error messages don't leak internals (generic messages like "Login failed", "Something went wrong")
+- [x] CORS policy appropriate (production restricts origins via env var; development allows all)
 
 ---
 
@@ -58,79 +71,79 @@ This audit covers the implementation of a read-only workout history feature: a p
 
 ### Scan Methodology
 
-Grepped the entire `git diff main...HEAD` output (including all `.py`, `.dart`, `.md`, and test fixture files) for:
-- API keys, secret keys, passwords, tokens, bearer tokens
-- Hardcoded credentials in test fixtures
-- AWS, OpenAI, Stripe key patterns
-- Base64-encoded secrets
+Grepped entire `web/` directory and `docker-compose.yml` for:
+- API keys, secret keys, passwords, tokens (regex: `api_key|secret|password|token|credential|private.?key`)
+- Hardcoded credential patterns (`sk-`, `pk_test_`, `sk_test_`, `AKIA`, `ghp_`, `glpat-`)
+- `.env` files checked for tracked secrets
 
 ### Results: PASS
 
-**Test fixtures use dummy passwords:**
-```python
-# test_workout_history.py
-password='testpass123'  # Safe: test-only, force_authenticate() used
+**`.env.example`** contains only:
 ```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+No secrets. Only a public API URL.
 
-These are test-only fixtures using `force_authenticate()` for API tests, which is the correct Django REST Framework testing pattern. The passwords are never used for actual authentication and are only required by `create_user()`.
+**`.env.local`** contains only:
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+This file is properly listed in `.gitignore` (`.env*.local`) and not tracked in git. Verified with `git ls-files web/.env*` -- only `web/.env.example` is tracked.
 
-**No secrets found in any changed files**, including:
-- No API keys in `.md` files or comments
-- No tokens in URL constants
-- No credentials in error messages or log strings
-- No `.env` files modified or created
+**`docker-compose.yml`** uses `${SECRET_KEY:-django-insecure-change-me-in-production}` as a fallback. This is a development default that is clearly named "insecure" and is overridden by the `SECRET_KEY` environment variable in production. The approach is standard for Docker Compose development environments.
+
+**No secrets found in any web source files**, including:
+- No API keys in TypeScript/TSX files
+- No tokens in constants
+- No credentials in error messages or comments
+- No secrets in `package.json`
 
 ---
 
 ## Injection Vulnerabilities
 
-### SQL Injection: PASS
+### XSS: PASS
 
-All database queries use Django ORM with parameterized inputs:
+| Vector | Status | Evidence |
+|--------|--------|----------|
+| `dangerouslySetInnerHTML` | Not used | `grep` returned zero matches across entire `web/` directory |
+| `innerHTML` / `outerHTML` / `document.write` | Not used | `grep` returned zero matches |
+| `eval()` / `new Function()` | Not used | `grep` returned zero matches |
+| React JSX interpolation | Safe | All dynamic content rendered via `{variable}` in JSX, which React auto-escapes |
+| User input in HTML attributes | Safe | All inputs use controlled React components (`value={state}`, `onChange={handler}`) |
 
-```python
-# views.py:409-423 — workout_history action
-queryset = DailyLog.objects.filter(
-    trainee=user,
-).exclude(
-    workout_data__isnull=True,
-).exclude(
-    workout_data={},
-).filter(
-    Q(workout_data__has_key='exercises') | Q(workout_data__has_key='sessions'),
-).exclude(
-    Q(workout_data__has_key='exercises') & Q(workout_data__exercises=[]),
-).defer(
-    'nutrition_data',
-).order_by('-date')
-```
+**Analysis:** React 19 auto-escapes all JSX interpolation by default. No unsafe APIs are used anywhere in the codebase. User data from API responses (trainee names, emails, notification titles/messages) are rendered via JSX text nodes and React components, which prevent XSS.
 
-**Analysis:**
-- All queries use ORM methods, no raw SQL
-- JSONField lookups (`has_key`, `__exercises=[]`) use PostgreSQL's native JSON operators via Django's ORM, not string concatenation
-- Pagination parameters (`page`, `page_size`) are parsed by DRF's `PageNumberPagination`, which validates them as integers internally
-- No user-supplied strings are interpolated into queries
+### SQL Injection: N/A
 
-### XSS: PASS (N/A)
-
-These are read-only API endpoints returning JSON data. The mobile Flutter client renders data in native widgets (not WebView), so XSS is not applicable. The API does not serve HTML.
-
-Workout names from `workout_data` JSON are displayed via Flutter's `Text` widget, which does not interpret HTML or JavaScript.
+The web frontend does not execute SQL. All queries go through the Django backend's ORM.
 
 ### Command Injection: N/A
 
-No system commands are executed in the audited code.
+No system commands are executed in the web frontend.
 
-### Path Traversal: N/A
+### Path Traversal: PASS
 
-No file system operations are performed. The `workoutHistoryDetail(int logId)` URL builder in Dart uses integer interpolation, which cannot produce path traversal:
-
-```dart
-static String workoutHistoryDetail(int logId) =>
-    '$apiBaseUrl/workouts/daily-logs/$logId/workout-detail/';
+The trainee detail page (`trainees/[id]/page.tsx`) validates the URL parameter:
+```typescript
+const traineeId = parseInt(id, 10);
+const isValidId = !isNaN(traineeId) && traineeId > 0;
+```
+Invalid IDs are rejected before any API call is made. URL builder functions use numeric types:
+```typescript
+traineeDetail: (id: number) => `${API_BASE}/api/trainer/trainees/${id}/`,
 ```
 
-The `int` type constraint makes injection impossible at the Dart level.
+### Open Redirect: PASS
+
+All redirects in the codebase use hardcoded paths:
+- `window.location.href = "/login"` (api-client.ts:69, auth-provider.tsx:122)
+- `NextResponse.redirect(new URL("/dashboard", request.url))` (middleware.ts)
+- `NextResponse.redirect(new URL("/login", request.url))` (middleware.ts)
+- `router.push("/dashboard")` (login page)
+- `router.replace("/login")` (dashboard layout)
+
+No redirect targets are derived from user input (URL parameters, form data, etc.).
 
 ---
 
@@ -138,236 +151,248 @@ The `int` type constraint makes injection impossible at the Dart level.
 
 ### Authentication: PASS
 
-Both new endpoints require authentication via `IsTrainee`, which checks `is_authenticated`:
+| Layer | Mechanism | Status |
+|-------|-----------|--------|
+| API Client | Bearer token in `Authorization` header on every request | PASS |
+| Token Refresh | Automatic 401 retry with token refresh, mutex prevents concurrent refreshes | PASS |
+| Session Expiry | Tokens cleared on refresh failure, user redirected to login | PASS |
+| Login | POST to `/api/auth/jwt/create/` over HTTPS, response sets both access + refresh tokens | PASS |
+| Logout | `clearTokens()` removes both tokens from localStorage and session cookie | PASS |
 
-```python
-# core/permissions.py:19-27
-class IsTrainee(permissions.BasePermission):
-    def has_permission(self, request: Any, view: Any) -> bool:
-        return bool(
-            request.user and
-            request.user.is_authenticated and  # <-- Auth check
-            request.user.is_trainee()
-        )
+**API Client Auth Flow:**
+1. `getAuthHeaders()` retrieves access token from localStorage
+2. If no token, throws `ApiError(401)` immediately
+3. On 401 response, `refreshAccessToken()` attempts refresh
+4. If refresh fails, clears all tokens and redirects to `/login`
+5. Mutex (`refreshPromise`) prevents multiple concurrent refresh calls
+
+### Authorization (Role Gating): PASS
+
+The `auth-provider.tsx` enforces TRAINER-only access:
+```typescript
+const userData = await apiClient.get<User>(API_URLS.CURRENT_USER);
+if (userData.role !== UserRole.TRAINER) {
+  clearTokens();
+  setUser(null);
+  throw new Error("Only trainer accounts can access this dashboard");
+}
 ```
 
-**Verified Endpoints:**
+**Three layers of protection:**
+1. **Middleware** (`middleware.ts`): Checks `has_session` cookie for route protection (coarse gate)
+2. **Dashboard Layout** (`(dashboard)/layout.tsx`): Checks `isAuthenticated` from auth context
+3. **Auth Provider** (`auth-provider.tsx`): Validates `role === TRAINER` on every session init
 
-| Endpoint | Permission Class | Auth Check | Role Check |
-|----------|-----------------|------------|------------|
-| `GET /api/workouts/daily-logs/workout-history/` | `IsTrainee` | `is_authenticated` | `is_trainee()` |
-| `GET /api/workouts/daily-logs/{id}/workout-detail/` | `IsTrainee` | `is_authenticated` | `is_trainee()` |
+### IDOR Prevention: PASS (Frontend)
 
-**Test Coverage:**
-- `test_unauthenticated_user_rejected` -- verifies 401 for unauthenticated requests
-- `test_trainer_cannot_access_endpoint` -- verifies 403 for trainers
-- `test_admin_cannot_access_endpoint` -- verifies 403 for admins
-- `test_detail_trainer_forbidden` -- verifies 403 for trainer on detail endpoint
-- `test_detail_unauthenticated_rejected` -- verifies 401 for unauthenticated on detail
-
-### Authorization (IDOR Prevention): PASS
-
-Row-level security is enforced through the queryset:
-
-**Workout History (list):**
-```python
-# views.py:409 — direct filter by trainee=user
-queryset = DailyLog.objects.filter(
-    trainee=user,  # <-- user from request.user, not URL params
-)
+The frontend constructs API URLs with typed numeric IDs:
+```typescript
+traineeDetail: (id: number) => `${API_BASE}/api/trainer/trainees/${id}/`,
+traineeActivity: (id: number) => `${API_BASE}/api/trainer/trainees/${id}/activity/`,
+notificationRead: (id: number) => `${API_BASE}/api/trainer/notifications/${id}/read/`,
 ```
 
-**Workout Detail (single object):**
-```python
-# views.py:446 — uses get_object(), which goes through get_queryset()
-daily_log = self.get_object()
-```
+The backend enforces row-level security via queryset filtering (trainer can only see their own trainees/notifications). Frontend passes IDs but cannot bypass backend authorization.
 
-`DailyLogViewSet.get_queryset()` filters by `trainee=user` for trainees (line 371), so `get_object()` will only find objects belonging to the authenticated user. Attempting to access another user's log returns 404 (not 403), which prevents enumeration.
+---
 
-**Test Coverage:**
-- `test_trainee_sees_own_logs_only` -- creates logs for 2 trainees, verifies isolation
-- `test_trainee_cannot_see_other_trainees_logs` -- verifies cross-trainee isolation
-- `test_detail_for_other_users_log_returns_404` -- verifies 404 (not 403) for IDOR attempt
+## Token Security
+
+### JWT in localStorage
+
+| Concern | Assessment |
+|---------|-----------|
+| XSS access to tokens | **Low risk**: No XSS vectors found (no `dangerouslySetInnerHTML`, no `eval`, React auto-escapes). If XSS were introduced, tokens would be exposed -- but this is an accepted tradeoff for SPA architecture. |
+| Token lifetime | Access: 1 hour, Refresh: 7 days. Refresh tokens rotate on use (`ROTATE_REFRESH_TOKENS: True`). Acceptable. |
+| Session cookie | `has_session` cookie stores only `"1"` (boolean flag), not a token. Used by middleware as a coarse-grained gate. Not `HttpOnly` (needed by client JS to set/clear it), but contains no secret data. |
+| Cookie attributes | `SameSite=Lax` prevents CSRF. `Secure` flag set conditionally on HTTPS. |
+| Token refresh race condition | Properly handled with a mutex (`refreshPromise`). Only one refresh request is made at a time. |
+| Pre-expiry buffer | Access token treated as expired 60 seconds before actual expiry, preventing edge-case failures. |
+
+### Token Storage Alternatives Considered
+
+Moving tokens to `HttpOnly` cookies would require a backend BFF (Backend for Frontend) proxy, which is out of scope for the current architecture. The current `localStorage` approach is standard for SPA + JWT and is adequately protected by the absence of XSS vectors.
 
 ---
 
 ## Data Exposure
 
-### API Response Analysis: PASS
+### API Response Fields: PASS
 
-**WorkoutHistorySummarySerializer (list endpoint):**
-```python
-class Meta:
-    model = DailyLog
-    fields = [
-        'id', 'date', 'workout_name', 'exercise_count',
-        'total_sets', 'total_volume_lbs', 'duration_display',
-    ]
-    read_only_fields = ['id', 'date']
+The `User` type exposes:
+```typescript
+interface User {
+  id, email, role, first_name, last_name, business_name,
+  is_active, onboarding_completed, trainer, profile_image
+}
 ```
-
-Fields that are explicitly **NOT** exposed:
-- `trainee` (FK to User) -- no user ID leaked
-- `trainee_email` -- no email leaked
-- `nutrition_data` -- private dietary data not exposed
-- `workout_data` (full JSON) -- only computed summaries returned in list
-- `steps`, `sleep_hours`, `resting_heart_rate`, `recovery_score` -- health metrics hidden
-- `created_at`, `updated_at` -- timestamps hidden
-
-Compare with the main `DailyLogSerializer`, which exposes `trainee`, `trainee_email`, and `nutrition_data`. The new serializers are correctly restricted.
-
-**WorkoutDetailSerializer (detail endpoint):**
-```python
-class Meta:
-    model = DailyLog
-    fields = ['id', 'date', 'workout_data', 'notes']
-    read_only_fields = ['id', 'date', 'workout_data', 'notes']
-```
-
-The detail endpoint returns `workout_data` (needed for the detail screen) but correctly excludes `nutrition_data`, `trainee`, and all health metrics.
-
-Additionally, the `workout_history` queryset uses `.defer('nutrition_data')` to avoid even loading the large nutrition blob from the database -- this is good defense-in-depth.
-
-**Test Coverage:**
-- `test_no_extra_sensitive_fields_exposed` -- verifies `trainee_email`, `nutrition_data`, `trainee` not in history response
-- `test_detail_returns_restricted_fields_only` -- verifies detail response has exactly `{id, date, workout_data, notes}`
-- `test_detail_does_not_leak_nutrition_data` -- verifies `nutrition_data`, `trainee_email`, `trainee` not in detail response
+No sensitive fields (password_hash, internal IDs, billing info) are included. The `trainer` field is a nested object with only `id, email, first_name, last_name, profile_image`.
 
 ### Error Messages: PASS
 
-Error messages are generic and do not leak internals:
+All error messages are generic:
+- Login: `"Login failed"` (fallback), or server-provided `detail` / `non_field_errors`
+- API errors: `"API Error {status}: {statusText}"` (no response body details in error message)
+- Dashboard: `"Failed to load dashboard data"`
+- Notifications: `"Failed to load notifications"`
+- Invitations: `"Failed to send invitation"` (or first field error from validation response)
+- Trainee detail: `"Invalid trainee ID"` or `"Trainee not found or failed to load"`
 
-```python
-# 404 for non-existent or other user's log
-# Handled by DRF's get_object() returning standard 404
-
-# Mobile error messages:
-'Unable to load workout history'  # Generic
-'Failed to load workout detail'   # Generic
-"Couldn't load recent workouts"   # Generic
-```
-
-No stack traces, SQL errors, or file paths are exposed.
+No stack traces, SQL errors, or internal paths are exposed.
 
 ---
 
 ## CORS/CSRF
 
-### CORS: PASS (Inherited)
+### CORS: PASS
 
-CORS configuration is unchanged and follows best practices:
-- Development: `CORS_ALLOW_ALL_ORIGINS = True` (acceptable for local dev)
-- Production: Restricted to `CORS_ALLOWED_ORIGINS` from environment variable
-- `CORS_ALLOW_CREDENTIALS = True` (required for JWT auth)
+Backend configuration (`settings.py:152-162`):
+```python
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')]
+CORS_ALLOW_CREDENTIALS = True
+```
 
-### CSRF: PASS (N/A for API)
+- Development: All origins allowed (acceptable for local dev)
+- Production: Restricted to environment-configured origins
+- `CORS_ALLOW_CREDENTIALS = True` is required for JWT auth with `Authorization` header
 
-Both new endpoints are GET requests using JWT authentication (not session/cookie auth). Django REST Framework disables CSRF for API views using JWT, which is correct behavior. No state-changing operations are exposed by these endpoints.
+### CSRF: PASS
 
----
-
-## Minor Issues
-
-### 1. Pagination `page_size` Not Validated as Positive Integer on Client Side
-
-**Severity:** Minor
-**File:** `mobile/lib/features/workout_log/data/repositories/workout_repository.dart:117-128`
-**Status:** ACCEPTABLE
-
-**Analysis:**
-The `page_size` parameter is passed as a query parameter. While DRF's `PageNumberPagination` enforces `max_page_size = 50` on the server side, the client does not validate that `pageSize` is positive. However, this is a client-side concern only -- a negative or zero `pageSize` would result in DRF using its default page size (20).
-
-**Risk:** None. Server-side validation is in place (`max_page_size = 50` in `WorkoutHistoryPagination`). The client always passes valid values (default 20, or 3 for recent workouts).
-
-### 2. Test Passwords Are Identical Across All Test Users
-
-**Severity:** Minor
-**File:** `backend/workouts/tests/test_workout_history.py:33-48`
-**Status:** ACCEPTABLE
-
-**Analysis:**
-All test users use `password='testpass123'`. This is irrelevant for security because:
-- Tests use `force_authenticate()`, not actual password authentication
-- Test database is ephemeral and destroyed after test runs
-- This is standard Django testing practice
-
-**Risk:** None.
+The web dashboard uses JWT Bearer tokens (not session cookies) for authentication. Django REST Framework exempts API views from CSRF when using non-session authentication. The `SameSite=Lax` cookie attribute on the `has_session` cookie provides additional CSRF protection.
 
 ---
 
-## Informational
+## Dependencies
 
-### 1. Pre-Existing Debug Endpoint on ProgramViewSet
+### package.json Analysis: PASS
+
+| Package | Version | Known CVEs | Notes |
+|---------|---------|-----------|-------|
+| next | 16.1.6 | None known | Latest stable |
+| react / react-dom | 19.2.3 | None known | Latest stable |
+| @tanstack/react-query | ^5.90.21 | None known | |
+| zod | ^4.3.6 | None known | Input validation |
+| @radix-ui/* | Various ^1.x/^2.x | None known | Accessible UI primitives |
+| date-fns | ^4.1.0 | None known | |
+| lucide-react | ^0.564.0 | None known | |
+| sonner | ^2.0.7 | None known | Toast notifications |
+
+No known vulnerable packages. All dependencies are well-maintained, popular libraries with active security teams.
+
+---
+
+## Docker Security
+
+### Dockerfile: PASS
+
+The Dockerfile uses a multi-stage build with proper security practices:
+1. **Non-root user**: `USER nextjs` (UID 1001) in the final stage
+2. **Minimal image**: `node:20-alpine` base (small attack surface)
+3. **Standalone output**: Only production artifacts copied to final stage
+4. **No secrets baked in**: Environment variables injected at runtime via `docker-compose.yml`
+
+---
+
+## Issues Found and Fixed
+
+### FIXED: Missing Security Response Headers (Medium)
+
+**File:** `web/next.config.ts`
+**Before:** No security headers configured
+**After:** Added the following headers:
+- `X-Frame-Options: DENY` -- Prevents clickjacking
+- `X-Content-Type-Options: nosniff` -- Prevents MIME type sniffing
+- `Referrer-Policy: strict-origin-when-cross-origin` -- Controls referrer leakage
+- `Permissions-Policy: camera=(), microphone=(), geolocation=()` -- Restricts browser APIs
+- `X-DNS-Prefetch-Control: on` -- Performance optimization
+- `poweredByHeader: false` -- Removes `X-Powered-By: Next.js` header (prevents technology fingerprinting)
+
+### FIXED: Cookie Delete Missing Secure Flag (Medium)
+
+**File:** `web/src/lib/token-manager.ts`
+**Before:** `deleteCookie()` did not include the `Secure` flag, while `setCookie()` did. On HTTPS, some browsers may fail to delete a `Secure` cookie if the delete operation doesn't include the `Secure` attribute.
+**After:** Extracted `getSecureFlag()` helper and applied it to both `setCookie()` and `deleteCookie()` for consistent cookie attribute handling.
+
+---
+
+## Low / Informational Items
+
+### 1. Image Remote Patterns Allow HTTP (Low)
+
+**File:** `web/next.config.ts:30-41`
+**Status:** ACCEPTABLE for development
+
+The `images.remotePatterns` configuration allows `http://` for `localhost` and `backend`. This is appropriate for local development. In production, these patterns should be updated to use `https://` with the production backend hostname. This is a deployment configuration concern, not a code vulnerability.
+
+### 2. Default Django SECRET_KEY in docker-compose.yml (Low)
+
+**File:** `docker-compose.yml:33`
+**Status:** ACCEPTABLE
+
+The `django-insecure-change-me-in-production` fallback is clearly labeled and only active when `SECRET_KEY` env var is not set. This is standard Docker Compose dev setup. Production deployments must set `SECRET_KEY`.
+
+### 3. Pre-Existing Debug Endpoint (Informational)
 
 **File:** `backend/workouts/views.py:319-347`
 **Status:** PRE-EXISTING (not introduced by this PR)
 
-The `ProgramViewSet` has a `debug` action that exposes user details (email, role, parent_trainer). This endpoint existed before this PR and is not part of the audited changes. However, it should be removed or restricted before production:
-
-```python
-@action(detail=False, methods=['get'])
-def debug(self, request: Request) -> Response:
-    """Debug endpoint to diagnose program visibility issues."""
-    user = cast(User, request.user)
-    return Response({
-        'user': {
-            'id': user.id,
-            'email': user.email,  # <-- Exposes email
-            'role': user.role,
-            'parent_trainer_id': user.parent_trainer_id,
-            'parent_trainer_email': user.parent_trainer.email if user.parent_trainer else None,
-        },
-        # ...
-    })
-```
-
-**Recommendation:** This is outside the scope of this PR but should be tracked as a separate cleanup item. The endpoint is protected by `IsAuthenticated` so it only exposes data to the authenticated user, but debug endpoints should not exist in production.
+The `ProgramViewSet.debug` action exposes user details. This was noted in the Pipeline 8 security audit and should be removed before production deployment.
 
 ---
 
 ## Security Strengths
 
-1. **Explicit `fields` lists in serializers** -- Both new serializers use explicit `fields` lists (not `'__all__'`), preventing accidental exposure of new model fields in the future.
+1. **No XSS vectors** -- Zero usage of `dangerouslySetInnerHTML`, `eval`, `innerHTML`, or any unsafe DOM manipulation. React's default escaping handles all dynamic content.
 
-2. **`.defer('nutrition_data')`** -- The history queryset defers loading of `nutrition_data`, providing defense-in-depth even though the serializer doesn't include it.
+2. **Consistent auth enforcement** -- Three-layer protection (middleware + layout + auth provider) ensures no unauthenticated or non-TRAINER access to dashboard routes.
 
-3. **`read_only_fields` on all exposed fields** -- Both serializers mark all fields as read-only, preventing any write operations through these endpoints.
+3. **Role validation at login time** -- Non-TRAINER users are immediately rejected and tokens cleared, not just hidden behind UI.
 
-4. **404 for IDOR attempts** -- Accessing another user's log returns 404 (not 403), preventing object enumeration attacks.
+4. **Input validation with Zod** -- Login and invitation forms validate all inputs client-side before submission, with proper error display.
 
-5. **Comprehensive test coverage** -- 30 tests covering authentication, authorization, IDOR, data filtering, and data exposure. Specific tests verify that sensitive fields are not leaked.
+5. **Proper token refresh mutex** -- Single `refreshPromise` prevents thundering herd of concurrent refresh requests.
 
-6. **`max_page_size = 50`** -- Pagination is capped, preventing resource exhaustion via large page requests.
+6. **No open redirect vectors** -- All redirects use hardcoded paths.
 
-7. **Type-safe URL construction on mobile** -- `workoutHistoryDetail(int logId)` uses Dart's type system to prevent injection via the URL.
+7. **Typed API URL construction** -- URL builder functions use `number` type for IDs, preventing injection.
+
+8. **Generic error messages** -- No internal details leaked in any user-facing error state.
+
+9. **Backend rate limiting** -- DRF throttling protects all endpoints (30/min anon, 120/min authenticated).
+
+10. **Docker non-root user** -- Production container runs as unprivileged `nextjs` user.
 
 ---
 
-## Security Score: 9.5/10
+## Security Score: 9/10
 
 **Breakdown:**
-- **Authentication:** 10/10 (Both endpoints require `IsTrainee` with auth check)
-- **Authorization:** 10/10 (Row-level security via queryset, IDOR returns 404)
-- **Input Validation:** 9/10 (Server-side pagination limits, no user input accepted beyond params)
-- **Output Encoding:** 10/10 (Restricted serializers, no sensitive data exposed)
-- **Secrets Management:** 10/10 (No hardcoded secrets in any file)
-- **Error Handling:** 9/10 (Generic error messages, no internal leaks)
-- **Data Exposure:** 10/10 (Explicit field lists, `.defer()` for unused blobs, tested)
-- **Test Coverage:** 10/10 (30 security-relevant tests including IDOR, auth, data leakage)
+- **Authentication:** 10/10 (JWT Bearer on all requests, refresh mutex, session expiry handling)
+- **Authorization:** 10/10 (TRAINER role gating, backend row-level security)
+- **Input Validation:** 9/10 (Zod schemas, typed params, React auto-escaping)
+- **Output Encoding:** 10/10 (No unsafe HTML rendering, generic error messages)
+- **Secrets Management:** 10/10 (No hardcoded secrets, .env.local properly gitignored)
+- **Transport Security:** 8/10 (Security headers added; cookie Secure flag conditional on protocol)
+- **Dependencies:** 10/10 (Modern, well-maintained packages, no known CVEs)
+- **Infrastructure:** 9/10 (Multi-stage Docker, non-root user, standalone build)
 
 **Deductions:**
-- -0.5: Pre-existing debug endpoint in ProgramViewSet (not introduced by this PR, but noted)
+- -0.5: localStorage for JWT (accepted SPA tradeoff, but inherently XSS-vulnerable)
+- -0.5: HTTP image patterns in next.config.ts (dev-only, but should have production override)
 
 ---
 
 ## Recommendation: PASS
 
-**Verdict:** The implementation is **secure for production**. No Critical or High issues found. The code demonstrates strong security practices with proper authentication, authorization, data exposure controls, and comprehensive test coverage. No fixes were required.
+**Verdict:** The web trainer dashboard is **secure for production** with the fixes applied. No Critical or High issues remain. The two Medium issues (missing security headers and inconsistent cookie Secure flag) have been fixed in this audit pass. The implementation demonstrates strong security practices across authentication, authorization, input validation, and data exposure controls.
 
 **Ship Blockers:** None.
 
 ---
 
-**Audit Completed:** 2026-02-14
+**Audit Completed:** 2026-02-15
 **Next Review:** Standard review cycle

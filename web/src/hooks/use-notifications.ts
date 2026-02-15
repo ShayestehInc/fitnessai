@@ -6,11 +6,17 @@ import { API_URLS } from "@/lib/constants";
 import type { PaginatedResponse } from "@/types/api";
 import type { Notification, UnreadCount } from "@/types/notification";
 
-export function useNotifications() {
+export function useNotifications(
+  page: number = 1,
+  filter: "all" | "unread" = "all",
+) {
+  const params = new URLSearchParams({ page: String(page) });
+  if (filter === "unread") params.set("is_read", "false");
+  const url = `${API_URLS.NOTIFICATIONS}?${params.toString()}`;
   return useQuery<PaginatedResponse<Notification>>({
-    queryKey: ["notifications"],
+    queryKey: ["notifications", page, filter],
     queryFn: () =>
-      apiClient.get<PaginatedResponse<Notification>>(API_URLS.NOTIFICATIONS),
+      apiClient.get<PaginatedResponse<Notification>>(url),
   });
 }
 
@@ -20,6 +26,7 @@ export function useUnreadCount() {
     queryFn: () =>
       apiClient.get<UnreadCount>(API_URLS.NOTIFICATIONS_UNREAD_COUNT),
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 }
 

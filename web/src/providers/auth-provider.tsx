@@ -42,32 +42,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Only trainer accounts can access this dashboard");
       }
       setUser(userData);
-    } catch {
+    } catch (error) {
       clearTokens();
       setUser(null);
+      // Re-throw role errors so the login page can display them
+      if (
+        error instanceof Error &&
+        error.message.includes("Only trainer")
+      ) {
+        throw error;
+      }
     }
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function initAuth() {
       if (!hasValidSession()) {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
         return;
       }
 
       if (isAccessTokenExpired()) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
-          setIsLoading(false);
+          if (!cancelled) setIsLoading(false);
           return;
         }
       }
 
       await fetchUser();
-      setIsLoading(false);
+      if (!cancelled) setIsLoading(false);
     }
 
-    initAuth();
+    const authPromise = initAuth();
+    const timeoutPromise = new Promise<void>((_, reject) =>
+      setTimeout(() => reject(new Error("Auth timeout")), 10_000),
+    );
+
+    Promise.race([authPromise, timeoutPromise]).catch(() => {
+      if (!cancelled) {
+        clearTokens();
+        setUser(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [fetchUser]);
 
   const login = useCallback(

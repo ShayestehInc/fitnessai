@@ -13,8 +13,12 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <Card className="border-destructive/20 bg-destructive/5">
-      <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-        <AlertCircle className="mb-3 h-8 w-8 text-destructive" />
+      <CardContent
+        className="flex flex-col items-center justify-center py-8 text-center"
+        role="alert"
+        aria-live="assertive"
+      >
+        <AlertCircle className="mb-3 h-8 w-8 text-destructive" aria-hidden="true" />
         <p className="mb-4 text-sm text-destructive">{message}</p>
         {onRetry && (
           <Button variant="outline" size="sm" onClick={onRetry}>

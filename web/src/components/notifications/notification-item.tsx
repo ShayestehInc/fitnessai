@@ -1,15 +1,25 @@
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { UserPlus, Dumbbell, Utensils, AlertTriangle, Info } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Activity,
+  Dumbbell,
+  AlertTriangle,
+  Target,
+  ClipboardCheck,
+  MessageSquare,
+  Info,
+} from "lucide-react";
 import type { Notification } from "@/types/notification";
 
-const iconMap: Record<string, typeof UserPlus> = {
-  trainee_joined: UserPlus,
-  trainee_completed_onboarding: UserPlus,
-  trainee_logged_workout: Dumbbell,
-  trainee_logged_food: Utensils,
-  trainee_inactive: AlertTriangle,
-  system: Info,
+const iconMap: Record<string, LucideIcon> = {
+  trainee_readiness: Activity,
+  workout_completed: Dumbbell,
+  workout_missed: AlertTriangle,
+  goal_hit: Target,
+  check_in: ClipboardCheck,
+  message: MessageSquare,
+  general: Info,
 };
 
 interface NotificationItemProps {
@@ -23,16 +33,19 @@ export function NotificationItem({
 }: NotificationItemProps) {
   const Icon = iconMap[notification.notification_type] ?? Info;
 
+  const ariaLabel = `${notification.is_read ? "" : "Unread: "}${notification.title} — ${notification.message}`;
+
   return (
     <button
       onClick={onClick}
+      aria-label={ariaLabel}
       className={cn(
-        "flex w-full items-start gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent",
+        "flex w-full items-start gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         !notification.is_read && "bg-accent/50",
       )}
     >
       <div className="mt-0.5 shrink-0">
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -41,6 +54,7 @@ export function NotificationItem({
               "truncate text-sm",
               !notification.is_read && "font-medium",
             )}
+            title={notification.title}
           >
             {notification.title}
           </p>
@@ -48,7 +62,7 @@ export function NotificationItem({
             <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
           )}
         </div>
-        <p className="truncate text-xs text-muted-foreground">
+        <p className="truncate text-xs text-muted-foreground" title={notification.message}>
           {notification.message}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">

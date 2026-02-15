@@ -6,11 +6,12 @@ import { API_URLS } from "@/lib/constants";
 import type { PaginatedResponse } from "@/types/api";
 import type { Invitation, CreateInvitationPayload } from "@/types/invitation";
 
-export function useInvitations() {
+export function useInvitations(page: number = 1) {
+  const url = `${API_URLS.INVITATIONS}?page=${page}`;
   return useQuery<PaginatedResponse<Invitation>>({
-    queryKey: ["invitations"],
+    queryKey: ["invitations", page],
     queryFn: () =>
-      apiClient.get<PaginatedResponse<Invitation>>(API_URLS.INVITATIONS),
+      apiClient.get<PaginatedResponse<Invitation>>(url),
   });
 }
 

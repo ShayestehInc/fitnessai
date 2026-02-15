@@ -60,6 +60,17 @@ export default function TraineesPage() {
           icon={Users}
           title="No results"
           description={`No trainees match "${debouncedSearch}"`}
+          action={
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearch("");
+                setPage(1);
+              }}
+            >
+              Clear search
+            </Button>
+          }
         />
       ) : data ? (
         <TraineeTable

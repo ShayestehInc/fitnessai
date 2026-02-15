@@ -22,7 +22,7 @@ import { ApiError } from "@/lib/api-client";
 const invitationSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   message: z.string().optional(),
-  expires_in_days: z.coerce
+  expires_days: z.coerce
     .number()
     .int()
     .min(1, "Must be at least 1 day")
@@ -47,12 +47,13 @@ export function CreateInvitationDialog() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (createInvitation.isPending) return;
     setError(null);
 
     const result = invitationSchema.safeParse({
       email,
       message: message || undefined,
-      expires_in_days: expiresInDays ? Number(expiresInDays) : undefined,
+      expires_days: expiresInDays ? Number(expiresInDays) : undefined,
     });
 
     if (!result.success) {
@@ -102,7 +103,11 @@ export function CreateInvitationDialog() {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              role="alert"
+              aria-live="assertive"
+            >
               {error}
             </div>
           )}
@@ -114,7 +119,9 @@ export function CreateInvitationDialog() {
               placeholder="trainee@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              maxLength={254}
               disabled={createInvitation.isPending}
+              required
             />
           </div>
           <div className="space-y-2">
@@ -124,8 +131,14 @@ export function CreateInvitationDialog() {
               placeholder="Welcome to my training program!"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              maxLength={500}
               disabled={createInvitation.isPending}
             />
+            {message.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {message.length}/500
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="invite-expires">Expires in (days)</Label>
@@ -134,6 +147,7 @@ export function CreateInvitationDialog() {
               type="number"
               min={1}
               max={30}
+              step={1}
               value={expiresInDays}
               onChange={(e) => setExpiresInDays(e.target.value)}
               disabled={createInvitation.isPending}

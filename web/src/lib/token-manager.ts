@@ -10,20 +10,33 @@ function decodeJwtPayload(token: string): TokenPayload | null {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
+    // Handle base64url encoding (JWT uses - and _ instead of + and /)
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload: unknown = JSON.parse(atob(base64));
+    if (
+      typeof payload !== "object" ||
+      payload === null ||
+      typeof (payload as TokenPayload).exp !== "number"
+    ) {
+      return null;
+    }
     return payload as TokenPayload;
   } catch {
     return null;
   }
 }
 
+function getSecureFlag(): string {
+  return window.location.protocol === "https:" ? ";Secure" : "";
+}
+
 function setCookie(name: string, value: string, days: number): void {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${name}=${value};expires=${expires};path=/;SameSite=Lax`;
+  document.cookie = `${name}=${value};expires=${expires};path=/;SameSite=Lax${getSecureFlag()}`;
 }
 
 function deleteCookie(name: string): void {
-  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Lax`;
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Lax${getSecureFlag()}`;
 }
 
 export function getAccessToken(): string | null {

@@ -21,7 +21,7 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.utils import timezone
-from django.db.models import Count, Q, Avg, QuerySet
+from django.db.models import Case, Count, IntegerField, Q, Avg, Max, QuerySet, When
 
 from trainer.services.invitation_service import send_invitation_email
 from django.http import Http404
@@ -53,6 +53,11 @@ class TrainerDashboardView(views.APIView):
         trainees = User.objects.filter(
             parent_trainer=trainer,
             role=User.Role.TRAINEE
+        ).select_related(
+            'profile'
+        ).prefetch_related(
+            'daily_logs',
+            'programs',
         )
 
         today = timezone.now().date()
@@ -64,15 +69,17 @@ class TrainerDashboardView(views.APIView):
         ).data
 
         # Get trainees needing attention (no activity in 3+ days)
+        # Use a single query with annotation instead of N+1 loop
         three_days_ago = today - timedelta(days=3)
-        inactive_trainee_ids = []
-        for trainee in trainees:
-            latest_activity = trainee.activity_summaries.order_by('-date').first()
-            if not latest_activity or latest_activity.date < three_days_ago:
-                inactive_trainee_ids.append(trainee.id)
+        trainees_with_latest = trainees.annotate(
+            latest_activity_date=Max('activity_summaries__date')
+        ).filter(
+            Q(latest_activity_date__lt=three_days_ago) |
+            Q(latest_activity_date__isnull=True)
+        )[:5]
 
         inactive_trainees = TraineeListSerializer(
-            trainees.filter(id__in=inactive_trainee_ids[:5]),
+            trainees_with_latest,
             many=True
         ).data
 
@@ -135,18 +142,14 @@ class TrainerStatsView(views.APIView):
             subscription = trainer.subscription
             tier = subscription.tier
             max_trainees = subscription.get_max_trainees()
-        except:
+        except Exception:
             tier = 'NONE'
             max_trainees = 0
 
-        # Pending onboarding
-        pending_onboarding = 0
-        for trainee in trainees:
-            try:
-                if not trainee.profile.onboarding_completed:
-                    pending_onboarding += 1
-            except:
-                pending_onboarding += 1
+        # Pending onboarding — single query instead of N+1 loop
+        pending_onboarding = trainees.filter(
+            Q(profile__isnull=True) | Q(profile__onboarding_completed=False)
+        ).count()
 
         stats = {
             'total_trainees': total_trainees,
@@ -177,6 +180,11 @@ class TraineeListView(generics.ListAPIView[User]):
         return User.objects.filter(
             parent_trainer=user,
             role=User.Role.TRAINEE
+        ).select_related(
+            'profile'
+        ).prefetch_related(
+            'daily_logs',
+            'programs',
         ).order_by('-created_at')
 
 
@@ -192,6 +200,12 @@ class TraineeDetailView(generics.RetrieveAPIView[User]):
         return User.objects.filter(
             parent_trainer=user,
             role=User.Role.TRAINEE
+        ).select_related(
+            'profile',
+            'nutrition_goal',
+        ).prefetch_related(
+            'programs',
+            'activity_summaries',
         )
 
 
@@ -205,7 +219,10 @@ class TraineeActivityView(generics.ListAPIView[TraineeActivitySummary]):
 
     def get_queryset(self) -> QuerySet[TraineeActivitySummary]:
         trainee_id = self.kwargs['pk']
-        days = int(self.request.query_params.get('days', 30))
+        try:
+            days = min(max(int(self.request.query_params.get('days', 30)), 1), 365)
+        except (ValueError, TypeError):
+            days = 30
         user = cast(User, self.request.user)
 
         # Verify trainer owns this trainee
@@ -814,7 +831,10 @@ class AdherenceAnalyticsView(views.APIView):
 
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
-        days = int(request.query_params.get('days', 30))
+        try:
+            days = min(max(int(request.query_params.get('days', 30)), 1), 365)
+        except (ValueError, TypeError):
+            days = 30
         start_date = timezone.now().date() - timedelta(days=days)
 
         trainees = User.objects.filter(
@@ -834,25 +854,29 @@ class AdherenceAnalyticsView(views.APIView):
         workout_logged_days = summaries.filter(logged_workout=True).count()
         protein_hit_days = summaries.filter(hit_protein_goal=True).count()
 
-        # Per-trainee adherence
+        # Per-trainee adherence — single annotated query instead of N+1
+        adherence_qs = summaries.values(
+            'trainee__id', 'trainee__email',
+            'trainee__first_name', 'trainee__last_name',
+        ).annotate(
+            days_tracked=Count('id'),
+            days_adhered=Count(
+                Case(
+                    When(Q(logged_food=True) | Q(logged_workout=True), then=1),
+                    output_field=IntegerField(),
+                ),
+            ),
+        )
+
         trainee_adherence = []
-        for trainee in trainees:
-            trainee_summaries = summaries.filter(trainee=trainee)
-            trainee_total = trainee_summaries.count()
-
-            if trainee_total > 0:
-                adherence_rate = trainee_summaries.filter(
-                    Q(logged_food=True) | Q(logged_workout=True)
-                ).count() / trainee_total * 100
-            else:
-                adherence_rate = 0
-
+        for row in adherence_qs:
+            rate = (row['days_adhered'] / row['days_tracked'] * 100) if row['days_tracked'] > 0 else 0
             trainee_adherence.append({
-                'trainee_id': trainee.id,
-                'trainee_email': trainee.email,
-                'trainee_name': f"{trainee.first_name} {trainee.last_name}".strip(),
-                'adherence_rate': round(adherence_rate, 1),
-                'days_tracked': trainee_total
+                'trainee_id': row['trainee__id'],
+                'trainee_email': row['trainee__email'],
+                'trainee_name': f"{row['trainee__first_name']} {row['trainee__last_name']}".strip(),
+                'adherence_rate': round(rate, 1),
+                'days_tracked': row['days_tracked'],
             })
 
         return Response({
@@ -877,14 +901,18 @@ class ProgressAnalyticsView(views.APIView):
             parent_trainer=user,
             role=User.Role.TRAINEE,
             is_active=True
+        ).select_related(
+            'profile'
+        ).prefetch_related(
+            'weight_checkins'
         )
 
         progress_data = []
         for trainee in trainees:
-            # Get weight change
-            checkins = trainee.weight_checkins.order_by('date')
-            first_weight = checkins.first()
-            last_weight = checkins.last()
+            # Get weight change using prefetched data
+            checkins = sorted(trainee.weight_checkins.all(), key=lambda w: w.date)
+            first_weight = checkins[0] if checkins else None
+            last_weight = checkins[-1] if checkins else None
 
             weight_change = None
             if first_weight and last_weight and first_weight.id != last_weight.id:
@@ -893,7 +921,7 @@ class ProgressAnalyticsView(views.APIView):
             # Get goal (if profile exists)
             try:
                 goal = trainee.profile.goal
-            except:
+            except User.profile.RelatedObjectDoesNotExist:  # type: ignore[union-attr]
                 goal = None
 
             progress_data.append({

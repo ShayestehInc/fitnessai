@@ -31,6 +31,7 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSubmitting) return;
     setError(null);
 
     const result = loginSchema.safeParse({ email, password });
@@ -54,7 +55,7 @@ export default function LoginPage() {
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
         <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-          <Dumbbell className="h-6 w-6 text-primary-foreground" />
+          <Dumbbell className="h-6 w-6 text-primary-foreground" aria-hidden="true" />
         </div>
         <CardTitle className="text-2xl">FitnessAI</CardTitle>
         <CardDescription>
@@ -64,7 +65,11 @@ export default function LoginPage() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              role="alert"
+              aria-live="assertive"
+            >
               {error}
             </div>
           )}
@@ -77,6 +82,8 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
+              maxLength={254}
+              required
               disabled={isSubmitting}
             />
           </div>
@@ -88,13 +95,15 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
+              maxLength={128}
+              required
               disabled={isSubmitting}
             />
           </div>
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                 Signing in...
               </>
             ) : (

@@ -75,4 +75,5 @@ export interface TraineeDetail {
 export interface DashboardOverview {
   recent_trainees: TraineeListItem[];
   inactive_trainees: TraineeListItem[];
+  today: string;
 }

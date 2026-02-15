@@ -26,6 +26,6 @@ export interface Invitation {
 export interface CreateInvitationPayload {
   email: string;
   message?: string;
-  program_template?: number | null;
-  expires_in_days?: number;
+  program_template_id?: number | null;
+  expires_days?: number;
 }

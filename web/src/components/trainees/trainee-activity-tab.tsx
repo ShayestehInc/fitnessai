@@ -45,13 +45,15 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
             <CardTitle>Activity Log</CardTitle>
             <CardDescription>Daily tracking overview</CardDescription>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1" role="group" aria-label="Time range filter">
             {DAY_OPTIONS.map((d) => (
               <Button
                 key={d}
                 variant={days === d ? "default" : "outline"}
                 size="sm"
                 onClick={() => setDays(d)}
+                aria-label={`Show last ${d} days`}
+                aria-pressed={days === d}
               >
                 {d}d
               </Button>
@@ -115,10 +117,12 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
                         <GoalBadge
                           hit={row.hit_protein_goal}
                           label="P"
+                          srLabel={row.hit_protein_goal ? "Protein goal met" : "Protein goal not met"}
                         />
                         <GoalBadge
                           hit={row.hit_calorie_goal}
                           label="C"
+                          srLabel={row.hit_calorie_goal ? "Calorie goal met" : "Calorie goal not met"}
                         />
                       </div>
                     </TableCell>
@@ -133,7 +137,15 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
   );
 }
 
-function GoalBadge({ hit, label }: { hit: boolean; label: string }) {
+function GoalBadge({
+  hit,
+  label,
+  srLabel,
+}: {
+  hit: boolean;
+  label: string;
+  srLabel?: string;
+}) {
   return (
     <Badge
       variant="outline"
@@ -143,6 +155,7 @@ function GoalBadge({ hit, label }: { hit: boolean; label: string }) {
           ? "border-green-500/50 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-400"
           : "border-muted text-muted-foreground",
       )}
+      aria-label={srLabel}
     >
       {hit ? label : "—"}
     </Badge>

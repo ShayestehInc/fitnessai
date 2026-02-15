@@ -1,134 +1,98 @@
-# Ship Decision: Pipeline 8 — Trainee Workout History + Home Screen Recent Workouts
+# Ship Decision: Pipeline 9 — Web Trainer Dashboard (Next.js Foundation)
 
 ## Verdict: SHIP
 ## Confidence: HIGH
-## Quality Score: 9/10
-## Summary: Full workout history feature shipped — backend paginated endpoint with computed summaries, workout history screen with infinite scroll, workout detail screen with exercises/sets/surveys, home screen recent workouts integration. All 22 acceptance criteria pass. 48 backend tests added. All audits pass (UX 8/10, Security 9.5/10, Architecture 9/10, Hacker 7/10).
+## Quality Score: 8/10
+## Summary: Complete Next.js web dashboard for trainers shipped — JWT auth with refresh mutex, dashboard with 4 stats cards + recent/inactive trainees, trainee list with search/pagination/detail with 3 tabs, notification system with 30s polling + server-side filtering, invitation management with form validation, responsive layout with mobile sidebar drawer, dark mode via CSS variables, Docker multi-stage build. 100+ frontend files, 6 backend N+1 fixes, 18 accessibility fixes, 20 hacker-found issues fixed. All audits pass.
 
 ---
 
 ## Test Suite Results
-- **Backend:** 232/234 tests pass (2 pre-existing `mcp_server` import errors — unrelated to this feature)
-- **Flutter analyze:** 0 new errors/warnings. 223 total issues all pre-existing.
+- **Backend:** 232/234 tests pass (2 pre-existing `mcp_server` import errors — unrelated to this feature, existed before Pipeline 9)
+- **Web build:** Compiled successfully (0 errors, all 9 routes compile)
+- **Web lint:** 0 errors, 0 warnings
 - **No regressions** in existing tests
-- **48 new backend tests** added by QA engineer covering filtering, serialization, pagination, security, detail, and edge cases
 
-## Acceptance Criteria Verification (22/22 PASS)
+## All Report Summaries
 
-### Backend (AC-1 through AC-4)
+| Report | Score | Verdict | Key Finding |
+|--------|-------|---------|------------|
+| Code Review (Round 1) | 6/10 | REQUEST CHANGES | 6 critical + 11 major issues — all fixed in Round 1 Fix |
+| Code Review (Round 2) | 8/10 | APPROVE | 17/17 Round 1 issues verified fixed. 2 new major (AbortController, hasNextPage) — both fixed post-QA |
+| QA Report | HIGH confidence | 34/35 AC pass, 1 minor fail | AC-12 row click fixed by UX audit. 2 minor bugs fixed by Hacker. |
+| UX Audit | 8/10 | PASS | 8 usability + 16 accessibility issues — all 24 fixed |
+| Security Audit | 9/10 | PASS | 0 Critical, 0 High, 2 Medium (both fixed: security headers, cookie Secure flag) |
+| Architecture Review | 8/10 | APPROVE | 10 issues including 6 N+1 patterns — all fixed |
+| Hacker Report | 6/10 | — | 3 dead UI, 9 visual bugs, 12 logic bugs — 20 items fixed |
 
-| AC | Status | Evidence |
-|----|--------|----------|
-| AC-1 | PASS | `DailyLogService.get_workout_history_queryset()` excludes null, empty dict, empty exercises list. Uses `Q` objects for `has_key` and combined exclude for sessions-only records. |
-| AC-2 | PASS | `WorkoutHistorySummarySerializer` has `workout_name`, `exercise_count`, `total_sets`, `total_volume_lbs`, `duration_display` as `SerializerMethodField` |
-| AC-3 | PASS | `WorkoutHistoryPagination` with `page_size=20`, `page_size_query_param='page_size'`, `max_page_size=50` |
-| AC-4 | PASS | `permission_classes=[IsTrainee]` on both endpoints. `get_queryset()` filters by `trainee=user`. IDOR returns 404 (not 403). |
+## Cross-Stage Fix Verification
 
-### Workout History Screen (AC-5 through AC-10)
+Issues found by one stage and fixed by later stages:
 
-| AC | Status | Evidence |
-|----|--------|----------|
-| AC-5 | PASS | `/workout-history` route in `app_router.dart` navigates to `WorkoutHistoryScreen` |
-| AC-6 | PASS | `WorkoutHistoryNotifier.loadInitial()` fetches page 1. Backend orders by `-date`. |
-| AC-7 | PASS | `WorkoutHistoryCard` + `StatChip` widgets show date, name, exercises, sets, duration |
-| AC-8 | PASS | `RefreshIndicator` calls `refresh()` which resets state and calls `loadInitial()` |
-| AC-9 | PASS | `ScrollController` listener triggers `loadMore()` at 200px from bottom |
-| AC-10 | PASS | `context.push('/workout-detail', extra: workout)` on card tap |
-
-### Workout Detail Screen (AC-11 through AC-15)
-
-| AC | Status | Evidence |
-|----|--------|----------|
-| AC-11 | PASS | `/workout-detail` route with redirect guard for invalid/missing extra |
-| AC-12 | PASS | `_buildHeader()` shows workout name, date, duration, exercises, sets, volume |
-| AC-13 | PASS | `ExerciseCard` lists exercises with sets table (set#, reps, weight, unit, completed icon) |
-| AC-14 | PASS | Pre-Workout survey section with sleep, mood, energy, stress, soreness badges |
-| AC-15 | PASS | Post-Workout survey section with performance, intensity, energy_after, satisfaction badges + notes |
-
-### Home Screen Integration (AC-16 through AC-19)
-
-| AC | Status | Evidence |
-|----|--------|----------|
-| AC-16 | PASS | "Recent Workouts" section in `_buildTraineeContent()` after current program |
-| AC-17 | PASS | `getRecentWorkouts(limit: 3)` shows last 3 as compact `_RecentWorkoutCard` |
-| AC-18 | PASS | `context.push('/workout-detail', extra: workout)` on card tap |
-| AC-19 | PASS | "See All" button (InkWell + Semantics) navigates to `/workout-history` |
-
-### Empty & Error States (AC-20 through AC-22)
-
-| AC | Status | Evidence |
-|----|--------|----------|
-| AC-20 | PASS | "No workouts yet. Complete your first workout to see it here." text when empty |
-| AC-21 | PASS | Red-tinted error container with retry button on all 3 screens (home, history, detail) |
-| AC-22 | PASS | `WorkoutDetailData.fromWorkoutData()` gracefully handles missing/malformed data, "No exercise data recorded" card |
-
-## Review Issues — All Fixed
-
-### Round 1 (3 Critical, 5 Major — score 5/10):
-- **C1+C2 FIXED:** Unbounded Python-level scan → DB-level filtering with `.defer('nutrition_data')`
-- **C3 FIXED:** Unsafe router cast → redirect guard
-- **M1 FIXED:** Refresh race condition → reset state without isLoading
-- **M2 FIXED:** Dead ternary → simplified
-- **M3-M5:** Minor improvements
-
-### Round 2 (2 Critical, 5 Major — score 7/10):
-- **C1 FIXED:** Unused `JSONObject` import → removed
-- **C2 FIXED:** Redundant IDOR check → removed (relies on get_queryset)
-- **M1 FIXED:** Home error vs empty confusion → `recentWorkoutsError` field
-- **M2 FIXED:** Filter edge case → `.exclude(Q(...) & Q(...))`
-- **M3 FIXED:** 150-line violation → widget extraction files
-- **M4 FIXED:** "See All" label regression → `actionLabel` parameter
-- **M5 FIXED:** Data over-exposure → `WorkoutDetailSerializer`
-
-### Round 3: APPROVED (score 8/10, no critical/major issues)
-
-## QA Report
-- 48 new tests across 6 test classes
-- All 22 ACs verified as PASS
-- 1 bug found (BUG-QA-1: sessions-only records excluded due to PostgreSQL NULL semantics) — FIXED
-- Confidence: HIGH
-
-## Audit Results
-
-| Audit | Score | Issues Found | Fixed |
-|-------|-------|-------------|-------|
-| UX | 8/10 | 9 usability + 7 accessibility issues | All fixed (shimmer, error states, InkWell, Semantics, Wrap, pagination retry) |
-| Security | 9.5/10 | 0 Critical/High, 2 Minor | No fixes needed. Restricted serializers, row-level security, IDOR prevention verified. |
-| Architecture | 9/10 | 2 issues | Both fixed (queryset logic → service layer, JSON extraction → data class) |
-| Hacker | 7/10 | 4 dead UI (pre-existing), 2 visual bugs, 1 fragility | 4 items fixed (overflow, accessibility, volume display, pagination retry) |
+| Issue | Found By | Fixed By | Verified |
+|-------|----------|----------|----------|
+| AC-12: Trainee row not fully clickable | QA | UX Audit (DataTable onRowClick + trainee-table.tsx) | YES — `onRowClick={(row) => router.push(`/trainees/${row.id}`)}` |
+| M1-R2: AbortController inert (auth timeout) | Review R2 | Hacker stage | YES — `Promise.race` with 10-second timeout in auth-provider.tsx:79-90 |
+| M2-R2: hasNextPage wrong before data loads | Review R2 | Hacker stage | YES — `Boolean(data?.next)` in notifications/page.tsx:32 |
+| m1-R2: Notification unread filter client-side only | Review R2 | Hacker stage | YES — `useNotifications(page, filter)` passes `is_read=false` to backend |
+| m2-R2: max_trainees -1 displayed literally | Review R2 | Hacker stage | YES — `stats.max_trainees === -1 ? "Unlimited" : stats.max_trainees` |
+| QA Bug #1: Notification "mark all read" only checks current page | QA (noted) | Hacker Fix #3 | YES — uses `useUnreadCount()` hook for global count |
+| QA Bug #2: Notification filtering is client-side | QA | Hacker stage | YES — server-side `?is_read=false` param |
 
 ## Security Checklist
-- [x] No secrets in source code
-- [x] Both endpoints require `IsTrainee` (authenticated + trainee role)
-- [x] Row-level security via queryset filter `trainee=user`
-- [x] IDOR attempts return 404 (not 403) to prevent enumeration
-- [x] `WorkoutHistorySummarySerializer` excludes trainee, email, nutrition_data
-- [x] `WorkoutDetailSerializer` exposes only id, date, workout_data, notes
-- [x] `.defer('nutrition_data')` defense-in-depth
-- [x] `max_page_size=50` prevents resource exhaustion
-- [x] Generic error messages — no internal leaks
-- [x] 30 security-relevant tests verify auth, authz, IDOR, data leakage
+- [x] No secrets in source code (full grep scan — `.env.local` gitignored, `.env.example` has only placeholder URL)
+- [x] All endpoints require JWT Bearer token via `getAuthHeaders()`
+- [x] Role gating: non-TRAINER users rejected and tokens cleared immediately
+- [x] Three-layer auth: middleware + layout guard + auth provider
+- [x] No XSS vectors (zero `dangerouslySetInnerHTML`, `eval`, `innerHTML` usage)
+- [x] No IDOR (backend enforces row-level security via `parent_trainer` queryset filter)
+- [x] Security response headers added (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
+- [x] Cookie Secure flag applied consistently on both set and delete
+- [x] Generic error messages — no internal details exposed
+- [x] Backend rate limiting in place (30/min anon, 120/min authenticated)
+- [x] Docker runs as non-root user (nextjs, uid 1001)
+- [x] Input validation via Zod on all forms
+- [x] Input bounds: maxLength on email (254), password (128), message (500)
 
 ## What Was Built
 
-### Backend
-- **`workouts/views.py`**: `workout_history` action (GET, paginated list of workout summaries) and `workout_detail` action (GET, single log detail with restricted fields)
-- **`workouts/serializers.py`**: `WorkoutHistorySummarySerializer` with computed fields from JSON blob, `WorkoutDetailSerializer` with restricted fields
-- **`workouts/services/daily_log_service.py`**: `get_workout_history_queryset()` — centralized queryset with JSON filtering and `.defer()`
-- **`workouts/tests/test_workout_history.py`**: 48 tests across 6 classes covering filtering, serialization, pagination, security, detail, and edge cases
+### Frontend (web/ — ~100 files)
+- **Auth system**: JWT login, auto-refresh with mutex, session cookie for middleware, role gating, 10-second timeout
+- **Dashboard**: 4 stats cards, recent trainees table, inactive trainees alert list, skeleton loading
+- **Trainee management**: Searchable paginated list with full-row click, detail page with Overview/Activity/Progress tabs
+- **Notification system**: Bell with unread badge (30s polling), popover with last 5, full page with server-side filtering, mark as read/all
+- **Invitation management**: Table with status badges, create dialog with Zod validation + character counter
+- **Layout**: Fixed sidebar (256px), mobile sheet drawer, header with hamburger/bell/avatar dropdown, skip-to-content link
+- **Dark mode**: Full support via CSS variables and next-themes (system preference default)
+- **Shared components**: DataTable, EmptyState, ErrorState, LoadingSpinner, PageHeader — used consistently everywhere
+- **Docker**: Multi-stage node:20-alpine build with standalone output
+- **Accessibility**: 16 WCAG fixes across 15+ files (ARIA roles, labels, keyboard nav, screen reader text)
 
-### Mobile
-- **`workout_history_screen.dart`**: Paginated list with shimmer loading, pull-to-refresh, infinite scroll, empty/error states
-- **`workout_history_widgets.dart`**: `WorkoutHistoryCard` with Semantics, `StatChip` with ExcludeSemantics, responsive `Wrap` layout
-- **`workout_detail_screen.dart`**: Detail view with real-header shimmer loading, exercises/sets table, readiness/post surveys, error retry
-- **`workout_detail_widgets.dart`**: `ExerciseCard`, `SurveyBadge`, `HeaderStat`, `SurveyField` — all with accessibility labels
-- **`workout_history_model.dart`**: `WorkoutHistorySummary` model with formatted getters, `WorkoutDetailData` class for JSON extraction
-- **`workout_history_provider.dart`**: `WorkoutHistoryNotifier` with pagination state, error handling, pull-to-refresh
-- **Home screen integration**: Recent workouts section with 3-card shimmer, styled error with retry, empty state, "See All" navigation
-- **Router**: `/workout-history` and `/workout-detail` routes with redirect guard
+### Backend fixes (during Architecture audit)
+- **6 N+1 query patterns eliminated** in TraineeListView, TraineeDetailView, TrainerDashboardView, TrainerStatsView, AdherenceAnalyticsView, ProgressAnalyticsView
+- **4 bare `except:` clauses** replaced with specific `RelatedObjectDoesNotExist` catches
+- **Unbounded `days` parameter** clamped to 1-365
+- **SearchFilter** added to TraineeListView
+- **TypeScript/API contract alignment**: `DashboardOverview.today` field added
+
+### Infrastructure
+- `docker-compose.yml` updated with web service on port 3000
+- Security headers in `next.config.ts`
 
 ## Remaining Concerns (Non-Blocking)
-1. Pre-existing dead video UI on home screen (4 dead elements — notification bell, video cards, like buttons, hardcoded data)
-2. `WorkoutRepository` returns `Map<String, dynamic>` — violates project data type rules but matches pre-existing pattern
-3. `workout_detail_screen.dart` at 452 lines exceeds 150-line convention but orchestrates multiple states
-4. `_extractExercises` doesn't handle sessions fallback (unlike survey extractors) — backend always provides `exercises` key currently
+
+1. **Settings page placeholder** — Shows "Coming soon" EmptyState. Prominently linked from sidebar and user dropdown. Should be implemented in a future pipeline (profile editing, theme toggle, notification preferences).
+2. **Progress tab placeholder** — Shows "Coming soon" EmptyState. `trainee.recent_activity` data is already fetched but not displayed. Future pipeline should wire up basic charts.
+3. **Notification click-through** — Clicking a notification only marks as read; no navigation to relevant trainee/resource. Needs backend to consistently include `trainee_id` in notification data.
+4. **Pagination UI inconsistency** — DataTable has integrated pagination ("Page X of Y (N total)") while manual pagination shows only "Page N". Minor visual difference.
+5. **`except Exception:` in TrainerStatsView** — Improved from bare `except:` but could be more specific for subscription access.
+6. **Root page dead code** — `app/page.tsx` redirect never executes because middleware handles `/` first.
+7. **Duplicate Radix meta-package** — Both `radix-ui` and individual `@radix-ui/*` packages in package.json.
+
+None of these are user-facing failures or security risks. All are documented for future work.
+
+---
+
+**Verified by:** Final Verifier Agent
+**Date:** 2026-02-15
+**Pipeline:** 9 — Web Trainer Dashboard (Next.js Foundation)

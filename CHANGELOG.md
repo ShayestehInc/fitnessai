@@ -4,6 +4,60 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-15] — Web Trainer Dashboard (Next.js Foundation)
+
+### Added
+- **Web Trainer Dashboard** — Complete Next.js 15 + React 19 web application for trainers at `http://localhost:3000`. ~100 frontend files using shadcn/ui component library, TanStack React Query for data fetching, and Zod v4 for form validation.
+- **JWT Auth System** — Login with email/password, automatic token refresh with mutex (prevents thundering herd), session cookie for Next.js middleware route protection, TRAINER role gating (non-trainer users rejected immediately), 10-second auth timeout via `Promise.race`.
+- **Dashboard Page** — 4 stats cards (Total Trainees, Active Today, On Track, Pending Onboarding) in responsive grid, recent trainees table (last 10), inactive trainees alert list. Skeleton loading, error with retry, empty state with "Send Invitation" CTA.
+- **Trainee Management** — Searchable paginated list with 300ms debounce, full-row click navigation, DataTable with integrated pagination ("Page X of Y (N total)"). Detail page with 3 tabs: Overview (profile, nutrition goals, programs), Activity (7/14/30 day filter with goal badges), Progress (placeholder).
+- **Notification System** — Bell icon with unread badge (30s polling, "99+" cap), popover showing last 5 with "View all" link, full page with server-side "All"/"Unread" filtering via `?is_read=false`, mark individual as read, mark all as read with success/error toasts, pagination.
+- **Invitation Management** — Table with color-coded status badges (Pending=amber, Accepted=green, Expired=muted, Cancelled=red), smart expired-pending detection. Create dialog with Zod validation: email, optional message (500 char limit with counter), expires days (1-30, integer step).
+- **Responsive Layout** — Fixed 256px sidebar on desktop (`lg+`), Sheet drawer on mobile, header with hamburger/bell/avatar dropdown. Skip-to-content link for keyboard users.
+- **Dark Mode** — Full support via CSS variables and next-themes with system preference default. All components use theme-aware color tokens.
+- **Docker Integration** — Multi-stage `node:20-alpine` Dockerfile with non-root `nextjs` user (uid 1001), standalone output. Added `web` service to `docker-compose.yml` on port 3000.
+- **Security Headers** — `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`. Removed `X-Powered-By` header.
+- **Shared Components** — `DataTable<T>` (generic paginated table with row click + keyboard nav), `EmptyState` (icon + title + CTA), `ErrorState` (alert with retry), `LoadingSpinner` (configurable aria-label), `PageHeader` (title + description + actions).
+- **Accessibility** — 16 WCAG fixes: `role="status"` on loading/empty states, `role="alert"` on error states, `aria-hidden="true"` on all decorative icons (10+ files), `aria-current="page"` on active nav links, `aria-label` on pagination/notification/user-menu buttons, skip-to-content link, keyboard-accessible table rows (tabIndex, Enter/Space, focus ring), `aria-label="Main navigation"` on sidebars.
+- **Input Protection** — `maxLength` on all inputs (email 254, password 128, message 500), `step={1}` on integer fields, `required` attributes, double-submit prevention (`isSubmitting` / `isPending` guards).
+- **`SearchFilter`** added to `TraineeListView` backend — enables `?search=` query parameter for trainee search by email, first_name, last_name.
+
+### Changed (Backend Performance)
+- **6 N+1 query patterns eliminated:**
+  - `TraineeListView.get_queryset()` — Added `.select_related('profile').prefetch_related('daily_logs', 'programs')`
+  - `TraineeDetailView.get_queryset()` — Added `.select_related('profile', 'nutrition_goal').prefetch_related('programs', 'activity_summaries')`
+  - `TrainerDashboardView.get()` — Replaced Python loop for inactive trainees with `Max` annotation query, added prefetching
+  - `TrainerStatsView.get()` — Replaced Python loop for pending_onboarding with single `.filter().count()` query
+  - `AdherenceAnalyticsView.get()` — Replaced per-trainee N+1 loop with `.values().annotate(Case/When)` aggregation
+  - `ProgressAnalyticsView.get()` — Added `.select_related('profile').prefetch_related('weight_checkins')`
+- **4 bare `except:` clauses** replaced with specific `RelatedObjectDoesNotExist` exceptions in serializers
+- **Serializer prefetch optimization** — `get_last_activity()` and `get_current_program()` iterate prefetched data in Python instead of issuing new queries
+- **Query param bounds** — `days` parameter clamped to 1-365 with try/except fallback
+- **TypeScript/API alignment** — `DashboardOverview.today` field added to match backend response
+
+### Security
+- No secrets in source code (full grep scan, `.env.local` gitignored)
+- Three-layer auth: Next.js middleware + dashboard layout guard + AuthProvider role validation
+- No XSS vectors (zero `dangerouslySetInnerHTML`, `eval`, `innerHTML` usage — React auto-escaping)
+- No IDOR (backend row-level security via `parent_trainer` queryset filter on all endpoints)
+- JWT in localStorage with refresh mutex (accepted SPA tradeoff, no XSS vectors to exploit)
+- Cookie `Secure` flag applied consistently on both set and delete operations
+- Generic error messages — no stack traces, SQL errors, or internal paths exposed
+- Backend rate limiting: 30/min anonymous, 120/min authenticated
+- Docker non-root user (nextjs, uid 1001)
+- CORS: development allows all origins; production restricts to env-configured whitelist
+
+### Quality
+- Code review: 8/10 — APPROVE (Round 2, all 17 Round 1 issues verified fixed, 2 new major fixed post-QA)
+- QA: 34/35 ACs pass initially (AC-12 fixed by UX audit), 7/7 edge cases pass — HIGH confidence
+- UX audit: 8/10 — 8 usability + 16 accessibility issues fixed across 15+ files
+- Security audit: 9/10 — PASS (0 Critical, 0 High, 2 Medium both fixed)
+- Architecture review: 8/10 — APPROVE (10 issues including 6 N+1 patterns, all fixed)
+- Hacker report: 6/10 — 3 dead UI, 9 visual bugs, 12 logic bugs found; 20 items fixed
+- Overall quality: 8/10 — SHIP
+
+---
+
 ## [2026-02-14] — Trainee Workout History + Home Screen Recent Workouts
 
 ### Added

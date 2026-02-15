@@ -20,13 +20,12 @@ export default function TraineeDetailPage({
 }) {
   const { id } = use(params);
   const traineeId = parseInt(id, 10);
-  const { data: trainee, isLoading, isError, refetch } = useTrainee(traineeId);
+  const isValidId = !isNaN(traineeId) && traineeId > 0;
+  const { data: trainee, isLoading, isError, refetch } = useTrainee(
+    isValidId ? traineeId : 0,
+  );
 
-  if (isLoading) {
-    return <TraineeDetailSkeleton />;
-  }
-
-  if (isError || !trainee) {
+  if (!isValidId || isError || (!isLoading && !trainee)) {
     return (
       <div className="space-y-6">
         <Button variant="ghost" size="sm" asChild>
@@ -36,11 +35,15 @@ export default function TraineeDetailPage({
           </Link>
         </Button>
         <ErrorState
-          message="Trainee not found or failed to load"
-          onRetry={() => refetch()}
+          message={!isValidId ? "Invalid trainee ID" : "Trainee not found or failed to load"}
+          onRetry={isValidId ? () => refetch() : undefined}
         />
       </div>
     );
+  }
+
+  if (isLoading || !trainee) {
+    return <TraineeDetailSkeleton />;
   }
 
   const displayName =
@@ -57,16 +60,16 @@ export default function TraineeDetailPage({
             </Link>
           </Button>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
               <User className="h-5 w-5 text-muted-foreground" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-bold tracking-tight" title={displayName}>
                 {displayName}
               </h1>
-              <p className="text-sm text-muted-foreground">{trainee.email}</p>
+              <p className="truncate text-sm text-muted-foreground">{trainee.email}</p>
             </div>
-            <Badge variant={trainee.is_active ? "default" : "secondary"}>
+            <Badge variant={trainee.is_active ? "default" : "secondary"} className="shrink-0">
               {trainee.is_active ? "Active" : "Inactive"}
             </Badge>
           </div>

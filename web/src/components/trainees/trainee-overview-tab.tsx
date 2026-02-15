@@ -128,10 +128,10 @@ export function TraineeOverviewTab({ trainee }: TraineeOverviewTabProps) {
                 {programs.map((p) => (
                   <div
                     key={p.id}
-                    className="flex items-center justify-between rounded-md border p-3"
+                    className="flex items-center justify-between gap-2 rounded-md border p-3"
                   >
-                    <div>
-                      <p className="text-sm font-medium">{p.name}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium" title={p.name}>{p.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(p.start_date), "MMM d, yyyy")}
                         {p.end_date &&
@@ -154,9 +154,9 @@ export function TraineeOverviewTab({ trainee }: TraineeOverviewTabProps) {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium capitalize">{value}</span>
+    <div className="flex justify-between gap-2 text-sm">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="truncate font-medium capitalize" title={value}>{value}</span>
     </div>
   );
 }
@@ -184,6 +184,7 @@ function MacroCard({
   );
 }
 
-function formatLabel(value: string): string {
+function formatLabel(value: string | null | undefined): string {
+  if (!value) return "Not set";
   return value.replace(/_/g, " ");
 }

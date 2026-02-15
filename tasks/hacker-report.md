@@ -1,85 +1,137 @@
-# Hacker Report: Pipeline 8 - Trainee Workout History + Home Screen Recent Workouts
+# Hacker Report: Pipeline 9 - Web Trainer Dashboard (Next.js 15 Foundation)
 
 ## Dead Buttons & Non-Functional UI
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| 1 | HIGH | Home > Latest Videos > `_VideoCard` | Play button overlay | Tapping the play button or video thumbnail navigates to a video player / opens video URL | Nothing happens. Entire card has no `onTap`, `GestureDetector`, or `InkWell`. The play button circle looks tappable but is purely decorative dead UI. |
-| 2 | MEDIUM | Home > Latest Videos > `_VideoCard` | Heart / like icon | Tapping toggles like state and calls an API | No tap handler on the `Icon` widget. `isLiked` and `likes` are display-only from hardcoded data. No like API exists. |
-| 3 | MEDIUM | Home > Header | Notification bell `IconButton` | Opens a notification feed or navigates to notifications screen | Shows a placeholder `AlertDialog` with "Notifications are coming soon!" text. Misleading -- button looks fully functional but is a stub. No trainee notification API exists on the backend. |
-| 4 | LOW | Home > Latest Videos | Video data | Real video data from API | `_getSampleVideos()` returns 3 hardcoded `VideoItem` objects with Unsplash placeholder URLs. No video API exists on the backend. |
+| 1 | HIGH | Settings Page (`/settings`) | Entire page | Profile settings, theme preferences, notification settings — the page header says "Manage your account" | Shows only a "Coming soon" EmptyState. The Settings nav link exists in sidebar, user dropdown links to it, but the page is 100% dead. No form, no toggles, no functionality at all. User navigates here expecting to do something and finds nothing actionable. |
+| 2 | MEDIUM | Trainee Detail > Progress Tab | Entire tab | Weight, volume, and adherence trend charts | Shows "Coming soon" EmptyState with BarChart3 icon. Tab is visible and clickable but delivers zero value. No data visualization, no chart, no analytics. The `trainee.recent_activity` data is fetched by the detail query but never used by this tab. |
+| 3 | LOW | Notification Item (both popover and page) | Click handler on read notifications | Clicking a read notification should navigate to the relevant trainee or resource | Clicking a read notification does nothing — the `onClick` handler only fires `markAsRead` when `!n.is_read`, and there is no navigation logic for any notification regardless of read state. Notifications with `data.trainee_id` should navigate to `/trainees/{id}`. |
 
 ## Visual Misalignments & Layout Bugs
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | HIGH | `WorkoutHistoryCard` stats row (`workout_history_widgets.dart`) | Three `StatChip` widgets in a `Row` overflow on narrow screens (e.g., iPhone SE at 320dp). `Row` has no wrapping -- causes RenderFlex overflow error in debug mode and clipped text in release. | **FIXED**: Changed `Row` to `Wrap` with `spacing: 16, runSpacing: 8` so chips flow to next line on narrow devices. |
-| 2 | LOW | `WorkoutDetailScreen` header (`workout_detail_screen.dart`) | Right column with 3+ `HeaderStat` entries can get tight when exercise count is high (e.g., "12 exercises") or duration is long. Not a crash but text could clip near edge. | Mitigated by existing `Row` + `Expanded` on left column. Low priority. |
+| 1 | HIGH | Trainee Table / Columns (`trainee-columns.tsx`) | Long trainee names (e.g., "Bartholomew Fitzgeraldsworth-Worthington III") or very long emails overflow without truncation, breaking the table layout on smaller screens. | **FIXED**: Added `max-w-[200px]`, `truncate`, `block` classes and `title` attribute for hover tooltip. |
+| 2 | HIGH | Invitation Table / Columns (`invitation-columns.tsx`) | Long email addresses in the Email column have no max-width or truncation, pushing other columns off-screen on narrow viewports. | **FIXED**: Added `max-w-[200px]`, `truncate`, `block` and `title` attribute. |
+| 3 | MEDIUM | Recent Trainees card (`recent-trainees.tsx`) | Trainee names that are both first_name and last_name empty render as a single space character — looks like a broken link. | **FIXED**: Added `trim() \|\| t.email` fallback so empty names fall back to email display. |
+| 4 | MEDIUM | Inactive Trainees card (`inactive-trainees.tsx`) | Same empty-name issue as above. Also, long names/emails overflow without truncation in the flex row. | **FIXED**: Added `trim() \|\| t.email` fallback, `min-w-0` on container, `truncate` on name and email. |
+| 5 | MEDIUM | Trainee Detail header (`/trainees/[id]`) | Very long display names overflow the header, pushing the Active/Inactive badge off-screen or causing horizontal scroll. | **FIXED**: Added `min-w-0` on text container, `truncate` + `title` on h1, `shrink-0` on avatar and badge. |
+| 6 | MEDIUM | User Nav dropdown (`user-nav.tsx`) | Long trainer names or emails in the dropdown menu overflow the 14rem (w-56) container without truncation. | **FIXED**: Added `truncate` to both displayName and email paragraphs. |
+| 7 | LOW | Trainee Overview > InfoRow (`trainee-overview-tab.tsx`) | Labels and values in the profile card have no gap constraint or truncation. A very long email or phone number pushes the label off the left edge. | **FIXED**: Added `gap-2`, `shrink-0` on label, `truncate` + `title` on value. |
+| 8 | LOW | Trainee Overview > Programs list | Long program names overflow without truncation, pushing the Active/Ended badge off screen. | **FIXED**: Added `gap-2` on container, `min-w-0` on text div, `truncate` + `title` on program name. |
+| 9 | LOW | Notification Item (`notification-item.tsx`) | Truncated title and message text lose context. User sees "John completed his Pus..." with no way to see full text except navigating to full page. | **FIXED**: Added `title` attribute to both title and message `<p>` elements so hovering reveals full text. |
 
 ## Broken Flows & Logic Bugs
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 1 | INFO | `WorkoutDetailData._extractExercises` fragility | If workout data only has `sessions` key with no backward-compat `exercises` key at top level | Exercises should be extracted from within sessions | Current implementation only reads `data['exercises']` and returns `[]` if not found. Backend always saves a flat `exercises` key for backward compat (verified in `survey_views.py` line 298), so this is not currently broken. However, the readiness survey and post-workout survey extractors handle the sessions fallback correctly while exercises do not -- an inconsistency that could cause issues if the backward-compat layer is ever removed. |
+| 1 | HIGH | Notifications Page > "Mark all as read" | 1. Have unread notifications on page 2 but not page 1. 2. Navigate to notifications page (defaults to page 1). | "Mark all as read" button should appear if there are any unread notifications globally. | **FIXED (was broken)**: `hasUnread` was calculated from `notifications.some(n => !n.is_read)` — only checks the current page's results. If page 1 had all read notifications but page 2 had unread ones, the button would not appear. Now uses `useUnreadCount()` hook (same one used by the bell badge) which checks the global server-side count. |
+| 2 | HIGH | Notifications Page > "Mark all as read" error handling | 1. Click "Mark all as read" when API is down. | User sees an error toast. | **FIXED (was silent failure)**: `markAllAsRead.mutate()` was called with no `onSuccess` or `onError` callbacks. If the API returned 500, the mutation failed silently — no feedback to the user. Now shows success toast on completion and error toast on failure. |
+| 3 | HIGH | Notifications Page > Click individual notification | 1. Click an unread notification when API is returning errors. | Error feedback appears. | **FIXED (was silent failure)**: `markAsRead.mutate(n.id)` had no error callback. API failure was completely silent. Now shows error toast on failure. |
+| 4 | MEDIUM | Login form > Rapid double-click | 1. Fill in valid credentials. 2. Double-click "Sign in" very quickly before React state update. | Only one login request fires. | **FIXED**: `handleSubmit` now checks `if (isSubmitting) return` as the first line before any async work, preventing the race condition between click and `setIsSubmitting(true)`. |
+| 5 | MEDIUM | Invitation form > Rapid double-submit | 1. Fill in valid invitation email. 2. Double-click "Send Invitation" quickly. | Only one invitation is created. | **FIXED**: `handleSubmit` now checks `if (createInvitation.isPending) return` as first guard. |
+| 6 | MEDIUM | Notification Popover > API error | 1. Open notification bell popover when API is down. | Error message with retry button. | **FIXED (was missing state)**: The popover only handled `isLoading` and empty states. If the API returned 500, the popover showed the loading state forever (it was actually in error state with no visual). Now shows "Failed to load" with a "Try again" button. |
+| 7 | MEDIUM | `formatLabel` crash on null profile fields | 1. Trainee has profile where `goal`, `activity_level`, or `diet_type` is null/undefined. 2. Navigate to trainee detail > Overview tab. | Graceful "Not set" display. | **FIXED**: `formatLabel(value: string)` was called with potentially null/undefined values from the API. Changed signature to `formatLabel(value: string \| null \| undefined)` with `if (!value) return "Not set"` guard. |
+| 8 | LOW | Invitation form > Message field | 1. Paste 10,000 characters into the Message field. | Input is bounded, character count shown. | **FIXED**: Added `maxLength={500}` and a dynamic character counter (`{message.length}/500`) that appears when typing. |
+| 9 | LOW | Invitation form > Expires field | 1. Type "7.5" into the expires_days field (some browsers allow decimal in number inputs). | Only integers accepted. | **FIXED**: Added `step={1}` to the number input to enforce integer entry at the HTML level. Zod schema already has `.int()` validation as a second line of defense. |
+| 10 | LOW | Login form > Input bounds | 1. Paste a 10,000 character string into email or password field. | Input is bounded. | **FIXED**: Added `maxLength={254}` on email (RFC 5321 max) and `maxLength={128}` on password. Added `required` attribute to both fields for native HTML validation as first line of defense. |
+| 11 | LOW | Invitation form > Email input | 1. Paste very long email. | Input is bounded. | **FIXED**: Added `maxLength={254}` and `required` attribute. |
+| 12 | LOW | Trainee search "No results" | 1. Search for a trainee name that doesn't exist. | Clear way to reset the search. | **FIXED**: Added a "Clear search" button to the empty state when search produces no results. Previously the user had to manually clear the input field. |
 
 ## Product Improvement Suggestions
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 1 | HIGH | Workout Detail Header | Display total volume (`formattedVolume`) in the header stats. The data is fetched from the API (`totalVolumeLbs`) and the model has a `formattedVolume` getter, but it was never displayed anywhere. Volume is the #1 metric for progressive overload tracking -- "I lifted 12,450 lbs last session." | **FIXED**: Added `HeaderStat` with `Icons.monitor_weight_outlined` to the detail header when `totalVolumeLbs > 0`. |
-| 2 | HIGH | All 4 new files | Zero `Semantics` widgets in `workout_history_screen.dart`, `workout_history_widgets.dart`, `workout_detail_screen.dart`, and `workout_detail_widgets.dart`. Screen readers cannot provide meaningful context for workout cards, exercise cards, survey badges, or error/empty states. | **FIXED**: Added `Semantics` to `WorkoutHistoryCard` (button with full descriptive label), `ExerciseCard` (name + set count), `SurveyBadge` (label + score), `HeaderStat` (value label). Added `Semantics(liveRegion: true)` to empty and error states. Used `ExcludeSemantics` on `StatChip` children to prevent duplicate announcements. |
-| 3 | MEDIUM | Workout Detail | Add a "Start Similar Workout" button at the bottom of the detail view. Users review past workouts specifically to replicate or improve upon them. Currently they navigate back, go to programs, find the same workout, and start manually. | Not implemented -- requires mapping from historical workout name back to a program day, which involves non-trivial logic. |
-| 4 | MEDIUM | Home > Recent Workouts | The `_RecentWorkoutCard` could show more stats per card -- duration and/or total volume alongside exercise count. Currently only shows date, name, and "X exercises". | Not implemented -- would require layout adjustment. Low effort but needs design decision on information density. |
-| 5 | MEDIUM | Workout History | Missing search/filter capability. A user with 100+ logged workouts can only infinite-scroll. No way to filter by workout name, date range, or exercise name. | Would require backend query param support (`?workout_name=Push`, `?date_after=2026-01-01`) and a filter UI. Not trivial but high value for power users. |
-| 6 | LOW | Workout History | Consider adding date group headers ("This Week", "Last Week", "February 2026") to break up the flat list visually. Currently all cards are at the same level with only inline date labels. | Would significantly improve scannability for users with many workouts. |
-| 7 | LOW | Video Section | Either wire up video cards with actual tap navigation and like functionality, or remove the section entirely. Half-implemented UI with non-functional play buttons and like icons erodes user trust. | Requires a video content API and player integration. Better to conditionally hide the section until the backend supports it: `if (state.latestVideos.isNotEmpty && hasVideoApi)`. |
+| 1 | HIGH | Notification Items | Add navigation on click. When a notification has `data.trainee_id`, clicking it should navigate to `/trainees/{trainee_id}`. Currently clicking does nothing beyond marking as read. Users expect notifications to be actionable — this is the #1 reason to have notifications. | Requires mapping `notification.data` fields to route URLs. Straightforward but needs backend to consistently include `trainee_id` in notification data. |
+| 2 | HIGH | Settings Page | Implement at minimum: profile name editing, password change, theme toggle (light/dark/system), and notification preferences. The page is fully dead but prominently linked from sidebar and user dropdown. | This is table-stakes for any dashboard. The theme toggle already works via next-themes but there is no UI to switch it. |
+| 3 | HIGH | Progress Tab | Wire up the trainee Progress tab with basic charts. `trainee.recent_activity` data is already fetched. At minimum, show a simple adherence bar chart (7/14/30 day) using the same period toggle as the Activity tab. | The data is there, the tab is visible — users will click it and be disappointed. Even a simple text summary ("5/7 days active this week") would be better than "Coming soon". |
+| 4 | MEDIUM | Invitation Table | Add row actions: Resend, Cancel, Copy invitation code. Currently the invitation table is read-only. A trainer who sent an invitation to a wrong email or wants to remind someone has no recourse. | Backend already supports invitation status changes. Just needs action buttons/dropdown per row. |
+| 5 | MEDIUM | Trainee Detail | Add ability for trainer to edit nutrition goals directly from the web dashboard. The `is_trainer_adjusted` field exists, and the trainee overview displays goals, but there is no edit capability. | Trainers currently need to use the mobile app to adjust goals. Web dashboard should be a superset of mobile functionality. |
+| 6 | MEDIUM | Dashboard | Add a date range filter or "today vs. this week vs. this month" toggle to stats cards. Current stats are for "today" and "overall" with no granularity control. | Helps trainers understand trends, not just snapshots. |
+| 7 | LOW | Keyboard Navigation | Add keyboard shortcut support: `Cmd+K` for search, `Escape` to close dialogs (already handled by Radix), `N` for new invitation when on invitations page. | Power users (trainers managing 50+ clients) will appreciate keyboard-first workflows. |
+| 8 | LOW | Bulk Actions | Add multi-select on trainee table with bulk actions: assign program, send message, export CSV. Currently every action is one-at-a-time. | Trainers with 20+ clients waste significant time on repetitive individual actions. |
 
 ## Summary
-- Dead UI elements found: 4
-- Visual bugs found: 2
-- Logic bugs found: 0 active (1 fragility noted)
-- Improvements suggested: 7
-- Items fixed by hacker: 4
+- Dead UI elements found: 3
+- Visual bugs found: 9
+- Logic bugs found: 12
+- Improvements suggested: 8
+- Items fixed by hacker: 20
 
 ## Items Fixed by Hacker
 
-### Fix 1: Stats row overflow in WorkoutHistoryCard
-**File:** `mobile/lib/features/workout_log/presentation/screens/workout_history_widgets.dart`
-**Issue:** Three `StatChip` widgets in a `Row` cause RenderFlex overflow on narrow screens.
-**Fix:** Changed `Row` to `Wrap(spacing: 16, runSpacing: 8)`. Chips now gracefully wrap to the next line.
+### Fix 1: Trainee name empty fallback across all display components
+**Files:** `recent-trainees.tsx`, `inactive-trainees.tsx`, `trainee-columns.tsx`
+**Issue:** Empty first_name + last_name rendered blank links/text.
+**Fix:** Added `.trim() || email` fallback pattern consistently across all three components.
 
-### Fix 2: Accessibility -- Semantics across all 4 new files
-**Files:**
-- `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart` -- empty state and error state get `Semantics(liveRegion: true)`
-- `mobile/lib/features/workout_log/presentation/screens/workout_history_widgets.dart` -- `WorkoutHistoryCard` gets descriptive `Semantics(button: true, label: ...)`, `StatChip` wrapped in `ExcludeSemantics` to avoid redundancy
-- `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart` -- error state gets `Semantics(liveRegion: true, label: ...)`
-- `mobile/lib/features/workout_log/presentation/screens/workout_detail_widgets.dart` -- `ExerciseCard` gets `Semantics(label: ...)`, `SurveyBadge` gets `Semantics(label: ...)`, `HeaderStat` gets `Semantics(label: ...)` with `ExcludeSemantics` on children
+### Fix 2: Text overflow/truncation across all table and display components
+**Files:** `trainee-columns.tsx`, `invitation-columns.tsx`, `inactive-trainees.tsx`, `user-nav.tsx`, `trainee-overview-tab.tsx`, `notification-item.tsx`, `trainees/[id]/page.tsx`
+**Issue:** Long text (names, emails, program names, notification text) overflowed containers.
+**Fix:** Added `truncate`, `min-w-0`, `max-w-[200px]`, `title` attributes consistently. Added `shrink-0` on icons and badges to prevent them from being squeezed.
 
-### Fix 3: Total volume display in workout detail header
-**File:** `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart`
-**Issue:** `totalVolumeLbs` fetched from API and stored in model but never displayed.
-**Fix:** Added conditional `HeaderStat(icon: Icons.monitor_weight_outlined, value: workout.formattedVolume)` when `totalVolumeLbs > 0`.
+### Fix 3: Notifications "Mark all as read" now uses global unread count
+**File:** `notifications/page.tsx`
+**Issue:** `hasUnread` only checked current page's notifications.
+**Fix:** Now uses `useUnreadCount()` hook which queries the server-side `/unread-count/` endpoint.
 
-### Fix 4: Pagination error retry (applied by linter)
-**File:** `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart`
-**Issue:** If `loadMore()` fails during infinite scroll, the footer showed nothing useful.
-**Fix:** Added inline error text with retry `TextButton.icon` in the list footer when `state.error != null && state.workouts.isNotEmpty`.
+### Fix 4: Error feedback on all notification mutations
+**File:** `notifications/page.tsx`
+**Issue:** `markAllAsRead.mutate()` and `markAsRead.mutate()` had no user feedback.
+**Fix:** Added `onSuccess` and `onError` callbacks with toast notifications.
 
-## Chaos Score: 7/10
+### Fix 5: Notification popover error state
+**File:** `notification-popover.tsx`
+**Issue:** API errors showed nothing — the popover was stuck in a loading-like state.
+**Fix:** Added `isError` check with "Failed to load" message and "Try again" button.
+
+### Fix 6: Double-submit protection on login and invitation forms
+**Files:** `login/page.tsx`, `create-invitation-dialog.tsx`
+**Issue:** Rapid double-clicks could fire two API requests before React state updated.
+**Fix:** Added early return guards checking `isSubmitting` / `createInvitation.isPending` at the start of submit handlers.
+
+### Fix 7: `formatLabel` null safety
+**File:** `trainee-overview-tab.tsx`
+**Issue:** `formatLabel(value: string)` called on potentially null/undefined profile fields.
+**Fix:** Changed to accept `string | null | undefined` with `if (!value) return "Not set"` guard.
+
+### Fix 8: Input bounds on all form fields
+**Files:** `login/page.tsx`, `create-invitation-dialog.tsx`
+**Issue:** No `maxLength` on email, password, or message inputs allowed arbitrarily long input.
+**Fix:** Added `maxLength={254}` on emails (RFC 5321), `maxLength={128}` on password, `maxLength={500}` on message with character counter, `step={1}` on integer field, `required` on mandatory fields.
+
+### Fix 9: Notification title/message hover tooltip
+**File:** `notification-item.tsx`
+**Issue:** Truncated text had no way to see full content.
+**Fix:** Added `title` attribute on both title and message elements.
+
+### Fix 10: "Clear search" button on empty trainee search results
+**File:** `trainees/page.tsx`
+**Issue:** No way to clear search except manually deleting text.
+**Fix:** Added "Clear search" button to the empty state action slot.
+
+## Chaos Score: 6/10
 
 ### Rationale
-The core workout history feature is well-built and works correctly end-to-end. Data flows cleanly from backend through API to model to UI. Pagination, pull-to-refresh, error states, empty states, and shimmer loading are all properly implemented. The new `WorkoutDetailData` model centralizes JSON extraction logic nicely.
+The web dashboard foundation is solid architecturally — proper provider setup, JWT token management with refresh mutex, type-safe API client, error boundaries on most pages, pagination, and skeleton loading states. The component library (shadcn/ui) provides a consistent look.
 
 **Good:**
-- End-to-end data flow works: backend query -> serializer -> API -> repository -> provider -> UI
-- Backend correctly defers `nutrition_data` to avoid fetching unnecessary blobs
-- Route guard on `/workout-detail` redirects to history if `extra` is wrong type
-- Shimmer loading in detail screen uses real header data (summary) with placeholder cards
-- Pull-to-refresh properly resets state before reloading
+- Auth flow is well-implemented: JWT with automatic refresh, session cookie for middleware, role gating (trainer only)
+- Every page has loading, error, and empty states (unlike many v1 dashboards)
+- Invitation dialog has proper form validation with Zod + error display
+- Notification bell badge with 30s polling for real-time feel
+- Mobile sidebar with sheet component, proper route-based active states
+- Clean data fetching with React Query — stale time, retry, cache invalidation
 
 **Concerns:**
-- 4 dead UI elements in the home screen (video section, notification bell) that predate this feature but appear alongside the new Recent Workouts section
-- Zero accessibility before this fix pass -- all 4 new files had no `Semantics` widgets
-- `WorkoutRepository` returns `Map<String, dynamic>` everywhere, violating the project's data type rules ("never return dict")
-- `_extractExercises` doesn't handle the sessions fallback, unlike sibling extractors
+- 3 dead UI surfaces (Settings page, Progress tab, notification click-through) — these are prominently visible and create a "half-finished" impression
+- 12 logic bugs before this fix pass, including silent mutation failures and a race condition on forms
+- 9 text overflow issues — the entire app had zero truncation protection before this pass
+- No keyboard shortcuts for power users
+- No bulk actions on tables
+- Invitation table is read-only — no cancel/resend/copy actions
+- Notification items are not actionable (no navigation on click)
+- `recent_activity` data is fetched but never displayed in the Progress tab
 
 **Risk Assessment:**
-- **Low Risk**: Feature works correctly. No data loss, no crashes, no security issues.
-- **Medium Risk**: Dead video UI alongside real workout data creates a jarring UX contrast.
-- **Low Risk**: Accessibility issues now addressed with this fix pass.
+- **Low Risk**: No data loss scenarios, no security issues, no crashes.
+- **Medium Risk**: Silent mutation failures could confuse users (now fixed).
+- **Medium Risk**: Dead Settings page and Progress tab erode trust in product completeness.
+- **Low Risk**: Text overflow issues are cosmetic, now fixed with truncation.
