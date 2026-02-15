@@ -58,6 +58,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Email-only registration (no username) | ✅ Done | Djoser + JWT |
 | JWT auth with refresh tokens | ✅ Done | |
 | Password reset via email | ✅ Done | Shipped 2026-02-14: Forgot/Reset screens, Djoser email integration, password strength indicator |
+| Password change (in-app) | ✅ Done | Shipped 2026-02-14: Settings → Security → Change Password, calls Djoser set_password, autofill hints, strength indicator |
 | 4-step onboarding wizard | ✅ Done | About You → Activity → Goal → Diet |
 | Apple/Google social auth | 🟡 Partial | Backend configured, mobile not wired |
 | Server URL configuration | ✅ Done | For multi-deployment support |
@@ -83,7 +84,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 |---------|--------|-------|
 | Daily macro tracking | ✅ Done | Protein, carbs, fat, calories |
 | Food search & logging | ✅ Done | |
-| AI natural language food parsing | ✅ Done | "Had 2 eggs and toast" → structured macro data |
+| AI natural language food parsing | ✅ Done | "Had 2 eggs and toast" → structured macro data. Shipped 2026-02-14: Activated UI (removed "coming soon" banner), meal selector, confirm flow |
 | Nutrition goals per trainee | ✅ Done | Trainer can set/override |
 | Macro presets (Training Day, Rest Day) | ✅ Done | |
 | Weekly nutrition plans | ✅ Done | Carb cycling support |
@@ -98,7 +99,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Dashboard overview (stats, activity) | ✅ Done | |
 | Trainee list | ✅ Done | |
 | Trainee detail (progress, adherence) | ✅ Done | |
-| Trainee invitation system | ✅ Done | Email-based invite codes |
+| Trainee invitation system | ✅ Done | Email-based invite codes. Shipped 2026-02-14: Invitation emails with HTML/text, XSS protection, resend for expired |
 | Trainee goal editing | ✅ Done | |
 | Trainee removal | ✅ Done | |
 | Impersonation (log in as trainee) | ✅ Done | With audit trail |
@@ -276,7 +277,18 @@ In-app notification feed for trainers and Stripe webhook integration for automat
 - **Webhook Symmetry**: Extended `_handle_invoice_payment_failed()` and `_handle_subscription_updated()` to handle both TraineeSubscription and Subscription models
 - **90 new tests**: 59 notification view tests + 31 ambassador webhook tests
 
-### 4.6 Acceptance Criteria
+### 4.7 AI Food Parsing + Password Change + Invitation Emails — COMPLETED (2026-02-14)
+
+Three features shipped — activated existing AI food parsing UI, wired password change to Djoser, and created invitation email service.
+
+**What was built:**
+- **AI Food Parsing Activation**: Removed "AI parsing coming soon" banner, added meal selector (1-4), `_confirmAiEntry()` with empty meals check, nutrition refresh, success/error snackbars. UX: InkWell ripple, Semantics live regions, "Parse with AI" button label, keyboard handling, accessible touch targets.
+- **Password Change**: `ApiConstants.setPassword` endpoint, `AuthRepository.changePassword()` with Djoser error parsing, `ChangePasswordScreen` with inline errors, loading states, success snackbar. UX: autofill hints, textInputAction flow, password strength indicator, focus borders, tooltips.
+- **Invitation Emails**: `invitation_service.py` with `send_invitation_email()` — HTML + plain text, XSS prevention via `escape()`, URL scheme auto-detection, proper logging. Views call service in try/except for non-blocking email. Resend allows EXPIRED invitations, resets status to PENDING, extends expiry 7 days.
+- **Security**: All user input HTML-escaped, URL-encoded invite codes, `select_related('trainer')` for N+1 prevention, proper TYPE_CHECKING imports.
+- **Accessibility**: WCAG 2.1 Level AA — Semantics labels, live regions, 48dp touch targets, autofill hints, theme-aware colors.
+
+### 4.8 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
 - [x] Trainer receives notification when trainee starts or finishes a workout
