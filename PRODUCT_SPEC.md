@@ -74,7 +74,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Active workout screen | ✅ Done | Fixed 2026-02-13: Workout data persists to DailyLog.workout_data |
 | Readiness survey (pre-workout) | ✅ Done | Fixed 2026-02-13: Trainer notification fires correctly via parent_trainer |
 | Post-workout survey | ✅ Done | Fixed 2026-02-13: Data saves + notification fires |
-| Workout calendar / history | 🟡 Partial | Calendar screen exists; data now persists via DailyLog |
+| Workout calendar / history | ✅ Done | Shipped 2026-02-14: Paginated workout history API, history screen with infinite scroll, detail screen with exercises/sets/surveys, home screen recent workouts section |
 | Program switcher | ✅ Done | Fixed 2026-02-13: Bottom sheet with active indicator + snackbar |
 | Trainer-selectable workout layouts | ✅ Done | Shipped 2026-02-14: Classic / Card / Minimal per trainee |
 | Missed day handling | ✅ Done | Skip or push (shifts program dates) |
