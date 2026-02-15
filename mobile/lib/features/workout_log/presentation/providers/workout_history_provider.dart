@@ -91,7 +91,7 @@ class WorkoutHistoryNotifier extends StateNotifier<WorkoutHistoryState> {
   Future<void> loadMore() async {
     if (state.isLoadingMore || !state.hasMore || state.isLoading) return;
 
-    state = state.copyWith(isLoadingMore: true);
+    state = state.copyWith(isLoadingMore: true, clearError: true);
 
     try {
       final nextPage = state.currentPage + 1;

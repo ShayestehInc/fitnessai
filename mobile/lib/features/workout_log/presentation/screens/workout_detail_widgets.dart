@@ -23,19 +23,24 @@ class HeaderStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: theme.textTheme.bodySmall?.color),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: TextStyle(
-            color: theme.textTheme.bodySmall?.color,
-            fontSize: 13,
-          ),
+    return Semantics(
+      label: value,
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: theme.textTheme.bodySmall?.color),
+            const SizedBox(width: 4),
+            Text(
+              value,
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 13,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -63,32 +68,35 @@ class SurveyBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: _badgeColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: theme.textTheme.bodySmall?.color,
-              fontSize: 12,
+    return Semantics(
+      label: '$label: $value',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: _badgeColor.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 12,
+              ),
             ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: _badgeColor,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+            const SizedBox(width: 6),
+            Text(
+              value,
+              style: TextStyle(
+                color: _badgeColor,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -109,57 +117,60 @@ class ExerciseCard extends StatelessWidget {
         ? sets.whereType<Map<String, dynamic>>().toList()
         : <Map<String, dynamic>>[];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.fitness_center,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: TextStyle(
-                      color: theme.textTheme.bodyLarge?.color,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (setsList.isNotEmpty) ...[
-            Divider(height: 1, color: theme.dividerColor),
-            _buildSetsHeader(),
-            ...setsList.asMap().entries.map(_buildSetRow),
-            const SizedBox(height: 8),
-          ] else
+    return Semantics(
+      label: '$name, ${setsList.length} sets',
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Padding(
-              padding: const EdgeInsets.only(left: 16, bottom: 16),
-              child: Text(
-                'No sets recorded',
-                style: TextStyle(
-                  color: theme.textTheme.bodySmall?.color,
-                  fontSize: 13,
-                ),
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.fitness_center,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
+            if (setsList.isNotEmpty) ...[
+              Divider(height: 1, color: theme.dividerColor),
+              _buildSetsHeader(),
+              ...setsList.asMap().entries.map(_buildSetRow),
+              const SizedBox(height: 8),
+            ] else
+              Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 16),
+                child: Text(
+                  'No sets recorded',
+                  style: TextStyle(
+                    color: theme.textTheme.bodySmall?.color,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -247,12 +258,15 @@ class ExerciseCard extends StatelessWidget {
               ),
             ),
           ),
-          Icon(
-            completed ? Icons.check_circle : Icons.cancel,
-            size: 18,
-            color: completed
-                ? theme.colorScheme.primary
-                : theme.textTheme.bodySmall?.color,
+          Semantics(
+            label: completed ? 'Completed' : 'Skipped',
+            child: Icon(
+              completed ? Icons.check_circle : Icons.cancel,
+              size: 18,
+              color: completed
+                  ? theme.colorScheme.primary
+                  : theme.textTheme.bodySmall?.color,
+            ),
           ),
         ],
       ),

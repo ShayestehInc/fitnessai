@@ -73,7 +73,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
 
   Widget _buildBody(ThemeData theme, WorkoutHistorySummary workout) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildDetailShimmer(theme, workout);
     }
 
     if (_error != null) {
@@ -81,9 +81,10 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     }
 
     final data = _workoutData ?? {};
-    final exercises = _extractExercises(data);
-    final readinessSurvey = _extractReadinessSurvey(data);
-    final postSurvey = _extractPostSurvey(data);
+    final detail = WorkoutDetailData.fromWorkoutData(data);
+    final exercises = detail.exercises;
+    final readinessSurvey = detail.readinessSurvey;
+    final postSurvey = detail.postSurvey;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -140,33 +141,143 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     );
   }
 
+  /// Skeleton loading that shows the real header (summary data is already
+  /// available) plus placeholder exercise cards matching the expected count.
+  Widget _buildDetailShimmer(
+    ThemeData theme,
+    WorkoutHistorySummary workout,
+  ) {
+    final cardCount = workout.exerciseCount.clamp(1, 5);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(theme, workout),
+          const SizedBox(height: 24),
+          ...List.generate(
+            cardCount,
+            (index) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: theme.dividerColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: theme.dividerColor,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 150,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: theme.dividerColor,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(height: 1, color: theme.dividerColor),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: List.generate(
+                          3,
+                          (_) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Container(
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: theme.dividerColor,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildErrorState(ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: TextStyle(color: theme.textTheme.bodySmall?.color),
-              textAlign: TextAlign.center,
+        child: Semantics(
+          liveRegion: true,
+          label: 'Error: ${_error!}',
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: theme.colorScheme.error.withValues(alpha: 0.3),
+              ),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _isLoading = true;
-                  _error = null;
-                });
-                _fetchDetail();
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Unable to load workout details',
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _error!,
+                  style: TextStyle(
+                    color: theme.textTheme.bodySmall?.color,
+                    fontSize: 13,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _isLoading = true;
+                      _error = null;
+                    });
+                    _fetchDetail();
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -228,6 +339,14 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
                 value: '${workout.totalSets} sets',
                 theme: theme,
               ),
+              if (workout.totalVolumeLbs > 0) ...[
+                const SizedBox(height: 4),
+                HeaderStat(
+                  icon: Icons.monitor_weight_outlined,
+                  value: workout.formattedVolume,
+                  theme: theme,
+                ),
+              ],
             ],
           ),
         ],
@@ -330,57 +449,4 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     );
   }
 
-  List<Map<String, dynamic>> _extractExercises(Map<String, dynamic> data) {
-    final exercises = data['exercises'];
-    if (exercises is List) {
-      return exercises.whereType<Map<String, dynamic>>().toList();
-    }
-    return [];
-  }
-
-  Map<String, dynamic>? _extractReadinessSurvey(Map<String, dynamic> data) {
-    final topLevel = data['readiness_survey'];
-    if (topLevel is Map<String, dynamic> && topLevel.isNotEmpty) {
-      if (topLevel.containsKey('survey_data') &&
-          topLevel['survey_data'] is Map<String, dynamic>) {
-        return topLevel['survey_data'] as Map<String, dynamic>;
-      }
-      return topLevel;
-    }
-    final sessions = data['sessions'];
-    if (sessions is List && sessions.isNotEmpty) {
-      final firstSession = sessions[0];
-      if (firstSession is Map<String, dynamic>) {
-        final sessionSurvey = firstSession['readiness_survey'];
-        if (sessionSurvey is Map<String, dynamic> &&
-            sessionSurvey.isNotEmpty) {
-          if (sessionSurvey.containsKey('survey_data') &&
-              sessionSurvey['survey_data'] is Map<String, dynamic>) {
-            return sessionSurvey['survey_data'] as Map<String, dynamic>;
-          }
-          return sessionSurvey;
-        }
-      }
-    }
-    return null;
-  }
-
-  Map<String, dynamic>? _extractPostSurvey(Map<String, dynamic> data) {
-    final topLevel = data['post_survey'];
-    if (topLevel is Map<String, dynamic> && topLevel.isNotEmpty) {
-      return topLevel;
-    }
-    final sessions = data['sessions'];
-    if (sessions is List && sessions.isNotEmpty) {
-      final firstSession = sessions[0];
-      if (firstSession is Map<String, dynamic>) {
-        final sessionSurvey = firstSession['post_survey'];
-        if (sessionSurvey is Map<String, dynamic> &&
-            sessionSurvey.isNotEmpty) {
-          return sessionSurvey;
-        }
-      }
-    }
-    return null;
-  }
 }
