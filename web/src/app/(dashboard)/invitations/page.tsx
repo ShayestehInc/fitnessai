@@ -44,17 +44,18 @@ export default function InvitationsPage() {
         <>
           <InvitationTable invitations={data.results} />
           {(hasPrevPage || hasNextPage) && (
-            <div className="flex items-center justify-between">
+            <nav className="flex items-center justify-between" aria-label="Invitation pagination">
               <Button
                 variant="outline"
                 size="sm"
                 disabled={!hasPrevPage}
                 onClick={() => setPage((p) => p - 1)}
+                aria-label="Go to previous page"
               >
-                <ChevronLeft className="mr-1 h-4 w-4" />
+                <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
                 Previous
               </Button>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground" aria-current="page">
                 Page {page}
               </span>
               <Button
@@ -62,11 +63,12 @@ export default function InvitationsPage() {
                 size="sm"
                 disabled={!hasNextPage}
                 onClick={() => setPage((p) => p + 1)}
+                aria-label="Go to next page"
               >
                 Next
-                <ChevronRight className="ml-1 h-4 w-4" />
+                <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
               </Button>
-            </div>
+            </nav>
           )}
         </>
       ) : null}

@@ -12,7 +12,7 @@ import { NotificationItem } from "./notification-item";
 import { Loader2 } from "lucide-react";
 
 export function NotificationPopover() {
-  const { data, isLoading } = useNotifications();
+  const { data, isLoading, isError, refetch } = useNotifications();
   const markAsRead = useMarkAsRead();
 
   const notifications = data?.results?.slice(0, 5) ?? [];
@@ -26,6 +26,13 @@ export function NotificationPopover() {
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : isError ? (
+        <div className="flex flex-col items-center gap-2 py-8">
+          <p className="text-sm text-destructive">Failed to load</p>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}>
+            Try again
+          </Button>
         </div>
       ) : notifications.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">

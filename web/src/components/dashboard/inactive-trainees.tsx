@@ -38,11 +38,11 @@ export function InactiveTrainees({ trainees }: InactiveTraineesProps) {
               href={`/trainees/${t.id}`}
               className="flex items-center justify-between rounded-md p-2 transition-colors hover:bg-accent"
             >
-              <div>
-                <p className="text-sm font-medium">
-                  {t.first_name} {t.last_name}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">
+                  {`${t.first_name} ${t.last_name}`.trim() || t.email}
                 </p>
-                <p className="text-xs text-muted-foreground">{t.email}</p>
+                <p className="truncate text-xs text-muted-foreground">{t.email}</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 {t.last_activity

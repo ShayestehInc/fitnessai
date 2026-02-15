@@ -60,16 +60,16 @@ export default function TraineeDetailPage({
             </Link>
           </Button>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
               <User className="h-5 w-5 text-muted-foreground" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-bold tracking-tight" title={displayName}>
                 {displayName}
               </h1>
-              <p className="text-sm text-muted-foreground">{trainee.email}</p>
+              <p className="truncate text-sm text-muted-foreground">{trainee.email}</p>
             </div>
-            <Badge variant={trainee.is_active ? "default" : "secondary"}>
+            <Badge variant={trainee.is_active ? "default" : "secondary"} className="shrink-0">
               {trainee.is_active ? "Active" : "Inactive"}
             </Badge>
           </div>

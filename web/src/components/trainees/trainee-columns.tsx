@@ -9,14 +9,15 @@ export const traineeColumns: Column<TraineeListItem>[] = [
     key: "name",
     header: "Name",
     cell: (row) => (
-      <div>
+      <div className="max-w-[200px]">
         <Link
           href={`/trainees/${row.id}`}
-          className="font-medium hover:underline"
+          className="block truncate font-medium hover:underline"
+          title={`${row.first_name} ${row.last_name}`.trim() || row.email}
         >
-          {row.first_name} {row.last_name}
+          {`${row.first_name} ${row.last_name}`.trim() || row.email}
         </Link>
-        <p className="text-xs text-muted-foreground">{row.email}</p>
+        <p className="truncate text-xs text-muted-foreground">{row.email}</p>
       </div>
     ),
   },

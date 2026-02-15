@@ -26,14 +26,17 @@ function decodeJwtPayload(token: string): TokenPayload | null {
   }
 }
 
+function getSecureFlag(): string {
+  return window.location.protocol === "https:" ? ";Secure" : "";
+}
+
 function setCookie(name: string, value: string, days: number): void {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  const secure = window.location.protocol === "https:" ? ";Secure" : "";
-  document.cookie = `${name}=${value};expires=${expires};path=/;SameSite=Lax${secure}`;
+  document.cookie = `${name}=${value};expires=${expires};path=/;SameSite=Lax${getSecureFlag()}`;
 }
 
 function deleteCookie(name: string): void {
-  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Lax`;
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Lax${getSecureFlag()}`;
 }
 
 export function getAccessToken(): string | null {

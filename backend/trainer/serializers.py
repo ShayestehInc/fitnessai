@@ -32,13 +32,14 @@ class TraineeListSerializer(serializers.ModelSerializer[User]):
     def get_profile_complete(self, obj: User) -> bool:
         try:
             return obj.profile.onboarding_completed
-        except:
+        except User.profile.RelatedObjectDoesNotExist:  # type: ignore[union-attr]
             return False
 
-    def get_last_activity(self, obj: User) -> Any:
-        latest_log = obj.daily_logs.order_by('-date').first()
-        if latest_log:
-            return latest_log.date
+    def get_last_activity(self, obj: User) -> str | None:
+        # Uses prefetched daily_logs; iterating in Python avoids extra query
+        logs = list(obj.daily_logs.all())
+        if logs:
+            return str(max(log.date for log in logs))
         return None
 
     def get_current_program(self, obj: User) -> dict[str, Any] | None:
@@ -82,7 +83,7 @@ class TraineeDetailSerializer(serializers.ModelSerializer[User]):
                 'meals_per_day': profile.meals_per_day,
                 'onboarding_completed': profile.onboarding_completed
             }
-        except:
+        except User.profile.RelatedObjectDoesNotExist:  # type: ignore[union-attr]
             return None
 
     def get_nutrition_goal(self, obj: User) -> dict[str, Any] | None:
@@ -95,7 +96,7 @@ class TraineeDetailSerializer(serializers.ModelSerializer[User]):
                 'calories_goal': goal.calories_goal,
                 'is_trainer_adjusted': goal.is_trainer_adjusted
             }
-        except:
+        except User.nutrition_goal.RelatedObjectDoesNotExist:  # type: ignore[union-attr]
             return None
 
     def get_programs(self, obj: User) -> list[dict[str, Any]]:

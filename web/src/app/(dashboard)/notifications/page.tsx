@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { Bell, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import {
   useNotifications,
   useMarkAsRead,
   useMarkAllAsRead,
+  useUnreadCount,
 } from "@/hooks/use-notifications";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorState } from "@/components/shared/error-state";
@@ -23,9 +25,10 @@ export default function NotificationsPage() {
   const { data, isLoading, isError, refetch } = useNotifications(page, filter);
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
+  const { data: unreadCountData } = useUnreadCount();
 
   const notifications = data?.results ?? [];
-  const hasUnread = notifications.some((n) => !n.is_read);
+  const hasUnread = (unreadCountData?.unread_count ?? 0) > 0;
   const hasNextPage = Boolean(data?.next);
   const hasPrevPage = page > 1;
 
@@ -39,7 +42,12 @@ export default function NotificationsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => markAllAsRead.mutate()}
+              onClick={() =>
+                markAllAsRead.mutate(undefined, {
+                  onSuccess: () => toast.success("All notifications marked as read"),
+                  onError: () => toast.error("Failed to mark notifications as read"),
+                })
+              }
               disabled={markAllAsRead.isPending}
             >
               Mark all as read
@@ -87,23 +95,28 @@ export default function NotificationsPage() {
               key={n.id}
               notification={n}
               onClick={() => {
-                if (!n.is_read) markAsRead.mutate(n.id);
+                if (!n.is_read) {
+                  markAsRead.mutate(n.id, {
+                    onError: () => toast.error("Failed to mark notification as read"),
+                  });
+                }
               }}
             />
           ))}
 
           {(hasPrevPage || hasNextPage) && (
-            <div className="flex items-center justify-between pt-4">
+            <nav className="flex items-center justify-between pt-4" aria-label="Notification pagination">
               <Button
                 variant="outline"
                 size="sm"
                 disabled={!hasPrevPage}
                 onClick={() => setPage((p) => p - 1)}
+                aria-label="Go to previous page"
               >
-                <ChevronLeft className="mr-1 h-4 w-4" />
+                <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
                 Previous
               </Button>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground" aria-current="page">
                 Page {page}
               </span>
               <Button
@@ -111,11 +124,12 @@ export default function NotificationsPage() {
                 size="sm"
                 disabled={!hasNextPage}
                 onClick={() => setPage((p) => p + 1)}
+                aria-label="Go to next page"
               >
                 Next
-                <ChevronRight className="ml-1 h-4 w-4" />
+                <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
               </Button>
-            </div>
+            </nav>
           )}
         </div>
       )}

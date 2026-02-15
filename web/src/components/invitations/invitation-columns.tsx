@@ -7,7 +7,11 @@ export const invitationColumns: Column<Invitation>[] = [
   {
     key: "email",
     header: "Email",
-    cell: (row) => <span className="font-medium">{row.email}</span>,
+    cell: (row) => (
+      <span className="block max-w-[200px] truncate font-medium" title={row.email}>
+        {row.email}
+      </span>
+    ),
   },
   {
     key: "status",

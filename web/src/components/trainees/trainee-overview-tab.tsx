@@ -184,6 +184,7 @@ function MacroCard({
   );
 }
 
-function formatLabel(value: string): string {
+function formatLabel(value: string | null | undefined): string {
+  if (!value) return "Not set";
   return value.replace(/_/g, " ");
 }

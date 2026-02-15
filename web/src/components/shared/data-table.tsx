@@ -45,7 +45,7 @@ export function DataTable<T>({
 
   return (
     <div>
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -71,7 +71,23 @@ export function DataTable<T>({
                 <TableRow
                   key={keyExtractor(row)}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  className={onRowClick ? "cursor-pointer" : undefined}
+                  onKeyDown={
+                    onRowClick
+                      ? (e: React.KeyboardEvent) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onRowClick(row);
+                          }
+                        }
+                      : undefined
+                  }
+                  tabIndex={onRowClick ? 0 : undefined}
+                  role={onRowClick ? "button" : undefined}
+                  className={
+                    onRowClick
+                      ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      : undefined
+                  }
                 >
                   {columns.map((col) => (
                     <TableCell key={col.key} className={col.className}>
@@ -89,14 +105,15 @@ export function DataTable<T>({
           <p className="text-sm text-muted-foreground">
             Page {page} of {totalPages} ({totalCount} total)
           </p>
-          <div className="flex items-center gap-2">
+          <nav className="flex items-center gap-2" aria-label="Table pagination">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onPageChange?.(page - 1)}
               disabled={page <= 1}
+              aria-label="Go to previous page"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               Previous
             </Button>
             <Button
@@ -104,11 +121,12 @@ export function DataTable<T>({
               size="sm"
               onClick={() => onPageChange?.(page + 1)}
               disabled={page >= totalPages}
+              aria-label="Go to next page"
             >
               Next
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </Button>
-          </div>
+          </nav>
         </div>
       )}
     </div>
