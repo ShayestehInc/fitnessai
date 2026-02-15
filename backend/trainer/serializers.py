@@ -43,7 +43,11 @@ class TraineeListSerializer(serializers.ModelSerializer[User]):
         return None
 
     def get_current_program(self, obj: User) -> dict[str, Any] | None:
-        active_program = obj.programs.filter(is_active=True).first()
+        # Iterate prefetched programs in Python to avoid extra query
+        active_program = next(
+            (p for p in obj.programs.all() if p.is_active),
+            None,
+        )
         if active_program:
             return {
                 'id': active_program.id,

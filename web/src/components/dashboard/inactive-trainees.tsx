@@ -23,7 +23,7 @@ export function InactiveTrainees({ trainees }: InactiveTraineesProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden="true" />
           <CardTitle>Needs Attention</CardTitle>
         </div>
         <CardDescription>
@@ -36,7 +36,8 @@ export function InactiveTrainees({ trainees }: InactiveTraineesProps) {
             <Link
               key={t.id}
               href={`/trainees/${t.id}`}
-              className="flex items-center justify-between rounded-md p-2 transition-colors hover:bg-accent"
+              aria-label={`View ${`${t.first_name} ${t.last_name}`.trim() || t.email} — ${t.last_activity ? `last active ${formatDistanceToNow(new Date(t.last_activity), { addSuffix: true })}` : "never logged"}`}
+              className="flex items-center justify-between rounded-md p-2 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">

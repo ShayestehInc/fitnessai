@@ -831,7 +831,10 @@ class AdherenceAnalyticsView(views.APIView):
 
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
-        days = int(request.query_params.get('days', 30))
+        try:
+            days = min(max(int(request.query_params.get('days', 30)), 1), 365)
+        except (ValueError, TypeError):
+            days = 30
         start_date = timezone.now().date() - timedelta(days=days)
 
         trainees = User.objects.filter(
