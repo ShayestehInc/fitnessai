@@ -56,36 +56,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    let cancelled = false;
 
     async function initAuth() {
       if (!hasValidSession()) {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
         return;
       }
 
       if (isAccessTokenExpired()) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
-          setIsLoading(false);
+          if (!cancelled) setIsLoading(false);
           return;
         }
       }
 
       await fetchUser();
-      setIsLoading(false);
+      if (!cancelled) setIsLoading(false);
     }
 
-    initAuth().catch(() => {
-      clearTokens();
-      setUser(null);
-      setIsLoading(false);
+    const authPromise = initAuth();
+    const timeoutPromise = new Promise<void>((_, reject) =>
+      setTimeout(() => reject(new Error("Auth timeout")), 10_000),
+    );
+
+    Promise.race([authPromise, timeoutPromise]).catch(() => {
+      if (!cancelled) {
+        clearTokens();
+        setUser(null);
+        setIsLoading(false);
+      }
     });
 
     return () => {
-      clearTimeout(timeoutId);
-      controller.abort();
+      cancelled = true;
     };
   }, [fetchUser]);
 

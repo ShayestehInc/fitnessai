@@ -31,7 +31,7 @@ export default function NotificationsPage() {
       : notifications;
 
   const hasUnread = notifications.some((n) => !n.is_read);
-  const hasNextPage = data?.next !== null;
+  const hasNextPage = Boolean(data?.next);
   const hasPrevPage = page > 1;
 
   return (

@@ -15,7 +15,7 @@ export default function InvitationsPage() {
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch } = useInvitations(page);
 
-  const hasNextPage = data?.next !== null;
+  const hasNextPage = Boolean(data?.next);
   const hasPrevPage = page > 1;
 
   return (

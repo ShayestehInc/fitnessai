@@ -135,7 +135,7 @@ class TrainerStatsView(views.APIView):
             subscription = trainer.subscription
             tier = subscription.tier
             max_trainees = subscription.get_max_trainees()
-        except:
+        except Exception:
             tier = 'NONE'
             max_trainees = 0
 
@@ -145,7 +145,7 @@ class TrainerStatsView(views.APIView):
             try:
                 if not trainee.profile.onboarding_completed:
                     pending_onboarding += 1
-            except:
+            except Exception:
                 pending_onboarding += 1
 
         stats = {

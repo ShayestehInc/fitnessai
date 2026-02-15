@@ -12,7 +12,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
       <StatCard
         title="Total Trainees"
         value={stats.total_trainees}
-        description={`${stats.max_trainees} max on ${stats.subscription_tier} plan`}
+        description={`${stats.max_trainees === -1 ? "Unlimited" : stats.max_trainees} max on ${stats.subscription_tier === "NONE" ? "Free" : stats.subscription_tier} plan`}
         icon={Users}
       />
       <StatCard
