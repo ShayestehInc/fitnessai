@@ -294,7 +294,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                   ],
                 ),
                 Text(
-                  '${_calculatedCalories} cal',
+                  '$_calculatedCalories cal',
                   style: TextStyle(
                     color: theme.textTheme.bodyLarge?.color,
                     fontSize: 24,
@@ -511,43 +511,52 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.dividerColor),
-              ),
-              child: Row(
-                children: List.generate(4, (index) {
-                  final mealNum = index + 1;
-                  final isSelected = _selectedMealNumber == mealNum;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedMealNumber = mealNum),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? theme.colorScheme.primary.withValues(alpha: 0.2)
-                              : Colors.transparent,
+            Semantics(
+              label: 'Select meal number',
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: theme.dividerColor),
+                ),
+                child: Row(
+                  children: List.generate(4, (index) {
+                    final mealNum = index + 1;
+                    final isSelected = _selectedMealNumber == mealNum;
+                    return Expanded(
+                      child: Semantics(
+                        button: true,
+                        selected: isSelected,
+                        label: 'Meal $mealNum',
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedMealNumber = mealNum),
                           borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'Meal $mealNum',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : theme.textTheme.bodySmall?.color,
-                            fontWeight:
-                                isSelected ? FontWeight.w600 : FontWeight.normal,
-                            fontSize: 14,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Meal $mealNum',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? theme.colorScheme.primary
+                                    : theme.textTheme.bodySmall?.color,
+                                fontWeight:
+                                    isSelected ? FontWeight.w600 : FontWeight.normal,
+                                fontSize: 14,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -556,8 +565,13 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           TextField(
             controller: _aiInputController,
             maxLines: 4,
+            textInputAction: TextInputAction.done,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              hintText: 'Enter what you ate...',
+              hintText: 'e.g., "2 chicken breasts, 1 cup rice, 1 apple"',
+              helperText: 'Include quantities and measurements for accuracy',
+              helperMaxLines: 2,
               filled: true,
               fillColor: theme.cardColor,
               border: OutlineInputBorder(
@@ -570,46 +584,65 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           const SizedBox(height: 16),
 
           if (loggingState.error != null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.error.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.error_outline, color: theme.colorScheme.error),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      loggingState.error!,
-                      style: TextStyle(color: theme.colorScheme.error),
-                    ),
+            Semantics(
+              liveRegion: true,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: theme.colorScheme.error.withValues(alpha: 0.3),
                   ),
-                ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: theme.colorScheme.error, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        loggingState.error!,
+                        style: TextStyle(
+                          color: theme.colorScheme.error,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
           if (loggingState.clarificationQuestion != null) ...[
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.help_outline, color: Colors.amber, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      loggingState.clarificationQuestion!,
-                      style: TextStyle(color: Colors.amber[800], fontSize: 13),
+            Semantics(
+              liveRegion: true,
+              label: 'Clarification needed',
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.help_outline, color: Colors.amber, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        loggingState.clarificationQuestion!,
+                        style: TextStyle(
+                          color: theme.brightness == Brightness.dark
+                              ? Colors.amber[200]
+                              : Colors.amber[900],
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -627,9 +660,14 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {
-                      ref.read(loggingStateProvider.notifier).clearState();
-                    },
+                    onPressed: loggingState.isSaving
+                        ? null
+                        : () {
+                            ref.read(loggingStateProvider.notifier).clearState();
+                          },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
                     child: const Text('Cancel'),
                   ),
                 ),
@@ -639,13 +677,19 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                     onPressed: loggingState.isSaving
                         ? null
                         : () => _confirmAiEntry(),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
                     child: loggingState.isSaving
                         ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Confirm'),
+                        : const Text(
+                            'Confirm & Save',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
                   ),
                 ),
               ],
@@ -658,6 +702,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                         _aiInputController.text.trim().isEmpty
                     ? null
                     : () {
+                        FocusScope.of(context).unfocus();
                         ref
                             .read(loggingStateProvider.notifier)
                             .parseInput(_aiInputController.text);
@@ -665,18 +710,33 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: theme.colorScheme.primary,
+                  disabledBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.4),
                 ),
                 child: loggingState.isProcessing
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(Colors.white),
-                        ),
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Processing...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onPrimary,
+                            ),
+                          ),
+                        ],
                       )
                     : const Text(
-                        'Log Food',
+                        'Parse with AI',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -695,10 +755,20 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
 
     // Check if AI actually parsed any food items
     if (parsedData.nutrition.meals.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No food items detected. Try describing what you ate.'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('No food items detected. Please describe what you ate with quantities.'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange[700],
+          duration: const Duration(seconds: 4),
         ),
       );
       return;
@@ -712,17 +782,38 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     if (success && mounted) {
       ref.read(nutritionStateProvider.notifier).refreshDailySummary();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Food logged successfully'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Food logged successfully'),
+            ],
+          ),
+          backgroundColor: Colors.green[700],
+          duration: const Duration(seconds: 2),
         ),
       );
       context.pop();
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to save food entry. Please try again.'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('Failed to save food entry. Please check your connection and try again.'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red[700],
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'Retry',
+            textColor: Colors.white,
+            onPressed: () => _confirmAiEntry(),
+          ),
         ),
       );
     }
@@ -734,54 +825,139 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
 
     final meals = nutrition.meals;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Parsed Successfully',
-                style: TextStyle(
-                  color: theme.textTheme.bodyLarge?.color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+    // Show error state if no meals were parsed
+    if (meals.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.orange.withValues(alpha: 0.3),
+            width: 1.5,
           ),
-          const SizedBox(height: 12),
-          ...meals.map((meal) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No Food Items Detected',
+                    style: TextStyle(
+                      color: Colors.orange[800],
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please describe what you ate with specific quantities. For example:\n"2 eggs, 100g chicken breast, 1 cup of rice"',
+              style: TextStyle(
+                color: Colors.orange[700],
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final totalCalories = meals.fold<double>(0, (sum, meal) => sum + meal.calories);
+    final totalProtein = meals.fold<double>(0, (sum, meal) => sum + meal.protein);
+    final totalCarbs = meals.fold<double>(0, (sum, meal) => sum + meal.carbs);
+    final totalFat = meals.fold<double>(0, (sum, meal) => sum + meal.fat);
+
+    return Semantics(
+      liveRegion: true,
+      label: 'Parsed ${meals.length} food items successfully',
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 22),
+                const SizedBox(width: 10),
+                Text(
+                  'Parsed Successfully',
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...meals.map((meal) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      meal.name,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${meal.calories.toInt()} cal • Protein ${meal.protein.toInt()}g • Carbs ${meal.carbs.toInt()}g • Fat ${meal.fat.toInt()}g',
+                      style: TextStyle(
+                        color: theme.textTheme.bodySmall?.color,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            if (meals.length > 1) ...[
+              Divider(color: theme.dividerColor, height: 20),
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Text(
-                      meal.name,
-                      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+                  Text(
+                    'Total',
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   ),
                   Text(
-                    '${meal.calories.toInt()}cal | P:${meal.protein.toInt()} C:${meal.carbs.toInt()} F:${meal.fat.toInt()}',
+                    '${totalCalories.toInt()} cal • P ${totalProtein.toInt()}g • C ${totalCarbs.toInt()}g • F ${totalFat.toInt()}g',
                     style: TextStyle(
                       color: theme.textTheme.bodySmall?.color,
-                      fontSize: 12,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
-            );
-          }),
-        ],
+            ],
+          ],
+        ),
       ),
     );
   }

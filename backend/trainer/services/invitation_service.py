@@ -39,7 +39,12 @@ def send_invitation_email(invitation: TraineeInvitation) -> None:
     # Strip port for email domain fallback
     domain_name = domain.split(':')[0]
 
-    registration_url = f"https://{domain}/register?invite={invite_code}"
+    # Use HTTPS for production, HTTP for localhost
+    protocol = 'http' if 'localhost' in domain or '127.0.0.1' in domain else 'https'
+    # Escape the invite code for URL safety (though it's already URL-safe from secrets.token_urlsafe)
+    from urllib.parse import quote
+    safe_invite_code = quote(invite_code, safe='')
+    registration_url = f"{protocol}://{domain}/register?invite={safe_invite_code}"
 
     subject = f"{trainer_name} invited you to join {site_name}"
 
