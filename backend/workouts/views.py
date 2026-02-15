@@ -415,7 +415,9 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
         ).filter(
             Q(workout_data__has_key='exercises') | Q(workout_data__has_key='sessions'),
         ).exclude(
-            workout_data__exercises=[],
+            # Only exclude empty exercises for records that actually have the key.
+            # Records with only 'sessions' (no 'exercises' key) must NOT be excluded.
+            Q(workout_data__has_key='exercises') & Q(workout_data__exercises=[]),
         ).defer(
             'nutrition_data',  # Not needed for history summary, avoid fetching large blob
         ).order_by('-date')
