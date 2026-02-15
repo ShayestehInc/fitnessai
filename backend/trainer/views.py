@@ -427,7 +427,7 @@ class ResendInvitationView(views.APIView):
     def post(self, request: Request, pk: int) -> Response:
         user = cast(User, request.user)
         try:
-            invitation = TraineeInvitation.objects.get(
+            invitation = TraineeInvitation.objects.select_related('trainer').get(
                 id=pk,
                 trainer=user
             )
@@ -437,11 +437,19 @@ class ResendInvitationView(views.APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        if invitation.status != TraineeInvitation.Status.PENDING:
+        resendable_statuses = (
+            TraineeInvitation.Status.PENDING,
+            TraineeInvitation.Status.EXPIRED,
+        )
+        if invitation.status not in resendable_statuses:
             return Response(
-                {'error': 'Can only resend pending invitations'},
+                {'error': 'Can only resend pending or expired invitations'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Reactivate expired invitations
+        if invitation.status == TraineeInvitation.Status.EXPIRED:
+            invitation.status = TraineeInvitation.Status.PENDING
 
         invitation.expires_at = timezone.now() + timedelta(days=7)
         invitation.save()

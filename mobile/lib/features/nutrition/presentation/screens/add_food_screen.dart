@@ -704,9 +704,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
       return;
     }
 
+    final mealNumber = widget.mealNumber ?? _selectedMealNumber;
     final success = await ref
         .read(loggingStateProvider.notifier)
-        .confirmAndSave();
+        .confirmAndSave(mealPrefix: 'Meal $mealNumber - ');
 
     if (success && mounted) {
       ref.read(nutritionStateProvider.notifier).refreshDailySummary();

@@ -8,9 +8,10 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.core.mail import send_mail
-from django.utils import timezone
+from django.utils.html import escape
 
 if TYPE_CHECKING:
+    from users.models import User
     from trainer.models import TraineeInvitation
 
 logger = logging.getLogger(__name__)
@@ -30,16 +31,19 @@ def send_invitation_email(invitation: TraineeInvitation) -> None:
         Exception: If the email fails to send.
     """
     trainer_name = _get_trainer_display_name(invitation.trainer)
-    domain = getattr(settings, 'DJOSER', {}).get('DOMAIN', 'localhost:3000')
-    site_name = getattr(settings, 'DJOSER', {}).get('SITE_NAME', 'FitnessAI')
-    invite_code = invitation.invitation_code
-    expiry_date = invitation.expires_at.strftime('%B %d, %Y') if invitation.expires_at else 'N/A'
+    domain: str = getattr(settings, 'DJOSER', {}).get('DOMAIN', 'localhost:3000')
+    site_name: str = getattr(settings, 'DJOSER', {}).get('SITE_NAME', 'FitnessAI')
+    invite_code: str = invitation.invitation_code
+    expiry_date: str = invitation.expires_at.strftime('%B %d, %Y')
+
+    # Strip port for email domain fallback
+    domain_name = domain.split(':')[0]
 
     registration_url = f"https://{domain}/register?invite={invite_code}"
 
     subject = f"{trainer_name} invited you to join {site_name}"
 
-    # Plain text version
+    # Plain text version (no escaping needed)
     text_body = (
         f"Hi there!\n\n"
         f"{trainer_name} has invited you to join {site_name} as their trainee.\n\n"
@@ -58,37 +62,51 @@ def send_invitation_email(invitation: TraineeInvitation) -> None:
         f"— The {site_name} Team\n"
     )
 
-    # HTML version
+    # HTML version — escape all user-supplied values to prevent XSS
+    safe_trainer_name = escape(trainer_name)
+    safe_site_name = escape(site_name)
+    safe_invite_code = escape(invite_code)
+    safe_expiry_date = escape(expiry_date)
+
+    message_html = ""
+    if invitation.message:
+        safe_message = escape(invitation.message)
+        message_html = (
+            f"<blockquote style='border-left: 3px solid #6366f1; "
+            f"padding-left: 12px; margin: 16px 0; color: #6b7280; "
+            f"font-style: italic;'>{safe_message}</blockquote>"
+        )
+
     html_body = f"""
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <h2 style="color: #1a1a1a;">You're Invited!</h2>
     <p style="color: #4a4a4a; font-size: 16px;">
-        <strong>{trainer_name}</strong> has invited you to join <strong>{site_name}</strong> as their trainee.
+        <strong>{safe_trainer_name}</strong> has invited you to join <strong>{safe_site_name}</strong> as their trainee.
     </p>
-    {"<blockquote style='border-left: 3px solid #6366f1; padding-left: 12px; margin: 16px 0; color: #6b7280; font-style: italic;'>" + invitation.message + "</blockquote>" if invitation.message else ""}
+    {message_html}
     <div style="background-color: #f3f4f6; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center;">
         <p style="color: #6b7280; font-size: 14px; margin: 0 0 8px 0;">Your invitation code</p>
-        <p style="color: #1a1a1a; font-size: 28px; font-weight: bold; letter-spacing: 2px; margin: 0;">{invite_code}</p>
+        <p style="color: #1a1a1a; font-size: 28px; font-weight: bold; letter-spacing: 2px; margin: 0;">{safe_invite_code}</p>
     </div>
     <div style="margin: 24px 0;">
         <p style="color: #4a4a4a; font-size: 15px; font-weight: 600;">To get started:</p>
         <ol style="color: #4a4a4a; font-size: 15px; padding-left: 20px;">
-            <li style="margin-bottom: 8px;">Download the {site_name} app</li>
+            <li style="margin-bottom: 8px;">Download the {safe_site_name} app</li>
             <li style="margin-bottom: 8px;">Create an account</li>
             <li style="margin-bottom: 8px;">Enter your invitation code during registration</li>
         </ol>
     </div>
     <p style="color: #9ca3af; font-size: 13px;">
-        This invitation expires on {expiry_date}.
+        This invitation expires on {safe_expiry_date}.
     </p>
     <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
     <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        &mdash; The {site_name} Team
+        &mdash; The {safe_site_name} Team
     </p>
 </div>
 """
 
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', f'noreply@{domain}')
+    from_email: str = getattr(settings, 'DEFAULT_FROM_EMAIL', f'noreply@{domain_name}')
 
     send_mail(
         subject=subject,
@@ -107,7 +125,7 @@ def send_invitation_email(invitation: TraineeInvitation) -> None:
     )
 
 
-def _get_trainer_display_name(trainer: 'TraineeInvitation.trainer') -> str:  # type: ignore[name-defined]
+def _get_trainer_display_name(trainer: User) -> str:
     """Get a display-friendly name for the trainer."""
     if trainer.first_name:
         parts = [trainer.first_name]

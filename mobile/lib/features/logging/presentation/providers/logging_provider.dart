@@ -81,7 +81,7 @@ class LoggingNotifier extends StateNotifier<LoggingState> {
   }
 
   /// Confirm and save the parsed log
-  Future<bool> confirmAndSave({String? date}) async {
+  Future<bool> confirmAndSave({String? date, String? mealPrefix}) async {
     if (state.parsedData == null) return false;
 
     state = state.copyWith(isSaving: true, error: null);
@@ -91,7 +91,7 @@ class LoggingNotifier extends StateNotifier<LoggingState> {
       'nutrition': {
         'meals': state.parsedData!.nutrition.meals
             .map((m) => {
-                  'name': m.name,
+                  'name': mealPrefix != null ? '$mealPrefix${m.name}' : m.name,
                   'protein': m.protein,
                   'carbs': m.carbs,
                   'fat': m.fat,
