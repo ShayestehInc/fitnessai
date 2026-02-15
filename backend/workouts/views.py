@@ -26,6 +26,8 @@ from core.permissions import IsTrainee
 
 from users.models import User
 from .models import Exercise, Program, DailyLog, NutritionGoal, WeightCheckIn, MacroPreset
+from rest_framework.pagination import PageNumberPagination
+
 from .serializers import (
     ExerciseSerializer,
     ProgramSerializer,
@@ -38,7 +40,10 @@ from .serializers import (
     WeightCheckInSerializer,
     MacroPresetSerializer,
     MacroPresetCreateSerializer,
+    WorkoutHistorySummarySerializer,
+    WorkoutDetailSerializer,
 )
+from .services.daily_log_service import DailyLogService
 from .services.natural_language_parser import NaturalLanguageParserService
 
 
@@ -343,6 +348,13 @@ class ProgramViewSet(viewsets.ModelViewSet[Program]):
         })
 
 
+class WorkoutHistoryPagination(PageNumberPagination):
+    """Pagination for workout history endpoint."""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
 class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
     """
     ViewSet for DailyLog CRUD operations.
@@ -375,7 +387,50 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
             queryset = queryset.filter(date=date_param)
 
         return queryset
-    
+
+    @action(detail=False, methods=['get'], url_path='workout-history',
+            permission_classes=[IsTrainee])
+    def workout_history(self, request: Request) -> Response:
+        """
+        Get paginated workout history for the current trainee.
+
+        Only returns DailyLogs where workout_data contains actual exercise data
+        (excludes null, empty dict, and empty exercises list).
+
+        GET /api/workouts/daily-logs/workout-history/?page=1&page_size=20
+
+        Returns paginated list with computed summary fields per log:
+        workout_name, exercise_count, total_sets, total_volume_lbs, duration_display.
+        """
+        user = cast(User, request.user)
+
+        queryset = DailyLogService.get_workout_history_queryset(user.id)
+
+        paginator = WorkoutHistoryPagination()
+        page = paginator.paginate_queryset(queryset, request)
+
+        if page is not None:
+            serializer = WorkoutHistorySummarySerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = WorkoutHistorySummarySerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='workout-detail',
+            permission_classes=[IsTrainee])
+    def workout_detail(self, request: Request, pk: int | None = None) -> Response:
+        """
+        Get full workout detail for a single DailyLog.
+
+        GET /api/workouts/daily-logs/{id}/workout-detail/
+
+        Returns workout_data, date, and notes for the detail screen.
+        Row-level security enforced via get_queryset() filtering by trainee=user.
+        """
+        daily_log = self.get_object()
+        serializer = WorkoutDetailSerializer(daily_log)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['post'], url_path='parse-natural-language')
     def parse_natural_language(self, request: Request) -> Response:
         """

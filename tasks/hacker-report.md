@@ -1,128 +1,85 @@
-# Hacker Report: Pipeline 7 - AI Food Parsing + Password Change + Invitation Emails
+# Hacker Report: Pipeline 8 - Trainee Workout History + Home Screen Recent Workouts
 
 ## Dead Buttons & Non-Functional UI
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| 1 | **LOW** | admin_security_screen.dart | "Active Sessions" tile | Navigate to session management screen | Shows mock dialog with placeholder data (line 349-383) |
-| 2 | **LOW** | admin_security_screen.dart | "Sign Out All Devices" button | Actually sign out all devices via API | Shows confirmation dialog but action only displays snackbar (line 398-407) |
-| 3 | **LOW** | admin_security_screen.dart | "Enable 2FA" / "Disable 2FA" button | Navigate to 2FA setup flow | Shows "2FA setup coming soon" snackbar (line 435-444) |
-| 4 | **LOW** | settings_screen.dart | Some settings tiles | Various actions | Found 1 "Coming soon!" snackbar still in settings (grep result) |
+| 1 | HIGH | Home > Latest Videos > `_VideoCard` | Play button overlay | Tapping the play button or video thumbnail navigates to a video player / opens video URL | Nothing happens. Entire card has no `onTap`, `GestureDetector`, or `InkWell`. The play button circle looks tappable but is purely decorative dead UI. |
+| 2 | MEDIUM | Home > Latest Videos > `_VideoCard` | Heart / like icon | Tapping toggles like state and calls an API | No tap handler on the `Icon` widget. `isLiked` and `likes` are display-only from hardcoded data. No like API exists. |
+| 3 | MEDIUM | Home > Header | Notification bell `IconButton` | Opens a notification feed or navigates to notifications screen | Shows a placeholder `AlertDialog` with "Notifications are coming soon!" text. Misleading -- button looks fully functional but is a stub. No trainee notification API exists on the backend. |
+| 4 | LOW | Home > Latest Videos | Video data | Real video data from API | `_getSampleVideos()` returns 3 hardcoded `VideoItem` objects with Unsplash placeholder URLs. No video API exists on the backend. |
 
 ## Visual Misalignments & Layout Bugs
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| - | - | - | - | No visual bugs found in reviewed code |
+| 1 | HIGH | `WorkoutHistoryCard` stats row (`workout_history_widgets.dart`) | Three `StatChip` widgets in a `Row` overflow on narrow screens (e.g., iPhone SE at 320dp). `Row` has no wrapping -- causes RenderFlex overflow error in debug mode and clipped text in release. | **FIXED**: Changed `Row` to `Wrap` with `spacing: 16, runSpacing: 8` so chips flow to next line on narrow devices. |
+| 2 | LOW | `WorkoutDetailScreen` header (`workout_detail_screen.dart`) | Right column with 3+ `HeaderStat` entries can get tight when exercise count is high (e.g., "12 exercises") or duration is long. Not a crash but text could clip near edge. | Mitigated by existing `Row` + `Expanded` on left column. Low priority. |
 
 ## Broken Flows & Logic Bugs
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 1 | **MEDIUM** | AI Entry Tab | 1. Open add_food_screen 2. Go to AI Entry tab 3. Enter text 4. AI returns empty meals array 5. Confirm | Show error immediately | Only shows error after clicking Confirm (line 697-705) - should validate before showing parsed preview |
-| 2 | **LOW** | Change Password | 1. Open ChangePasswordScreen 2. Enter wrong current password | Error shows under "Current Password" field | Error message set to `_errorMessage` but displayed under Current Password field via `errorText` param (line 574) - works but could be confusing since it's a global error |
-| 3 | **LOW** | Invitation Email | Trainer has no first/last name set | Email uses "first last" or email prefix | `_get_trainer_display_name` correctly falls back to email prefix (line 128-135), but email shows trainer_name without validation - WORKS CORRECTLY |
-| 4 | **CRITICAL** | Password Change Backend | API endpoint `/api/auth/users/set_password/` called from mobile | Djoser endpoint should exist | Backend uses Djoser but I cannot verify set_password endpoint is enabled without checking Djoser config in settings.py |
-| 5 | **MEDIUM** | Invitation Email Failure | 1. Trainer creates invitation 2. Email service fails | Invitation created but email not sent | Email failure is caught (line 388-391) but only logged - user gets success response even if email failed (HTTP 201 returned before checking email status) |
+| 1 | INFO | `WorkoutDetailData._extractExercises` fragility | If workout data only has `sessions` key with no backward-compat `exercises` key at top level | Exercises should be extracted from within sessions | Current implementation only reads `data['exercises']` and returns `[]` if not found. Backend always saves a flat `exercises` key for backward compat (verified in `survey_views.py` line 298), so this is not currently broken. However, the readiness survey and post-workout survey extractors handle the sessions fallback correctly while exercises do not -- an inconsistency that could cause issues if the backward-compat layer is ever removed. |
 
 ## Product Improvement Suggestions
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 1 | **HIGH** | AI Entry Tab | Validate parsed data before showing preview | Currently shows "Parsed Successfully" even if meals array is empty - should show error state immediately instead of waiting for Confirm click |
-| 2 | **MEDIUM** | Change Password | Show password strength indicator | New password must be 8+ chars but no visual feedback on strength - would improve UX |
-| 3 | **MEDIUM** | Invitation Email | Add email preview in UI | Let trainer preview the email before sending - improves confidence |
-| 4 | **HIGH** | Invitation Email | Return email status to user | Currently logs email failures but returns success - should return `{"invitation_created": true, "email_sent": true/false}` so UI can show "Invitation created but email failed to send" |
-| 5 | **MEDIUM** | AI Entry Tab | Add loading state for parsed preview | When AI returns data, the preview appears instantly - could add a subtle fade-in animation |
-| 6 | **LOW** | Security Screen | Implement actual 2FA | Hardcoded `const bool is2FAEnabled = false` on line 153 - placeholder for future feature |
-| 7 | **MEDIUM** | Security Screen | Implement real login history | Mock data on lines 248-252 - should fetch from backend API |
-| 8 | **LOW** | Change Password | Add "password changed" confirmation step | After successful change, just shows snackbar and pops - could show a nicer full-screen confirmation |
-| 9 | **CRITICAL** | Food Search Tab | No error handling for network failures | Food search can fail but error only shows if API returns error - what if network is completely down? Should catch DioException |
-| 10 | **HIGH** | Invitation Email | HTML/text email mismatch | Text version doesn't include registration URL as a clickable link - some email clients might not render HTML |
+| 1 | HIGH | Workout Detail Header | Display total volume (`formattedVolume`) in the header stats. The data is fetched from the API (`totalVolumeLbs`) and the model has a `formattedVolume` getter, but it was never displayed anywhere. Volume is the #1 metric for progressive overload tracking -- "I lifted 12,450 lbs last session." | **FIXED**: Added `HeaderStat` with `Icons.monitor_weight_outlined` to the detail header when `totalVolumeLbs > 0`. |
+| 2 | HIGH | All 4 new files | Zero `Semantics` widgets in `workout_history_screen.dart`, `workout_history_widgets.dart`, `workout_detail_screen.dart`, and `workout_detail_widgets.dart`. Screen readers cannot provide meaningful context for workout cards, exercise cards, survey badges, or error/empty states. | **FIXED**: Added `Semantics` to `WorkoutHistoryCard` (button with full descriptive label), `ExerciseCard` (name + set count), `SurveyBadge` (label + score), `HeaderStat` (value label). Added `Semantics(liveRegion: true)` to empty and error states. Used `ExcludeSemantics` on `StatChip` children to prevent duplicate announcements. |
+| 3 | MEDIUM | Workout Detail | Add a "Start Similar Workout" button at the bottom of the detail view. Users review past workouts specifically to replicate or improve upon them. Currently they navigate back, go to programs, find the same workout, and start manually. | Not implemented -- requires mapping from historical workout name back to a program day, which involves non-trivial logic. |
+| 4 | MEDIUM | Home > Recent Workouts | The `_RecentWorkoutCard` could show more stats per card -- duration and/or total volume alongside exercise count. Currently only shows date, name, and "X exercises". | Not implemented -- would require layout adjustment. Low effort but needs design decision on information density. |
+| 5 | MEDIUM | Workout History | Missing search/filter capability. A user with 100+ logged workouts can only infinite-scroll. No way to filter by workout name, date range, or exercise name. | Would require backend query param support (`?workout_name=Push`, `?date_after=2026-01-01`) and a filter UI. Not trivial but high value for power users. |
+| 6 | LOW | Workout History | Consider adding date group headers ("This Week", "Last Week", "February 2026") to break up the flat list visually. Currently all cards are at the same level with only inline date labels. | Would significantly improve scannability for users with many workouts. |
+| 7 | LOW | Video Section | Either wire up video cards with actual tap navigation and like functionality, or remove the section entirely. Half-implemented UI with non-functional play buttons and like icons erodes user trust. | Requires a video content API and player integration. Better to conditionally hide the section until the backend supports it: `if (state.latestVideos.isNotEmpty && hasVideoApi)`. |
 
 ## Summary
-- Dead UI elements found: **4**
-- Visual bugs found: **0**
-- Logic bugs found: **5**
-- Improvements suggested: **10**
-- Items fixed by hacker: **2**
-
-## Chaos Score: **6/10**
-
-### Rationale:
-The Pipeline 7 changes are **mostly solid** but have some issues that could frustrate users:
-
-**Good:**
-- AI food parsing flow is well-structured with proper error states
-- Password change screen has good validation and error handling
-- Invitation email service has proper XSS protection (escaping user input)
-- Code follows Flutter conventions well
-
-**Bad:**
-- **Critical:** Backend password change endpoint not verified - could be a showstopper if Djoser's set_password isn't enabled
-- Email failure is hidden from the user - they think invitation was sent when it wasn't
-- AI entry tab shows "Parsed Successfully" for empty results
-- Several placeholder/mock features (2FA, login history, active sessions) that appear functional but don't work
-
-**Ugly:**
-- The "Coming soon" snackbar is still lurking in settings_screen.dart
-- Mock data for login history could confuse users into thinking it's real
-- No loading states or animations for the AI parsing flow
-
-**Risk Level:**
-- If the Djoser set_password endpoint isn't configured, password change is completely broken
-- Email failure handling could lead to support tickets ("I never got my invitation!")
-- The AI food parsing empty meals validation happens too late in the flow
+- Dead UI elements found: 4
+- Visual bugs found: 2
+- Logic bugs found: 0 active (1 fragility noted)
+- Improvements suggested: 7
+- Items fixed by hacker: 4
 
 ## Items Fixed by Hacker
 
-### Fix 1: Add better AI empty meals validation
-**File:** `/Users/rezashayesteh/Desktop/shayestehinc/fitnessai/mobile/lib/features/nutrition/presentation/screens/add_food_screen.dart`
+### Fix 1: Stats row overflow in WorkoutHistoryCard
+**File:** `mobile/lib/features/workout_log/presentation/screens/workout_history_widgets.dart`
+**Issue:** Three `StatChip` widgets in a `Row` cause RenderFlex overflow on narrow screens.
+**Fix:** Changed `Row` to `Wrap(spacing: 16, runSpacing: 8)`. Chips now gracefully wrap to the next line.
 
-**Issue:** Empty meals array shows "Parsed Successfully" instead of showing error immediately.
+### Fix 2: Accessibility -- Semantics across all 4 new files
+**Files:**
+- `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart` -- empty state and error state get `Semantics(liveRegion: true)`
+- `mobile/lib/features/workout_log/presentation/screens/workout_history_widgets.dart` -- `WorkoutHistoryCard` gets descriptive `Semantics(button: true, label: ...)`, `StatChip` wrapped in `ExcludeSemantics` to avoid redundancy
+- `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart` -- error state gets `Semantics(liveRegion: true, label: ...)`
+- `mobile/lib/features/workout_log/presentation/screens/workout_detail_widgets.dart` -- `ExerciseCard` gets `Semantics(label: ...)`, `SurveyBadge` gets `Semantics(label: ...)`, `HeaderStat` gets `Semantics(label: ...)` with `ExcludeSemantics` on children
 
-**Fix:** Modified `_buildParsedPreview` to check for empty meals and show an error state instead.
+### Fix 3: Total volume display in workout detail header
+**File:** `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart`
+**Issue:** `totalVolumeLbs` fetched from API and stored in model but never displayed.
+**Fix:** Added conditional `HeaderStat(icon: Icons.monitor_weight_outlined, value: workout.formattedVolume)` when `totalVolumeLbs > 0`.
 
-### Fix 2: Add note to login history that it's mock data
-**File:** `/Users/rezashayesteh/Desktop/shayestehinc/fitnessai/mobile/lib/features/settings/presentation/screens/admin_security_screen.dart`
+### Fix 4: Pagination error retry (applied by linter)
+**File:** `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart`
+**Issue:** If `loadMore()` fails during infinite scroll, the footer showed nothing useful.
+**Fix:** Added inline error text with retry `TextButton.icon` in the list footer when `state.error != null && state.workouts.isNotEmpty`.
 
-**Issue:** Mock login history data (lines 248-252) appears functional but is fake.
+## Chaos Score: 7/10
 
-**Fix:** Added a "Preview Only" badge to the login history section header.
+### Rationale
+The core workout history feature is well-built and works correctly end-to-end. Data flows cleanly from backend through API to model to UI. Pagination, pull-to-refresh, error states, empty states, and shimmer loading are all properly implemented. The new `WorkoutDetailData` model centralizes JSON extraction logic nicely.
 
----
+**Good:**
+- End-to-end data flow works: backend query -> serializer -> API -> repository -> provider -> UI
+- Backend correctly defers `nutrition_data` to avoid fetching unnecessary blobs
+- Route guard on `/workout-detail` redirects to history if `extra` is wrong type
+- Shimmer loading in detail screen uses real header data (summary) with placeholder cards
+- Pull-to-refresh properly resets state before reloading
 
-## Backend Verification: Password Change Endpoint
-
-**Status:** ✅ **VERIFIED - WORKING**
-
-Checked `/Users/rezashayesteh/Desktop/shayestehinc/fitnessai/backend/venv/lib/python3.13/site-packages/djoser/views.py` and confirmed:
-- Djoser's `UserViewSet` has a `set_password` action built-in
-- The endpoint `/api/auth/users/set_password/` is automatically registered via `include('djoser.urls')`
-- Djoser config in `backend/config/settings.py` line 232 is properly configured
-- No custom configuration needed - this is a standard Djoser feature
-
-**Conclusion:** Password change feature is fully functional. The CRITICAL bug is a false alarm.
-
----
-
-## Final Summary After Investigation
-
-**Items Fixed:**
-1. ✅ AI Entry empty meals validation - now shows error state immediately
-2. ✅ Login history "Preview Only" badge added to prevent confusion
-
-**Items Verified:**
-3. ✅ Password change backend endpoint exists and works (Djoser default)
-4. ✅ Invitation email XSS protection is correct (escape() used properly)
-5. ✅ AI food parsing error handling is good
-
-**Remaining Issues (Not Fixed):**
-- Email failure handling still returns success to user (product decision needed)
-- Mock data for 2FA, active sessions, login history (future features, out of scope)
-- "Coming soon" snackbar in settings_screen.dart (minor polish)
+**Concerns:**
+- 4 dead UI elements in the home screen (video section, notification bell) that predate this feature but appear alongside the new Recent Workouts section
+- Zero accessibility before this fix pass -- all 4 new files had no `Semantics` widgets
+- `WorkoutRepository` returns `Map<String, dynamic>` everywhere, violating the project's data type rules ("never return dict")
+- `_extractExercises` doesn't handle the sessions fallback, unlike sibling extractors
 
 **Risk Assessment:**
-- **Low Risk**: All critical features work correctly
-- **Medium Risk**: Email failures are hidden from users (could cause support tickets)
-- **Low Risk**: Mock UI elements could confuse users slightly
-
-**Final Chaos Score: 7/10** (upgraded from 6/10 after verifying password change works)
-
-The implementation is solid. The two critical concerns (empty meals validation and password endpoint) are now addressed or verified working.
+- **Low Risk**: Feature works correctly. No data loss, no crashes, no security issues.
+- **Medium Risk**: Dead video UI alongside real workout data creates a jarring UX contrast.
+- **Low Risk**: Accessibility issues now addressed with this fix pass.

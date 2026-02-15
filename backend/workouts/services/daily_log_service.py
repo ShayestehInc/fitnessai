@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
 from workouts.models import DailyLog, Program
 
@@ -115,6 +115,37 @@ class DailyLogService:
                 workout_days += 1
 
         return workout_days
+
+    @staticmethod
+    def get_workout_history_queryset(trainee_id: int) -> QuerySet[DailyLog]:
+        """
+        Build a filtered, ordered queryset of DailyLogs that contain actual
+        workout data for the given trainee.
+
+        Excludes logs where workout_data is null, empty dict, or has an empty
+        exercises list. Includes logs that use either the 'exercises' or
+        'sessions' key format. Defers nutrition_data since it is not needed
+        for history summaries.
+
+        Returns the queryset ordered newest-first.
+        """
+        return (
+            DailyLog.objects.filter(trainee_id=trainee_id)
+            .exclude(workout_data__isnull=True)
+            .exclude(workout_data={})
+            .filter(
+                Q(workout_data__has_key='exercises')
+                | Q(workout_data__has_key='sessions'),
+            )
+            .exclude(
+                # Only exclude empty exercises for records that actually have
+                # the key. Records with only 'sessions' must NOT be excluded.
+                Q(workout_data__has_key='exercises')
+                & Q(workout_data__exercises=[]),
+            )
+            .defer('nutrition_data')
+            .order_by('-date')
+        )
 
     @staticmethod
     def edit_meal_entry(

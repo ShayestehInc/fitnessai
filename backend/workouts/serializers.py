@@ -291,3 +291,116 @@ class WorkoutSummarySerializer(serializers.Serializer[dict[str, Any]]):
     date = serializers.DateField()
     exercises = serializers.ListField()
     program_context = serializers.DictField(required=False, allow_null=True)
+
+
+class WorkoutHistorySummarySerializer(serializers.ModelSerializer[DailyLog]):
+    """
+    Serializer for workout history list view.
+    Returns computed summary fields from workout_data JSON.
+    """
+
+    workout_name = serializers.SerializerMethodField()
+    exercise_count = serializers.SerializerMethodField()
+    total_sets = serializers.SerializerMethodField()
+    total_volume_lbs = serializers.SerializerMethodField()
+    duration_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DailyLog
+        fields = [
+            'id', 'date', 'workout_name', 'exercise_count',
+            'total_sets', 'total_volume_lbs', 'duration_display',
+        ]
+        read_only_fields = ['id', 'date']
+
+    def _get_workout_data(self, obj: DailyLog) -> dict[str, Any]:
+        """Safely extract workout_data as a dict."""
+        data = obj.workout_data
+        if isinstance(data, dict):
+            return data
+        return {}
+
+    def _get_exercises_list(self, obj: DailyLog) -> list[dict[str, Any]]:
+        """Extract exercises from workout_data, handling both formats."""
+        data = self._get_workout_data(obj)
+        exercises = data.get('exercises', [])
+        if isinstance(exercises, list):
+            return [e for e in exercises if isinstance(e, dict)]
+        return []
+
+    def get_workout_name(self, obj: DailyLog) -> str:
+        """Extract workout name from workout_data."""
+        data = self._get_workout_data(obj)
+        # Top-level workout_name
+        name = data.get('workout_name')
+        if name and isinstance(name, str):
+            return name
+        # Try first session name
+        sessions = data.get('sessions', [])
+        if isinstance(sessions, list) and sessions:
+            first_session = sessions[0]
+            if isinstance(first_session, dict):
+                session_name = first_session.get('workout_name')
+                if session_name and isinstance(session_name, str):
+                    return session_name
+        return 'Workout'
+
+    def get_exercise_count(self, obj: DailyLog) -> int:
+        """Count exercises in workout_data."""
+        return len(self._get_exercises_list(obj))
+
+    def get_total_sets(self, obj: DailyLog) -> int:
+        """Sum all sets across all exercises."""
+        total = 0
+        for exercise in self._get_exercises_list(obj):
+            sets = exercise.get('sets', [])
+            if isinstance(sets, list):
+                total += len(sets)
+        return total
+
+    def get_total_volume_lbs(self, obj: DailyLog) -> float:
+        """Sum of (weight * reps) for all completed sets."""
+        total = 0.0
+        for exercise in self._get_exercises_list(obj):
+            sets = exercise.get('sets', [])
+            if not isinstance(sets, list):
+                continue
+            for s in sets:
+                if not isinstance(s, dict):
+                    continue
+                if not s.get('completed', True):
+                    continue
+                weight = s.get('weight', 0)
+                reps = s.get('reps', 0)
+                if isinstance(weight, (int, float)) and isinstance(reps, (int, float)):
+                    total += weight * reps
+        return round(total, 1)
+
+    def get_duration_display(self, obj: DailyLog) -> str:
+        """Extract duration from workout_data."""
+        data = self._get_workout_data(obj)
+        duration = data.get('duration')
+        if duration and isinstance(duration, str):
+            return duration
+        # Try first session
+        sessions = data.get('sessions', [])
+        if isinstance(sessions, list) and sessions:
+            first_session = sessions[0]
+            if isinstance(first_session, dict):
+                session_duration = first_session.get('duration')
+                if session_duration and isinstance(session_duration, str):
+                    return session_duration
+        return '0:00'
+
+
+class WorkoutDetailSerializer(serializers.ModelSerializer[DailyLog]):
+    """
+    Restricted serializer for workout detail view.
+    Only exposes fields needed by the mobile detail screen —
+    no trainee email, no nutrition_data.
+    """
+
+    class Meta:
+        model = DailyLog
+        fields = ['id', 'date', 'workout_data', 'notes']
+        read_only_fields = ['id', 'date', 'workout_data', 'notes']

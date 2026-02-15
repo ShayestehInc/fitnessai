@@ -1,4 +1,4 @@
-# Architecture Review: Pipeline 7 — AI Food Parsing + Password Change + Invitation Emails
+# Architecture Review: Pipeline 8 -- Trainee Workout History + Home Screen Recent Workouts
 
 ## Review Date
 2026-02-14
@@ -6,452 +6,175 @@
 ## Files Reviewed
 
 ### Backend
-- `backend/trainer/services/invitation_service.py` (NEW)
-- `backend/trainer/views.py` (lines 25, 373-396, 421-462)
-- `backend/workouts/services/natural_language_parser.py` (existing)
+- `backend/workouts/views.py` (DailyLogViewSet: `workout_history` and `workout_detail` actions)
+- `backend/workouts/serializers.py` (`WorkoutHistorySummarySerializer`, `WorkoutDetailSerializer`)
+- `backend/workouts/services/daily_log_service.py` (`get_workout_history_queryset`)
+- `backend/workouts/models.py` (DailyLog schema review)
+- `backend/workouts/tests/test_workout_history.py` (48 tests)
 
 ### Mobile
-- `mobile/lib/features/logging/presentation/providers/logging_provider.dart` (line 84, 94)
-- `mobile/lib/features/auth/data/repositories/auth_repository.dart` (lines 314-367)
-- `mobile/lib/features/settings/presentation/screens/admin_security_screen.dart` (lines 458-671)
-- `mobile/lib/features/nutrition/presentation/screens/add_food_screen.dart` (lines 84, 94, 451, 710)
-- `mobile/lib/core/constants/api_constants.dart` (line 19)
+- `mobile/lib/features/workout_log/data/models/workout_history_model.dart` (NEW)
+- `mobile/lib/features/workout_log/data/repositories/workout_repository.dart` (MODIFIED)
+- `mobile/lib/features/workout_log/presentation/providers/workout_history_provider.dart` (NEW)
+- `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart` (NEW)
+- `mobile/lib/features/workout_log/presentation/screens/workout_history_widgets.dart` (NEW)
+- `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart` (NEW)
+- `mobile/lib/features/workout_log/presentation/screens/workout_detail_widgets.dart` (NEW)
+- `mobile/lib/features/home/presentation/providers/home_provider.dart` (MODIFIED)
+- `mobile/lib/features/home/presentation/screens/home_screen.dart` (MODIFIED)
+- `mobile/lib/core/constants/api_constants.dart` (MODIFIED)
+- `mobile/lib/core/router/app_router.dart` (MODIFIED)
+
+---
 
 ## Architectural Alignment
 
-### ✅ Follows existing layered architecture
-- [x] Business logic in services, not routers/views
+- [x] Follows existing layered architecture
 - [x] Models/schemas in correct locations
-- [x] No business logic in routers/views
+- [x] No business logic in routers/views (FIXED -- see below)
 - [x] Consistent with existing patterns
 
-**Status: PASS**
+### Issues Found and Fixed
 
-The new `invitation_service.py` correctly separates email sending logic from the view layer. View layer handles request/response only, service layer handles email composition and sending.
+**Issue 1 (FIXED): Queryset business logic was inline in the view.**
 
-### ✅ Backend Architecture Patterns
+The `workout_history` action in `DailyLogViewSet` contained a complex queryset construction with 5 chained ORM calls including `Q` objects, `exclude`, `filter`, and `defer`. Per project conventions (`CLAUDE.md`: "Business logic in `services/`"), this belongs in the service layer.
 
-| Pattern | Status | Notes |
-|---------|--------|-------|
-| Service layer separation | ✅ PASS | `send_invitation_email()` extracted from view |
-| Type hints | ✅ PASS | All functions properly typed |
-| Error handling | ✅ PASS | Service raises exceptions, view catches them |
-| No business logic in views | ✅ PASS | Views delegate to services |
+**Fix applied:** Extracted `get_workout_history_queryset(trainee_id: int)` into `DailyLogService` in `backend/workouts/services/daily_log_service.py`. The view now calls `DailyLogService.get_workout_history_queryset(user.id)` -- a single line. This matches the pattern already established by `DailyLogService.get_weekly_progress()`.
 
-### ✅ Mobile Architecture Patterns
+**Issue 2 (FIXED): JSON extraction logic mixed into UI widget.**
 
-| Pattern | Status | Notes |
-|---------|--------|-------|
-| Repository pattern | ✅ PASS | `changePassword()` in `AuthRepository` |
-| Riverpod state management | ✅ PASS | Screen uses `ref.read(authRepositoryProvider)` |
-| No business logic in UI | ✅ PASS | UI delegates to repository |
-| API constants centralized | ✅ PASS | `ApiConstants.setPassword` defined |
+`WorkoutDetailScreen` contained three private methods (`_extractExercises`, `_extractReadinessSurvey`, `_extractPostSurvey`) totaling ~50 lines of JSON-shape-aware parsing. This is data layer logic, not presentation logic.
+
+**Fix applied:** Created `WorkoutDetailData` class in `workout_history_model.dart` with a `fromWorkoutData` factory constructor. The extraction methods are now static methods of this data class. The detail screen simply calls `WorkoutDetailData.fromWorkoutData(data)` and reads `.exercises`, `.readinessSurvey`, `.postSurvey`. This makes the extraction logic reusable and testable outside of Flutter widget tests.
+
+---
 
 ## Data Model Assessment
 
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | ✅ N/A | No schema changes |
-| Migrations reversible | ✅ N/A | No migrations |
-| Indexes added for new queries | ✅ N/A | No new queries |
-| No N+1 query patterns | ✅ PASS | No new querysets introduced |
+| Schema changes backward-compatible | N/A | No schema changes -- reads existing `DailyLog` table |
+| Migrations needed | N/A | No migrations -- pure read endpoint |
+| Indexes for new queries | PASS | Existing `['trainee', 'date']` composite index and `['date']` index cover the `filter(trainee_id=...).order_by('-date')` query path |
+| No N+1 query patterns | PASS | Single queryset with `.defer('nutrition_data')` |
+
+**Notes on index coverage:**
+
+The `workout_history` query filters on `trainee_id` and orders by `-date`. The existing composite index `['trainee', 'date']` on `daily_logs` table handles this optimally. The JSON field lookups (`workout_data__has_key`, `workout_data__exercises`) operate on the pre-filtered set, which is small per-trainee. No additional GIN index on `workout_data` is needed at current scale.
+
+---
+
+## API Design
+
+| Endpoint | Method | RESTful? | Pagination? | Auth? | Notes |
+|----------|--------|----------|-------------|-------|-------|
+| `/api/workouts/daily-logs/workout-history/` | GET | YES (custom action on DailyLog) | YES (`PageNumberPagination`, default 20, max 50) | `IsTrainee` | Correct |
+| `/api/workouts/daily-logs/{id}/workout-detail/` | GET | YES (detail action) | N/A (single object) | `IsTrainee` | Correct |
+
+**Strengths:**
+- Pagination uses standard DRF `PageNumberPagination` with configurable `page_size` and sensible `max_page_size=50`
+- Response format follows DRF standard: `{count, next, previous, results}`
+- `workout_detail` returns restricted fields only (id, date, workout_data, notes) -- no `nutrition_data` or `trainee` email leakage
+- Row-level security: `workout_history` filters by `trainee=user`; `workout_detail` inherits from `DailyLogViewSet.get_queryset()` which filters by role
+
+**Consistency with existing endpoints:**
+- Matches `workout-summary/`, `weekly-progress/`, `nutrition-summary/` pattern of custom actions on `DailyLogViewSet`
+- Uses same permission class (`IsTrainee`) as survey endpoints
+
+---
+
+## Frontend Patterns
+
+### State Management
+
+| Pattern | Status | Notes |
+|---------|--------|-------|
+| Riverpod StateNotifier | PASS | `WorkoutHistoryNotifier` and `HomeNotifier` both use `StateNotifier` |
+| Provider definition | PASS | `workoutHistoryProvider` follows same pattern as `homeStateProvider` |
+| Repository pattern | PASS | Both `getWorkoutHistory()` and `getRecentWorkouts()` go through `WorkoutRepository` |
+| API constants centralized | PASS | `ApiConstants.workoutHistory` and `ApiConstants.workoutHistoryDetail()` defined |
+
+### Widget Decomposition
+
+| File | Lines | Compliant? | Notes |
+|------|-------|------------|-------|
+| `workout_history_screen.dart` | 267 | WARN | Exceeds 150-line limit but all methods are build helpers, not business logic |
+| `workout_detail_screen.dart` | 440 | WARN | Exceeds 150-line limit; survey section + shimmer + error state inflate it. Would benefit from further extraction. |
+| `workout_history_widgets.dart` | 119 | PASS | `WorkoutHistoryCard` and `StatChip` extracted properly |
+| `workout_detail_widgets.dart` | 261 | PASS | `ExerciseCard`, `SurveyBadge`, `HeaderStat`, `SurveyField` extracted |
+| `home_screen.dart` (additions) | ~75 new lines | PASS | `_RecentWorkoutCard` is a private widget class at bottom of file |
+
+**Assessment:** The widget extraction pattern is good -- reusable pieces are in `*_widgets.dart` files. The screen files themselves exceed 150 lines due to multiple state-dependent build methods (loading, error, empty, populated), which is acceptable for screen-level files that orchestrate states. The alternative (splitting each state into a separate widget file) would add complexity without improving readability.
+
+### Navigation
+
+The `workout-detail` route uses `state.extra` to pass `WorkoutHistorySummary` data. This is correct for go_router. The route includes a redirect guard that sends users to `/workout-history` if `extra` is not a `WorkoutHistorySummary`, preventing crashes from direct URL access.
+
+---
 
 ## Scalability Concerns
 
-| # | Area | Issue | Recommendation |
-|---|------|-------|----------------|
-| — | — | None | No scalability issues detected |
+| # | Area | Status | Notes |
+|---|------|--------|-------|
+| 1 | N+1 queries | PASS | Single queryset, no related model joins needed |
+| 2 | Unbounded fetches | PASS | Paginated with max 50 per page |
+| 3 | Large JSON blobs | PASS | `.defer('nutrition_data')` avoids fetching unnecessary large field |
+| 4 | Serializer computation | MINOR | Summary fields computed in Python per-row (not DB aggregation). Acceptable for paginated sets of 20-50 items. At extreme scale, these could be precomputed. |
+| 5 | Home screen parallel fetch | PASS | `getRecentWorkouts(limit: 3)` runs in parallel with other `Future.wait` calls, not sequentially |
+| 6 | Infinite scroll guard | PASS | Provider checks `isLoadingMore`, `hasMore`, and `isLoading` before firing |
 
-**All code changes are in presentation/service layers. No database query changes.**
-
-## Technical Debt Introduced
-
-**NONE** — This change actually **REDUCES** technical debt:
-
-| # | Description | Impact | Resolution |
-|---|-------------|--------|------------|
-| 1 | Invitation emails previously had no service layer | POSITIVE | New `invitation_service.py` properly separates concerns |
-| 2 | Email sending was inlined in view | POSITIVE | Now testable in isolation |
-| 3 | Password change was missing from mobile | POSITIVE | Now implemented with proper error handling |
-
-## Detailed Review
-
-### 1. Backend: Invitation Service (NEW FILE)
-
-**File:** `backend/trainer/services/invitation_service.py`
-
-**Architecture:** ✅ EXCELLENT
-
-```python
-def send_invitation_email(invitation: TraineeInvitation) -> None:
-    """
-    Send an invitation email to the prospective trainee.
-
-    Raises on failure — callers should wrap in try/except.
-    """
-```
-
-**Strengths:**
-- ✅ Pure service function — no request/response logic
-- ✅ Type hints on all parameters
-- ✅ Raises exceptions instead of returning error tuples
-- ✅ XSS protection via `escape()` on all user input
-- ✅ Logging of successful sends
-- ✅ Helper function `_get_trainer_display_name()` properly private
-
-**Architectural Pattern Match:** 100%
-- Follows exact pattern from existing services like `workouts/services/macro_calculator.py`
+**Note on concern #4:** The `WorkoutHistorySummarySerializer` computes `exercise_count`, `total_sets`, `total_volume_lbs`, and `duration_display` by iterating through the `workout_data` JSON in Python. For the typical paginated response of 20 items, each with 5-10 exercises and 15-30 sets, this is negligible. If history grows to thousands of entries per trainee with large workout_data blobs, pre-materializing these summary fields into a `WorkoutSummaryCache` table would be the right optimization. Not needed now.
 
 ---
 
-### 2. Backend: View Layer
+## Technical Debt
 
-**File:** `backend/trainer/views.py`
+### Debt Introduced
 
-**Architecture:** ✅ PASS
+| # | Description | Severity | Notes |
+|---|-------------|----------|-------|
+| 1 | `WorkoutRepository` returns `Map<String, dynamic>` | LOW | Pre-existing pattern. Project rules say "return dataclass or pydantic models, never return dict." The `getWorkoutHistory()` and `getWorkoutDetail()` methods follow the same `Map<String, dynamic>` return pattern as every other method in the repository. Fixing this would require refactoring the entire repository, which is out of scope. |
+| 2 | `WorkoutDetailScreen` uses `setState` for fetch state | LOW | The screen uses `setState` for `_isLoading`, `_error`, and `_workoutData`. Per conventions, Riverpod should manage this. However, the data is ephemeral to this screen and loaded once. A provider would add complexity. This is the pragmatic choice. |
 
-```python
-# Line 389-391 (InvitationListCreateView.create)
-try:
-    send_invitation_email(invitation)
-except Exception:
-    logger.exception("Failed to send invitation email to %s", invitation.email)
-```
+### Debt Reduced
 
-**Strengths:**
-- ✅ View delegates to service
-- ✅ Proper exception handling
-- ✅ Non-blocking — invitation still created even if email fails
-- ✅ Logs errors for debugging
-
-**No business logic in view** — all email composition logic is in service.
-
-**Resend endpoint (lines 421-462):** Same pattern, also correct.
+| # | Description | Impact |
+|---|-------------|--------|
+| 1 | JSON extraction logic moved to data layer | Extraction logic is now reusable, testable, and separated from UI |
+| 2 | Queryset construction moved to service layer | View is now thin; query logic is centralized and testable |
 
 ---
 
-### 3. Mobile: Password Change Repository
+## Serializer Design
 
-**File:** `mobile/lib/features/auth/data/repositories/auth_repository.dart`
+The `WorkoutHistorySummarySerializer` is a `ModelSerializer` with `SerializerMethodField` for computed fields. This is the standard DRF approach for derived data.
 
-**Architecture:** ✅ PASS
+The `WorkoutDetailSerializer` is a minimal `ModelSerializer` that exposes only `[id, date, workout_data, notes]`. This is a good security practice -- it prevents accidental exposure of `trainee`, `nutrition_data`, or other sensitive fields through the detail endpoint.
 
-```dart
-/// Change password for the currently authenticated user
-Future<Map<String, dynamic>> changePassword({
-  required String currentPassword,
-  required String newPassword,
-}) async {
-  try {
-    await _apiClient.dio.post(
-      ApiConstants.setPassword,
-      data: {
-        'current_password': currentPassword,
-        'new_password': newPassword,
-      },
-    );
-    return {'success': true};
-  } on DioException catch (e) {
-    // Error handling...
-  }
-}
-```
-
-**Strengths:**
-- ✅ Repository pattern — matches existing methods in file
-- ✅ Proper error handling with DioException
-- ✅ Error parsing from Djoser response format
-- ✅ Returns structured Map<String, dynamic> (consistent with other methods)
-- ✅ API endpoint centralized in ApiConstants
-
-**Pattern Consistency:** 100% — follows exact same structure as `login()`, `register()`, `deleteAccount()`.
+Both serializers are properly typed with `serializers.ModelSerializer[DailyLog]`.
 
 ---
 
-### 4. Mobile: Password Change UI
+## Test Coverage
 
-**File:** `mobile/lib/features/settings/presentation/screens/admin_security_screen.dart`
+48 tests across 6 test classes covering:
+- Filtering (7 tests): null, empty, exercises-only, sessions-only, mixed
+- Summary fields (12 tests): workout_name extraction, exercise_count, total_sets, volume calculation, duration
+- Pagination (9 tests): page size, max cap, ordering, metadata, empty results
+- Security (5 tests): own-logs-only, trainer forbidden, admin forbidden, unauthenticated, cross-trainee
+- Detail (8 tests): restricted fields, no leaks, notes, 404 for other user, 403 for trainer
+- Edge cases (7 tests): missing sets, non-list sets, non-numeric weight, non-dict items, rounding
 
-**Architecture:** ✅ PASS
-
-```dart
-final authRepo = ref.read(authRepositoryProvider);
-final result = await authRepo.changePassword(
-  currentPassword: _currentPasswordController.text,
-  newPassword: _newPasswordController.text,
-);
-```
-
-**Strengths:**
-- ✅ UI delegates to repository via Riverpod
-- ✅ No business logic in UI
-- ✅ Proper loading states
-- ✅ Validation logic in UI (acceptable for form validation)
-- ✅ Error display with user-friendly messages
-
-**State Management:** Follows Flutter best practices — local state for ephemeral UI, repository for data layer.
+**Assessment:** Excellent coverage. Tests verify both positive paths and adversarial inputs. Security tests are thorough.
 
 ---
 
-### 5. Mobile: AI Food Parsing with Meal Prefix
-
-**File:** `mobile/lib/features/nutrition/presentation/screens/add_food_screen.dart`
-
-**Architecture:** ✅ PASS
-
-**Line 710:**
-```dart
-final success = await ref
-    .read(loggingStateProvider.notifier)
-    .confirmAndSave(mealPrefix: 'Meal $mealNumber - ');
-```
-
-**Line 451:**
-```dart
-final success = await ref.read(loggingStateProvider.notifier).saveManualFoodEntry(
-  name: 'Meal $mealNumber - $foodName',
-  // ...
-);
-```
-
-**Pattern:** Both flows prefix meal names consistently.
-
-**Provider Implementation (logging_provider.dart lines 84-131):**
-```dart
-Future<bool> confirmAndSave({String? date, String? mealPrefix}) async {
-  // ...
-  final parsedJson = {
-    'nutrition': {
-      'meals': state.parsedData!.nutrition.meals
-          .map((m) => {
-                'name': mealPrefix != null ? '$mealPrefix${m.name}' : m.name,
-                // ...
-              })
-          .toList(),
-    },
-    // ...
-  };
-}
-```
-
-**Strengths:**
-- ✅ Optional parameter with default null
-- ✅ Prefix applied conditionally
-- ✅ No business logic in UI — prefix logic in provider
-- ✅ Consistent pattern for both AI and manual flows
-
-**Architecture:** Clean. Meal naming logic is presentation-layer concern (which meal to assign), not business logic.
-
----
-
-## API Design Consistency
-
-### Backend Endpoints
-
-| Endpoint | Method | Pattern | Consistent? |
-|----------|--------|---------|-------------|
-| `/api/trainer/invitations/` | POST | Create + send email | ✅ YES — matches program creation |
-| `/api/trainer/invitations/{id}/resend/` | POST | Action endpoint | ✅ YES — matches `/impersonate/` pattern |
-| `/api/auth/users/set_password/` | POST | Djoser standard | ✅ YES — uses official Djoser endpoint |
-
-### Mobile API Constants
-
-```dart
-static String get setPassword => '$apiBaseUrl/auth/users/set_password/';
-```
-
-✅ **Correct** — Uses Djoser's built-in endpoint, not custom.
-
----
-
-## Frontend State Management
-
-### Riverpod Patterns
-
-**authRepositoryProvider:**
-```dart
-final authRepo = ref.read(authRepositoryProvider);
-final result = await authRepo.changePassword(/*...*/);
-```
-
-✅ **Correct** — Read repository, call method, check result.
-
-**loggingStateProvider:**
-```dart
-final success = await ref.read(loggingStateProvider.notifier).confirmAndSave(
-  mealPrefix: 'Meal $mealNumber - '
-);
-```
-
-✅ **Correct** — Read notifier, call method, check success.
-
-**Pattern Consistency:** 100% — both follow exact same Riverpod patterns as existing code.
-
----
-
-## Error Handling Patterns
-
-### Backend
-
-**invitation_service.py:**
-```python
-send_mail(
-    subject=subject,
-    message=text_body,
-    from_email=from_email,
-    recipient_list=[invitation.email],
-    html_message=html_body,
-    fail_silently=False,  # ✅ Raises on failure
-)
-```
-
-**views.py:**
-```python
-try:
-    send_invitation_email(invitation)
-except Exception:
-    logger.exception("Failed to send invitation email to %s", invitation.email)
-    # ⚠️ Does NOT return error to user — invitation still created
-```
-
-**Assessment:** ✅ ACCEPTABLE
-
-Invitation creation succeeds even if email fails. This is a **design decision** — trainer can manually share the code. Email is best-effort.
-
-**Recommendation:** Document this behavior in docstring. Add comment explaining why exception is swallowed.
-
----
-
-### Mobile
-
-**auth_repository.dart:**
-```dart
-on DioException catch (e) {
-  if (e.response?.statusCode == 400) {
-    final data = e.response?.data;
-    if (data is Map) {
-      if (data.containsKey('current_password')) {
-        return {
-          'success': false,
-          'error': 'Current password is incorrect',
-        };
-      }
-      // Extract other field errors...
-    }
-  }
-  return {
-    'success': false,
-    'error': 'Network error. Please try again.',
-  };
-}
-```
-
-✅ **EXCELLENT** — Parses Djoser error responses correctly, provides user-friendly messages.
-
----
-
-## Data Flow Correctness
-
-### Invitation Email Flow
-
-```
-User (Trainer)
-  → POST /api/trainer/invitations/
-    → InvitationListCreateView.create()
-      → TraineeInvitation.objects.create()  [DB write]
-      → send_invitation_email()  [Service]
-        → send_mail()  [Django]
-      → Response with invitation data
-```
-
-✅ **Correct** — Service called AFTER database write. If email fails, invitation still exists and can be resent.
-
----
-
-### Password Change Flow
-
-```
-User (Admin/Trainer)
-  → ChangePasswordScreen (UI)
-    → _changePassword()
-      → authRepo.changePassword()
-        → POST /api/auth/users/set_password/
-          → Djoser SetPasswordView
-            → user.set_password(new_password)
-            → user.save()
-        → Return success/error
-      → Show snackbar
-      → Pop screen
-```
-
-✅ **Correct** — Standard Djoser flow. No custom business logic.
-
----
-
-### AI Food Parsing with Meal Prefix Flow
-
-```
-User (Trainee)
-  → Add Food Screen
-    → Select meal number (1-4)
-    → Enter food description
-    → Tap "Log Food"
-      → loggingStateProvider.parseInput()
-        → POST /api/workouts/daily-logs/parse-natural-language/
-        → AI returns parsed meals
-      → Show preview
-      → User taps "Confirm"
-        → loggingStateProvider.confirmAndSave(mealPrefix: 'Meal X - ')
-          → Prepend meal prefix to each meal name
-          → POST /api/workouts/daily-logs/confirm-and-save/
-          → Saves to DailyLog.nutrition_data
-      → Refresh nutrition summary
-      → Pop screen
-```
-
-✅ **Correct** — Meal prefix applied in provider BEFORE API call. Backend stores meal names as provided.
-
----
-
-## Security Review (Architectural Perspective)
-
-### XSS Protection in Invitation Emails
-
-**invitation_service.py lines 66-69:**
-```python
-safe_trainer_name = escape(trainer_name)
-safe_site_name = escape(site_name)
-safe_invite_code = escape(invite_code)
-safe_expiry_date = escape(expiry_date)
-
-if invitation.message:
-    safe_message = escape(invitation.message)
-```
-
-✅ **EXCELLENT** — All user input escaped before HTML rendering. Prevents XSS.
-
-### Password Security
-
-- ✅ Uses Djoser's built-in password change endpoint (Django's `set_password()` — hashes with PBKDF2)
-- ✅ Requires current password verification
-- ✅ Minimum length validation (8 characters) in mobile UI
-- ✅ No password in logs (Django middleware strips it)
-
----
-
-## Architectural Improvements Made
-
-**NONE NEEDED** — Architecture is already clean.
-
----
-
-## Issues Found
-
-**NONE**
-
----
-
-## Architecture Score: 10/10
+## Architecture Score: 9/10
+
+**Deductions:**
+- -0.5: `workout_detail_screen.dart` at 440 lines still exceeds the 150-line widget convention, though it has been improved by extracting business logic to the data layer
+- -0.5: Pre-existing `Map<String, dynamic>` return pattern in `WorkoutRepository` not addressed (out of scope but worth noting)
 
 ## Recommendation: APPROVE
 
@@ -459,106 +182,20 @@ if invitation.message:
 
 ## Summary
 
-**Pipeline 7 demonstrates exemplary architecture:**
+Pipeline 8 implements a clean, well-structured feature that follows established patterns. The backend adds two read-only endpoints with proper pagination, security, and computed summary fields. The mobile side adds a paginated history screen, detail screen, and home screen integration following Riverpod/go_router conventions.
 
-1. **Backend:**
-   - New service layer properly separates concerns
-   - Views are thin — delegate to services
-   - Type hints everywhere
-   - Error handling follows best practices
+Two architectural fixes were applied during this review:
+1. Queryset construction extracted from view to `DailyLogService.get_workout_history_queryset()`
+2. JSON extraction logic extracted from `WorkoutDetailScreen` widget to `WorkoutDetailData` data class
 
-2. **Mobile:**
-   - Repository pattern used correctly
-   - Riverpod state management consistent
-   - No business logic in UI
-   - API constants centralized
+All 48 backend tests pass after the refactoring. Flutter analyze shows 0 new issues.
 
-3. **Data Flow:**
-   - Invitation emails: Service → SMTP (correct)
-   - Password change: UI → Repository → API → Djoser (correct)
-   - Food logging: UI → Provider → API → DB (correct)
-
-4. **Consistency:**
-   - All patterns match existing codebase 100%
-   - No architectural drift
-   - No technical debt introduced
-
-**This change should serve as a reference implementation for future features.**
-
----
-
-## What Was Changed
+## Changes Made by Architect
 
 ### Backend
-- **NEW FILE:** `trainer/services/invitation_service.py` — Email sending service
-- **MODIFIED:** `trainer/views.py` — Views now call service for email sending
+- **`backend/workouts/services/daily_log_service.py`**: Added `get_workout_history_queryset()` static method with the filtered/ordered queryset logic
+- **`backend/workouts/views.py`**: Replaced inline queryset construction with service call; added `DailyLogService` import; removed unused `Q` import
 
 ### Mobile
-- **NEW METHOD:** `AuthRepository.changePassword()` — Password change implementation
-- **NEW SCREEN:** `ChangePasswordScreen` — Password change UI
-- **MODIFIED:** `LoggingProvider.confirmAndSave()` — Added optional `mealPrefix` parameter
-- **MODIFIED:** `AddFoodScreen` — Uses meal prefix for both AI and manual flows
-
----
-
-## Architectural Insights
-
-### Pattern: Service Layer Extraction
-
-The new `invitation_service.py` demonstrates when to extract service layer:
-
-**Before (inlined in view):**
-```python
-# trainer/views.py (hypothetical old code)
-def create(self, request):
-    invitation = TraineeInvitation.objects.create(...)
-    subject = f"{trainer.email} invited you..."
-    message = f"Hi there!..."
-    send_mail(subject, message, ...)  # ❌ Business logic in view
-```
-
-**After (service layer):**
-```python
-# trainer/views.py
-def create(self, request):
-    invitation = TraineeInvitation.objects.create(...)
-    send_invitation_email(invitation)  # ✅ Delegate to service
-
-# trainer/services/invitation_service.py
-def send_invitation_email(invitation: TraineeInvitation) -> None:
-    # All email composition logic here
-```
-
-**Benefits:**
-- Testable in isolation
-- Reusable (e.g., resend endpoint uses same service)
-- Clear separation of concerns
-- View layer stays thin
-
-**Rule of thumb:** If a view method has >20 lines of business logic, extract to service.
-
----
-
-## Deployment Considerations
-
-1. **Email Configuration:**
-   - Ensure `DEFAULT_FROM_EMAIL` is configured in production
-   - Verify SMTP settings (or use SendGrid/Mailgun)
-   - Test email delivery before deploying
-
-2. **Password Change:**
-   - No backend changes needed (uses Djoser)
-   - Mobile app users can now change passwords in-app
-
-3. **AI Food Parsing:**
-   - Meal prefix is presentation-layer only
-   - No database schema changes
-   - Existing logs unaffected
-
----
-
-## Next Steps
-
-**NONE** — Architecture is production-ready.
-
-**Ship it.**
+- **`mobile/lib/features/workout_log/data/models/workout_history_model.dart`**: Added `WorkoutDetailData` class with `fromWorkoutData()` factory and static extraction methods; added `formattedVolume` getter to `WorkoutHistorySummary`
+- **`mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart`**: Replaced inline `_extractExercises`, `_extractReadinessSurvey`, `_extractPostSurvey` with `WorkoutDetailData.fromWorkoutData()` call

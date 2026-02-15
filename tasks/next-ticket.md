@@ -1,125 +1,168 @@
-# Feature: Activate AI Food Parsing + Password Change + Invitation Emails
+# Feature: Trainee Workout History + Home Screen Recent Workouts
 
 ## Priority
-High — AI food parsing is the product's core differentiator and is blocked by a misleading "coming soon" banner. Password change is basic security. Invitation emails are critical for trainer onboarding flow.
+High — Trainees log workouts daily but have zero way to review past sessions. A fitness app without workout history is fundamentally broken.
 
 ## User Stories
 
-### Story 1: AI Food Parsing
-As a **trainee**, I want to describe what I ate in natural language so that I can quickly log meals without manually entering macros.
+### Story 1: Workout History Screen
+As a **trainee**, I want to see a list of all my past workouts so that I can track my progress over time.
 
-### Story 2: Password Change
-As a **user** (any role), I want to change my password from the settings screen so that I can maintain account security.
+### Story 2: Workout Detail View
+As a **trainee**, I want to tap a past workout and see every exercise, set, rep, and weight I logged so that I can plan today's session based on previous performance.
 
-### Story 3: Invitation Emails
-As a **trainer**, I want my trainee invitations to send actual emails so that trainees can find and use their invite codes.
+### Story 3: Recent Workouts on Home Screen
+As a **trainee**, I want to see my last 3 completed workouts on the home screen so that I can quickly access recent sessions without navigating away.
 
 ## Acceptance Criteria
 
-### AI Food Parsing (AC-1 through AC-6)
-- [ ] AC-1: The "AI parsing coming soon" orange banner is removed from the AI Entry tab
-- [ ] AC-2: User types natural language food description, taps "Log Food", sees loading spinner
-- [ ] AC-3: Parsed foods display in a preview card with name, calories, protein, carbs, fat per item
-- [ ] AC-4: User can select which meal number (1-4) to add parsed foods to (meal selector in AI tab)
-- [ ] AC-5: User taps "Confirm" → food is saved to daily log → nutrition screen refreshes → screen pops back
-- [ ] AC-6: If parsing fails (API error, no OpenAI key, empty input), user sees a clear error message with retry option
+### Backend (AC-1 through AC-4)
+- [ ] AC-1: `GET /api/workouts/daily-logs/workout-history/` custom action returns only DailyLogs where `workout_data` contains actual exercise data (not null, not `{}`, not `{"exercises": []}`)
+- [ ] AC-2: Response includes computed summary fields per log: `workout_name`, `exercise_count`, `total_sets`, `total_volume_lbs`, `duration_display`
+- [ ] AC-3: Endpoint supports pagination via `?page=1&page_size=20` (default page_size=20)
+- [ ] AC-4: Endpoint restricted to `IsTrainee` permission with row-level security (trainee sees only their own logs)
 
-### Password Change (AC-7 through AC-11)
-- [ ] AC-7: Settings → Security → Change Password calls Djoser's `POST /api/auth/users/set_password/` with `current_password` and `new_password`
-- [ ] AC-8: Shows loading indicator during API call
-- [ ] AC-9: On success, shows green snackbar "Password changed successfully" and pops back
-- [ ] AC-10: On wrong current password (400), shows red error "Current password is incorrect"
-- [ ] AC-11: On other errors (network, server), shows descriptive error message
+### Workout History Screen (AC-5 through AC-10)
+- [ ] AC-5: New `/workout-history` route navigates to `WorkoutHistoryScreen`
+- [ ] AC-6: Screen shows paginated list of past workouts sorted by date (newest first)
+- [ ] AC-7: Each workout card shows: date (e.g., "Mon, Feb 10"), workout name (e.g., "Push Day"), exercise count, total sets, and duration
+- [ ] AC-8: Pull-to-refresh reloads the list from page 1
+- [ ] AC-9: Scroll to bottom loads next page (infinite scroll pagination)
+- [ ] AC-10: Tapping a workout card navigates to workout detail view
 
-### Invitation Emails (AC-12 through AC-17)
-- [ ] AC-12: When trainer creates a new invitation, an email is sent to the invitee's email address
-- [ ] AC-13: When trainer resends an invitation (resend action), the email is re-sent
-- [ ] AC-14: Email contains: trainer's name, invite code, registration link, expiry date
-- [ ] AC-15: Email uses Django's email system (console backend for dev, SMTP for prod — already configured)
-- [ ] AC-16: Email sending failure does NOT block the invitation creation (invitation still created, error logged)
-- [ ] AC-17: Backend creates the invitation email using a proper service function (not inline in the view)
+### Workout Detail Screen (AC-11 through AC-15)
+- [ ] AC-11: New `/workout-detail` route navigates to `WorkoutDetailScreen` (receives DailyLog data as extra)
+- [ ] AC-12: Screen shows workout name, date, and duration at the top
+- [ ] AC-13: Lists every exercise with: exercise name, and each set showing set number, reps, weight, and unit
+- [ ] AC-14: If readiness survey data exists in the log, shows a "Pre-Workout" section with energy, soreness, sleep quality scores
+- [ ] AC-15: If post-workout survey data exists, shows "Post-Workout" section with difficulty, energy level, and notes
+
+### Home Screen Integration (AC-16 through AC-19)
+- [ ] AC-16: "Recent Workouts" section appears on trainee home screen after "Next Workout" and before "Latest Videos"
+- [ ] AC-17: Shows last 3 completed workouts as compact cards (date, workout name, exercise count)
+- [ ] AC-18: Tapping a recent workout card navigates to workout detail view
+- [ ] AC-19: "See All" button navigates to full workout history screen
+
+### Empty & Error States (AC-20 through AC-22)
+- [ ] AC-20: If trainee has no workout history, home section shows "No workouts yet. Complete your first workout to see it here."
+- [ ] AC-21: If workout history fails to load, show error with retry button
+- [ ] AC-22: Workout detail screen handles missing/malformed workout_data gracefully (shows "No exercise data recorded" instead of crashing)
 
 ## Edge Cases
-1. AI: User submits empty text → disabled button prevents submission
-2. AI: OpenAI API key not configured → backend returns error → mobile shows "AI food parsing is not available. Please use manual entry."
-3. AI: User types only workout info, no food → AI parser returns nutrition with 0 meals → show "No food items detected. Try describing what you ate."
-4. AI: Very long input (>500 chars) → API handles it, no mobile-side truncation
-5. AI: User taps "Log Food" twice rapidly → guard prevents duplicate API calls (isProcessing flag)
-6. AI: AI returns `needs_clarification: true` → show clarification question to user
-7. Password: User enters current password wrong → 400 from Djoser → "Current password is incorrect"
-8. Password: New password too short (<8 chars) → client-side validation prevents submission (already handled)
-9. Password: Network error during password change → show retry-able error, keep form state
-10. Invitation: Email sending fails (SMTP misconfigured) → invitation still saved, error logged server-side
-11. Invitation: Invitation already expired when resending → extend expiry by 7 days, send email
-12. Invitation: Invitee email is same as an existing user → invitation still created (backend handles this)
+1. Trainee with zero completed workouts → empty state on both home and history screen
+2. DailyLog exists but workout_data is null or `{}` → excluded from history
+3. DailyLog with workout_data but empty exercises array → excluded from history
+4. Very old workouts (months ago) → pagination handles large datasets
+5. Rapid scroll → pagination guard prevents duplicate API calls
+6. Network failure during pagination → error state with retry, keeps existing loaded items
+7. Workout with no readiness survey → "Pre-Workout" section hidden
+8. Workout with no post-workout survey → "Post-Workout" section hidden
+9. Very long workout name → text truncation with ellipsis
+10. Multiple sessions in one day (workout_data.sessions array) → show each session separately or aggregated
+11. Pull-to-refresh during active pagination → resets to page 1
+12. Trainee completes a workout then navigates to history → new workout appears at top
 
 ## Error States
 
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| AI: empty input | "Log Food" button disabled | Nothing |
-| AI: parse API error | Red error banner with message | Logs error |
-| AI: no OpenAI key configured | "AI food parsing is not available" in error banner | Backend returns error string |
-| AI: confirm/save fails | "Failed to save food entry" red snackbar | Keeps parsed preview for retry |
-| AI: no foods detected | "No food items detected" message in preview area | Allows retry with new input |
-| Password: wrong current password | "Current password is incorrect" inline error below field | Returns 400 |
-| Password: network error | "Network error. Please try again." inline error | Keeps form state intact |
-| Password: server error | "Something went wrong. Please try again." | Logs error |
-| Invite: email send failure | No visible error (invitation created) | Logs email error server-side |
+| Network failure on history list | "Unable to load workout history" + retry button | Keeps existing items if any |
+| Network failure on home section | Home section hidden or shows "Couldn't load recent workouts" | Doesn't block other sections |
+| Empty history | "No workouts yet" message with encouraging copy | Returns empty list |
+| Malformed workout_data | "No exercise data recorded" in detail view | Graceful parsing with fallbacks |
+| Pagination exhausted | "You've reached the end" footer | Stops requesting more pages |
 
 ## UX Requirements
-- **AI Entry tab**: Remove orange "coming soon" banner. Add meal selector (1-4) matching manual tab's style. Existing loading/error/preview/confirm flow remains. After successful confirm, refresh nutrition and pop screen.
-- **Password change**: Show inline error under "Current Password" field for wrong password. Keep loading spinner on submit button. Don't clear form fields on error so user can fix and retry.
-- **Invitation email**: No mobile UI changes — email sending happens silently in backend on create/resend.
-- **Loading states**: All already exist (AI tab has isProcessing, password has isLoading).
-- **Success feedback**: Green snackbar for password change, screen pop + nutrition refresh for AI food confirm.
+- **Loading state (history):** Shimmer/skeleton cards while loading first page
+- **Loading state (pagination):** Small spinner at bottom of list while loading next page
+- **Loading state (home):** Shimmer card in recent workouts section
+- **Empty state (history):** Centered icon + text + "Start a Workout" CTA button
+- **Empty state (home):** Small text "No workouts yet" — no CTA (home already has next workout section)
+- **Error state:** Red-tinted card with error icon, message, and "Retry" button
+- **Success (detail):** Clean card-based layout with exercise sections, set tables, and survey badges
+- **Mobile behavior:** All screens scrollable, responsive to different screen sizes
+- **Transitions:** Standard Material page transitions between screens
 
 ## Technical Approach
 
-### AI Food Parsing (Mobile only — backend already works)
-- **Modify**: `mobile/lib/features/nutrition/presentation/screens/add_food_screen.dart`
-  - Remove the orange "AI parsing coming soon" banner container (lines 490-512)
-  - Add meal selector widget (1-4) above the text input, identical to manual entry tab
-  - Pass meal context when calling confirmAndSave (prepend "Meal N - " to food names)
-  - After successful confirm: call `ref.read(nutritionStateProvider.notifier).refreshDailySummary()` then `context.pop()`
-  - Add guard for empty parsed nutrition (no meals detected)
+### Backend
 
-### Password Change (Mobile + existing Djoser endpoint)
-- **Modify**: `mobile/lib/core/constants/api_constants.dart` — Add `setPassword` endpoint: `$apiBaseUrl/auth/users/set_password/`
-- **Modify**: `mobile/lib/features/auth/data/repositories/auth_repository.dart` — Add `changePassword({currentPassword, newPassword})` method calling Djoser endpoint
-- **Modify**: `mobile/lib/features/settings/presentation/screens/admin_security_screen.dart`
-  - Replace `// TODO: Implement actual password change API call` + `Future.delayed` with actual API call
-  - Add error state variable and inline error display
-  - Use auth repository provider (import from auth providers)
-  - Handle 400 (wrong password), network errors, and success
+**Modify:** `backend/workouts/views.py` — `DailyLogViewSet`
+- Add `workout_history` custom action with `@action(detail=False, methods=['get'])`
+- Filter: exclude logs where workout_data is null or empty (use `Exclude` with JSONField checks)
+- Compute summary fields in a dedicated serializer
+- Permission: `IsTrainee`
+- Pagination: `PageNumberPagination` with `page_size=20`
 
-### Invitation Emails (Backend)
-- **Create**: `backend/trainer/services/invitation_service.py`
-  - `send_invitation_email(invitation: TraineeInvitation) -> None` function
-  - Uses `django.core.mail.send_mail()` with HTML + text
-  - Includes trainer name, invite code, registration link, expiry date
-  - Raises on failure (caller wraps in try/except)
-- **Modify**: `backend/trainer/views.py`
-  - In `TraineeInvitationViewSet.perform_create()` or create action: call `send_invitation_email()` wrapped in try/except
-  - In resend action (the one with the TODO): call `send_invitation_email()` wrapped in try/except
-  - Log errors but don't fail the response
+**Modify:** `backend/workouts/serializers.py`
+- Add `WorkoutHistorySummarySerializer` as a new serializer class
+- Fields: `id`, `date`, `workout_name`, `exercise_count`, `total_sets`, `total_volume_lbs`, `duration_display`, `workout_data`
+- `workout_name`: extracted from `workout_data.get('workout_name')` or first session name
+- `exercise_count`: count of exercises in workout_data
+- `total_sets`: sum of all sets across all exercises
+- `total_volume_lbs`: sum of (weight * reps) for all completed sets
+- `duration_display`: from `workout_data.get('duration')` or computed from timestamps
+
+### Mobile
+
+**Create:** `mobile/lib/features/workout_log/data/models/workout_history_model.dart`
+- Freezed model: `WorkoutHistorySummary` with fields matching serializer
+
+**Create:** `mobile/lib/features/workout_log/presentation/providers/workout_history_provider.dart`
+- `WorkoutHistoryNotifier` extends `StateNotifier<WorkoutHistoryState>`
+- State: `workouts: List`, `currentPage: int`, `hasMore: bool`, `isLoadingMore: bool`, `error: String?`
+- Methods: `loadInitial()`, `loadMore()`, `refresh()`
+
+**Create:** `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart`
+- `ListView.builder` with `ScrollController` for infinite scroll
+- `RefreshIndicator` for pull-to-refresh
+- Shimmer loading state for first load
+- Workout card widget per item
+
+**Create:** `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart`
+- Receives workout data as navigation argument
+- Sections: Header, Exercise List (card per exercise with sets table), Survey sections
+- Read-only view
+
+**Modify:** `mobile/lib/features/workout_log/data/repositories/workout_repository.dart`
+- Add `getWorkoutHistory({int page, int pageSize})` method
+- Add `getRecentWorkouts({int limit})` method (same endpoint, `page_size=3`)
+
+**Modify:** `mobile/lib/core/constants/api_constants.dart`
+- Add `workoutHistory` endpoint
+
+**Modify:** `mobile/lib/core/router/app_router.dart`
+- Add `/workout-history` route
+- Add `/workout-detail` route
+
+**Modify:** `mobile/lib/features/home/presentation/screens/home_screen.dart`
+- Add "Recent Workouts" section after "Next Workout"
+- Fetch 3 recent workouts in `_loadDashboardData()`
+
+**Modify:** `mobile/lib/features/home/presentation/providers/home_provider.dart`
+- Add `recentWorkouts` to dashboard state
+- Fetch from workout history endpoint on init
 
 ### Files to Create
-- `backend/trainer/services/__init__.py` (if not exists)
-- `backend/trainer/services/invitation_service.py`
+- `mobile/lib/features/workout_log/data/models/workout_history_model.dart`
+- `mobile/lib/features/workout_log/presentation/providers/workout_history_provider.dart`
+- `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart`
+- `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart`
 
 ### Files to Modify
-- `mobile/lib/features/nutrition/presentation/screens/add_food_screen.dart` — Remove banner, add meal selector
-- `mobile/lib/core/constants/api_constants.dart` — Add setPassword endpoint
-- `mobile/lib/features/auth/data/repositories/auth_repository.dart` — Add changePassword method
-- `mobile/lib/features/settings/presentation/screens/admin_security_screen.dart` — Wire password change API
-- `backend/trainer/views.py` — Send invitation emails on create/resend
+- `backend/workouts/views.py` — Add `workout_history` action
+- `backend/workouts/serializers.py` — Add `WorkoutHistorySummarySerializer`
+- `mobile/lib/features/workout_log/data/repositories/workout_repository.dart` — Add history methods
+- `mobile/lib/core/constants/api_constants.dart` — Add endpoint
+- `mobile/lib/core/router/app_router.dart` — Add 2 routes
+- `mobile/lib/features/home/presentation/screens/home_screen.dart` — Add recent workouts section
+- `mobile/lib/features/home/presentation/providers/home_provider.dart` — Add recent workouts to state
 
 ## Out of Scope
-- 2FA implementation (needs backend TOTP/SMS — separate ticket)
-- Social auth wiring (Apple/Google — separate ticket)
-- Messaging between trainer/trainee (separate ticket)
-- Scheduling feature (separate ticket)
-- Active sessions management (needs backend session tracking)
-- Admin reminder emails for past-due subscriptions
-- Invitation email HTML template styling (plain text is fine for MVP)
+- Workout comparison (this week vs last week) — separate ticket
+- Trainer viewing trainee workout history — separate ticket
+- Workout streak tracking / badges — separate ticket
+- Editing past workouts — read-only view only
+- Enhanced calendar with logged-vs-scheduled indicators — separate ticket
+- Export/share workout history — separate ticket
+- Workout search / filtering by exercise name — separate ticket

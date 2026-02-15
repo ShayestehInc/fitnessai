@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../workout_log/data/models/workout_history_model.dart';
 import '../providers/home_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -60,7 +61,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
 
                   // Current Program section
-                  _buildSectionHeader('Current Program', showAction: true, onAction: () => context.push('/logbook')),
+                  _buildSectionHeader('Current Program', showAction: true, actionLabel: 'View', onAction: () => context.push('/logbook')),
                   const SizedBox(height: 16),
                   _buildCurrentProgramSection(homeState),
                   const SizedBox(height: 32),
@@ -72,6 +73,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _buildNextWorkoutSection(homeState),
                     const SizedBox(height: 32),
                   ],
+
+                  // Recent Workouts section
+                  _buildSectionHeader(
+                    'Recent Workouts',
+                    showAction: homeState.recentWorkouts.isNotEmpty,
+                    onAction: () => context.push('/workout-history'),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildRecentWorkoutsSection(homeState),
+                  const SizedBox(height: 32),
 
                   // Latest Videos section
                   if (homeState.latestVideos.isNotEmpty) ...[
@@ -236,7 +247,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, {bool showAction = false, VoidCallback? onAction}) {
+  Widget _buildSectionHeader(
+    String title, {
+    bool showAction = false,
+    String actionLabel = 'See All',
+    VoidCallback? onAction,
+  }) {
     final theme = Theme.of(context);
 
     return Row(
@@ -258,12 +274,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         if (showAction) ...[
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: onAction,
-            child: Icon(
-              Icons.open_in_new,
-              size: 18,
-              color: theme.colorScheme.primary,
+          Semantics(
+            button: true,
+            label: '$actionLabel $title',
+            child: InkWell(
+              onTap: onAction,
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 2,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      actionLabel,
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 12,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -574,6 +615,127 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _buildRecentWorkoutsSection(HomeState state) {
+    final theme = Theme.of(context);
+
+    if (state.isLoading && state.recentWorkouts.isEmpty) {
+      // Shimmer placeholders matching 3-card layout
+      return Column(
+        children: List.generate(
+          3,
+          (index) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: theme.dividerColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: 140,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: theme.dividerColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 70,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (state.recentWorkoutsError != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.error.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.error.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 20,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                state.recentWorkoutsError!,
+                style: TextStyle(
+                  color: theme.textTheme.bodySmall?.color,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () =>
+                  ref.read(homeStateProvider.notifier).loadDashboardData(),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.recentWorkouts.isEmpty) {
+      return Text(
+        'No workouts yet. Complete your first workout to see it here.',
+        style: TextStyle(
+          color: theme.textTheme.bodySmall?.color,
+          fontSize: 13,
+        ),
+      );
+    }
+
+    return Column(
+      children: state.recentWorkouts.map((workout) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _RecentWorkoutCard(
+            workout: workout,
+            onTap: () => context.push('/workout-detail', extra: workout),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildLatestVideosSection(HomeState state) {
     return Column(
       children: state.latestVideos.map((video) => Padding(
@@ -865,6 +1027,87 @@ class _VideoCard extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Compact workout card for the home screen "Recent Workouts" section.
+class _RecentWorkoutCard extends StatelessWidget {
+  final WorkoutHistorySummary workout;
+  final VoidCallback onTap;
+
+  const _RecentWorkoutCard({
+    required this.workout,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Semantics(
+      button: true,
+      label:
+          '${workout.workoutName}, ${workout.formattedDate}, ${workout.exerciseCount} exercises',
+      child: Material(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        workout.formattedDate,
+                        style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        workout.workoutName,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '${workout.exerciseCount} exercises',
+                  style: TextStyle(
+                    color: theme.textTheme.bodySmall?.color,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: theme.textTheme.bodySmall?.color,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

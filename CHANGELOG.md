@@ -4,6 +4,51 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-14] — Trainee Workout History + Home Screen Recent Workouts
+
+### Added
+- **Workout History API** — `GET /api/workouts/daily-logs/workout-history/` paginated endpoint returning computed summary fields (workout_name, exercise_count, total_sets, total_volume_lbs, duration_display) from workout_data JSON. `GET /api/workouts/daily-logs/{id}/workout-detail/` for full workout data with restricted serializer.
+- **`WorkoutHistorySummarySerializer`** — Computes workout summaries from DailyLog.workout_data JSON blob. Handles both `exercises` and `sessions` key formats.
+- **`WorkoutDetailSerializer`** — Restricted serializer exposing only id, date, workout_data, notes (excludes trainee email, nutrition_data).
+- **`DailyLogService.get_workout_history_queryset()`** — Service-layer queryset builder with DB-level JSON filtering (excludes null, empty dict, empty exercises). Uses `Q` objects for `has_key` lookups and `.defer('nutrition_data')` for performance.
+- **WorkoutHistoryScreen** — Paginated list with shimmer skeleton loading, pull-to-refresh, infinite scroll (200px trigger), empty state with "Start a Workout" CTA, styled error with retry.
+- **WorkoutDetailScreen** — Full workout detail with real-header shimmer (uses available summary data during loading), exercise cards with sets table (set#, reps, weight, unit, completed icon), pre/post-workout survey badges with color-coded scores, error retry.
+- **Home Screen Recent Workouts** — "Recent Workouts" section showing last 3 completed workouts as compact cards. 3-card shimmer loading, styled error with retry, empty state text. "See All" button navigates to full history.
+- **`WorkoutDetailData` class** — Data-layer class for centralized JSON extraction logic (exercises, readiness survey, post-workout survey) with factory constructor.
+- **`WorkoutHistoryCard` + `StatChip`** — Extracted widgets with responsive `Wrap` layout (prevents overflow on narrow screens).
+- **`ExerciseCard`, `SurveyBadge`, `HeaderStat`, `SurveyField`** — Extracted detail widgets with theme-aware colors.
+- **Route guards** — `/workout-detail` redirects to `/workout-history` if extra data is invalid.
+- **Accessibility** — `Semantics` labels on all new interactive widgets (WorkoutHistoryCard, RecentWorkoutCard, ExerciseCard, SurveyBadge, HeaderStat), `liveRegion` on error/empty states, `ExcludeSemantics` to prevent duplicate announcements.
+- **48 new backend tests** — Filtering (7), serialization (15), pagination (9), security (5), detail (8), edge cases (6). Tests verify auth, IDOR prevention, data leakage, and malformed JSON handling.
+
+### Changed
+- **`DailyLogService`** — Extracted `get_workout_history_queryset()` from view to service layer per project architecture conventions.
+- **`WorkoutHistoryPagination`** — Custom pagination class with `page_size=20`, `max_page_size=50`.
+- **Home screen** — Added `recentWorkoutsError` field to `HomeState` for distinguishing API failure from empty data. Section header "See All" uses `InkWell` with Material ripple feedback instead of `GestureDetector`.
+- **`workout_history_provider.dart`** — `loadMore()` clears stale errors with `clearError: true` before retrying.
+- **Test infrastructure** — Converted `workouts/tests.py` into package with `__init__.py`, `test_surveys.py`, `test_workout_history.py`.
+
+### Security
+- Both endpoints require `IsTrainee` (authenticated + trainee role)
+- Row-level security via queryset filter `trainee=user` (IDOR returns 404, not 403)
+- `WorkoutHistorySummarySerializer` excludes trainee, email, nutrition_data
+- `WorkoutDetailSerializer` exposes only id, date, workout_data, notes
+- `.defer('nutrition_data')` defense-in-depth (not loaded from DB)
+- `max_page_size=50` prevents resource exhaustion
+- Generic error messages — no internal details leaked
+- 30 security-relevant tests verify auth, authz, IDOR, data leakage
+
+### Quality
+- Code review: 8/10 — APPROVE (Round 3, all 2 Critical + 5 Major from Round 2 fixed)
+- QA: 48/48 tests pass, 1 bug found and fixed (PostgreSQL NULL semantics) — HIGH confidence
+- UX audit: 8/10 — 9 usability + 7 accessibility issues fixed
+- Security audit: 9.5/10 — PASS (0 Critical/High issues)
+- Architecture review: 9/10 — APPROVE (2 issues fixed: service extraction, data class)
+- Hacker report: 7/10 — 4 items fixed (overflow, accessibility, volume display, pagination retry)
+- Overall quality: 9/10 — SHIP
+
+---
+
 ## [2026-02-14] — AI Food Parsing + Password Change + Invitation Emails
 
 ### Added

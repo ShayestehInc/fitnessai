@@ -110,14 +110,33 @@ class WorkoutRepository {
     }
   }
 
-  /// Get workout history (daily logs)
-  Future<Map<String, dynamic>> getWorkoutHistory() async {
+  /// Get paginated workout history (only logs with actual workout data).
+  ///
+  /// Returns a paginated response with summary fields:
+  /// workout_name, exercise_count, total_sets, total_volume_lbs, duration_display.
+  Future<Map<String, dynamic>> getWorkoutHistory({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
     try {
-      final response = await _apiClient.dio.get(ApiConstants.dailyLogs);
+      final response = await _apiClient.dio.get(
+        ApiConstants.workoutHistory,
+        queryParameters: {
+          'page': page,
+          'page_size': pageSize,
+        },
+      );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = response.data is List ? response.data : [];
-        return {'success': true, 'logs': data};
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        final data = response.data as Map<String, dynamic>;
+        final results = data['results'] as List<dynamic>? ?? [];
+        final hasNext = data['next'] != null;
+        return {
+          'success': true,
+          'results': results,
+          'hasNext': hasNext,
+          'count': data['count'] ?? results.length,
+        };
       }
 
       return {'success': false, 'error': 'Failed to get workout history'};
@@ -125,6 +144,33 @@ class WorkoutRepository {
       return {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to get workout history',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Get recent workouts for the home screen (last N workouts).
+  Future<Map<String, dynamic>> getRecentWorkouts({int limit = 3}) async {
+    return getWorkoutHistory(page: 1, pageSize: limit);
+  }
+
+  /// Get full workout detail for a single DailyLog by ID.
+  Future<Map<String, dynamic>> getWorkoutDetail(int logId) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.workoutHistoryDetail(logId),
+      );
+
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        return {'success': true, 'data': response.data};
+      }
+
+      return {'success': false, 'error': 'Failed to load workout detail'};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load workout detail',
       };
     } catch (e) {
       return {'success': false, 'error': e.toString()};
