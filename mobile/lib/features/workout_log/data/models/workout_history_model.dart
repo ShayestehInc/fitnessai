@@ -45,18 +45,4 @@ class WorkoutHistorySummary {
     return '$weekday, $month ${parsed.day}';
   }
 
-  /// Format volume for display (e.g., "12,500 lbs").
-  String get formattedVolume {
-    if (totalVolumeLbs <= 0) return '\u2014';
-    final rounded = totalVolumeLbs.round();
-    final str = rounded.toString();
-    final buffer = StringBuffer();
-    for (int i = 0; i < str.length; i++) {
-      if (i > 0 && (str.length - i) % 3 == 0) {
-        buffer.write(',');
-      }
-      buffer.write(str[i]);
-    }
-    return '${buffer.toString()} lbs';
-  }
 }

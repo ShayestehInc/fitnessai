@@ -391,3 +391,16 @@ class WorkoutHistorySummarySerializer(serializers.ModelSerializer[DailyLog]):
                 if session_duration and isinstance(session_duration, str):
                     return session_duration
         return '0:00'
+
+
+class WorkoutDetailSerializer(serializers.ModelSerializer[DailyLog]):
+    """
+    Restricted serializer for workout detail view.
+    Only exposes fields needed by the mobile detail screen —
+    no trainee email, no nutrition_data.
+    """
+
+    class Meta:
+        model = DailyLog
+        fields = ['id', 'date', 'workout_data', 'notes']
+        read_only_fields = ['id', 'date', 'workout_data', 'notes']

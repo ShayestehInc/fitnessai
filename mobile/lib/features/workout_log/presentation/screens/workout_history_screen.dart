@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../data/models/workout_history_model.dart';
 import '../providers/workout_history_provider.dart';
+import 'workout_history_widgets.dart';
 
 class WorkoutHistoryScreen extends ConsumerStatefulWidget {
   const WorkoutHistoryScreen({super.key});
@@ -75,7 +75,7 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
         itemCount: state.workouts.length + 1,
         itemBuilder: (context, index) {
           if (index < state.workouts.length) {
-            return _WorkoutHistoryCard(
+            return WorkoutHistoryCard(
               workout: state.workouts[index],
               onTap: () => context.push(
                 '/workout-detail',
@@ -262,120 +262,6 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Card widget for a single workout history item.
-class _WorkoutHistoryCard extends StatelessWidget {
-  final WorkoutHistorySummary workout;
-  final VoidCallback onTap;
-
-  const _WorkoutHistoryCard({
-    required this.workout,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.dividerColor),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Date
-                Text(
-                  workout.formattedDate,
-                  style: TextStyle(
-                    color: theme.textTheme.bodySmall?.color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                // Workout name
-                Text(
-                  workout.workoutName,
-                  style: TextStyle(
-                    color: theme.textTheme.bodyLarge?.color,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 12),
-                // Stats row
-                Row(
-                  children: [
-                    _StatChip(
-                      icon: Icons.fitness_center,
-                      label: '${workout.exerciseCount} exercises',
-                      theme: theme,
-                    ),
-                    const SizedBox(width: 16),
-                    _StatChip(
-                      icon: Icons.repeat,
-                      label: '${workout.totalSets} sets',
-                      theme: theme,
-                    ),
-                    const SizedBox(width: 16),
-                    _StatChip(
-                      icon: Icons.timer_outlined,
-                      label: workout.durationDisplay,
-                      theme: theme,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final ThemeData theme;
-
-  const _StatChip({
-    required this.icon,
-    required this.label,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: theme.textTheme.bodySmall?.color),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: theme.textTheme.bodySmall?.color,
-            fontSize: 12,
-          ),
-        ),
-      ],
     );
   }
 }

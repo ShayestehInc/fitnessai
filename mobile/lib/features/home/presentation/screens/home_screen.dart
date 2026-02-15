@@ -61,7 +61,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
 
                   // Current Program section
-                  _buildSectionHeader('Current Program', showAction: true, onAction: () => context.push('/logbook')),
+                  _buildSectionHeader('Current Program', showAction: true, actionLabel: 'View', onAction: () => context.push('/logbook')),
                   const SizedBox(height: 16),
                   _buildCurrentProgramSection(homeState),
                   const SizedBox(height: 32),
@@ -247,7 +247,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, {bool showAction = false, VoidCallback? onAction}) {
+  Widget _buildSectionHeader(
+    String title, {
+    bool showAction = false,
+    String actionLabel = 'See All',
+    VoidCallback? onAction,
+  }) {
     final theme = Theme.of(context);
 
     return Row(
@@ -275,7 +280,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'See All',
+                  actionLabel,
                   style: TextStyle(
                     color: theme.colorScheme.primary,
                     fontSize: 13,
@@ -625,6 +630,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
+        ),
+      );
+    }
+
+    if (state.recentWorkoutsError != null) {
+      return Text(
+        state.recentWorkoutsError!,
+        style: TextStyle(
+          color: theme.textTheme.bodySmall?.color,
+          fontSize: 13,
         ),
       );
     }

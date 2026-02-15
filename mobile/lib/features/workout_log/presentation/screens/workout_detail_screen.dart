@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/workout_history_model.dart';
 import '../../data/repositories/workout_repository.dart';
+import 'workout_detail_widgets.dart';
 
 /// Read-only detail view of a completed workout.
 ///
@@ -76,35 +77,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     }
 
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-              const SizedBox(height: 16),
-              Text(
-                _error!,
-                style: TextStyle(color: theme.textTheme.bodySmall?.color),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _isLoading = true;
-                    _error = null;
-                  });
-                  _fetchDetail();
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildErrorState(theme);
     }
 
     final data = _workoutData ?? {};
@@ -126,11 +99,11 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
               icon: Icons.battery_charging_full,
               survey: readinessSurvey,
               fields: const [
-                _SurveyField('sleep', 'Sleep Quality'),
-                _SurveyField('mood', 'Mood'),
-                _SurveyField('energy', 'Energy'),
-                _SurveyField('stress', 'Stress'),
-                _SurveyField('soreness', 'Soreness'),
+                SurveyField('sleep', 'Sleep Quality'),
+                SurveyField('mood', 'Mood'),
+                SurveyField('energy', 'Energy'),
+                SurveyField('stress', 'Stress'),
+                SurveyField('soreness', 'Soreness'),
               ],
             ),
             const SizedBox(height: 16),
@@ -141,7 +114,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
             ...exercises.map(
               (exercise) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _ExerciseCard(exercise: exercise, theme: theme),
+                child: ExerciseCard(exercise: exercise, theme: theme),
               ),
             ),
           if (postSurvey != null) ...[
@@ -152,10 +125,10 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
               icon: Icons.check_circle_outline,
               survey: postSurvey,
               fields: const [
-                _SurveyField('performance', 'Performance'),
-                _SurveyField('intensity', 'Intensity'),
-                _SurveyField('energy_after', 'Energy After'),
-                _SurveyField('satisfaction', 'Satisfaction'),
+                SurveyField('performance', 'Performance'),
+                SurveyField('intensity', 'Intensity'),
+                SurveyField('energy_after', 'Energy After'),
+                SurveyField('satisfaction', 'Satisfaction'),
               ],
               notesKey: 'notes',
             ),
@@ -163,6 +136,38 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
           ],
           const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+            const SizedBox(height: 16),
+            Text(
+              _error!,
+              style: TextStyle(color: theme.textTheme.bodySmall?.color),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _isLoading = true;
+                  _error = null;
+                });
+                _fetchDetail();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -206,19 +211,19 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _HeaderStat(
+              HeaderStat(
                 icon: Icons.timer_outlined,
                 value: workout.durationDisplay,
                 theme: theme,
               ),
               const SizedBox(height: 4),
-              _HeaderStat(
+              HeaderStat(
                 icon: Icons.fitness_center,
                 value: '${workout.exerciseCount} exercises',
                 theme: theme,
               ),
               const SizedBox(height: 4),
-              _HeaderStat(
+              HeaderStat(
                 icon: Icons.repeat,
                 value: '${workout.totalSets} sets',
                 theme: theme,
@@ -264,7 +269,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
     required String title,
     required IconData icon,
     required Map<String, dynamic> survey,
-    required List<_SurveyField> fields,
+    required List<SurveyField> fields,
     String? notesKey,
   }) {
     return Container(
@@ -301,7 +306,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
             children: fields.map((field) {
               final value = survey[field.key];
               if (value == null) return const SizedBox.shrink();
-              return _SurveyBadge(
+              return SurveyBadge(
                 label: field.label,
                 value: '$value/5',
                 score: value is num ? value.toDouble() : 0,
@@ -377,255 +382,5 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
       }
     }
     return null;
-  }
-}
-
-class _SurveyField {
-  final String key;
-  final String label;
-
-  const _SurveyField(this.key, this.label);
-}
-
-class _HeaderStat extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final ThemeData theme;
-
-  const _HeaderStat({
-    required this.icon,
-    required this.value,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: theme.textTheme.bodySmall?.color),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: TextStyle(
-            color: theme.textTheme.bodySmall?.color,
-            fontSize: 13,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SurveyBadge extends StatelessWidget {
-  final String label;
-  final String value;
-  final double score;
-  final ThemeData theme;
-
-  const _SurveyBadge({
-    required this.label,
-    required this.value,
-    required this.score,
-    required this.theme,
-  });
-
-  Color get _badgeColor {
-    if (score >= 4) return const Color(0xFF22C55E);
-    if (score >= 3) return const Color(0xFFF59E0B);
-    return const Color(0xFFEF4444);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: _badgeColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: theme.textTheme.bodySmall?.color,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: _badgeColor,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Card showing a single exercise with its sets table.
-class _ExerciseCard extends StatelessWidget {
-  final Map<String, dynamic> exercise;
-  final ThemeData theme;
-
-  const _ExerciseCard({required this.exercise, required this.theme});
-
-  @override
-  Widget build(BuildContext context) {
-    final name = exercise['exercise_name'] as String? ?? 'Unknown Exercise';
-    final sets = exercise['sets'];
-    final setsList = sets is List
-        ? sets.whereType<Map<String, dynamic>>().toList()
-        : <Map<String, dynamic>>[];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.fitness_center,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: TextStyle(
-                      color: theme.textTheme.bodyLarge?.color,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (setsList.isNotEmpty) ...[
-            Divider(height: 1, color: theme.dividerColor),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 40,
-                    child: Text(
-                      'Set',
-                      style: TextStyle(
-                        color: theme.textTheme.bodySmall?.color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Reps',
-                      style: TextStyle(
-                        color: theme.textTheme.bodySmall?.color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Weight',
-                      style: TextStyle(
-                        color: theme.textTheme.bodySmall?.color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                ],
-              ),
-            ),
-            ...setsList.asMap().entries.map((entry) {
-              final setData = entry.value;
-              final setNumber = setData['set_number'] ?? (entry.key + 1);
-              final reps = setData['reps'] ?? 0;
-              final weight = setData['weight'];
-              final unit = setData['unit'] as String? ?? 'lbs';
-              final completed = setData['completed'] as bool? ?? true;
-
-              return Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 40,
-                      child: Text(
-                        '$setNumber',
-                        style: TextStyle(
-                          color: theme.textTheme.bodyLarge?.color,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        '$reps',
-                        style: TextStyle(
-                          color: theme.textTheme.bodyLarge?.color,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        weight != null ? '$weight $unit' : '\u2014',
-                        style: TextStyle(
-                          color: theme.textTheme.bodyLarge?.color,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      completed ? Icons.check_circle : Icons.cancel,
-                      size: 18,
-                      color: completed
-                          ? const Color(0xFF22C55E)
-                          : theme.textTheme.bodySmall?.color,
-                    ),
-                  ],
-                ),
-              );
-            }),
-            const SizedBox(height: 8),
-          ] else
-            Padding(
-              padding: const EdgeInsets.only(left: 16, bottom: 16),
-              child: Text(
-                'No sets recorded',
-                style: TextStyle(
-                  color: theme.textTheme.bodySmall?.color,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
   }
 }

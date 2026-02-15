@@ -60,7 +60,7 @@ class WorkoutHistoryNotifier extends StateNotifier<WorkoutHistoryState> {
       final result = await _workoutRepo.getWorkoutHistory(page: 1);
 
       if (result['success'] == true) {
-        final results = result['results'] as List<dynamic>;
+        final results = result['results'] as List<dynamic>? ?? [];
         final workouts = results
             .whereType<Map<String, dynamic>>()
             .map(WorkoutHistorySummary.fromJson)
@@ -98,7 +98,7 @@ class WorkoutHistoryNotifier extends StateNotifier<WorkoutHistoryState> {
       final result = await _workoutRepo.getWorkoutHistory(page: nextPage);
 
       if (result['success'] == true) {
-        final results = result['results'] as List<dynamic>;
+        final results = result['results'] as List<dynamic>? ?? [];
         final newWorkouts = results
             .whereType<Map<String, dynamic>>()
             .map(WorkoutHistorySummary.fromJson)
@@ -112,10 +112,16 @@ class WorkoutHistoryNotifier extends StateNotifier<WorkoutHistoryState> {
           isLoadingMore: false,
         );
       } else {
-        state = state.copyWith(isLoadingMore: false);
+        state = state.copyWith(
+          isLoadingMore: false,
+          error: result['error'] as String? ?? 'Failed to load more',
+        );
       }
-    } catch (_) {
-      state = state.copyWith(isLoadingMore: false);
+    } catch (e) {
+      state = state.copyWith(
+        isLoadingMore: false,
+        error: 'Failed to load more workouts',
+      );
     }
   }
 

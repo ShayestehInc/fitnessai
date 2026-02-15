@@ -77,6 +77,7 @@ class HomeState {
   final NextWorkout? nextWorkout;
   final List<VideoItem> latestVideos;
   final List<WorkoutHistorySummary> recentWorkouts;
+  final String? recentWorkoutsError;
   final int programProgress; // 0-100
   final WeeklyProgressData? weeklyProgress;
   final bool isLoading;
@@ -89,6 +90,7 @@ class HomeState {
     this.nextWorkout,
     this.latestVideos = const [],
     this.recentWorkouts = const [],
+    this.recentWorkoutsError,
     this.programProgress = 0,
     this.weeklyProgress,
     this.isLoading = false,
@@ -102,6 +104,8 @@ class HomeState {
     NextWorkout? nextWorkout,
     List<VideoItem>? latestVideos,
     List<WorkoutHistorySummary>? recentWorkouts,
+    String? recentWorkoutsError,
+    bool clearRecentWorkoutsError = false,
     int? programProgress,
     WeeklyProgressData? weeklyProgress,
     bool? isLoading,
@@ -114,6 +118,9 @@ class HomeState {
       nextWorkout: nextWorkout ?? this.nextWorkout,
       latestVideos: latestVideos ?? this.latestVideos,
       recentWorkouts: recentWorkouts ?? this.recentWorkouts,
+      recentWorkoutsError: clearRecentWorkoutsError
+          ? null
+          : (recentWorkoutsError ?? this.recentWorkoutsError),
       programProgress: programProgress ?? this.programProgress,
       weeklyProgress: weeklyProgress ?? this.weeklyProgress,
       isLoading: isLoading ?? this.isLoading,
@@ -210,12 +217,15 @@ class HomeNotifier extends StateNotifier<HomeState> {
 
       // Parse recent workouts
       List<WorkoutHistorySummary> recentWorkouts = [];
+      String? recentWorkoutsError;
       if (recentResult['success'] == true) {
         final results = recentResult['results'] as List<dynamic>? ?? [];
         recentWorkouts = results
             .whereType<Map<String, dynamic>>()
             .map(WorkoutHistorySummary.fromJson)
             .toList();
+      } else {
+        recentWorkoutsError = "Couldn't load recent workouts";
       }
 
       // Load sample latest videos (in a real app, this would come from an API)
@@ -234,6 +244,8 @@ class HomeNotifier extends StateNotifier<HomeState> {
         programProgress: programProgress,
         weeklyProgress: weeklyProgress,
         recentWorkouts: recentWorkouts,
+        recentWorkoutsError: recentWorkoutsError,
+        clearRecentWorkoutsError: recentWorkoutsError == null,
         latestVideos: latestVideos,
       );
     } catch (e) {

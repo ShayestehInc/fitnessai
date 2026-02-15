@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.serializers import BaseSerializer
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.conf import settings
@@ -41,6 +41,7 @@ from .serializers import (
     MacroPresetSerializer,
     MacroPresetCreateSerializer,
     WorkoutHistorySummarySerializer,
+    WorkoutDetailSerializer,
 )
 from .services.natural_language_parser import NaturalLanguageParserService
 
@@ -403,21 +404,18 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
         user = cast(User, request.user)
 
         # Database-level filtering using PostgreSQL JSON operators:
-        # - Exclude null, empty dict {}, and {"exercises": []}
-        # - Include logs that have a non-empty 'exercises' array OR a non-empty 'sessions' array
-        from django.db.models import Q
-        from django.db.models.functions import JSONObject  # noqa: F401
-
+        # - Exclude null, empty dict {}, and records with empty exercises array
+        # - Include logs that have 'exercises' or 'sessions' keys
         queryset = DailyLog.objects.filter(
             trainee=user,
         ).exclude(
             workout_data__isnull=True,
         ).exclude(
             workout_data={},
-        ).exclude(
-            workout_data={'exercises': []},
         ).filter(
             Q(workout_data__has_key='exercises') | Q(workout_data__has_key='sessions'),
+        ).exclude(
+            workout_data__exercises=[],
         ).defer(
             'nutrition_data',  # Not needed for history summary, avoid fetching large blob
         ).order_by('-date')
@@ -440,19 +438,11 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
 
         GET /api/workouts/daily-logs/{id}/workout-detail/
 
-        Returns the full DailyLog with workout_data for the detail screen.
-        Row-level security: trainee can only view own logs.
+        Returns workout_data, date, and notes for the detail screen.
+        Row-level security enforced via get_queryset() filtering by trainee=user.
         """
         daily_log = self.get_object()
-        user = cast(User, request.user)
-
-        if daily_log.trainee != user:
-            return Response(
-                {'error': 'Not authorized to view this log'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        serializer = DailyLogSerializer(daily_log)
+        serializer = WorkoutDetailSerializer(daily_log)
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'], url_path='parse-natural-language')
