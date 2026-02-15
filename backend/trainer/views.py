@@ -177,6 +177,11 @@ class TraineeListView(generics.ListAPIView[User]):
         return User.objects.filter(
             parent_trainer=user,
             role=User.Role.TRAINEE
+        ).select_related(
+            'profile'
+        ).prefetch_related(
+            'daily_logs',
+            'programs',
         ).order_by('-created_at')
 
 

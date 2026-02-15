@@ -42,13 +42,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Only trainer accounts can access this dashboard");
       }
       setUser(userData);
-    } catch {
+    } catch (error) {
       clearTokens();
       setUser(null);
+      // Re-throw role errors so the login page can display them
+      if (
+        error instanceof Error &&
+        error.message.includes("Only trainer")
+      ) {
+        throw error;
+      }
     }
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
     async function initAuth() {
       if (!hasValidSession()) {
         setIsLoading(false);
@@ -67,7 +77,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
 
-    initAuth();
+    initAuth().catch(() => {
+      clearTokens();
+      setUser(null);
+      setIsLoading(false);
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [fetchUser]);
 
   const login = useCallback(

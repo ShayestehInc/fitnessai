@@ -17,7 +17,8 @@ export function UserNav() {
   const { user, logout } = useAuth();
 
   const initials = user
-    ? `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase()
+    ? `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase() ||
+      user.email.charAt(0).toUpperCase()
     : "?";
 
   const displayName = user

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   useNotifications,
   useMarkAsRead,
@@ -19,7 +19,8 @@ type Filter = "all" | "unread";
 
 export default function NotificationsPage() {
   const [filter, setFilter] = useState<Filter>("all");
-  const { data, isLoading, isError, refetch } = useNotifications();
+  const [page, setPage] = useState(1);
+  const { data, isLoading, isError, refetch } = useNotifications(page);
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 
@@ -30,6 +31,8 @@ export default function NotificationsPage() {
       : notifications;
 
   const hasUnread = notifications.some((n) => !n.is_read);
+  const hasNextPage = data?.next !== null;
+  const hasPrevPage = page > 1;
 
   return (
     <div className="space-y-6">
@@ -52,7 +55,9 @@ export default function NotificationsPage() {
 
       <Tabs
         value={filter}
-        onValueChange={(v) => setFilter(v as Filter)}
+        onValueChange={(v) => {
+          if (v === "all" || v === "unread") setFilter(v);
+        }}
       >
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
@@ -88,6 +93,32 @@ export default function NotificationsPage() {
               }}
             />
           ))}
+
+          {(hasPrevPage || hasNextPage) && (
+            <div className="flex items-center justify-between pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!hasPrevPage}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {page}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!hasNextPage}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -20,13 +20,12 @@ export default function TraineeDetailPage({
 }) {
   const { id } = use(params);
   const traineeId = parseInt(id, 10);
-  const { data: trainee, isLoading, isError, refetch } = useTrainee(traineeId);
+  const isValidId = !isNaN(traineeId) && traineeId > 0;
+  const { data: trainee, isLoading, isError, refetch } = useTrainee(
+    isValidId ? traineeId : 0,
+  );
 
-  if (isLoading) {
-    return <TraineeDetailSkeleton />;
-  }
-
-  if (isError || !trainee) {
+  if (!isValidId || isError || (!isLoading && !trainee)) {
     return (
       <div className="space-y-6">
         <Button variant="ghost" size="sm" asChild>
@@ -36,11 +35,15 @@ export default function TraineeDetailPage({
           </Link>
         </Button>
         <ErrorState
-          message="Trainee not found or failed to load"
-          onRetry={() => refetch()}
+          message={!isValidId ? "Invalid trainee ID" : "Trainee not found or failed to load"}
+          onRetry={isValidId ? () => refetch() : undefined}
         />
       </div>
     );
+  }
+
+  if (isLoading || !trainee) {
+    return <TraineeDetailSkeleton />;
   }
 
   const displayName =

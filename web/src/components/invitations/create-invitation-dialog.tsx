@@ -22,7 +22,7 @@ import { ApiError } from "@/lib/api-client";
 const invitationSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   message: z.string().optional(),
-  expires_in_days: z.coerce
+  expires_days: z.coerce
     .number()
     .int()
     .min(1, "Must be at least 1 day")
@@ -52,7 +52,7 @@ export function CreateInvitationDialog() {
     const result = invitationSchema.safeParse({
       email,
       message: message || undefined,
-      expires_in_days: expiresInDays ? Number(expiresInDays) : undefined,
+      expires_days: expiresInDays ? Number(expiresInDays) : undefined,
     });
 
     if (!result.success) {

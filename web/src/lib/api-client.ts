@@ -1,6 +1,5 @@
 import {
   getAccessToken,
-  isAccessTokenExpired,
   refreshAccessToken,
   clearTokens,
 } from "./token-manager";
@@ -16,53 +15,44 @@ export class ApiError extends Error {
   }
 }
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  if (isAccessTokenExpired()) {
-    const refreshed = await refreshAccessToken();
-    if (!refreshed) {
-      clearTokens();
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
-      throw new ApiError(401, "Session expired", null);
-    }
-  }
-
+function getAuthHeaders(): Record<string, string> {
   const token = getAccessToken();
   if (!token) {
     throw new ApiError(401, "No access token", null);
   }
-
   return { Authorization: `Bearer ${token}` };
+}
+
+function buildHeaders(
+  options: RequestInit,
+  authHeaders: Record<string, string>,
+): HeadersInit {
+  return {
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...authHeaders,
+    ...options.headers,
+  };
 }
 
 async function request<T>(
   url: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const authHeaders = await getAuthHeaders();
+  const authHeaders = getAuthHeaders();
 
   const response = await fetch(url, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders,
-      ...options.headers,
-    },
+    headers: buildHeaders(options, authHeaders),
   });
 
   // On 401, attempt one refresh and retry
   if (response.status === 401) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
-      const retryHeaders = await getAuthHeaders();
+      const retryHeaders = getAuthHeaders();
       const retryResponse = await fetch(url, {
         ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...retryHeaders,
-          ...options.headers,
-        },
+        headers: buildHeaders(options, retryHeaders),
       });
 
       if (!retryResponse.ok) {
@@ -70,7 +60,7 @@ async function request<T>(
         throw new ApiError(retryResponse.status, retryResponse.statusText, body);
       }
 
-      if (retryResponse.status === 204) return undefined as T;
+      if (retryResponse.status === 204) return undefined as unknown as T;
       return retryResponse.json() as Promise<T>;
     }
 
@@ -86,7 +76,7 @@ async function request<T>(
     throw new ApiError(response.status, response.statusText, body);
   }
 
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) return undefined as unknown as T;
   return response.json() as Promise<T>;
 }
 

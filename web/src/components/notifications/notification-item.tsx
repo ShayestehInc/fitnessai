@@ -1,15 +1,25 @@
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { UserPlus, Dumbbell, Utensils, AlertTriangle, Info } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Activity,
+  Dumbbell,
+  AlertTriangle,
+  Target,
+  ClipboardCheck,
+  MessageSquare,
+  Info,
+} from "lucide-react";
 import type { Notification } from "@/types/notification";
 
-const iconMap: Record<string, typeof UserPlus> = {
-  trainee_joined: UserPlus,
-  trainee_completed_onboarding: UserPlus,
-  trainee_logged_workout: Dumbbell,
-  trainee_logged_food: Utensils,
-  trainee_inactive: AlertTriangle,
-  system: Info,
+const iconMap: Record<string, LucideIcon> = {
+  trainee_readiness: Activity,
+  workout_completed: Dumbbell,
+  workout_missed: AlertTriangle,
+  goal_hit: Target,
+  check_in: ClipboardCheck,
+  message: MessageSquare,
+  general: Info,
 };
 
 interface NotificationItemProps {
