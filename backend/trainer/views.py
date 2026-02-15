@@ -11,6 +11,7 @@ from typing import Any, cast
 logger = logging.getLogger(__name__)
 
 from rest_framework import generics, status, views
+from rest_framework.filters import SearchFilter
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -168,6 +169,8 @@ class TraineeListView(generics.ListAPIView[User]):
     """
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = TraineeListSerializer
+    filter_backends = [SearchFilter]
+    search_fields = ['email', 'first_name', 'last_name']
 
     def get_queryset(self) -> QuerySet[User]:
         user = cast(User, self.request.user)
