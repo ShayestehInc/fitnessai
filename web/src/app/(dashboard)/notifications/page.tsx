@@ -20,16 +20,11 @@ type Filter = "all" | "unread";
 export default function NotificationsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(1);
-  const { data, isLoading, isError, refetch } = useNotifications(page);
+  const { data, isLoading, isError, refetch } = useNotifications(page, filter);
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 
   const notifications = data?.results ?? [];
-  const filtered =
-    filter === "unread"
-      ? notifications.filter((n) => !n.is_read)
-      : notifications;
-
   const hasUnread = notifications.some((n) => !n.is_read);
   const hasNextPage = Boolean(data?.next);
   const hasPrevPage = page > 1;
@@ -56,7 +51,10 @@ export default function NotificationsPage() {
       <Tabs
         value={filter}
         onValueChange={(v) => {
-          if (v === "all" || v === "unread") setFilter(v);
+          if (v === "all" || v === "unread") {
+            setFilter(v);
+            setPage(1);
+          }
         }}
       >
         <TabsList>
@@ -72,7 +70,7 @@ export default function NotificationsPage() {
           message="Failed to load notifications"
           onRetry={() => refetch()}
         />
-      ) : filtered.length === 0 ? (
+      ) : notifications.length === 0 ? (
         <EmptyState
           icon={Bell}
           title={filter === "unread" ? "All caught up" : "No notifications"}
@@ -84,7 +82,7 @@ export default function NotificationsPage() {
         />
       ) : (
         <div className="max-w-2xl space-y-1">
-          {filtered.map((n) => (
+          {notifications.map((n) => (
             <NotificationItem
               key={n.id}
               notification={n}

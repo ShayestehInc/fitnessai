@@ -25,6 +25,7 @@ interface DataTableProps<T> {
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
+  onRowClick?: (row: T) => void;
   keyExtractor: (row: T) => string | number;
 }
 
@@ -35,6 +36,7 @@ export function DataTable<T>({
   page = 1,
   pageSize = 20,
   onPageChange,
+  onRowClick,
   keyExtractor,
 }: DataTableProps<T>) {
   const totalPages =
@@ -66,7 +68,11 @@ export function DataTable<T>({
               </TableRow>
             ) : (
               data.map((row) => (
-                <TableRow key={keyExtractor(row)}>
+                <TableRow
+                  key={keyExtractor(row)}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  className={onRowClick ? "cursor-pointer" : undefined}
+                >
                   {columns.map((col) => (
                     <TableCell key={col.key} className={col.className}>
                       {col.cell(row)}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { DataTable } from "@/components/shared/data-table";
 import { traineeColumns } from "./trainee-columns";
 import type { TraineeListItem } from "@/types/trainer";
@@ -17,6 +18,8 @@ export function TraineeTable({
   page,
   onPageChange,
 }: TraineeTableProps) {
+  const router = useRouter();
+
   return (
     <DataTable
       columns={traineeColumns}
@@ -24,6 +27,7 @@ export function TraineeTable({
       totalCount={totalCount}
       page={page}
       onPageChange={onPageChange}
+      onRowClick={(row) => router.push(`/trainees/${row.id}`)}
       keyExtractor={(row) => row.id}
     />
   );
