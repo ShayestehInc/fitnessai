@@ -1,105 +1,89 @@
-# UX Audit: Pipeline 8 -- Trainee Workout History + Home Screen Recent Workouts
+# UX Audit: Web Trainer Dashboard (Pipeline 9)
 
-## Audit Date
-2026-02-14
+## Audit Date: 2026-02-15
 
-## Files Audited
-- `mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_history_widgets.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_detail_widgets.dart`
-- `mobile/lib/features/home/presentation/screens/home_screen.dart` (Recent Workouts section, `_RecentWorkoutCard` widget, `_buildSectionHeader`)
-- `mobile/lib/features/workout_log/presentation/providers/workout_history_provider.dart`
-- `mobile/lib/features/home/presentation/providers/home_provider.dart`
-- `mobile/lib/features/workout_log/data/models/workout_history_model.dart`
-
----
-
-## Executive Summary
-
-Audited all UI code for the Workout History feature across three screens: full workout history list, workout detail view, and home screen recent workouts section. Found and **FIXED** 9 usability issues and 5 accessibility gaps. All fixes have been implemented directly in code.
-
-**Overall UX Score: 8/10** (up from 6/10 before fixes)
+## Pages & Components Reviewed
+- All pages: login, dashboard, trainees, trainee detail, invitations, notifications, settings, not-found
+- All layout components: sidebar, sidebar-mobile, header, user-nav
+- All shared components: empty-state, error-state, loading-spinner, page-header, data-table
+- All feature components: dashboard stats/cards/skeletons, trainee table/search/columns/activity/overview/progress, invitation table/columns/dialog/status-badge, notification bell/popover/item
+- All UI primitives: button, input, card, dialog, table, tabs, badge, etc.
 
 ---
 
 ## Usability Issues
 
-| # | Severity | Screen/Component | Issue | Recommendation | Status |
-|---|----------|-----------------|-------|----------------|--------|
-| 1 | HIGH | Home / Recent Workouts error state | Error state was plain text with no visual emphasis and no retry mechanism. AC-21 requires "error with retry button." | Added red-tinted container with error icon, message text, and a "Retry" TextButton that calls `loadDashboardData()`. | FIXED |
-| 2 | MEDIUM | Home / Recent Workouts shimmer | Loading state showed a single 72px container with one 100px bar -- looked nothing like the actual 3-card layout. | Replaced with 3 skeleton cards matching `_RecentWorkoutCard` structure (date bar, name bar, exercise count bar). | FIXED |
-| 3 | HIGH | Workout Detail / loading state | Loading used a bare `CircularProgressIndicator` centered on screen -- no skeleton, no context. Ticket requires shimmer/skeleton. | Replaced with `_buildDetailShimmer()` that shows the real header (summary data is already available) plus exercise card skeletons matching the expected count. | FIXED |
-| 4 | MEDIUM | Workout Detail / error state | Error layout was plain (no container, no red tinting) -- inconsistent with the history screen's styled error. | Added red-tinted `Container` with border, error icon, title "Unable to load workout details", error message, and Retry button -- matching history screen pattern. | FIXED |
-| 5 | MEDIUM | Workout History / pagination error | When `loadMore()` failed, `state.error` was set but the list footer only checked `isLoadingMore` and `!hasMore`. User had no indication pagination failed and no way to retry. | Added inline pagination error footer with error text + "Retry" TextButton. Also fixed provider to clear error when retrying via `clearError: true`. | FIXED |
-| 6 | LOW | Workout History / stats row overflow | `WorkoutHistoryCard` used a `Row` for three `StatChip` widgets with fixed `SizedBox(width: 16)` spacing. Long labels (e.g., "12 exercises") could overflow on narrow screens (< 360px). | Changed from `Row` to `Wrap` with `spacing: 16, runSpacing: 8` so chips wrap to the next line on narrow devices. | FIXED |
-| 7 | MEDIUM | Home / "See All" button | `_buildSectionHeader` used `GestureDetector` with no visual feedback on tap. Users get no ripple or highlight confirming their tap registered. | Replaced `GestureDetector` with `InkWell` + `borderRadius` + padding for proper Material tap feedback. | FIXED |
-| 8 | LOW | Workout Detail / total volume | Header showed exercises and sets but not total volume, even though the data is available. Users care about volume progress. | Added `HeaderStat` showing `formattedVolume` when `totalVolumeLbs > 0`. (Applied by linter/co-agent.) | FIXED |
-| 9 | LOW | Workout History / "reached the end" footer | The footer text "You've reached the end" is functional but somewhat abrupt. | Kept as-is -- consistent with common patterns (Instagram, Twitter). Not blocking. | NOT FIXED (acceptable) |
+| # | Severity | Screen/Component | Issue | Recommendation |
+|---|----------|-----------------|-------|----------------|
+| 1 | Medium | RecentTrainees | Table had no horizontal scroll wrapper on small screens causing content to be cut off | Added `overflow-x-auto` wrapper -- FIXED |
+| 2 | Medium | DataTable | Table had no horizontal scroll wrapper causing overflow on mobile | Added `overflow-x-auto` wrapper -- FIXED |
+| 3 | Medium | DataTable | Clickable table rows were not keyboard-accessible -- no tabIndex, no Enter/Space handler, no focus ring | Added `tabIndex={0}`, `role="button"`, `onKeyDown` for Enter/Space, and `focus-visible:ring-2` -- FIXED |
+| 4 | Low | TraineeActivityTab | Day filter buttons used abbreviated labels ("7d", "14d", "30d") without screen reader context | Added `aria-label="Show last N days"` and `aria-pressed` state -- FIXED |
+| 5 | Low | GoalBadge | Goal badges use single-letter abbreviations "P" and "C" that are cryptic to screen readers | Added `srLabel` prop with descriptive text ("Protein goal met/not met", "Calorie goal met/not met") -- FIXED |
+| 6 | Low | InactiveTrainees links | Clickable links had no focus ring for keyboard users | Added `focus-visible:ring-2` styles -- FIXED |
+| 7 | Low | NotificationItem | Button had no visible focus ring on keyboard focus | Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring` -- FIXED |
+| 8 | Info | SettingsPage | Settings page is a placeholder ("Coming soon") with no indication of when features will be available | Acceptable for now -- should eventually link to a changelog or roadmap |
 
 ---
 
 ## Accessibility Issues
 
-| # | WCAG Level | Issue | Fix | Status |
-|---|------------|-------|-----|--------|
-| A1 | A | `WorkoutHistoryCard` had no semantic label -- screen reader would announce individual text elements without context | Wrapped entire card in `Semantics(button: true, label: '<workout name>, <date>, <exercises>, <sets>, <duration>')` | FIXED |
-| A2 | A | `StatChip` icons were announced separately by screen reader, causing duplicate announcements | Wrapped `StatChip` content in `ExcludeSemantics` since parent card already has a comprehensive label | FIXED |
-| A3 | A | `_RecentWorkoutCard` on home screen had no semantic label -- screen reader couldn't describe the card purpose | Added `Semantics(button: true, label: '<workout name>, <date>, <exercise count>')` | FIXED |
-| A4 | A | "See All" button in `_buildSectionHeader` had no semantic label -- screen reader could not distinguish between multiple "See All" buttons | Added `Semantics(button: true, label: 'See All <section title>')` wrapping the InkWell | FIXED |
-| A5 | A | `HeaderStat` in workout detail had no semantic label -- screen reader announced icon and text separately | Added `Semantics(label: value)` with `ExcludeSemantics` child to prevent double announcement | FIXED |
-| A6 | A | Completed/skipped icon in exercise set row had no label -- screen reader saw an unlabeled icon | Added `Semantics(label: 'Completed'/'Skipped')` wrapping the check/cancel icon | FIXED |
-| A7 | A | `SurveyBadge` had no semantic label -- screen reader could not read badge content as a unit | Added `Semantics(label: '<label>: <value>')` (applied by linter/co-agent) | FIXED |
+| # | WCAG Level | Issue | Fix |
+|---|------------|-------|-----|
+| 1 | A (1.3.1) | `LoadingSpinner` had no `role="status"` or screen reader text | Added `role="status"`, `aria-label` prop, and `sr-only` span -- FIXED |
+| 2 | A (1.3.1) | Dashboard layout loading spinner had no screen reader text | Added `role="status"`, `aria-label="Loading dashboard"`, `aria-hidden` on icon, and `sr-only` text -- FIXED |
+| 3 | A (4.1.3) | `ErrorState` had no `role="alert"` or `aria-live` for screen reader announcements | Added `role="alert"` and `aria-live="assertive"` on CardContent -- FIXED |
+| 4 | A (4.1.3) | Login page error message div had no `role="alert"` | Added `role="alert"` and `aria-live="assertive"` -- FIXED |
+| 5 | A (4.1.3) | CreateInvitationDialog error message div had no `role="alert"` | Added `role="alert"` and `aria-live="assertive"` -- FIXED |
+| 6 | A (1.3.1) | `EmptyState` had no `role="status"` for screen readers | Added `role="status"` on wrapper div -- FIXED |
+| 7 | AA (1.1.1) | Multiple decorative icons lacked `aria-hidden="true"` (Dumbbell in login/sidebars, AlertTriangle, Loader2, stat icons, nav icons, error icon, notification icon) | Added `aria-hidden="true"` to all decorative icons across 10+ files -- FIXED |
+| 8 | AA (4.1.2) | `NotificationItem` button lacked descriptive `aria-label` | Added computed `aria-label` combining read status, title, and message -- FIXED |
+| 9 | AA (4.1.2) | `UserNav` avatar trigger button lacked `aria-label` | Added `aria-label="User menu for {displayName}"` -- FIXED |
+| 10 | AA (2.4.1) | No skip-to-content link for keyboard users to bypass sidebar navigation | Added skip link visible on focus with "Skip to main content" -- FIXED |
+| 11 | AA (2.4.8) | Nav links did not indicate current page to screen readers | Added `aria-current="page"` to active nav links in both desktop and mobile sidebars -- FIXED |
+| 12 | AA (2.4.1) | Sidebar `<nav>` elements lacked `aria-label` | Added `aria-label="Main navigation"` to both sidebars -- FIXED |
+| 13 | AA (4.1.2) | Pagination buttons throughout the app lacked `aria-label` attributes | Added `aria-label="Go to previous/next page"` on all pagination buttons -- FIXED |
+| 14 | AA (4.1.2) | Pagination controls were `<div>` elements instead of semantic `<nav>` landmarks | Wrapped in `<nav>` with `aria-label` (e.g., "Table pagination", "Invitation pagination") -- FIXED |
+| 15 | AA (1.1.1) | Pagination chevron icons were not marked as decorative | Added `aria-hidden="true"` on all ChevronLeft/ChevronRight icons -- FIXED |
+| 16 | A (2.1.1) | DataTable clickable rows were not keyboard accessible (no tabIndex, no key handler) | Added `tabIndex={0}`, `role="button"`, Enter/Space `onKeyDown` handler -- FIXED |
 
 ---
 
-## Missing States Checklist
+## Missing States
 
-### Workout History Screen
-- [x] **Loading / skeleton:** Shimmer cards (5 skeleton cards) on first load
-- [x] **Empty / zero data:** Centered icon + "No workouts yet" + "Start a Workout" CTA button
-- [x] **Error / failure:** Red-tinted card with error icon, message, and "Retry" button
-- [x] **Success / populated:** Paginated list with pull-to-refresh
-- [x] **Pagination loading:** CircularProgressIndicator in list footer
-- [x] **Pagination error:** Error text + "Retry" button in list footer (FIXED)
-- [x] **Pagination exhausted:** "You've reached the end" footer text
-- [x] **Offline / degraded:** Error state with retry covers this case
+- [x] Loading / skeleton -- Present on all pages (DashboardSkeleton, TraineeTableSkeleton, TraineeDetailSkeleton, LoadingSpinner)
+- [x] Empty / zero data -- Present on all pages (EmptyState component used consistently)
+- [x] Error / failure -- Present on all pages (ErrorState component with retry button)
+- [x] Success / confirmation -- Toast notifications used for invitation creation and mark-all-read
 
-### Workout Detail Screen
-- [x] **Loading / skeleton:** Real header + exercise card skeletons (FIXED -- was plain spinner)
-- [x] **Error / failure:** Styled red-tinted card with title, message, and Retry (FIXED -- was plain)
-- [x] **Success / populated:** Clean card-based layout with exercises, sets table, survey sections
-- [x] **No exercise data:** "No exercise data recorded" card with info icon
-- [x] **No readiness survey:** Pre-Workout section hidden
-- [x] **No post-workout survey:** Post-Workout section hidden
+### Detailed State Coverage
 
-### Home Screen Recent Workouts
-- [x] **Loading / shimmer:** 3 skeleton cards matching real layout structure (FIXED -- was single bar)
-- [x] **Empty / zero data:** "No workouts yet. Complete your first workout to see it here."
-- [x] **Error / failure:** Red-tinted container with error icon, message, and "Retry" button (FIXED -- was plain text)
-- [x] **Success / populated:** 3 compact workout cards with chevron navigation
-- [x] **See All navigation:** InkWell button navigates to `/workout-history`
+| Screen | Loading | Empty | Error | Success/Feedback |
+|--------|---------|-------|-------|-----------------|
+| Dashboard | DashboardSkeleton | EmptyState with CTA | ErrorState with retry | Data display |
+| Trainees | TraineeTableSkeleton | EmptyState (no trainees) + EmptyState (no search results) | ErrorState with retry | Row click navigation |
+| Trainee Detail | TraineeDetailSkeleton | Profile/goals "not set" text | ErrorState with back + retry | Tabs with data |
+| Invitations | LoadingSpinner | EmptyState with CTA | ErrorState with retry | Toast on creation |
+| Notifications | LoadingSpinner | Context-aware empty ("All caught up" / "No notifications") | ErrorState with retry | Toast on mark-all-read |
+| Login | Spinner in button + "Signing in..." | N/A | Inline error alert | Redirect to dashboard |
+| Settings | N/A | "Coming soon" placeholder | N/A | N/A |
 
 ---
 
-## Copy Clarity Assessment
+## Copy Assessment
 
-| Screen | Element | Copy | Verdict |
-|--------|---------|------|---------|
-| History | Empty state title | "No workouts yet" | Clear |
-| History | Empty state body | "Complete your first workout to see it here." | Clear, encouraging |
-| History | Empty state CTA | "Start a Workout" | Clear action |
-| History | Error title | "Unable to load workout history" | Clear |
-| History | Retry button | "Retry" | Standard, clear |
-| History | End of list | "You've reached the end" | Clear |
-| Detail | Error title | "Unable to load workout details" | Clear |
-| Detail | No data | "No exercise data recorded" | Clear, not alarming |
-| Detail | No sets | "No sets recorded" | Clear |
-| Home | Empty recent | "No workouts yet. Complete your first workout to see it here." | Clear, matches AC-20 |
-| Home | Error | Error message from API | Clear with retry button |
-| Home | Section header | "Recent Workouts" / "See All" | Clear |
+All copy is clear, non-technical, and actionable:
 
-All copy is clear, non-technical, and matches the acceptance criteria.
+| Element | Copy | Verdict |
+|---------|------|---------|
+| Dashboard description | "Overview of your training business" | Clear, professional |
+| Empty trainee CTA | "Send an Invitation" | Clear action |
+| Search no-results | `No trainees match "{search}"` | Helpful, includes search term |
+| Notification empty (unread) | "All caught up" | Friendly, reassuring |
+| Invitation dialog description | "Send an invitation to a new trainee. They'll receive a code to sign up." | Clear process explanation |
+| Error states | "Failed to load {resource}" | Consistent pattern |
+| Retry button | "Try again" | Standard, clear |
+| 404 page | "Page not found" with "Go to Dashboard" | Clear recovery path |
 
 ---
 
@@ -107,86 +91,122 @@ All copy is clear, non-technical, and matches the acceptance criteria.
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Card border radius | Consistent | All cards use `BorderRadius.circular(12)` |
-| Card border color | Consistent | All use `theme.dividerColor` |
-| Card background | Consistent | All use `theme.cardColor` |
-| Error state styling | Consistent (FIXED) | All error states now use red-tinted container with icon + retry |
-| Shimmer/skeleton styling | Consistent (FIXED) | All use `theme.dividerColor` rectangles with `BorderRadius.circular(4)` |
-| Typography hierarchy | Consistent | Date: 12px/bodySmall, Name: 16px/bold, Stats: 12-13px/bodySmall |
-| Spacing rhythm | Consistent | 4/8/12/16/24/32px spacing throughout |
-| Interactive feedback | Consistent (FIXED) | All tappable elements now use `Material` + `InkWell` |
-| Section headers | Consistent | "Title --- See All" pattern with divider line |
-| Theme colors | Consistent | Uses theme.colorScheme throughout, no hardcoded colors |
+| Page spacing | Consistent | All pages use `space-y-6` |
+| Page titles | Consistent | All use PageHeader with `text-2xl font-bold tracking-tight` |
+| Error styling | Consistent | All use shared ErrorState component |
+| Empty styling | Consistent | All use shared EmptyState component |
+| Card design | Consistent | All use shadcn Card components |
+| Badge usage | Consistent | Status badges use same variant patterns |
+| Color system | Consistent | Uses CSS variables from globals.css throughout |
+| Pagination | Minor inconsistency | DataTable has integrated pagination; invitations/notifications have manual inline pagination. Functionally identical but visually slightly different (DataTable shows "Page X of Y (N total)"; manual shows "Page N" only). |
+
+---
+
+## Responsiveness Assessment
+
+| Aspect | Status |
+|--------|--------|
+| Sidebar | Hides at `lg` breakpoint, replaced by Sheet drawer |
+| Page headers | Stack vertically on mobile via `sm:flex-row` |
+| Stats grid | Collapses 4 -> 2 -> 1 via `sm:grid-cols-2 lg:grid-cols-4` |
+| Tables | Now have `overflow-x-auto` for horizontal scrolling (FIXED) |
+| Login card | Max-width constrained (`max-w-sm`) |
+| Touch targets | Minimum h-8/h-9 on buttons (adequate) |
+| Activity tab filters | Responsive via `sm:flex-row` card header |
+| Trainee detail layout | 2-col grid collapses to 1-col via `lg:grid-cols-2` |
+
+---
+
+## Fixes Implemented
+
+### Accessibility Fixes (15 files modified)
+
+1. **`web/src/components/shared/loading-spinner.tsx`** -- Added `role="status"`, configurable `aria-label` prop (default: "Loading..."), and `sr-only` span for screen readers.
+
+2. **`web/src/components/shared/error-state.tsx`** -- Added `role="alert"` and `aria-live="assertive"` on CardContent so errors are immediately announced; added `aria-hidden="true"` on AlertCircle icon.
+
+3. **`web/src/components/shared/empty-state.tsx`** -- Added `role="status"` on wrapper div; added `aria-hidden="true"` on icon.
+
+4. **`web/src/app/(auth)/login/page.tsx`** -- Added `role="alert"` and `aria-live="assertive"` on error message div; added `aria-hidden="true"` on decorative Dumbbell and Loader2 icons.
+
+5. **`web/src/components/invitations/create-invitation-dialog.tsx`** -- Added `role="alert"` and `aria-live="assertive"` on error message div.
+
+6. **`web/src/components/notifications/notification-item.tsx`** -- Added computed `aria-label` (e.g., "Unread: Title -- Message"); added `focus-visible:ring-2` for keyboard navigation; added `aria-hidden="true"` on type icon.
+
+7. **`web/src/components/layout/user-nav.tsx`** -- Added `aria-label="User menu for {displayName}"` on avatar trigger button.
+
+8. **`web/src/components/layout/sidebar.tsx`** -- Added `aria-hidden="true"` on decorative Dumbbell and nav icons; added `aria-current="page"` on active link; added `aria-label="Main navigation"` on nav element.
+
+9. **`web/src/components/layout/sidebar-mobile.tsx`** -- Same accessibility improvements as desktop sidebar.
+
+10. **`web/src/components/dashboard/stat-card.tsx`** -- Added `aria-hidden="true"` on decorative stat icon.
+
+11. **`web/src/components/dashboard/inactive-trainees.tsx`** -- Added `aria-hidden="true"` on AlertTriangle icon; added descriptive `aria-label` on trainee links; added `focus-visible:ring-2` on links.
+
+12. **`web/src/app/(dashboard)/layout.tsx`** -- Added skip-to-content link (visible on focus); added `role="status"` and `sr-only` text on auth loading state; added `id="main-content"` on main element.
+
+### Responsiveness Fixes
+
+13. **`web/src/components/dashboard/recent-trainees.tsx`** -- Wrapped table in `overflow-x-auto` container to prevent content clipping on mobile.
+
+14. **`web/src/components/shared/data-table.tsx`** -- Added `overflow-x-auto` on table border container.
+
+### Keyboard Navigation Fixes
+
+15. **`web/src/components/shared/data-table.tsx`** -- Added `tabIndex={0}`, `role="button"`, Enter/Space `onKeyDown` handler, and `focus-visible:ring-2` on clickable rows; wrapped pagination controls in semantic `<nav>` element with `aria-label`; added `aria-label` on pagination buttons; added `aria-hidden` on chevron icons.
+
+16. **`web/src/app/(dashboard)/invitations/page.tsx`** -- Wrapped pagination in `<nav aria-label="Invitation pagination">`; added `aria-label` on Previous/Next buttons; added `aria-hidden` on chevron icons; added `aria-current="page"` on page indicator.
+
+17. **`web/src/app/(dashboard)/notifications/page.tsx`** -- Same pagination accessibility improvements as invitations page.
+
+18. **`web/src/components/trainees/trainee-activity-tab.tsx`** -- Added `role="group"` and `aria-label="Time range filter"` on day filter button group; added `aria-label` and `aria-pressed` on day buttons; added `srLabel` prop to GoalBadge for screen-reader-friendly descriptions.
+
+---
+
+## Items Not Fixed (Require Design Decisions)
+
+1. **Pagination style inconsistency** -- DataTable's integrated pagination shows "Page X of Y (N total)" while manual pagination on invitations/notifications pages shows only "Page N". Unifying would require a small refactor to extract a shared pagination component. Non-blocking.
+
+2. **No dark mode toggle** -- ThemeProvider exists in the app root but there is no user-facing toggle to switch between light/dark mode. The system preference is respected but there is no manual override.
+
+3. **Settings page placeholder** -- Expected as "Coming soon" but should eventually contain profile editing, theme preferences, notification settings.
+
+4. **Optimistic updates** -- Marking a notification as read waits for query invalidation and refetch rather than doing an optimistic update. The delay is negligible but could feel snappier.
+
+5. **Progress tab placeholder** -- The TraineeProgressTab is a permanent "Coming soon" placeholder. Consider hiding it entirely until the feature is built to avoid user confusion.
 
 ---
 
 ## Overall UX Score: 8/10
 
 ### Breakdown:
-- **State Handling:** 9/10 -- All states covered including pagination error (fixed)
-- **Accessibility:** 8/10 -- Semantic labels on all interactive and informational elements
-- **Visual Consistency:** 8/10 -- All cards, errors, and skeletons follow the same visual language
-- **Copy Clarity:** 8/10 -- All user-facing text is clear, encouraging, and actionable
-- **Feedback & Confirmation:** 8/10 -- InkWell ripples, retry buttons, pagination spinner
-- **Error Handling:** 8/10 -- Styled errors with retry on all screens, pagination error visible
+- **State Handling:** 9/10 -- All five core states present on every page with consistent shared components
+- **Accessibility:** 8/10 -- Comprehensive ARIA attributes, skip-link, keyboard navigation, screen reader text (after fixes)
+- **Visual Consistency:** 9/10 -- Clean design system, consistent components, proper dark mode support
+- **Copy Clarity:** 9/10 -- Clear, actionable, context-aware copy throughout
+- **Responsiveness:** 8/10 -- Proper breakpoints, mobile sidebar, table scroll wrappers (after fixes)
+- **Feedback & Interaction:** 7/10 -- Toast notifications and loading states present; could add optimistic updates and keyboard shortcuts
 
 ### Strengths:
-- Comprehensive empty/error/loading states on all three screens
-- Workout detail shows real header data during loading (summary already available)
-- Pull-to-refresh on history list resets to page 1 correctly
-- Pagination guard prevents duplicate API calls
-- Survey sections conditionally hidden when data not present
-- Text truncation with ellipsis handles long workout names
-- Consistent card-based visual design language
+- Every page handles all five core states (loading, empty, error, success, disabled)
+- Shared components (PageHeader, EmptyState, ErrorState, LoadingSpinner) ensure consistency
+- Clean, professional design following shadcn/ui patterns
+- Good responsive design with proper mobile sidebar drawer
+- Toast feedback on mutations
+- Search with debounce on trainees page
+- Dark mode fully supported via CSS variables
 
-### Remaining Opportunities (Not Blockers):
-1. Shimmer animations (pulsing) would be nicer than static gray bars, but requires adding a `shimmer` package dependency
-2. Swipe-to-dismiss or long-press actions on history cards (delete workout?) are not implemented -- would need product decision
-3. No haptic feedback on card taps -- could add `HapticFeedback.selectionClick()` for premium feel
-4. Calendar view mode for history (see workouts by month) -- out of scope per ticket
-5. Volume stat could show kg/lbs based on user preference -- currently hardcoded to lbs
-
----
-
-## Files Modified During Audit
-
-1. **`mobile/lib/features/home/presentation/screens/home_screen.dart`**
-   - Recent Workouts error state: replaced plain text with styled error card + retry button
-   - Recent Workouts shimmer: replaced single bar with 3 skeleton cards
-   - Section header "See All": replaced `GestureDetector` with `InkWell` + `Semantics`
-   - `_RecentWorkoutCard`: added `Semantics` wrapper
-
-2. **`mobile/lib/features/workout_log/presentation/screens/workout_detail_screen.dart`**
-   - Loading state: replaced `CircularProgressIndicator` with `_buildDetailShimmer()`
-   - Error state: added red-tinted container with title, message, and retry
-
-3. **`mobile/lib/features/workout_log/presentation/screens/workout_history_screen.dart`**
-   - List footer: added pagination error display with retry button
-
-4. **`mobile/lib/features/workout_log/presentation/screens/workout_history_widgets.dart`**
-   - `WorkoutHistoryCard`: added `Semantics` wrapper, changed `Row` to `Wrap`
-   - `StatChip`: added `ExcludeSemantics` wrapper
-
-5. **`mobile/lib/features/workout_log/presentation/screens/workout_detail_widgets.dart`**
-   - `HeaderStat`: added `Semantics` + `ExcludeSemantics` wrapper
-   - Set row completed icon: added `Semantics(label: 'Completed'/'Skipped')`
-
-6. **`mobile/lib/features/workout_log/presentation/providers/workout_history_provider.dart`**
-   - `loadMore()`: added `clearError: true` when starting pagination to clear stale errors
-
-### Breaking Changes:
-None. All changes are additive or refinements.
-
-### Dependencies Added:
-None. Used built-in Flutter widgets only.
-
-### Linter Status:
-- 0 new errors or warnings introduced
-- 3 pre-existing issues (2 `use_build_context_synchronously` infos in home_screen.dart popup menu, 1 `unnecessary_non_null_assertion` in workout_calendar_screen.dart)
+### Areas for Future Improvement:
+- Add keyboard shortcuts for power users (e.g., `/` to focus search, `g d` for dashboard)
+- Add optimistic updates for notification mark-as-read
+- Add a dark mode toggle in the UI
+- Add animated skeleton shimmer instead of static gray bars
+- Consider hiding the Progress tab placeholder until the feature is built
+- Unify pagination into a shared component for consistency
 
 ---
 
 **Audit completed by:** UX Auditor Agent
-**Date:** 2026-02-14
-**Pipeline:** 8 -- Trainee Workout History + Home Screen Recent Workouts
-**Verdict:** PASS -- All critical UX and accessibility issues fixed
+**Date:** 2026-02-15
+**Pipeline:** 9 -- Web Trainer Dashboard
+**Verdict:** PASS -- All critical UX and accessibility issues fixed. 18 fixes implemented across 15+ files.
