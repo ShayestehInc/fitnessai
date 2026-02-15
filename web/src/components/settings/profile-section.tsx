@@ -28,25 +28,25 @@ export function ProfileSection() {
   const deleteImage = useDeleteProfileImage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [firstName, setFirstName] = useState(user?.first_name ?? "");
-  const [lastName, setLastName] = useState(user?.last_name ?? "");
-  const [businessName, setBusinessName] = useState(
-    user?.business_name ?? "",
-  );
+  const [form, setForm] = useState({
+    firstName: user?.first_name ?? "",
+    lastName: user?.last_name ?? "",
+    businessName: user?.business_name ?? "",
+  });
 
   const handleSave = useCallback(() => {
     updateProfile.mutate(
       {
-        first_name: firstName,
-        last_name: lastName,
-        business_name: businessName,
+        first_name: form.firstName,
+        last_name: form.lastName,
+        business_name: form.businessName,
       },
       {
         onSuccess: () => toast.success("Profile updated"),
         onError: () => toast.error("Failed to update profile"),
       },
     );
-  }, [firstName, lastName, businessName, updateProfile]);
+  }, [form, updateProfile]);
 
   const handleImageUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,13 +69,17 @@ export function ProfileSection() {
         return;
       }
 
+      const input = e.target;
       uploadImage.mutate(file, {
-        onSuccess: () => toast.success("Profile image updated"),
-        onError: () => toast.error("Failed to upload image"),
+        onSuccess: () => {
+          toast.success("Profile image updated");
+          input.value = "";
+        },
+        onError: () => {
+          toast.error("Failed to upload image");
+          input.value = "";
+        },
       });
-
-      // Reset input so the same file can be re-selected
-      e.target.value = "";
     },
     [uploadImage],
   );
@@ -156,8 +160,8 @@ export function ProfileSection() {
             <Label htmlFor="firstName">First name</Label>
             <Input
               id="firstName"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
+              value={form.firstName}
+              onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
               maxLength={150}
               placeholder="Your first name"
             />
@@ -166,8 +170,8 @@ export function ProfileSection() {
             <Label htmlFor="lastName">Last name</Label>
             <Input
               id="lastName"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
+              value={form.lastName}
+              onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
               maxLength={150}
               placeholder="Your last name"
             />
@@ -178,8 +182,8 @@ export function ProfileSection() {
           <Label htmlFor="businessName">Business name</Label>
           <Input
             id="businessName"
-            value={businessName}
-            onChange={(e) => setBusinessName(e.target.value)}
+            value={form.businessName}
+            onChange={(e) => setForm((f) => ({ ...f, businessName: e.target.value }))}
             maxLength={200}
             placeholder="Your business or gym name"
           />

@@ -33,6 +33,7 @@ export function InvitationActions({ invitation }: InvitationActionsProps) {
   const cancel = useCancelInvitation();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
+  // Backend keeps status=PENDING even after expiration; is_expired flag distinguishes
   const status = invitation.is_expired && invitation.status === "PENDING"
     ? "EXPIRED"
     : invitation.status;
@@ -41,10 +42,14 @@ export function InvitationActions({ invitation }: InvitationActionsProps) {
   const canCancel = status === "PENDING";
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(invitation.invitation_code).then(
-      () => toast.success("Invitation code copied"),
-      () => toast.error("Failed to copy code"),
-    );
+    try {
+      navigator.clipboard.writeText(invitation.invitation_code).then(
+        () => toast.success("Invitation code copied"),
+        () => toast.error("Failed to copy code"),
+      );
+    } catch {
+      toast.error("Failed to copy code");
+    }
   };
 
   const handleResend = () => {

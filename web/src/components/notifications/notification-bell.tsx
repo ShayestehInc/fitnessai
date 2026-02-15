@@ -27,7 +27,7 @@ export function NotificationBell() {
           </span>
         </Button>
       </PopoverTrigger>
-      <NotificationPopover onClose={() => setOpen(false)} />
+      {open && <NotificationPopover onClose={() => setOpen(false)} />}
     </Popover>
   );
 }

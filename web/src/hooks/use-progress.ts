@@ -11,5 +11,6 @@ export function useTraineeProgress(id: number) {
     queryFn: () =>
       apiClient.get<TraineeProgress>(API_URLS.traineeProgress(id)),
     enabled: id > 0,
+    staleTime: 5 * 60 * 1000,
   });
 }

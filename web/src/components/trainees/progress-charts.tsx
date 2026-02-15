@@ -1,6 +1,6 @@
 "use client";
 
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { Scale, Dumbbell, CalendarCheck } from "lucide-react";
 import {
   LineChart,
@@ -23,6 +23,11 @@ import {
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import type { WeightEntry, VolumeEntry, AdherenceEntry } from "@/types/progress";
+
+function formatDate(dateStr: string): string {
+  const d = parseISO(dateStr);
+  return isValid(d) ? format(d, "MMM d") : dateStr;
+}
 
 interface WeightChartProps {
   data: WeightEntry[];
@@ -48,7 +53,7 @@ export function WeightChart({ data }: WeightChartProps) {
   }
 
   const chartData = data.map((entry) => ({
-    date: format(new Date(entry.date), "MMM d"),
+    date: formatDate(entry.date),
     weight: entry.weight_kg,
   }));
 
@@ -124,7 +129,7 @@ export function VolumeChart({ data }: VolumeChartProps) {
   }
 
   const chartData = data.map((entry) => ({
-    date: format(new Date(entry.date), "MMM d"),
+    date: formatDate(entry.date),
     volume: Math.round(entry.volume),
   }));
 
@@ -194,7 +199,7 @@ export function AdherenceChart({ data }: AdherenceChartProps) {
   }
 
   const chartData = data.map((entry) => ({
-    date: format(new Date(entry.date), "MMM d"),
+    date: formatDate(entry.date),
     food: entry.logged_food ? 1 : 0,
     workout: entry.logged_workout ? 1 : 0,
     protein: entry.hit_protein ? 1 : 0,
@@ -219,9 +224,8 @@ export function AdherenceChart({ data }: AdherenceChartProps) {
               <YAxis
                 className="text-xs"
                 tick={{ fill: "hsl(var(--muted-foreground))" }}
-                domain={[0, 1]}
-                ticks={[0, 1]}
-                tickFormatter={(v: number) => (v === 1 ? "Yes" : "No")}
+                domain={[0, 3]}
+                ticks={[0, 1, 2, 3]}
               />
               <Tooltip
                 contentStyle={{
@@ -238,18 +242,19 @@ export function AdherenceChart({ data }: AdherenceChartProps) {
               <Legend />
               <Bar
                 dataKey="food"
+                stackId="adherence"
                 fill="hsl(142, 76%, 36%)"
                 name="Food Logged"
-                radius={[2, 2, 0, 0]}
               />
               <Bar
                 dataKey="workout"
+                stackId="adherence"
                 fill="hsl(221, 83%, 53%)"
                 name="Workout Logged"
-                radius={[2, 2, 0, 0]}
               />
               <Bar
                 dataKey="protein"
+                stackId="adherence"
                 fill="hsl(47, 96%, 53%)"
                 name="Protein Goal"
                 radius={[2, 2, 0, 0]}

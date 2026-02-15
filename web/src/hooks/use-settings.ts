@@ -1,8 +1,9 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
+import { useAuth } from "@/hooks/use-auth";
 import type { User } from "@/types/user";
 
 interface UpdateProfilePayload {
@@ -28,19 +29,19 @@ interface ProfileImageResponse {
 }
 
 export function useUpdateProfile() {
-  const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
 
   return useMutation({
     mutationFn: (data: UpdateProfilePayload) =>
       apiClient.patch<UpdateProfileResponse>(API_URLS.UPDATE_PROFILE, data),
-    onSuccess: (response) => {
-      queryClient.setQueryData(["current-user"], response.user);
+    onSuccess: () => {
+      refreshUser();
     },
   });
 }
 
 export function useUploadProfileImage() {
-  const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
 
   return useMutation({
     mutationFn: (file: File) => {
@@ -51,22 +52,22 @@ export function useUploadProfileImage() {
         formData,
       );
     },
-    onSuccess: (response) => {
-      queryClient.setQueryData(["current-user"], response.user);
+    onSuccess: () => {
+      refreshUser();
     },
   });
 }
 
 export function useDeleteProfileImage() {
-  const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
 
   return useMutation({
     mutationFn: () =>
       apiClient.delete<{ success: boolean; user: User }>(
         API_URLS.PROFILE_IMAGE,
       ),
-    onSuccess: (response) => {
-      queryClient.setQueryData(["current-user"], response.user);
+    onSuccess: () => {
+      refreshUser();
     },
   });
 }
