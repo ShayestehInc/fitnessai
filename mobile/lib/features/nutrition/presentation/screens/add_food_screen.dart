@@ -482,35 +482,11 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
   }
 
   Widget _buildAIQuickEntry(LoggingState loggingState, ThemeData theme) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.orange, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'AI parsing coming soon. Use Manual entry for now.',
-                    style: TextStyle(
-                      color: Colors.orange[700],
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
           Text(
             'Describe what you ate',
             style: Theme.of(context).textTheme.titleMedium,
@@ -524,6 +500,59 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             ),
           ),
           const SizedBox(height: 16),
+
+          // Meal selector
+          if (widget.mealNumber == null) ...[
+            Text(
+              'Meal',
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Row(
+                children: List.generate(4, (index) {
+                  final mealNum = index + 1;
+                  final isSelected = _selectedMealNumber == mealNum;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedMealNumber = mealNum),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Meal $mealNum',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isSelected
+                                ? theme.colorScheme.primary
+                                : theme.textTheme.bodySmall?.color,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.normal,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           TextField(
             controller: _aiInputController,
             maxLines: 4,
@@ -536,6 +565,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                 borderSide: BorderSide(color: theme.dividerColor),
               ),
             ),
+            onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 16),
 
@@ -560,12 +590,36 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
               ),
             ),
 
+          if (loggingState.clarificationQuestion != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.help_outline, color: Colors.amber, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      loggingState.clarificationQuestion!,
+                      style: TextStyle(color: Colors.amber[800], fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           if (loggingState.parsedData != null) ...[
             const SizedBox(height: 16),
             _buildParsedPreview(loggingState, theme),
           ],
 
-          const Spacer(),
+          const SizedBox(height: 24),
 
           // Action buttons
           if (loggingState.parsedData != null)
@@ -584,14 +638,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                   child: ElevatedButton(
                     onPressed: loggingState.isSaving
                         ? null
-                        : () async {
-                            final success = await ref
-                                .read(loggingStateProvider.notifier)
-                                .confirmAndSave();
-                            if (success && mounted) {
-                              context.pop();
-                            }
-                          },
+                        : () => _confirmAiEntry(),
                     child: loggingState.isSaving
                         ? const SizedBox(
                             height: 20,
@@ -608,25 +655,76 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: loggingState.isProcessing ||
-                        _aiInputController.text.isEmpty
+                        _aiInputController.text.trim().isEmpty
                     ? null
                     : () {
                         ref
                             .read(loggingStateProvider.notifier)
                             .parseInput(_aiInputController.text);
                       },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: theme.colorScheme.primary,
+                ),
                 child: loggingState.isProcessing
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        ),
                       )
-                    : const Text('Log Food'),
+                    : const Text(
+                        'Log Food',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmAiEntry() async {
+    final parsedData = ref.read(loggingStateProvider).parsedData;
+    if (parsedData == null) return;
+
+    // Check if AI actually parsed any food items
+    if (parsedData.nutrition.meals.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No food items detected. Try describing what you ate.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final success = await ref
+        .read(loggingStateProvider.notifier)
+        .confirmAndSave();
+
+    if (success && mounted) {
+      ref.read(nutritionStateProvider.notifier).refreshDailySummary();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Food logged successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      context.pop();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to save food entry. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildParsedPreview(LoggingState state, ThemeData theme) {

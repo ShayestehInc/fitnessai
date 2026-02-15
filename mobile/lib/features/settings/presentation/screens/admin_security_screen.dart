@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// Admin security settings screen
 class AdminSecurityScreen extends ConsumerStatefulWidget {
@@ -471,6 +472,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   bool _obscureNew = true;
   bool _obscureConfirm = true;
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -504,22 +506,34 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   Future<void> _changePassword() async {
     if (!_canSubmit()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    // TODO: Implement actual password change API call
-    await Future.delayed(const Duration(seconds: 1));
+    final authRepo = ref.read(authRepositoryProvider);
+    final result = await authRepo.changePassword(
+      currentPassword: _currentPasswordController.text,
+      newPassword: _newPasswordController.text,
+    );
 
     if (!mounted) return;
 
     setState(() => _isLoading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Password changed successfully'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    Navigator.of(context).pop();
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password changed successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.of(context).pop();
+    } else {
+      setState(() {
+        _errorMessage = result['error'] as String?;
+      });
+    }
   }
 
   @override
@@ -557,6 +571,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               hint: 'Enter your current password',
               obscure: _obscureCurrent,
               onToggleObscure: () => setState(() => _obscureCurrent = !_obscureCurrent),
+              errorText: _errorMessage,
             ),
             const SizedBox(height: 20),
 

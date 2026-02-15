@@ -3,9 +3,12 @@ Views for trainer app.
 """
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from typing import Any, cast
+
+logger = logging.getLogger(__name__)
 
 from rest_framework import generics, status, views
 from rest_framework.request import Request
@@ -18,6 +21,8 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.utils import timezone
 from django.db.models import Count, Q, Avg, QuerySet
+
+from trainer.services.invitation_service import send_invitation_email
 from django.http import Http404
 from datetime import timedelta
 
@@ -380,6 +385,11 @@ class InvitationListCreateView(generics.ListCreateAPIView[TraineeInvitation]):
             expires_at=timezone.now() + timedelta(days=expires_days)
         )
 
+        try:
+            send_invitation_email(invitation)
+        except Exception:
+            logger.exception("Failed to send invitation email to %s", invitation.email)
+
         return Response(
             TraineeInvitationSerializer(invitation).data,
             status=status.HTTP_201_CREATED
@@ -436,7 +446,10 @@ class ResendInvitationView(views.APIView):
         invitation.expires_at = timezone.now() + timedelta(days=7)
         invitation.save()
 
-        # TODO: Send email notification
+        try:
+            send_invitation_email(invitation)
+        except Exception:
+            logger.exception("Failed to resend invitation email to %s", invitation.email)
 
         return Response(TraineeInvitationSerializer(invitation).data)
 
