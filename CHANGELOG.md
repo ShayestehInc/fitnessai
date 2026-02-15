@@ -4,6 +4,36 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-15] — Web Dashboard Phase 2 (Settings, Charts, Notifications, Invitations)
+
+### Added
+- **Settings Page** — Three sections: Profile (name, business name, image upload/remove), Appearance (Light/Dark/System theme toggle), Security (password change with inline Djoser error parsing). Loading skeleton, error state with retry.
+- **Progress Charts** — Trainee detail Progress tab now renders three recharts visualizations: weight trend (LineChart), workout volume (BarChart), adherence (stacked BarChart). Theme-aware colors via CSS custom properties. Per-chart empty states with contextual icons. Safe date parsing via `parseISO`/`isValid`.
+- **Notification Click-Through** — Notifications with `trainee_id` in data now navigate to `/trainees/{id}`. ChevronRight visual affordance for navigable notifications. Popover auto-closes on navigation. Non-navigable notifications show "Marked as read" toast.
+- **Invitation Row Actions** — Three-dot dropdown menu per invitation row: Copy Code (clipboard), Resend (POST, resets expiry), Cancel (with confirmation dialog). Status-aware action visibility: PENDING shows all, EXPIRED hides Cancel, ACCEPTED/CANCELLED shows Copy only.
+- **Auth `refreshUser()`** — `AuthProvider` now exposes `refreshUser()` method. Profile/image mutations call it so the header nav updates immediately without full page reload.
+
+### Changed
+- **`api-client.ts`** — Added `postFormData()` method; `buildHeaders()` skips `Content-Type: application/json` for FormData bodies (lets browser set `multipart/form-data` boundary).
+- **`notification-bell.tsx`** — Controlled Popover state for programmatic close. Conditionally renders `NotificationPopover` only when open (prevents unnecessary API calls).
+
+### Accessibility
+- Theme selector implements proper ARIA radiogroup keyboard navigation (arrow keys, roving tabIndex, focus management)
+- Password fields have `aria-describedby` and `aria-invalid` attributes linking to error messages
+- Email field has `aria-describedby="email-hint"` for the read-only explanation
+- Notification popover loading state has `role="status"` and `aria-label`
+- Image upload spinner has `aria-hidden="true"`
+
+### Quality
+- Code review: 8/10 APPROVE (2 rounds — all critical/major issues fixed)
+- QA: 27/28 AC pass, HIGH confidence (1 partial is pre-existing backend gap)
+- UX audit: 9/10 (10 usability + 6 accessibility fixes implemented)
+- Security audit: 9/10 PASS (0 Critical/High/Medium issues)
+- Architecture: 9/10 APPROVE (extracted shared tooltip styles, theme-aware chart colors)
+- Hacker audit: 7/10 (isDirty tracking, dropdown close-on-action, toast feedback, layout consistency fixes)
+
+---
+
 ## [2026-02-15] — Web Trainer Dashboard (Next.js Foundation)
 
 ### Added
