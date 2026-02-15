@@ -310,6 +310,62 @@ class AuthRepository {
     }
   }
 
+  /// Change password for the currently authenticated user
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _apiClient.dio.post(
+        ApiConstants.setPassword,
+        data: {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        },
+      );
+      return {'success': true};
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) {
+        final data = e.response?.data;
+        if (data is Map) {
+          // Djoser returns {"current_password": ["Invalid password."]} for wrong current password
+          if (data.containsKey('current_password')) {
+            return {
+              'success': false,
+              'error': 'Current password is incorrect',
+            };
+          }
+          // Extract other field errors
+          final errors = <String>[];
+          for (final entry in data.entries) {
+            final value = entry.value;
+            if (value is List) {
+              errors.addAll(value.map((v) => v.toString()));
+            } else if (value is String) {
+              errors.add(value);
+            }
+          }
+          if (errors.isNotEmpty) {
+            return {'success': false, 'error': errors.join('\n')};
+          }
+        }
+        return {
+          'success': false,
+          'error': 'Failed to change password. Please check your input.',
+        };
+      }
+      return {
+        'success': false,
+        'error': 'Network error. Please try again.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Something went wrong. Please try again.',
+      };
+    }
+  }
+
   /// Request a password reset email
   Future<Map<String, dynamic>> requestPasswordReset(String email) async {
     try {

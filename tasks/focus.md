@@ -1,24 +1,24 @@
-# Pipeline 6 Focus: Trainee Home Experience + Password Reset
+# Pipeline 7 Focus: Activate Dead Features + Security Settings
 
 ## Priority: HIGH
 
 ## What
-Fix the most impactful dead UI and incomplete features affecting the trainee daily experience:
-1. **Password Reset Flow** — "Forgot password?" button shows "Coming soon!" snackbar. Users locked out permanently. Djoser backend supports this but mobile isn't wired.
-2. **Home Screen Progress Tracking** — Weekly workout completion progress hardcoded to 0%. No motivation feedback.
-3. **Dead Notification Button** — Trainee home screen has a notifications icon that does nothing (TODO comment). Wire it up or replace with something useful.
-4. **Food Entry Edit/Delete** — Edit/delete icons visible on food entries but non-functional. Users can't correct meal logging mistakes.
+Three high-impact features that currently show "coming soon" or have TODO placeholders:
+1. **Activate AI Food Parsing** — The AI Entry tab on Add Food screen shows "AI parsing coming soon" even though the backend endpoint, service, and mobile provider are FULLY WIRED. Just need to remove the misleading banner and add meal selector context.
+2. **Wire Password Change** — Settings → Security → Change Password has full UI but the `_changePassword()` method is a TODO with `await Future.delayed()`. Djoser provides `POST /api/auth/users/set_password/`.
+3. **Send Invitation Emails** — Trainer → Invitations → resend has `# TODO: Send email notification`. Django email is already configured (Pipeline 6). Need to send actual invite emails.
 
 ## Why
-- **Password Reset**: Security-critical infrastructure. Users who forget passwords are permanently locked out. This is the #1 gap in auth flow.
-- **Progress Tracking**: The home screen is the first thing trainees see daily. Showing 0% progress kills motivation. Real data exists in DailyLog.
-- **Dead UI**: Dead buttons erode user trust. The notification icon and food edit/delete buttons look interactive but do nothing.
+- **AI Food Parsing**: The product's core value prop is "AI-powered logging." The tab exists, the backend works, but users see "coming soon." This is embarrassing.
+- **Password Change**: Users can reset passwords from login screen (Pipeline 6) but can't change passwords while logged in. Basic security.
+- **Invitation Emails**: Trainers create invitations but trainees never receive them. The onboarding flow is broken at step 1.
 
 ## Who Benefits
-- **Trainees**: Can recover accounts, see real progress, correct nutrition mistakes
-- **Platform**: Reduced support tickets (password resets), better engagement (progress), better data quality (food editing)
+- **Trainees**: Can use AI to log food (core feature), can change password (security)
+- **Trainers**: Can actually invite trainees via email (onboarding)
+- **Platform**: Core AI feature activated, security hardened, onboarding funnel fixed
 
 ## Success Metric
-- User taps "Forgot password?" → receives reset email → can set new password → logs in
-- Home screen shows real weekly workout completion percentage from DailyLog data
-- Food entries can be edited and deleted from the nutrition log
+- User types "2 eggs and toast" in AI Entry tab → sees parsed foods with macros → confirms → saved to daily log
+- User changes password from Settings → Security → logs in with new password
+- Trainer creates invitation → trainee receives email with invite code + registration link

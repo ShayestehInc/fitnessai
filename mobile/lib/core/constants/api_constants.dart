@@ -15,6 +15,9 @@ class ApiConstants {
   static String get resetPassword => '$apiBaseUrl/auth/users/reset_password/';
   static String get resetPasswordConfirm => '$apiBaseUrl/auth/users/reset_password_confirm/';
 
+  // Password change endpoint (Djoser)
+  static String get setPassword => '$apiBaseUrl/auth/users/set_password/';
+
   // Social auth endpoints
   static String get googleLogin => '$apiBaseUrl/users/auth/google/';
   static String get appleLogin => '$apiBaseUrl/users/auth/apple/';

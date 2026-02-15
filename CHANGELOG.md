@@ -4,6 +4,43 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-14] — AI Food Parsing + Password Change + Invitation Emails
+
+### Added
+- **AI Food Parsing Activation** — Removed "AI parsing coming soon" banner from AI Entry tab. Added meal selector (1-4) with InkWell touch feedback and Semantics labels. Added `_confirmAiEntry()` with empty meals validation, nutrition refresh after save, icon-enhanced success/error snackbars with retry action. Changed button label from "Log Food" to "Parse with AI" for clarity. Added helper text and concrete input examples.
+- **Password Change Screen** — New `ChangePasswordScreen` in Settings → Security. Calls Djoser's `POST /api/auth/users/set_password/` via new `AuthRepository.changePassword()` method. Inline error under "Current Password" field for wrong password. Green success snackbar with icon + auto-pop. Network/server error handling with descriptive messages.
+- **Password Strength Indicator** — Color-coded progress bar (Weak/Fair/Good/Strong) on new password field with helper text.
+- **Invitation Email Service** — New `backend/trainer/services/invitation_service.py` with `send_invitation_email()`. HTML + plain text email templates with trainer name, invite code, registration URL, expiry date. XSS prevention via `django.utils.html.escape()` on all user-supplied values. URL scheme auto-detection (HTTP for localhost, HTTPS for production). URL-encoded invite codes.
+- **`ApiConstants.setPassword`** — New endpoint constant for Djoser password change.
+- **Expired Invitation Resend** — Resend endpoint now accepts EXPIRED invitations, resets status to PENDING, extends expiry by 7 days.
+- **Accessibility Improvements** — Semantics live regions on error/clarification/preview containers. Autofill hints on password fields (`'password'`, `'newPassword'`). TextInputAction flow (next → next → done). Tooltips on show/hide password buttons. 48dp minimum touch targets on meal selector. Theme-aware colors for light/dark mode.
+
+### Changed
+- **Meal prefix on AI-parsed food** — `LoggingNotifier.confirmAndSave()` accepts optional `mealPrefix` parameter. AI-parsed foods saved with "Meal N - " prefix matching manual entry flow.
+- **Password fields** — Added focus borders, error borders, `enableSuggestions: false`, `autocorrect: false` for secure input. Outlined visibility icons.
+- **Login history section** — Added "PREVIEW ONLY" badge to clarify mock data.
+- **Invitation resend query** — Added `select_related('trainer')` to prevent N+1 query.
+
+### Security
+- All user input HTML-escaped in invitation email templates (XSS prevention)
+- URL scheme auto-detected based on domain (prevents broken links on localhost)
+- Invite code URL-encoded for defense-in-depth
+- TYPE_CHECKING imports with proper `User` type hints (no `type: ignore`)
+- All invitation endpoints require `IsAuthenticated + IsTrainer`
+- Row-level security: `trainer=request.user` on all queries
+- Password change uses Djoser's built-in endpoint with Django validators
+
+### Quality
+- Code review: 9/10 — APPROVE (Round 2, 2 critical + 3 major from Round 1 all fixed)
+- QA: 17/17 ACs PASS, 12/12 edge cases, 0 bugs — HIGH confidence
+- UX audit: 8.5/10 — 23 usability + 8 accessibility issues fixed
+- Security audit: 8.5/10 — PASS (1 CRITICAL URL scheme fixed)
+- Architecture review: 10/10 — APPROVE (exemplary architecture, zero issues)
+- Hacker report: 7/10 — 2 items fixed, 1 CRITICAL verified as false alarm
+- Overall quality: 9/10 — SHIP
+
+---
+
 ## [2026-02-14] — Trainee Home Experience + Password Reset
 
 ### Added

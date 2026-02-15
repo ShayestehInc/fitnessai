@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// Admin security settings screen
 class AdminSecurityScreen extends ConsumerStatefulWidget {
@@ -64,7 +65,31 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
           const SizedBox(height: 24),
 
           // Login History
-          _buildSectionHeader(theme, 'LOGIN HISTORY'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildSectionHeader(theme, 'LOGIN HISTORY'),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Text(
+                  'PREVIEW ONLY',
+                  style: TextStyle(
+                    color: Colors.orange[700],
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           _buildLoginHistoryCard(theme),
         ],
@@ -471,6 +496,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   bool _obscureNew = true;
   bool _obscureConfirm = true;
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -504,22 +530,60 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   Future<void> _changePassword() async {
     if (!_canSubmit()) return;
 
-    setState(() => _isLoading = true);
+    // Dismiss keyboard
+    FocusScope.of(context).unfocus();
 
-    // TODO: Implement actual password change API call
-    await Future.delayed(const Duration(seconds: 1));
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final authRepo = ref.read(authRepositoryProvider);
+    final result = await authRepo.changePassword(
+      currentPassword: _currentPasswordController.text,
+      newPassword: _newPasswordController.text,
+    );
 
     if (!mounted) return;
 
     setState(() => _isLoading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Password changed successfully'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    Navigator.of(context).pop();
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Password changed successfully'),
+            ],
+          ),
+          backgroundColor: Colors.green[700],
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      Navigator.of(context).pop();
+    } else {
+      final errorMsg = result['error'] as String? ?? 'Failed to change password';
+      setState(() {
+        _errorMessage = errorMsg;
+      });
+
+      // Also show snackbar for better visibility
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text(errorMsg)),
+            ],
+          ),
+          backgroundColor: Colors.red[700],
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   @override
@@ -557,6 +621,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               hint: 'Enter your current password',
               obscure: _obscureCurrent,
               onToggleObscure: () => setState(() => _obscureCurrent = !_obscureCurrent),
+              errorText: _errorMessage,
+              autofillHint: 'password',
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 20),
 
@@ -564,10 +631,12 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             _buildPasswordField(
               controller: _newPasswordController,
               label: 'New Password',
-              hint: 'Enter your new password',
+              hint: 'At least 8 characters',
               obscure: _obscureNew,
               onToggleObscure: () => setState(() => _obscureNew = !_obscureNew),
               errorText: _validateNewPassword(),
+              autofillHint: 'newPassword',
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 20),
 
@@ -579,8 +648,18 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               obscure: _obscureConfirm,
               onToggleObscure: () => setState(() => _obscureConfirm = !_obscureConfirm),
               errorText: _validateConfirmPassword(),
+              autofillHint: 'newPassword',
+              textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: 32),
+
+            // Password strength indicator
+            if (_newPasswordController.text.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _buildPasswordStrengthIndicator(),
+              const SizedBox(height: 16),
+            ] else
+              const SizedBox(height: 16),
 
             // Submit button
             SizedBox(
@@ -592,19 +671,101 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  disabledBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.4),
                 ),
                 child: _isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        ),
                       )
-                    : const Text('Change Password'),
+                    : const Text(
+                        'Change Password',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPasswordStrengthIndicator() {
+    final theme = Theme.of(context);
+    final password = _newPasswordController.text;
+
+    int strength = 0;
+    if (password.length >= 8) strength++;
+    if (password.length >= 12) strength++;
+    if (RegExp(r'[A-Z]').hasMatch(password)) strength++;
+    if (RegExp(r'[0-9]').hasMatch(password)) strength++;
+    if (RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) strength++;
+
+    String strengthText;
+    Color strengthColor;
+    double strengthValue;
+
+    if (strength <= 1) {
+      strengthText = 'Weak';
+      strengthColor = Colors.red;
+      strengthValue = 0.25;
+    } else if (strength == 2) {
+      strengthText = 'Fair';
+      strengthColor = Colors.orange;
+      strengthValue = 0.5;
+    } else if (strength == 3) {
+      strengthText = 'Good';
+      strengthColor = Colors.yellow[700]!;
+      strengthValue = 0.75;
+    } else {
+      strengthText = 'Strong';
+      strengthColor = Colors.green;
+      strengthValue = 1.0;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: strengthValue,
+                  backgroundColor: theme.dividerColor,
+                  valueColor: AlwaysStoppedAnimation(strengthColor),
+                  minHeight: 6,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              strengthText,
+              style: TextStyle(
+                color: strengthColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Use uppercase, numbers, and special characters for a stronger password',
+          style: TextStyle(
+            color: theme.textTheme.bodySmall?.color,
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 
@@ -615,6 +776,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     required bool obscure,
     required VoidCallback onToggleObscure,
     String? errorText,
+    String? autofillHint,
+    TextInputAction? textInputAction,
   }) {
     final theme = Theme.of(context);
 
@@ -632,6 +795,10 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
           controller: controller,
           obscureText: obscure,
           onChanged: (_) => setState(() {}),
+          autofillHints: autofillHint != null ? <String>[autofillHint] : null,
+          textInputAction: textInputAction ?? TextInputAction.next,
+          enableSuggestions: false,
+          autocorrect: false,
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
@@ -642,12 +809,28 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: theme.colorScheme.primary,
+                width: 2,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: theme.colorScheme.error,
+                width: 1.5,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             suffixIcon: IconButton(
-              icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
+              icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
               onPressed: onToggleObscure,
+              tooltip: obscure ? 'Show password' : 'Hide password',
             ),
             errorText: errorText,
+            errorMaxLines: 2,
           ),
         ),
       ],

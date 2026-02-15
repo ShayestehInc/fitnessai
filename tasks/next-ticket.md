@@ -1,138 +1,125 @@
-# Feature: Trainee Home Experience + Password Reset
+# Feature: Activate AI Food Parsing + Password Change + Invitation Emails
 
 ## Priority
-High — Password reset is security-critical (locked-out users have zero recovery). Home screen progress and food edit/delete are daily-use UX gaps that erode trust.
+High — AI food parsing is the product's core differentiator and is blocked by a misleading "coming soon" banner. Password change is basic security. Invitation emails are critical for trainer onboarding flow.
 
 ## User Stories
-1. As a **trainee**, I want to reset my password via email so that I can recover my account when I forget my login.
-2. As a **trainee**, I want to see my weekly workout progress on the home screen so that I feel motivated to stay on track.
-3. As a **trainee**, I want to edit or delete food entries in my nutrition log so that I can correct mistakes.
-4. As a **trainee**, I want the notification button on the home screen to do something useful instead of being dead.
+
+### Story 1: AI Food Parsing
+As a **trainee**, I want to describe what I ate in natural language so that I can quickly log meals without manually entering macros.
+
+### Story 2: Password Change
+As a **user** (any role), I want to change my password from the settings screen so that I can maintain account security.
+
+### Story 3: Invitation Emails
+As a **trainer**, I want my trainee invitations to send actual emails so that trainees can find and use their invite codes.
 
 ## Acceptance Criteria
 
-### Password Reset (AC-1 through AC-7)
-- [ ] AC-1: Backend email is configured (console backend for dev, SMTP for prod via env vars)
-- [ ] AC-2: Djoser `DOMAIN` and `SITE_NAME` are configured for password reset email links
-- [ ] AC-3: `POST /api/auth/users/reset_password/` with `{"email": "user@example.com"}` sends a reset email (or returns 204 silently if email not found — no email enumeration)
-- [ ] AC-4: Mobile "Forgot password?" button navigates to a new `ForgotPasswordScreen` with email input
-- [ ] AC-5: After submitting email, user sees confirmation screen: "Check your email for a reset link"
-- [ ] AC-6: `POST /api/auth/users/reset_password_confirm/` with `{uid, token, new_password}` resets the password
-- [ ] AC-7: Mobile has a `ResetPasswordScreen` accessible via deep link that accepts uid/token and lets user set new password
+### AI Food Parsing (AC-1 through AC-6)
+- [ ] AC-1: The "AI parsing coming soon" orange banner is removed from the AI Entry tab
+- [ ] AC-2: User types natural language food description, taps "Log Food", sees loading spinner
+- [ ] AC-3: Parsed foods display in a preview card with name, calories, protein, carbs, fat per item
+- [ ] AC-4: User can select which meal number (1-4) to add parsed foods to (meal selector in AI tab)
+- [ ] AC-5: User taps "Confirm" → food is saved to daily log → nutrition screen refreshes → screen pops back
+- [ ] AC-6: If parsing fails (API error, no OpenAI key, empty input), user sees a clear error message with retry option
 
-### Home Screen Progress (AC-8 through AC-11)
-- [ ] AC-8: Backend endpoint `GET /api/workouts/weekly-progress/` returns `{total_days, completed_days, percentage}` for the current week (Mon-Sun)
-- [ ] AC-9: A "completed day" is any day with non-empty `DailyLog.workout_data` for the trainee
-- [ ] AC-10: Home screen progress bar shows real percentage from the API instead of hardcoded 0%
-- [ ] AC-11: Progress refreshes on pull-to-refresh and screen focus
+### Password Change (AC-7 through AC-11)
+- [ ] AC-7: Settings → Security → Change Password calls Djoser's `POST /api/auth/users/set_password/` with `current_password` and `new_password`
+- [ ] AC-8: Shows loading indicator during API call
+- [ ] AC-9: On success, shows green snackbar "Password changed successfully" and pops back
+- [ ] AC-10: On wrong current password (400), shows red error "Current password is incorrect"
+- [ ] AC-11: On other errors (network, server), shows descriptive error message
 
-### Food Entry Edit/Delete (AC-12 through AC-16)
-- [ ] AC-12: Tapping the edit icon on a food entry opens an edit bottom sheet with pre-filled fields (name, protein, carbs, fat, calories)
-- [ ] AC-13: User can update any field and save — updates `DailyLog.nutrition_data` on the backend
-- [ ] AC-14: User can delete a food entry — removes it from `DailyLog.nutrition_data` meals array
-- [ ] AC-15: After edit/delete, macro totals recalculate automatically
-- [ ] AC-16: Optimistic UI update with revert on failure
-
-### Dead Button Fix (AC-17)
-- [ ] AC-17: Home screen notification button navigates to a relevant screen (settings, or shows "No notifications" if trainee has no notification system yet)
+### Invitation Emails (AC-12 through AC-17)
+- [ ] AC-12: When trainer creates a new invitation, an email is sent to the invitee's email address
+- [ ] AC-13: When trainer resends an invitation (resend action), the email is re-sent
+- [ ] AC-14: Email contains: trainer's name, invite code, registration link, expiry date
+- [ ] AC-15: Email uses Django's email system (console backend for dev, SMTP for prod — already configured)
+- [ ] AC-16: Email sending failure does NOT block the invitation creation (invitation still created, error logged)
+- [ ] AC-17: Backend creates the invitation email using a proper service function (not inline in the view)
 
 ## Edge Cases
-1. **Email not found**: Password reset returns 204 regardless (Djoser default) — no email enumeration
-2. **Expired token**: Reset confirm returns 400 with clear error — user can request a new email
-3. **Weak password**: Django validators reject it — show validation errors on the mobile screen
-4. **Zero workout days this week**: Progress shows 0% with encouraging copy ("Start your first workout!")
-5. **No program assigned**: Progress section hidden entirely (no misleading 0%)
-6. **Delete last food entry in a meal**: Meal section becomes empty — show empty state or remove meal header
-7. **Edit food entry with zero values**: Allow zeros for partial entries (e.g., "black coffee" = 0 carbs)
-8. **Network failure during food edit**: Optimistic update reverts, shows error snackbar
-9. **Multiple quick edits**: Each edit is independent — no race conditions
-10. **Password reset on already-logged-in user**: Still works — useful for proactive password changes
+1. AI: User submits empty text → disabled button prevents submission
+2. AI: OpenAI API key not configured → backend returns error → mobile shows "AI food parsing is not available. Please use manual entry."
+3. AI: User types only workout info, no food → AI parser returns nutrition with 0 meals → show "No food items detected. Try describing what you ate."
+4. AI: Very long input (>500 chars) → API handles it, no mobile-side truncation
+5. AI: User taps "Log Food" twice rapidly → guard prevents duplicate API calls (isProcessing flag)
+6. AI: AI returns `needs_clarification: true` → show clarification question to user
+7. Password: User enters current password wrong → 400 from Djoser → "Current password is incorrect"
+8. Password: New password too short (<8 chars) → client-side validation prevents submission (already handled)
+9. Password: Network error during password change → show retry-able error, keep form state
+10. Invitation: Email sending fails (SMTP misconfigured) → invitation still saved, error logged server-side
+11. Invitation: Invitation already expired when resending → extend expiry by 7 days, send email
+12. Invitation: Invitee email is same as an existing user → invitation still created (backend handles this)
 
 ## Error States
+
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Password reset email fails to send | "Check your email" (don't reveal failure) | Log error server-side |
-| Invalid/expired reset token | "This link has expired. Request a new one." | Return 400 |
-| Weak password on reset | Inline validation errors below password field | Return 400 with field errors |
-| Network failure on progress load | Progress section shows last cached value or skeleton | Retry on pull-to-refresh |
-| Network failure on food edit | Reverts to original values, shows error snackbar | Logs error |
-| Food edit returns 404 (deleted log) | "Entry no longer exists" snackbar | Refreshes nutrition data |
+| AI: empty input | "Log Food" button disabled | Nothing |
+| AI: parse API error | Red error banner with message | Logs error |
+| AI: no OpenAI key configured | "AI food parsing is not available" in error banner | Backend returns error string |
+| AI: confirm/save fails | "Failed to save food entry" red snackbar | Keeps parsed preview for retry |
+| AI: no foods detected | "No food items detected" message in preview area | Allows retry with new input |
+| Password: wrong current password | "Current password is incorrect" inline error below field | Returns 400 |
+| Password: network error | "Network error. Please try again." inline error | Keeps form state intact |
+| Password: server error | "Something went wrong. Please try again." | Logs error |
+| Invite: email send failure | No visible error (invitation created) | Logs email error server-side |
 
 ## UX Requirements
-- **Forgot Password Screen**: Email input, "Send Reset Link" button, loading state, success confirmation with "Back to Login" button
-- **Reset Password Screen**: New password + confirm password fields, strength indicator, submit button
-- **Progress Bar**: Animated fill, percentage text, encouraging copy when low/zero
-- **Food Edit Bottom Sheet**: Pre-filled form fields, save/cancel buttons, delete button (red, with confirmation)
-- **Loading states**: Skeleton shimmer for progress section, button loading indicator for password reset
-- **Empty states**: "No workouts this week" for zero progress, "Start your first workout!" CTA
-- **Success feedback**: Snackbar after food edit/delete, confirmation screen after password reset request
+- **AI Entry tab**: Remove orange "coming soon" banner. Add meal selector (1-4) matching manual tab's style. Existing loading/error/preview/confirm flow remains. After successful confirm, refresh nutrition and pop screen.
+- **Password change**: Show inline error under "Current Password" field for wrong password. Keep loading spinner on submit button. Don't clear form fields on error so user can fix and retry.
+- **Invitation email**: No mobile UI changes — email sending happens silently in backend on create/resend.
+- **Loading states**: All already exist (AI tab has isProcessing, password has isLoading).
+- **Success feedback**: Green snackbar for password change, screen pop + nutrition refresh for AI food confirm.
 
 ## Technical Approach
 
-### Backend
-1. **Email Configuration** (`config/settings.py`):
-   - Add `EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'` for dev
-   - Add env-var overrides for prod: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`
-   - Configure `DJOSER['DOMAIN']` and `DJOSER['SITE_NAME']` for reset email links
+### AI Food Parsing (Mobile only — backend already works)
+- **Modify**: `mobile/lib/features/nutrition/presentation/screens/add_food_screen.dart`
+  - Remove the orange "AI parsing coming soon" banner container (lines 490-512)
+  - Add meal selector widget (1-4) above the text input, identical to manual entry tab
+  - Pass meal context when calling confirmAndSave (prepend "Meal N - " to food names)
+  - After successful confirm: call `ref.read(nutritionStateProvider.notifier).refreshDailySummary()` then `context.pop()`
+  - Add guard for empty parsed nutrition (no meals detected)
 
-2. **Weekly Progress Endpoint** (`workouts/views.py`):
-   - New `@action` on `DailyLogViewSet` or standalone `APIView`
-   - `GET /api/workouts/weekly-progress/`
-   - Query: `DailyLog.objects.filter(trainee=user, date__range=(monday, sunday), workout_data__isnull=False).exclude(workout_data={})` count
-   - Calculate total expected days from active program schedule
-   - Return `{total_days, completed_days, percentage, week_start, week_end}`
+### Password Change (Mobile + existing Djoser endpoint)
+- **Modify**: `mobile/lib/core/constants/api_constants.dart` — Add `setPassword` endpoint: `$apiBaseUrl/auth/users/set_password/`
+- **Modify**: `mobile/lib/features/auth/data/repositories/auth_repository.dart` — Add `changePassword({currentPassword, newPassword})` method calling Djoser endpoint
+- **Modify**: `mobile/lib/features/settings/presentation/screens/admin_security_screen.dart`
+  - Replace `// TODO: Implement actual password change API call` + `Future.delayed` with actual API call
+  - Add error state variable and inline error display
+  - Use auth repository provider (import from auth providers)
+  - Handle 400 (wrong password), network errors, and success
 
-3. **Food Entry Edit/Delete** (`workouts/views.py`):
-   - New actions on `DailyLogViewSet`: `edit-meal-entry` and `delete-meal-entry`
-   - `PUT /api/workouts/daily-logs/<id>/edit-meal-entry/` with `{meal_index, entry_index, data}`
-   - `DELETE /api/workouts/daily-logs/<id>/delete-meal-entry/` with `{meal_index, entry_index}`
-   - Both modify `nutrition_data` JSON, recalculate totals, save with `update_fields=['nutrition_data']`
-
-### Mobile
-1. **Password Reset Screens**:
-   - Create `forgot_password_screen.dart` — email input + submit
-   - Create `reset_password_screen.dart` — new password + confirm + submit (for deep link)
-   - Add API constants for reset endpoints
-   - Add repository methods
-   - Add routes to `app_router.dart`
-   - Wire "Forgot password?" button on login screen
-
-2. **Home Screen Progress**:
-   - Add `weeklyProgressProvider` in home_provider.dart
-   - Replace hardcoded 0% with real API data
-   - Add API constant and repository method
-   - Handle no-program state (hide progress section)
-
-3. **Food Entry Edit/Delete**:
-   - Create `edit_food_entry_sheet.dart` — bottom sheet with pre-filled form
-   - Add edit/delete methods to nutrition repository
-   - Wire the existing edit icon button on nutrition screen
-   - Add delete with confirmation dialog
-   - Optimistic update with revert
-
-4. **Dead Notification Button**:
-   - Replace TODO with navigation to settings or a simple "Notifications coming soon" info dialog (not a dead button)
+### Invitation Emails (Backend)
+- **Create**: `backend/trainer/services/invitation_service.py`
+  - `send_invitation_email(invitation: TraineeInvitation) -> None` function
+  - Uses `django.core.mail.send_mail()` with HTML + text
+  - Includes trainer name, invite code, registration link, expiry date
+  - Raises on failure (caller wraps in try/except)
+- **Modify**: `backend/trainer/views.py`
+  - In `TraineeInvitationViewSet.perform_create()` or create action: call `send_invitation_email()` wrapped in try/except
+  - In resend action (the one with the TODO): call `send_invitation_email()` wrapped in try/except
+  - Log errors but don't fail the response
 
 ### Files to Create
-- `mobile/lib/features/auth/presentation/screens/forgot_password_screen.dart`
-- `mobile/lib/features/auth/presentation/screens/reset_password_screen.dart`
-- `mobile/lib/features/nutrition/presentation/widgets/edit_food_entry_sheet.dart`
+- `backend/trainer/services/__init__.py` (if not exists)
+- `backend/trainer/services/invitation_service.py`
 
 ### Files to Modify
-- `backend/config/settings.py` — Email config, Djoser domain/site
-- `backend/workouts/views.py` — Weekly progress endpoint, food edit/delete actions
-- `mobile/lib/features/auth/presentation/screens/login_screen.dart` — Wire forgot password
-- `mobile/lib/features/home/presentation/providers/home_provider.dart` — Real progress
-- `mobile/lib/features/home/presentation/screens/home_screen.dart` — Wire notification button, progress
-- `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart` — Wire food edit/delete
-- `mobile/lib/core/constants/api_constants.dart` — New endpoints
-- `mobile/lib/core/router/app_router.dart` — New routes
-- `mobile/lib/features/auth/data/repositories/auth_repository.dart` — Password reset methods (or create if doesn't exist)
-- `mobile/lib/features/nutrition/data/repositories/nutrition_repository.dart` — Edit/delete methods
+- `mobile/lib/features/nutrition/presentation/screens/add_food_screen.dart` — Remove banner, add meal selector
+- `mobile/lib/core/constants/api_constants.dart` — Add setPassword endpoint
+- `mobile/lib/features/auth/data/repositories/auth_repository.dart` — Add changePassword method
+- `mobile/lib/features/settings/presentation/screens/admin_security_screen.dart` — Wire password change API
+- `backend/trainer/views.py` — Send invitation emails on create/resend
 
 ## Out of Scope
-- Custom password reset email templates (use Djoser defaults)
-- Real-time push notifications for trainees (separate feature)
-- AI food parsing integration (separate feature)
-- 2FA setup (separate feature)
-- Deep link handling for password reset (mobile deep link infra needed — for now, user copies uid/token manually or we provide a simple web page)
+- 2FA implementation (needs backend TOTP/SMS — separate ticket)
+- Social auth wiring (Apple/Google — separate ticket)
+- Messaging between trainer/trainee (separate ticket)
+- Scheduling feature (separate ticket)
+- Active sessions management (needs backend session tracking)
+- Admin reminder emails for past-due subscriptions
+- Invitation email HTML template styling (plain text is fine for MVP)
