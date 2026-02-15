@@ -1,224 +1,245 @@
-# Code Review: Web Dashboard Phase 2 — Settings, Progress Charts, Notifications & Invitations
+# Code Review Round 2: Web Dashboard Phase 2 — Settings, Progress Charts, Notifications & Invitations
 
 ## Review Date
-2026-02-15
+2026-02-15 (Round 2)
 
-## Files Reviewed
+## Scope of This Review
+Verifying fixes applied in commit `4cd602a` ("wip: review fixes round 1") against all Critical and Major issues from Round 1.
 
-### New Files (8)
-- `web/src/types/progress.ts`
-- `web/src/hooks/use-progress.ts`
-- `web/src/hooks/use-settings.ts`
-- `web/src/components/settings/profile-section.tsx`
-- `web/src/components/settings/appearance-section.tsx`
-- `web/src/components/settings/security-section.tsx`
-- `web/src/components/trainees/progress-charts.tsx`
-- `web/src/components/invitations/invitation-actions.tsx`
-
-### Modified Files (11)
-- `web/src/lib/constants.ts`
-- `web/src/lib/api-client.ts`
-- `web/src/hooks/use-invitations.ts`
-- `web/src/app/(dashboard)/settings/page.tsx`
-- `web/src/components/trainees/trainee-progress-tab.tsx`
-- `web/src/app/(dashboard)/trainees/[id]/page.tsx`
-- `web/src/components/notifications/notification-item.tsx`
-- `web/src/components/notifications/notification-popover.tsx`
-- `web/src/components/notifications/notification-bell.tsx`
-- `web/src/app/(dashboard)/notifications/page.tsx`
-- `web/src/components/invitations/invitation-columns.tsx`
-
-### Context Files Reviewed for Contract Verification
-- `web/src/types/user.ts` (User type shape)
-- `web/src/types/notification.ts` (Notification interface + data field)
-- `web/src/types/invitation.ts` (Invitation interface + status enum)
-- `web/src/providers/auth-provider.tsx` (Auth state management)
-- `web/src/hooks/use-auth.ts` (Auth hook)
-- `web/src/hooks/use-notifications.ts` (Existing notification hooks)
-- `web/src/components/shared/empty-state.tsx` (Shared component contract)
-- `web/src/components/shared/error-state.tsx` (Shared component contract)
-- `web/src/providers/theme-provider.tsx` (Theme provider config)
-- `backend/users/views.py` (UpdateUserProfileView, UploadProfileImageView)
-- `backend/users/serializers.py` (UserSerializer fields)
-- `backend/users/urls.py` (URL routing)
-- `backend/config/urls.py` (Top-level URL config)
-- `backend/config/settings.py` (Djoser config, serializer mapping)
-- `backend/trainer/views.py` (TraineeProgressView, InvitationDetailView, ResendInvitationView)
-- `backend/trainer/urls.py` (Invitation + progress URL routing)
-- `backend/trainer/models.py` (TraineeActivitySummary fields)
+## Files Re-Reviewed (changed in fix round)
+- `web/src/providers/auth-provider.tsx` (refreshUser added to context)
+- `web/src/hooks/use-settings.ts` (switched from queryClient.setQueryData to refreshUser)
+- `web/src/components/settings/profile-section.tsx` (form as single object, file input reset timing)
+- `web/src/components/settings/appearance-section.tsx` (useSyncExternalStore hydration fix)
+- `web/src/components/trainees/progress-charts.tsx` (stackId, formatDate, YAxis domain)
+- `web/src/components/invitations/invitation-actions.tsx` (try/catch, status comment)
+- `web/src/components/notifications/notification-bell.tsx` (conditional popover render)
+- `web/src/hooks/use-progress.ts` (staleTime added)
 
 ---
 
-## Critical Issues (must fix before merge)
+## Round 1 Fix Verification
+
+### C1: React Query cache update targets key nothing reads (FIXED - VERIFIED)
+
+**Fix applied:** `refreshUser` method exposed from `AuthProvider` context (line 28, 133 of `auth-provider.tsx`). The `useMemo` dependency array correctly includes `fetchUser` (line 135). All three mutations in `use-settings.ts` (`useUpdateProfile`, `useUploadProfileImage`, `useDeleteProfileImage`) now call `refreshUser()` in their `onSuccess` callback instead of `queryClient.setQueryData`.
+
+**Verification:** The `refreshUser` function is the same `fetchUser` callback (line 133: `refreshUser: fetchUser`). `fetchUser` calls `apiClient.get<User>(API_URLS.CURRENT_USER)` and then `setUser(userData)`, which updates the React Context state directly. This correctly propagates to all consumers of `useAuth()`, including the header nav dropdown. The `useQueryClient` import was also correctly removed from `use-settings.ts`.
+
+**Status: RESOLVED. AC-10 is now PASS.**
+
+### C2: Form state never syncs with user changes (FIXED - VERIFIED)
+
+**Fix applied:** The fixer chose not to add a `useEffect` sync (noting it would cause ESLint exhaustive-deps issues). Instead, form state was consolidated into a single `useState` object (line 31-35 of `profile-section.tsx`). The form initializes from `user` at mount time; after save, `refreshUser()` updates the auth context, but the form retains the values the user just typed (which are correct since the save succeeded).
+
+**Analysis of the approach:** This is actually the right call. The original concern was: "if the component re-renders or the user navigates away and back, the form shows stale data." With the C1 fix in place:
+- If the save succeeds: the form shows what the user typed (correct), and `refreshUser()` updates the context (header updates).
+- If the user navigates away and back: `ProfileSection` remounts, `useState` re-initializes from the now-updated `user` context value (correct).
+- If the save fails: the form keeps the user's typed values for retry (correct), and the context remains unchanged.
+
+The only edge case would be if something *else* updated the user externally while the form was open (e.g., another tab), but that's an edge case not worth adding complexity for. The approach is sound.
+
+**Status: RESOLVED.**
+
+### M1: Hydration mismatch in AppearanceSection (FIXED - VERIFIED)
+
+**Fix applied:** Uses `useSyncExternalStore` with server/client snapshots (line 16, 26 of `appearance-section.tsx`):
+```tsx
+const emptySubscribe = () => () => {};
+const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+```
+
+When `!mounted`, renders three `Skeleton` placeholders. When mounted, renders the actual theme buttons with `aria-checked` and styling.
+
+**Analysis:** This is a well-known pattern and a valid alternative to the `useState + useEffect` approach. `useSyncExternalStore` with different client/server snapshots is the React 18-blessed way to handle this. The `emptySubscribe` function correctly returns an unsubscribe callback (a no-op). The server snapshot returns `false`, client returns `true`, preventing hydration mismatch. The skeleton placeholder maintains layout stability during the brief unmounted period.
+
+**Status: RESOLVED.**
+
+### M2: Adherence chart grouped instead of stacked (FIXED - VERIFIED)
+
+**Fix applied:** All three `<Bar>` elements now have `stackId="adherence"` (lines 245, 250, 255 of `progress-charts.tsx`). YAxis domain changed from `[0, 1]` to `[0, 3]` with ticks `[0, 1, 2, 3]`. The old `tickFormatter` (yes/no) was removed. The Tooltip formatter now shows `"Yes"` / `"No"` per individual bar segment (line 237-240).
+
+**Analysis:** The stacking is correct. Each bar segment is 0 or 1, so the maximum stacked height is 3 (all three goals met). The YAxis `[0, 3]` domain and `[0, 1, 2, 3]` ticks make sense. Only the top bar (`protein`) has `radius={[2, 2, 0, 0]}` for rounded top corners, which is visually correct for a stacked bar (only the topmost segment should be rounded).
+
+**One minor note:** The tooltip formatter types `value` as `number | undefined` and `name` as `string | undefined`. The `name ?? ""` fallback is fine. The `value === 1 ? "Yes" : "No"` logic is correct for boolean 0/1 values but will show "No" for value `2` or `3` if recharts ever passes aggregate values. Since recharts tooltip shows per-segment values for stacked bars (not totals), this is correct behavior.
+
+**Status: RESOLVED. AC-14 is now PASS.**
+
+### M3: Clipboard writeText try/catch (FIXED - VERIFIED)
+
+**Fix applied:** `handleCopy` in `invitation-actions.tsx` (lines 44-52) now wraps the entire `navigator.clipboard.writeText()` call in a try/catch block. The catch clause calls `toast.error("Failed to copy code")`. The inner `.then(success, failure)` pattern handles promise rejections.
+
+**Status: RESOLVED.**
+
+### M4: Date parsing safety (FIXED - VERIFIED)
+
+**Fix applied:** A `formatDate()` helper function was added at the top of `progress-charts.tsx` (lines 27-30) using `parseISO` + `isValid` from `date-fns`. Falls back to raw `dateStr` if parsing fails. All three chart components now use `formatDate(entry.date)` instead of `format(new Date(entry.date), "MMM d")`.
+
+**Status: RESOLVED.**
+
+### M5: File input reset timing (FIXED - VERIFIED)
+
+**Fix applied:** In `profile-section.tsx`, the `e.target` reference is captured as `const input = e.target` (line 72) before calling `uploadImage.mutate()`. The `input.value = ""` is now inside both `onSuccess` (line 76) and `onError` (line 80) callbacks. This ensures the file input is only reset after the mutation completes, not immediately.
+
+**Analysis:** Capturing `e.target` in a local variable before the async callback is correct -- it prevents the synthetic event from being reused/nullified by React's event pooling (though React 17+ no longer pools, this is still good defensive practice).
+
+**Status: RESOLVED.**
+
+### m1: confirmPassword dependency (REVERTED - ACCEPTED)
+
+**Explanation:** The fixer reports ESLint exhaustive-deps does not flag `confirmPassword` as missing because it's captured via the `validate` function closure, and `validate` is already in the dependency array. I verified: `handleSubmit` at line 89 depends on `[currentPassword, newPassword, validate, changePassword]`. The `validate` function at line 42 depends on `[currentPassword, newPassword, confirmPassword]`. Since `validate` updates when `confirmPassword` changes, and `handleSubmit` depends on `validate`, the dependency chain is complete. ESLint is correct here.
+
+**Status: NOT AN ISSUE. Correctly assessed by the fixer.**
+
+### m3: staleTime on progress query (FIXED - VERIFIED)
+
+**Fix applied:** `staleTime: 5 * 60 * 1000` added to `useTraineeProgress` in `use-progress.ts` (line 14).
+
+**Status: RESOLVED.**
+
+### m6: Status derivation comment (FIXED - VERIFIED)
+
+**Fix applied:** Comment added at `invitation-actions.tsx` line 36: `// Backend keeps status=PENDING even after expiration; is_expired flag distinguishes`.
+
+**Status: RESOLVED.**
+
+### m8: Conditional popover render (FIXED - VERIFIED)
+
+**Fix applied:** `notification-bell.tsx` line 30 now renders `{open && <NotificationPopover .../>}` instead of unconditionally rendering the popover. This ensures `useNotifications()` inside the popover only fires when the popover is actually open.
+
+**Status: RESOLVED.**
+
+---
+
+## Previously Identified Issues Still Open (unfixed from Round 1)
+
+### Minor Issues (not blocking)
+
+| # | File:Line | Issue | Status |
+|---|-----------|-------|--------|
+| m2 | `security-section.tsx:108,127,148` | Error clearing sets empty string instead of removing key | NOT FIXED -- acceptable, `""` is falsy |
+| m4 | `notification-popover.tsx:24` | Magic number `5` for popover limit | NOT FIXED -- cosmetic |
+| m5 | `progress-charts.tsx:81` | YAxis domain uses string math `"dataMin - 2"` | NOT FIXED -- recharts documents this syntax |
+| m7 | `settings/page.tsx:46` | Error retry uses `window.location.reload()` | NOT FIXED -- acceptable for context-based auth |
+| m9 | `use-settings.ts:11` | `business_name` typed as `string` not `string | null` | NOT FIXED -- minor data integrity |
+
+All remaining unfixed items are minor and non-blocking.
+
+---
+
+## New Issues Introduced by Fixes
+
+### No Critical Issues
+
+### No Major Issues
+
+### Minor Issues (new)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| C1 | `use-settings.ts:37,55,69` | **React Query cache update targets a key that nothing reads -- profile/image updates will never reflect in the header.** The auth system uses React Context (`useState<User>` in `AuthProvider`), NOT React Query. `queryClient.setQueryData(["current-user"], response.user)` writes to a React Query cache key that no `useQuery` reads. The user nav dropdown in the header gets `user` from `useAuth()` which reads from context state. After saving profile, uploading image, or deleting image, the header shows the OLD name/avatar until a full page reload. **AC-10 is broken.** | Three options: (A) Expose a `refreshUser` method from `AuthProvider` that re-calls `fetchUser()` to update context state, then call it from each mutation's `onSuccess`. (B) Add `queryClient.invalidateQueries` for a key that IS read (requires migrating auth to React Query). (C) Simplest fix: have each mutation's `onSuccess` refetch `/api/auth/users/me/` and update auth context directly. Recommend option A: add `refreshUser` to `AuthContext`, call it in `useUpdateProfile`, `useUploadProfileImage`, and `useDeleteProfileImage` onSuccess callbacks. |
-| C2 | `profile-section.tsx:31-35` | **Form state initializes from `user` once at mount and never syncs back.** `useState(user?.first_name ?? "")` captures the value at initial render. After a successful profile update, the auth context user is stale (due to C1), so if the component re-renders or the user navigates away and back, the form shows stale data. Even after C1 is fixed, there is no `useEffect` to sync form state when `user` changes (e.g., after the auth context refreshes). The form could show "old name" even though the save succeeded and the header updated. | Add a sync effect: `useEffect(() => { if (user) { setFirstName(user.first_name); setLastName(user.last_name); setBusinessName(user.business_name ?? ""); } }, [user]);` |
+| n1 | `auth-provider.tsx:133` | `refreshUser` is exposed as `fetchUser`, which clears tokens and sets user to null on ANY API failure (line 47-48). If the `/api/auth/users/me/` endpoint has a transient 500 error during a `refreshUser()` call triggered by a profile save, the user gets logged out even though their save succeeded. | This is pre-existing behavior in `fetchUser`, not introduced by the fix. Low risk since the endpoint is a simple read. Flagging for awareness, not blocking. |
+| n2 | `use-settings.ts:38,56,70` | `refreshUser()` returns `Promise<void>` but the returned promise is not awaited in `onSuccess`. If the re-fetch fails, the error is silently swallowed. | Since `fetchUser` already handles its own errors internally (catch block in auth-provider), this is acceptable. The save itself succeeded, and the header will update on next navigation/mount. Low priority. |
+
+Neither of these is blocking. They are pre-existing patterns, not regressions introduced by the fixes.
 
 ---
 
-## Major Issues (should fix)
-
-| # | File:Line | Issue | Suggested Fix |
-|---|-----------|-------|---------------|
-| M1 | `appearance-section.tsx:41` | **Hydration mismatch causes theme selector to flash.** On server render, `theme` from `useTheme()` is `undefined`. So `aria-checked={theme === value}` is `false` for all three options, and the `border-primary bg-accent` class is not applied to any button. On client hydration, the theme resolves and the correct button lights up, causing a visual flash. | Standard next-themes fix: add `const [mounted, setMounted] = useState(false); useEffect(() => setMounted(true), []);` and only apply the checked style when `mounted`: `aria-checked={mounted ? theme === value : undefined}` with the visual class gated on `mounted && theme === value`. Alternatively, show a skeleton until mounted. |
-| M2 | `progress-charts.tsx:177-262` | **Adherence chart is a grouped bar chart, but AC-14 specifies "stacked bar".** The three `<Bar>` elements lack a `stackId` prop, so recharts renders them side-by-side (grouped) rather than stacked. This is a spec mismatch. With 28 days of data and 3 side-by-side bars per day, the chart becomes very dense and hard to read. Stacked bars (max height = 3) would show "how many of 3 goals were hit" per day more clearly. | Add `stackId="adherence"` to all three `<Bar>` elements. Adjust YAxis domain to `[0, 3]` and ticks to `[0, 1, 2, 3]`. Update the tooltip formatter to show the actual metric name rather than yes/no. Alternatively, if grouped is the intended design, update AC-14 to say "grouped bar chart" and document the deviation. |
-| M3 | `invitation-actions.tsx:43-47` | **`navigator.clipboard.writeText` can throw synchronously in restrictive contexts.** Some browsers throw if the Clipboard API is entirely unavailable (HTTP without localhost, cross-origin iframes without `clipboard-write` permission). The `.then(success, failure)` pattern only catches promise rejections, not synchronous exceptions from the API call itself. | Wrap in try/catch: `const handleCopy = () => { try { navigator.clipboard.writeText(invitation.invitation_code).then(() => toast.success("Invitation code copied"), () => toast.error("Failed to copy code")); } catch { toast.error("Failed to copy code"); } };` |
-| M4 | `progress-charts.tsx:51,127,197` | **`new Date(entry.date)` can produce Invalid Date, causing `format()` to throw.** Backend returns `str(w.date)` as `YYYY-MM-DD`. While this is reliable, any unexpected format (null, empty string, malformed data) would crash the chart rendering. This pattern appears in all three chart components. | Use `parseISO` from `date-fns` for stricter parsing, and add a defensive check: `const d = parseISO(entry.date); const label = isValid(d) ? format(d, "MMM d") : entry.date;`. Or wrap the `.map()` in a try/catch with a fallback to raw date strings. |
-| M5 | `profile-section.tsx:78` | **File input reset happens before upload completes.** `e.target.value = ""` fires immediately after `uploadImage.mutate()`, which is async. If the upload fails server-side, the file input is already cleared, so the user cannot retry uploading the same file without re-selecting it from the file picker. | Move `e.target.value = ""` into the `onSuccess` callback of `uploadImage.mutate`, or add it to both `onSuccess` and `onError`. Current behavior is not catastrophic but is a minor UX regression. |
-
----
-
-## Minor Issues (nice to fix)
-
-| # | File:Line | Issue | Suggested Fix |
-|---|-----------|-------|---------------|
-| m1 | `security-section.tsx:89` | **`confirmPassword` missing from `handleSubmit` useCallback dependency array.** The `useCallback` lists `[currentPassword, newPassword, validate, changePassword]` but not `confirmPassword`. Since `validate` closure captures `confirmPassword`, the behavior is correct, but ESLint exhaustive-deps would flag this. | Add `confirmPassword` to the dependency array. |
-| m2 | `security-section.tsx:108,127,148` | **Error clearing on keystroke sets empty string instead of removing key.** `setErrors((prev) => ({ ...prev, current_password: "" }))` leaves a key with value `""`. Works because `""` is falsy, but the errors object accumulates empty keys. | Use destructuring to remove the key: `setErrors(({ current_password: _, ...rest }) => rest);` |
-| m3 | `use-progress.ts:13` | **No `staleTime` on progress query.** Progress data changes infrequently, but without `staleTime`, React Query refetches on every mount and window focus. For a trainer viewing multiple trainees, this causes unnecessary API calls. | Add `staleTime: 5 * 60 * 1000` (5 minutes) to reduce unnecessary refetches. |
-| m4 | `notification-popover.tsx:24` | **Magic number `5` for popover notification limit.** `.slice(0, 5)` is a hardcoded constant with no explanation. | Extract to a named constant: `const POPOVER_MAX_ITEMS = 5;` |
-| m5 | `progress-charts.tsx:76` | **YAxis `domain` uses string math `"dataMin - 2"`.** While recharts supports this syntax, it's an undocumented-feeling API that could break across versions. | Calculate domain explicitly: `const min = Math.min(...data.map(d => d.weight_kg)); domain={[Math.floor(min) - 2, Math.ceil(max) + 2]}`. |
-| m6 | `invitation-actions.tsx:36-38` | **Client-side status derivation duplicates backend logic.** `is_expired && status === "PENDING"` maps to `"EXPIRED"` on the client. If the backend ever returns `status: "EXPIRED"` directly, this logic would conflict. | Add a comment explaining why this derivation exists: `// Backend keeps status=PENDING even after expiration; is_expired flag distinguishes`. |
-| m7 | `settings/page.tsx:46` | **Error retry uses `window.location.reload()`.** This is a full page reload, heavier than a targeted refetch. Other error states use React Query's `refetch()`. | Acceptable given auth uses context not React Query. Once C1 is resolved (if auth migrates), revisit. |
-| m8 | `notification-bell.tsx:30` | **`NotificationPopover` may render and fire queries even when popover is closed.** Radix Popover may or may not lazy-mount `PopoverContent`. If it doesn't, `useNotifications()` inside the popover fires on every render of the bell. | Conditionally render: `{open && <NotificationPopover onClose={() => setOpen(false)} />}`. This guarantees no wasted API calls when the popover is closed. |
-| m9 | `use-settings.ts:11` | **`business_name` typed as `string` in payload but `User.business_name` is `string | null`.** Sending `""` when user has `null` business_name stores empty string instead of null in the database. | Minor data integrity issue. Either type as `string | null` and handle null in the form, or accept `""` as equivalent to null. Add a comment. |
-
----
-
-## Security Concerns
-
-**No security issues found in the new code.** Specifically verified:
-
-1. **No XSS risk.** All user content rendered via JSX auto-escaping. No `dangerouslySetInnerHTML`.
-2. **Clipboard API usage is benign** -- only writes the invitation code, not sensitive data.
-3. **Password fields** use `type="password"`, `autoComplete="current-password"` / `"new-password"`. Password values are never logged or stored in state beyond the component lifecycle.
-4. **File upload validation** is defense-in-depth: client validates type + size before upload; server re-validates both. The `accept` attribute on the file input provides a first UX filter.
-5. **No IDOR risk.** All API calls use authenticated endpoints. Row-level security is enforced on the backend (verified: `TraineeProgressView` checks `parent_trainer`, `InvitationDetailView` filters by `trainer`, `ResendInvitationView` filters by `trainer`).
-6. **Profile image URL from backend** is rendered via `<img>` tag (AvatarImage), limiting exploit surface to image rendering.
-7. **Djoser `set_password` endpoint** requires `current_password`, preventing unauthorized password changes even if the session is hijacked.
-
----
-
-## Performance Concerns
-
-1. **Progress chart data mapping** creates new arrays on every render (3 `.map()` calls). For typical data sizes (< 30 weight entries, < 28 volume/adherence entries), this is negligible. If data grows, consider `useMemo`.
-2. **No `staleTime` on progress query** (m3) means unnecessary refetches when switching tabs on the trainee detail page.
-3. **Notification popover may fire queries when closed** (m8) -- depends on Radix Popover mounting behavior.
-4. **Backend progress endpoint** uses `Avg('total_volume')` with `values('date').annotate()` -- this is a single aggregation query, not N+1. Efficient.
-5. **FormData upload** correctly skips `Content-Type: application/json` header, letting the browser set `multipart/form-data` boundary. Verified in `buildHeaders()`.
-
-No critical performance issues.
-
----
-
-## Acceptance Criteria Verification
+## Acceptance Criteria Verification (Updated)
 
 ### Settings Page (AC-1 through AC-10)
 
 | AC | Description | Status | Evidence |
 |----|-------------|--------|----------|
-| AC-1 | Three sections: Profile, Appearance, Security | PASS | `settings/page.tsx:55-57` renders `ProfileSection`, `AppearanceSection`, `SecuritySection` |
-| AC-2 | Profile editable fields + save + toast | PASS | `profile-section.tsx:37-48` calls PATCH, shows toast. Fields: first_name, last_name, business_name |
-| AC-3 | Email read-only | PASS | `profile-section.tsx:189-199` disabled Input with `bg-muted` class |
-| AC-4 | Profile image upload/remove | PASS | `profile-section.tsx:107-151` upload button + remove button. POST/DELETE endpoints correct |
-| AC-5 | Theme toggle (Light/Dark/System) | PASS | `appearance-section.tsx:14-57` uses `useTheme()`, immediate, persists via next-themes localStorage |
-| AC-6 | Password change form | PASS | `security-section.tsx:99-168` has 3 fields, calls Djoser endpoint, parses errors inline |
-| AC-7 | Validation: maxLength, min 8 chars, confirm match | PASS | maxLength on inputs (150/200/128), validate() checks length >= 8 and match |
-| AC-8 | Loading skeleton | PASS | `settings/page.tsx:11-26` SettingsSkeleton with 3 card placeholders |
-| AC-9 | Error state with retry | PASS | `settings/page.tsx:40-49` ErrorState with window.location.reload() |
-| AC-10 | Header reflects updated name immediately | **FAIL** | C1: `setQueryData(["current-user"])` writes to unread cache. Auth context not updated. |
+| AC-1 | Three sections: Profile, Appearance, Security | PASS | `settings/page.tsx:55-57` |
+| AC-2 | Profile editable fields + save + toast | PASS | `profile-section.tsx:37-48` |
+| AC-3 | Email read-only | PASS | `profile-section.tsx:192-202` |
+| AC-4 | Profile image upload/remove | PASS | `profile-section.tsx:51-92` |
+| AC-5 | Theme toggle (Light/Dark/System) | PASS | `appearance-section.tsx:24-70` |
+| AC-6 | Password change form | PASS | `security-section.tsx:99-168` |
+| AC-7 | Validation | PASS | maxLength, min 8, confirm match |
+| AC-8 | Loading skeleton | PASS | `settings/page.tsx:11-26` |
+| AC-9 | Error state with retry | PASS | `settings/page.tsx:40-49` |
+| AC-10 | Header reflects updated name immediately | **PASS** | `refreshUser()` updates auth context; header reads from `useAuth()` |
 
 ### Progress Charts (AC-11 through AC-17)
 
 | AC | Description | Status | Evidence |
 |----|-------------|--------|----------|
-| AC-11 | Fetches progress, shows 3 charts | PASS | `trainee-progress-tab.tsx:27,44-46` fetches and renders WeightChart, VolumeChart, AdherenceChart |
-| AC-12 | Weight trend line chart + empty state | PASS | `progress-charts.tsx:31-101` LineChart with date/weight axes, "No weight data" empty state |
-| AC-13 | Volume bar chart + empty state | PASS | `progress-charts.tsx:107-171` BarChart with "No workout data" empty state |
-| AC-14 | Adherence stacked bar with legend | **PARTIAL** | M2: Chart is grouped (no `stackId`), not stacked. Legend IS present with 3 colors. |
-| AC-15 | Charts responsive | PASS | All charts use `ResponsiveContainer width="100%" height="100%"` |
-| AC-16 | Loading skeleton | PASS | `trainee-progress-tab.tsx:12-24` ProgressSkeleton with 3 chart placeholders |
-| AC-17 | Error state with retry | PASS | `trainee-progress-tab.tsx:33-39` ErrorState with refetch |
+| AC-11 | Fetches progress, shows 3 charts | PASS | |
+| AC-12 | Weight trend line chart + empty state | PASS | |
+| AC-13 | Volume bar chart + empty state | PASS | |
+| AC-14 | Adherence stacked bar with legend | **PASS** | `stackId="adherence"` on all 3 bars, YAxis [0,3] |
+| AC-15 | Charts responsive | PASS | |
+| AC-16 | Loading skeleton | PASS | |
+| AC-17 | Error state with retry | PASS | |
 
 ### Notification Click-Through (AC-18 through AC-21)
 
 | AC | Description | Status | Evidence |
 |----|-------------|--------|----------|
-| AC-18 | Click with trainee_id navigates | PASS | `notification-popover.tsx:29-32` and `notifications/page.tsx:48-51` use getNotificationTraineeId + router.push |
-| AC-19 | Click without trainee_id only marks read | PASS | getNotificationTraineeId returns null, no navigation occurs |
-| AC-20 | Works in both popover and full page | PASS | Both components implement the same pattern |
-| AC-21 | Backend includes trainee_id in data | NOT VERIFIED | Dev-done.md claims backend already sends it. No backend changes made. Need to verify `survey_views.py` and `trainer/views.py` send `data={'trainee_id': ...}` for relevant notification types. |
+| AC-18 | Click with trainee_id navigates | PASS | |
+| AC-19 | Click without trainee_id only marks read | PASS | |
+| AC-20 | Works in both popover and full page | PASS | |
+| AC-21 | Backend includes trainee_id in data | NOT VERIFIED | No backend changes made; pre-existing |
 
 ### Invitation Row Actions (AC-22 through AC-28)
 
 | AC | Description | Status | Evidence |
 |----|-------------|--------|----------|
-| AC-22 | "..." dropdown menu per row | PASS | `invitation-columns.tsx:51-56` adds actions column with `InvitationActions` |
-| AC-23 | PENDING: Copy, Resend, Cancel | PASS | `invitation-actions.tsx:40-41` canResend=true, canCancel=true for PENDING |
-| AC-24 | EXPIRED: Copy, Resend | PASS | canResend=true, canCancel=false for EXPIRED |
-| AC-25 | ACCEPTED/CANCELLED: Copy only | PASS | Both canResend=false, canCancel=false |
-| AC-26 | Copy Code copies to clipboard + toast | PASS | `invitation-actions.tsx:43-47` |
-| AC-27 | Resend calls POST + toast + refresh | PASS | `invitation-actions.tsx:50-54` + `use-invitations.ts:30-39` invalidates query |
-| AC-28 | Cancel: confirmation dialog + DELETE + toast + refresh | PASS | `invitation-actions.tsx:57-65,106-132` + `use-invitations.ts:42-51` |
+| AC-22 | "..." dropdown menu per row | PASS | |
+| AC-23 | PENDING: Copy, Resend, Cancel | PASS | |
+| AC-24 | EXPIRED: Copy, Resend | PASS | |
+| AC-25 | ACCEPTED/CANCELLED: Copy only | PASS | |
+| AC-26 | Copy Code + toast | PASS | Now with try/catch |
+| AC-27 | Resend + toast + refresh | PASS | |
+| AC-28 | Cancel dialog + DELETE + toast + refresh | PASS | |
 
-### Summary: 24/28 ACs PASS, 1 FAIL (AC-10), 1 PARTIAL (AC-14), 1 NOT VERIFIED (AC-21), 1 unrelated to new code.
-
----
-
-## Edge Cases Verification
-
-| # | Edge Case | Handled? | Notes |
-|---|-----------|----------|-------|
-| 1 | Profile save with no changes | YES | PATCH is idempotent; save button always enabled |
-| 2 | Upload >5MB image | YES | Client check at profile-section.tsx:56 |
-| 3 | Upload non-image file | YES | Client check at profile-section.tsx:61-68 + `accept` attr |
-| 4 | Wrong current password | YES | Djoser error parsed inline at security-section.tsx:67-68 |
-| 5 | Common/weak password | YES | Djoser validation at security-section.tsx:70-71 |
-| 6 | Profile update network failure | YES | onError toast, form state preserved |
-| 7 | Zero weight check-ins | YES | WeightChart empty state |
-| 8 | Zero workouts | YES | VolumeChart empty state |
-| 9 | Zero activity summaries | YES | AdherenceChart empty state |
-| 10 | All three charts empty | YES | Each shows individual empty state |
-| 11 | Notification data is empty `{}` | YES | getNotificationTraineeId returns null |
-| 12 | trainee_id points to removed trainee | YES | Navigation proceeds; trainee detail handles 404 |
-| 13 | Resend cancelled invitation | YES | Backend returns 400; onError toast |
-| 14 | Cancel last invitation | YES | Query invalidation; table shows empty state |
-| 15 | Double-click resend/cancel | PARTIAL | Resend button disabled via isPending, cancel dialog button disabled. But dropdown can be re-opened for a second resend click before first resolves. |
+### Summary: 27/28 ACs PASS, 1 NOT VERIFIED (AC-21 -- backend pre-existing, out of scope for this change).
 
 ---
 
-## Quality Score: 6/10
+## Security Concerns
+
+No new security concerns introduced by the fixes. The `refreshUser` function reuses the existing `fetchUser` which goes through the authenticated `apiClient`.
+
+---
+
+## Performance Concerns
+
+The `refreshUser()` call in each mutation's `onSuccess` adds one additional API call after every profile/image mutation. This is acceptable -- it's a single GET request that replaces the previous (broken) approach of writing to an unread cache key. The alternative would be to update context directly from the mutation response, but `refreshUser()` is simpler and ensures the context always reflects server truth.
+
+The `staleTime` addition on progress queries reduces unnecessary refetches. Good improvement.
+
+The conditional popover render eliminates unnecessary notification queries. Good improvement.
+
+---
+
+## Quality Score: 8/10
 
 ### Breakdown
-- **Functionality: 6/10** -- C1 breaks a core AC (header update after save). M2 deviates from spec (grouped vs stacked).
-- **Code Quality: 8/10** -- Clean decomposition, proper TypeScript types, good component structure, consistent patterns.
-- **Security: 9/10** -- No issues found. Defense-in-depth on file uploads. Proper password field handling.
-- **Performance: 8/10** -- Reasonable for scope. Minor optimization opportunities (staleTime, useMemo).
-- **Edge Cases: 8/10** -- Nearly all handled. Double-click partially addressed.
-- **Architecture: 5/10** -- C1 is a fundamental disconnect between React Context (auth) and React Query (mutations). The mutations update a cache that nothing reads. This is an architectural mismatch that needs resolution.
+- **Functionality: 9/10** -- All critical ACs now pass. AC-21 is out of scope (backend pre-existing).
+- **Code Quality: 8/10** -- Clean fix approach. `useSyncExternalStore` is the right tool. Form state consolidation is clean.
+- **Security: 9/10** -- No issues found or introduced.
+- **Performance: 8/10** -- Reasonable. `refreshUser` adds one API call per save, acceptable trade-off.
+- **Edge Cases: 8/10** -- All ticket edge cases handled. Double-click on dropdown still technically possible but mitigated by mutation `isPending`.
+- **Architecture: 8/10** -- The React Context / mutation interaction is now correct. Auth state is updated through the proper channel.
 
-### What Keeps It at 6
-- **C1 is a show-stopper for AC-10.** The user saves their profile, sees a success toast, but their name in the header doesn't change. This erodes trust in the save action.
-- **M2 is a spec deviation.** The adherence chart looks different from what was specified.
-- **M1 causes a visual flash** on the theme selector on every page load.
+### What Improved Since Round 1
+- **C1 was the show-stopper** -- now properly resolved with a clean `refreshUser` pattern.
+- **C2 concern is moot** -- form re-initializes from context on remount, and retains typed values during the same session. Correct behavior.
+- **M1 hydration fix** uses the idiomatic React 18 approach with `useSyncExternalStore`.
+- **M2 stacked chart** now matches the spec with proper `stackId` and domain.
+- **M3-M5** all cleanly resolved.
 
-### Positives
-- All API endpoint URLs match the backend routing.
-- API response shapes match backend serializer output (verified against `UserSerializer`, `TraineeProgressView`, `TraineeInvitationSerializer`).
-- Comprehensive loading, empty, and error states for every feature.
-- Good accessibility: ARIA labels, roles, keyboard-navigable elements.
-- Shared `getNotificationTraineeId` helper avoids code duplication between popover and full page.
-- Invitation action visibility is correctly context-sensitive per status.
-- File upload has both client-side and server-side validation.
-- Controlled popover pattern for notification bell enables programmatic close on navigation.
+### What Keeps It at 8 (not higher)
+- 5 minor issues from round 1 remain unfixed (m2, m4, m5, m7, m9). None are blocking, but they represent polish debt.
+- AC-21 remains unverified (backend notification `data` field).
+- The `refreshUser` = `fetchUser` pattern logs the user out on transient API errors (pre-existing, not a regression).
 
 ---
 
-## Recommendation: REQUEST CHANGES
+## Recommendation: APPROVE
 
-### Must fix before approve:
-1. **C1** -- Fix the React Query / Auth Context disconnect so profile updates reflect in the header nav immediately (AC-10)
-2. **C2** -- Add useEffect to sync form state when user data changes in context
-3. **M1** -- Fix hydration mismatch in AppearanceSection theme selector (standard next-themes mounted pattern)
-4. **M2** -- Either add `stackId` to adherence chart bars (matching AC-14 spec) or explicitly document the grouped chart as an intentional deviation
+All 2 Critical issues and all 5 Major issues from Round 1 have been properly fixed. No new Critical or Major issues were introduced by the fixes. The remaining open items are all Minor severity and do not block merge.
+
+The code is production-ready for this feature set.

@@ -34,12 +34,17 @@ export function ProfileSection() {
     businessName: user?.business_name ?? "",
   });
 
+  const isDirty =
+    form.firstName.trim() !== (user?.first_name ?? "") ||
+    form.lastName.trim() !== (user?.last_name ?? "") ||
+    form.businessName.trim() !== (user?.business_name ?? "");
+
   const handleSave = useCallback(() => {
     updateProfile.mutate(
       {
-        first_name: form.firstName,
-        last_name: form.lastName,
-        business_name: form.businessName,
+        first_name: form.firstName.trim(),
+        last_name: form.lastName.trim(),
+        business_name: form.businessName.trim(),
       },
       {
         onSuccess: () => toast.success("Profile updated"),
@@ -118,7 +123,7 @@ export function ProfileSection() {
             </Avatar>
             {isImageLoading && (
               <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
-                <Loader2 className="h-5 w-5 animate-spin text-white" />
+                <Loader2 className="h-5 w-5 animate-spin text-white" aria-hidden="true" />
               </div>
             )}
           </div>
@@ -196,15 +201,16 @@ export function ProfileSection() {
             value={user?.email ?? ""}
             disabled
             className="bg-muted"
+            aria-describedby="email-hint"
           />
-          <p className="text-xs text-muted-foreground">
+          <p id="email-hint" className="text-xs text-muted-foreground">
             Email cannot be changed
           </p>
         </div>
 
         <Button
           onClick={handleSave}
-          disabled={updateProfile.isPending}
+          disabled={updateProfile.isPending || !isDirty}
         >
           {updateProfile.isPending && (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />

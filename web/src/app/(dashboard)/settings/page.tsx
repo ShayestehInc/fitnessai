@@ -26,11 +26,11 @@ function SettingsSkeleton() {
 }
 
 export default function SettingsPage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refreshUser } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="max-w-2xl space-y-6">
         <PageHeader title="Settings" description="Manage your account" />
         <SettingsSkeleton />
       </div>
@@ -39,11 +39,11 @@ export default function SettingsPage() {
 
   if (!user) {
     return (
-      <div className="space-y-6">
+      <div className="max-w-2xl space-y-6">
         <PageHeader title="Settings" description="Manage your account" />
         <ErrorState
           message="Failed to load settings"
-          onRetry={() => window.location.reload()}
+          onRetry={() => refreshUser()}
         />
       </div>
     );

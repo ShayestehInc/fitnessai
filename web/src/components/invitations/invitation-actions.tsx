@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Copy, MoreHorizontal, RefreshCw, XCircle } from "lucide-react";
+import { Copy, Loader2, MoreHorizontal, RefreshCw, XCircle } from "lucide-react";
 import {
   useResendInvitation,
   useCancelInvitation,
@@ -32,6 +32,7 @@ export function InvitationActions({ invitation }: InvitationActionsProps) {
   const resend = useResendInvitation();
   const cancel = useCancelInvitation();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Backend keeps status=PENDING even after expiration; is_expired flag distinguishes
   const status = invitation.is_expired && invitation.status === "PENDING"
@@ -42,6 +43,7 @@ export function InvitationActions({ invitation }: InvitationActionsProps) {
   const canCancel = status === "PENDING";
 
   const handleCopy = () => {
+    setDropdownOpen(false);
     try {
       navigator.clipboard.writeText(invitation.invitation_code).then(
         () => toast.success("Invitation code copied"),
@@ -53,6 +55,7 @@ export function InvitationActions({ invitation }: InvitationActionsProps) {
   };
 
   const handleResend = () => {
+    setDropdownOpen(false);
     resend.mutate(invitation.id, {
       onSuccess: () => toast.success("Invitation resent"),
       onError: () => toast.error("Failed to resend invitation"),
@@ -71,7 +74,7 @@ export function InvitationActions({ invitation }: InvitationActionsProps) {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -98,7 +101,10 @@ export function InvitationActions({ invitation }: InvitationActionsProps) {
           )}
           {canCancel && (
             <DropdownMenuItem
-              onClick={() => setShowCancelDialog(true)}
+              onClick={() => {
+                setDropdownOpen(false);
+                setShowCancelDialog(true);
+              }}
               className="text-destructive focus:text-destructive"
             >
               <XCircle className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -130,6 +136,9 @@ export function InvitationActions({ invitation }: InvitationActionsProps) {
               onClick={handleCancel}
               disabled={cancel.isPending}
             >
+              {cancel.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+              )}
               Cancel invitation
             </Button>
           </DialogFooter>

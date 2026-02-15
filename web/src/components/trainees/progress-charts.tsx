@@ -29,6 +29,25 @@ function formatDate(dateStr: string): string {
   return isValid(d) ? format(d, "MMM d") : dateStr;
 }
 
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("en-US").format(value);
+}
+
+/** Shared tooltip styling that follows the design system theme */
+const tooltipContentStyle: React.CSSProperties = {
+  backgroundColor: "hsl(var(--card))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: "var(--radius)",
+  color: "hsl(var(--card-foreground))",
+};
+
+/** Theme-aware chart colors mapped to --chart-N CSS custom properties */
+const CHART_COLORS = {
+  food: "hsl(var(--chart-2))",
+  workout: "hsl(var(--chart-1))",
+  protein: "hsl(var(--chart-4))",
+} as const;
+
 interface WeightChartProps {
   data: WeightEntry[];
 }
@@ -81,14 +100,7 @@ export function WeightChart({ data }: WeightChartProps) {
                 domain={["dataMin - 2", "dataMax + 2"]}
                 unit=" kg"
               />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "var(--radius)",
-                  color: "hsl(var(--card-foreground))",
-                }}
-              />
+              <Tooltip contentStyle={tooltipContentStyle} />
               <Line
                 type="monotone"
                 dataKey="weight"
@@ -154,12 +166,11 @@ export function VolumeChart({ data }: VolumeChartProps) {
                 tick={{ fill: "hsl(var(--muted-foreground))" }}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "var(--radius)",
-                  color: "hsl(var(--card-foreground))",
-                }}
+                contentStyle={tooltipContentStyle}
+                formatter={(value: number | undefined) => [
+                  value !== undefined ? formatNumber(value) : "—",
+                  "Volume",
+                ]}
               />
               <Bar
                 dataKey="volume"
@@ -223,17 +234,14 @@ export function AdherenceChart({ data }: AdherenceChartProps) {
               />
               <YAxis
                 className="text-xs"
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
                 domain={[0, 3]}
                 ticks={[0, 1, 2, 3]}
+                tick={false}
+                axisLine={false}
+                width={8}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "var(--radius)",
-                  color: "hsl(var(--card-foreground))",
-                }}
+                contentStyle={tooltipContentStyle}
                 formatter={(
                   value: number | undefined,
                   name: string | undefined,
@@ -243,19 +251,19 @@ export function AdherenceChart({ data }: AdherenceChartProps) {
               <Bar
                 dataKey="food"
                 stackId="adherence"
-                fill="hsl(142, 76%, 36%)"
+                fill={CHART_COLORS.food}
                 name="Food Logged"
               />
               <Bar
                 dataKey="workout"
                 stackId="adherence"
-                fill="hsl(221, 83%, 53%)"
+                fill={CHART_COLORS.workout}
                 name="Workout Logged"
               />
               <Bar
                 dataKey="protein"
                 stackId="adherence"
-                fill="hsl(47, 96%, 53%)"
+                fill={CHART_COLORS.protein}
                 name="Protein Goal"
                 radius={[2, 2, 0, 0]}
               />

@@ -1,114 +1,176 @@
-# Architecture Review: Pipeline 9 -- Web Trainer Dashboard
+# Architecture Review: Pipeline 10 -- Web Dashboard Phase 2 (Settings, Progress Charts, Notifications, Invitations)
 
 ## Review Date
 2026-02-15
 
 ## Files Reviewed
 
-### Frontend (web/)
-- `web/src/types/activity.ts`, `api.ts`, `trainer.ts`, `user.ts`, `notification.ts`, `invitation.ts`
-- `web/src/hooks/use-auth.ts`, `use-dashboard.ts`, `use-debounce.ts`, `use-trainees.ts`, `use-invitations.ts`, `use-notifications.ts`
-- `web/src/providers/query-provider.tsx`, `theme-provider.tsx`, `auth-provider.tsx`
-- `web/src/lib/constants.ts`, `utils.ts`, `token-manager.ts`, `api-client.ts`
-- `web/src/app/layout.tsx`, `web/src/app/(dashboard)/layout.tsx`, `web/src/app/(auth)/layout.tsx`
-- `web/src/app/(dashboard)/dashboard/page.tsx`, `trainees/page.tsx`, `trainees/[id]/page.tsx`, `invitations/page.tsx`, `notifications/page.tsx`, `settings/page.tsx`
-- `web/src/app/(auth)/login/page.tsx`
-- `web/src/middleware.ts`, `web/next.config.ts`
-- All components in `web/src/components/` (dashboard/, layout/, trainees/, invitations/, notifications/, shared/)
+### New Files
+- `web/src/types/progress.ts`
+- `web/src/hooks/use-progress.ts`
+- `web/src/hooks/use-settings.ts`
+- `web/src/components/settings/profile-section.tsx`
+- `web/src/components/settings/appearance-section.tsx`
+- `web/src/components/settings/security-section.tsx`
+- `web/src/components/trainees/progress-charts.tsx`
+- `web/src/components/invitations/invitation-actions.tsx`
 
-### Backend (reviewed for API contract alignment)
-- `backend/trainer/serializers.py` (all serializers)
-- `backend/trainer/views.py` (all views)
-- `backend/config/settings.py` (CORS config)
+### Modified Files
+- `web/src/lib/constants.ts`
+- `web/src/lib/api-client.ts`
+- `web/src/hooks/use-invitations.ts`
+- `web/src/providers/auth-provider.tsx`
+- `web/src/app/(dashboard)/settings/page.tsx`
+- `web/src/app/(dashboard)/trainees/[id]/page.tsx`
+- `web/src/app/(dashboard)/notifications/page.tsx`
+- `web/src/components/trainees/trainee-progress-tab.tsx`
+- `web/src/components/notifications/notification-item.tsx`
+- `web/src/components/notifications/notification-popover.tsx`
+- `web/src/components/notifications/notification-bell.tsx`
+- `web/src/components/invitations/invitation-columns.tsx`
+- `web/src/components/layout/user-nav.tsx`
 
 ---
 
 ## Architectural Alignment
 
-- [x] Follows existing layered architecture
-- [x] Models/schemas in correct locations
-- [x] No business logic in routers/views (PASS -- pages delegate to hooks, hooks delegate to API client)
-- [x] Consistent with existing patterns
+- [x] Follows existing layered architecture (Pages > Hooks > API Client > Backend)
+- [x] Models/schemas in correct locations (`types/progress.ts` alongside existing types)
+- [x] No business logic in pages (pages delegate to hooks and components)
+- [x] Consistent with existing patterns (hooks, components, providers)
 
 ### Layering Assessment
 
-The Web Trainer Dashboard follows a clean layered architecture:
+All four features follow the established architecture cleanly:
 
 ```
-Pages (app/)  -->  Hooks (hooks/)  -->  API Client (lib/api-client.ts)  -->  Backend API
-   |                    |                        |
-   v                    v                        v
-Components (components/)  Types (types/)   Constants (lib/constants.ts)
+Settings Page:
+  SettingsPage (page) -> ProfileSection/AppearanceSection/SecuritySection (components)
+    -> useUpdateProfile/useUploadProfileImage/useDeleteProfileImage/useChangePassword (hooks)
+      -> apiClient.patch/postFormData/delete/post (api-client)
+
+Progress Charts:
+  TraineeDetailPage (page) -> TraineeProgressTab (component) -> progress-charts (components)
+    -> useTraineeProgress (hook) -> apiClient.get (api-client)
+
+Notifications:
+  NotificationBell -> NotificationPopover -> NotificationItem (all components)
+    -> useNotifications/useMarkAsRead (existing hooks) + getNotificationTraineeId (helper)
+
+Invitations:
+  InvitationColumns -> InvitationActions (component)
+    -> useResendInvitation/useCancelInvitation (hooks) -> apiClient.post/delete (api-client)
 ```
 
-**Strengths:**
-1. **Pages are thin orchestrators.** Each page file composes hooks + components and handles routing/state transitions. No data fetching or business logic in pages.
-2. **Hooks encapsulate data concerns.** React Query configuration, cache keys, and URL construction are all in hooks. Components never call `apiClient` directly.
-3. **Shared components are genuinely reusable.** `DataTable`, `EmptyState`, `ErrorState`, `PageHeader`, `LoadingSpinner` are parameterized generics used across all pages.
-4. **TypeScript types mirror backend serializers.** `TraineeListItem`, `TraineeDetail`, `DashboardStats`, `Invitation`, `Notification` all match their Django serializer counterparts field-for-field.
-5. **Auth is centralized.** Token management, refresh logic, and role enforcement all live in `auth-provider.tsx` + `token-manager.ts` + `middleware.ts`. No auth logic leaks into components.
+**No layering violations detected.** Every data access goes through hooks. No component calls `apiClient` directly. Navigation logic (notification click-through) lives in page/popover containers, not in the `NotificationItem` presentation component.
 
-### Issues Found and Fixed
+---
 
-**Issue 1 (FIXED): Backend `TraineeDetailView` missing `select_related`/`prefetch_related`.**
+## State Management Assessment
 
-The `TraineeDetailView.get_queryset()` returned a plain `User.objects.filter(...)` without any prefetching. The `TraineeDetailSerializer` accesses `obj.profile`, `obj.nutrition_goal`, `obj.programs`, and `obj.activity_summaries` -- each triggering a separate SQL query per trainee (N+1).
+### Auth Context vs React Query -- Boundary Analysis
 
-**Fix applied:** Added `.select_related('profile', 'nutrition_goal').prefetch_related('programs', 'activity_summaries')` to the queryset.
+The codebase uses two state management approaches with a clear boundary:
 
-**Issue 2 (FIXED): Backend `TrainerDashboardView` N+1 loop for inactive trainees.**
+| Concern | Mechanism | Why |
+|---------|-----------|-----|
+| Current user identity | AuthContext (`useState`) | Needed before React Query is initialized; gates route access |
+| Server data (trainees, notifications, invitations) | React Query | Caching, background refetch, optimistic updates |
+| Profile mutations | React Query mutations + `refreshUser()` | Mutation via React Query; user state sync via AuthContext |
+| Theme preference | `next-themes` (localStorage) | Client-only, no server state |
+| Form state (settings) | `useState` | Ephemeral, component-local |
 
-The view iterated over all trainees in Python, querying `trainee.activity_summaries.order_by('-date').first()` for each one. For a trainer with 50 trainees, this was 50+ SQL queries.
+**Assessment:** The boundary is clear and correct. The settings hooks (`use-settings.ts`) call `refreshUser()` (from AuthContext) on mutation success rather than invalidating a React Query cache key for the current user. This is the right call because the `user` object lives in AuthContext state, not in a React Query cache. If the user data were migrated to React Query in the future, the mutations would need to invalidate `["current-user"]` instead, but for now the imperative `refreshUser` approach is simpler and correct.
 
-**Fix applied:** Replaced the Python loop with a single annotated query: `trainees.annotate(latest_activity_date=Max('activity_summaries__date')).filter(...)`. Also added `select_related('profile').prefetch_related('daily_logs', 'programs')` to the base queryset.
+**One nuance:** After `refreshUser()` updates the `user` reference in AuthContext, `ProfileSection`'s `useState`-based form does NOT automatically re-sync (by design -- `useState` only captures the initial value). This means after save + refreshUser, the form retains the user's local values. Since the save just sent those exact values to the server, they are consistent. The `isDirty` flag uses trimmed comparisons against the server-returned user to correctly disable the Save button after a successful save. This is the right behavior.
 
-**Issue 3 (FIXED): Backend `TrainerStatsView` N+1 loop for pending onboarding count.**
+---
 
-The view iterated over trainees with `for trainee in trainees: trainee.profile.onboarding_completed`, triggering a query per trainee.
+## API Client Assessment
 
-**Fix applied:** Replaced with `trainees.filter(Q(profile__isnull=True) | Q(profile__onboarding_completed=False)).count()`.
+### FormData Addition
 
-**Issue 4 (FIXED): Backend `AdherenceAnalyticsView` N+1 loop for per-trainee adherence.**
+The `postFormData<T>()` method was added cleanly to `api-client.ts`:
 
-The view iterated over trainees, running `summaries.filter(trainee=trainee).count()` and a second filtered count per trainee.
+```typescript
+postFormData<T>(url: string, formData: FormData): Promise<T> {
+  return request<T>(url, { method: "POST", body: formData });
+}
+```
 
-**Fix applied:** Replaced with a single annotated `.values().annotate()` query using `Case`/`When` to compute adherence in one SQL pass.
+The `buildHeaders()` function correctly skips `Content-Type: application/json` when `body instanceof FormData`, letting the browser set the correct `multipart/form-data` boundary:
 
-**Issue 5 (FIXED): Backend `ProgressAnalyticsView` N+1 queries and bare `except:`.**
+```typescript
+...(options.body && !(options.body instanceof FormData)
+  ? { "Content-Type": "application/json" }
+  : {}),
+```
 
-The view iterated per-trainee calling `trainee.weight_checkins.order_by('date')` without prefetch, and used bare `except:` for profile access.
+**Assessment:** Clean. The FormData detection is in `buildHeaders` (shared by both initial request and retry), so the 401-retry path also handles FormData correctly. No issues.
 
-**Fix applied:** Added `.select_related('profile').prefetch_related('weight_checkins')`. Changed bare `except:` to specific `User.profile.RelatedObjectDoesNotExist`.
+### Constants Organization
 
-**Issue 6 (FIXED): Backend serializers used bare `except:` clauses (4 instances).**
+New endpoints follow the established pattern:
 
-`TraineeListSerializer.get_profile_complete`, `TraineeDetailSerializer.get_profile`, `TraineeDetailSerializer.get_nutrition_goal`, and `ProgressAnalyticsView.get` all had bare `except:` that would silently swallow any error. Per project rules: "NO exception silencing."
+```typescript
+// Static endpoints: SCREAMING_SNAKE_CASE
+UPDATE_PROFILE: `${API_BASE}/api/users/me/`,
+PROFILE_IMAGE: `${API_BASE}/api/users/profile-image/`,
+CHANGE_PASSWORD: `${API_BASE}/api/auth/users/set_password/`,
 
-**Fix applied:** Changed all 4 instances to catch the specific `RelatedObjectDoesNotExist` exception.
+// Dynamic endpoints: camelCase functions
+traineeProgress: (id: number) => `${API_BASE}/api/trainer/trainees/${id}/progress/`,
+invitationDetail: (id: number) => `${API_BASE}/api/trainer/invitations/${id}/`,
+invitationResend: (id: number) => `${API_BASE}/api/trainer/invitations/${id}/resend/`,
+```
 
-**Issue 7 (FIXED): `TraineeListSerializer.get_last_activity` bypassed prefetch cache.**
+**Note:** `UPDATE_PROFILE` (`/api/users/me/`) and `CURRENT_USER` (`/api/auth/users/me/`) are different endpoints. The naming makes this clear, but a comment explaining the distinction would be helpful for future developers. Not blocking.
 
-The method called `obj.daily_logs.order_by('-date').first()` which issues a new SQL query even when `daily_logs` is prefetched (because `.order_by().first()` creates a new queryset).
+---
 
-**Fix applied:** Changed to iterate prefetched data in Python: `list(obj.daily_logs.all())` then `max(log.date for log in logs)`.
+## Component Patterns Assessment
 
-**Issue 8 (FIXED): `TraineeListSerializer.get_current_program` bypassed prefetch cache.**
+### Settings Components
 
-Same pattern -- `obj.programs.filter(is_active=True).first()` creates a new queryset, defeating prefetch.
+The three settings sections (Profile, Appearance, Security) follow the established component conventions:
 
-**Fix applied:** Changed to `next((p for p in obj.programs.all() if p.is_active), None)`.
+1. **ProfileSection** (223 lines): Slightly over the 150-line guideline, but the file is a single cohesive form with image upload. Splitting the image upload into a separate component would be reasonable but not urgent.
 
-**Issue 9 (FIXED): Frontend `DashboardOverview` type missing `today` field.**
+2. **AppearanceSection** (104 lines): Well under limit. Uses `useSyncExternalStore` for hydration-safe mount detection -- this is the correct React 19 approach (avoids the `useEffect(() => setMounted(true), [])` anti-pattern). Keyboard navigation with arrow keys and roving tabindex follows WAI-ARIA radiogroup pattern.
 
-The backend `TrainerDashboardView` returns `{'recent_trainees': ..., 'inactive_trainees': ..., 'today': str(today)}` but the TypeScript `DashboardOverview` interface only had `recent_trainees` and `inactive_trainees`.
+3. **SecuritySection** (173 lines): Slightly over limit. Error handling for Djoser's password validation responses is thorough -- parses `current_password`, `new_password`, and `non_field_errors` from the response body. The form uses `<form onSubmit>` (correct -- enables Enter-to-submit).
 
-**Fix applied:** Added `today: string` to the `DashboardOverview` interface.
+### Progress Charts
 
-**Issue 10 (FIXED): Backend `TraineeActivityView` and `AdherenceAnalyticsView` accepted unbounded `days` parameter.**
+**progress-charts.tsx** (276 lines): Contains three chart components (`WeightChart`, `VolumeChart`, `AdherenceChart`) and two shared utilities. This exceeds the 150-line guideline, but splitting three tightly related chart components into three separate files would create import churn without meaningful benefit. The file is organized with clear interfaces between each section. Acceptable pragmatic decision.
 
-The `days` query parameter was parsed as `int(request.query_params.get('days', 30))` without bounds checking. A malicious request with `?days=999999999` would generate an expensive query.
+**Architectural fixes applied:**
+1. **Extracted `tooltipContentStyle`** -- The identical tooltip CSS object was duplicated across all three charts. Extracted to a single shared `const tooltipContentStyle: React.CSSProperties` at the top of the file. Reduces duplication and ensures tooltip styling stays consistent.
 
-**Fix applied:** Added `min(max(int(...), 1), 365)` clamping with try/except fallback to 30.
+2. **Replaced hardcoded HSL colors with theme chart variables** -- The `AdherenceChart` used `hsl(142, 76%, 36%)`, `hsl(221, 83%, 53%)`, `hsl(47, 96%, 53%)` for the stacked bars. These bypassed the design system and would not adapt to dark mode. Replaced with `hsl(var(--chart-2))`, `hsl(var(--chart-1))`, `hsl(var(--chart-4))` which reference the CSS custom properties defined in `globals.css` for both light and dark themes. This is architecturally important for the white-label infrastructure priority -- when per-trainer branding is added, chart colors will automatically follow the theme.
+
+3. **Fixed recharts v3 formatter type** -- The `VolumeChart` tooltip formatter had `(value: number)` but recharts v3's `Formatter` type expects `(value: number | undefined)`. Fixed to handle `undefined` gracefully.
+
+### Notification Click-Through
+
+The `getNotificationTraineeId()` helper in `notification-item.tsx` is an exported pure function that:
+- Handles both `number` and `string` types from the API's `data` JSONField
+- Returns `number | null` (not `number | undefined`) -- clear null-means-absent semantics
+- Validates `> 0` to prevent ID 0 edge cases
+
+This helper is shared between `notification-item.tsx` (visual indicator), `notification-popover.tsx` (navigation), and `notifications/page.tsx` (navigation). Extracting it as a named export rather than duplicating the logic is correct.
+
+**Controlled Popover pattern:** `NotificationBell` uses `useState(false)` for controlled open/close, passing `onClose` to `NotificationPopover`. This is necessary because programmatic close (after navigation) is not possible with uncontrolled Radix Popovers. Correct approach.
+
+### Invitation Actions
+
+`InvitationActions` handles the PENDING/EXPIRED/ACCEPTED/CANCELLED status matrix correctly:
+- Status-dependent action visibility (`canResend`, `canCancel`)
+- `is_expired` flag override (backend keeps `status=PENDING` even after expiration)
+- Controlled dropdown state to prevent UI conflicts between dropdown and dialog
+- Confirmation dialog for destructive cancel action
+
+The mutations use `queryClient.invalidateQueries({ queryKey: ["invitations"] })` which correctly invalidates all paginated invitation queries. No stale data after resend/cancel.
 
 ---
 
@@ -116,148 +178,22 @@ The `days` query parameter was parsed as `int(request.query_params.get('days', 3
 
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | N/A | No schema changes -- web dashboard consumes existing API |
+| Schema changes backward-compatible | N/A | No backend changes -- all APIs already existed |
 | Migrations needed | N/A | No new models or fields |
-| Indexes for new queries | PASS | All queries use existing indexed fields (`parent_trainer`, `date`, `trainee`) |
-| No N+1 query patterns | FIXED | 6 N+1 patterns fixed (see Issues 1-5, 7-8 above) |
+| Indexes for new queries | PASS | Progress endpoint uses existing indexed fields |
+| No N+1 query patterns | PASS | All new frontend queries are single-endpoint fetches |
 
-### TypeScript / Django Serializer Contract Alignment
+### TypeScript Type Alignment
 
-| TS Type | Django Serializer | Match? | Notes |
-|---------|-------------------|--------|-------|
-| `DashboardStats` | `TrainerDashboardStatsSerializer` | PASS | All 8 fields match |
-| `DashboardOverview` | `TrainerDashboardView.get()` response | FIXED | Added missing `today` field |
-| `TraineeListItem` | `TraineeListSerializer` | PASS | All 9 fields match |
-| `TraineeDetail` | `TraineeDetailSerializer` | PASS | All 12 fields match |
-| `TraineeProgram` | Inline dict in serializer | PASS | `is_active` is optional in TS (only returned in detail view) |
-| `TraineeProfile` | Inline dict in serializer | PASS | All 9 fields match |
-| `NutritionGoal` | Inline dict in serializer | PASS | All 5 fields match |
-| `RecentActivity` | Inline dict in serializer | PASS | All 6 fields match |
-| `ActivitySummary` | `TraineeActivitySerializer` | PASS | All 16 fields match |
-| `Invitation` | `TraineeInvitationSerializer` | PASS | All 12 fields match |
-| `CreateInvitationPayload` | `CreateInvitationSerializer` | PASS | All 4 fields match |
-| `Notification` | Implied from backend | PASS | Standard notification fields |
-| `User` | `users/me/` response | PASS | Matches Djoser user serializer |
-| `PaginatedResponse<T>` | DRF standard pagination | PASS | `{count, next, previous, results}` |
-
----
-
-## API Design
-
-| Area | Pattern | Status | Notes |
-|------|---------|--------|-------|
-| RESTful URLs | `/api/trainer/trainees/`, `/api/trainer/dashboard/` | PASS | Consistent noun-based paths |
-| Error handling | `ApiError` class with status/body | PASS | Structured error propagation |
-| Pagination | DRF `PageNumberPagination` | PASS | Standard `?page=N` with `count`/`next`/`previous` |
-| Auth | JWT with auto-refresh | PASS | 401 triggers refresh + retry pattern |
-| CORS | Development: allow all; Production: env-configured whitelist | PASS | `CORS_ALLOW_CREDENTIALS = True` |
-
-**API Client Design (Frontend):**
-
-The `apiClient` object in `web/src/lib/api-client.ts` is well-designed:
-- Generic `request<T>()` with typed responses
-- Automatic 401 handling with token refresh and retry (single retry only -- prevents infinite loops)
-- Session expiry redirects to `/login`
-- `ApiError` class preserves status code and response body for structured error display
-- Content-Type header only added when body is present (correct for GET/DELETE)
-
----
-
-## Frontend Patterns
-
-### Component Hierarchy
-
-```
-RootLayout (providers: Theme > Query > Auth > Tooltip)
-  ├── AuthLayout (centered card)
-  │   └── LoginPage
-  └── DashboardLayout (sidebar + header + main)
-      ├── DashboardPage (StatsCards, RecentTrainees, InactiveTrainees)
-      ├── TraineesPage (TraineeSearch, TraineeTable w/ DataTable)
-      ├── TraineeDetailPage (Overview/Activity/Progress tabs)
-      ├── InvitationsPage (InvitationTable, CreateInvitationDialog)
-      ├── NotificationsPage (NotificationItem list)
-      └── SettingsPage (placeholder)
-```
-
-**Assessment:** Clean hierarchy. No deeply nested prop drilling -- hooks provide data at the point of use. Layout concerns (sidebar, header) are separated from page content. The `(dashboard)` and `(auth)` route groups correctly split authenticated and public layouts.
-
-### React Query Configuration
-
-| Setting | Value | Assessment |
-|---------|-------|------------|
-| `staleTime` | 30s | GOOD -- dashboard data is reasonably fresh without over-fetching |
-| `retry` | 1 | GOOD -- prevents hammering a failing API |
-| `refetchOnWindowFocus` | false | GOOD for dashboard (avoids jarring refetches when tabbing back) |
-| Notification polling | 30s (`refetchInterval`) | GOOD -- not in background (`refetchIntervalInBackground: false`) |
-
-**Cache Key Strategy:**
-- `["dashboard", "stats"]` / `["dashboard", "overview"]` -- correctly separated
-- `["trainees", page, search]` -- includes all query parameters as cache key dimensions
-- `["trainee", id]` -- per-trainee cache
-- `["trainee", id, "activity", days]` -- correctly parameterized by days
-- `["invitations", page]` -- paginated
-- `["notifications", page, filter]` -- paginated + filtered
-- `["notifications", "unread-count"]` -- polled independently
-
-The key strategy is correct -- invalidation after mutations uses `queryKey` prefix matching (`{ queryKey: ["invitations"] }` invalidates all invitation pages).
-
-### Hook Pattern
-
-All hooks follow a consistent pattern:
-```typescript
-export function useXxx(params) {
-  return useQuery<TypedResponse>({
-    queryKey: ["key", ...params],
-    queryFn: () => apiClient.get<TypedResponse>(url),
-  });
-}
-```
-
-Mutations follow:
-```typescript
-export function useCreateXxx() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data) => apiClient.post<T>(url, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...] }),
-  });
-}
-```
-
-This is textbook React Query usage. No issues.
-
-### Provider Nesting
-
-```
-ThemeProvider > QueryProvider > AuthProvider > TooltipProvider
-```
-
-This is correct:
-- `ThemeProvider` is outermost (no dependencies)
-- `QueryProvider` wraps `AuthProvider` (auth could use queries in future)
-- `AuthProvider` provides user context to all dashboard components
-- `TooltipProvider` is innermost (UI only)
-
-The `Toaster` sits outside all providers (correct -- it uses its own portal).
-
-### Auth Flow
-
-```
-Middleware (server-side):
-  cookie "has_session" → redirect to /dashboard or /login
-
-AuthProvider (client-side):
-  1. Check localStorage for tokens
-  2. If access token expired, try refresh
-  3. Fetch /users/me/ to validate
-  4. If role !== TRAINER, clear tokens + error
-  5. 10-second timeout guard against hanging auth
-```
-
-The dual-layer auth (server middleware + client provider) is the correct Next.js pattern. The middleware handles the initial redirect (before JS loads), and the AuthProvider handles the detailed validation (after hydration).
-
-**Security note:** The `has_session` cookie is not an auth token -- it's a boolean hint. The actual auth happens via the JWT tokens in localStorage. This is acceptable because the cookie only controls redirect behavior, not data access.
+| TS Type | Backend Source | Status | Notes |
+|---------|---------------|--------|-------|
+| `TraineeProgress` | `GET /api/trainer/trainees/<id>/progress/` | PASS | `weight_progress`, `volume_progress`, `adherence_progress` arrays |
+| `WeightEntry` | Inline in progress response | PASS | `date: string`, `weight_kg: number` |
+| `VolumeEntry` | Inline in progress response | PASS | `date: string`, `volume: number` |
+| `AdherenceEntry` | Inline in progress response | PASS | `date: string`, `logged_food/workout: boolean`, `hit_protein: boolean` |
+| `UpdateProfilePayload` | `PATCH /api/users/me/` | PASS | `first_name`, `last_name`, `business_name` |
+| `ChangePasswordPayload` | `POST /api/auth/users/set_password/` | PASS | Djoser `current_password`, `new_password` |
+| `ProfileImageResponse` | `POST /api/users/profile-image/` | PASS | `success`, `profile_image`, `user` |
 
 ---
 
@@ -265,17 +201,11 @@ The dual-layer auth (server middleware + client provider) is the correct Next.js
 
 | # | Area | Status | Notes |
 |---|------|--------|-------|
-| 1 | N+1 queries (backend) | FIXED | 6 N+1 patterns resolved (see Issues above) |
-| 2 | Unbounded query params | FIXED | `days` parameter clamped to 1-365 |
-| 3 | React Query caching | PASS | 30s stale time, polling only for notification count |
-| 4 | Bundle size | MINOR | Only shadcn/ui + lucide-react + date-fns + React Query. No chart library yet. When progress charts are added, use dynamic imports. |
-| 5 | DataTable re-renders | PASS | `keyExtractor` prevents unnecessary row remounts |
-| 6 | Notification polling | PASS | 30s interval, disabled in background tab |
-| 7 | Dashboard concurrent queries | PASS | `useDashboardStats()` and `useDashboardOverview()` fire in parallel (separate hooks, not sequential) |
-| 8 | Image optimization | PASS | Next.js `remotePatterns` configured for backend image hosts |
-| 9 | Standalone output | PASS | `output: "standalone"` in next.config for Docker deployment |
-
-**Concern #4 detail:** The current bundle is lean. When the `TraineeProgressTab` is implemented with charts (currently a placeholder), the charting library should be loaded via `next/dynamic` with `ssr: false` to keep the initial bundle small.
+| 1 | Progress charts with large datasets | MINOR | recharts renders all data points. For trainees with 365+ weight check-ins, the weight chart would render 365 SVG elements. Currently acceptable (backend returns last N check-ins). If the API ever returns unbounded data, add client-side data downsampling or time-range filtering. |
+| 2 | recharts bundle size | PASS | recharts v3 is tree-shakeable. Only `LineChart`, `BarChart`, and their sub-components are imported. Bundle impact is ~45-60KB gzipped. The `TraineeProgressTab` is only rendered when the user navigates to a specific trainee's Progress tab, so this does not affect initial load. |
+| 3 | Profile image upload size | PASS | Client-side validation at 5MB prevents oversized uploads. Backend likely has its own limit. |
+| 4 | Notification popover slice | MINOR | `data?.results?.slice(0, 5)` fetches a full page (~20 items) and discards 15. A `?page_size=5` parameter would be more efficient. Carried forward from Pipeline 9 debt. |
+| 5 | Settings form re-renders | PASS | `useCallback` on handlers prevents unnecessary child re-renders. `isDirty` is computed inline (not in state) -- correct, avoids stale comparisons. |
 
 ---
 
@@ -285,63 +215,58 @@ The dual-layer auth (server middleware + client provider) is the correct Next.js
 
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| 1 | `TraineeProgressTab` is a placeholder | LOW | Documented as "Coming soon." Backend `TraineeProgressView` already exists. Frontend integration is the remaining work. |
-| 2 | `SettingsPage` is a placeholder | LOW | Documented as "Coming soon." Expected to be implemented in a future pipeline. |
-| 3 | Pagination UI duplicated across pages | LOW | `InvitationsPage` and `NotificationsPage` have inline prev/next buttons. `TraineesPage` uses `DataTable`'s built-in pagination. A shared `Pagination` component would unify these. The shadcn `Pagination` component exists but is not used. |
-| 4 | `NotificationPopover` fetches page 1 and slices to 5 | LOW | This works but fetches up to 20 items (default page size) and discards 15. A dedicated endpoint or `?page_size=5` query param would be more efficient. |
-| 5 | Token storage in `localStorage` | MEDIUM | Industry practice is shifting toward `httpOnly` cookies for JWT storage to prevent XSS token theft. The current approach is common and acceptable for a trainer dashboard (not a banking app), but should be revisited if the dashboard handles sensitive financial data (Stripe). |
+| 1 | `progress-charts.tsx` is 276 lines (vs 150-line guideline) | LOW | Three chart components + shared utilities in one file. Pragmatic for now; split when a 4th chart is added. |
+| 2 | `ProfileSection` at 223 lines | LOW | Image upload section could be extracted to `ProfileImageUpload` component. Not urgent. |
+| 3 | Dev-done.md lists recharts as `^2.15.3` but package.json has `^3.7.0` | LOW | Documentation inconsistency. The actual dependency is correct at v3. |
+| 4 | `SettingsPage.refreshUser` in error retry uses `window.location.reload()` | LOW | Could use `refreshUser()` directly instead of a full page reload. Minor -- the error state is rare. |
 
 ### Debt Reduced
 
 | # | Description | Impact |
 |---|-------------|--------|
-| 1 | Backend N+1 queries eliminated | 6 N+1 patterns fixed across `TraineeDetailView`, `TrainerDashboardView`, `TrainerStatsView`, `AdherenceAnalyticsView`, `ProgressAnalyticsView`, and serializers |
-| 2 | Bare `except:` clauses replaced | 4 instances replaced with specific exception catches -- improves debuggability |
-| 3 | TypeScript/API contract aligned | `DashboardOverview.today` field added to match backend response |
-| 4 | Query param bounds checking added | `days` parameter clamped to prevent abuse |
-
----
-
-## Architecture Score: 8/10
-
-**Strengths (what earned points):**
-- Clean layered architecture: Pages > Hooks > API Client > Backend
-- TypeScript types accurately mirror Django serializers
-- React Query used idiomatically with proper cache keys and invalidation
-- Auth flow is thorough: middleware + provider + token refresh + role enforcement
-- Shared components are genuinely reusable and consistently used
-- All UX states handled: loading (skeletons), empty, error (with retry), success
-- Component sizes are reasonable -- no bloated files
-- CORS properly configured for dev/prod split
-
-**Deductions:**
-- -1.0: Six N+1 query patterns in backend views/serializers (all fixed, but they existed pre-review)
-- -0.5: Pagination UI inconsistency (DataTable vs inline buttons)
-- -0.5: Two placeholder pages (Progress tab, Settings) shipped as "Coming soon"
-
-## Recommendation: APPROVE
-
-The architecture is solid. The frontend follows Next.js App Router conventions correctly, the hook/provider pattern is clean, and the TypeScript types are well-aligned with the backend. The N+1 query fixes applied during this review significantly improve backend performance for trainers with many trainees. No redesign or major refactoring needed.
+| 1 | Settings page is no longer a placeholder | Removed "Coming soon" technical debt from Pipeline 9 |
+| 2 | Progress tab is no longer a placeholder | Removed "Coming soon" technical debt from Pipeline 9 |
+| 3 | Notification items are now actionable | Notifications go from read-only to click-through navigation |
+| 4 | Invitation table has complete CRUD | Copy/Resend/Cancel actions replace the action-less table |
 
 ---
 
 ## Changes Made by Architect
 
-### Backend (`backend/trainer/views.py`)
-- **`TraineeDetailView.get_queryset()`**: Added `.select_related('profile', 'nutrition_goal').prefetch_related('programs', 'activity_summaries')`
-- **`TrainerDashboardView.get()`**: Added `.select_related('profile').prefetch_related('daily_logs', 'programs')` to base queryset; replaced Python loop for inactive trainees with `Max` annotation query
-- **`TrainerStatsView.get()`**: Replaced Python loop for `pending_onboarding` with single `.filter().count()` query
-- **`AdherenceAnalyticsView.get()`**: Replaced per-trainee N+1 loop with `.values().annotate(Case/When)` aggregation; added `days` parameter bounds checking
-- **`ProgressAnalyticsView.get()`**: Added `.select_related('profile').prefetch_related('weight_checkins')`; fixed bare `except:` to specific exception
-- **`TraineeActivityView.get_queryset()`**: Added `days` parameter bounds checking with clamping to 1-365
-- **Imports**: Added `Case`, `IntegerField`, `Max`, `When` to top-level `django.db.models` import
+### `web/src/components/trainees/progress-charts.tsx`
+1. **Extracted shared `tooltipContentStyle` constant** -- Replaced three identical inline `contentStyle` objects with a single `const tooltipContentStyle: React.CSSProperties` at the top of the file. Eliminates triple-duplication and makes tooltip styling changes a single-point edit.
 
-### Backend (`backend/trainer/serializers.py`)
-- **`TraineeListSerializer.get_profile_complete()`**: Changed bare `except:` to `except User.profile.RelatedObjectDoesNotExist`
-- **`TraineeListSerializer.get_last_activity()`**: Changed from `.order_by('-date').first()` (bypasses prefetch) to Python iteration over prefetched `daily_logs`; return type annotated as `str | None`
-- **`TraineeListSerializer.get_current_program()`**: Changed from `.filter(is_active=True).first()` (bypasses prefetch) to Python `next()` over prefetched `programs`
-- **`TraineeDetailSerializer.get_profile()`**: Changed bare `except:` to `except User.profile.RelatedObjectDoesNotExist`
-- **`TraineeDetailSerializer.get_nutrition_goal()`**: Changed bare `except:` to `except User.nutrition_goal.RelatedObjectDoesNotExist`
+2. **Replaced hardcoded HSL colors with theme CSS custom properties** -- Added `CHART_COLORS` constant mapping `food`, `workout`, `protein` to `hsl(var(--chart-2))`, `hsl(var(--chart-1))`, `hsl(var(--chart-4))` respectively. These variables are defined in `globals.css` with both light and dark mode values. The hardcoded `hsl(142, 76%, 36%)`, `hsl(221, 83%, 53%)`, `hsl(47, 96%, 53%)` were bypassing the design system and would not adapt to dark mode or future white-label theming.
 
-### Frontend (`web/src/types/trainer.ts`)
-- **`DashboardOverview`**: Added `today: string` field to match backend response
+3. **Fixed recharts v3 type error** -- `VolumeChart` tooltip formatter parameter type changed from `(value: number)` to `(value: number | undefined)` to match recharts v3's `Formatter` type. Added `undefined` handling with an em-dash fallback.
+
+### `web/src/components/settings/profile-section.tsx`
+4. **Fixed `isDirty` trim consistency** -- Changed `isDirty` comparisons from `form.firstName !== (user?.first_name ?? "")` to `form.firstName.trim() !== (user?.first_name ?? "")`. The `handleSave` already sends `.trim()` values, so `isDirty` should compare trimmed values for consistency. Without this fix, typing " John " then saving would result in `isDirty` being `true` again after `refreshUser` returned "John".
+
+5. **Removed `useEffect`-based form sync** -- The previous implementation had a `useEffect` that called `setForm(...)` whenever `user` changed. This violated React 19's `react-hooks/set-state-in-effect` lint rule and caused unnecessary cascading re-renders. Removed the effect entirely. The `useState` initializer captures the user's data at mount time, and subsequent changes after save are handled by the `isDirty` flag. The parent `SettingsPage` guards `!user` before rendering `ProfileSection`, so the initial state is always valid.
+
+### `web/src/components/settings/appearance-section.tsx`
+6. **Removed unused `ThemeValue` type** -- The type alias `type ThemeValue = (typeof themes)[number]["value"]` was defined but never referenced anywhere in the file. Removed dead code.
+
+---
+
+## Architecture Score: 9/10
+
+**Strengths (what earned points):**
+- All four features follow the established Page > Hook > API Client layering perfectly
+- React Query mutations correctly invalidate related queries on success
+- Auth boundary (Context for user identity, React Query for server data) is clear and consistent
+- FormData handling in api-client is clean with correct Content-Type detection
+- TypeScript types accurately mirror backend API responses
+- getNotificationTraineeId helper is well-designed: handles both string and number types, validates > 0, exported for reuse
+- Controlled popover and dropdown state management handles edge cases (navigation dismiss, dialog opening)
+- Empty/loading/error states handled for every new surface
+- Invitation status matrix correctly handles PENDING/EXPIRED/ACCEPTED/CANCELLED actions
+
+**Deductions:**
+- -0.5: Two files exceed 150-line component guideline (pragmatically acceptable but noted)
+- -0.5: Minor documentation inconsistency (recharts version in dev-done.md)
+
+## Recommendation: APPROVE
+
+The architecture is clean and consistent. The four new features integrate seamlessly with the established patterns. The fixes applied (theme-aware chart colors, tooltip deduplication, isDirty trim consistency, lint violation resolution) improve the codebase quality. No redesign or major refactoring needed. The codebase is well-positioned for the upcoming white-label infrastructure work since chart colors now participate in the design system's theme variables.

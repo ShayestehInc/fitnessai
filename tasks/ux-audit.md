@@ -1,13 +1,13 @@
-# UX Audit: Web Trainer Dashboard (Pipeline 9)
+# UX Audit: Web Dashboard Phase 2 (Pipeline 10)
 
 ## Audit Date: 2026-02-15
 
 ## Pages & Components Reviewed
-- All pages: login, dashboard, trainees, trainee detail, invitations, notifications, settings, not-found
-- All layout components: sidebar, sidebar-mobile, header, user-nav
-- All shared components: empty-state, error-state, loading-spinner, page-header, data-table
-- All feature components: dashboard stats/cards/skeletons, trainee table/search/columns/activity/overview/progress, invitation table/columns/dialog/status-badge, notification bell/popover/item
-- All UI primitives: button, input, card, dialog, table, tabs, badge, etc.
+- Settings page: `settings/page.tsx`, `profile-section.tsx`, `appearance-section.tsx`, `security-section.tsx`
+- Progress charts: `progress-charts.tsx`, `trainee-progress-tab.tsx`
+- Notification click-through: `notification-item.tsx`, `notification-popover.tsx`, `notification-bell.tsx`, `notifications/page.tsx`
+- Invitation row actions: `invitation-actions.tsx`, `invitation-columns.tsx`
+- Supporting: `use-settings.ts`, `use-progress.ts`, `use-invitations.ts`, `use-notifications.ts`, `user-nav.tsx`, `auth-provider.tsx`
 
 ---
 
@@ -15,14 +15,16 @@
 
 | # | Severity | Screen/Component | Issue | Recommendation |
 |---|----------|-----------------|-------|----------------|
-| 1 | Medium | RecentTrainees | Table had no horizontal scroll wrapper on small screens causing content to be cut off | Added `overflow-x-auto` wrapper -- FIXED |
-| 2 | Medium | DataTable | Table had no horizontal scroll wrapper causing overflow on mobile | Added `overflow-x-auto` wrapper -- FIXED |
-| 3 | Medium | DataTable | Clickable table rows were not keyboard-accessible -- no tabIndex, no Enter/Space handler, no focus ring | Added `tabIndex={0}`, `role="button"`, `onKeyDown` for Enter/Space, and `focus-visible:ring-2` -- FIXED |
-| 4 | Low | TraineeActivityTab | Day filter buttons used abbreviated labels ("7d", "14d", "30d") without screen reader context | Added `aria-label="Show last N days"` and `aria-pressed` state -- FIXED |
-| 5 | Low | GoalBadge | Goal badges use single-letter abbreviations "P" and "C" that are cryptic to screen readers | Added `srLabel` prop with descriptive text ("Protein goal met/not met", "Calorie goal met/not met") -- FIXED |
-| 6 | Low | InactiveTrainees links | Clickable links had no focus ring for keyboard users | Added `focus-visible:ring-2` styles -- FIXED |
-| 7 | Low | NotificationItem | Button had no visible focus ring on keyboard focus | Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring` -- FIXED |
-| 8 | Info | SettingsPage | Settings page is a placeholder ("Coming soon") with no indication of when features will be available | Acceptable for now -- should eventually link to a changelog or roadmap |
+| 1 | High | UserNav (header) | Avatar did not render profile image -- only showed fallback initials even when user had a `profile_image` set. After uploading a photo in Settings, the header avatar did not visually reflect it. | Added `AvatarImage` rendering with `user.profile_image` to `user-nav.tsx` -- FIXED |
+| 2 | High | InvitationActions | Dropdown menu stayed open after clicking "Resend" or "Copy Code", creating visual clutter while the mutation was in flight. | Added controlled `open` state to DropdownMenu; actions now close the dropdown immediately on click -- FIXED |
+| 3 | High | InvitationActions | Cancel confirmation dialog's destructive button had no loading indicator -- user had no feedback that the cancellation was processing. | Added `Loader2` spinner and `aria-hidden` to the "Cancel invitation" button when `cancel.isPending` -- FIXED |
+| 4 | Medium | SecuritySection | Submitting the password form with an empty "New password" field showed "Password must be at least 8 characters" which is misleading for a blank field. Similarly, empty confirm field had no specific message. | Added distinct validation: empty new password shows "New password is required"; empty confirm shows "Please confirm your new password" -- FIXED |
+| 5 | Medium | Adherence Chart | Y-axis displayed raw numeric ticks (0, 1, 2, 3) which are meaningless for stacked boolean data (food/workout/protein). | Removed Y-axis ticks and axis line; set minimal width. The Legend and tooltip provide sufficient context. -- FIXED |
+| 6 | Medium | Adherence Chart | Bar colors used hardcoded HSL values (`hsl(142, 76%, 36%)`, etc.) instead of the extracted `CHART_COLORS` constant that maps to `--chart-N` CSS custom properties, breaking in dark mode. | Replaced hardcoded HSL with `CHART_COLORS.food`, `.workout`, `.protein` for theme-aware colors -- FIXED |
+| 7 | Medium | Volume Chart | Tooltip displayed raw numbers without thousands separators (e.g., "125000" instead of "125,000"). | Added `formatNumber()` formatter to the Volume chart tooltip using `Intl.NumberFormat` -- FIXED |
+| 8 | Medium | Settings Page | Error state retry used `window.location.reload()` -- a full page reload instead of a targeted refetch, inconsistent with every other page in the app. | Changed to `refreshUser()` from auth context for consistent behavior -- FIXED |
+| 9 | Low | ProfileSection (image overlay) | Loading spinner overlay on avatar during image upload/delete had Loader2 icon without `aria-hidden="true"`, exposed to screen readers as meaningless content. | Added `aria-hidden="true"` to overlay Loader2 -- FIXED |
+| 10 | Low | NotificationPopover | Loading spinner in popover had no `role="status"` or screen reader text. | Added `role="status"`, `aria-label`, and `sr-only` span -- FIXED |
 
 ---
 
@@ -30,60 +32,63 @@
 
 | # | WCAG Level | Issue | Fix |
 |---|------------|-------|-----|
-| 1 | A (1.3.1) | `LoadingSpinner` had no `role="status"` or screen reader text | Added `role="status"`, `aria-label` prop, and `sr-only` span -- FIXED |
-| 2 | A (1.3.1) | Dashboard layout loading spinner had no screen reader text | Added `role="status"`, `aria-label="Loading dashboard"`, `aria-hidden` on icon, and `sr-only` text -- FIXED |
-| 3 | A (4.1.3) | `ErrorState` had no `role="alert"` or `aria-live` for screen reader announcements | Added `role="alert"` and `aria-live="assertive"` on CardContent -- FIXED |
-| 4 | A (4.1.3) | Login page error message div had no `role="alert"` | Added `role="alert"` and `aria-live="assertive"` -- FIXED |
-| 5 | A (4.1.3) | CreateInvitationDialog error message div had no `role="alert"` | Added `role="alert"` and `aria-live="assertive"` -- FIXED |
-| 6 | A (1.3.1) | `EmptyState` had no `role="status"` for screen readers | Added `role="status"` on wrapper div -- FIXED |
-| 7 | AA (1.1.1) | Multiple decorative icons lacked `aria-hidden="true"` (Dumbbell in login/sidebars, AlertTriangle, Loader2, stat icons, nav icons, error icon, notification icon) | Added `aria-hidden="true"` to all decorative icons across 10+ files -- FIXED |
-| 8 | AA (4.1.2) | `NotificationItem` button lacked descriptive `aria-label` | Added computed `aria-label` combining read status, title, and message -- FIXED |
-| 9 | AA (4.1.2) | `UserNav` avatar trigger button lacked `aria-label` | Added `aria-label="User menu for {displayName}"` -- FIXED |
-| 10 | AA (2.4.1) | No skip-to-content link for keyboard users to bypass sidebar navigation | Added skip link visible on focus with "Skip to main content" -- FIXED |
-| 11 | AA (2.4.8) | Nav links did not indicate current page to screen readers | Added `aria-current="page"` to active nav links in both desktop and mobile sidebars -- FIXED |
-| 12 | AA (2.4.1) | Sidebar `<nav>` elements lacked `aria-label` | Added `aria-label="Main navigation"` to both sidebars -- FIXED |
-| 13 | AA (4.1.2) | Pagination buttons throughout the app lacked `aria-label` attributes | Added `aria-label="Go to previous/next page"` on all pagination buttons -- FIXED |
-| 14 | AA (4.1.2) | Pagination controls were `<div>` elements instead of semantic `<nav>` landmarks | Wrapped in `<nav>` with `aria-label` (e.g., "Table pagination", "Invitation pagination") -- FIXED |
-| 15 | AA (1.1.1) | Pagination chevron icons were not marked as decorative | Added `aria-hidden="true"` on all ChevronLeft/ChevronRight icons -- FIXED |
-| 16 | A (2.1.1) | DataTable clickable rows were not keyboard accessible (no tabIndex, no key handler) | Added `tabIndex={0}`, `role="button"`, Enter/Space `onKeyDown` handler -- FIXED |
+| 1 | AA (4.1.2) | AppearanceSection radio group buttons all had `tabIndex` of 0, meaning Tab key would stop on every option instead of the selected one. Arrow keys did not move selection. | Implemented proper radio group keyboard navigation: only selected radio has `tabIndex={0}`, others have `tabIndex={-1}`. Arrow keys (Left/Right/Up/Down) cycle selection and move focus. Added `focus-visible:ring-2` for focus indicator. -- FIXED |
+| 2 | AA (4.1.2) | SecuritySection password inputs had no `aria-describedby` linking to error messages, so screen readers could not announce inline errors. | Added `aria-describedby` pointing to error `<p id="...">` elements and `aria-invalid` on each input when validation fails. -- FIXED |
+| 3 | A (1.1.1) | SecuritySection error messages had `role="alert"` but no `id` for `aria-describedby` linkage. | Added unique IDs (`currentPassword-error`, `newPassword-error`, `confirmPassword-error`) to error paragraphs. -- FIXED |
+| 4 | A (1.3.1) | ProfileSection email field had hint text "Email cannot be changed" not linked to the input. | Added `aria-describedby="email-hint"` to the email input and `id="email-hint"` to the hint text. -- FIXED |
+| 5 | A (1.1.1) | NotificationPopover loading Loader2 icon not marked as decorative. | Added `aria-hidden="true"` -- FIXED |
+| 6 | AA (4.1.2) | InvitationActions cancel dialog Loader2 not marked as decorative. | Added `aria-hidden="true"` on the spinner icon -- FIXED |
 
 ---
 
 ## Missing States
 
-- [x] Loading / skeleton -- Present on all pages (DashboardSkeleton, TraineeTableSkeleton, TraineeDetailSkeleton, LoadingSpinner)
-- [x] Empty / zero data -- Present on all pages (EmptyState component used consistently)
-- [x] Error / failure -- Present on all pages (ErrorState component with retry button)
-- [x] Success / confirmation -- Toast notifications used for invitation creation and mark-all-read
+### Settings Page
+- [x] Loading / skeleton -- `SettingsSkeleton` renders three card placeholders while auth data loads
+- [x] Empty / zero data -- N/A (settings always has data when user is authenticated)
+- [x] Error / failure -- `ErrorState` with retry if user fails to load
+- [x] Success / confirmation -- Toast notifications on profile save, image upload/remove, password change
+- [x] Disabled -- Save button disabled when form is unchanged (`isDirty` check) or mutation pending
 
-### Detailed State Coverage
+### Progress Charts
+- [x] Loading / skeleton -- `ProgressSkeleton` renders three chart card placeholders
+- [x] Empty / zero data -- Per-chart `EmptyState` with relevant icon and message (Scale, Dumbbell, CalendarCheck)
+- [x] Error / failure -- `ErrorState` with retry if progress data fetch fails
+- [x] Success / confirmation -- Data display in charts
 
-| Screen | Loading | Empty | Error | Success/Feedback |
-|--------|---------|-------|-------|-----------------|
-| Dashboard | DashboardSkeleton | EmptyState with CTA | ErrorState with retry | Data display |
-| Trainees | TraineeTableSkeleton | EmptyState (no trainees) + EmptyState (no search results) | ErrorState with retry | Row click navigation |
-| Trainee Detail | TraineeDetailSkeleton | Profile/goals "not set" text | ErrorState with back + retry | Tabs with data |
-| Invitations | LoadingSpinner | EmptyState with CTA | ErrorState with retry | Toast on creation |
-| Notifications | LoadingSpinner | Context-aware empty ("All caught up" / "No notifications") | ErrorState with retry | Toast on mark-all-read |
-| Login | Spinner in button + "Signing in..." | N/A | Inline error alert | Redirect to dashboard |
-| Settings | N/A | "Coming soon" placeholder | N/A | N/A |
+### Notifications (Click-Through)
+- [x] Loading -- Spinner in popover; `LoadingSpinner` on full page
+- [x] Empty -- Context-aware: "All caught up" (unread filter) / "No notifications" (all filter) / "No notifications yet" (popover)
+- [x] Error -- `ErrorState` with retry on full page; inline error with retry in popover
+- [x] Navigable feedback -- ChevronRight indicator on notifications with `trainee_id`; toast for non-navigable mark-as-read
+
+### Invitation Actions
+- [x] Loading -- Button `disabled` state during mutations; spinner on cancel dialog
+- [x] Confirmation -- Destructive cancel action requires confirmation dialog
+- [x] Success -- Toast on copy, resend, cancel
+- [x] Error -- Toast on resend/cancel failure; clipboard error handling
 
 ---
 
 ## Copy Assessment
 
-All copy is clear, non-technical, and actionable:
-
 | Element | Copy | Verdict |
 |---------|------|---------|
-| Dashboard description | "Overview of your training business" | Clear, professional |
-| Empty trainee CTA | "Send an Invitation" | Clear action |
-| Search no-results | `No trainees match "{search}"` | Helpful, includes search term |
-| Notification empty (unread) | "All caught up" | Friendly, reassuring |
-| Invitation dialog description | "Send an invitation to a new trainee. They'll receive a code to sign up." | Clear process explanation |
-| Error states | "Failed to load {resource}" | Consistent pattern |
-| Retry button | "Try again" | Standard, clear |
-| 404 page | "Page not found" with "Go to Dashboard" | Clear recovery path |
+| Profile card title | "Profile" | Clear |
+| Profile card description | "Update your personal information and profile image" | Informative, tells user what they can do |
+| Email hint | "Email cannot be changed" | Clear, explains why field is disabled |
+| Appearance description | "Choose how the dashboard looks to you" | Friendly, personal |
+| Security description | "Update your password" | Direct |
+| Password validation (empty) | "New password is required" | Clear, specific to blank field |
+| Password validation (short) | "Password must be at least 8 characters" | Standard, clear |
+| Password validation (mismatch) | "Passwords do not match" | Standard |
+| Confirm validation (empty) | "Please confirm your new password" | Clear, actionable |
+| Cancel dialog title | "Cancel invitation?" | Clear question |
+| Cancel dialog body | "This will cancel the invitation sent to **{email}**. They will no longer be able to use this invitation code to sign up." | Explains consequences clearly |
+| Cancel dialog actions | "Keep invitation" / "Cancel invitation" | Clear, non-ambiguous |
+| Chart empty states | "No weight data" / "No workout data" / "No activity data" | Consistent pattern |
+| Chart empty descriptions | "...will appear here once the trainee logs them." | Sets expectation, non-alarming |
+| Toast messages | "Profile updated" / "Invitation resent" / "Invitation cancelled" / etc. | Concise, past-tense confirmation |
 
 ---
 
@@ -91,14 +96,14 @@ All copy is clear, non-technical, and actionable:
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Page spacing | Consistent | All pages use `space-y-6` |
-| Page titles | Consistent | All use PageHeader with `text-2xl font-bold tracking-tight` |
-| Error styling | Consistent | All use shared ErrorState component |
-| Empty styling | Consistent | All use shared EmptyState component |
-| Card design | Consistent | All use shadcn Card components |
-| Badge usage | Consistent | Status badges use same variant patterns |
-| Color system | Consistent | Uses CSS variables from globals.css throughout |
-| Pagination | Minor inconsistency | DataTable has integrated pagination; invitations/notifications have manual inline pagination. Functionally identical but visually slightly different (DataTable shows "Page X of Y (N total)"; manual shows "Page N" only). |
+| Card spacing | Consistent | All settings cards use `space-y-6` between them |
+| Tooltip styling | Consistent (after fix) | All charts now use shared `tooltipContentStyle` constant |
+| Chart colors | Consistent (after fix) | Adherence chart now uses `CHART_COLORS` constant instead of hardcoded HSL |
+| Error state | Consistent | All pages use shared `ErrorState` component with retry |
+| Empty state | Consistent | All chart empty states use shared `EmptyState` with relevant icons |
+| Toast feedback | Consistent | All mutations provide success/error toasts |
+| Button loading state | Consistent (after fix) | All pending mutations show Loader2 spinner in the button |
+| Dropdown actions | Consistent | Actions close the dropdown, show appropriate feedback |
 
 ---
 
@@ -106,107 +111,94 @@ All copy is clear, non-technical, and actionable:
 
 | Aspect | Status |
 |--------|--------|
-| Sidebar | Hides at `lg` breakpoint, replaced by Sheet drawer |
-| Page headers | Stack vertically on mobile via `sm:flex-row` |
-| Stats grid | Collapses 4 -> 2 -> 1 via `sm:grid-cols-2 lg:grid-cols-4` |
-| Tables | Now have `overflow-x-auto` for horizontal scrolling (FIXED) |
-| Login card | Max-width constrained (`max-w-sm`) |
-| Touch targets | Minimum h-8/h-9 on buttons (adequate) |
-| Activity tab filters | Responsive via `sm:flex-row` card header |
-| Trainee detail layout | 2-col grid collapses to 1-col via `lg:grid-cols-2` |
+| Settings layout | `max-w-2xl` constrains width, cards stack vertically naturally |
+| Profile form grid | `sm:grid-cols-2` for first/last name, stacks on mobile |
+| Theme selector | `flex gap-3` with `flex-1` buttons -- adapts to container width |
+| Charts | `ResponsiveContainer` from recharts handles resize automatically |
+| Chart container | Fixed `h-[250px]` height is appropriate for all viewport sizes |
+| Invitation dropdown | Touch-friendly trigger button (`h-8 w-8`), dropdown aligns to end |
+| Notification popover | `w-80` fixed width with `ScrollArea` for overflow |
 
 ---
 
 ## Fixes Implemented
 
-### Accessibility Fixes (15 files modified)
+### 1. `web/src/components/layout/user-nav.tsx`
+Added `AvatarImage` import and rendering so the header avatar displays the user's profile image when one exists. Previously only showed initials fallback.
 
-1. **`web/src/components/shared/loading-spinner.tsx`** -- Added `role="status"`, configurable `aria-label` prop (default: "Loading..."), and `sr-only` span for screen readers.
+### 2. `web/src/components/settings/appearance-section.tsx`
+Implemented proper ARIA radio group keyboard navigation:
+- Selected radio gets `tabIndex={0}`, unselected get `tabIndex={-1}` (roving tabindex pattern)
+- Arrow key handler (Left/Right/Up/Down) cycles through options, moves focus, and updates theme
+- Added `focus-visible:ring-2` focus indicator on radio buttons
 
-2. **`web/src/components/shared/error-state.tsx`** -- Added `role="alert"` and `aria-live="assertive"` on CardContent so errors are immediately announced; added `aria-hidden="true"` on AlertCircle icon.
+### 3. `web/src/components/settings/security-section.tsx`
+- Improved validation: separate "required" messages for empty fields vs. length/match errors
+- Added `aria-describedby` on all three password inputs linking to their error paragraphs
+- Added `aria-invalid` on inputs when validation fails
+- Added `id` attributes on error paragraphs for `aria-describedby` linkage
 
-3. **`web/src/components/shared/empty-state.tsx`** -- Added `role="status"` on wrapper div; added `aria-hidden="true"` on icon.
+### 4. `web/src/components/settings/profile-section.tsx`
+- Added `aria-hidden="true"` on image upload overlay spinner
+- Added `aria-describedby="email-hint"` on read-only email field
+- Added `id="email-hint"` on the "Email cannot be changed" hint text
 
-4. **`web/src/app/(auth)/login/page.tsx`** -- Added `role="alert"` and `aria-live="assertive"` on error message div; added `aria-hidden="true"` on decorative Dumbbell and Loader2 icons.
+### 5. `web/src/app/(dashboard)/settings/page.tsx`
+- Changed error retry from `window.location.reload()` to `refreshUser()` for consistency
 
-5. **`web/src/components/invitations/create-invitation-dialog.tsx`** -- Added `role="alert"` and `aria-live="assertive"` on error message div.
+### 6. `web/src/components/trainees/progress-charts.tsx`
+- Replaced hardcoded HSL colors in Adherence chart with `CHART_COLORS` constant for dark mode support
+- Removed misleading Y-axis numeric ticks from Adherence chart (0,1,2,3 were meaningless for boolean data)
+- Added `formatNumber()` with `Intl.NumberFormat` to Volume chart tooltip for thousand separators
 
-6. **`web/src/components/notifications/notification-item.tsx`** -- Added computed `aria-label` (e.g., "Unread: Title -- Message"); added `focus-visible:ring-2` for keyboard navigation; added `aria-hidden="true"` on type icon.
+### 7. `web/src/components/invitations/invitation-actions.tsx`
+- Added controlled `open`/`onOpenChange` state to DropdownMenu
+- All action handlers now close the dropdown immediately via `setDropdownOpen(false)`
+- Added `Loader2` spinner with `aria-hidden` to Cancel dialog's destructive button during mutation
 
-7. **`web/src/components/layout/user-nav.tsx`** -- Added `aria-label="User menu for {displayName}"` on avatar trigger button.
-
-8. **`web/src/components/layout/sidebar.tsx`** -- Added `aria-hidden="true"` on decorative Dumbbell and nav icons; added `aria-current="page"` on active link; added `aria-label="Main navigation"` on nav element.
-
-9. **`web/src/components/layout/sidebar-mobile.tsx`** -- Same accessibility improvements as desktop sidebar.
-
-10. **`web/src/components/dashboard/stat-card.tsx`** -- Added `aria-hidden="true"` on decorative stat icon.
-
-11. **`web/src/components/dashboard/inactive-trainees.tsx`** -- Added `aria-hidden="true"` on AlertTriangle icon; added descriptive `aria-label` on trainee links; added `focus-visible:ring-2` on links.
-
-12. **`web/src/app/(dashboard)/layout.tsx`** -- Added skip-to-content link (visible on focus); added `role="status"` and `sr-only` text on auth loading state; added `id="main-content"` on main element.
-
-### Responsiveness Fixes
-
-13. **`web/src/components/dashboard/recent-trainees.tsx`** -- Wrapped table in `overflow-x-auto` container to prevent content clipping on mobile.
-
-14. **`web/src/components/shared/data-table.tsx`** -- Added `overflow-x-auto` on table border container.
-
-### Keyboard Navigation Fixes
-
-15. **`web/src/components/shared/data-table.tsx`** -- Added `tabIndex={0}`, `role="button"`, Enter/Space `onKeyDown` handler, and `focus-visible:ring-2` on clickable rows; wrapped pagination controls in semantic `<nav>` element with `aria-label`; added `aria-label` on pagination buttons; added `aria-hidden` on chevron icons.
-
-16. **`web/src/app/(dashboard)/invitations/page.tsx`** -- Wrapped pagination in `<nav aria-label="Invitation pagination">`; added `aria-label` on Previous/Next buttons; added `aria-hidden` on chevron icons; added `aria-current="page"` on page indicator.
-
-17. **`web/src/app/(dashboard)/notifications/page.tsx`** -- Same pagination accessibility improvements as invitations page.
-
-18. **`web/src/components/trainees/trainee-activity-tab.tsx`** -- Added `role="group"` and `aria-label="Time range filter"` on day filter button group; added `aria-label` and `aria-pressed` on day buttons; added `srLabel` prop to GoalBadge for screen-reader-friendly descriptions.
+### 8. `web/src/components/notifications/notification-popover.tsx`
+- Added `role="status"`, `aria-label`, and `sr-only` span to loading state
+- Added `aria-hidden="true"` on loading spinner icon
 
 ---
 
-## Items Not Fixed (Require Design Decisions)
+## Items Not Fixed (Require Design Decisions or Out of Scope)
 
-1. **Pagination style inconsistency** -- DataTable's integrated pagination shows "Page X of Y (N total)" while manual pagination on invitations/notifications pages shows only "Page N". Unifying would require a small refactor to extract a shared pagination component. Non-blocking.
+1. **Form state does not re-sync on external user data changes** -- If user data changes in another tab, the profile form won't reflect it until the page is remounted. The `isDirty` comparison handles post-save correctly. Adding `useEffect` for sync is flagged by the strict React 19 `react-hooks/set-state-in-effect` lint rule. Acceptable trade-off.
 
-2. **No dark mode toggle** -- ThemeProvider exists in the app root but there is no user-facing toggle to switch between light/dark mode. The system preference is respected but there is no manual override.
+2. **Notification optimistic updates** -- Marking a notification as read waits for query invalidation rather than optimistic UI. Non-blocking; the latency is negligible.
 
-3. **Settings page placeholder** -- Expected as "Coming soon" but should eventually contain profile editing, theme preferences, notification settings.
-
-4. **Optimistic updates** -- Marking a notification as read waits for query invalidation and refetch rather than doing an optimistic update. The delay is negligible but could feel snappier.
-
-5. **Progress tab placeholder** -- The TraineeProgressTab is a permanent "Coming soon" placeholder. Consider hiding it entirely until the feature is built to avoid user confusion.
+3. **Pagination style inconsistency** -- DataTable pagination shows "Page X of Y (N total)" while notification page shows "Page N" only. A shared pagination component would unify this. Non-blocking.
 
 ---
 
-## Overall UX Score: 8/10
+## Overall UX Score: 9/10
 
 ### Breakdown:
-- **State Handling:** 9/10 -- All five core states present on every page with consistent shared components
-- **Accessibility:** 8/10 -- Comprehensive ARIA attributes, skip-link, keyboard navigation, screen reader text (after fixes)
-- **Visual Consistency:** 9/10 -- Clean design system, consistent components, proper dark mode support
-- **Copy Clarity:** 9/10 -- Clear, actionable, context-aware copy throughout
-- **Responsiveness:** 8/10 -- Proper breakpoints, mobile sidebar, table scroll wrappers (after fixes)
-- **Feedback & Interaction:** 7/10 -- Toast notifications and loading states present; could add optimistic updates and keyboard shortcuts
+- **State Handling:** 9/10 -- Every component handles all relevant states (loading, empty, error, success, disabled)
+- **Accessibility:** 9/10 -- Proper ARIA attributes, roving tabindex on radio group, error message linkage, decorative icons marked, screen reader text
+- **Visual Consistency:** 9/10 -- Shared tooltip styles, theme-aware chart colors, consistent card layout, matching button patterns
+- **Copy Clarity:** 10/10 -- All copy is clear, specific, and actionable. Validation messages distinguish between empty and invalid states.
+- **Responsiveness:** 9/10 -- Proper responsive grids, charts auto-resize, mobile-friendly touch targets
+- **Feedback & Interaction:** 9/10 -- Immediate dropdown close, loading spinners on all mutations, confirmation dialog for destructive actions, toast on every mutation
 
 ### Strengths:
-- Every page handles all five core states (loading, empty, error, success, disabled)
-- Shared components (PageHeader, EmptyState, ErrorState, LoadingSpinner) ensure consistency
-- Clean, professional design following shadcn/ui patterns
-- Good responsive design with proper mobile sidebar drawer
-- Toast feedback on mutations
-- Search with debounce on trainees page
-- Dark mode fully supported via CSS variables
+- Comprehensive state handling across all four features
+- Clean separation of concerns (shared EmptyState/ErrorState components)
+- Theme-aware chart styling with CSS custom properties
+- Proper destructive action confirmation with clear copy
+- Consistent toast feedback pattern across all mutations
+- Good form validation with specific, helpful error messages
 
 ### Areas for Future Improvement:
-- Add keyboard shortcuts for power users (e.g., `/` to focus search, `g d` for dashboard)
 - Add optimistic updates for notification mark-as-read
-- Add a dark mode toggle in the UI
-- Add animated skeleton shimmer instead of static gray bars
-- Consider hiding the Progress tab placeholder until the feature is built
-- Unify pagination into a shared component for consistency
+- Consider adding unsaved changes warning when navigating away from a dirty profile form
+- Add keyboard shortcut hints (e.g., "Enter to save" on profile form)
+- Consider animated skeleton shimmer for chart loading states
 
 ---
 
 **Audit completed by:** UX Auditor Agent
 **Date:** 2026-02-15
-**Pipeline:** 9 -- Web Trainer Dashboard
-**Verdict:** PASS -- All critical UX and accessibility issues fixed. 18 fixes implemented across 15+ files.
+**Pipeline:** 10 -- Web Dashboard Phase 2
+**Verdict:** PASS -- All critical and major UX and accessibility issues fixed. 8 component files modified with 10 usability fixes and 6 accessibility fixes.

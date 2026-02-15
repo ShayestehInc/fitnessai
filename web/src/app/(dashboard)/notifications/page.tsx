@@ -39,15 +39,18 @@ export default function NotificationsPage() {
   const hasPrevPage = page > 1;
 
   const handleNotificationClick = (n: Notification) => {
+    const traineeId = getNotificationTraineeId(n);
+
     if (!n.is_read) {
       markAsRead.mutate(n.id, {
         onError: () => toast.error("Failed to mark notification as read"),
       });
     }
 
-    const traineeId = getNotificationTraineeId(n);
     if (traineeId !== null) {
       router.push(`/trainees/${traineeId}`);
+    } else if (!n.is_read) {
+      toast.success("Marked as read");
     }
   };
 

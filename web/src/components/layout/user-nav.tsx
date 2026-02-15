@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +33,9 @@ export function UserNav() {
           aria-label={`User menu for ${displayName}`}
         >
           <Avatar className="h-8 w-8">
+            {user?.profile_image && (
+              <AvatarImage src={user.profile_image} alt="Profile" />
+            )}
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
         </button>

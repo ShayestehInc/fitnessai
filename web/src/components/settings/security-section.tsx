@@ -30,10 +30,14 @@ export function SecuritySection() {
     if (!currentPassword) {
       newErrors.current_password = "Current password is required";
     }
-    if (newPassword.length < 8) {
+    if (!newPassword) {
+      newErrors.new_password = "New password is required";
+    } else if (newPassword.length < 8) {
       newErrors.new_password = "Password must be at least 8 characters";
     }
-    if (newPassword !== confirmPassword) {
+    if (!confirmPassword) {
+      newErrors.confirm_password = "Please confirm your new password";
+    } else if (newPassword !== confirmPassword) {
       newErrors.confirm_password = "Passwords do not match";
     }
 
@@ -109,9 +113,11 @@ export function SecuritySection() {
               }}
               maxLength={128}
               autoComplete="current-password"
+              aria-describedby={errors.current_password ? "currentPassword-error" : undefined}
+              aria-invalid={Boolean(errors.current_password)}
             />
             {errors.current_password && (
-              <p className="text-sm text-destructive" role="alert">
+              <p id="currentPassword-error" className="text-sm text-destructive" role="alert">
                 {errors.current_password}
               </p>
             )}
@@ -129,9 +135,11 @@ export function SecuritySection() {
               }}
               maxLength={128}
               autoComplete="new-password"
+              aria-describedby={errors.new_password ? "newPassword-error" : undefined}
+              aria-invalid={Boolean(errors.new_password)}
             />
             {errors.new_password && (
-              <p className="text-sm text-destructive" role="alert">
+              <p id="newPassword-error" className="text-sm text-destructive" role="alert">
                 {errors.new_password}
               </p>
             )}
@@ -149,9 +157,11 @@ export function SecuritySection() {
               }}
               maxLength={128}
               autoComplete="new-password"
+              aria-describedby={errors.confirm_password ? "confirmPassword-error" : undefined}
+              aria-invalid={Boolean(errors.confirm_password)}
             />
             {errors.confirm_password && (
-              <p className="text-sm text-destructive" role="alert">
+              <p id="confirmPassword-error" className="text-sm text-destructive" role="alert">
                 {errors.confirm_password}
               </p>
             )}

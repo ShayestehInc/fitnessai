@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   PopoverContent,
 } from "@/components/ui/popover";
@@ -24,12 +25,18 @@ export function NotificationPopover({ onClose }: NotificationPopoverProps) {
   const notifications = data?.results?.slice(0, 5) ?? [];
 
   const handleNotificationClick = (n: (typeof notifications)[number]) => {
-    if (!n.is_read) markAsRead.mutate(n.id);
-
     const traineeId = getNotificationTraineeId(n);
+
+    if (!n.is_read) {
+      markAsRead.mutate(n.id);
+    }
+
     if (traineeId !== null) {
       onClose();
       router.push(`/trainees/${traineeId}`);
+    } else if (!n.is_read) {
+      // Non-navigable notification: give feedback that it was marked as read
+      toast.success("Marked as read");
     }
   };
 
@@ -40,8 +47,9 @@ export function NotificationPopover({ onClose }: NotificationPopoverProps) {
       </div>
       <Separator />
       {isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <div className="flex items-center justify-center py-8" role="status" aria-label="Loading notifications">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+          <span className="sr-only">Loading notifications</span>
         </div>
       ) : isError ? (
         <div className="flex flex-col items-center gap-2 py-8">
