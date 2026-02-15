@@ -37,6 +37,7 @@ class ApiConstants {
   static String get nutritionSummary => '$apiBaseUrl/workouts/daily-logs/nutrition-summary/';
   static String get workoutSummary => '$apiBaseUrl/workouts/daily-logs/workout-summary/';
   static String get weeklyProgress => '$apiBaseUrl/workouts/daily-logs/weekly-progress/';
+  static String get workoutHistory => '$apiBaseUrl/workouts/daily-logs/workout-history/';
   static String editMealEntry(int logId) => '$apiBaseUrl/workouts/daily-logs/$logId/edit-meal-entry/';
   static String deleteMealEntry(int logId) => '$apiBaseUrl/workouts/daily-logs/$logId/delete-meal-entry/';
   static String get programs => '$apiBaseUrl/workouts/programs/';

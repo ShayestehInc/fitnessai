@@ -26,6 +26,8 @@ from core.permissions import IsTrainee
 
 from users.models import User
 from .models import Exercise, Program, DailyLog, NutritionGoal, WeightCheckIn, MacroPreset
+from rest_framework.pagination import PageNumberPagination
+
 from .serializers import (
     ExerciseSerializer,
     ProgramSerializer,
@@ -38,6 +40,7 @@ from .serializers import (
     WeightCheckInSerializer,
     MacroPresetSerializer,
     MacroPresetCreateSerializer,
+    WorkoutHistorySummarySerializer,
 )
 from .services.natural_language_parser import NaturalLanguageParserService
 
@@ -343,6 +346,13 @@ class ProgramViewSet(viewsets.ModelViewSet[Program]):
         })
 
 
+class WorkoutHistoryPagination(PageNumberPagination):
+    """Pagination for workout history endpoint."""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
 class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
     """
     ViewSet for DailyLog CRUD operations.
@@ -375,7 +385,61 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
             queryset = queryset.filter(date=date_param)
 
         return queryset
-    
+
+    @action(detail=False, methods=['get'], url_path='workout-history',
+            permission_classes=[IsTrainee])
+    def workout_history(self, request: Request) -> Response:
+        """
+        Get paginated workout history for the current trainee.
+
+        Only returns DailyLogs where workout_data contains actual exercise data
+        (excludes null, empty dict, and empty exercises list).
+
+        GET /api/workouts/daily-logs/workout-history/?page=1&page_size=20
+
+        Returns paginated list with computed summary fields per log:
+        workout_name, exercise_count, total_sets, total_volume_lbs, duration_display.
+        """
+        user = cast(User, request.user)
+
+        queryset = DailyLog.objects.filter(
+            trainee=user,
+        ).exclude(
+            workout_data__isnull=True,
+        ).exclude(
+            workout_data={},
+        ).exclude(
+            workout_data={'exercises': []},
+        ).order_by('-date')
+
+        # Additional Python-level filter: exclude logs where exercises list is empty
+        # This handles edge cases like workout_data having keys but no actual exercises
+        log_ids_with_exercises: list[int] = []
+        for log in queryset.only('id', 'workout_data').iterator():
+            data = log.workout_data
+            if not isinstance(data, dict):
+                continue
+            exercises = data.get('exercises', [])
+            sessions = data.get('sessions', [])
+            has_exercises = isinstance(exercises, list) and len(exercises) > 0
+            has_sessions = isinstance(sessions, list) and len(sessions) > 0
+            if has_exercises or has_sessions:
+                log_ids_with_exercises.append(log.id)
+
+        filtered_queryset = DailyLog.objects.filter(
+            id__in=log_ids_with_exercises,
+        ).order_by('-date')
+
+        paginator = WorkoutHistoryPagination()
+        page = paginator.paginate_queryset(filtered_queryset, request)
+
+        if page is not None:
+            serializer = WorkoutHistorySummarySerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = WorkoutHistorySummarySerializer(filtered_queryset, many=True)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['post'], url_path='parse-natural-language')
     def parse_natural_language(self, request: Request) -> Response:
         """

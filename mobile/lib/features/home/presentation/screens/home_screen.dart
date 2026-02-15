@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../workout_log/data/models/workout_history_model.dart';
 import '../providers/home_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -72,6 +73,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _buildNextWorkoutSection(homeState),
                     const SizedBox(height: 32),
                   ],
+
+                  // Recent Workouts section
+                  _buildSectionHeader(
+                    'Recent Workouts',
+                    showAction: homeState.recentWorkouts.isNotEmpty,
+                    onAction: () => context.push('/workout-history'),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildRecentWorkoutsSection(homeState),
+                  const SizedBox(height: 32),
 
                   // Latest Videos section
                   if (homeState.latestVideos.isNotEmpty) ...[
@@ -574,6 +585,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _buildRecentWorkoutsSection(HomeState state) {
+    final theme = Theme.of(context);
+
+    if (state.isLoading && state.recentWorkouts.isEmpty) {
+      // Shimmer placeholder
+      return Container(
+        height: 72,
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 100,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: theme.dividerColor,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (state.recentWorkouts.isEmpty) {
+      return Text(
+        'No workouts yet. Complete your first workout to see it here.',
+        style: TextStyle(
+          color: theme.textTheme.bodySmall?.color,
+          fontSize: 13,
+        ),
+      );
+    }
+
+    return Column(
+      children: state.recentWorkouts.map((workout) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _RecentWorkoutCard(
+            workout: workout,
+            onTap: () => context.push('/workout-detail', extra: workout),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildLatestVideosSection(HomeState state) {
     return Column(
       children: state.latestVideos.map((video) => Padding(
@@ -865,6 +929,81 @@ class _VideoCard extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Compact workout card for the home screen "Recent Workouts" section.
+class _RecentWorkoutCard extends StatelessWidget {
+  final WorkoutHistorySummary workout;
+  final VoidCallback onTap;
+
+  const _RecentWorkoutCard({
+    required this.workout,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: theme.cardColor,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.dividerColor),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      workout.formattedDate,
+                      style: TextStyle(
+                        color: theme.textTheme.bodySmall?.color,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      workout.workoutName,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '${workout.exerciseCount} exercises',
+                style: TextStyle(
+                  color: theme.textTheme.bodySmall?.color,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: theme.textTheme.bodySmall?.color,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

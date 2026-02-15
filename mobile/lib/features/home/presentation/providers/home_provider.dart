@@ -4,6 +4,7 @@ import '../../../nutrition/data/repositories/nutrition_repository.dart';
 import '../../../nutrition/data/models/nutrition_models.dart';
 import '../../../workout_log/data/repositories/workout_repository.dart';
 import '../../../workout_log/data/models/workout_models.dart';
+import '../../../workout_log/data/models/workout_history_model.dart';
 import '../../../programs/data/models/program_week_model.dart';
 
 final homeStateProvider =
@@ -75,6 +76,7 @@ class HomeState {
   final ProgramModel? activeProgram;
   final NextWorkout? nextWorkout;
   final List<VideoItem> latestVideos;
+  final List<WorkoutHistorySummary> recentWorkouts;
   final int programProgress; // 0-100
   final WeeklyProgressData? weeklyProgress;
   final bool isLoading;
@@ -86,6 +88,7 @@ class HomeState {
     this.activeProgram,
     this.nextWorkout,
     this.latestVideos = const [],
+    this.recentWorkouts = const [],
     this.programProgress = 0,
     this.weeklyProgress,
     this.isLoading = false,
@@ -98,6 +101,7 @@ class HomeState {
     ProgramModel? activeProgram,
     NextWorkout? nextWorkout,
     List<VideoItem>? latestVideos,
+    List<WorkoutHistorySummary>? recentWorkouts,
     int? programProgress,
     WeeklyProgressData? weeklyProgress,
     bool? isLoading,
@@ -109,6 +113,7 @@ class HomeState {
       activeProgram: activeProgram ?? this.activeProgram,
       nextWorkout: nextWorkout ?? this.nextWorkout,
       latestVideos: latestVideos ?? this.latestVideos,
+      recentWorkouts: recentWorkouts ?? this.recentWorkouts,
       programProgress: programProgress ?? this.programProgress,
       weeklyProgress: weeklyProgress ?? this.weeklyProgress,
       isLoading: isLoading ?? this.isLoading,
@@ -169,12 +174,14 @@ class HomeNotifier extends StateNotifier<HomeState> {
         _nutritionRepo.getDailyNutritionSummary(_todayDate()),
         _workoutRepo.getActiveProgram(),
         _workoutRepo.getWeeklyProgress(),
+        _workoutRepo.getRecentWorkouts(limit: 3),
       ]);
 
       final goalsResult = results[0];
       final nutritionResult = results[1];
       final programResult = results[2];
       final weeklyResult = results[3];
+      final recentResult = results[4];
 
       ProgramModel? program;
       NextWorkout? nextWorkout;
@@ -201,6 +208,16 @@ class HomeNotifier extends StateNotifier<HomeState> {
         );
       }
 
+      // Parse recent workouts
+      List<WorkoutHistorySummary> recentWorkouts = [];
+      if (recentResult['success'] == true) {
+        final results = recentResult['results'] as List<dynamic>? ?? [];
+        recentWorkouts = results
+            .whereType<Map<String, dynamic>>()
+            .map(WorkoutHistorySummary.fromJson)
+            .toList();
+      }
+
       // Load sample latest videos (in a real app, this would come from an API)
       final latestVideos = _getSampleVideos();
 
@@ -216,6 +233,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
         nextWorkout: nextWorkout,
         programProgress: programProgress,
         weeklyProgress: weeklyProgress,
+        recentWorkouts: recentWorkouts,
         latestVideos: latestVideos,
       );
     } catch (e) {

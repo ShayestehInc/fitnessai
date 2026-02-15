@@ -16,6 +16,9 @@ import '../../features/workout_log/presentation/screens/workout_log_screen.dart'
 import '../../features/workout_log/presentation/screens/workout_calendar_screen.dart';
 import '../../features/workout_log/presentation/screens/active_workout_screen.dart';
 import '../../features/workout_log/presentation/screens/my_programs_screen.dart';
+import '../../features/workout_log/presentation/screens/workout_history_screen.dart';
+import '../../features/workout_log/presentation/screens/workout_detail_screen.dart';
+import '../../features/workout_log/data/models/workout_history_model.dart';
 import '../../features/workout_log/presentation/providers/workout_provider.dart';
 import '../../features/forums/presentation/screens/forums_screen.dart';
 import '../../features/tv/presentation/screens/tv_screen.dart';
@@ -570,6 +573,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/my-programs',
         name: 'my-programs',
         builder: (context, state) => const MyProgramsScreen(),
+      ),
+      GoRoute(
+        path: '/workout-history',
+        name: 'workout-history',
+        builder: (context, state) => const WorkoutHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/workout-detail',
+        name: 'workout-detail',
+        builder: (context, state) {
+          final workout = state.extra as WorkoutHistorySummary;
+          return WorkoutDetailScreen(workout: workout);
+        },
       ),
       GoRoute(
         path: '/trainer/trainees/:id/calendar',
