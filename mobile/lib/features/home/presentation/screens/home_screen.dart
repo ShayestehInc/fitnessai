@@ -271,10 +271,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(width: 12),
           GestureDetector(
             onTap: onAction,
-            child: Icon(
-              Icons.open_in_new,
-              size: 18,
-              color: theme.colorScheme.primary,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'See All',
+                  style: TextStyle(
+                    color: theme.colorScheme.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 12,
+                  color: theme.colorScheme.primary,
+                ),
+              ],
             ),
           ),
         ],

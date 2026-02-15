@@ -1,23 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/workout_history_model.dart';
+import '../../data/repositories/workout_repository.dart';
 
 /// Read-only detail view of a completed workout.
 ///
-/// Receives a [WorkoutHistorySummary] as the navigation extra.
-/// Shows: header (name, date, duration), exercise list with sets,
-/// readiness survey section, and post-workout survey section.
-class WorkoutDetailScreen extends StatelessWidget {
+/// Receives a [WorkoutHistorySummary] for header info plus fetches
+/// full workout_data from the API by log ID.
+class WorkoutDetailScreen extends ConsumerStatefulWidget {
   final WorkoutHistorySummary workout;
 
   const WorkoutDetailScreen({super.key, required this.workout});
 
   @override
+  ConsumerState<WorkoutDetailScreen> createState() =>
+      _WorkoutDetailScreenState();
+}
+
+class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
+  Map<String, dynamic>? _workoutData;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDetail();
+  }
+
+  Future<void> _fetchDetail() async {
+    final apiClient = ref.read(apiClientProvider);
+    final repo = WorkoutRepository(apiClient);
+    final result = await repo.getWorkoutDetail(widget.workout.id);
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      final data = result['data'] as Map<String, dynamic>;
+      setState(() {
+        _workoutData = data['workout_data'] as Map<String, dynamic>? ?? {};
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _error = result['error'] as String? ?? 'Failed to load workout detail';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final data = workout.workoutData;
-    final exercises = _extractExercises(data);
-    final readinessSurvey = _extractReadinessSurvey(data);
-    final postSurvey = _extractPostSurvey(data);
+    final workout = widget.workout;
 
     return Scaffold(
       appBar: AppBar(
@@ -30,63 +66,108 @@ class WorkoutDetailScreen extends StatelessWidget {
         elevation: 0,
       ),
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(theme),
-            const SizedBox(height: 24),
-            if (readinessSurvey != null) ...[
-              _buildSurveySection(
-                theme: theme,
-                title: 'Pre-Workout',
-                icon: Icons.battery_charging_full,
-                survey: readinessSurvey,
-                fields: const [
-                  _SurveyField('sleep', 'Sleep Quality'),
-                  _SurveyField('mood', 'Mood'),
-                  _SurveyField('energy', 'Energy'),
-                  _SurveyField('stress', 'Stress'),
-                  _SurveyField('soreness', 'Soreness'),
-                ],
+      body: _buildBody(theme, workout),
+    );
+  }
+
+  Widget _buildBody(ThemeData theme, WorkoutHistorySummary workout) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                style: TextStyle(color: theme.textTheme.bodySmall?.color),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-            ],
-            if (exercises.isEmpty)
-              _buildNoExercisesCard(theme)
-            else
-              ...exercises.map(
-                (exercise) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _ExerciseCard(exercise: exercise, theme: theme),
-                ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                    _error = null;
+                  });
+                  _fetchDetail();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
               ),
-            if (postSurvey != null) ...[
-              const SizedBox(height: 8),
-              _buildSurveySection(
-                theme: theme,
-                title: 'Post-Workout',
-                icon: Icons.check_circle_outline,
-                survey: postSurvey,
-                fields: const [
-                  _SurveyField('performance', 'Performance'),
-                  _SurveyField('intensity', 'Intensity'),
-                  _SurveyField('energy_after', 'Energy After'),
-                  _SurveyField('satisfaction', 'Satisfaction'),
-                ],
-                notesKey: 'notes',
-              ),
-              const SizedBox(height: 16),
             ],
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
+      );
+    }
+
+    final data = _workoutData ?? {};
+    final exercises = _extractExercises(data);
+    final readinessSurvey = _extractReadinessSurvey(data);
+    final postSurvey = _extractPostSurvey(data);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(theme, workout),
+          const SizedBox(height: 24),
+          if (readinessSurvey != null) ...[
+            _buildSurveySection(
+              theme: theme,
+              title: 'Pre-Workout',
+              icon: Icons.battery_charging_full,
+              survey: readinessSurvey,
+              fields: const [
+                _SurveyField('sleep', 'Sleep Quality'),
+                _SurveyField('mood', 'Mood'),
+                _SurveyField('energy', 'Energy'),
+                _SurveyField('stress', 'Stress'),
+                _SurveyField('soreness', 'Soreness'),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (exercises.isEmpty)
+            _buildNoExercisesCard(theme)
+          else
+            ...exercises.map(
+              (exercise) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _ExerciseCard(exercise: exercise, theme: theme),
+              ),
+            ),
+          if (postSurvey != null) ...[
+            const SizedBox(height: 8),
+            _buildSurveySection(
+              theme: theme,
+              title: 'Post-Workout',
+              icon: Icons.check_circle_outline,
+              survey: postSurvey,
+              fields: const [
+                _SurveyField('performance', 'Performance'),
+                _SurveyField('intensity', 'Intensity'),
+                _SurveyField('energy_after', 'Energy After'),
+                _SurveyField('satisfaction', 'Satisfaction'),
+              ],
+              notesKey: 'notes',
+            ),
+            const SizedBox(height: 16),
+          ],
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildHeader(ThemeData theme, WorkoutHistorySummary workout) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -253,17 +334,14 @@ class WorkoutDetailScreen extends StatelessWidget {
   }
 
   Map<String, dynamic>? _extractReadinessSurvey(Map<String, dynamic> data) {
-    // Check top-level
     final topLevel = data['readiness_survey'];
     if (topLevel is Map<String, dynamic> && topLevel.isNotEmpty) {
-      // Might be the raw survey_data wrapper
       if (topLevel.containsKey('survey_data') &&
           topLevel['survey_data'] is Map<String, dynamic>) {
         return topLevel['survey_data'] as Map<String, dynamic>;
       }
       return topLevel;
     }
-    // Check first session
     final sessions = data['sessions'];
     if (sessions is List && sessions.isNotEmpty) {
       final firstSession = sessions[0];
@@ -283,12 +361,10 @@ class WorkoutDetailScreen extends StatelessWidget {
   }
 
   Map<String, dynamic>? _extractPostSurvey(Map<String, dynamic> data) {
-    // Check top-level
     final topLevel = data['post_survey'];
     if (topLevel is Map<String, dynamic> && topLevel.isNotEmpty) {
       return topLevel;
     }
-    // Check first session
     final sessions = data['sessions'];
     if (sessions is List && sessions.isNotEmpty) {
       final firstSession = sessions[0];
@@ -404,8 +480,9 @@ class _ExerciseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = exercise['exercise_name'] as String? ?? 'Unknown Exercise';
     final sets = exercise['sets'];
-    final setsList =
-        sets is List ? sets.whereType<Map<String, dynamic>>().toList() : <Map<String, dynamic>>[];
+    final setsList = sets is List
+        ? sets.whereType<Map<String, dynamic>>().toList()
+        : <Map<String, dynamic>>[];
 
     return Container(
       decoration: BoxDecoration(
@@ -416,7 +493,6 @@ class _ExerciseCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Exercise name header
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -444,7 +520,6 @@ class _ExerciseCard extends StatelessWidget {
           ),
           if (setsList.isNotEmpty) ...[
             Divider(height: 1, color: theme.dividerColor),
-            // Sets table header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
@@ -484,7 +559,6 @@ class _ExerciseCard extends StatelessWidget {
                 ],
               ),
             ),
-            // Set rows
             ...setsList.asMap().entries.map((entry) {
               final setData = entry.value;
               final setNumber = setData['set_number'] ?? (entry.key + 1);
@@ -520,7 +594,7 @@ class _ExerciseCard extends StatelessWidget {
                     ),
                     Expanded(
                       child: Text(
-                        weight != null ? '$weight $unit' : '—',
+                        weight != null ? '$weight $unit' : '\u2014',
                         style: TextStyle(
                           color: theme.textTheme.bodyLarge?.color,
                           fontSize: 14,

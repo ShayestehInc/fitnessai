@@ -582,8 +582,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/workout-detail',
         name: 'workout-detail',
+        redirect: (context, state) {
+          if (state.extra is! WorkoutHistorySummary) {
+            return '/workout-history';
+          }
+          return null;
+        },
         builder: (context, state) {
-          final workout = state.extra as WorkoutHistorySummary;
+          final workout = state.extra! as WorkoutHistorySummary;
           return WorkoutDetailScreen(workout: workout);
         },
       ),

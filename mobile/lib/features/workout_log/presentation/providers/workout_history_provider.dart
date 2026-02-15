@@ -121,7 +121,8 @@ class WorkoutHistoryNotifier extends StateNotifier<WorkoutHistoryState> {
 
   /// Pull-to-refresh: reload from page 1.
   Future<void> refresh() async {
-    state = const WorkoutHistoryState(isLoading: true);
+    // Reset state without isLoading flag so loadInitial() doesn't early-return
+    state = const WorkoutHistoryState();
     await loadInitial();
   }
 }

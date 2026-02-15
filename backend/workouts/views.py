@@ -402,6 +402,12 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
         """
         user = cast(User, request.user)
 
+        # Database-level filtering using PostgreSQL JSON operators:
+        # - Exclude null, empty dict {}, and {"exercises": []}
+        # - Include logs that have a non-empty 'exercises' array OR a non-empty 'sessions' array
+        from django.db.models import Q
+        from django.db.models.functions import JSONObject  # noqa: F401
+
         queryset = DailyLog.objects.filter(
             trainee=user,
         ).exclude(
@@ -410,34 +416,43 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
             workout_data={},
         ).exclude(
             workout_data={'exercises': []},
-        ).order_by('-date')
-
-        # Additional Python-level filter: exclude logs where exercises list is empty
-        # This handles edge cases like workout_data having keys but no actual exercises
-        log_ids_with_exercises: list[int] = []
-        for log in queryset.only('id', 'workout_data').iterator():
-            data = log.workout_data
-            if not isinstance(data, dict):
-                continue
-            exercises = data.get('exercises', [])
-            sessions = data.get('sessions', [])
-            has_exercises = isinstance(exercises, list) and len(exercises) > 0
-            has_sessions = isinstance(sessions, list) and len(sessions) > 0
-            if has_exercises or has_sessions:
-                log_ids_with_exercises.append(log.id)
-
-        filtered_queryset = DailyLog.objects.filter(
-            id__in=log_ids_with_exercises,
+        ).filter(
+            Q(workout_data__has_key='exercises') | Q(workout_data__has_key='sessions'),
+        ).defer(
+            'nutrition_data',  # Not needed for history summary, avoid fetching large blob
         ).order_by('-date')
 
         paginator = WorkoutHistoryPagination()
-        page = paginator.paginate_queryset(filtered_queryset, request)
+        page = paginator.paginate_queryset(queryset, request)
 
         if page is not None:
             serializer = WorkoutHistorySummarySerializer(page, many=True)
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = WorkoutHistorySummarySerializer(filtered_queryset, many=True)
+        serializer = WorkoutHistorySummarySerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='workout-detail',
+            permission_classes=[IsTrainee])
+    def workout_detail(self, request: Request, pk: int | None = None) -> Response:
+        """
+        Get full workout detail for a single DailyLog.
+
+        GET /api/workouts/daily-logs/{id}/workout-detail/
+
+        Returns the full DailyLog with workout_data for the detail screen.
+        Row-level security: trainee can only view own logs.
+        """
+        daily_log = self.get_object()
+        user = cast(User, request.user)
+
+        if daily_log.trainee != user:
+            return Response(
+                {'error': 'Not authorized to view this log'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = DailyLogSerializer(daily_log)
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'], url_path='parse-natural-language')

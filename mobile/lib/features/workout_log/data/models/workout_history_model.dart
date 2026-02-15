@@ -8,7 +8,6 @@ class WorkoutHistorySummary {
   final int totalSets;
   final double totalVolumeLbs;
   final String durationDisplay;
-  final Map<String, dynamic> workoutData;
 
   const WorkoutHistorySummary({
     required this.id,
@@ -18,7 +17,6 @@ class WorkoutHistorySummary {
     required this.totalSets,
     required this.totalVolumeLbs,
     required this.durationDisplay,
-    required this.workoutData,
   });
 
   factory WorkoutHistorySummary.fromJson(Map<String, dynamic> json) {
@@ -30,7 +28,6 @@ class WorkoutHistorySummary {
       totalSets: json['total_sets'] as int? ?? 0,
       totalVolumeLbs: (json['total_volume_lbs'] as num?)?.toDouble() ?? 0.0,
       durationDisplay: json['duration_display'] as String? ?? '0:00',
-      workoutData: json['workout_data'] as Map<String, dynamic>? ?? {},
     );
   }
 
@@ -50,9 +47,8 @@ class WorkoutHistorySummary {
 
   /// Format volume for display (e.g., "12,500 lbs").
   String get formattedVolume {
-    if (totalVolumeLbs <= 0) return '—';
+    if (totalVolumeLbs <= 0) return '\u2014';
     final rounded = totalVolumeLbs.round();
-    // Add comma separators
     final str = rounded.toString();
     final buffer = StringBuffer();
     for (int i = 0; i < str.length; i++) {

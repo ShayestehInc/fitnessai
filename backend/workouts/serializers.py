@@ -310,9 +310,8 @@ class WorkoutHistorySummarySerializer(serializers.ModelSerializer[DailyLog]):
         fields = [
             'id', 'date', 'workout_name', 'exercise_count',
             'total_sets', 'total_volume_lbs', 'duration_display',
-            'workout_data',
         ]
-        read_only_fields = ['id', 'date', 'workout_data']
+        read_only_fields = ['id', 'date']
 
     def _get_workout_data(self, obj: DailyLog) -> dict[str, Any]:
         """Safely extract workout_data as a dict."""

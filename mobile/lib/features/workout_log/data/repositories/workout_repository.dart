@@ -155,6 +155,28 @@ class WorkoutRepository {
     return getWorkoutHistory(page: 1, pageSize: limit);
   }
 
+  /// Get full workout detail for a single DailyLog by ID.
+  Future<Map<String, dynamic>> getWorkoutDetail(int logId) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.workoutHistoryDetail(logId),
+      );
+
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        return {'success': true, 'data': response.data};
+      }
+
+      return {'success': false, 'error': 'Failed to load workout detail'};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load workout detail',
+      };
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   /// Submit pre-workout readiness survey
   /// This notifies the trainer about the trainee's readiness before the workout
   Future<Map<String, dynamic>> submitReadinessSurvey({

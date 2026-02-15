@@ -72,7 +72,7 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: state.workouts.length + (state.hasMore ? 1 : 1),
+        itemCount: state.workouts.length + 1,
         itemBuilder: (context, index) {
           if (index < state.workouts.length) {
             return _WorkoutHistoryCard(
