@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-14
+> Last updated: 2026-02-15
 
 ---
 
@@ -167,7 +167,24 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Commission approval workflow | ❌ Not started | Admin can view but not approve/pay from mobile |
 | Ambassador password reset | ❌ Not started | Admin sets temp password; no self-service reset flow |
 
-### 3.9 Other
+### 3.9 Web Trainer Dashboard
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Next.js 15 + React 19 foundation | ✅ Done | Shipped 2026-02-15: shadcn/ui, TanStack React Query, Zod v4 |
+| JWT auth with auto-refresh | ✅ Done | Shipped 2026-02-15: Login, refresh mutex, session cookie for middleware, TRAINER role gating |
+| Dashboard (stats + trainees) | ✅ Done | Shipped 2026-02-15: 4 stats cards, recent trainees table, inactive trainees alert list |
+| Trainee list with search + pagination | ✅ Done | Shipped 2026-02-15: Debounced search (300ms), full-row click, DataTable with pagination |
+| Trainee detail with tabs | ✅ Done | Shipped 2026-02-15: Overview (profile, nutrition goals, programs), Activity (7/14/30 day filter), Progress (placeholder) |
+| Notification system | ✅ Done | Shipped 2026-02-15: Bell badge with 30s polling, popover with last 5, full page with server-side unread filter, mark as read/all |
+| Invitation management | ✅ Done | Shipped 2026-02-15: Table with status badges, create dialog with Zod validation, email + expiry + message fields |
+| Responsive layout + dark mode | ✅ Done | Shipped 2026-02-15: Fixed sidebar (desktop), sheet drawer (mobile), dark mode via CSS variables + next-themes |
+| Docker integration | ✅ Done | Shipped 2026-02-15: Multi-stage node:20-alpine build, non-root user, port 3000 |
+| Security headers | ✅ Done | Shipped 2026-02-15: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
+| Settings page | 🟡 Placeholder | "Coming soon" — needs profile editing, theme toggle, notification preferences |
+| Progress charts tab | 🟡 Placeholder | "Coming soon" — backend data available, needs frontend chart integration |
+| Notification click-through navigation | ❌ Not started | Notifications mark as read but don't navigate to relevant trainee |
+
+### 3.10 Other
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Calendar integration (Google/Microsoft) | 🟡 Partial | Backend API done, mobile basic |
@@ -288,7 +305,18 @@ Three features shipped — activated existing AI food parsing UI, wired password
 - **Security**: All user input HTML-escaped, URL-encoded invite codes, `select_related('trainer')` for N+1 prevention, proper TYPE_CHECKING imports.
 - **Accessibility**: WCAG 2.1 Level AA — Semantics labels, live regions, 48dp touch targets, autofill hints, theme-aware colors.
 
-### 4.8 Acceptance Criteria
+### 4.9 Web Trainer Dashboard (Next.js Foundation) — COMPLETED (2026-02-15)
+
+Complete Next.js 15 web dashboard for trainers with JWT auth, dashboard, trainee management, notifications, invitations, responsive layout, dark mode, and Docker integration.
+
+**What was built:**
+- **Frontend**: ~100 files — auth system (JWT login, refresh mutex, session cookie, role gating, 10s timeout), dashboard (4 stats cards, recent/inactive trainees), trainee management (searchable paginated list with full-row click, detail with Overview/Activity/Progress tabs), notification system (bell badge with 30s polling, popover, full page with server-side filtering, mark as read/all), invitation management (table with status badges, create dialog with Zod validation), responsive layout (256px sidebar desktop, sheet drawer mobile), dark mode via CSS variables, Docker multi-stage build
+- **Backend performance fixes**: 6 N+1 query patterns eliminated across TraineeListView, TraineeDetailView, TrainerDashboardView, TrainerStatsView, AdherenceAnalyticsView, ProgressAnalyticsView. 4 bare `except:` clauses replaced with specific exception catches. Unbounded `days` parameter clamped to 1-365.
+- **Accessibility**: 16 WCAG fixes — ARIA roles/labels, skip-to-content link, keyboard navigation on table rows, screen reader text, decorative icon hiding
+- **Security**: Security response headers, consistent cookie Secure flag, input bounds (maxLength), double-submit protection, Zod validation
+- **Quality**: Code review 8/10 APPROVE, QA 34/35 AC pass (1 fixed post-QA), UX 8/10, Security 9/10, Architecture 8/10, Hacker 6/10 (20 items fixed)
+
+### 4.10 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
 - [x] Trainer receives notification when trainee starts or finishes a workout
@@ -328,12 +356,16 @@ Three features shipped — activated existing AI food parsing UI, wired password
 - ~~Admin can create/manage ambassadors and set commission rates~~ ✅ Completed 2026-02-14
 - Stripe Connect payout to ambassadors — Not yet (future enhancement)
 
-### Phase 4: Web Admin Dashboard
-- React/Next.js with shadcn/ui
-- Trainer dashboard (program builder, trainee management, analytics)
-- Admin dashboard (trainer management, tiers, revenue, platform analytics)
-- Shared auth with existing JWT system
-- TypeScript interfaces auto-generated from Django serializers
+### Phase 4: Web Dashboard — 🟡 IN PROGRESS
+- ~~React/Next.js with shadcn/ui~~ ✅ Completed 2026-02-15 (Next.js 15 + React 19)
+- ~~Trainer dashboard (trainee management, stats, notifications, invitations)~~ ✅ Completed 2026-02-15
+- ~~Shared auth with existing JWT system~~ ✅ Completed 2026-02-15
+- ~~Docker integration~~ ✅ Completed 2026-02-15
+- Trainer program builder (web) — Not yet
+- Trainer analytics (web) — Not yet
+- Admin dashboard (trainer management, tiers, revenue, platform analytics) — Not yet
+- Settings page (profile, theme toggle, notifications) — Placeholder exists
+- Progress charts tab — Placeholder exists, backend data available
 
 ### Phase 5: Ambassador Enhancements
 - Monthly earnings chart (fl_chart bar chart on dashboard)
@@ -445,4 +477,4 @@ Three features shipped — activated existing AI food parsing UI, wired password
 - **Single timezone assumed** — DailyLog uses `timezone.now().date()`. Multi-timezone trainees may see date boundary issues.
 - **AI parsing is OpenAI-only** — Function Calling mode. No fallback provider yet. Rate limits apply.
 - **No real-time updates** — Trainer dashboard requires manual refresh. WebSocket/SSE planned but not implemented.
-- **Mobile only** — No web app exists yet. All management happens in the Flutter app.
+- **Web dashboard is trainer-only** — Web dashboard (Next.js) shipped for trainers (2026-02-15). Admin dashboard and trainee web access not yet built.
