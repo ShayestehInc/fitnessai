@@ -28,7 +28,9 @@ function buildHeaders(
   authHeaders: Record<string, string>,
 ): HeadersInit {
   return {
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...(options.body && !(options.body instanceof FormData)
+      ? { "Content-Type": "application/json" }
+      : {}),
     ...authHeaders,
     ...options.headers,
   };
@@ -101,5 +103,12 @@ export const apiClient = {
 
   delete<T>(url: string): Promise<T> {
     return request<T>(url, { method: "DELETE" });
+  },
+
+  postFormData<T>(url: string, formData: FormData): Promise<T> {
+    return request<T>(url, {
+      method: "POST",
+      body: formData,
+    });
   },
 };

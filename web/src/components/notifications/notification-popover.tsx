@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   PopoverContent,
 } from "@/components/ui/popover";
@@ -8,14 +9,29 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useNotifications, useMarkAsRead } from "@/hooks/use-notifications";
-import { NotificationItem } from "./notification-item";
+import { NotificationItem, getNotificationTraineeId } from "./notification-item";
 import { Loader2 } from "lucide-react";
 
-export function NotificationPopover() {
+interface NotificationPopoverProps {
+  onClose: () => void;
+}
+
+export function NotificationPopover({ onClose }: NotificationPopoverProps) {
+  const router = useRouter();
   const { data, isLoading, isError, refetch } = useNotifications();
   const markAsRead = useMarkAsRead();
 
   const notifications = data?.results?.slice(0, 5) ?? [];
+
+  const handleNotificationClick = (n: (typeof notifications)[number]) => {
+    if (!n.is_read) markAsRead.mutate(n.id);
+
+    const traineeId = getNotificationTraineeId(n);
+    if (traineeId !== null) {
+      onClose();
+      router.push(`/trainees/${traineeId}`);
+    }
+  };
 
   return (
     <PopoverContent align="end" className="w-80 p-0">
@@ -45,9 +61,7 @@ export function NotificationPopover() {
               <NotificationItem
                 key={n.id}
                 notification={n}
-                onClick={() => {
-                  if (!n.is_read) markAsRead.mutate(n.id);
-                }}
+                onClick={() => handleNotificationClick(n)}
               />
             ))}
           </div>
@@ -55,7 +69,13 @@ export function NotificationPopover() {
       )}
       <Separator />
       <div className="p-2">
-        <Button variant="ghost" size="sm" className="w-full" asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full"
+          asChild
+          onClick={onClose}
+        >
           <Link href="/notifications">View all notifications</Link>
         </Button>
       </div>
