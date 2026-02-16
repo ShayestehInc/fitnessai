@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-16 (Pipeline 17: Social & Community — Phase 7 Complete)
+> Last updated: 2026-02-16 (Pipeline 18: Phase 8 Community & Platform Enhancements Complete)
 
 ---
 
@@ -200,7 +200,13 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Auto-posts | ✅ Done | Shipped 2026-02-16: Automated community posts on workout completion and achievement earning |
 | Community feed moderation | ✅ Done | Shipped 2026-02-16: Author delete + trainer moderation via impersonation |
 | Achievement toast on new badge | 🟡 Partial | Backend returns new_achievements data; mobile toast wiring deferred to workout flow update |
-| Leaderboards | ❌ Not started | Opt-in, trainer-controlled. Deferred to future pipeline. |
+| Leaderboards | ✅ Done | Shipped 2026-02-16: Trainer-configurable ranked leaderboards with workout count and streak metrics, dense ranking, opt-in/opt-out, skeleton loading, empty/error states |
+| Push notifications (FCM) | ✅ Done | Shipped 2026-02-16: Firebase Cloud Messaging with device token management, announcement/comment notifications, platform-specific detection |
+| Rich text / markdown | ✅ Done | Shipped 2026-02-16: Content format support on posts and announcements with flutter_markdown rendering |
+| Image attachments | ✅ Done | Shipped 2026-02-16: Multipart image upload (JPEG/PNG/WebP, 5MB), UUID filenames, full-screen pinch-to-zoom viewer, client/server validation |
+| Comment threads | ✅ Done | Shipped 2026-02-16: Flat comment system with pagination, author/trainer delete, real-time count updates, push notifications |
+| Real-time WebSocket | ✅ Done | Shipped 2026-02-16: Django Channels consumer with JWT auth, 4 broadcast event types, exponential backoff reconnection |
+| Stripe Connect ambassador payouts | ✅ Done | Shipped 2026-02-16: Express account onboarding, admin-triggered payouts with race condition protection, payout history with status badges |
 
 ### 3.11 Other
 | Feature | Status | Notes |
@@ -209,7 +215,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Feature request board | ✅ Done | In-app submission + voting |
 | MCP server (Claude Desktop) | ✅ Done | Trainer can query data via Claude Desktop |
 | TV mode | ❌ Placeholder | Screen exists but empty |
-| Community feed (replaces Forums) | ✅ Done | Shipped 2026-02-16: Trainer-scoped feed with text posts, reactions (fire/thumbs_up/heart), auto-posts for workouts and achievements, optimistic updates, infinite scroll |
+| Community feed (replaces Forums) | ✅ Done | Shipped 2026-02-16: Trainer-scoped feed with text posts, reactions (fire/thumbs_up/heart), auto-posts for workouts and achievements, optimistic updates, infinite scroll, image attachments, markdown, comments, real-time WebSocket updates |
 | Offline-first with local DB | ✅ Done | Shipped 2026-02-15: Drift (SQLite) local database, sync queue with FIFO/exponential backoff, connectivity monitoring with 2s debounce, offline-aware repositories for workouts/nutrition/weight, program caching, 409 conflict detection, UI banners (offline/syncing/synced/failed), failed sync bottom sheet, logout warning |
 
 ---
@@ -431,6 +437,20 @@ Full implementation of the Social & Community feature set: Trainer Announcements
 - **Cross-Cutting**: Full Semantics/accessibility annotations. Shimmer skeleton loading states. Row-level security (all data scoped by parent_trainer). Batch reaction aggregation (no N+1). Proper CASCADE behavior. Database indexes on all query patterns.
 - **Quality**: Code review R1 6/10 → fixes applied. QA 55/55 pass HIGH confidence. UX 8/10 (13 fixes). Security 9/10 PASS. Architecture 9/10 APPROVE. Hacker 7/10 (2 critical pagination bugs found and fixed). Final 8/10 SHIP.
 
+### 4.18 Phase 8 Community & Platform Enhancements -- COMPLETED (2026-02-16)
+
+Seven features extending the community platform with real-time capabilities, rich media, and ambassador monetization.
+
+**What was built:**
+- **Leaderboards**: New `Leaderboard` and `LeaderboardEntry` models. Trainer-configurable ranked leaderboards with workout count and streak metrics. Dense ranking algorithm (1, 2, 2, 4). Opt-in/opt-out per trainee. Skeleton loading, empty/error states. Leaderboard service with dataclass returns.
+- **Push Notifications (FCM)**: `DeviceToken` model with platform detection. Firebase Cloud Messaging integration. Notification triggers on announcements and comments. Device token CRUD API. Platform-specific payload formatting (iOS badge, Android channel).
+- **Rich Text / Markdown**: `content_format` field on posts and announcements (plain/markdown). `flutter_markdown` rendering on mobile. Server-side format validation.
+- **Image Attachments**: `image` ImageField on CommunityPost. Multipart upload with content-type validation (JPEG/PNG/WebP only), 5MB server-side limit, 5MB client-side validation, UUID-based filenames. Full-screen pinch-to-zoom viewer (`InteractiveViewer` with `minScale: 1.0`). Loading/error states for images.
+- **Comment Threads**: `Comment` model with ForeignKey to CommunityPost. Flat comment system with pagination. Author delete + trainer moderation. `comment_count` annotation for N+1 prevention. Push notifications on new comments.
+- **Real-time WebSocket**: Django Channels `CommunityFeedConsumer` with JWT auth via query parameter. Channel layer group per trainer. 4 broadcast event types: `new_post`, `post_deleted`, `new_comment`, `reaction_update`. Exponential backoff reconnection (3s base, 5 max attempts). Mobile WebSocket service with typed message handling.
+- **Stripe Connect Ambassador Payouts**: `AmbassadorPayout` model. Stripe Connect Express account onboarding. Admin-triggered payouts with `select_for_update()` + `transaction.atomic()` for race condition protection. Payout history screen with status badges (pending/paid/failed). Payout service with dataclass returns.
+- **Quality**: Code review 8/10 APPROVE (2 rounds, 6 critical + 10 major all fixed). QA 50/61 AC pass HIGH confidence (11 deferred non-blocking). UX 8/10. Security 9/10 PASS. Architecture 9/10 APPROVE. Hacker 8/10. Final 8/10 SHIP.
+
 ### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
@@ -469,7 +489,7 @@ Full implementation of the Social & Community feature set: Trainer Announcements
 - ~~Referral code system (8-char alphanumeric, registration integration)~~ ✅ Completed 2026-02-14
 - ~~Revenue sharing logic: configurable commission rate per ambassador~~ ✅ Completed 2026-02-14
 - ~~Admin can create/manage ambassadors and set commission rates~~ ✅ Completed 2026-02-14
-- Stripe Connect payout to ambassadors — Not yet (future enhancement)
+- ~~Stripe Connect payout to ambassadors~~ ✅ Completed 2026-02-16 (Pipeline 18: Express account onboarding, admin payouts, payout history)
 
 ### Phase 4: Web Dashboard — ✅ COMPLETED
 - ~~React/Next.js with shadcn/ui~~ ✅ Completed 2026-02-15 (Next.js 15 + React 19)
@@ -487,7 +507,7 @@ Full implementation of the Social & Community feature set: Trainer Announcements
 - ~~Native share sheet (share_plus package)~~ ✅ Completed 2026-02-15
 - ~~Commission approval/payment workflow (admin mobile + API)~~ ✅ Completed 2026-02-15
 - ~~Ambassador password reset / magic link login~~ ✅ Completed 2026-02-15 (admin-created password validation)
-- Stripe Connect payout to ambassadors -- Deferred (requires Stripe dashboard configuration)
+- ~~Stripe Connect payout to ambassadors~~ ✅ Completed 2026-02-16 (Pipeline 18: Express onboarding, admin payouts, history)
 - ~~Custom referral codes (ambassador-chosen, e.g., "JOHN20")~~ ✅ Completed 2026-02-15
 
 ### Phase 6: Offline-First + Performance -- COMPLETED (2026-02-15)
@@ -502,17 +522,24 @@ Full implementation of the Social & Community feature set: Trainer Announcements
 - ~~Forums / community feed (trainee-to-trainee)~~ ✅ Completed 2026-02-16 (trainer-scoped community feed with text posts, reactions, auto-posts, moderation)
 - ~~Trainer announcements (broadcast to all trainees)~~ ✅ Completed 2026-02-16 (full CRUD, pinning, unread tracking, notification bell)
 - ~~Achievement / badge system~~ ✅ Completed 2026-02-16 (15 predefined badges, streak/count calculation, hooks on workout/nutrition/weight, badge grid UI)
-- Leaderboards (opt-in, trainer-controlled) -- Deferred to future pipeline
+- ~~Leaderboards (opt-in, trainer-controlled)~~ ✅ Completed 2026-02-16 (Pipeline 18)
 
-### Phase 8: Future Enhancements
-- Leaderboards (opt-in, trainer-controlled)
-- Push notifications for announcements, achievements, community posts
-- Rich text / markdown in announcements and posts
-- Image / video attachments on community posts
-- Comment threads on community posts
-- Real-time feed updates (WebSocket)
-- Stripe Connect payout to ambassadors
+### Phase 8: Community & Platform Enhancements -- ✅ COMPLETED (2026-02-16)
+- ~~Leaderboards (opt-in, trainer-controlled)~~ ✅ Completed 2026-02-16 (dense ranking, workout count + streak metrics, opt-in/opt-out, skeleton loading)
+- ~~Push notifications (FCM) for announcements, achievements, community posts~~ ✅ Completed 2026-02-16 (device token management, announcement/comment notifications, platform-specific detection)
+- ~~Rich text / markdown in announcements and posts~~ ✅ Completed 2026-02-16 (content_format field, flutter_markdown rendering)
+- ~~Image attachments on community posts~~ ✅ Completed 2026-02-16 (multipart upload, JPEG/PNG/WebP, 5MB, UUID filenames, full-screen pinch-to-zoom)
+- ~~Comment threads on community posts~~ ✅ Completed 2026-02-16 (flat comments, pagination, author/trainer delete, real-time count updates)
+- ~~Real-time feed updates (WebSocket)~~ ✅ Completed 2026-02-16 (Django Channels, JWT auth, 4 event types, exponential backoff reconnection)
+- ~~Stripe Connect payout to ambassadors~~ ✅ Completed 2026-02-16 (Express account onboarding, admin-triggered payouts, race condition protection, payout history)
+
+### Phase 9: Future Enhancements
+- Video attachments on community posts
 - Trainee web access
+- In-app messaging (trainer-to-trainee direct messages)
+- Advanced analytics and reporting
+- Multi-language support
+- Social auth (Apple/Google) mobile integration
 
 ---
 
@@ -603,5 +630,5 @@ Full implementation of the Social & Community feature set: Trainer Announcements
 - **Offline support for trainee workout/nutrition/weight logging** — Shipped 2026-02-15 via Drift (SQLite). Sync queue with FIFO processing, exponential backoff, conflict detection. Pending: offline data not yet merged into list views (home recent workouts, nutrition macro totals, weight trends).
 - **Single timezone assumed** — DailyLog uses `timezone.now().date()`. Multi-timezone trainees may see date boundary issues.
 - **AI parsing is OpenAI-only** — Function Calling mode. No fallback provider yet. Rate limits apply.
-- **No real-time updates** — Trainer dashboard requires manual refresh. WebSocket/SSE planned but not implemented.
+- **Real-time updates on community feed only** — WebSocket via Django Channels shipped 2026-02-16 for community feed (new posts, deletions, comments, reactions). Trainer dashboard still requires manual refresh.
 - **Web dashboard is trainer + admin only** — Web dashboard (Next.js) shipped for trainers and admins (2026-02-15). Trainee web access not yet built.

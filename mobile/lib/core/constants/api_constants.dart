@@ -206,6 +206,40 @@ class ApiConstants {
   static String get trainerAnnouncements => '$apiBaseUrl/trainer/announcements/';
   static String trainerAnnouncementDetail(int id) => '$apiBaseUrl/trainer/announcements/$id/';
 
+  // Trainer leaderboard settings
+  static String get trainerLeaderboardSettings => '$apiBaseUrl/trainer/leaderboard-settings/';
+
+  // Community comments
+  static String communityPostComments(int postId) => '$apiBaseUrl/community/feed/$postId/comments/';
+  static String communityCommentDelete(int postId, int commentId) =>
+      '$apiBaseUrl/community/feed/$postId/comments/$commentId/';
+
+  // Community leaderboard
+  static String get communityLeaderboard => '$apiBaseUrl/community/leaderboard/';
+
+  // Device token (push notifications)
+  static String get deviceToken => '$apiBaseUrl/users/device-token/';
+
+  // Leaderboard opt-in
+  static String get leaderboardOptIn => '$apiBaseUrl/users/leaderboard-opt-in/';
+
+  // Ambassador Stripe Connect
+  static String get ambassadorConnectStatus => '$apiBaseUrl/ambassador/connect/status/';
+  static String get ambassadorConnectOnboard => '$apiBaseUrl/ambassador/connect/onboard/';
+  static String get ambassadorConnectReturn => '$apiBaseUrl/ambassador/connect/return/';
+  static String get ambassadorPayouts => '$apiBaseUrl/ambassador/payouts/';
+
+  // Admin ambassador payout
+  static String adminAmbassadorPayout(int ambassadorId) =>
+      '$apiBaseUrl/admin/ambassadors/$ambassadorId/payout/';
+
+  // WebSocket
+  static String get wsBaseUrl {
+    final base = baseUrl.replaceFirst('http', 'ws');
+    return '$base/ws';
+  }
+  static String get wsCommunityFeed => '$wsBaseUrl/community/feed/';
+
   // Headers (these can stay const)
   static const String contentType = 'application/json';
   static const String authorization = 'Authorization';

@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 from django.db import IntegrityError, transaction
-from django.db.models import Case, Count, Q, QuerySet, Sum, When
+from django.db.models import Case, Count, F, Q, QuerySet, Sum, When
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from rest_framework import status
@@ -22,7 +22,13 @@ from rest_framework.views import APIView
 from core.permissions import IsAdmin, IsAmbassador
 from users.models import User
 
-from .models import AmbassadorCommission, AmbassadorProfile, AmbassadorReferral
+from .models import (
+    AmbassadorCommission,
+    AmbassadorProfile,
+    AmbassadorReferral,
+    AmbassadorStripeAccount,
+    PayoutRecord,
+)
 from .serializers import (
     AdminCreateAmbassadorSerializer,
     AdminUpdateAmbassadorSerializer,
@@ -34,6 +40,7 @@ from .serializers import (
     CustomReferralCodeSerializer,
 )
 from .services.commission_service import CommissionService
+from .services.payout_service import PayoutService
 
 logger = logging.getLogger(__name__)
 
@@ -539,4 +546,212 @@ class AdminBulkPayCommissionsView(APIView):
             'message': result.message,
             'paid_count': result.processed_count,
             'skipped_count': result.skipped_count,
+        })
+
+
+# ---------------------------------------------------------------------------
+# Stripe Connect (Ambassador-facing)
+# ---------------------------------------------------------------------------
+
+
+class AmbassadorConnectStatusView(APIView):
+    """
+    GET /api/ambassador/connect/status/
+    Returns the ambassador's Stripe Connect account status.
+    """
+    permission_classes = [IsAuthenticated, IsAmbassador]
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+
+        try:
+            profile = AmbassadorProfile.objects.get(user=user)
+        except AmbassadorProfile.DoesNotExist:
+            return Response(
+                {'error': 'Ambassador profile not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        result = PayoutService.get_connect_status(profile.id)
+
+        return Response({
+            'has_account': result.has_account,
+            'stripe_account_id': result.stripe_account_id,
+            'charges_enabled': result.charges_enabled,
+            'payouts_enabled': result.payouts_enabled,
+            'details_submitted': result.details_submitted,
+            'onboarding_completed': result.onboarding_completed,
+        })
+
+
+class AmbassadorConnectOnboardView(APIView):
+    """
+    POST /api/ambassador/connect/onboard/
+    Creates a Stripe Express account (if needed) and returns an onboarding link.
+    Body: { "return_url": "...", "refresh_url": "..." }
+    """
+    permission_classes = [IsAuthenticated, IsAmbassador]
+
+    def post(self, request: Request) -> Response:
+        user = cast(User, request.user)
+
+        try:
+            profile = AmbassadorProfile.objects.get(user=user)
+        except AmbassadorProfile.DoesNotExist:
+            return Response(
+                {'error': 'Ambassador profile not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from django.conf import settings as django_settings
+
+        return_url = request.data.get(
+            'return_url',
+            f'{django_settings.FRONTEND_URL}/ambassador/stripe-connect/return',
+        )
+        refresh_url = request.data.get(
+            'refresh_url',
+            f'{django_settings.FRONTEND_URL}/ambassador/stripe-connect/refresh',
+        )
+
+        try:
+            result = PayoutService.create_connect_account(
+                ambassador_profile_id=profile.id,
+                return_url=return_url,
+                refresh_url=refresh_url,
+            )
+        except RuntimeError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({
+            'onboarding_url': result.onboarding_url,
+            'message': result.message,
+        })
+
+
+class AmbassadorConnectReturnView(APIView):
+    """
+    GET /api/ambassador/connect/return/
+    Called after ambassador returns from Stripe onboarding.
+    Syncs account status from Stripe.
+    """
+    permission_classes = [IsAuthenticated, IsAmbassador]
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+
+        try:
+            profile = AmbassadorProfile.objects.get(user=user)
+        except AmbassadorProfile.DoesNotExist:
+            return Response(
+                {'error': 'Ambassador profile not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            result = PayoutService.sync_account_status(profile.id)
+        except (AmbassadorStripeAccount.DoesNotExist, RuntimeError) as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({
+            'has_account': result.has_account,
+            'charges_enabled': result.charges_enabled,
+            'payouts_enabled': result.payouts_enabled,
+            'details_submitted': result.details_submitted,
+            'onboarding_completed': result.onboarding_completed,
+        })
+
+
+class AmbassadorPayoutHistoryView(APIView):
+    """
+    GET /api/ambassador/payouts/
+    Paginated list of payout records for the ambassador.
+    """
+    permission_classes = [IsAuthenticated, IsAmbassador]
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+
+        try:
+            profile = AmbassadorProfile.objects.get(user=user)
+        except AmbassadorProfile.DoesNotExist:
+            return Response(
+                {'error': 'Ambassador profile not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        payouts = (
+            PayoutRecord.objects.filter(ambassador_profile=profile)
+            .annotate(commission_count=Count('commissions_included'))
+            .order_by('-created_at')
+        )
+
+        paginator = PageNumberPagination()
+        paginator.page_size = 20
+        page = paginator.paginate_queryset(payouts, request)
+
+        data = []
+        for payout in (page if page is not None else payouts):
+            data.append({
+                'id': payout.id,
+                'amount': str(payout.amount),
+                'status': payout.status,
+                'stripe_transfer_id': payout.stripe_transfer_id,
+                'error_message': payout.error_message,
+                'commission_count': payout.commission_count,
+                'created_at': payout.created_at,
+            })
+
+        if paginator.page is not None:
+            return paginator.get_paginated_response(data)
+        return Response(data)
+
+
+# ---------------------------------------------------------------------------
+# Admin Payout Trigger
+# ---------------------------------------------------------------------------
+
+class AdminTriggerPayoutView(APIView):
+    """
+    POST /api/admin/ambassadors/<ambassador_id>/payout/
+    Trigger a payout of approved commissions to the ambassador.
+    Body (optional): { "commission_ids": [1, 2, 3] }
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request: Request, ambassador_id: int) -> Response:
+        commission_ids = request.data.get('commission_ids')
+
+        try:
+            result = PayoutService.execute_payout(
+                ambassador_profile_id=ambassador_id,
+                commission_ids=commission_ids,
+            )
+        except AmbassadorProfile.DoesNotExist:
+            return Response(
+                {'error': 'Ambassador profile not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except RuntimeError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        if not result.success:
+            return Response(
+                {'error': result.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({
+            'message': result.message,
+            'payout_record_id': result.payout_record_id,
+            'amount': str(result.amount),
         })

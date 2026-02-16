@@ -76,9 +76,11 @@ import '../../features/ambassador/presentation/screens/ambassador_navigation_she
 import '../../features/ambassador/presentation/screens/ambassador_dashboard_screen.dart';
 import '../../features/ambassador/presentation/screens/ambassador_referrals_screen.dart';
 import '../../features/ambassador/presentation/screens/ambassador_settings_screen.dart';
+import '../../features/ambassador/presentation/screens/ambassador_payouts_screen.dart';
 import '../../features/admin/presentation/screens/admin_ambassadors_screen.dart';
 import '../../features/admin/presentation/screens/admin_create_ambassador_screen.dart';
 import '../../features/admin/presentation/screens/admin_ambassador_detail_screen.dart';
+import '../../features/community/presentation/screens/leaderboard_screen.dart';
 
 // Navigation keys for branches
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -325,6 +327,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
+      // Ambassador detail routes (outside shell)
+      GoRoute(
+        path: '/ambassador/payouts',
+        name: 'ambassador-payouts',
+        builder: (context, state) => const AmbassadorPayoutsScreen(),
+      ),
+
       // Admin Shell - separate navigation for admin users
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -526,6 +535,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/community/achievements',
         name: 'community-achievements',
         builder: (context, state) => const AchievementsScreen(),
+      ),
+      GoRoute(
+        path: '/community/leaderboard',
+        name: 'community-leaderboard',
+        builder: (context, state) => const LeaderboardScreen(),
       ),
 
       // Trainer announcement management

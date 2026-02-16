@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import QuerySet
 
-from .models import User, UserProfile
+from .models import DeviceToken, User, UserProfile
 from .serializers import UserProfileSerializer, OnboardingStepSerializer, UserSerializer
 from .social_auth import verify_google_token, verify_apple_token, SocialAuthError
 from core.permissions import IsTrainee
@@ -409,3 +409,107 @@ class MyBrandingView(APIView):
 
         serializer = TrainerBrandingSerializer(branding, context={'request': request})
         return Response(serializer.data)
+
+
+class DeviceTokenView(APIView):
+    """
+    POST /api/users/device-token/
+    Register or update an FCM device token.
+    Body: { "token": "...", "platform": "ios"|"android"|"web" }
+
+    DELETE /api/users/device-token/
+    Deactivate a device token (on logout).
+    Body: { "token": "..." }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        token = request.data.get('token', '').strip()
+        platform = request.data.get('platform', '').strip().lower()
+
+        if not token:
+            return Response(
+                {'error': 'Token is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if platform not in ('ios', 'android', 'web'):
+            return Response(
+                {'error': 'Platform must be ios, android, or web.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(token) > 512:
+            return Response(
+                {'error': 'Token exceeds maximum length.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        device_token, created = DeviceToken.objects.update_or_create(
+            user=user,
+            token=token,
+            defaults={
+                'platform': platform,
+                'is_active': True,
+            },
+        )
+
+        return Response(
+            {
+                'id': device_token.id,
+                'platform': device_token.platform,
+                'is_active': device_token.is_active,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    def delete(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        token = request.data.get('token', '').strip()
+
+        if not token:
+            return Response(
+                {'error': 'Token is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        updated = DeviceToken.objects.filter(
+            user=user, token=token,
+        ).update(is_active=False)
+
+        if updated == 0:
+            return Response(
+                {'error': 'Token not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response({'success': True})
+
+
+class LeaderboardOptInView(APIView):
+    """
+    GET  /api/users/leaderboard-opt-in/ -- get current opt-in status.
+    PUT  /api/users/leaderboard-opt-in/ -- update opt-in status.
+    Body: { "opt_in": true|false }
+    """
+    permission_classes = [IsAuthenticated, IsTrainee]
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        return Response({'leaderboard_opt_in': profile.leaderboard_opt_in})
+
+    def put(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        opt_in = request.data.get('opt_in')
+
+        if not isinstance(opt_in, bool):
+            return Response(
+                {'error': 'opt_in must be a boolean.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.leaderboard_opt_in = opt_in
+        profile.save(update_fields=['leaderboard_opt_in', 'updated_at'])
+
+        return Response({'leaderboard_opt_in': profile.leaderboard_opt_in})

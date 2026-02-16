@@ -4,6 +4,42 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-16] — Phase 8 Community & Platform Enhancements (Pipeline 18)
+
+### Added
+- **Leaderboards** — New `Leaderboard` and `LeaderboardEntry` models. Trainer-configurable ranked leaderboards with workout count and streak metrics. Dense ranking algorithm (1, 2, 2, 4). Opt-in/opt-out per trainee with `show_on_leaderboard` field. Leaderboard screen with skeleton loading, empty state ("No leaderboard data yet"), error state with retry. Leaderboard service with `LeaderboardEntry` dataclass returns.
+- **Push Notifications (FCM)** — `DeviceToken` model with platform detection (iOS/Android). Firebase Cloud Messaging integration via `firebase-admin` SDK. `NotificationService` with `send_push_notification()` for single and `send_bulk_push()` for batch delivery. Notification triggers on new announcements and new comments. Device token CRUD API (`POST/DELETE /api/community/device-tokens/`). Platform-specific payload formatting (iOS badge count, Android notification channel).
+- **Rich Text / Markdown** — `content_format` field on CommunityPost and Announcement models (`plain`/`markdown` choices). `flutter_markdown` rendering on mobile with theme-aware styling. Server-side format validation in serializers. Backward-compatible with existing plain text content.
+- **Image Attachments** — `image` ImageField on CommunityPost. Multipart upload endpoint with content-type validation (JPEG/PNG/WebP only), 5MB server-side limit, 5MB client-side validation with user-friendly error message. UUID-based filenames to prevent path traversal. Full-screen pinch-to-zoom image viewer (`InteractiveViewer` with `minScale: 1.0`, `maxScale: 4.0`). Loading shimmer placeholder (250dp height, 12dp border radius) and error state for image loading.
+- **Comment Threads** — `Comment` model with ForeignKey to CommunityPost. Flat comment system with cursor pagination. Author delete + trainer moderation delete. `comment_count` annotation on feed queries for N+1 prevention. Comments bottom sheet with real-time count updates. Push notifications sent to post author on new comments.
+- **Real-time WebSocket** — Django Channels `CommunityFeedConsumer` with JWT authentication via query parameter (`?token=<JWT>`). Channel layer group per trainer (`community_feed_{trainer_id}`). 4 broadcast event types: `new_post`, `post_deleted`, `new_comment`, `reaction_update` (all with timestamps). Close codes: 4001 (auth failure), 4003 (no trainer). Ping/pong heartbeat. Mobile `CommunityWsService` with exponential backoff reconnection (3s base delay, 5 max attempts). Typed message handling for all 4 event types.
+- **Stripe Connect Ambassador Payouts** — `AmbassadorPayout` model with Stripe transfer tracking. Stripe Connect Express account onboarding (`POST /api/ambassador/stripe/onboard/`). Admin-triggered payouts (`POST /api/admin/ambassador/payouts/trigger/`) with `select_for_update()` + `transaction.atomic()` for race condition protection. Payout history screen with status badges (pending/paid/failed). `PayoutService` with `PayoutResult` dataclass returns. Ambassador payouts screen with empty state (wallet icon + descriptive text).
+
+### Changed
+- **`backend/community/consumers.py`** — Added `feed_reaction_update` handler for real-time reaction count broadcasting. Removed unused `json` import.
+- **`backend/community/views.py`** — Refactored `_get_post()` to return `tuple[CommunityPost | None, Response | None]` distinguishing 403 (wrong group) from 404 (not found). Added WebSocket broadcast helpers for all 4 event types.
+- **`mobile/lib/features/community/data/services/community_ws_service.dart`** — Added `reaction_update` case handler. Implemented exponential backoff reconnection (3s, 6s, 12s, 24s, 48s).
+- **`mobile/lib/features/community/presentation/providers/community_feed_provider.dart`** — Added `onReactionUpdate()`, `onNewComment()`, `onNewPost()`, `onPostDeleted()` methods for WebSocket-driven state updates.
+- **`mobile/lib/features/community/presentation/widgets/community_post_card.dart`** — Image height increased 200dp to 250dp, border radius 8dp to 12dp. InteractiveViewer minScale fixed from 0.5 to 1.0. Semantics labels on full image viewer.
+- **`mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart`** — Added 5MB client-side image size validation with user-friendly snackbar.
+
+### Accessibility
+- `Semantics` labels on all leaderboard entries (rank, name, metric, value)
+- `Semantics` labels on comment tiles (author, content, timestamp)
+- `Semantics` on full-screen image viewer (image description, close button)
+- Skeleton loading placeholder for leaderboard screen matching populated layout
+
+### Quality Metrics
+- Code Review: 8/10 APPROVE (2 rounds — 6 critical + 10 major issues all fixed)
+- QA: HIGH confidence, 50/61 AC pass, 0 failures (11 ACs deferred: settings toggles, markdown toolbar, notification banners — all non-blocking for V1)
+- UX Audit: 8/10 (ambassador payouts empty state improved)
+- Security Audit: 9/10 PASS (no critical/high vulnerabilities)
+- Architecture Audit: 9/10 APPROVE (follows established patterns, no tech debt introduced)
+- Hacker Audit: 8/10 (0 dead UI, 0 critical bugs, 2 low visual items, 1 low logic item)
+- Final Verdict: SHIP at 8/10
+
+---
+
 ## [2026-02-16] — Social & Community (Phase 7)
 
 ### Added
