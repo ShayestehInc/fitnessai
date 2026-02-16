@@ -1,9 +1,9 @@
-# Hacker Report: Ambassador Enhancements (Pipeline 14)
+# Hacker Report: Offline-First Workout & Nutrition Logging with Sync Queue (Pipeline 15)
 
 ## Date: 2026-02-15
 
 ## Focus Areas
-Ambassador Enhancements Phase 5: monthly earnings chart, native share sheet, commission approval/payment workflow, custom referral codes. Backend (commission_service.py, views.py, serializers.py, urls.py, models.py) and Mobile (dashboard screen, settings screen, admin detail screen, chart widget, repository, provider, models, API constants).
+Offline-first workout, nutrition, and weight check-in logging with Drift (SQLite) local database, sync queue, and connectivity monitoring. Backend-agnostic sync engine with FIFO queue processing, exponential backoff, and 409 conflict detection. Mobile: core database layer (tables, DAOs, app_database), offline-aware repositories (workout, nutrition, weight), services (connectivity, sync, sync_status), providers, UI widgets (offline_banner, sync_status_badge, failed_sync_sheet), modified screens (home, workout_log, nutrition, weight_checkin, ai_command_center, settings, active_workout).
 
 ---
 
@@ -11,8 +11,9 @@ Ambassador Enhancements Phase 5: monthly earnings chart, native share sheet, com
 
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| 1 | Medium | admin_ambassador_detail_screen.dart | "Bulk Pay All Approved" button | Should exist alongside "Approve All Pending" for symmetry -- backend supports bulk-pay endpoint | Missing entirely. Backend has `bulk-pay/` endpoint, mobile has `bulkPayCommissions` repository method, but no UI to trigger it. **FIXED**: Added "Pay All" TextButton.icon (green) next to "Approve All" in commission header. Includes confirmation dialog with total amount and success/error snackbar. |
-| 2 | Low | admin_ambassador_detail_screen.dart | Individual commission action buttons during bulk processing | Should be disabled when bulk approve/pay is in flight to prevent conflicting concurrent mutations | Buttons remained fully tappable during `_isBulkProcessing`. **FIXED**: Pass `isProcessing || _isBulkProcessing` to `_buildCommissionActionButton`, disabling individual actions while bulk operation runs. |
+| 1 | Medium | `SyncStatusBadge` (synced state) | Badge icon for synced items | AC-38: synced items show no badge | Was showing green `cloud_done` icon inside a 16x16 SizedBox, taking up layout space for nothing. **FIXED**: changed to `SizedBox.shrink()`. |
+| 2 | Low | `FailedSyncSheet` | "Retry All" button | Should trigger sync and provide feedback | Button triggers sync and closes sheet, but there is no visual feedback while the retry-all loop runs (it iterates items sequentially). For large lists, the user could tap multiple times. Not a blocker -- the `_failedItems.clear()` prevents duplicates. |
+| 3 | Low | `SyncStatusBadge` widget | The badge widget itself | Should be used on workout/nutrition/weight cards | The widget exists and is well-implemented, but it is not actually placed on any card in the UI. It was created for AC-38 but no screen references it on individual items. Not wired up anywhere. Cannot fix without design decisions about which cards to badge. |
 
 ---
 
@@ -20,10 +21,9 @@ Ambassador Enhancements Phase 5: monthly earnings chart, native share sheet, com
 
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | High | ambassador_dashboard_screen.dart | Referral code card: `fontSize: 24` + `letterSpacing: 4` on code text means a 20-char custom code like "SUPERSUMMERDEAL2026" is ~600px wide, overflowing the card on all phone screens. Previously codes were always 8 chars so it fit, but the max_length increase to 20 broke this. | **FIXED**: Wrapped code Text in `FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft)` so long codes scale down to fit the available width while short codes remain full size. |
-| 2 | Medium | admin_ambassador_detail_screen.dart | Profile card: `Code: ${profile.referralCode}` text in the Row alongside the status badge has no overflow protection. With a 20-char code, it pushes the status badge off-screen or causes Row overflow. | **FIXED**: Wrapped in `Flexible` with `overflow: TextOverflow.ellipsis`. |
-| 3 | Medium | admin_ambassador_detail_screen.dart | Commission tile: Single Row with trainer email + amount column + status badge + action button. With long emails (e.g., "verylongtraineremail@verylongdomain.com") + "$1,250.00" + "APPROVED" badge + "Mark Paid" button, the Row overflows on typical 375px phone widths. | **FIXED**: Restructured tile to two-row Column layout. Top row: email (Expanded + ellipsis) + commission amount. Bottom row: period + base amount (Expanded + ellipsis) + status badge + action button. Prevents overflow at any screen width. |
-| 4 | Medium | ambassador_dashboard_screen.dart | Earnings card: `\$${data.totalEarnings}` displays raw decimal strings like "10500.00" with no comma grouping. For an ambassador with $10,500 in earnings, the display reads "$10500.00" -- hard to parse quickly and feels unprofessional. Same for pending earnings. | **FIXED**: Added `_formatCurrency()` helper that formats with comma grouping (e.g., "$10,500.00"). Applied to both `totalEarnings` and `pendingEarnings` displays. |
+| 1 | Low | `OfflineBanner` | Banner height is fixed at 28px with `height: 28`. On very small font sizes the text fits, but at larger accessibility font sizes the text could clip vertically. | Not fixed -- would need a `ConstrainedBox` with `minHeight` instead of fixed `height`. Requires testing on device with accessibility settings. |
+| 2 | Low | `_BannerContent` | The indeterminate `LinearProgressIndicator` (syncing state) is only 60px wide and 2px tall. It may be hard to notice on larger screens. | Not fixed -- a design decision. The icon + text already convey syncing state. |
+| 3 | Low | `FailedSyncSheet` | The `DraggableScrollableSheet` starts at 50% height. If there is only 1 failed item, the sheet is half-filled with empty space below the card. `initialChildSize` could be dynamic based on item count. | Not fixed -- minor polish item. The sheet is still functional. |
 
 ---
 
@@ -31,8 +31,13 @@ Ambassador Enhancements Phase 5: monthly earnings chart, native share sheet, com
 
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 1 | High | ambassador_dashboard_screen.dart | Share referral code on emulator/platform without share_plus plugin registered | Should fall back to clipboard copy with snackbar | Only caught `PlatformException`. share_plus v10 can throw `MissingPluginException` (which is NOT a subclass of PlatformException) on emulators or web. The catch block would miss it, causing an unhandled exception crash. **FIXED**: Changed `on PlatformException` to `catch (_)` to handle all exception types with clipboard fallback. |
-| 2 | Medium | monthly_earnings_chart.dart | Ambassador has monthly earnings entries but all amounts are "0.00" (e.g., all commissions still PENDING, not APPROVED/PAID) | Should show "No earnings data yet" empty state | Renders invisible zero-height bars with a 100-unit Y-axis, gridlines, and axis labels -- a confusing empty-looking chart. **FIXED**: Added `_maxEarning > 0` check alongside `isEmpty` to route all-zero data to the empty state. |
+| 1 | Critical | Manual retry of failed items | 1. Save items offline. 2. Go online. 3. Items fail 3 times (retryCount=3, marked `failed`). 4. Open FailedSyncSheet. 5. Tap "Retry" on a failed item. | Item should reset to pending with retryCount=0, giving it a fresh set of 3 retry attempts. | **WAS BROKEN**: `retryItem()` did NOT reset `retryCount`. After manual retry, the item would be picked up with retryCount=3, and `retryCount + 1 < _maxRetries` (4 < 3) = false, so it would immediately be marked permanently failed again. **FIXED**: Added `retryCount: Value(0)` to `retryItem()` in sync_queue_dao.dart. Also added separate `requeueForRetry()` method (preserves retryCount) for automatic retries by the sync engine. |
+| 2 | High | Connectivity false-negative on Android | 1. Device connected to WiFi. 2. `connectivity_plus` reports `[ConnectivityResult.wifi, ConnectivityResult.none]` (documented Android behavior). | App reports online status. | **WAS BROKEN**: `_mapResults` checked `results.contains(ConnectivityResult.none)`, which would return offline even with a real WiFi connection present. **FIXED**: Changed logic to only report offline when `none` is the sole result (no real connections present). |
+| 3 | High | Weight check-in double-submit | 1. Open weight check-in screen. 2. Enter weight. 3. Tap "Save Check-In". 4. Quickly tap again before the async operation completes. | Button should be disabled during save. | **WAS BROKEN**: The save button checked `state.isLoading` from `nutritionStateProvider`, but the actual save bypasses that provider and calls `offlineWeightRepo.createWeightCheckIn()` directly. The button stayed enabled during the entire async save, allowing double-taps. **FIXED**: Added local `_isSaving` flag with proper setState management. |
+| 4 | Medium | Weight check-in missing online success feedback | 1. Be online. 2. Save a weight check-in successfully. | User should see a success snackbar. | **WAS BROKEN**: When `result.success && !result.offline`, the code block was empty -- no snackbar shown. Screen just popped with zero feedback. **FIXED**: Added success snackbar "Weight check-in saved successfully!" |
+| 5 | Medium | SyncProgress totalPending is stale during sync | 1. Queue 3 items offline. 2. Go online (sync starts). 3. While syncing, save another item offline. | Progress should reflect the total including newly queued items. | `totalPending` is captured once at the start of `_processQueue()` (line 81-82 of sync_service.dart) and used throughout the entire sync loop. New items queued during sync will be processed (because the while loop fetches `getNextPending()` each iteration), but the progress display will show "Syncing 4 of 3..." (exceeding totalPending). The `_pendingRestart` flag will catch this for a re-run, but the in-progress UI is misleading. Not fixed -- would require re-querying count during the loop, which adds DB overhead. Low severity since it resolves after the sync cycle. |
+| 6 | Low | FailedSyncSheet does not update if sync completes while sheet is open | 1. Open FailedSyncSheet showing 2 failed items. 2. Background process retries and succeeds for one item. | Sheet should reactively update to show 1 item. | Sheet loads failed items once in `initState()` and stores them in local `_failedItems` state. It does not watch a provider stream. If background sync changes items, the sheet shows stale data until closed and reopened. Not fixed -- would require converting to a StreamProvider-backed widget. |
+| 7 | Low | Post-workout survey submission has no error handling | 1. Submit a post-workout survey via `_submitPostWorkoutSurvey`. 2. The offline repo returns a failure result. | User should be informed of the failure. | The `_submitPostWorkoutSurvey` method checks `result.offline` for the snackbar but does not check `result.success`. If the save fails entirely (e.g., disk full), the user gets no error feedback -- the screen just pops silently via `context.pop()` which is called unconditionally by the `onComplete` callback in PostWorkoutSurveyScreen. Not fixed -- requires restructuring the callback flow. |
 
 ---
 
@@ -40,20 +45,19 @@ Ambassador Enhancements Phase 5: monthly earnings chart, native share sheet, com
 
 | # | Scenario | Current Behavior | Risk |
 |---|----------|-----------------|------|
-| 1 | Custom code of exactly 4 chars ("ABCD") | Backend regex `^[A-Z0-9]{4,20}$` passes. Client-side `code.length < 4` check passes. Dialog helper text says "4-20 alphanumeric characters." | Low -- Clean |
-| 2 | Custom code of exactly 20 chars | Backend regex passes. Client-side `maxLength: 20` enforces hard limit. Character counter shows "20/20". | Low -- Clean |
-| 3 | Approve already-approved commission | Backend `CommissionService.approve_commission` checks `commission.status == APPROVED` and returns `CommissionActionResult(success=False, message="Commission is already approved.")`. View returns 400. Mobile `_parseErrorMessage` extracts server message from DioException response data. | Low -- Clean |
-| 4 | Pay a PENDING commission (not yet approved) | Backend returns 400 with "Commission must be approved before it can be marked as paid." Mobile displays server error in snackbar. | Low -- Clean |
-| 5 | Bulk approve with empty list | `BulkCommissionActionSerializer` has `min_length=1` on `commission_ids`. Returns 400 with "This field is required and must contain at least one ID." | Low -- Clean |
-| 6 | Bulk approve with mixed statuses | Backend filters `status=PENDING` from the locked set. Non-pending IDs are skipped. Returns `processed_count` + `skipped_count`. | Low -- Clean |
-| 7 | Concurrent code changes (two ambassadors claim same code) | Serializer checks uniqueness first (fast path). `profile.save()` has DB unique constraint as real guard. `IntegrityError` caught and returns 400. | Low -- Clean |
-| 8 | 0 months of earnings data | `monthlyEarnings.isEmpty` triggers empty state with muted bar chart icon and "No earnings data yet" text. | Low -- Clean |
-| 9 | 1 month of earnings data | Chart renders single bar. `monthlyEarnings.length <= 3` triggers wider bar width (32px instead of 20px) so it doesn't look tiny. | Low -- Clean |
-| 10 | Chart data with 6 months of data | Max 6 bars always fit in 180px height container. Bar width is 20px with spacing. No horizontal scroll needed. | Low -- Clean |
-| 11 | Commission for deactivated ambassador | Backend allows approve/pay regardless of `profile.is_active` (correct -- commission was earned when active). | Low -- Clean |
-| 12 | Password reset for ambassador | Djoser's `POST /api/auth/users/reset_password/` is role-agnostic. Returns 204 regardless of whether email exists (anti-enumeration). Ambassador can reset and log in, routing to `/ambassador` dashboard. | Low -- Clean |
-| 13 | Share cancelled by user | `Share.share()` returns normally on cancel. No snackbar shown (AC-8 silent dismiss). | Low -- Clean |
-| 14 | `select_for_update()` concurrency on commission approve | Two admins approve same commission: first gets lock, transitions to APPROVED, releases. Second gets lock, finds status is APPROVED, returns 400 "already approved." No double-processing. | Low -- Clean |
+| 1 | Idempotency on duplicate offline save | `existsByClientId()` in OfflineWorkoutRepository checks sync queue before inserting. If clientId exists, returns `offlineSuccess` without inserting a duplicate. | Low -- Clean |
+| 2 | Full disk SQLite write | All three offline repositories catch `SqliteException` and check `e.toString().contains('full')` for user-friendly "Device storage is full" error. | Low -- Clean |
+| 3 | Corrupt JSON payload in sync queue | `_processItem()` catches `FormatException` from `jsonDecode()` and marks item permanently failed with descriptive message. No retry. | Low -- Clean |
+| 4 | Unknown operation type in sync queue | `_processItem()` catches `ArgumentError` from `SyncOperationType.fromString()` and marks item permanently failed. No retry. | Low -- Clean |
+| 5 | 409 Conflict response | `_handleSyncError()` detects HTTP 409 and marks item permanently failed with conflict-specific message. No retry. | Low -- Clean |
+| 6 | 401 Unauthorized during sync | Detected, item marked failed with "Authentication expired. Please log in again." No further retry of that item. | Low -- Clean |
+| 7 | Logout with unsynced items | Both `home_screen.dart` and `settings_screen.dart` check `unsyncedCountProvider` and show warning dialog with item count. User must confirm "Logout Anyway". `clearUserData()` runs in a transaction. | Low -- Clean |
+| 8 | App startup with corrupted program cache | `_getProgramsFromCache()` catches `FormatException` from corrupt JSON, deletes the cache, and returns descriptive error. | Low -- Clean |
+| 9 | Connectivity flapping (rapid on/off) | 2-second debounce in `ConnectivityService._onChanged()` prevents sync queue thrashing. | Low -- Clean |
+| 10 | Sync while already syncing | `_isSyncing` flag prevents concurrent `_processQueue()` calls. `_pendingRestart` flag ensures new items are picked up after current sync completes. Uses `Future.microtask` to avoid recursive stack growth. | Low -- Clean |
+| 11 | Offline save wraps insert pair in transaction | All three offline repositories wrap the pending-data insert + sync-queue insert in a Drift `transaction()`, preventing orphaned data without queue entry. | Low -- Clean |
+| 12 | Startup cleanup failure | `runStartupCleanup()` wraps cleanup in try/catch. Failure is non-fatal; app launches even if cleanup fails. Debug-mode logging via assert. | Low -- Clean |
+| 13 | WAL mode enabled | `beforeOpen` runs `PRAGMA journal_mode=WAL` for better concurrent read/write performance on the background isolate. | Low -- Clean |
 
 ---
 
@@ -61,55 +65,67 @@ Ambassador Enhancements Phase 5: monthly earnings chart, native share sheet, com
 
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 1 | High | Dashboard earnings card | Add period-over-period trend indicator (e.g., "+12% vs last month" with up arrow) next to total earnings | Currently it is a static number. Ambassadors are motivated by growth trends. Every good earnings dashboard (Stripe, Shopify Partners) shows deltas. |
-| 2 | High | Commission list (admin) | Add "Mark All Approved as Paid" button | **FIXED** -- Added "Pay All" bulk button. Was missing despite backend support. |
-| 3 | Medium | Dashboard chart | Add tap-to-drill-down from chart bar to that month's commission list | Currently the chart shows aggregate earnings. Tapping a bar should navigate to a filtered commission list for that month. |
-| 4 | Medium | Settings screen | Add referral code preview of how the share message will look with the new code, shown live in the edit dialog | Ambassadors want to see the full share message before committing to a code change. A small preview below the text field would reduce back-and-forth. |
-| 5 | Medium | Admin ambassador detail | Show pending vs approved vs paid commission totals in the stats card | Currently only shows total earnings. Breaking down by status helps admins see how much they owe (approved but unpaid). |
-| 6 | Medium | Dashboard | Add a "copy share message" button alongside the share button | Some users prefer to manually paste into specific chats rather than use the share sheet. The current copy button copies only the code, not the full message. |
-| 7 | Low | Commission tile (admin) | Add date formatting (e.g., "Jan 15 - Feb 14") instead of raw ISO date strings ("2026-01-15 - 2026-02-14") | Raw ISO dates are harder to scan quickly. |
-| 8 | Low | Chart | Show month + year in tooltip when tapping a bar (e.g., "Sep 2025: $150.00") instead of just month abbreviation | If the chart spans a year boundary (e.g., Oct 2025 - Mar 2026), showing only month abbreviation in the tooltip is ambiguous. |
-| 9 | Low | Dashboard | Add pull-to-refresh haptic feedback | The RefreshIndicator works but has no haptic feedback on iOS, which feels less polished than native apps. |
-| 10 | Low | Admin ambassador list | Add commission status breakdown (pending/approved/paid counts) as small badges on each ambassador card | Helps admins quickly identify which ambassadors need commission review without drilling into detail screens. |
-
----
-
-## Backend Issues Found
-
-| # | Severity | File | Issue | Status |
-|---|----------|------|-------|--------|
-| 1 | Low | commission_service.py | `_refresh_ambassador_stats` runs inside the `transaction.atomic()` block. The `refresh_cached_stats()` method does a `.save(update_fields=['total_referrals', 'total_earnings'])` which commits within the same transaction. If the stats aggregation query is slow (many commissions), the `select_for_update()` lock is held longer than necessary. For high-volume ambassadors, this could increase lock contention. | Not fixed -- acceptable for current scale. Worth extracting stats refresh outside the transaction block if commission volume grows past ~1000 per ambassador. |
-| 2 | Low | views.py | `AmbassadorDashboardView.get()` runs 4 separate queries (status_counts, pending_earnings, monthly_data, recent_referrals). Could be reduced to 2-3 with a single annotated query. | Not fixed -- N is bounded (always exactly 4 queries regardless of data volume), so not a performance concern at current scale. |
+| 1 | High | Home Screen pull-to-refresh | `RefreshIndicator.onRefresh` on home screen should also trigger `syncServiceProvider?.triggerSync()` in addition to `loadDashboardData()`. Users pulling to refresh expect pending items to sync. | Natural user expectation. Pull-to-refresh is the universal "sync now" gesture. Currently only refreshes dashboard data, not the sync queue. |
+| 2 | High | Offline indicator in bottom nav | Add a subtle offline indicator (amber dot) on the bottom navigation bar, not just inside individual screens. Users navigating between tabs should always know they are offline. | The OfflineBanner is only visible on screens that include it (Home, Logbook, Nutrition). If the user is on Settings or any other screen, they have no offline awareness. |
+| 3 | Medium | Retry with countdown | When the sync engine is waiting for exponential backoff (5s, 15s, 45s), show a countdown in the banner: "Retrying in 12s..." | The current "syncing" banner shows during the actual HTTP request but goes idle during backoff delays, making it look like sync stopped. A countdown would set expectations. |
+| 4 | Medium | Conflict resolution UI | 409 conflict errors are marked as permanently failed with "Data conflict detected. Please review." but there is no UI to actually review or resolve the conflict. The user can only retry (which will fail again) or delete the local data. | A conflict resolution screen showing server vs. local data side-by-side would be ideal. Even a more helpful error message ("Your trainer updated your program while you were offline.") would improve the experience. |
+| 5 | Medium | Pending items count in settings | Show the count of pending/failed sync items in the Settings screen (e.g., "Sync Status: 3 pending, 1 failed"). | Settings is where users go when something feels wrong. Having sync status there gives a second pathway to diagnose issues. |
+| 6 | Low | Haptic feedback on offline save | Add light haptic feedback (`HapticFeedback.lightImpact()`) when data is saved offline. | Offline saves feel less certain to users. Haptic feedback provides tactile confirmation. |
+| 7 | Low | Swipe-to-delete on FailedSyncSheet items | Failed sync item cards should support swipe-to-delete (Dismissible widget). | Faster interaction for power users. Standard iOS/Android pattern. |
+| 8 | Low | Cached program staleness indicator | The workout log screen shows "Showing cached program. Some data may be outdated." but does not say HOW old the cached data is. Adding "Last updated: 2 hours ago" would help. | The current banner is helpful but vague. A timestamp would let users make informed decisions. |
 
 ---
 
 ## Summary
 
-- Dead UI elements found: 2
-- Visual bugs found: 4
-- Logic bugs found: 2
-- Edge cases verified clean: 14
-- Improvements suggested: 10
-- Items fixed by hacker: 8
+- Dead UI elements found: 3 (1 fixed, 2 noted)
+- Visual bugs found: 3 (0 fixed -- minor polish items)
+- Logic bugs found: 7 (4 fixed, 3 documented for future work)
+- Edge cases verified clean: 13
+- Improvements suggested: 8
+- Items fixed by hacker: 5
+
+## Fixes Applied
+
+### Fix 1: `mobile/lib/core/database/daos/sync_queue_dao.dart`
+- **Bug**: `retryItem()` did not reset `retryCount` to 0, causing manually retried items to immediately fail again.
+- **Fix**: Added `retryCount: Value(0)` to the `retryItem()` method. Added separate `requeueForRetry()` method for automatic retries by the sync engine that preserves retryCount for correct exponential backoff.
+
+### Fix 2: `mobile/lib/shared/widgets/sync_status_badge.dart`
+- **Bug**: Synced items showed a green `cloud_done` icon, violating AC-38 which states synced items should show no badge.
+- **Fix**: Changed synced case to `return const SizedBox.shrink()`.
+
+### Fix 3: `mobile/lib/features/nutrition/presentation/screens/weight_checkin_screen.dart`
+- **Bug 1**: No success snackbar when saving weight check-in online (screen popped with zero feedback).
+- **Fix 1**: Added success snackbar "Weight check-in saved successfully!" in the `else` branch.
+- **Bug 2**: Save button did not disable during async save, allowing double-taps.
+- **Fix 2**: Added local `_isSaving` flag with proper `setState` management. Button and spinner now correctly reflect save-in-progress state.
+
+### Fix 4: `mobile/lib/core/services/connectivity_service.dart`
+- **Bug**: `_mapResults` reported offline when `results` contained `ConnectivityResult.none` alongside real connections (e.g., WiFi). This is documented Android behavior where `connectivity_plus` can return `[wifi, none]` simultaneously.
+- **Fix**: Changed logic to check if any real connection exists (`results.any((r) => r != ConnectivityResult.none)`). Only reports offline when `none` is the sole result.
+
+---
 
 ## Chaos Score: 7/10
 
 ### Rationale
-The Ambassador Enhancements implementation is solid overall. The backend commission service uses `select_for_update()` for concurrency safety, status transitions have proper guard clauses, bulk operations correctly skip non-qualifying commissions, and the custom referral code flow has both serializer-level validation and DB-level unique constraint as a race condition guard.
-
-The main gaps were:
-- **Missing "Pay All Approved" bulk button** -- The backend endpoint existed, the repository method existed, but the UI never wired it up. This left admins having to click "Mark Paid" on each commission individually, which at 20+ commissions per ambassador is a significant UX burden.
-- **Share sheet exception handling too narrow** -- Only catching `PlatformException` when `share_plus` v10 can throw `MissingPluginException` on emulators/web. Would cause unhandled exception crashes in development and on web.
-- **Long custom referral codes overflowing UI** -- The `max_length` increase from 8 to 20 on the model was properly handled in backend validation and the settings edit dialog, but the dashboard display card and admin profile card were still sized for 8-char codes. 20-char codes with large font + letter spacing would overflow.
-- **All-zero chart confusing instead of empty** -- If an ambassador has only PENDING commissions (not yet APPROVED/PAID), the monthly earnings chart shows zero-height bars with gridlines and axis labels, which looks broken rather than informative.
-- **Missing currency formatting** -- Raw decimal strings displayed as-is. "$10500.00" instead of "$10,500.00".
+The offline-first implementation is solid in its core architecture. The decorator pattern, transaction-wrapped saves, idempotency keys, and exponential backoff show careful engineering. However, several edge cases slipped through: the retryItem retryCount bug was critical (manual retries would silently fail forever), the connectivity false-negative on Android could cause the entire offline system to trigger incorrectly on WiFi, and the weight check-in had both missing feedback and a double-submit vulnerability. The FailedSyncSheet's static data loading means it can show stale state if background processes change items. The SyncStatusBadge exists but is not wired into any actual cards. The progress counter can exceed its total. These are the kinds of bugs that surface in real-world usage with real devices and real users, and several of them would have been frustrating to debug without understanding the full system.
 
 **Good:**
-- `select_for_update()` on all commission mutations prevents double-processing
-- `IntegrityError` catch on custom code save prevents race condition between validation and save
-- Chart widget handles all edge cases (1 bar, 6 bars, dynamic bar width, tooltip, accessibility labels)
-- Commission action buttons have per-item loading spinners + confirmation dialogs
-- Error parsing extracts server messages from DioException for user-friendly error display
-- `_UpperCaseTextInputFormatter` + `FilteringTextInputFormatter` ensure only valid characters in code input
-- Backend `CustomReferralCodeSerializer` strips whitespace and uppercases before validation
-- `BulkCommissionActionSerializer` enforces `min_length=1` for empty array protection
+- `transaction()` wrapping all offline save operations (pending data + sync queue insert)
+- UUID-based idempotency keys with `existsByClientId()` check
+- `requeueForRetry()` vs `retryItem()` separation for automatic vs manual retry semantics
+- `_pendingRestart` flag with `Future.microtask` prevents recursive stack growth
+- `FormatException` and `ArgumentError` catches in `_processItem()` for corrupt/unknown data
+- `SqliteException` catch with user-friendly "device storage is full" messaging
+- `clearUserData()` in a transaction for atomic logout cleanup
+- WAL mode for concurrent read/write performance
+- 2-second connectivity debounce preventing sync thrashing
+- `runStartupCleanup()` is non-fatal -- app launches even if cleanup fails
+
+---
+
+**Audit completed by:** Hacker Agent
+**Date:** 2026-02-15
+**Pipeline:** 15 -- Offline-First Workout & Nutrition Logging with Sync Queue
