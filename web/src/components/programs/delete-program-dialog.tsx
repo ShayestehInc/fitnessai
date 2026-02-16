@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useDeleteProgram } from "@/hooks/use-programs";
+import { getErrorMessage } from "@/lib/error-utils";
 import type { ProgramTemplate } from "@/types/program";
 
 interface DeleteProgramDialogProps {
@@ -33,8 +34,8 @@ export function DeleteProgramDialog({
       await deleteMutation.mutateAsync(program.id);
       toast.success("Program deleted");
       setOpen(false);
-    } catch {
-      toast.error("Failed to delete program");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     }
   };
 

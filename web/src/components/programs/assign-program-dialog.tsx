@@ -17,9 +17,17 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAssignProgram } from "@/hooks/use-programs";
-import { useTrainees } from "@/hooks/use-trainees";
-import { ApiError } from "@/lib/api-client";
+import { useAllTrainees } from "@/hooks/use-programs";
+import { getErrorMessage } from "@/lib/error-utils";
 import type { ProgramTemplate } from "@/types/program";
+
+function getLocalDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 interface AssignProgramDialogProps {
   program: ProgramTemplate;
@@ -32,13 +40,18 @@ export function AssignProgramDialog({
 }: AssignProgramDialogProps) {
   const [open, setOpen] = useState(false);
   const [selectedTraineeId, setSelectedTraineeId] = useState<number | "">("");
-  const [startDate, setStartDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  });
+  const [startDate, setStartDate] = useState(getLocalDateString);
 
-  const { data: traineesData, isLoading: traineesLoading } = useTrainees(1, "");
+  const { data: traineesData, isLoading: traineesLoading } = useAllTrainees();
   const assignMutation = useAssignProgram(program.id);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setSelectedTraineeId("");
+      setStartDate(getLocalDateString());
+    }
+  };
 
   const handleAssign = async () => {
     if (!selectedTraineeId || !startDate) return;
@@ -49,33 +62,20 @@ export function AssignProgramDialog({
         start_date: startDate,
       });
 
-      const trainee = traineesData?.results.find(
-        (t) => t.id === selectedTraineeId,
-      );
+      const trainee = traineesData?.find((t) => t.id === selectedTraineeId);
       const traineeName = trainee
-        ? `${trainee.first_name} ${trainee.last_name}`.trim() ||
-          trainee.email
+        ? `${trainee.first_name} ${trainee.last_name}`.trim() || trainee.email
         : "trainee";
 
       toast.success(`Program assigned to ${traineeName}`);
       setOpen(false);
-      setSelectedTraineeId("");
     } catch (error) {
-      if (error instanceof ApiError) {
-        const body = error.body as Record<string, unknown> | null;
-        const message =
-          body && typeof body === "object"
-            ? Object.values(body).flat().join(", ")
-            : "Failed to assign program";
-        toast.error(message);
-      } else {
-        toast.error("Failed to assign program");
-      }
+      toast.error(getErrorMessage(error));
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -103,7 +103,7 @@ export function AssignProgramDialog({
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="">Select a trainee...</option>
-                {traineesData?.results.map((trainee) => (
+                {traineesData?.map((trainee) => (
                   <option key={trainee.id} value={trainee.id}>
                     {trainee.first_name} {trainee.last_name} ({trainee.email})
                   </option>
@@ -127,7 +127,7 @@ export function AssignProgramDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => setOpen(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={assignMutation.isPending}
           >
             Cancel

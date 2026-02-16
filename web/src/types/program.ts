@@ -1,64 +1,64 @@
 export const DifficultyLevel = {
-  BEGINNER: "BEGINNER",
-  INTERMEDIATE: "INTERMEDIATE",
-  ADVANCED: "ADVANCED",
+  BEGINNER: "beginner",
+  INTERMEDIATE: "intermediate",
+  ADVANCED: "advanced",
 } as const;
 
 export type DifficultyLevel =
   (typeof DifficultyLevel)[keyof typeof DifficultyLevel];
 
 export const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
-  BEGINNER: "Beginner",
-  INTERMEDIATE: "Intermediate",
-  ADVANCED: "Advanced",
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
 };
 
 export const GoalType = {
-  BUILD_MUSCLE: "BUILD_MUSCLE",
-  FAT_LOSS: "FAT_LOSS",
-  STRENGTH: "STRENGTH",
-  ENDURANCE: "ENDURANCE",
-  RECOMP: "RECOMP",
-  GENERAL_FITNESS: "GENERAL_FITNESS",
+  BUILD_MUSCLE: "build_muscle",
+  FAT_LOSS: "fat_loss",
+  STRENGTH: "strength",
+  ENDURANCE: "endurance",
+  RECOMP: "recomp",
+  GENERAL_FITNESS: "general_fitness",
 } as const;
 
 export type GoalType = (typeof GoalType)[keyof typeof GoalType];
 
 export const GOAL_LABELS: Record<GoalType, string> = {
-  BUILD_MUSCLE: "Build Muscle",
-  FAT_LOSS: "Fat Loss",
-  STRENGTH: "Strength",
-  ENDURANCE: "Endurance",
-  RECOMP: "Body Recomposition",
-  GENERAL_FITNESS: "General Fitness",
+  build_muscle: "Build Muscle",
+  fat_loss: "Fat Loss",
+  strength: "Strength",
+  endurance: "Endurance",
+  recomp: "Body Recomposition",
+  general_fitness: "General Fitness",
 };
 
 export const MuscleGroup = {
-  CHEST: "CHEST",
-  BACK: "BACK",
-  SHOULDERS: "SHOULDERS",
-  ARMS: "ARMS",
-  LEGS: "LEGS",
-  GLUTES: "GLUTES",
-  CORE: "CORE",
-  CARDIO: "CARDIO",
-  FULL_BODY: "FULL_BODY",
-  OTHER: "OTHER",
+  CHEST: "chest",
+  BACK: "back",
+  SHOULDERS: "shoulders",
+  ARMS: "arms",
+  LEGS: "legs",
+  GLUTES: "glutes",
+  CORE: "core",
+  CARDIO: "cardio",
+  FULL_BODY: "full_body",
+  OTHER: "other",
 } as const;
 
 export type MuscleGroup = (typeof MuscleGroup)[keyof typeof MuscleGroup];
 
 export const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
-  CHEST: "Chest",
-  BACK: "Back",
-  SHOULDERS: "Shoulders",
-  ARMS: "Arms",
-  LEGS: "Legs",
-  GLUTES: "Glutes",
-  CORE: "Core",
-  CARDIO: "Cardio",
-  FULL_BODY: "Full Body",
-  OTHER: "Other",
+  chest: "Chest",
+  back: "Back",
+  shoulders: "Shoulders",
+  arms: "Arms",
+  legs: "Legs",
+  glutes: "Glutes",
+  core: "Core",
+  cardio: "Cardio",
+  full_body: "Full Body",
+  other: "Other",
 };
 
 export const DAY_NAMES = [
@@ -120,11 +120,13 @@ export interface ProgramTemplate {
   description: string;
   duration_weeks: number;
   schedule_template: Schedule | null;
+  nutrition_template: Record<string, unknown> | null;
   difficulty_level: DifficultyLevel | null;
   goal_type: GoalType | null;
   image_url: string | null;
   is_public: boolean;
   created_by: number;
+  created_by_email: string;
   times_used: number;
   created_at: string;
   updated_at: string;

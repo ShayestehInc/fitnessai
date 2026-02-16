@@ -10,6 +10,7 @@ import type {
   UpdateProgramPayload,
   AssignProgramPayload,
 } from "@/types/program";
+import type { TraineeListItem } from "@/types/trainer";
 
 export function usePrograms(page: number = 1, search: string = "") {
   const params = new URLSearchParams();
@@ -71,6 +72,19 @@ export function useDeleteProgram() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programs"] });
     },
+  });
+}
+
+export function useAllTrainees() {
+  return useQuery<TraineeListItem[]>({
+    queryKey: ["trainees", "all"],
+    queryFn: async () => {
+      const response = await apiClient.get<PaginatedResponse<TraineeListItem>>(
+        `${API_URLS.TRAINEES}?page_size=200`,
+      );
+      return response.results;
+    },
+    staleTime: 5 * 60 * 1000,
   });
 }
 

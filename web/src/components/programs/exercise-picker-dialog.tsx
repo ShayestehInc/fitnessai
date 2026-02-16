@@ -45,6 +45,14 @@ export function ExercisePickerDialog({
     selectedGroup,
   );
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      setSearch("");
+      setSelectedGroup("");
+    }
+  };
+
   const handleSelect = (exercise: Exercise) => {
     const scheduleExercise: ScheduleExercise = {
       exercise_id: exercise.id,
@@ -62,7 +70,7 @@ export function ExercisePickerDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[80vh] sm:max-w-lg">
         <DialogHeader>
@@ -138,26 +146,34 @@ export function ExercisePickerDialog({
               }
             />
           ) : data ? (
-            <ScrollArea className="h-[40vh]">
-              <ul className="space-y-1" aria-label="Exercise list">
-                {data.results.map((exercise) => (
-                  <li key={exercise.id}>
-                    <button
-                      type="button"
-                      onClick={() => handleSelect(exercise)}
-                      className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <span className="text-sm font-medium">
-                        {exercise.name}
-                      </span>
-                      <Badge variant="secondary" className="text-xs">
-                        {MUSCLE_GROUP_LABELS[exercise.muscle_group]}
-                      </Badge>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </ScrollArea>
+            <>
+              {data.count > data.results.length && (
+                <p className="text-xs text-muted-foreground">
+                  Showing {data.results.length} of {data.count} exercises.
+                  Refine your search to see more.
+                </p>
+              )}
+              <ScrollArea className="h-[40vh]">
+                <ul className="space-y-1" aria-label="Exercise list">
+                  {data.results.map((exercise) => (
+                    <li key={exercise.id}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelect(exercise)}
+                        className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <span className="text-sm font-medium">
+                          {exercise.name}
+                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          {MUSCLE_GROUP_LABELS[exercise.muscle_group]}
+                        </Badge>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            </>
           ) : null}
         </div>
       </DialogContent>

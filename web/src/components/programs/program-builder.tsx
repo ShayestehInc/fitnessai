@@ -11,18 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WeekEditor } from "./week-editor";
 import { useCreateProgram, useUpdateProgram } from "@/hooks/use-programs";
-import { ApiError } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/error-utils";
 import {
   DAY_NAMES,
-  DifficultyLevel,
   DIFFICULTY_LABELS,
-  GoalType,
   GOAL_LABELS,
   type ProgramTemplate,
   type Schedule,
   type ScheduleWeek,
-  type CreateProgramPayload,
-  type UpdateProgramPayload,
+  type DifficultyLevel,
+  type GoalType,
 } from "@/types/program";
 
 function createEmptyWeek(weekNumber: number): ScheduleWeek {
@@ -45,20 +43,24 @@ function createEmptySchedule(durationWeeks: number): Schedule {
   };
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (typeof error.body === "object" && error.body !== null) {
-      const messages = Object.entries(error.body as Record<string, unknown>)
-        .map(([key, value]) => {
-          if (Array.isArray(value)) return `${key}: ${value.join(", ")}`;
-          return `${key}: ${value}`;
-        })
-        .join("; ");
-      if (messages) return messages;
-    }
-    return error.statusText;
+function reconcileSchedule(
+  schedule: Schedule | null,
+  durationWeeks: number,
+): Schedule {
+  if (!schedule || schedule.weeks.length === 0) {
+    return createEmptySchedule(durationWeeks);
   }
-  return "An unexpected error occurred";
+  if (schedule.weeks.length < durationWeeks) {
+    const extra = Array.from(
+      { length: durationWeeks - schedule.weeks.length },
+      (_, i) => createEmptyWeek(schedule.weeks.length + i + 1),
+    );
+    return { weeks: [...schedule.weeks, ...extra] };
+  }
+  if (schedule.weeks.length > durationWeeks) {
+    return { weeks: schedule.weeks.slice(0, durationWeeks) };
+  }
+  return schedule;
 }
 
 interface ProgramBuilderProps {
@@ -69,22 +71,26 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
   const router = useRouter();
   const isEditing = Boolean(existingProgram);
   const isDirtyRef = useRef(false);
+  const hasMountedRef = useRef(false);
+  const savingRef = useRef(false);
 
+  const initialDuration = existingProgram?.duration_weeks ?? 4;
   const [name, setName] = useState(existingProgram?.name ?? "");
   const [description, setDescription] = useState(
     existingProgram?.description ?? "",
   );
-  const [durationWeeks, setDurationWeeks] = useState(
-    existingProgram?.duration_weeks ?? 4,
-  );
+  const [durationWeeks, setDurationWeeks] = useState(initialDuration);
   const [difficultyLevel, setDifficultyLevel] = useState<
     DifficultyLevel | ""
   >(existingProgram?.difficulty_level ?? "");
   const [goalType, setGoalType] = useState<GoalType | "">(
     existingProgram?.goal_type ?? "",
   );
-  const [schedule, setSchedule] = useState<Schedule>(
-    existingProgram?.schedule_template ?? createEmptySchedule(4),
+  const [schedule, setSchedule] = useState<Schedule>(() =>
+    reconcileSchedule(
+      existingProgram?.schedule_template ?? null,
+      initialDuration,
+    ),
   );
   const [activeWeek, setActiveWeek] = useState("1");
 
@@ -92,8 +98,12 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
   const updateMutation = useUpdateProgram(existingProgram?.id ?? 0);
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
-  // Track dirty state
+  // Track dirty state — skip initial mount
   useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
     isDirtyRef.current = true;
   }, [name, description, durationWeeks, difficultyLevel, goalType, schedule]);
 
@@ -129,7 +139,6 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
         return prev;
       });
 
-      // If active week tab exceeds new duration, reset to last week
       if (parseInt(activeWeek) > clamped) {
         setActiveWeek(String(clamped));
       }
@@ -149,12 +158,15 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
   );
 
   const handleSave = async () => {
+    if (savingRef.current) return;
     if (!name.trim()) {
       toast.error("Program name is required");
       return;
     }
 
-    const payload: CreateProgramPayload | UpdateProgramPayload = {
+    savingRef.current = true;
+
+    const basePayload = {
       name: name.trim(),
       description: description.trim(),
       duration_weeks: durationWeeks,
@@ -165,17 +177,19 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
 
     try {
       if (isEditing) {
-        await updateMutation.mutateAsync(payload as UpdateProgramPayload);
+        await updateMutation.mutateAsync(basePayload);
         isDirtyRef.current = false;
         toast.success("Program updated");
       } else {
-        await createMutation.mutateAsync(payload as CreateProgramPayload);
+        await createMutation.mutateAsync(basePayload);
         isDirtyRef.current = false;
         toast.success("Program created");
         router.push("/programs");
       }
     } catch (error) {
       toast.error(getErrorMessage(error));
+    } finally {
+      savingRef.current = false;
     }
   };
 
@@ -235,9 +249,14 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
               <select
                 id="difficulty-level"
                 value={difficultyLevel}
-                onChange={(e) =>
-                  setDifficultyLevel(e.target.value as DifficultyLevel | "")
-                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDifficultyLevel(
+                    val in DIFFICULTY_LABELS
+                      ? (val as DifficultyLevel)
+                      : "",
+                  );
+                }}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="">Select difficulty...</option>
@@ -254,9 +273,12 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
               <select
                 id="goal-type"
                 value={goalType}
-                onChange={(e) =>
-                  setGoalType(e.target.value as GoalType | "")
-                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setGoalType(
+                    val in GOAL_LABELS ? (val as GoalType) : "",
+                  );
+                }}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="">Select goal...</option>

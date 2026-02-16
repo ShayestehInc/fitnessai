@@ -13,6 +13,7 @@ import {
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { DeleteProgramDialog } from "./delete-program-dialog";
 import { AssignProgramDialog } from "./assign-program-dialog";
+import { useAuth } from "@/hooks/use-auth";
 import {
   DIFFICULTY_LABELS,
   GOAL_LABELS,
@@ -26,11 +27,11 @@ function getDifficultyVariant(
 ): "default" | "secondary" | "destructive" | "outline" {
   if (!level) return "outline";
   switch (level) {
-    case "BEGINNER":
+    case "beginner":
       return "secondary";
-    case "INTERMEDIATE":
+    case "intermediate":
       return "default";
-    case "ADVANCED":
+    case "advanced":
       return "destructive";
     default:
       return "outline";
@@ -46,79 +47,96 @@ function formatDate(dateStr: string): string {
   });
 }
 
-const columns: Column<ProgramTemplate>[] = [
-  {
-    key: "name",
-    header: "Name",
-    cell: (row) => (
-      <span
-        className="block max-w-[200px] truncate font-medium"
-        title={row.name}
-      >
-        {row.name}
-      </span>
-    ),
-  },
-  {
-    key: "difficulty_level",
-    header: "Difficulty",
-    cell: (row) =>
-      row.difficulty_level ? (
-        <Badge variant={getDifficultyVariant(row.difficulty_level)}>
-          {DIFFICULTY_LABELS[row.difficulty_level]}
-        </Badge>
-      ) : (
-        <span className="text-muted-foreground" aria-label="Not set">
-          —
+function makeColumns(currentUserId: number | null): Column<ProgramTemplate>[] {
+  return [
+    {
+      key: "name",
+      header: "Name",
+      cell: (row) => (
+        <span
+          className="block max-w-[200px] truncate font-medium"
+          title={row.name}
+        >
+          {row.name}
         </span>
       ),
-  },
-  {
-    key: "goal_type",
-    header: "Goal",
-    cell: (row) =>
-      row.goal_type ? (
-        <span>{GOAL_LABELS[row.goal_type as GoalType]}</span>
-      ) : (
-        <span className="text-muted-foreground" aria-label="Not set">
-          —
+    },
+    {
+      key: "difficulty_level",
+      header: "Difficulty",
+      cell: (row) =>
+        row.difficulty_level ? (
+          <Badge variant={getDifficultyVariant(row.difficulty_level)}>
+            {DIFFICULTY_LABELS[row.difficulty_level] ?? row.difficulty_level}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground" aria-label="Not set">
+            —
+          </span>
+        ),
+    },
+    {
+      key: "goal_type",
+      header: "Goal",
+      cell: (row) =>
+        row.goal_type ? (
+          <span>
+            {GOAL_LABELS[row.goal_type as GoalType] ?? row.goal_type}
+          </span>
+        ) : (
+          <span className="text-muted-foreground" aria-label="Not set">
+            —
+          </span>
+        ),
+    },
+    {
+      key: "duration_weeks",
+      header: "Duration",
+      cell: (row) => (
+        <span>
+          {row.duration_weeks} week{row.duration_weeks !== 1 ? "s" : ""}
         </span>
       ),
-  },
-  {
-    key: "duration_weeks",
-    header: "Duration",
-    cell: (row) => (
-      <span>
-        {row.duration_weeks} week{row.duration_weeks !== 1 ? "s" : ""}
-      </span>
-    ),
-  },
-  {
-    key: "times_used",
-    header: "Used",
-    cell: (row) => (
-      <span>
-        {row.times_used} time{row.times_used !== 1 ? "s" : ""}
-      </span>
-    ),
-  },
-  {
-    key: "created_at",
-    header: "Created",
-    cell: (row) => (
-      <span className="text-muted-foreground">{formatDate(row.created_at)}</span>
-    ),
-  },
-  {
-    key: "actions",
-    header: "",
-    cell: (row) => <ProgramActions program={row} />,
-    className: "w-12",
-  },
-];
+    },
+    {
+      key: "times_used",
+      header: "Used",
+      cell: (row) => (
+        <span>
+          {row.times_used} time{row.times_used !== 1 ? "s" : ""}
+        </span>
+      ),
+    },
+    {
+      key: "created_at",
+      header: "Created",
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {formatDate(row.created_at)}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      cell: (row) => (
+        <ProgramActions
+          program={row}
+          isOwner={currentUserId !== null && row.created_by === currentUserId}
+        />
+      ),
+      className: "w-12",
+    },
+  ];
+}
 
-function ProgramActions({ program }: { program: ProgramTemplate }) {
+function ProgramActions({
+  program,
+  isOwner,
+}: {
+  program: ProgramTemplate;
+  isOwner: boolean;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -132,12 +150,14 @@ function ProgramActions({ program }: { program: ProgramTemplate }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/programs/${program.id}/edit`} className="gap-2">
-            <Pencil className="h-4 w-4" aria-hidden="true" />
-            Edit
-          </Link>
-        </DropdownMenuItem>
+        {isOwner && (
+          <DropdownMenuItem asChild>
+            <Link href={`/programs/${program.id}/edit`} className="gap-2">
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              Edit
+            </Link>
+          </DropdownMenuItem>
+        )}
 
         <AssignProgramDialog
           program={program}
@@ -152,18 +172,20 @@ function ProgramActions({ program }: { program: ProgramTemplate }) {
           }
         />
 
-        <DeleteProgramDialog
-          program={program}
-          trigger={
-            <DropdownMenuItem
-              onSelect={(e) => e.preventDefault()}
-              className="gap-2 text-destructive focus:text-destructive"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              Delete
-            </DropdownMenuItem>
-          }
-        />
+        {isOwner && (
+          <DeleteProgramDialog
+            program={program}
+            trigger={
+              <DropdownMenuItem
+                onSelect={(e) => e.preventDefault()}
+                className="gap-2 text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                Delete
+              </DropdownMenuItem>
+            }
+          />
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -182,6 +204,9 @@ export function ProgramList({
   page,
   onPageChange,
 }: ProgramListProps) {
+  const { user } = useAuth();
+  const columns = makeColumns(user?.id ?? null);
+
   return (
     <DataTable
       columns={columns}

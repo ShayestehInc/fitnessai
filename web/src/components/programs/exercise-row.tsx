@@ -79,14 +79,16 @@ export function ExerciseRow({
           </label>
           <Input
             id={`reps-${exercise.exercise_id}-${index}`}
-            type="number"
-            min={1}
-            max={100}
-            value={typeof exercise.reps === "number" ? exercise.reps : 0}
-            onChange={(e) =>
-              updateField("reps", Math.max(1, parseInt(e.target.value) || 1))
-            }
-            className="h-8 w-14 text-center text-xs"
+            type={typeof exercise.reps === "string" ? "text" : "number"}
+            min={typeof exercise.reps === "string" ? undefined : 1}
+            max={typeof exercise.reps === "string" ? undefined : 100}
+            value={exercise.reps}
+            onChange={(e) => {
+              const val = e.target.value;
+              const num = parseInt(val);
+              updateField("reps", isNaN(num) ? val : num);
+            }}
+            className="h-8 w-16 text-center text-xs"
             aria-label="Reps"
           />
           <span className="text-xs text-muted-foreground">reps</span>

@@ -14,7 +14,18 @@ interface EditProgramPageProps {
 export default function EditProgramPage({ params }: EditProgramPageProps) {
   const { id } = use(params);
   const programId = parseInt(id, 10);
-  const { data, isLoading, isError, refetch } = useProgram(programId);
+  const validId = !isNaN(programId) && programId > 0 ? programId : 0;
+
+  const { data, isLoading, isError, refetch } = useProgram(validId);
+
+  if (validId === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Edit Program" />
+        <ErrorState message="Invalid program ID" />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
