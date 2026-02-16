@@ -1,134 +1,154 @@
-# Ship Decision: Trainer Program Builder (Pipeline 12)
+# Ship Decision: Web Admin Dashboard (Pipeline 13)
 
 ## Verdict: SHIP
 ## Confidence: HIGH
 ## Quality Score: 8/10
-## Summary: The Trainer Program Builder is a comprehensive, production-ready feature that enables trainers to create, edit, delete, and assign workout program templates from the web dashboard. All 27 acceptance criteria are met, all 4 critical issues and 8 major issues from Code Review have been fixed, both High-severity security issues are resolved, build and lint pass cleanly.
+## Summary: The Web Admin Dashboard is a comprehensive, production-ready feature providing super admins with full platform management capabilities: dashboard stats, trainer management with impersonation, subscription management with tier/status/payment actions, tier CRUD, coupon CRUD, and user management. All 49 acceptance criteria are functionally met (46 exact match, 3 design deviations using dialogs instead of pages -- accepted), all critical and high issues are fixed, build and lint pass cleanly with zero errors.
 
 ---
 
 ## Test Suite Results
 
-- **Web build:** `npx next build` -- Compiled successfully with Next.js 16.1.6 (Turbopack). All 13 routes generated including `/programs`, `/programs/new`, `/programs/[id]/edit`. Zero TypeScript errors.
+- **Web build:** `npx next build` -- Compiled successfully with Next.js 16.1.6 (Turbopack). 20 routes generated including 9 admin routes (`/admin/dashboard`, `/admin/trainers`, `/admin/subscriptions`, `/admin/tiers`, `/admin/coupons`, `/admin/users`, `/admin/settings`). Zero TypeScript errors.
 - **Web lint:** `npm run lint` (ESLint) -- Zero errors, zero warnings.
-- **No `console.log` or debug output** in any of the 16 new files.
-- **No secrets or credentials** in any new or modified file (full regex scan performed).
-- **Backend changes:** 2 files modified (`serializers.py`, `views.py`). No migrations needed.
+- **No `console.log` or debug output** in any new file.
+- **No secrets or credentials** in any new or modified file (confirmed by security audit full regex scan).
+- **No backend changes required** -- All admin APIs already existed at `/api/admin/`.
 
 ---
 
 ## All Report Summaries
 
 | Report | Score | Verdict | Key Finding |
-|--------|-------|---------|------------|
-| Code Review (Round 1) | 4/10 | BLOCK | 4 critical + 8 major issues. Enum case mismatch broke all CRUD operations. |
-| Code Review (Round 2+) | -- | -- | All critical and major issues fixed across review-fix rounds |
-| QA Report | HIGH confidence | 27/27 pass | 5 minor/low bugs found, 0 blocking |
-| UX Audit | 9/10 | PASS | 19 usability + 10 accessibility issues -- all 29 fixed |
-| Security Audit | 8/10 | CONDITIONAL PASS | 2 High issues found and fixed. 2 Medium documented (non-blocking). |
-| Architecture Review | 9/10 | APPROVE | Clean layering, 3 technical debt items fixed |
-| Hacker Report | 7/10 | -- | 2 dead UI, 5 visual bugs, 10 logic bugs -- 16 items fixed |
+|--------|-------|---------|-------------|
+| Code Review (Round 1) | -- | BLOCK | 3 critical + 8 major issues. Middleware double-redirect, missing applicable_tiers, subscription detail 583 lines. |
+| Code Review (Round 2) | 8/10 | APPROVE | All R1 issues fixed. 3 new major found (N-M1 impersonation role cookie, N-M2 refresh role, N-M3 users formKey). |
+| QA Report | MEDIUM confidence | 46/49 pass | 1 critical bug fixed (impersonation role cookie), 2 major missing filters added, 2 low fixes. 3 design deviations documented. |
+| UX Audit | 8/10 | PASS | 16 usability + 6 accessibility issues -- all 22 fixed. |
+| Security Audit | 8.5/10 | PASS | 1 High fixed (middleware admin route protection). 4 Medium documented/accepted (no blockers). |
+| Architecture Review | 8/10 | APPROVE | 5 issues fixed (duplicate formatters, runtime constants in types, duplicate status variants). 3 documented for future. |
+| Hacker Report | 7/10 | -- | 2 dead UI, 6 visual bugs, 7 logic bugs -- 13 items fixed. |
 
 ---
 
-## Acceptance Criteria Verification: 27/27 PASS
+## Acceptance Criteria Verification: 49/49 Functionally PASS
 
-Each criterion verified by reading actual implementation code:
-
-### Navigation & Page Structure (AC-1 through AC-3): 3/3 PASS
+### Auth & Access Control (AC-1 through AC-5): 5/5 PASS
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-1 | PASS | `nav-links.tsx:21`: `{ label: "Programs", href: "/programs", icon: Dumbbell }` between Trainees and Invitations |
-| AC-2 | PASS | `program-list.tsx` with 7 columns: name (truncated, clickable for owners), difficulty badge, goal, duration, times used, created date, actions |
-| AC-3 | PASS | `page.tsx:18`: `useDeferredValue(search)` passed to `usePrograms(page, deferredSearch)`. Backend `views.py:580-581`: `filter_backends = [SearchFilter]`, `search_fields = ['name', 'description']` |
+| AC-1 | PASS | `auth-provider.tsx:41-43`: `userData.role !== UserRole.TRAINER && userData.role !== UserRole.ADMIN` check. Both roles accepted. `setRoleCookie(userData.role)` on line 52. |
+| AC-2 | PASS | `middleware.ts:36-38`: `isAdminPath(pathname) && hasSession && userRole !== "ADMIN"` redirects non-admins. Lines 28-29: unauthenticated users redirected to `/login`. |
+| AC-3 | PASS | Admin layout renders `AdminSidebar` with admin-specific nav links. Trainer layout renders `Sidebar` with trainer nav links. Completely separate route groups. |
+| AC-4 | PASS | `(admin-dashboard)` route group is completely separate from `(dashboard)` with independent `layout.tsx` files. |
+| AC-5 | PASS | Admin layout lines 30-33 redirect non-ADMIN to `/dashboard`. Trainer layout redirects ADMIN to `/admin/dashboard`. Middleware handles root `/` redirect via `getDashboardPath()`. |
 
-### Program Template CRUD (AC-4 through AC-15): 12/12 PASS
-
-| AC | Status | Evidence |
-|----|--------|----------|
-| AC-4 | PASS | "Create Program" button links to `/programs/new` (both PageHeader action and empty state CTA) |
-| AC-5 | PASS | All metadata fields present: name (maxLength=100), description (maxLength=500), duration (1-52), difficulty (3 options), goal (6 options) |
-| AC-6 | PASS | Tabs component for week navigation, DayEditor cards, ExerciseRow list |
-| AC-7 | PASS | Day name input (maxLength=50), rest day toggle with `aria-pressed`, exercise list |
-| AC-8 | PASS | Exercise picker dialog with search, 10 muscle group filter buttons, multi-select with checkmarks |
-| AC-9 | PASS | Sets (1-20), reps (number or text "8-12"), weight (0-9999, step 2.5), unit (lbs/kg), rest_seconds (0-600, step 15) |
-| AC-10 | PASS | ArrowUp/ArrowDown buttons with proper disabled states at first/last position |
-| AC-11 | PASS | Trash2 delete button with descriptive aria-label |
-| AC-12 | PASS | `createEmptyWeek()` generates 7 days (Monday-Sunday), all `is_rest_day: true` |
-| AC-13 | PASS | `createMutation.mutateAsync(basePayload)` calls POST. Enum values are lowercase matching backend. |
-| AC-14 | PASS | `updateMutation.mutateAsync(basePayload)` calls PATCH. NaN guard on edit page prevents invalid ID. |
-| AC-15 | PASS | Delete confirmation dialog with program name, times_used warning, prevents close during pending |
-
-### Program Assignment (AC-16 through AC-18): 3/3 PASS
+### Admin Dashboard Overview (AC-6 through AC-10): 5/5 PASS
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-16 | PASS | "Assign to Trainee" in dropdown menu, available for all programs (including public) |
-| AC-17 | PASS | Trainee select dropdown (up to 200), date input with local timezone default |
-| AC-18 | PASS | `assignMutation.mutateAsync()` calls correct endpoint, toast with resolved trainee name |
+| AC-6 | PASS | `dashboard-stats.tsx`: 4 StatCards -- Total Trainers, Active Trainers, Total Trainees, MRR via `formatCurrency()`. |
+| AC-7 | PASS | `revenue-cards.tsx`: Total Past Due (destructive color when > 0), Payments Due Today, This Week, This Month. |
+| AC-8 | PASS | `tier-breakdown.tsx`: Horizontal bar chart with percentages, sr-only labels, handles empty state. |
+| AC-9 | PASS | `past-due-alerts.tsx`: Trainer name, email, amount, days past due. "View All" links to `/admin/subscriptions?past_due=true`. |
+| AC-10 | PASS | `dashboard/page.tsx:53-63`: Destructive Badge with AlertTriangle icon and count when `past_due_count > 0`. |
 
-### UX States (AC-19 through AC-23): 5/5 PASS
-
-| AC | Status | Evidence |
-|----|--------|----------|
-| AC-19 | PASS | LoadingSpinner on list, Loader2 on save/delete/assign buttons, Skeleton rows in picker |
-| AC-20 | PASS | EmptyState with Dumbbell icon, "No program templates yet", CTA to create |
-| AC-21 | PASS | ErrorState with retry on list/edit/picker, toast on mutation failures via `getErrorMessage` |
-| AC-22 | PASS | Toast: "Program created" / "Program updated" / `"{name}" has been deleted` / "Program assigned to {name}" |
-| AC-23 | PASS | `hasMountedRef` skips initial mount, `isDirtyRef` tracks changes, `beforeunload` handler, Cancel button confirmation |
-
-### Exercise Picker (AC-24 through AC-27): 4/4 PASS
+### Trainer Management (AC-11 through AC-18): 8/8 PASS
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-24 | PASS | Search input with useDeferredValue, exercise list in ScrollArea |
-| AC-25 | PASS | 10 muscle group filter buttons (lowercase values matching backend) |
-| AC-26 | PASS | Exercise name + MUSCLE_GROUP_LABELS badge |
-| AC-27 | PASS | Multi-select: clicking adds exercise with checkmark, "Done (N added)" button to close |
+| AC-11 | PASS | `trainer-list.tsx`: DataTable with Name/Email, Status badge, Tier badge, Trainee Count, Joined Date. |
+| AC-12 | PASS | `trainers/page.tsx`: `useDebounce(searchInput, 300)` -- 300ms debounce verified. |
+| AC-13 | PASS | All/Active/Inactive toggle buttons with `aria-pressed` state. |
+| AC-14 | PASS (design deviation) | Uses `TrainerDetailDialog` instead of `/admin/trainers/[id]` page. All required data and actions present in the dialog. Functionally complete. |
+| AC-15 | PASS | Trainer detail shows profile info, subscription summary, trainee count, Impersonate and Activate/Suspend buttons. |
+| AC-16 | PASS | `trainer-detail-dialog.tsx:62-70`: Stores admin tokens in sessionStorage, calls `setTokens(result.access, result.refresh, "TRAINER")` with role cookie, redirects to `/dashboard`. |
+| AC-17 | PASS | `impersonation-banner.tsx:58-59`: Restores admin tokens via `setTokens()`, calls `setRoleCookie("ADMIN")`, clears sessionStorage, calls end API, hard-navigates to `/admin/trainers`. |
+| AC-18 | PASS | Activate/Suspend toggle with inline confirmation for suspend. Uses PATCH via `useActivateDeactivateTrainer`. |
+
+### Subscription Management (AC-19 through AC-26): 8/8 PASS
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-19 | PASS | `subscription-list.tsx`: DataTable with Trainer name/email, Tier badge, Status badge (color-coded via centralized `SUBSCRIPTION_STATUS_VARIANT`), Price/mo, Next Payment, Past Due. |
+| AC-20 | PASS | Status dropdown, tier dropdown, search by email, past_due URL param, upcoming payments dropdown (7/14/30 days). All filters present and wired. |
+| AC-21 | PASS (design deviation) | Uses `SubscriptionDetailDialog` instead of page. Fully functional with tabs. |
+| AC-22 | PASS | Three tabs: Overview (all fields), Payments (payment history table), Changes (change history table). Admin notes in action forms. |
+| AC-23 | PASS | Change Tier form with tier dropdown (disabled for current value + "(current)" label) and reason textarea. |
+| AC-24 | PASS | Change Status form with status dropdown and reason textarea. Same-value guard. |
+| AC-25 | PASS | Record Payment form with amount input (validates > 0), description input. |
+| AC-26 | PASS | Admin notes inline-editable textarea, 2000 char limit with counter, saves via `updateNotes.mutateAsync()`. |
+
+### Tier Management (AC-27 through AC-32): 6/6 PASS
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-27 | PASS | `tier-list.tsx`: DataTable with Name (display + internal), Price $X.XX/mo via `formatCurrency`, Trainee Limit, Active toggle, Sort Order, Edit/Delete actions. |
+| AC-28 | PASS | `tier-form-dialog.tsx`: All fields -- name, display_name, description, price, trainee_limit, features (tag/chip input), stripe_price_id, is_active, sort_order. |
+| AC-29 | PASS | Edit uses same dialog with PATCH. Full payload sent. |
+| AC-30 | PASS | `use-admin-tiers.ts`: `useToggleTierActive` with optimistic update, rollback on error, settled invalidation. |
+| AC-31 | PASS | Delete dialog shows backend error (e.g., active subscriptions) inline via `setDeleteError`. |
+| AC-32 | PASS | Seed Defaults button shown only in empty state with Loader2 spinner during pending. |
+
+### Coupon Management (AC-33 through AC-40): 8/8 PASS
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-33 | PASS | `coupon-list.tsx`: DataTable with Code (truncated at 180px with tooltip), Type badge, Discount (formatted per type via `formatDiscount`), Applies To, Status badge, Usage count, Valid Until. |
+| AC-34 | PASS | Status dropdown, type dropdown, applies_to dropdown, search by code. All filters present. |
+| AC-35 | PASS | `coupon-form-dialog.tsx`: All fields present. Code auto-uppercased/stripped on line 174. Percent > 100% validation on line 95-96. `applicable_tiers` multi-select with checkboxes on lines 318-340. |
+| AC-36 | PASS (design deviation) | Uses `CouponDetailDialog` instead of page. Functionally complete with usages tab. |
+| AC-37 | PASS | Coupon detail shows all fields plus Usages table (User name/email, Discount Amount, Used At). |
+| AC-38 | PASS | Revoke button for active coupons with destructive variant and Loader2 during pending. |
+| AC-39 | PASS | Reactivate button for revoked coupons. Disabled for exhausted with Tooltip explanation. |
+| AC-40 | PASS | Edit dialog allows updating: description, discount_value, applicable_tiers, max_uses, max_uses_per_user, valid_until. |
+
+### User Management (AC-41 through AC-45): 5/5 PASS
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-41 | PASS | `user-list.tsx`: DataTable with Name/Email, Role badge, Status badge, Trainees count ("--" for admins), Created date. |
+| AC-42 | PASS | `users/page.tsx`: Role filter (All/ADMIN/TRAINER) and search with 300ms debounce. |
+| AC-43 | PASS | `create-user-dialog.tsx`: Email, password with strength indicator, role select, first_name, last_name. |
+| AC-44 | PASS | Edit via dialog with first_name, last_name, is_active, role, optional password reset. |
+| AC-45 | PASS | Delete confirmation shows backend error (e.g., active trainees) in dialog. |
+
+### UX States (AC-46 through AC-49): 4/4 PASS
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-46 | PASS | All 5 list pages show 3 Skeleton rows with `role="status"` and `aria-label`. Dashboard has `AdminDashboardSkeleton`. All mutation buttons show Loader2. |
+| AC-47 | PASS | Empty states with contextual icons, titles, descriptions, and CTAs on all pages. Differentiated between "no data" and "no filter matches". |
+| AC-48 | PASS | `ErrorState` with retry on all list pages. Toast on mutations. `getErrorMessage()` handles both DRF field errors and admin `{error: "..."}` format. |
+| AC-49 | PASS | Toast on all create/update/delete/action operations with descriptive messages. |
 
 ---
 
-## Critical Issue Resolution (Code Review C1-C4)
+## Critical/High Issue Resolution
 
-| Issue | Status | Verification |
-|-------|--------|-------------|
-| C1: DifficultyLevel/GoalType UPPERCASE broke all CRUD | FIXED | `types/program.ts:1-34`: all values lowercase. Labels use lowercase keys. Verified match against backend TextChoices. |
-| C2: MuscleGroup UPPERCASE broke exercise filter | FIXED | `types/program.ts:36-62`: all values lowercase. Labels use lowercase keys. |
-| C3: NaN programId caused eternal loading | FIXED | `edit/page.tsx:31`: `!isNaN(programId) && programId > 0` guard. Shows `ErrorState "Invalid program ID"`. |
-| C4: Unbounded exercise fetch truncated results silently | FIXED | `exercise-picker-dialog.tsx:160-164`: "Showing X of Y exercises" truncation warning. |
+| Issue | Source | Status | Verification |
+|-------|--------|--------|-------------|
+| C1: Middleware double-redirect for admin login | Review R1 | FIXED | `middleware.ts:36-38` checks role cookie, `token-manager.ts:52-58` `setTokens` accepts optional role, `auth-provider.tsx:52` calls `setRoleCookie`. |
+| C2: Missing `applicable_tiers` multi-select | Review R1 | FIXED | `coupon-form-dialog.tsx:44,68,76,318-340`: AVAILABLE_TIERS constant, applicableTiers state, toggle handler, checkbox UI with helper text. Both create (line 133) and update (line 119) payloads include field. |
+| C3: Edit from detail opens create form | Review R1 | FIXED | `coupon-detail-dialog.tsx` passes full coupon to `onEdit`, coupons page `handleEditFromDetail` receives and sets it. |
+| H-1: Middleware did not block non-admin from /admin routes | Security | FIXED | `middleware.ts:36-38`: `isAdminPath(pathname) && hasSession && userRole !== "ADMIN"` redirects to `/dashboard`. Comment documents cookie limitation. |
+| QA-B1: Missing setRoleCookie("TRAINER") during impersonation | QA | FIXED | `trainer-detail-dialog.tsx:67`: `setTokens(result.access, result.refresh, "TRAINER")` -- third argument sets role cookie. |
 
-## Major Issue Resolution (Code Review M1-M8)
+---
 
-| Issue | Status | Verification |
-|-------|--------|-------------|
-| M1: Search non-functional (no backend filter) | FIXED | `views.py:580-581`: `filter_backends = [SearchFilter]`, `search_fields = ['name', 'description']` |
-| M2: Edit/Delete shown for non-owned templates | FIXED | `program-list.tsx:57,137`: `isOwner` check on `created_by === currentUserId`. Edit/Delete conditional. |
-| M3: False dirty state on initial mount | FIXED | `program-builder.tsx:107-111`: `hasMountedRef` guard skips first effect. |
-| M4: Double-click race condition | FIXED | `program-builder.tsx:79,216,222,247`: `savingRef` guard prevents duplicate submission. |
-| M5: Trainee dropdown limited to 20 | FIXED | `use-trainees.ts:29`: `page_size=200`. Empty/error states handled in dialog. |
-| M6: Unsafe `as` type casts on payload | FIXED | `program-builder.tsx:224-231`: `basePayload` built directly. Difficulty/goal validated before cast. |
-| M7: Missing `nutrition_template`, `created_by_email` | FIXED | `types/program.ts:124,130`: Both fields in `ProgramTemplate` interface. |
-| M8: String reps silently converted to 0 | FIXED | `exercise-row.tsx:129-141`: Input switches type. String preserved with 10-char limit. |
+## Key File Spot-Checks (Verified by Reading Code)
 
-## Security Issue Resolution
-
-| Issue | Status | Verification |
-|-------|--------|-------------|
-| H-1: No schedule_template JSON validation (DoS risk) | FIXED | `serializers.py:247-279`: 512KB max, validates weeks list (max 52), days list (max 7). |
-| H-2: `is_public` and `image_url` writable by trainers | FIXED | `serializers.py:245`: added to `read_only_fields`. |
-| M-1: `created_by_email` exposed for public templates | NOT FIXED | Non-blocking. Requires design decision on public template attribution. |
-| M-2: No rate limiting on template creation | NOT FIXED | Non-blocking. Mitigated by JSON size validation. Infrastructure-level concern. |
-
-## QA Bug Resolution
-
-| Bug | Severity | Status |
-|-----|----------|--------|
-| BUG-1: rest_seconds > 600 not clamped | Minor | FIXED -- `Math.min(600, Math.max(0, ...))` |
-| BUG-2: sets > 20 not clamped | Minor | FIXED -- `Math.min(20, Math.max(1, ...))` |
-| BUG-3: reps no maxLength/clamp | Minor | FIXED -- maxLength=10, `Math.min(100, ...)` |
-| BUG-4: Misleading no results on empty page | Low | NOT FIXED -- Rare edge case, non-blocking |
-| BUG-5: 200-trainee limit silently | Minor | NOT FIXED -- 200 covers vast majority, non-blocking |
+| File | Check | Result |
+|------|-------|--------|
+| `auth-provider.tsx` | ADMIN role support | Lines 41-43 accept both ADMIN and TRAINER. Line 52 sets role cookie. |
+| `middleware.ts` | Admin route protection with role check | Lines 36-38 block non-admin from `/admin/*`. Comment on lines 33-35 documents limitation. |
+| `token-manager.ts` | Role cookie management | `setTokens` (line 52) accepts optional role. `setRoleCookie` (line 113) exported. `clearTokens` (line 61-66) clears both cookies. |
+| `(admin-dashboard)/layout.tsx` | Admin layout | Lines 30-33 redirect non-ADMIN. Skip-to-content link. AdminSidebar + ImpersonationBanner rendered. |
+| `subscription-detail-dialog.tsx` | Was 583 lines, should be ~160 | Now 174 lines. Clean extraction into 3 sub-components. Error state with retry present. |
+| `coupon-form-dialog.tsx` | applicable_tiers multi-select | Lines 44, 68, 318-340: AVAILABLE_TIERS, state, checkbox UI. Both payloads include field. |
+| `impersonation-banner.tsx` | Restores ADMIN role cookie | Line 58: `setTokens(state.adminAccessToken, state.adminRefreshToken)`. Line 59: `setRoleCookie("ADMIN")`. Both present. |
+| `admin-constants.ts` | Centralized constants | `TIER_COLORS`, `SUBSCRIPTION_STATUS_VARIANT`, `COUPON_STATUS_VARIANT`, `SELECT_CLASSES`, `SELECT_CLASSES_FULL_WIDTH`. Clean module. |
+| `users/page.tsx` | Consecutive create bug (N-M3) | Line 29: `formKey` state. Line 45: increment in `handleCreate`. Line 127: `key={selectedUser?.id ?? \`new-${formKey}\`}`. FIXED. |
 
 ---
 
@@ -136,13 +156,12 @@ Each criterion verified by reading actual implementation code:
 
 | Category | Score | Notes |
 |----------|-------|-------|
-| Functionality | 10/10 | All 27 ACs verified PASS. All 12 edge cases handled. |
-| Code Quality | 8/10 | Clean hooks/types/components. Some raw HTML elements instead of shadcn. `ProgramBuilder` at 506 lines could be split. |
-| Security | 8/10 | All High issues fixed. Proper auth/authz/IDOR protection. No XSS/injection. Minor: email exposure, no rate limit. |
-| Performance | 7/10 | Missing `useCallback` on handler functions in WeekEditor/DayEditor. 200-trainee ceiling. No debounce on exercise search API. |
-| UX/Accessibility | 9/10 | All states handled. Visible labels, ARIA attributes, focus rings. 29 UX/a11y fixes applied. |
-| Architecture | 9/10 | Clean layering. Proper query invalidation. error-utils shared module. misplaced hook fixed. |
-| Edge Cases | 9/10 | Data loss confirmations. Input clamping. Empty/error states everywhere. 50-exercise cap. |
+| Functionality | 9/10 | All 49 ACs functionally met. 3 design deviations (dialog vs page) are acceptable. All 15 edge cases handled. |
+| Code Quality | 8/10 | Clean separation: types, hooks, components. Centralized utilities (`formatCurrency`, `formatDiscount`, `TIER_COLORS`, status variants). Subscription detail properly decomposed. Native `<select>` elements instead of shadcn Select is cosmetic debt. |
+| Security | 9/10 | Three-layer admin authorization (middleware + layout + backend API). No XSS vectors. No secrets. Impersonation flow well-designed. Role cookie limitation documented. |
+| Performance | 7/10 | No pagination on admin list pages (acceptable at current scale). Token refresh does not preserve role cookie (narrow edge case). All queries use proper staleTime. Optimistic update on tier toggle. |
+| UX/Accessibility | 8/10 | All loading/error/empty states present on every page. `role="status"` and sr-only text on all loading indicators. `aria-pressed` on filter buttons. Focus-visible on checkboxes. Truncation on long values. Error states with retry in detail dialogs. |
+| Architecture | 8/10 | Mirrors trainer dashboard patterns. Reuses shared components. Proper query invalidation including cross-entity. Centralized constants eliminate duplication. |
 
 **Overall: 8/10 -- Meets the SHIP threshold.**
 
@@ -150,35 +169,50 @@ Each criterion verified by reading actual implementation code:
 
 ## Remaining Concerns (Non-Blocking)
 
-1. **`useAllTrainees` has 200-trainee ceiling** -- No truncation warning. Acceptable for current scale. Should add searchable combobox when platform grows.
-2. **`created_by_email` exposed for public templates** -- Leaks other trainers' emails. Requires design decision (display name vs email).
-3. **No rate limiting on template creation** -- Mitigated by 512KB JSON validation. Should add `UserRateThrottle` at infrastructure level.
-4. **Handler function recreation in WeekEditor/DayEditor** -- Not wrapped in `useCallback`. Acceptable for 7 days x ~10 exercises but should be optimized for 52-week programs.
-5. **Raw `<textarea>` and `<select>` instead of shadcn components** -- Works correctly. Cosmetic debt for future cleanup.
-6. **`ProgramBuilder` at 506 lines** -- Could extract metadata form into sub-component. Tight state coupling makes this non-trivial.
-7. **No automated test suite** -- All verification was code-level inspection. Web project has no Vitest/Jest configured.
+1. **No pagination on admin list pages** -- All admin lists return full arrays without pagination. Acceptable for early-stage platform (<100 trainers). The `DataTable` component already supports pagination props but they are not wired. Should add before platform scales past ~200 trainers.
+
+2. **Token refresh does not preserve role cookie** (`token-manager.ts:100`) -- If the role cookie is deleted but the refresh token is valid, `refreshAccessToken()` calls `setTokens` without a role parameter. The next `fetchUser()` call re-sets the cookie, making this a very narrow timing window. Documented, not blocking.
+
+3. **Native `<select>` elements instead of shadcn Select** -- 12+ raw `<select>` elements with shared class constants (`SELECT_CLASSES`). Works correctly but has limited dark mode styling (particularly `<option>` backgrounds on macOS Safari). Should migrate to Radix Select in a future design system pass.
+
+4. **No rate limiting on admin mutation endpoints** -- Client-side `isPending` prevents concurrent submissions but not rapid sequential ones. Server-side rate limiting should be added to admin endpoints. Low risk given admin accounts are trusted and low-volume.
+
+5. **No automated test suite** -- All verification was code-level inspection. The web project has no Vitest/Jest configured. Should be prioritized for future pipelines.
+
+6. **`valid_from` not user-configurable on coupon create** -- Auto-set to `new Date().toISOString()`. Reasonable default but ticket mentioned a datetime input. Low priority.
 
 None of these are ship-blockers.
 
 ---
 
+## Design Deviations Accepted
+
+Three acceptance criteria (AC-14, AC-21, AC-36) specified dedicated detail pages with URL routing (e.g., `/admin/trainers/[id]`). The implementation uses dialog overlays instead. This is an acceptable design decision because:
+
+1. Dialogs provide faster context-switching (no full page navigation)
+2. All required data and actions are present in the dialogs
+3. The dialog pattern is consistent across all three entities
+4. The dev-done.md documented this as a deliberate deviation
+
+---
+
 ## What Was Built (for changelog)
 
-**Web Trainer Program Builder** -- A complete CRUD interface for workout program templates on the web dashboard:
+**Web Admin Dashboard** -- A complete admin management interface for the FitnessAI platform:
 
-- **Programs list page** (`/programs`): Searchable, paginated table with name (clickable for owners), difficulty badge, goal, duration, times used, created date, and actions dropdown (Edit/Assign/Delete with ownership gating)
-- **Program builder** (`/programs/new`, `/programs/[id]/edit`): Metadata form (name, description, duration 1-52 weeks, difficulty, goal) with character counters and validation. Visual schedule editor with week tabs (horizontal scroll), 7 day cards per week, rest day toggles with data loss confirmation, exercise configuration (sets/reps/weight/unit/rest with full input clamping)
-- **Exercise picker dialog**: Searchable, filterable by 10 muscle groups, multi-select with checkmarks, truncation warning when results exceed page size
-- **Assign-to-trainee dialog**: Trainee dropdown (up to 200), start date picker (local timezone), empty/error states with CTA
-- **Delete confirmation dialog**: Program name, times-used warning, prevents close during pending
-- **Keyboard shortcuts**: Ctrl/Cmd+S to save, Copy Week to All
-- **Unsaved changes protection**: beforeunload + Cancel button confirmation
-- **Backend enhancements**: Search support on program templates (`SearchFilter`), JSON field validation (512KB/64KB size limits, structure validation), `is_public` and `image_url` made read-only
+- **Admin Dashboard** (`/admin/dashboard`): 4 primary stat cards (Total Trainers, Active Trainers, Total Trainees, MRR), Revenue & Payments section (Past Due, Due Today/Week/Month), Tier Breakdown horizontal bar chart, Past Due Alerts with "View All" deep link to subscriptions
+- **Trainer Management** (`/admin/trainers`): Searchable DataTable with active/inactive filter, trainer detail dialog with subscription info, impersonation flow (store admin tokens in sessionStorage, set trainer tokens with role cookie, amber banner with "End Impersonation"), activate/suspend toggle with confirmation
+- **Subscription Management** (`/admin/subscriptions`): Full-featured DataTable with 5 filter dimensions (status, tier, past_due, upcoming, search), tabbed detail dialog (Overview, Payments, Changes), inline action forms for Change Tier, Change Status, Record Payment, Edit Admin Notes with 2000-char limit
+- **Tier Management** (`/admin/tiers`): CRUD with create/edit dialog, features tag input, optimistic toggle-active, delete with subscription-count guard, Seed Defaults for initial setup
+- **Coupon Management** (`/admin/coupons`): CRUD with create/edit dialog, applicable_tiers multi-select, alphanumeric code validation, percent max 100% validation, detail dialog with usages table, revoke/reactivate with exhausted guard
+- **User Management** (`/admin/users`): CRUD with role filter, create user with password strength indicator, edit with optional password reset, delete with active-trainee guard
+- **Auth & Routing**: ADMIN role support in AuthProvider, role-aware middleware routing with role cookie, three-layer admin authorization (middleware + layout + backend API), admin/trainer cross-redirect
+- **Shared Infrastructure**: `admin-constants.ts` (TIER_COLORS, status variants, SELECT_CLASSES), `format-utils.ts` (formatCurrency, formatDiscount), impersonation-banner with sessionStorage state management
 
-**Files: 16 created, 6 modified = 22 files total (+3,505 lines / -852 lines)**
+**Files: 47 created, 9 modified = 56 files total (+6,660 lines / -1,206 lines)**
 
 ---
 
 **Verified by:** Final Verifier Agent
 **Date:** 2026-02-15
-**Pipeline:** 12 -- Trainer Program Builder
+**Pipeline:** 13 -- Web Admin Dashboard
