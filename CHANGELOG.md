@@ -4,6 +4,93 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-16] — Social & Community (Phase 7)
+
+### Added
+- **New `community` Django app** — 6 models (Announcement, AnnouncementReadStatus, Achievement, UserAchievement, CommunityPost, PostReaction), 13 API endpoints, 2 service modules, seed command, admin registration. Single migration with all indexes and constraints.
+- **Trainer Announcements (CRUD)** — `GET/POST /api/trainer/announcements/`, `GET/PUT/DELETE /api/trainer/announcements/<id>/`. Title (200 chars), body (2000 chars), is_pinned toggle. Ordered by `is_pinned DESC, created_at DESC`. Row-level security: `trainer=request.user`.
+- **Trainee Announcement Feed** — `GET /api/community/announcements/` (paginated, scoped to parent_trainer), `GET /api/community/announcements/unread-count/` (returns count of new announcements since last read), `POST /api/community/announcements/mark-read/` (upserts `AnnouncementReadStatus` with `last_read_at`).
+- **Achievement/Badge System** — 15 predefined achievements across 5 criteria types: workout count (1/10/25/50/100), workout streak (3/7/14/30), weight check-in streak (7/30), nutrition streak (3/7/30), program completed (1). `check_and_award_achievements()` service with streak/count calculation, idempotent `get_or_create` awarding, and `IntegrityError` handling for concurrent calls. Hooks on workout completion, weight check-in, and nutrition logging (fire-and-forget, never blocks parent operation).
+- **Community Feed** — `GET /api/community/feed/` with batch reaction aggregation (2 queries, no N+1), `POST /api/community/feed/` for text posts (1000 chars, whitespace-stripped), `DELETE /api/community/feed/<id>/` with author + trainer moderation, `POST /api/community/feed/<id>/react/` toggle endpoint for fire/thumbs_up/heart reactions. All scoped by `parent_trainer`.
+- **Auto-Post Service** — `create_auto_post()` generates community posts on workout completion ("Just completed {workout_name}!") and achievement earning ("Earned the {achievement_name} badge!"). Fire-and-forget with `_SafeFormatDict` for safe template formatting.
+- **Seed Command** — `python manage.py seed_achievements` creates 15 achievements idempotently via `get_or_create`.
+- **Community Feed Screen** — Replaces Forums tab in bottom navigation (renamed to "Community"). Pull-to-refresh, infinite scroll pagination, shimmer skeleton loading (3 post cards matching populated layout), empty state ("No posts yet. Be the first to share!"), error state with retry.
+- **Compose Post Sheet** — Bottom sheet with TextField (1000 chars, `maxLines: 5`, character counter), "Post" button, loading state (disabled field + spinner), success snackbar "Posted!", error snackbar with content preserved.
+- **Reaction Bar** — Fire/thumbs_up/heart buttons with optimistic toggle updates. Active: filled background + primary color + bold count. Inactive: outlined + muted. Reverts on API error with snackbar "Couldn't update reaction."
+- **Auto-Post Visual Distinction** — Tinted background (`primary.withValues(alpha: 0.05)`), type badge above content (Workout/Achievement/Milestone with matching icons) per AC-29 and AC-32.
+- **Post Deletion** — PopupMenuButton "Delete" on own posts, AlertDialog confirmation ("Delete this post? This cannot be undone."), success/failure snackbars.
+- **Pinned Announcement Banner** — Shown at top of community feed when trainer has a pinned announcement. InkWell with ripple feedback, navigates to full announcements screen.
+- **Trainee Announcements Screen** — Full list with pinned indicators (pin icon + primary-tinted left border), pull-to-refresh. Mark-read called on screen open. Empty states for "has trainer" vs "no trainer".
+- **Notification Bell** — Home screen app bar bell icon with unread count badge (red circle, white number). Fetched on home screen load. Tapping navigates to announcements screen.
+- **Achievements Screen** — 3-column GridView.builder with earned (colored icon, primary border, "Earned {date}") and locked (muted 0.4 opacity, divider border) badge states. Detail bottom sheet with description and earned date. Progress summary card ("X of Y earned"). Pull-to-refresh, shimmer skeleton (6 circles), error with retry, empty state.
+- **Settings Achievements Tile** — "Badges & Achievements" tile in trainee settings between TRACKING and SUBSCRIPTION sections, showing earned/total count.
+- **Trainer Announcements Management Screen** — List with title, body preview, pinned indicator, relative timestamp. Swipe-to-delete with confirmation dialog. Tap to edit. FAB to create. Empty state with campaign icon.
+- **Create/Edit Announcement Screen** — Title (200 chars) and body (2000 chars) fields with character counters, is_pinned toggle, loading state, success snackbar, error snackbar with data preserved.
+- **Trainer Dashboard Announcements Section** — Total count with "Manage" button navigating to announcements management.
+- **55 comprehensive backend tests** — Announcements (14), achievements (15), feed (17), auto-post (5), seed command (4). Covering all CRUD operations, security (IDOR, auth, authz), edge cases (no parent_trainer, concurrent operations, max lengths), and service logic (streak calculation, idempotent awarding).
+
+### Changed
+- **`main_navigation_shell.dart`** — Renamed "Forums" tab to "Community" with `people_outlined` / `people` icons.
+- **`app_router.dart`** — Replaced ForumsScreen route with CommunityFeedScreen. Added 4 new routes: `/community/announcements`, `/community/achievements`, `/trainer/announcements-screen`, `/trainer/create-announcement`.
+- **`api_constants.dart`** — Added 11 community endpoint constants.
+- **`home_screen.dart`** — Added announcement bell with unread badge count in app bar.
+- **`settings_screen.dart`** — Added ACHIEVEMENTS section with earned/total count tile.
+- **`trainer_dashboard_screen.dart`** — Added Announcements management section.
+- **`workouts/survey_views.py`** — Hooked `check_and_award_achievements()` and `create_auto_post()` after workout completion. `new_achievements` included in response.
+- **`workouts/views.py`** — Hooked `check_and_award_achievements()` after weight check-in and nutrition save (both wrapped in try-except).
+- **`config/settings.py`** — Added `'community'` to `INSTALLED_APPS`.
+- **`config/urls.py`** — Added `path('api/community/', include('community.urls'))`.
+- **`trainer/urls.py`** — Added trainer announcement CRUD URL patterns.
+
+### Fixed
+- **CRITICAL: Announcement pagination parsing crash** — Mobile `AnnouncementRepository.getAnnouncements()` and `getTrainerAnnouncements()` were parsing `response.data as List<dynamic>`, but DRF `ListAPIView`/`ListCreateAPIView` return paginated responses `{count, next, previous, results}`. Changed to parse as `Map<String, dynamic>` and extract `data['results']`. Would have caused a runtime `type 'Map' is not a subtype of type 'List'` crash on both trainee and trainer announcement screens.
+- **Auto-post type badge placement** — Badge was below content text; AC-29 specifies "subtle label + icon above content." Moved `_buildPostTypeBadge()` above the content Text widget.
+- **Auto-post visual distinction missing** — All posts used `theme.cardColor` uniformly; AC-32 specifies tinted background for auto-posts. Added conditional `post.isAutoPost ? theme.colorScheme.primary.withValues(alpha: 0.05) : theme.cardColor`.
+- **Serializer misuse in AchievementListView** — `AchievementWithStatusSerializer(data=..., many=True)` was called without `.is_valid()`. Replaced with direct `Response(data)` since the serializer was passthrough.
+- **Non-optimistic reaction toggle** — Reaction bar awaited API call before updating UI (200-500ms delay). Implemented optimistic update: immediate UI change, revert on API error with snackbar.
+- **Missing delete confirmation dialog** — Post deletion fired immediately on "Delete" tap. Added AlertDialog with Cancel/Delete actions per AC-33.
+- **Race condition with `.first` call** — `announcements.where((a) => a.isPinned).first` could throw `StateError` between `any()` check and `.first` access. Fixed with safe access pattern.
+
+### Accessibility
+- `Semantics(label: '{name}, earned/locked', button: true)` on all achievement badges with InkWell ripple feedback
+- `Semantics(label: '{type} reaction, {count}, active/inactive. Tap to react/remove.', button: true)` on all reaction buttons
+- `Semantics(label: 'Pinned announcement: {title}. Tap to view all.', button: true)` on announcement banner with Material+InkWell ripple
+- `Semantics(label: 'Loading ...')` on all 4 screen skeleton loading states
+- `Semantics(header: true)` on achievement progress summary heading
+- `tooltip: 'New post'` on community feed compose FAB
+- `tooltip: 'New announcement'` on trainer announcements FAB
+- Achievement badge name font size increased from 11px to 12px for WCAG minimum
+- GestureDetector replaced with InkWell on achievement badges and announcement banner (proper ripple feedback + touch targets)
+
+### Architecture
+- New `community` Django app cleanly separated from `trainer` and `workouts` apps (no cyclic dependencies)
+- Business logic in services: `achievement_service.py` (streak calculation, idempotent awarding), `auto_post_service.py` (template formatting, fire-and-forget)
+- Removed 6 unused serializers from `serializers.py`: `AchievementWithStatusSerializer`, `CommunityPostSerializer`, `PostAuthorSerializer`, `UnreadCountSerializer`, `MarkReadResponseSerializer`, `ReactionResponseSerializer`
+- Database indexes on all query patterns: `(trainer, -created_at)` on Announcement and CommunityPost, `(trainer, is_pinned)` on Announcement, `(post, reaction_type)` on PostReaction, `(user, -earned_at)` on UserAchievement
+- Proper unique constraints: `(user, trainer)` on AnnouncementReadStatus, `(criteria_type, criteria_value)` on Achievement, `(user, achievement)` on UserAchievement, `(user, post, reaction_type)` on PostReaction
+- Mobile follows repository pattern consistently: Screen -> Provider -> Repository -> ApiClient.dio
+- All widget files under 150 lines, screens under 200 lines
+
+### Security
+- All 13 endpoints verified: authentication + role-based authorization (IsTrainee/IsTrainer) + row-level security
+- No IDOR vulnerabilities: 7 attack vectors tested and blocked (cross-group feed, cross-group reactions, cross-trainer announcements, non-author delete, trainee accessing trainer endpoints, trainer accessing trainee endpoints)
+- Input validation: max_length on all user inputs, choice validation on reaction_type, whitespace stripping on post content
+- Concurrency safe: unique constraints + `get_or_create` + `IntegrityError` catch on reactions, achievements, and read status
+- No injection vectors: Django ORM only (no raw SQL), Flutter Text() widgets (no HTML interpretation)
+- No secrets in code or git history
+- Error messages don't leak internals
+
+### Quality
+- Code review: R1 6/10 REQUEST CHANGES -> All 3 critical + 7 major fixed -> R1 fixes applied
+- QA: 55/55 PASS, HIGH confidence, all 34 ACs verified (31 DONE, 3 justified PARTIAL)
+- UX audit: 8/10 PASS (13 usability/accessibility fixes)
+- Security audit: 9/10 PASS (no vulnerabilities found)
+- Architecture: 9/10 APPROVE (clean separation, proper indexes, no N+1, unused serializers cleaned)
+- Hacker: 7/10 (2 critical runtime crash bugs found and fixed, 2 visual bugs fixed)
+- Final verdict: 8/10 SHIP, HIGH confidence
+
+---
+
 ## [2026-02-15] — Health Data Integration + Performance Audit + Offline UI Polish (Phase 6 Completion)
 
 ### Added
