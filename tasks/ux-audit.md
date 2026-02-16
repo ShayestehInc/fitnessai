@@ -1,185 +1,109 @@
-# UX Audit: Admin Dashboard (Pipeline 13)
+# UX Audit: Health Data Integration + Performance Audit + Offline UI Polish
 
 ## Audit Date: 2026-02-15
+## Pipeline: 16
 
-## Pages & Components Reviewed
-- Admin layout: `web/src/app/(admin-dashboard)/layout.tsx`
-- Dashboard page: `web/src/app/(admin-dashboard)/admin/dashboard/page.tsx`
-- Trainers page: `web/src/app/(admin-dashboard)/admin/trainers/page.tsx`
-- Users page: `web/src/app/(admin-dashboard)/admin/users/page.tsx`
-- Tiers page: `web/src/app/(admin-dashboard)/admin/tiers/page.tsx`
-- Coupons page: `web/src/app/(admin-dashboard)/admin/coupons/page.tsx`
-- Subscriptions page: `web/src/app/(admin-dashboard)/admin/subscriptions/page.tsx`
-- Settings page: `web/src/app/(admin-dashboard)/admin/settings/page.tsx`
-- Admin dashboard skeleton: `web/src/components/admin/admin-dashboard-skeleton.tsx`
-- Dashboard stats: `web/src/components/admin/dashboard-stats.tsx`
-- Revenue cards: `web/src/components/admin/revenue-cards.tsx`
-- Past due alerts: `web/src/components/admin/past-due-alerts.tsx`
-- Tier breakdown: `web/src/components/admin/tier-breakdown.tsx`
-- Tier list: `web/src/components/admin/tier-list.tsx`
-- Tier form dialog: `web/src/components/admin/tier-form-dialog.tsx`
-- Trainer list: `web/src/components/admin/trainer-list.tsx`
-- Trainer detail dialog: `web/src/components/admin/trainer-detail-dialog.tsx`
-- User list: `web/src/components/admin/user-list.tsx`
-- Create user dialog: `web/src/components/admin/create-user-dialog.tsx`
-- Coupon list: `web/src/components/admin/coupon-list.tsx`
-- Coupon form dialog: `web/src/components/admin/coupon-form-dialog.tsx`
-- Coupon detail dialog: `web/src/components/admin/coupon-detail-dialog.tsx`
-- Subscription list: `web/src/components/admin/subscription-list.tsx`
-- Subscription detail dialog: `web/src/components/admin/subscription-detail-dialog.tsx`
-- Subscription action forms: `web/src/components/admin/subscription-action-forms.tsx`
-- Subscription history tabs: `web/src/components/admin/subscription-history-tabs.tsx`
-- Admin sidebar: `web/src/components/layout/admin-sidebar.tsx`
-- Admin sidebar mobile: `web/src/components/layout/admin-sidebar-mobile.tsx`
-- Admin nav links: `web/src/components/layout/admin-nav-links.ts`
-- Impersonation banner: `web/src/components/layout/impersonation-banner.tsx`
-- Shared components: `page-header.tsx`, `data-table.tsx`, `empty-state.tsx`, `error-state.tsx`, `stat-card.tsx`
-- Admin constants: `web/src/lib/admin-constants.ts`
+## Files Reviewed
+- `mobile/lib/shared/widgets/health_card.dart` -- Today's Health card
+- `mobile/lib/shared/widgets/health_permission_sheet.dart` -- Permission bottom sheet
+- `mobile/lib/shared/widgets/sync_status_badge.dart` -- Badge widget
+- `mobile/lib/shared/widgets/offline_banner.dart` -- Offline banner
+- `mobile/lib/core/theme/app_theme.dart` -- Theme consistency
+- `mobile/lib/core/models/health_metrics.dart` -- Health data model
+- `mobile/lib/core/providers/health_provider.dart` -- Health state management
+- `mobile/lib/core/services/health_service.dart` -- Health data service
+- `mobile/lib/features/home/presentation/screens/home_screen.dart` -- Home screen with health card, pending workouts
+- `mobile/lib/features/home/presentation/providers/home_provider.dart` -- Home state with pending workouts
+- `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart` -- Nutrition with pending merge, badges
+- `mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart` -- Weight trends with pending merge
 
 ---
 
 ## Usability Issues
 
-| # | Severity | Screen/Component | Issue | Recommendation |
-|---|----------|-----------------|-------|----------------|
-| 1 | High | All list pages (Trainers, Users, Tiers, Coupons, Subscriptions) | Loading skeleton `<div>` containers had no `role="status"` or `aria-label`, making loading states invisible to screen readers. Users using assistive technology would not know data was loading. | Added `role="status"` and `aria-label="Loading {resource}..."` to all loading skeleton containers, plus `<span className="sr-only">` for additional context. -- FIXED |
-| 2 | High | Past Due Alerts card | No error state when the past-due subscription fetch fails. The component only handled `isLoading` and data states. A network error would show a perpetually empty card with no way to retry. | Added `isError` and `refetch` destructuring from the hook, and an error state with `role="alert"`, descriptive message, and inline "Retry" button. -- FIXED |
-| 3 | High | Coupon Detail Dialog | No error state when the coupon detail fetch fails. Only a loading spinner was shown. A failed fetch would leave users staring at an empty dialog indefinitely. | Added `coupon.isError` check with `role="alert"`, "Failed to load coupon details." message, and inline "Retry" button. -- FIXED |
-| 4 | High | Subscription Detail Dialog | Same as above. No error state for subscription detail fetch failure. | Added `subscription.isError` check with `role="alert"`, "Failed to load subscription details." message, and inline "Retry" button. -- FIXED |
-| 5 | Medium | Subscription List (status column) | Status labels like `past_due` were displayed as "Past due" (only first character capitalized). Multi-word statuses should capitalize each word for readability: "Past Due". | Changed from single `charAt(0).toUpperCase()` to `replace(/\b\w/g, c => c.toUpperCase())` for proper title case on all status values. -- FIXED |
-| 6 | Medium | Trainers page (filter buttons) | Filter toggle buttons (All / Active / Inactive) had no `aria-pressed` attribute or grouping `role="group"`, making the current filter state invisible to screen readers. | Added `role="group"` with `aria-label="Filter trainers by status"` to the button container, and `aria-pressed` to each filter button reflecting its active state. -- FIXED |
-| 7 | Medium | All native `<select>` elements | Native `<select>` elements across 6 files (filter toolbars, form dialogs, action forms) used inline className strings duplicated in 12+ places. Inconsistency risk was high, and several selects were missing the focus-visible transition class. | Extracted shared `SELECT_CLASSES` and `SELECT_CLASSES_FULL_WIDTH` constants into `web/src/lib/admin-constants.ts`. Replaced all inline select class strings with the shared constant reference. -- FIXED |
-| 8 | Medium | Native checkboxes (tier form, user form, coupon form) | Raw `<input type="checkbox">` elements had minimal styling (`h-4 w-4 rounded border-input`) with no `accent-primary` color and no `focus-visible` ring. Keyboard focus was invisible, and the checkbox color did not match the design system primary color. | Added `accent-primary` for consistent color and `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` for keyboard navigation visibility. -- FIXED |
-| 9 | Medium | Coupon list, coupon detail dialog | Both components defined local `STATUS_VARIANT` maps identical to the centralized `COUPON_STATUS_VARIANT` in `admin-constants.ts`. This duplication meant changes to status badge colors would need updating in 3 places. | Replaced local `STATUS_VARIANT` with imported `COUPON_STATUS_VARIANT` from `@/lib/admin-constants`. -- FIXED |
-| 10 | Medium | Subscription History (change details column) | Change details used `->` ASCII arrow (`FREE -> PRO`) instead of a proper arrow character. The ASCII version is less readable and not screen-reader friendly. | Changed to `&rarr;` HTML entity with `aria-label="changed to"` for screen reader context. -- FIXED |
-| 11 | Medium | All dialog loading spinners | Loading spinners in Coupon Detail, Subscription Detail, and Subscription History Tabs lacked `role="status"`, `aria-label`, `aria-hidden="true"` on the icon, and sr-only text. Screen readers would not announce the loading state. | Added `role="status"`, `aria-label`, `aria-hidden="true"` on Loader2 icons, and `<span className="sr-only">` text to all dialog loading indicators. -- FIXED |
-| 12 | Low | Tiers page (delete dialog) | Delete confirmation text had `&quot;{name}\n&quot;` with a line break between the name and closing quote, rendering extra whitespace in the rendered text. | Moved closing `&quot;?` to same line as `{deleteTarget?.display_name}` to eliminate whitespace. -- FIXED |
-| 13 | Low | Subscription History (empty states) | "No payment history" and "No change history" text was left-aligned in a `<p>` without centering, inconsistent with other empty states in the app which center their content. | Added `py-4 text-center` to both empty state paragraphs for visual consistency. -- FIXED |
-| 14 | Low | Subscription History Tabs | The `PaymentHistoryTab` and `ChangeHistoryTab` components used a pattern of `if (data && data.length === 0)` followed by `if (data && data.length > 0)` followed by `return null`. This triple-branch pattern was unnecessarily complex and the `return null` branch was unreachable when data existed. | Simplified to `if (!data || data.length === 0)` for empty state and a single `return <DataTable>` for populated state, eliminating the dead `return null` branch. -- FIXED |
-| 15 | Low | Coupon Detail Dialog title | The dialog title showed "Loading..." when data was not yet loaded, which was generic. When data loaded, the coupon code could potentially overflow the dialog title area on very long codes. | Changed loading title to "Coupon Details" (more descriptive) and added `max-w-[400px] truncate` with `title` attribute to the code display for overflow protection. -- FIXED |
-| 16 | Low | Subscription Detail Dialog title | The dialog title could overflow when a trainer has a very long email address. | Added `truncate` class to `DialogTitle` to prevent layout overflow. -- FIXED |
+| # | Severity | Screen/Component | Issue | Recommendation | Status |
+|---|----------|-----------------|-------|----------------|--------|
+| 1 | High | health_card.dart / `_MetricTile` | All 4 health metric tiles had no `Semantics` labels. Screen readers could not announce "Steps: 8,234" or "Heart Rate: -- " to visually impaired users. Health data is numeric and contextual -- without labels, it's meaningless to assistive technology. | Wrapped each `_MetricTile` in `Semantics(label: '$label: $value', excludeSemantics: true)` so screen readers announce "Steps: 8,234", "Active Cal: 342 cal", etc. | FIXED |
+| 2 | High | health_card.dart / `_SkeletonHealthCard` | Skeleton loading card had no screen reader announcement. When health data is loading, VoiceOver/TalkBack users had no indication that content was being fetched. | Added `Semantics(label: 'Loading health data', liveRegion: true)` wrapper to the skeleton card. | FIXED |
+| 3 | Medium | health_card.dart / `_MetricTile` | Label font size was 11px, below the 12px minimum recommended for body text in WCAG guidelines. Small text on dark backgrounds is harder to read for users with low vision. | Increased label font size from 11 to 12px. | FIXED |
+| 4 | Medium | home_screen.dart / `_PendingWorkoutCard` | Pending workout cards displayed a `chevron_right` icon suggesting tappable navigation to detail, but tapping actually shows a "waiting to sync" snackbar. The visual affordance (chevron = "tap to navigate") contradicts the actual behavior (no navigation possible). Users would repeatedly tap expecting navigation. | Removed the `chevron_right` icon from pending workout cards. The card is still tappable (shows snackbar), but the visual does not falsely promise navigation. | FIXED |
+| 5 | Medium | home_screen.dart / pending workout snackbar | The pending workout tap snackbar showed plain text with no visual indicator. All other sync/offline indicators in the app use the amber `cloud_off` icon. The snackbar was visually disconnected from the sync badge on the card that triggered it. | Added `cloud_off` icon (amber, 16px) to the snackbar content Row for visual consistency with SyncStatusBadge. | FIXED |
+| 6 | Medium | sync_status_badge.dart | `SyncStatusBadge` had no `Semantics` label. The 12px icon is purely visual -- screen readers could not announce sync status (pending, syncing, failed) to users. | Added `Semantics(label: _semanticsLabel, excludeSemantics: true)` wrapper with appropriate labels per status: "Pending sync", "Syncing", "Sync failed", or empty for synced. | FIXED |
+| 7 | Medium | nutrition_screen.dart / `_FoodEntryRow` edit icon | Edit icon used `GestureDetector` instead of `IconButton`. No ripple feedback, no minimum 32dp touch target, no tooltip. Users on accessibility devices or with motor impairments would struggle to tap the 16x16 target. | Replaced `GestureDetector` with `IconButton` with `constraints: BoxConstraints(minWidth: 32, minHeight: 32)`, `tooltip: 'Edit food entry'`, and proper ripple feedback. | FIXED |
+| 8 | Medium | nutrition_screen.dart / "Add Food" button | "Add Food" button used `GestureDetector` with no ripple feedback and no padding around the tap target. The effective touch area was limited to the exact text bounds. | Replaced `GestureDetector` with `InkWell` with `borderRadius` for ripple, plus `Padding(horizontal: 8, vertical: 6)` for an adequate touch target. | FIXED |
+| 9 | Low | nutrition_screen.dart / "(includes X pending)" label | Pending nutrition count label had no Semantics description and no visual indicator connecting it to the sync concept. The label appeared as plain text below the macro cards with only 4px top padding, making it visually cramped. | Added `Semantics(liveRegion: true, label: ...)` with descriptive text. Added a small `cloud_off` icon (11px, amber) before the text for visual consistency with sync badges. Increased top padding from 4px to 6px for breathing room. | FIXED |
+| 10 | Low | nutrition_screen.dart / "Latest Weight" cloud_off icon | The amber `cloud_off` icon next to the latest weight date had no tooltip or Semantics explanation. Users might not understand what the icon means. | Wrapped the `Icon` in a `Tooltip(message: 'Pending sync')` for hover/long-press explanation. | FIXED |
+| 11 | Low | nutrition_screen.dart / "Latest Weight" section | The entire "Latest Weight" section is tappable (navigates to Weight Trends) but had no `Semantics(button: true)` annotation. Screen readers would not announce it as an interactive element. | Added `Semantics(button: true, label: 'View weight trends. ${state.latestWeightFormatted}')` wrapper. | FIXED |
+| 12 | Low | weight_trends_screen.dart / `_buildPendingWeightRow` | Pending weight rows had no Semantics labels. Screen readers could not announce "Pending weight check-in: 165 lbs on Monday, Feb 15, 2026". | Added `Semantics(label: 'Pending weight check-in: ${lbs.round()} lbs on $formattedDate')` wrapper. | FIXED |
+| 13 | Low | health_card.dart / "Today's Health" title | Title text was not marked as a heading for screen reader navigation. Users navigating by headings would skip over this section. | Added `Semantics(header: true)` wrapper to the title Text widget. | FIXED |
+| 14 | Low | health_card.dart / `_openHealthSettings` | Catch block used bare `catch (_)` which silently swallows errors, violating the project's error-handling rule ("NO exception silencing!"). | Changed to `catch (e)` with `assert(() { debugPrint(...); return true; }())` for debug-mode error logging, consistent with the pattern used in HealthService and HealthDataNotifier. | FIXED |
+| 15 | Low | health_permission_sheet.dart / health icon | The decorative heart icon inside the permission sheet was exposed to screen readers, which would announce "favorite rounded" -- meaningless to the user. | Wrapped the icon Container in `ExcludeSemantics` to hide it from assistive technology. | FIXED |
 
 ---
 
 ## Accessibility Issues
 
-| # | WCAG Level | Issue | Fix |
-|---|------------|-------|-----|
-| 1 | A (4.1.2) | Loading skeleton containers on all 5 list pages had no ARIA live region or status role. Screen readers could not announce that content was loading. | Added `role="status"` and `aria-label` to all skeleton containers, plus `<span className="sr-only">` for status text. -- FIXED |
-| 2 | A (4.1.2) | Filter toggle buttons on Trainers page had no `aria-pressed` attribute. Screen readers could not determine which filter was currently active. | Added `aria-pressed={boolean}` to each filter button and `role="group"` with `aria-label` to the container. -- FIXED |
-| 3 | AA (2.4.7) | Native `<input type="checkbox">` elements in 3 form dialogs (tier, user, coupon) had no visible focus indicator when navigated via keyboard. | Added `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` classes. -- FIXED |
-| 4 | A (4.1.2) | Dialog loading spinners in Coupon Detail, Subscription Detail, and both History Tabs used `<Loader2>` without `aria-hidden="true"`. Screen readers would attempt to read the SVG icon, producing meaningless output. | Added `aria-hidden="true"` to all loading `<Loader2>` icons and wrapped them in containers with `role="status"` and sr-only text. -- FIXED |
-| 5 | A (1.3.1) | Subscription change history "Details" column used ASCII `->` which has no semantic meaning for screen readers. | Changed to `<span aria-label="changed to">&rarr;</span>` for proper screen reader context. -- FIXED |
-| 6 | A (4.1.3) | Past Due Alerts card had no error announcement. When the fetch failed, the card simply rendered nothing, with no `role="alert"` or error message. | Added error state with `role="alert"` and descriptive message. -- FIXED |
+| # | WCAG Level | Issue | Fix | Status |
+|---|------------|-------|-----|--------|
+| 1 | A (1.1.1) | Health metric tiles had no text alternative for screen readers. Values like "8,234" next to a walking icon had no contextual meaning without sighted access. | Added `Semantics(label: '$label: $value', excludeSemantics: true)` to `_MetricTile`. | FIXED |
+| 2 | A (4.1.2) | Skeleton health card loading state had no `role="status"` equivalent. Screen readers could not detect that content was loading. | Added `Semantics(label: 'Loading health data', liveRegion: true)` to `_SkeletonHealthCard`. | FIXED |
+| 3 | AA (1.4.4) | `_MetricTile` label text was 11px -- below the 12px minimum for readability at standard viewing distances on mobile screens. | Increased to 12px. | FIXED |
+| 4 | A (2.5.5) | Food entry edit icon had a 16x16 tap target (no padding). WCAG 2.5.5 requires minimum 44x44 CSS pixels; Flutter Material guidelines require at least 32dp. | Replaced with `IconButton` with 32x32dp minimum constraints. | FIXED |
+| 5 | A (4.1.2) | `SyncStatusBadge` icons (cloud_off, cloud_upload, error_outline) had no semantic label. Screen readers would either ignore them or announce unhelpful icon names. | Added `Semantics(label: _semanticsLabel)` with status-appropriate text. | FIXED |
+| 6 | A (1.1.1) | Decorative heart icon in permission sheet was not marked as decorative. Screen readers announced "favorite rounded" which adds noise. | Wrapped in `ExcludeSemantics`. | FIXED |
+| 7 | A (4.1.2) | "Latest Weight" tappable region had no button role for screen readers. | Added `Semantics(button: true, label: ...)`. | FIXED |
+| 8 | AA (1.3.1) | "Today's Health" title was not marked as a heading. Screen reader heading navigation would skip it. | Added `Semantics(header: true)`. | FIXED |
 
 ---
 
-## Missing States
+## Missing States Checklist
 
-### Admin Dashboard (`/admin/dashboard`)
-- [x] Loading -- `AdminDashboardSkeleton` with full skeleton layout matching actual content structure
-- [x] Error -- `ErrorState` with "Failed to load dashboard data" and retry button
-- [x] Populated -- `DashboardStats` + `RevenueCards` + `TierBreakdown` + `PastDueAlerts`
-- [x] Past due badge -- Shows count badge in header when `past_due_count > 0`
+### TodaysHealthCard (health_card.dart)
+- [x] Loading -- `_SkeletonHealthCard` with gray placeholder tiles matching 2x2 layout, Semantics liveRegion
+- [x] Populated -- `_LoadedHealthCard` with 200ms fade-in animation, 4 metric tiles
+- [x] Empty / No Permission -- `SizedBox.shrink()` (card hidden entirely, no error banner)
+- [x] Error / Unavailable -- `SizedBox.shrink()` (card hidden, graceful degradation)
+- [x] Permission Denied -- `SizedBox.shrink()` (respects user's choice, no nagging)
+- [x] Initial -- `SizedBox.shrink()` (before any permission check)
+- [x] Refresh with existing data -- Skips skeleton (isRefresh=true preserves loaded state)
 
-### Trainers Page (`/admin/trainers`)
-- [x] Loading -- 3 skeleton rows with `role="status"`
-- [x] Error -- `ErrorState` with retry
-- [x] Empty (no data) -- `EmptyState` with Users icon, "No trainers have joined the platform yet."
-- [x] Empty (filtered) -- `EmptyState` with "No trainers match your search criteria."
-- [x] Populated -- `TrainerList` (DataTable) with clickable rows
+### Health Permission Sheet (health_permission_sheet.dart)
+- [x] Default -- Bottom sheet with icon, title, description, two buttons
+- [x] Dismissible -- swipe down or tap outside returns false
+- [x] Platform-aware -- Shows "Apple Health" on iOS, "Health Connect" on Android
 
-### Users Page (`/admin/users`)
-- [x] Loading -- 3 skeleton rows with `role="status"`
-- [x] Error -- `ErrorState` with retry
-- [x] Empty (no data) -- `EmptyState` with "Create User" CTA
-- [x] Empty (filtered) -- `EmptyState` with search criteria message
-- [x] Populated -- `UserList` (DataTable) with clickable rows
+### SyncStatusBadge (sync_status_badge.dart)
+- [x] Pending -- Amber cloud_off icon (16x16) with Semantics "Pending sync"
+- [x] Syncing -- Blue rotating cloud_upload icon with Semantics "Syncing"
+- [x] Synced -- SizedBox.shrink (badge disappears)
+- [x] Failed -- Red error_outline icon with Semantics "Sync failed"
 
-### Tiers Page (`/admin/tiers`)
-- [x] Loading -- 3 skeleton rows with `role="status"`
-- [x] Error -- `ErrorState` with retry
-- [x] Empty -- `EmptyState` with "Seed Defaults" button (with loading spinner)
-- [x] Populated -- `TierList` with edit, toggle, delete actions
-- [x] Delete confirmation -- Dialog with error display and loading state
-- [x] Toggle loading -- Per-row spinner while toggling active status
+### Offline Banner (offline_banner.dart)
+- [x] Offline -- Amber banner "You are offline"
+- [x] Syncing -- Blue banner with progress text and LinearProgressIndicator
+- [x] All Synced -- Green banner "All changes synced" with 3s auto-dismiss
+- [x] Failed -- Red banner with tap-to-retry
+- [x] Hidden -- SizedBox.shrink when online + idle
+- [x] Semantics -- liveRegion with appropriate labels per state
 
-### Coupons Page (`/admin/coupons`)
-- [x] Loading -- 3 skeleton rows with `role="status"`
-- [x] Error -- `ErrorState` with retry
-- [x] Empty (no data) -- `EmptyState` with "Create Coupon" CTA
-- [x] Empty (filtered) -- `EmptyState` with filter message
-- [x] Populated -- `CouponList` with clickable rows
+### Home Screen - Recent Workouts
+- [x] Loading -- Shimmer placeholders (3 skeleton cards)
+- [x] Empty -- "No workouts yet" text message
+- [x] Error -- Error card with retry button
+- [x] Populated -- Server workout cards with chevron_right and navigation
+- [x] Pending workouts -- Cards with SyncStatusBadge, snackbar on tap, no misleading chevron
 
-### Subscriptions Page (`/admin/subscriptions`)
-- [x] Loading -- 3 skeleton rows with `role="status"`
-- [x] Error -- `ErrorState` with retry
-- [x] Empty (no data) -- `EmptyState` with "No trainer subscriptions exist yet."
-- [x] Empty (filtered) -- `EmptyState` with filter message
-- [x] Populated -- `SubscriptionList` with clickable rows
-- [x] Deep link -- `?past_due=true` URL param pre-selects status filter
+### Nutrition Screen - Macro Cards
+- [x] Loading -- CircularProgressIndicator (existing)
+- [x] Populated -- Macro cards with progress rings
+- [x] Pending merge -- Macros include pending values, "(includes X pending)" label with cloud_off icon
+- [x] No pending -- Label hidden (no visual change from baseline)
 
-### Settings Page (`/admin/settings`)
-- [x] Placeholder -- `EmptyState` with "Coming soon" message
-
-### Coupon Detail Dialog
-- [x] Loading -- Centered spinner with `role="status"`
-- [x] Error -- Alert with retry button
-- [x] Populated -- Full detail view with actions
-- [x] Revoke/Reactivate -- Loading spinners on action buttons
-- [x] Usages loading -- Spinner in usages section
-- [x] Usages empty -- "No usages recorded yet" text
-- [x] Usages populated -- `DataTable` of usage records
-
-### Subscription Detail Dialog
-- [x] Loading -- Centered spinner with `role="status"`
-- [x] Error -- Alert with retry button
-- [x] Populated -- Tabbed interface (Overview, Payments, Changes)
-- [x] Action forms -- Change Tier, Change Status, Record Payment, Edit Notes
-- [x] Same-value validation -- Disables Confirm when selecting current tier/status
-- [x] Payment/change history loading -- Spinners with `role="status"`
-- [x] Payment/change history empty -- Centered "No history" text
-
-### Past Due Alerts Card
-- [x] Loading -- 3 pulse-animated placeholders with `role="status"`
-- [x] Error -- Alert with retry button
-- [x] Empty -- "No past due subscriptions" text
-- [x] Populated -- Up to 5 alert items + "View All (N)" link to subscriptions page
-
-### Impersonation Banner
-- [x] Active -- Amber banner with trainer email and "End Impersonation" button
-- [x] Ending -- Loading spinner with "Ending..." text, button disabled
-- [x] Inactive -- Banner hidden (returns null)
-
----
-
-## Copy Assessment
-
-| Element | Copy | Verdict |
-|---------|------|---------|
-| Dashboard title | "Admin Dashboard" | Clear, matches nav |
-| Dashboard description | "Platform overview and management" | Informative |
-| Trainers title | "Trainers" | Clear |
-| Trainers description | "Manage platform trainers" | Action-oriented |
-| Trainers search | "Search by name or email..." | Clear expectation |
-| Users title | "Users" | Clear |
-| Users description | "Manage admin and trainer accounts" | Scoped appropriately |
-| Tiers title | "Subscription Tiers" | Specific |
-| Tiers description | "Manage platform subscription tiers" | Clear |
-| Coupons title | "Coupons" | Clear |
-| Coupons description | "Manage discount coupons" | Clear |
-| Subscriptions title | "Subscriptions" | Clear |
-| Subscriptions description | "Manage trainer subscriptions" | Scoped to trainers |
-| Settings title | "Settings" | Clear |
-| Settings placeholder | "Admin settings will be available in a future update." | Honest, sets expectation |
-| Impersonation banner | "Viewing as {email}" | Clear context |
-| End impersonation | "End Impersonation" | Action-oriented |
-| Delete tier confirm | 'Are you sure you want to delete "{name}"? This action cannot be undone.' | Clear consequences |
-| Suspend trainer confirm | "Are you sure you want to suspend {name}? They will lose access to their dashboard." | Specific consequence |
-| Empty trainers | "No trainers have joined the platform yet." | Helpful, not blaming |
-| Empty tiers | "Create tiers to define subscription plans for trainers." | Actionable guidance |
-| Seed defaults button | "Seed Defaults" | Clear but could benefit from explanation |
-| Password strength labels | "Too short" / "Weak" / "Fair" / "Good" / "Strong" | Progressive, clear |
+### Weight Trends Screen
+- [x] Empty -- Empty state with scale icon, "No weight check-ins yet", and CTA button
+- [x] Populated -- Summary card + chart + virtualized history list (SliverList.builder)
+- [x] Pending weights -- Pending entries at top with SyncStatusBadge, Semantics labels
+- [x] Chart -- RepaintBoundary wrapper, optimized shouldRepaint
 
 ---
 
@@ -187,147 +111,105 @@
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Page headers | Consistent | All 7 pages use shared `PageHeader` with title, description, optional actions |
-| Loading states | Consistent (after fix) | All list pages use 3 skeleton rows with `role="status"` and `aria-label` |
-| Error states | Consistent | All list pages use shared `ErrorState` with retry |
-| Empty states | Consistent | All list pages use shared `EmptyState` with contextual messages for filtered vs. unfiltered |
-| Data tables | Consistent | All lists use shared `DataTable` with `keyExtractor`, `onRowClick`, keyboard support |
-| Dialog pattern | Consistent | All dialogs use shadcn Dialog with Header/Title/Description/Footer |
-| Toast feedback | Consistent | All mutations show `toast.success()` or `toast.error()` with specific messages |
-| Filter controls | Consistent (after fix) | All native `<select>` elements use shared `SELECT_CLASSES` constant |
-| Search pattern | Consistent | All searchable pages use `useDebounce(300)` + `useMemo` for filters |
-| Destructive actions | Consistent | All destructive actions (delete, suspend, revoke) have confirmation UI |
-| Badge colors | Consistent (after fix) | Tier and status badge colors use centralized constants from `admin-constants.ts` |
-| Checkbox styling | Consistent (after fix) | All native checkboxes use `accent-primary` and focus-visible ring |
+| Card styling | Consistent | Health card uses same `theme.cardColor` + `theme.dividerColor` border pattern as other cards (workout, weight, nutrition) |
+| Icon colors | Consistent | Steps green (#22C55E), calories red (#EF4444), heart pink (#EC4899), weight blue (#3B82F6) -- all from the app's existing color vocabulary |
+| Sync badge colors | Consistent | Amber (#F59E0B) pending, blue (#3B82F6) syncing, red (#EF4444) failed -- matches OfflineBanner colors |
+| Typography | Consistent (after fix) | Labels use 12px (was 11px), values use 15px w600 -- matches other metric displays |
+| Spacing | Consistent | 16px padding, 12px gaps, 32px section spacing matches home screen pattern |
+| Skeleton loading | Consistent | Uses same gray dividerColor rectangles as home screen workout skeletons |
+| Theme usage | Consistent | All colors come from `theme.textTheme`, `theme.cardColor`, `theme.dividerColor`, `theme.colorScheme.primary` |
+| Border radius | Consistent | 12px on cards, 8px on metric tiles, 4px on skeleton placeholders |
+| Touch targets | Consistent (after fix) | All interactive elements now have minimum 32dp touch targets |
 
 ---
 
 ## Responsiveness Assessment
 
-| Aspect | Status |
-|--------|--------|
-| Layout | Sidebar hidden on mobile (`lg:block`), Sheet drawer for mobile nav |
-| Filter toolbars | `flex-col gap-3 sm:flex-row sm:items-center` -- stacks on mobile, row on desktop |
-| DataTables | Wrapped in `overflow-x-auto` for horizontal scroll on narrow screens |
-| Dialog content | `max-w-md` / `max-w-lg` / `max-w-2xl` / `max-w-3xl` with `max-h-[80vh] overflow-y-auto` |
-| Dashboard stat cards | `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` responsive grid |
-| Tier breakdown bars | Full width with percentage-based progress bars |
-| Impersonation banner | Flex row with `justify-between` -- works at all sizes |
-| Form dialogs | Grids use `grid-cols-2` / `grid-cols-3` that stack naturally in dialogs |
-| Page header | `flex-col gap-1 sm:flex-row sm:items-center sm:justify-between` |
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Health card 2x2 grid | Good | Uses `Expanded` children in `Row` -- scales to any width. Min height 48dp on tiles. |
+| Health card on narrow screens | Good | Metric tiles use `TextOverflow.ellipsis` for long values (e.g., "40,234 cal"). |
+| Permission sheet | Good | Uses `MainAxisSize.min` Column -- auto-sizes to content. SafeArea prevents notch overlap. |
+| Pending workout cards | Good | Same layout as server workout cards -- already proven responsive. |
+| Macro cards with pending label | Good | Label is centered below the Row -- works at all widths. |
+| Weight trends SliverList.builder | Good | Virtualized rendering for large history lists -- memory efficient on all devices. |
 
 ---
 
 ## Fixes Implemented
 
-### 1. All List Pages (Trainers, Users, Tiers, Coupons, Subscriptions)
-- **Added `role="status"` and `aria-label`** to all loading skeleton containers
-- **Added `<span className="sr-only">`** text inside each skeleton for screen reader announcement
+### 1. `mobile/lib/shared/widgets/health_card.dart`
+- Added `Semantics(label: '$label: $value', excludeSemantics: true)` to `_MetricTile`
+- Added `Semantics(label: 'Loading health data', liveRegion: true)` to `_SkeletonHealthCard`
+- Added `Semantics(header: true)` to "Today's Health" title
+- Fixed `_MetricTile` label font size from 11px to 12px (WCAG compliance)
+- Fixed `_openHealthSettings` error silencing: replaced `catch (_)` with `catch (e)` + debug logging
 
-### 2. `web/src/app/(admin-dashboard)/admin/trainers/page.tsx`
-- **Added `role="group"` and `aria-label`** to filter button container
-- **Added `aria-pressed`** to each filter toggle button (All / Active / Inactive)
+### 2. `mobile/lib/shared/widgets/sync_status_badge.dart`
+- Added `Semantics(label: _semanticsLabel, excludeSemantics: true)` wrapper
+- Added `_semanticsLabel` getter with status-appropriate text per SyncItemStatus
 
-### 3. `web/src/components/admin/past-due-alerts.tsx`
-- **Added error state** with `role="alert"`, destructive text, and inline "Retry" button
-- **Added `role="status"` and `aria-label`** to loading skeleton container
+### 3. `mobile/lib/shared/widgets/health_permission_sheet.dart`
+- Wrapped decorative heart icon in `ExcludeSemantics` to hide from screen readers
 
-### 4. `web/src/components/admin/coupon-detail-dialog.tsx`
-- **Added error state** for coupon fetch failure with `role="alert"` and "Retry" button
-- **Added `role="status"` and `aria-hidden="true"`** to loading spinners
-- **Replaced local `STATUS_VARIANT`** with centralized `COUPON_STATUS_VARIANT`
-- **Improved dialog title**: "Coupon Details" default, truncated code display with `title` attribute
+### 4. `mobile/lib/features/home/presentation/screens/home_screen.dart`
+- Removed misleading `chevron_right` icon from `_PendingWorkoutCard` (card is not navigable)
+- Added `cloud_off` icon to pending workout tap snackbar for visual consistency
 
-### 5. `web/src/components/admin/subscription-detail-dialog.tsx`
-- **Added error state** for subscription fetch failure with `role="alert"` and "Retry" button
-- **Added `role="status"` and `aria-hidden="true"`** to loading spinner
-- **Added `truncate`** to `DialogTitle` to prevent long email overflow
+### 5. `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart`
+- Replaced `_FoodEntryRow` edit `GestureDetector` with `IconButton` (32dp touch target, tooltip, ripple)
+- Replaced "Add Food" `GestureDetector` with `InkWell` (ripple feedback, padded touch target)
+- Enhanced "(includes X pending)" label: Semantics liveRegion, cloud_off icon, increased padding
+- Added `Tooltip(message: 'Pending sync')` to Latest Weight cloud_off icon
+- Added `Semantics(button: true)` to Latest Weight tappable region
 
-### 6. `web/src/components/admin/subscription-list.tsx`
-- **Fixed status capitalization**: Changed from `charAt(0).toUpperCase()` to `replace(/\b\w/g, c => c.toUpperCase())` for proper title case ("Past Due" instead of "Past due")
-
-### 7. `web/src/components/admin/subscription-history-tabs.tsx`
-- **Added `role="status"` and `aria-label`** to both loading spinners with `aria-hidden="true"` on icons
-- **Changed arrow symbol** from ASCII `->` to `&rarr;` with `aria-label="changed to"`
-- **Centered empty state text** with `py-4 text-center`
-- **Simplified branch logic**: Eliminated dead `return null` branches
-
-### 8. `web/src/components/admin/coupon-list.tsx`
-- **Replaced local `STATUS_VARIANT`** with imported `COUPON_STATUS_VARIANT` from `admin-constants.ts`
-
-### 9. `web/src/components/admin/subscription-action-forms.tsx`
-- **Replaced inline select class strings** with `SELECT_CLASSES_FULL_WIDTH` constant
-
-### 10. `web/src/components/admin/create-user-dialog.tsx`
-- **Replaced inline select class string** with `SELECT_CLASSES_FULL_WIDTH` constant
-- **Improved checkbox styling**: Added `accent-primary` and `focus-visible` ring classes
-
-### 11. `web/src/components/admin/tier-form-dialog.tsx`
-- **Improved checkbox styling**: Added `accent-primary` and `focus-visible` ring classes
-
-### 12. `web/src/components/admin/coupon-form-dialog.tsx`
-- **Replaced inline select class strings** with `SELECT_CLASSES_FULL_WIDTH` constant
-- **Improved checkbox styling**: Added `accent-primary` and `focus-visible` ring classes
-
-### 13. `web/src/app/(admin-dashboard)/admin/coupons/page.tsx`
-- **Replaced inline select class strings** with imported `SELECT_CLASSES` constant
-
-### 14. `web/src/app/(admin-dashboard)/admin/subscriptions/page.tsx`
-- **Replaced inline select class strings** with imported `SELECT_CLASSES` constant
-
-### 15. `web/src/app/(admin-dashboard)/admin/users/page.tsx`
-- **Replaced inline select class string** with imported `SELECT_CLASSES` constant
-
-### 16. `web/src/app/(admin-dashboard)/admin/tiers/page.tsx`
-- **Fixed delete dialog text spacing**: Moved closing quote to same line as display name
+### 6. `mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart`
+- Added `Semantics(label: ...)` to `_buildPendingWeightRow` for screen reader announcement
 
 ---
 
 ## Items Not Fixed (Require Design Decisions or Out of Scope)
 
-1. **Pagination on list pages** -- Trainers, Users, Coupons, and Subscriptions lists currently render all results without pagination. The `DataTable` component supports `totalCount`, `page`, `pageSize`, and `onPageChange` props, but these are not wired up. For large datasets (100+ trainers), pagination or virtual scrolling should be added. Requires backend API changes to return paginated responses.
+1. **Skeleton shimmer animation**: The skeleton health card uses static gray rectangles rather than a shimmer/pulse animation. The existing `loading_shimmer.dart` widget in the codebase provides animated shimmer, but the health card skeleton was intentionally kept as a simple static placeholder to match the pattern used in the home screen's workout skeleton placeholders (which also use static gray containers). Adding shimmer animation would be a broader design system decision affecting all skeleton states.
 
-2. **Native `<select>` vs. shadcn Select** -- The codebase uses native `<select>` elements rather than the shadcn `Select` component (Radix UI). Native selects have limited styling (especially in dark mode where `<option>` background cannot be styled). Migrating to the Radix Select component would provide full theme consistency. This is a design system decision that affects all form selects across the admin dashboard.
+2. **Health card tablet layout**: The ticket mentions "single horizontal row on wider screens (tablet), 2x2 grid on phones." The current implementation is always 2x2. Implementing a responsive layout switch at a tablet breakpoint would require a `LayoutBuilder` or `MediaQuery` width check. This is a lower-priority enhancement -- the 2x2 grid works well on all phone sizes and is readable on tablets.
 
-3. **Bulk actions on list pages** -- There is no way to select multiple items and perform bulk actions (e.g., suspend multiple trainers, delete multiple coupons, change tier for multiple subscriptions). This would be valuable for admins managing many records.
+3. **CalorieRing number formatting**: The CalorieRing center text shows raw `remaining.toString()` (e.g., "1523") without locale-aware thousands separators. The health card uses `NumberFormat('#,###')` for consistency. The CalorieRing is pre-existing code outside the scope of this ticket's changes.
 
-4. **Confirmation for dangerous status changes** -- The subscription action forms allow changing status to "suspended" or "canceled" without a confirmation step. The tier change and status change forms have a "Confirm" button, but no warning about the consequences of a destructive status change. Consider adding amber/red warning text when selecting "suspended" or "canceled" as the new status.
-
-5. **Admin dashboard data freshness indicator** -- There is no indication of when the dashboard data was last fetched. Adding a "Last updated: X minutes ago" indicator with a refresh button would help admins trust the displayed numbers.
-
-6. **Coupon code copy-to-clipboard** -- The coupon code is displayed in `font-mono` but there is no one-click copy button. Admins frequently need to share coupon codes.
+4. **"Your goal" refresh icon**: The refresh icon next to "Your goal" on the nutrition screen uses `GestureDetector` with a 16px icon (no minimum touch target). This is pre-existing code outside the scope of this ticket, but should be addressed in a future pass.
 
 ---
 
 ## Overall UX Score: 8/10
 
 ### Breakdown:
-- **State Handling:** 9/10 -- After fixes, every component handles loading (with proper ARIA), error (with retry), empty (with contextual messages), and populated states. Past Due Alerts and detail dialogs now have error recovery paths.
-- **Accessibility:** 8/10 -- All loading states now have `role="status"` and sr-only text. Filter buttons have `aria-pressed`. Checkboxes have focus-visible indicators. DataTable rows have keyboard support (`tabIndex`, `onKeyDown`). Skip-to-content link in layout. Remaining gap: native `<select>` elements are less accessible than Radix Select.
-- **Visual Consistency:** 9/10 -- All select elements use shared class constants. Badge colors centralized. Skeleton loading patterns are uniform. Checkbox styling is consistent. Status labels use proper title case.
-- **Copy Clarity:** 9/10 -- All copy is clear and actionable. Empty states differentiate between "no data yet" and "no results match your filter". Confirmation dialogs explain consequences. Toast messages include entity names.
-- **Responsiveness:** 8/10 -- Layout adapts well (sidebar collapse, filter stacking, table scroll). Stat cards grid is responsive. Dialog sizing adapts. Minor concern: Coupons filter toolbar has 4 selects that may crowd on tablet screens.
-- **Feedback & Interaction:** 8/10 -- All mutations show spinners and success/error toasts. Destructive actions have confirmations. Impersonation has clear banner and end flow. Tier toggle shows per-row loading. Remaining gap: no bulk actions, no clipboard copy for coupons.
+- **State Handling:** 9/10 -- Every component handles all states: loading (skeleton with Semantics), populated (data with accessibility labels), empty (hidden/SizedBox.shrink), error (graceful degradation). The sealed class pattern in HealthDataState ensures exhaustive handling.
+- **Accessibility:** 8/10 -- After fixes, all health metrics have Semantics labels, sync badges have descriptive labels, loading states are announced, touch targets meet 32dp minimum, decorative elements are excluded. Remaining gap: skeleton cards use static gray rather than animated shimmer (less discoverable to sighted users).
+- **Visual Consistency:** 9/10 -- Colors match theme, spacing is consistent, card styling follows existing patterns, sync badge colors are uniform across all contexts.
+- **Copy Clarity:** 9/10 -- Permission sheet copy is clear and non-technical ("FitnessAI can read your steps..."). Pending labels are concise ("includes 1 pending"). Snackbar messages are actionable ("This workout is waiting to sync."). Health metric labels are clear (Steps, Active Cal, Heart Rate, Weight).
+- **Interaction Feedback:** 8/10 -- Fade-in animation on health card load, ripple on all buttons (after fix), snackbar on pending workout tap with sync icon, badge transitions on sync completion. Pull-to-refresh updates health data without skeleton flash.
+- **Responsiveness:** 8/10 -- 2x2 grid scales well on phones, text overflow handled, minimum heights enforced. Tablet-specific layout not yet implemented.
 
 ### Strengths:
-- Comprehensive shared component system (PageHeader, EmptyState, ErrorState, DataTable, StatCard)
-- Skip-to-content link and semantic navigation with `aria-label` and `aria-current="page"`
-- DataTable with keyboard navigation (Enter/Space to open row, focus-visible ring)
-- Impersonation banner with clear context and easy exit
-- Deep linking support (subscriptions `?past_due=true`)
-- Centralized constants for badge colors and select styling (DRY)
+- Sealed class state pattern ensures every health data state is exhaustively handled in the UI
+- Non-blocking health data fetch -- dashboard loads immediately, card appears when data arrives
+- 200ms fade-in animation on health card provides polished appearance without feeling slow
+- Permission prompt is shown once and respects the user's choice permanently
+- Refresh preserves existing data on failure (no jarring skeleton flash)
+- Sync badges reactively disappear when sync completes (wired to syncCompletionProvider)
+- RepaintBoundary on paint-heavy widgets (CalorieRing, MacroCircle, weight chart) reduces jank
+- NumberFormat with thousands separators handles large step counts gracefully
 
 ### Areas for Future Improvement:
-- Migrate native `<select>` to shadcn/Radix Select for full dark mode and theming support
-- Add pagination to all list pages for large datasets
-- Add bulk selection and actions to list pages
-- Add copy-to-clipboard for coupon codes
-- Add dashboard data freshness indicator
-- Add warning text for destructive subscription status changes
+- Add shimmer animation to skeleton cards for a more polished loading experience
+- Implement tablet-specific horizontal layout for health card (4 metrics in a row)
+- Add locale-aware number formatting to CalorieRing center text
+- Replace "Your goal" refresh GestureDetector with IconButton for proper touch target
+- Consider adding a "Connect Health" option in the Settings screen for users who declined initially
 
 ---
 
 **Audit completed by:** UX Auditor Agent
 **Date:** 2026-02-15
-**Pipeline:** 13 -- Admin Dashboard (Next.js 16 + React 19 + shadcn/ui)
-**Verdict:** PASS -- All critical accessibility and usability issues fixed. 16 files modified with 16 usability fixes and 6 accessibility fixes. Build passes clean with no TypeScript or lint errors.
+**Pipeline:** 16 -- Health Data Integration + Performance Audit + Offline UI Polish
+**Verdict:** PASS -- All critical and medium accessibility and usability issues fixed. 6 files modified with 15 usability fixes and 8 accessibility fixes. `flutter analyze` passes clean with no new errors or warnings in modified files.
