@@ -113,11 +113,55 @@ class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
     required int postId,
     required String reactionType,
   }) async {
+    // Save previous state for rollback on error
+    final previousPosts = state.posts;
+
+    // Optimistic update: toggle reaction locally before API call
+    state = state.copyWith(
+      posts: state.posts.map((p) {
+        if (p.id != postId) return p;
+        final hasReaction = p.userReactions.contains(reactionType);
+        final newUserReactions = hasReaction
+            ? p.userReactions.where((r) => r != reactionType).toList()
+            : [...p.userReactions, reactionType];
+        final delta = hasReaction ? -1 : 1;
+        final oldReactions = p.reactions;
+        ReactionCounts newCounts;
+        switch (reactionType) {
+          case 'fire':
+            newCounts = ReactionCounts(
+              fire: (oldReactions.fire + delta).clamp(0, 999999),
+              thumbsUp: oldReactions.thumbsUp,
+              heart: oldReactions.heart,
+            );
+          case 'thumbs_up':
+            newCounts = ReactionCounts(
+              fire: oldReactions.fire,
+              thumbsUp: (oldReactions.thumbsUp + delta).clamp(0, 999999),
+              heart: oldReactions.heart,
+            );
+          case 'heart':
+            newCounts = ReactionCounts(
+              fire: oldReactions.fire,
+              thumbsUp: oldReactions.thumbsUp,
+              heart: (oldReactions.heart + delta).clamp(0, 999999),
+            );
+          default:
+            newCounts = oldReactions;
+        }
+        return p.copyWith(
+          reactions: newCounts,
+          userReactions: newUserReactions,
+        );
+      }).toList(),
+    );
+
     try {
       final response = await _repo.toggleReaction(
         postId: postId,
         reactionType: reactionType,
       );
+      // Reconcile with server state
       state = state.copyWith(
         posts: state.posts.map((p) {
           if (p.id == postId) {
@@ -130,7 +174,8 @@ class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
         }).toList(),
       );
     } catch (_) {
-      // Silent failure for reactions
+      // Rollback to previous state on error
+      state = state.copyWith(posts: previousPosts);
     }
   }
 }

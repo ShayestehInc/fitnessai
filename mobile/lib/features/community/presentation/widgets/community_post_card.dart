@@ -29,7 +29,7 @@ class CommunityPostCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Author row
-          _buildAuthorRow(theme, isAuthor, ref),
+          _buildAuthorRow(context, theme, isAuthor, ref),
           const SizedBox(height: 12),
           // Post content
           Text(
@@ -53,7 +53,7 @@ class CommunityPostCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildAuthorRow(ThemeData theme, bool isAuthor, WidgetRef ref) {
+  Widget _buildAuthorRow(BuildContext context, ThemeData theme, bool isAuthor, WidgetRef ref) {
     final timeAgo = _formatTimeAgo(post.createdAt);
 
     return Row(
@@ -110,7 +110,7 @@ class CommunityPostCard extends ConsumerWidget {
             ),
             onSelected: (value) {
               if (value == 'delete') {
-                _confirmDelete(ref);
+                _confirmDelete(context, ref);
               }
             },
             itemBuilder: (context) => [
@@ -172,8 +172,31 @@ class CommunityPostCard extends ConsumerWidget {
     );
   }
 
-  void _confirmDelete(WidgetRef ref) {
-    ref.read(communityFeedProvider.notifier).deletePost(post.id);
+  void _confirmDelete(BuildContext context, WidgetRef ref) {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Post'),
+        content: const Text('Delete this post? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true) {
+        ref.read(communityFeedProvider.notifier).deletePost(post.id);
+      }
+    });
   }
 
   String _formatTimeAgo(DateTime dateTime) {

@@ -7,9 +7,10 @@ import logging
 from typing import Any, cast
 
 from django.db import IntegrityError
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, QuerySet
 from django.utils import timezone
 from rest_framework import generics, status, views
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -26,17 +27,16 @@ from .models import (
     UserAchievement,
 )
 from .serializers import (
-    AchievementWithStatusSerializer,
     AnnouncementSerializer,
-    CommunityPostSerializer,
     CreatePostSerializer,
-    MarkReadResponseSerializer,
     NewAchievementSerializer,
-    PostAuthorSerializer,
-    ReactionResponseSerializer,
     ReactionToggleSerializer,
-    UnreadCountSerializer,
 )
+
+
+class FeedPagination(PageNumberPagination):
+    """Pagination for community feed endpoint."""
+    page_size = 20
 
 logger = logging.getLogger(__name__)
 
@@ -149,8 +149,7 @@ class AchievementListView(views.APIView):
                 'earned_at': earned_at,
             })
 
-        serializer = AchievementWithStatusSerializer(data, many=True)
-        return Response(serializer.data)
+        return Response(data)
 
 
 class AchievementRecentView(views.APIView):
@@ -189,16 +188,13 @@ class CommunityFeedView(views.APIView):
         if trainer is None:
             return Response({'count': 0, 'next': None, 'previous': None, 'results': []})
 
-        from rest_framework.pagination import PageNumberPagination
-
         queryset = (
             CommunityPost.objects.filter(trainer=trainer)
             .select_related('author')
             .order_by('-created_at')
         )
 
-        paginator = PageNumberPagination()
-        paginator.page_size = 20
+        paginator = FeedPagination()
         page = paginator.paginate_queryset(queryset, request)
         if page is None:
             page = list(queryset)

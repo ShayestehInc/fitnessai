@@ -1,114 +1,55 @@
-# Code Review: Health Data Integration + Performance Audit + Offline UI Polish (Pipeline 16, Round 2)
+# Code Review: Social & Community (Pipeline 17, Round 1)
 
-## Review Date: 2026-02-15
+## Review Date: 2026-02-16
 
-## Context
-This is Round 2 of the code review, following the Fixer stage that addressed all 3 critical, 4 major, and 9 minor issues from Round 1.
+## Files Reviewed
+All 34 new files and 11 modified files from the community feature implementation.
 
-## Files Re-Reviewed
-
-1. `mobile/lib/core/services/health_service.dart` (237 lines)
-2. `mobile/lib/core/providers/health_provider.dart` (299 lines)
-3. `mobile/lib/core/models/health_metrics.dart` (55 lines)
-4. `mobile/lib/shared/widgets/health_card.dart` (347 lines)
-5. `mobile/lib/shared/widgets/health_permission_sheet.dart` (130 lines)
-6. `mobile/lib/features/home/presentation/screens/home_screen.dart` (~1356 lines)
-7. `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart` (~1150 lines)
-8. `mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart` (~597 lines)
-9. `mobile/lib/features/home/presentation/providers/home_provider.dart` (~485 lines)
-
----
-
-## Round 1 Issue Resolution Verification
-
-### Critical Issues -- All Fixed
-
-| # | Issue | Status | Verification |
-|---|-------|--------|-------------|
-| C1 | Steps double-counting | **FIXED** | `getTodaySteps()` now uses `_health.getTotalStepsInInterval(todayMidnight, now)` (line 100) which uses platform-level aggregate queries. Correct API usage verified against health package source. |
-| C2 | Fire-and-forget async | **FIXED** | `_autoImportWeight(metrics)` is now `await _autoImportWeight(metrics)` (line 194) inside the try-catch. `if (!mounted) return;` guards added at lines 190, 200, 236, 255. Disposal-safe. |
-| C3 | Refresh UX | **FIXED** | `fetchHealthData({bool isRefresh = false})` (line 181) skips skeleton on refresh with existing data (line 183-186). On failure during refresh, preserves existing `HealthDataLoaded` state (lines 201-204). Home screen passes `isRefresh: true` on pull-to-refresh. |
-
-### Major Issues -- All Addressed
-
-| # | Issue | Status | Verification |
-|---|-------|--------|-------------|
-| M1 | syncCompletionProvider unused | **FIXED** | `ref.listen(syncCompletionProvider, ...)` added in HomeScreen, NutritionScreen, and WeightTrendsScreen `build()` methods. Reloads data on sync completion. |
-| M2 | Active calories overlapping | **FIXED** | `getTodayActiveCalories()` now uses `_health.getHealthAggregateDataFromTypes()` (line 121) for platform-level aggregation. |
-| M3 | Offline weight dedup | **FIXED** | `_autoImportWeight()` now queries `cacheDao.getPendingWeightCheckins(_userId!)` (line 235) and checks if any entry matches today's date before importing. |
-| M6/M7 | HealthService not injectable | **FIXED** | `HealthService` now accepts `Health?` via constructor (line 19). `healthServiceProvider` created (lines 59-62). `healthDataProvider` uses `ref.watch(healthServiceProvider)` (line 289). |
-
-### Minor Issues -- All Addressed
-
-| # | Issue | Status |
-|---|-------|--------|
-| m1 | GestureDetector -> IconButton | **FIXED** -- IconButton with tooltip, proper touch target |
-| m2 | Platform.isIOS not web-safe | **FIXED** -- Uses `Theme.of(context).platform` |
-| m3 | Android health settings URI | **FIXED** -- Changed to `content://com.google.android.apps.healthdata` |
-| m4 | shouldRepaint reference equality | **FIXED** -- Uses `listEquals(data, oldDelegate.data)` |
-| m5 | HealthMetrics equality | **FIXED** -- `operator ==` and `hashCode` with `Object.hash` |
-| m6 | Error silencing | **FIXED** -- `assert(() { debugPrint(...); return true; }())` in all catch blocks |
-| m7 | Hardcoded date arrays | **FIXED** -- Uses `DateFormat('EEE, MMM d').format(createdAt)` |
-| m11 | HealthDataLoaded equality | **FIXED** -- `operator ==` and `hashCode` delegating to metrics |
-| m12 | NumberFormat allocation | **FIXED** -- Static final field `_numberFormat` |
-
----
-
-## New Issues Found in Round 2
-
-### Minor Issues
+## Critical Issues (must fix before merge)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| R2-m1 | `health_provider.dart:26` | `health_permission_sheet.dart:26` now calls `Theme.of(context).platform` twice on the same line (once for `isIOS` and once for `theme`). Minor redundancy. | Use `theme.platform` instead of `Theme.of(context).platform` since `theme` is already available. |
-| R2-m2 | `home_screen.dart:~1356`, `health_card.dart:347` | Files M4 and M5 from Round 1 (file size violations) were not addressed in this fix round. These are pre-existing structural issues that would require widget extraction. | Acknowledged -- this is a lower-priority refactoring task that can be addressed separately. Not blocking. |
+| C1 | `backend/community/views.py:134` | `AchievementWithStatusSerializer` is used to serialize manually-constructed dicts, but these dicts are never validated — the serializer's `.data` is accessed directly without `.is_valid()`. This is fine for read-only output serialization, but the pattern constructs dicts manually in a loop (N iterations), building an array then passing it through the serializer. This is actually an N+1-like concern: the view fetches all achievements, then all user achievements, but builds a Python list of dicts and passes them through a `Serializer(data=..., many=True)` without calling `.is_valid()` first. `Serializer.data` on an unvalidated serializer raises. | Use the serializer correctly: either call `.is_valid()` first and use `.data`, or instantiate with `instance=` not `data=` for output serialization. Better: since these are plain dicts, just return `Response(data)` directly (the serializer isn't adding value here — it's just passthrough). |
+| C2 | `mobile/lib/features/community/presentation/providers/community_feed_provider.dart:112-134` | `toggleReaction` is NOT optimistic — it awaits the API call, then updates state. The ticket (AC-31) requires optimistic updates with rollback on error. Current UX: user taps reaction, nothing happens for 200-500ms (network latency), then count changes. | Implement optimistic update: update local state immediately before the API call, then on API error revert to the previous state and show a snackbar. |
+| C3 | `mobile/lib/features/community/presentation/widgets/community_post_card.dart:175-177` | `_confirmDelete` calls `deletePost` directly without a confirmation dialog. Ticket AC-33 requires: "Long-press on own text post shows Delete option. Confirmation dialog: 'Delete this post? This cannot be undone.'" The current implementation uses a PopupMenuButton but no confirmation dialog — tapping "Delete" immediately deletes. | Add a confirmation dialog before calling `deletePost`. Show AlertDialog with "Delete this post?" title, "This cannot be undone." content, Cancel and Delete actions. |
 
----
+## Major Issues (should fix)
 
-## Security Re-check
+| # | File:Line | Issue | Suggested Fix |
+|---|-----------|-------|---------------|
+| M1 | `backend/community/views.py:200-201` | `PageNumberPagination` is instantiated inline in `CommunityFeedView.get()` with `paginator.page_size = 20`. This is a non-standard DRF pattern that may not respect `DEFAULT_PAGINATION_CLASS` settings. Should use a proper class-level paginator. | Define `class FeedPagination(PageNumberPagination): page_size = 20` at module level and set `pagination_class = FeedPagination` on the view or use it consistently. |
+| M2 | `backend/community/views.py:186-210` | The `CommunityFeedView.get()` method imports `PageNumberPagination` inside the method body. Imports should be at module level. | Move import to top of file. |
+| M3 | `backend/community/views.py:234-290` | The `_serialize_posts` static method manually builds JSON dicts with author data, reaction counts, and user reactions. This bypasses DRF serializers entirely. While it avoids N+1 queries, it duplicates profile_image URL logic and is fragile (if User model changes, this breaks silently). Also, `author.profile_image` access may trigger a lazy load if not properly prefetched. | This is acceptable for performance but add a comment explaining why serializers are bypassed. The `select_related('author')` on line 196 should cover the profile_image concern. |
+| M4 | `mobile/lib/features/community/presentation/screens/community_feed_screen.dart:153-154` | `announcementState.announcements.where((a) => a.isPinned).first` will throw `StateError` if the pinned announcement is filtered away between the `any()` check on line 105 and this `first` call (race condition with async state update). | Use `firstOrNull` or wrap in try-catch, or use the same `firstWhere` with `orElse`. |
+| M5 | `mobile/lib/features/community/presentation/widgets/reaction_bar.dart:75` | `GestureDetector` is used for reaction buttons instead of `InkWell` or `Material` + `InkResponse`. No ripple feedback, and the touch target may be smaller than 48dp minimum. | Use `InkWell` with `borderRadius` for proper Material ripple and ensure minimum 48dp touch target with `SizedBox` constraint or `ConstrainedBox`. |
+| M6 | `mobile/lib/features/community/presentation/screens/community_feed_screen.dart:92-93` | Loading state only shows `CircularProgressIndicator`. Ticket specifies: "3 shimmer skeleton post cards (avatar circle + name bar + 3-line content + reaction bar)." | Add shimmer skeleton loading state matching the specification. |
+| M7 | `backend/community/views.py:152` | In `AchievementListView.get()`, `AchievementWithStatusSerializer(data, many=True)` is called with plain dicts as `data` parameter. For output serialization in DRF, using `data=` without validation will raise errors. Should use `instance=` or just return the list directly. | Either use `serializer = AchievementWithStatusSerializer(instance=data, many=True)` or just `return Response(data)`. |
 
-No new security concerns introduced by the fixes. The `NutritionCacheDao` import in `health_provider.dart` is a legitimate dependency for the offline dedup check. All data flows remain local-only for health data.
+## Minor Issues (nice to fix)
 
----
+| # | File:Line | Issue | Suggested Fix |
+|---|-----------|-------|---------------|
+| m1 | `backend/community/views.py:7` | `cast` imported from `typing` but `Any` is already imported. Clean, but `cast(User, ...)` is used everywhere — consider using `get_object_or_404` patterns or a mixin. | Keep as-is. Minor style preference. |
+| m2 | `mobile/lib/features/community/presentation/screens/achievements_screen.dart:81-109` | `SingleChildScrollView` wrapping `GridView.builder` with `shrinkWrap: true` and `NeverScrollableScrollPhysics`. This works but is not as performant as a `CustomScrollView` with `SliverGrid`. | For 15 items this is fine. Flag for future if achievement count grows. |
+| m3 | `backend/community/services/auto_post_service.py:73-77` | `_SafeFormatDict` inherits from bare `dict` with `type: ignore`. The `__missing__` method returns the key name for missing template variables, which means content like "Just completed workout_name!" if metadata is missing. | This is intentional and documented. The fallback is acceptable. |
+| m4 | `mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart:73` | `onChanged: (_) => setState(() {})` — triggers a full rebuild of the widget on every keystroke just to update the button state. | Use a `ValueListenableBuilder` on the controller instead, or a `ValueNotifier<bool>` for the canSubmit state. |
+| m5 | `backend/community/trainer_views.py:36-50` | `create` method uses a separate `AnnouncementCreateSerializer` for validation then manually calls `Announcement.objects.create()`. Could use the `ModelSerializer.save()` pattern with `perform_create` override. | Works fine, just slightly verbose. Low priority. |
+| m6 | `mobile/lib/features/trainer/presentation/screens/trainer_announcements_screen.dart:44` | FAB navigation path is `/trainer/announcements/create` but the route in the router is also `/trainer/announcements/create`. This works, but the route naming is slightly inconsistent — the list screen route is `trainer-announcements-screen`. | Rename for consistency if desired. Non-blocking. |
 
-## Performance Re-check
+## Security Concerns
+- Row-level security is properly enforced: all views filter by `user.parent_trainer` or `trainer=request.user`.
+- `CommunityPostDeleteView` correctly checks both author and group trainer ownership.
+- `ReactionToggleView` validates the user is in the same trainer group before allowing reaction.
+- No secrets or API keys in any committed code.
+- Input validation with max lengths on all user-input fields.
 
-1. **Steps and calories**: Now using platform-level aggregate APIs. Significant improvement -- a single aggregate query instead of fetching hundreds of raw data points.
-2. **shouldRepaint**: Now properly uses `listEquals` for deep comparison. `RepaintBoundary` is effective.
-3. **HealthMetrics equality**: `HealthDataLoaded` now has proper equality semantics, enabling `StateNotifier` change detection and `select()` optimization.
-4. **syncCompletionProvider listener**: Uses `ref.listen` in `build()` which is the correct Riverpod pattern. Only triggers reload on actual sync completion events.
+## Performance Concerns
+- `_serialize_posts` uses batch queries for reaction counts and user reactions (2 queries total, not N+1). Good.
+- `AchievementListView` uses 2 queries: one for all achievements, one for user's earned achievements. Good.
+- `CommunityFeedView` uses `select_related('author')`. Good.
+- Mobile community feed uses pagination with infinite scroll. Good.
 
----
+## Quality Score: 6/10
+## Recommendation: REQUEST CHANGES
 
-## Acceptance Criteria Re-verification
-
-All 26 ACs remain at the same status as Round 1 (22 MET, 3 PARTIAL, 1 DEFERRED). The fixes improved the correctness of the MET items but did not change their status:
-
-- AC-9 (weight auto-import dedup): Now properly handles offline dedup. Upgraded from PARTIAL to **FULLY MET**.
-- AC-22 (RepaintBoundary): shouldRepaint fix makes the boundary effective. Upgraded from PARTIAL to **FULLY MET**.
-
-Updated count: 24 MET, 1 PARTIAL (AC-14: Android health settings URI improved but may not open Health Connect directly on all devices), 1 DEFERRED (AC-19).
-
----
-
-## Quality Score: 8/10
-
-### Breakdown:
-- **Architecture (8/10):** Injectable HealthService with provider. Clean sealed class pattern. Proper Riverpod `ref.listen` for sync completion.
-- **Correctness (8/10):** Platform-level aggregation for steps and calories. Proper offline dedup. Refresh preserves data on failure. All critical bugs fixed.
-- **Completeness (8/10):** 24 of 26 ACs fully met. AC-14 partial (Android URI may vary by device). AC-19 deferred (justified).
-- **Code Quality (7/10):** Good patterns throughout. File size violations remain (pre-existing, lower priority). Equality semantics properly implemented.
-- **Error Handling (8/10):** All catch blocks now have debug logging. Mounted guards prevent disposal crashes. Graceful degradation where appropriate.
-
-## Recommendation: APPROVE
-
-### Rationale:
-All 3 critical issues are fully resolved with correct implementations:
-- Steps use `getTotalStepsInInterval` (platform aggregate)
-- Active calories use `getHealthAggregateDataFromTypes` (platform aggregate)
-- Auto-import weight is properly awaited with mounted guards
-- Refresh preserves existing data on failure
-- Sync completion is wired into all relevant screens
-- Offline weight dedup prevents duplicates
-
-The remaining minor issues (R2-m1 is trivial redundancy, R2-m2 is pre-existing file size) are not blocking. Quality score of 8/10 meets the threshold. The implementation is production-ready.
+The implementation is solid architecturally but has three critical issues: (C1) serializer misuse that will raise at runtime, (C2) missing optimistic reaction updates per the ticket, and (C3) missing delete confirmation dialog. Several major issues around UX polish (loading skeletons, touch targets) need attention.

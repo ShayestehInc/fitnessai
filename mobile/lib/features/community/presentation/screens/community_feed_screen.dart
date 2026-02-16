@@ -90,7 +90,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     AnnouncementState announcementState,
   ) {
     if (feedState.isLoading && feedState.posts.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildLoadingSkeleton(theme);
     }
 
     if (feedState.error != null && feedState.posts.isEmpty) {
@@ -150,8 +150,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     ThemeData theme,
     AnnouncementState announcementState,
   ) {
-    final pinned =
-        announcementState.announcements.where((a) => a.isPinned).first;
+    final pinned = announcementState.announcements
+        .where((a) => a.isPinned)
+        .firstOrNull;
+    if (pinned == null) return const SizedBox.shrink();
     return AnnouncementBanner(
       announcement: pinned,
       onTap: () => context.push('/community/announcements'),
@@ -224,6 +226,75 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLoadingSkeleton(ThemeData theme) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: 3,
+      itemBuilder: (context, index) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Author row skeleton
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: theme.dividerColor,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(width: 100, height: 12, color: theme.dividerColor),
+                        const SizedBox(height: 4),
+                        Container(width: 60, height: 10, color: theme.dividerColor),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Content skeleton (3 lines)
+                Container(width: double.infinity, height: 12, color: theme.dividerColor),
+                const SizedBox(height: 6),
+                Container(width: double.infinity, height: 12, color: theme.dividerColor),
+                const SizedBox(height: 6),
+                Container(width: 200, height: 12, color: theme.dividerColor),
+                const SizedBox(height: 12),
+                // Reaction bar skeleton
+                Row(
+                  children: List.generate(3, (_) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Container(
+                      width: 48,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: theme.dividerColor,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  )),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
