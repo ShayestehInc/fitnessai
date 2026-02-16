@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/database/app_database.dart';
+import 'core/providers/database_provider.dart';
+import 'core/providers/connectivity_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/api_config_service.dart';
+import 'core/services/connectivity_service.dart';
 import 'core/theme/theme_provider.dart';
 
 void main() async {
@@ -17,9 +21,21 @@ void main() async {
   // Initialize API config (load saved base URL)
   await ApiConfigService.initialize();
 
+  // Initialize local database and run cleanup
+  final database = AppDatabase();
+  await database.runStartupCleanup();
+
+  // Initialize connectivity monitoring
+  final connectivityService = ConnectivityService();
+  await connectivityService.initialize();
+
   runApp(
-    const ProviderScope(
-      child: FitnessAIApp(),
+    ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(database),
+        connectivityServiceProvider.overrideWithValue(connectivityService),
+      ],
+      child: const FitnessAIApp(),
     ),
   );
 }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/connectivity_service.dart';
 import '../providers/logging_provider.dart';
 import '../widgets/draft_log_card.dart';
 
@@ -51,9 +54,30 @@ class _AICommandCenterScreenState
     final success = await ref.read(loggingStateProvider.notifier).confirmAndSave();
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Log saved successfully!')),
-      );
+      final loggingState = ref.read(loggingStateProvider);
+      if (loggingState.savedOffline) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.cloud_off, color: Color(0xFFF59E0B), size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Log saved locally. It will sync when you\'re back online.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        // Trigger sync attempt when back online
+        ref.read(syncServiceProvider)?.triggerSync();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Log saved successfully!')),
+        );
+      }
       Navigator.of(context).pop();
     } else if (mounted) {
       final error = ref.read(loggingStateProvider).error;
@@ -70,6 +94,12 @@ class _AICommandCenterScreenState
   @override
   Widget build(BuildContext context) {
     final loggingState = ref.watch(loggingStateProvider);
+    final connectivityAsync = ref.watch(connectivityStatusProvider);
+    final isOffline = connectivityAsync.when(
+      data: (s) => s == ConnectivityStatus.offline,
+      loading: () => false,
+      error: (_, __) => false,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -96,6 +126,34 @@ class _AICommandCenterScreenState
                         ),
                   ),
                   const SizedBox(height: 24),
+                  if (isOffline)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.cloud_off, color: Color(0xFFF59E0B), size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'You are offline. AI parsing requires an internet connection, '
+                              'but previously parsed data can still be saved locally.',
+                              style: TextStyle(
+                                color: Color(0xFFF59E0B),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   if (loggingState.isProcessing)
                     const Center(
                       child: Padding(

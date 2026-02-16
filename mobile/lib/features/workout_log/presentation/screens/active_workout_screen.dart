@@ -2,6 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/database/offline_workout_repository.dart';
+import '../../../../core/providers/database_provider.dart';
+import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../core/providers/sync_provider.dart';
+import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/classic_workout_layout.dart';
 import '../widgets/minimal_workout_layout.dart';
@@ -404,16 +409,30 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     );
   }
 
+  OfflineWorkoutRepository _getOfflineRepo() {
+    final onlineRepo = ref.read(workoutRepositoryProvider);
+    final db = ref.read(databaseProvider);
+    final connectivity = ref.read(connectivityServiceProvider);
+    final userId = ref.read(authStateProvider).user?.id ?? 0;
+
+    return OfflineWorkoutRepository(
+      onlineRepo: onlineRepo,
+      db: db,
+      connectivityService: connectivity,
+      userId: userId,
+    );
+  }
+
   Future<void> _submitReadinessSurvey(ReadinessSurveyData data) async {
-    final repository = ref.read(workoutRepositoryProvider);
-    await repository.submitReadinessSurvey(
+    final offlineRepo = _getOfflineRepo();
+    await offlineRepo.submitReadinessSurvey(
       workoutName: widget.workout.name,
       surveyData: data.toJson(),
     );
   }
 
   Future<void> _submitPostWorkoutSurvey(PostWorkoutSurveyData data) async {
-    final repository = ref.read(workoutRepositoryProvider);
+    final offlineRepo = _getOfflineRepo();
 
     // Prepare workout summary
     final workoutSummary = {
@@ -430,11 +449,34 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       }).toList(),
     };
 
-    await repository.submitPostWorkoutSurvey(
+    final result = await offlineRepo.submitPostWorkoutSurvey(
       workoutSummary: workoutSummary,
       surveyData: data.toJson(),
       readinessSurvey: _readinessSurveyData?.toJson(),
     );
+
+    // If saved offline, show a snackbar to inform the user
+    if (result['offline'] == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.cloud_off, color: Color(0xFFF59E0B), size: 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Workout saved locally. It will sync when you\'re back online.',
+                ),
+              ),
+            ],
+          ),
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+
+    // Trigger sync service to pick up new items if online
+    ref.read(syncServiceProvider)?.triggerSync();
   }
 }
 

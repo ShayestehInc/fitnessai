@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/offline_banner.dart';
 import '../providers/workout_provider.dart';
 
 class WorkoutLogScreen extends ConsumerStatefulWidget {
@@ -27,18 +28,22 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: state.isLoading && state.programWeeks.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: () =>
-                    ref.read(workoutStateProvider.notifier).loadInitialData(),
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    // Header
-                    SliverToBoxAdapter(
-                      child: _buildHeader(theme, state),
-                    ),
+        child: Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(
+              child: state.isLoading && state.programWeeks.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: () =>
+                          ref.read(workoutStateProvider.notifier).loadInitialData(),
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          // Header
+                          SliverToBoxAdapter(
+                            child: _buildHeader(theme, state),
+                          ),
 
                     // Week tabs
                     SliverToBoxAdapter(
@@ -58,6 +63,9 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
       ),
       bottomSheet: state.programWeeks.isNotEmpty
           ? _buildBottomActions(theme, state)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'delete_account_screen.dart';
@@ -303,12 +304,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: 'Logout',
         subtitle: 'Sign out of admin account',
         isDestructive: true,
-        onTap: () async {
-          await ref.read(authStateProvider.notifier).logout();
-          if (context.mounted) {
-            context.go('/login');
-          }
-        },
+        onTap: () => _handleLogout(),
         index: index++,
       ),
     ];
@@ -485,12 +481,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: 'Logout',
         subtitle: 'Sign out of your account',
         isDestructive: true,
-        onTap: () async {
-          await ref.read(authStateProvider.notifier).logout();
-          if (context.mounted) {
-            context.go('/login');
-          }
-        },
+        onTap: () => _handleLogout(),
         index: index++,
       ),
 
@@ -600,12 +591,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: 'Logout',
         subtitle: 'Sign out of your account',
         isDestructive: true,
-        onTap: () async {
-          await ref.read(authStateProvider.notifier).logout();
-          if (context.mounted) {
-            context.go('/login');
-          }
-        },
+        onTap: () => _handleLogout(),
         index: index++,
       ),
 
@@ -709,6 +695,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleLogout() async {
+    final unsyncedCount = await ref.read(unsyncedCountProvider.future);
+
+    if (!mounted) return;
+
+    if (unsyncedCount > 0) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Unsynced Data'),
+          content: Text(
+            'You have $unsyncedCount unsynced item${unsyncedCount == 1 ? '' : 's'} '
+            'that will be lost if you log out. '
+            'Are you sure you want to continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(ctx).colorScheme.error,
+              ),
+              child: const Text('Logout Anyway'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true || !mounted) return;
+    }
+
+    await ref.read(authStateProvider.notifier).logout();
+    if (mounted) {
+      context.go('/login');
+    }
   }
 
   void _showComingSoon(BuildContext context) {

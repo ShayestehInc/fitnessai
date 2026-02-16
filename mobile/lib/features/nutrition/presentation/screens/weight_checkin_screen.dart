@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/database/offline_weight_repository.dart';
+import '../../../../core/providers/database_provider.dart';
+import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../core/providers/sync_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/nutrition_provider.dart';
 
 class WeightCheckInScreen extends ConsumerStatefulWidget {
@@ -230,15 +235,52 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
     // Convert to kg if using lbs
     final weightKg = _useMetric ? weight : weight * 0.453592;
 
-    final success = await ref
-        .read(nutritionStateProvider.notifier)
-        .createWeightCheckIn(
-          weightKg: weightKg,
-          notes: _notesController.text,
-        );
+    final nutritionRepo = ref.read(nutritionRepositoryProvider);
+    final db = ref.read(databaseProvider);
+    final connectivity = ref.read(connectivityServiceProvider);
+    final userId = ref.read(authStateProvider).user?.id ?? 0;
+    final dateParam = ref.read(nutritionStateProvider).dateParam;
 
-    if (success && mounted) {
+    final offlineWeightRepo = OfflineWeightRepository(
+      onlineRepo: nutritionRepo,
+      db: db,
+      connectivityService: connectivity,
+      userId: userId,
+    );
+
+    final result = await offlineWeightRepo.createWeightCheckIn(
+      date: dateParam,
+      weightKg: weightKg,
+      notes: _notesController.text,
+    );
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      if (result['offline'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.cloud_off, color: Color(0xFFF59E0B), size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Weight saved locally. It will sync when you\'re back online.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      // Trigger sync if online
+      ref.read(syncServiceProvider)?.triggerSync();
       context.pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['error']?.toString() ?? 'Failed to save')),
+      );
     }
   }
 }
