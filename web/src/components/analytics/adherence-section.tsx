@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { UtensilsCrossed, Dumbbell, Target, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
+import { StatCard } from "@/components/dashboard/stat-card";
 import { useAdherenceAnalytics } from "@/hooks/use-analytics";
 import { PeriodSelector } from "./period-selector";
 import { AdherenceBarChart } from "./adherence-chart";
@@ -17,31 +20,16 @@ function getIndicatorColor(rate: number): string {
   return "text-red-600 dark:text-red-400";
 }
 
-interface StatDisplayProps {
-  title: string;
-  value: number;
-  icon: React.ElementType;
-}
-
-function StatDisplay({ title, value, icon: Icon }: StatDisplayProps) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-      </CardHeader>
-      <CardContent>
-        <div className={`text-2xl font-bold ${getIndicatorColor(value)}`}>
-          {value.toFixed(1)}%
-        </div>
-      </CardContent>
-    </Card>
-  );
+function getIndicatorDescription(rate: number): string {
+  if (rate >= 80) return "Above target";
+  if (rate >= 50) return "Below target";
+  return "Needs attention";
 }
 
 function AdherenceSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" role="status" aria-label="Loading adherence data">
+      <span className="sr-only">Loading adherence data...</span>
       <div className="grid gap-4 sm:grid-cols-3">
         {[0, 1, 2].map((i) => (
           <Card key={i}>
@@ -77,11 +65,11 @@ export function AdherenceSection() {
 
   return (
     <section aria-labelledby="adherence-heading">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 id="adherence-heading" className="text-lg font-semibold">
           Adherence
         </h2>
-        <PeriodSelector value={days} onChange={setDays} />
+        <PeriodSelector value={days} onChange={setDays} disabled={isLoading} />
       </div>
 
       {isLoading ? (
@@ -94,29 +82,45 @@ export function AdherenceSection() {
       ) : isEmpty ? (
         <EmptyState
           icon={BarChart3}
-          title="No adherence data for this period"
-          description={`No trainees have logged activity in the last ${days} days. They'll appear here once they start tracking.`}
+          title="No active trainees"
+          description="Invite trainees to see their adherence analytics here."
+          action={
+            <Button asChild>
+              <Link href="/invitations">Invite Trainee</Link>
+            </Button>
+          }
         />
       ) : hasData ? (
         <div
-          className={`space-y-6 transition-opacity ${isFetching ? "opacity-50" : "opacity-100"}`}
+          className={`space-y-6 transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}
           aria-busy={isFetching}
         >
+          {isFetching && (
+            <div className="sr-only" role="status" aria-live="polite">
+              Refreshing adherence data...
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-3">
-            <StatDisplay
+            <StatCard
               title="Food Logged"
-              value={data.food_logged_rate}
+              value={`${data.food_logged_rate.toFixed(1)}%`}
+              description={getIndicatorDescription(data.food_logged_rate)}
               icon={UtensilsCrossed}
+              valueClassName={getIndicatorColor(data.food_logged_rate)}
             />
-            <StatDisplay
+            <StatCard
               title="Workouts Logged"
-              value={data.workout_logged_rate}
+              value={`${data.workout_logged_rate.toFixed(1)}%`}
+              description={getIndicatorDescription(data.workout_logged_rate)}
               icon={Dumbbell}
+              valueClassName={getIndicatorColor(data.workout_logged_rate)}
             />
-            <StatDisplay
+            <StatCard
               title="Protein Goal Hit"
-              value={data.protein_goal_rate}
+              value={`${data.protein_goal_rate.toFixed(1)}%`}
+              description={getIndicatorDescription(data.protein_goal_rate)}
               icon={Target}
+              valueClassName={getIndicatorColor(data.protein_goal_rate)}
             />
           </div>
 
@@ -124,12 +128,13 @@ export function AdherenceSection() {
             <CardHeader>
               <CardTitle className="text-base">
                 Trainee Adherence ({days}-day)
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  {data.trainee_adherence.length} trainee{data.trainee_adherence.length !== 1 ? "s" : ""}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="max-h-[600px] overflow-y-auto">
-                <AdherenceBarChart data={data.trainee_adherence} />
-              </div>
+              <AdherenceBarChart data={data.trainee_adherence} />
             </CardContent>
           </Card>
         </div>

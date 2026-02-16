@@ -5,16 +5,25 @@ import type { AdherencePeriod } from "@/types/analytics";
 
 const PERIODS: AdherencePeriod[] = [7, 14, 30];
 
+const PERIOD_LABELS: Record<AdherencePeriod, string> = {
+  7: "7 days",
+  14: "14 days",
+  30: "30 days",
+};
+
 interface PeriodSelectorProps {
   value: AdherencePeriod;
   onChange: (days: AdherencePeriod) => void;
+  disabled?: boolean;
 }
 
-export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
+export function PeriodSelector({ value, onChange, disabled = false }: PeriodSelectorProps) {
   const groupRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (disabled) return;
+
       const currentIndex = PERIODS.indexOf(value);
       let nextIndex = currentIndex;
 
@@ -34,7 +43,7 @@ export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
       );
       buttons?.[nextIndex]?.focus();
     },
-    [value, onChange],
+    [value, onChange, disabled],
   );
 
   return (
@@ -53,12 +62,14 @@ export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
             type="button"
             role="radio"
             aria-checked={isActive}
+            aria-label={PERIOD_LABELS[days]}
             tabIndex={isActive ? 0 : -1}
+            disabled={disabled}
             onClick={() => onChange(days)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
               isActive
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                ? "bg-primary text-primary-foreground active:bg-primary/90"
+                : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent/80"
             }`}
           >
             {days}d

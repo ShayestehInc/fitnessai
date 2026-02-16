@@ -1,13 +1,15 @@
-# UX Audit: Web Dashboard Phase 2 (Pipeline 10)
+# UX Audit: Web Dashboard Phase 3 -- Trainer Analytics Page
 
 ## Audit Date: 2026-02-15
 
 ## Pages & Components Reviewed
-- Settings page: `settings/page.tsx`, `profile-section.tsx`, `appearance-section.tsx`, `security-section.tsx`
-- Progress charts: `progress-charts.tsx`, `trainee-progress-tab.tsx`
-- Notification click-through: `notification-item.tsx`, `notification-popover.tsx`, `notification-bell.tsx`, `notifications/page.tsx`
-- Invitation row actions: `invitation-actions.tsx`, `invitation-columns.tsx`
-- Supporting: `use-settings.ts`, `use-progress.ts`, `use-invitations.ts`, `use-notifications.ts`, `user-nav.tsx`, `auth-provider.tsx`
+- Analytics page: `web/src/app/(dashboard)/analytics/page.tsx`
+- Adherence section: `web/src/components/analytics/adherence-section.tsx`
+- Period selector: `web/src/components/analytics/period-selector.tsx`
+- Adherence chart: `web/src/components/analytics/adherence-chart.tsx`
+- Progress section: `web/src/components/analytics/progress-section.tsx`
+- Supporting: `web/src/hooks/use-analytics.ts`, `web/src/types/analytics.ts`, `web/src/lib/chart-utils.ts`
+- Reference patterns: `web/src/components/shared/empty-state.tsx`, `web/src/components/shared/error-state.tsx`, `web/src/components/shared/data-table.tsx`, `web/src/components/dashboard/stat-card.tsx`
 
 ---
 
@@ -15,16 +17,19 @@
 
 | # | Severity | Screen/Component | Issue | Recommendation |
 |---|----------|-----------------|-------|----------------|
-| 1 | High | UserNav (header) | Avatar did not render profile image -- only showed fallback initials even when user had a `profile_image` set. After uploading a photo in Settings, the header avatar did not visually reflect it. | Added `AvatarImage` rendering with `user.profile_image` to `user-nav.tsx` -- FIXED |
-| 2 | High | InvitationActions | Dropdown menu stayed open after clicking "Resend" or "Copy Code", creating visual clutter while the mutation was in flight. | Added controlled `open` state to DropdownMenu; actions now close the dropdown immediately on click -- FIXED |
-| 3 | High | InvitationActions | Cancel confirmation dialog's destructive button had no loading indicator -- user had no feedback that the cancellation was processing. | Added `Loader2` spinner and `aria-hidden` to the "Cancel invitation" button when `cancel.isPending` -- FIXED |
-| 4 | Medium | SecuritySection | Submitting the password form with an empty "New password" field showed "Password must be at least 8 characters" which is misleading for a blank field. Similarly, empty confirm field had no specific message. | Added distinct validation: empty new password shows "New password is required"; empty confirm shows "Please confirm your new password" -- FIXED |
-| 5 | Medium | Adherence Chart | Y-axis displayed raw numeric ticks (0, 1, 2, 3) which are meaningless for stacked boolean data (food/workout/protein). | Removed Y-axis ticks and axis line; set minimal width. The Legend and tooltip provide sufficient context. -- FIXED |
-| 6 | Medium | Adherence Chart | Bar colors used hardcoded HSL values (`hsl(142, 76%, 36%)`, etc.) instead of the extracted `CHART_COLORS` constant that maps to `--chart-N` CSS custom properties, breaking in dark mode. | Replaced hardcoded HSL with `CHART_COLORS.food`, `.workout`, `.protein` for theme-aware colors -- FIXED |
-| 7 | Medium | Volume Chart | Tooltip displayed raw numbers without thousands separators (e.g., "125000" instead of "125,000"). | Added `formatNumber()` formatter to the Volume chart tooltip using `Intl.NumberFormat` -- FIXED |
-| 8 | Medium | Settings Page | Error state retry used `window.location.reload()` -- a full page reload instead of a targeted refetch, inconsistent with every other page in the app. | Changed to `refreshUser()` from auth context for consistent behavior -- FIXED |
-| 9 | Low | ProfileSection (image overlay) | Loading spinner overlay on avatar during image upload/delete had Loader2 icon without `aria-hidden="true"`, exposed to screen readers as meaningless content. | Added `aria-hidden="true"` to overlay Loader2 -- FIXED |
-| 10 | Low | NotificationPopover | Loading spinner in popover had no `role="status"` or screen reader text. | Added `role="status"`, `aria-label`, and `sr-only` span -- FIXED |
+| 1 | High | AdherenceSection (empty state) | Empty state said "No adherence data for this period" with no CTA -- inconsistent with Trainees page which has "Send Invitation" button. Ticket specifies "No active trainees" + "Invite trainees to see analytics". | Changed to "No active trainees" with "Invite Trainee" CTA button linking to `/invitations` -- FIXED |
+| 2 | High | ProgressSection (empty state) | Empty state had no CTA action button and used `TrendingUp` icon which doesn't clearly represent progress/weight data. Inconsistent with other pages that include actionable buttons. | Changed icon to `Scale`, added "Invite Trainee" CTA button, improved description to mention weight tracking -- FIXED |
+| 3 | High | StatDisplay (adherence cards) | Custom `StatDisplay` component duplicated the `StatCard` pattern from `dashboard/stat-card.tsx` rather than reusing the shared component. Created inconsistency risk if `StatCard` is updated. | Replaced custom `StatDisplay` with shared `StatCard` component using `valueClassName` for colored indicators -- FIXED |
+| 4 | Medium | StatCard (adherence) | Colored percentage values (green/amber/red) conveyed quality level through color alone. Users with color vision deficiency or screen reader users would miss the meaning entirely. | Added `description` prop with text labels: "Above target" (>=80%), "Below target" (50-79%), "Needs attention" (<50%) -- FIXED |
+| 5 | Medium | PeriodSelector | No visible focus indicator on radio buttons. When tabbing through the page, focus was invisible on the period selector, failing WCAG 2.4.7 Focus Visible. | Added `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` styles -- FIXED |
+| 6 | Medium | PeriodSelector | No disabled state support. When adherence data was loading, the period selector remained interactive, potentially triggering multiple concurrent requests. | Added `disabled` prop with `disabled:pointer-events-none disabled:opacity-50` styling; parent passes `disabled={isLoading}` -- FIXED |
+| 7 | Medium | PeriodSelector | Inactive buttons used `hover:bg-muted/80` which is nearly indistinguishable from `bg-muted`, providing no meaningful hover feedback. No `active` state for mobile touch feedback. | Changed hover to `hover:bg-accent hover:text-accent-foreground` for better contrast. Added `active:bg-primary/90` (active) and `active:bg-accent/80` (inactive) for touch feedback -- FIXED |
+| 8 | Medium | AdherenceSection (header) | Period selector and heading were in `flex items-center justify-between` which could cause the heading and selector to collide on narrow viewports, especially on mobile. | Changed to `flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between` so they stack on mobile -- FIXED |
+| 9 | Medium | AdherenceBarChart | Amber color was hardcoded as `hsl(32 95% 44%)` instead of using a CSS custom property, which would break in dark mode or custom themes. | Changed to `hsl(var(--chart-4))` for theme-aware amber color -- FIXED |
+| 10 | Medium | AdherenceBarChart | Tooltip content style was defined locally instead of using the shared `tooltipContentStyle` from `chart-utils.ts`, creating a maintenance risk. | Refactored to import from `@/lib/chart-utils` -- FIXED |
+| 11 | Low | AdherenceSection (fetching state) | When switching periods, the section faded to 50% opacity but had no `duration` on the transition, making the fade abrupt rather than smooth. | Added `duration-200` to the opacity transition class -- FIXED |
+| 12 | Low | AdherenceChart (card title) | Chart card title said "Trainee Adherence (30-day)" but gave no indication of how many trainees were being shown. | Added trainee count: "Trainee Adherence (30-day) 5 trainees" -- FIXED |
+| 13 | Low | ProgressSection (card title) | Same as above -- no trainee count indicator. | Added trainee count span to "Trainee Progress" card title -- FIXED |
 
 ---
 
@@ -32,41 +37,41 @@
 
 | # | WCAG Level | Issue | Fix |
 |---|------------|-------|-----|
-| 1 | AA (4.1.2) | AppearanceSection radio group buttons all had `tabIndex` of 0, meaning Tab key would stop on every option instead of the selected one. Arrow keys did not move selection. | Implemented proper radio group keyboard navigation: only selected radio has `tabIndex={0}`, others have `tabIndex={-1}`. Arrow keys (Left/Right/Up/Down) cycle selection and move focus. Added `focus-visible:ring-2` for focus indicator. -- FIXED |
-| 2 | AA (4.1.2) | SecuritySection password inputs had no `aria-describedby` linking to error messages, so screen readers could not announce inline errors. | Added `aria-describedby` pointing to error `<p id="...">` elements and `aria-invalid` on each input when validation fails. -- FIXED |
-| 3 | A (1.1.1) | SecuritySection error messages had `role="alert"` but no `id` for `aria-describedby` linkage. | Added unique IDs (`currentPassword-error`, `newPassword-error`, `confirmPassword-error`) to error paragraphs. -- FIXED |
-| 4 | A (1.3.1) | ProfileSection email field had hint text "Email cannot be changed" not linked to the input. | Added `aria-describedby="email-hint"` to the email input and `id="email-hint"` to the hint text. -- FIXED |
-| 5 | A (1.1.1) | NotificationPopover loading Loader2 icon not marked as decorative. | Added `aria-hidden="true"` -- FIXED |
-| 6 | AA (4.1.2) | InvitationActions cancel dialog Loader2 not marked as decorative. | Added `aria-hidden="true"` on the spinner icon -- FIXED |
+| 1 | AA (2.4.7) | PeriodSelector radio buttons had no visible focus indicator -- Tab key focus was invisible. | Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` -- FIXED |
+| 2 | A (1.1.1) | PeriodSelector buttons displayed only "7d", "14d", "30d" with no expanded aria-label. Screen readers would announce cryptic shortened text. | Added `aria-label` with full text: "7 days", "14 days", "30 days" via `PERIOD_LABELS` map -- FIXED |
+| 3 | A (1.3.1) | AdherenceSkeleton had no `role="status"` or screen reader announcement. Screen readers could not inform users that data was loading. | Added `role="status"` and `aria-label="Loading adherence data"` plus `sr-only` span -- FIXED |
+| 4 | A (1.3.1) | ProgressSkeleton had no `role="status"` or screen reader announcement. | Added `role="status"` and `aria-label="Loading progress data"` plus `sr-only` span -- FIXED |
+| 5 | AA (4.1.3) | When switching periods, the data area faded to 50% opacity (`isFetching`) but screen readers received no notification that a refresh was occurring. | Added `sr-only` div with `role="status"` and `aria-live="polite"` announcing "Refreshing adherence data..." when `isFetching` is true -- FIXED |
+| 6 | AA (4.1.3) | Same issue on ProgressSection during background refetch. | Added matching `sr-only` refresh announcement for progress section -- FIXED |
+| 7 | A (1.1.1) | AdherenceBarChart SVG had no accessible name or alternative content for screen readers. The chart was completely opaque to assistive technology. | Added `role="img"` with descriptive `aria-label` on the chart container. Added `sr-only` unordered list with all trainee names and adherence percentages as alternative content -- FIXED |
+| 8 | A (1.1.1) | Null weight values in ProgressSection table showed an em-dash character with no `aria-label`, which screen readers might announce as "dash" or skip entirely. | Added `aria-label="No data"` to all em-dash `<span>` elements in both `current_weight` and `weight_change` columns -- FIXED |
+| 9 | AA (1.4.1) | Colored stat card values (green/amber/red) relied solely on color to convey status. Color alone fails WCAG 1.4.1 Use of Color. | Added text descriptions ("Above target", "Below target", "Needs attention") below the value via `StatCard` description prop -- FIXED |
 
 ---
 
 ## Missing States
 
-### Settings Page
-- [x] Loading / skeleton -- `SettingsSkeleton` renders three card placeholders while auth data loads
-- [x] Empty / zero data -- N/A (settings always has data when user is authenticated)
-- [x] Error / failure -- `ErrorState` with retry if user fails to load
-- [x] Success / confirmation -- Toast notifications on profile save, image upload/remove, password change
-- [x] Disabled -- Save button disabled when form is unchanged (`isDirty` check) or mutation pending
+### Adherence Section
+- [x] Loading / skeleton -- `AdherenceSkeleton` renders 3 stat card placeholders + chart placeholder, with `role="status"` and `sr-only` text
+- [x] Empty / zero data -- `EmptyState` with `BarChart3` icon, "No active trainees" title, and "Invite Trainee" CTA
+- [x] Error / failure -- `ErrorState` with "Failed to load adherence data" and retry button
+- [x] Success / populated -- Stat cards with colored values + descriptions + adherence bar chart
+- [x] Refreshing / background fetch -- `opacity-50` transition with `aria-busy` and `sr-only` "Refreshing adherence data..." announcement
+- [x] Disabled -- Period selector disabled during initial load
 
-### Progress Charts
-- [x] Loading / skeleton -- `ProgressSkeleton` renders three chart card placeholders
-- [x] Empty / zero data -- Per-chart `EmptyState` with relevant icon and message (Scale, Dumbbell, CalendarCheck)
-- [x] Error / failure -- `ErrorState` with retry if progress data fetch fails
-- [x] Success / confirmation -- Data display in charts
+### Progress Section
+- [x] Loading / skeleton -- `ProgressSkeleton` renders table header + 4 row placeholders, with `role="status"` and `sr-only` text
+- [x] Empty / zero data -- `EmptyState` with `Scale` icon, "No progress data" title, and "Invite Trainee" CTA
+- [x] Error / failure -- `ErrorState` with "Failed to load progress data" and retry button
+- [x] Success / populated -- DataTable with clickable rows, name truncation with title tooltip
+- [x] Refreshing / background fetch -- `opacity-50` transition with `aria-busy` and `sr-only` refresh announcement
 
-### Notifications (Click-Through)
-- [x] Loading -- Spinner in popover; `LoadingSpinner` on full page
-- [x] Empty -- Context-aware: "All caught up" (unread filter) / "No notifications" (all filter) / "No notifications yet" (popover)
-- [x] Error -- `ErrorState` with retry on full page; inline error with retry in popover
-- [x] Navigable feedback -- ChevronRight indicator on notifications with `trainee_id`; toast for non-navigable mark-as-read
-
-### Invitation Actions
-- [x] Loading -- Button `disabled` state during mutations; spinner on cancel dialog
-- [x] Confirmation -- Destructive cancel action requires confirmation dialog
-- [x] Success -- Toast on copy, resend, cancel
-- [x] Error -- Toast on resend/cancel failure; clipboard error handling
+### Period Selector
+- [x] Default -- 30-day selected with primary styling
+- [x] Active -- `bg-primary text-primary-foreground` with `active:bg-primary/90`
+- [x] Hover -- `hover:bg-accent hover:text-accent-foreground` on inactive buttons
+- [x] Focus -- `focus-visible:ring-2 focus-visible:ring-ring` ring indicator
+- [x] Disabled -- `disabled:pointer-events-none disabled:opacity-50` during loading
 
 ---
 
@@ -74,21 +79,23 @@
 
 | Element | Copy | Verdict |
 |---------|------|---------|
-| Profile card title | "Profile" | Clear |
-| Profile card description | "Update your personal information and profile image" | Informative, tells user what they can do |
-| Email hint | "Email cannot be changed" | Clear, explains why field is disabled |
-| Appearance description | "Choose how the dashboard looks to you" | Friendly, personal |
-| Security description | "Update your password" | Direct |
-| Password validation (empty) | "New password is required" | Clear, specific to blank field |
-| Password validation (short) | "Password must be at least 8 characters" | Standard, clear |
-| Password validation (mismatch) | "Passwords do not match" | Standard |
-| Confirm validation (empty) | "Please confirm your new password" | Clear, actionable |
-| Cancel dialog title | "Cancel invitation?" | Clear question |
-| Cancel dialog body | "This will cancel the invitation sent to **{email}**. They will no longer be able to use this invitation code to sign up." | Explains consequences clearly |
-| Cancel dialog actions | "Keep invitation" / "Cancel invitation" | Clear, non-ambiguous |
-| Chart empty states | "No weight data" / "No workout data" / "No activity data" | Consistent pattern |
-| Chart empty descriptions | "...will appear here once the trainee logs them." | Sets expectation, non-alarming |
-| Toast messages | "Profile updated" / "Invitation resent" / "Invitation cancelled" / etc. | Concise, past-tense confirmation |
+| Page title | "Analytics" | Clear, matches nav link |
+| Page description | "Track trainee performance and adherence" | Informative, tells trainer what the page does |
+| Adherence heading | "Adherence" | Clear section label |
+| Progress heading | "Progress" | Clear section label |
+| Period button labels | "7d" / "14d" / "30d" | Concise; expanded aria-labels provide "7 days" etc. for screen readers |
+| Stat card titles | "Food Logged" / "Workouts Logged" / "Protein Goal Hit" | Clear, action-oriented |
+| Stat card descriptions | "Above target" / "Below target" / "Needs attention" | Meaningful quality labels that complement the colored values |
+| Chart title | "Trainee Adherence (30-day) 5 trainees" | Clear, includes count for context |
+| Progress table title | "Trainee Progress 5 trainees" | Matches chart pattern |
+| Adherence empty title | "No active trainees" | Direct |
+| Adherence empty description | "Invite trainees to see their adherence analytics here." | Actionable, explains next step |
+| Progress empty title | "No progress data" | Direct |
+| Progress empty description | "Trainees will appear here once they start tracking their weight." | Sets expectation |
+| Adherence error | "Failed to load adherence data" | Clear, not technical |
+| Progress error | "Failed to load progress data" | Clear, matches pattern |
+| Null weight value | em-dash with aria-label "No data" | Visual dash + accessible label |
+| Goal "Not set" | "Not set" | Clear for null goal |
 
 ---
 
@@ -96,14 +103,15 @@
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Card spacing | Consistent | All settings cards use `space-y-6` between them |
-| Tooltip styling | Consistent (after fix) | All charts now use shared `tooltipContentStyle` constant |
-| Chart colors | Consistent (after fix) | Adherence chart now uses `CHART_COLORS` constant instead of hardcoded HSL |
-| Error state | Consistent | All pages use shared `ErrorState` component with retry |
-| Empty state | Consistent | All chart empty states use shared `EmptyState` with relevant icons |
-| Toast feedback | Consistent | All mutations provide success/error toasts |
-| Button loading state | Consistent (after fix) | All pending mutations show Loader2 spinner in the button |
-| Dropdown actions | Consistent | Actions close the dropdown, show appropriate feedback |
+| Stat cards | Consistent (after fix) | Now uses shared `StatCard` from `dashboard/stat-card.tsx` instead of custom `StatDisplay` |
+| Empty states | Consistent (after fix) | Both sections use shared `EmptyState` with CTA buttons, matching Trainees page pattern |
+| Error states | Consistent | Both sections use shared `ErrorState` with retry, matching all other pages |
+| Skeleton loading | Consistent | Both sections have purpose-built skeletons with `role="status"` and `sr-only` text |
+| Section headings | Consistent | Both sections use `<section aria-labelledby>` with `<h2>` headings |
+| Chart tooltip | Consistent (after fix) | Uses shared `tooltipContentStyle` from `chart-utils.ts` |
+| Chart colors | Consistent (after fix) | All colors use CSS custom properties (`--chart-2`, `--chart-4`, `--destructive`) |
+| Table row click | Consistent | Uses `DataTable` with `onRowClick` which provides `cursor-pointer`, `tabIndex`, keyboard support, and focus ring |
+| Navigation pattern | Consistent | Both chart bars and table rows navigate to `/trainees/{id}`, matching trainee list behavior |
 
 ---
 
@@ -111,94 +119,88 @@
 
 | Aspect | Status |
 |--------|--------|
-| Settings layout | `max-w-2xl` constrains width, cards stack vertically naturally |
-| Profile form grid | `sm:grid-cols-2` for first/last name, stacks on mobile |
-| Theme selector | `flex gap-3` with `flex-1` buttons -- adapts to container width |
-| Charts | `ResponsiveContainer` from recharts handles resize automatically |
-| Chart container | Fixed `h-[250px]` height is appropriate for all viewport sizes |
-| Invitation dropdown | Touch-friendly trigger button (`h-8 w-8`), dropdown aligns to end |
-| Notification popover | `w-80` fixed width with `ScrollArea` for overflow |
+| Stat cards grid | `sm:grid-cols-3` on desktop, stacks to single column on mobile |
+| Section header layout | `flex-col gap-3 sm:flex-row sm:items-center sm:justify-between` -- stacks on mobile, side-by-side on desktop |
+| Adherence chart | `ResponsiveContainer` handles resize; Y-axis width is fixed at 120px |
+| Progress table | Wrapped in `overflow-x-auto` via DataTable for horizontal scroll on mobile |
+| Period selector | Compact `px-3 py-1.5` touch-friendly button sizing |
+| Page overall | `space-y-8` vertical stacking adapts naturally to all viewport sizes |
 
 ---
 
 ## Fixes Implemented
 
-### 1. `web/src/components/layout/user-nav.tsx`
-Added `AvatarImage` import and rendering so the header avatar displays the user's profile image when one exists. Previously only showed initials fallback.
+### 1. `web/src/components/analytics/adherence-section.tsx`
+- Replaced custom `StatDisplay` with shared `StatCard` component for consistency
+- Added `getIndicatorDescription()` function providing text labels ("Above target", "Below target", "Needs attention") for each stat card, addressing color-only information conveyance (WCAG 1.4.1)
+- Added `role="status"`, `aria-label`, and `sr-only` text to `AdherenceSkeleton` for screen reader loading announcements
+- Added `sr-only` live region (`aria-live="polite"`) announcing "Refreshing adherence data..." during background refetch
+- Changed empty state to "No active trainees" with "Invite Trainee" CTA button
+- Made section header responsive: `flex-col gap-3 sm:flex-row` for mobile stacking
+- Added `disabled={isLoading}` to PeriodSelector during initial data load
+- Added `duration-200` to opacity transition for smoother period-switch fade
+- Added trainee count to chart card title
 
-### 2. `web/src/components/settings/appearance-section.tsx`
-Implemented proper ARIA radio group keyboard navigation:
-- Selected radio gets `tabIndex={0}`, unselected get `tabIndex={-1}` (roving tabindex pattern)
-- Arrow key handler (Left/Right/Up/Down) cycles through options, moves focus, and updates theme
-- Added `focus-visible:ring-2` focus indicator on radio buttons
+### 2. `web/src/components/analytics/period-selector.tsx`
+- Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` for visible keyboard focus
+- Added `disabled` prop with `disabled:pointer-events-none disabled:opacity-50` styling
+- Added `PERIOD_LABELS` map and `aria-label` for expanded screen reader text ("7 days", "14 days", "30 days")
+- Improved hover to `hover:bg-accent hover:text-accent-foreground` for better contrast
+- Added `active:bg-primary/90` and `active:bg-accent/80` for mobile touch feedback
+- Added `disabled` guard to keyboard handler
 
-### 3. `web/src/components/settings/security-section.tsx`
-- Improved validation: separate "required" messages for empty fields vs. length/match errors
-- Added `aria-describedby` on all three password inputs linking to their error paragraphs
-- Added `aria-invalid` on inputs when validation fails
-- Added `id` attributes on error paragraphs for `aria-describedby` linkage
+### 3. `web/src/components/analytics/progress-section.tsx`
+- Changed empty state icon from `TrendingUp` to `Scale` (more relevant to weight progress)
+- Added "Invite Trainee" CTA button to empty state
+- Improved empty state description: "Trainees will appear here once they start tracking their weight."
+- Added `aria-label="No data"` to all em-dash spans for null weight values
+- Added `role="status"`, `aria-label`, and `sr-only` text to `ProgressSkeleton`
+- Added `isFetching` opacity transition with `sr-only` refresh announcement
+- Added trainee count to card title
 
-### 4. `web/src/components/settings/profile-section.tsx`
-- Added `aria-hidden="true"` on image upload overlay spinner
-- Added `aria-describedby="email-hint"` on read-only email field
-- Added `id="email-hint"` on the "Email cannot be changed" hint text
-
-### 5. `web/src/app/(dashboard)/settings/page.tsx`
-- Changed error retry from `window.location.reload()` to `refreshUser()` for consistency
-
-### 6. `web/src/components/trainees/progress-charts.tsx`
-- Replaced hardcoded HSL colors in Adherence chart with `CHART_COLORS` constant for dark mode support
-- Removed misleading Y-axis numeric ticks from Adherence chart (0,1,2,3 were meaningless for boolean data)
-- Added `formatNumber()` with `Intl.NumberFormat` to Volume chart tooltip for thousand separators
-
-### 7. `web/src/components/invitations/invitation-actions.tsx`
-- Added controlled `open`/`onOpenChange` state to DropdownMenu
-- All action handlers now close the dropdown immediately via `setDropdownOpen(false)`
-- Added `Loader2` spinner with `aria-hidden` to Cancel dialog's destructive button during mutation
-
-### 8. `web/src/components/notifications/notification-popover.tsx`
-- Added `role="status"`, `aria-label`, and `sr-only` span to loading state
-- Added `aria-hidden="true"` on loading spinner icon
+### 4. `web/src/components/analytics/adherence-chart.tsx`
+- Changed amber color from hardcoded `hsl(32 95% 44%)` to theme-aware `hsl(var(--chart-4))`
+- Added `role="img"` and descriptive `aria-label` to chart container
+- Added `sr-only` unordered list with all trainee adherence data as screen reader alternative
+- Refactored tooltip to use shared `tooltipContentStyle` from `chart-utils.ts`
+- Extracted `navigateToTrainee` function for cleaner click handler
 
 ---
 
 ## Items Not Fixed (Require Design Decisions or Out of Scope)
 
-1. **Form state does not re-sync on external user data changes** -- If user data changes in another tab, the profile form won't reflect it until the page is remounted. The `isDirty` comparison handles post-save correctly. Adding `useEffect` for sync is flagged by the strict React 19 `react-hooks/set-state-in-effect` lint rule. Acceptable trade-off.
+1. **Bar chart keyboard navigation** -- Recharts does not natively support keyboard interaction on individual bars. Adding keyboard navigation would require a custom implementation wrapping each bar in a focusable element, which conflicts with how SVG-based recharts renders. The `sr-only` list provides an accessible alternative, and the DataTable in the progress section provides keyboard-navigable trainee access. Future enhancement: consider replacing recharts with a library that supports ARIA-compliant chart interactions.
 
-2. **Notification optimistic updates** -- Marking a notification as read waits for query invalidation rather than optimistic UI. Non-blocking; the latency is negligible.
-
-3. **Pagination style inconsistency** -- DataTable pagination shows "Page X of Y (N total)" while notification page shows "Page N" only. A shared pagination component would unify this. Non-blocking.
+2. **Chart-within-card scroll for 50+ trainees** -- The chart dynamically grows based on trainee count (36px per bar). For very large trainee counts (50+), the chart card becomes tall. The page scrolls naturally, keeping the chart content accessible. A `max-h` with internal scroll was considered but creates a scroll-within-scroll pattern that is worse UX on mobile. Acceptable trade-off.
 
 ---
 
 ## Overall UX Score: 9/10
 
 ### Breakdown:
-- **State Handling:** 9/10 -- Every component handles all relevant states (loading, empty, error, success, disabled)
-- **Accessibility:** 9/10 -- Proper ARIA attributes, roving tabindex on radio group, error message linkage, decorative icons marked, screen reader text
-- **Visual Consistency:** 9/10 -- Shared tooltip styles, theme-aware chart colors, consistent card layout, matching button patterns
-- **Copy Clarity:** 10/10 -- All copy is clear, specific, and actionable. Validation messages distinguish between empty and invalid states.
-- **Responsiveness:** 9/10 -- Proper responsive grids, charts auto-resize, mobile-friendly touch targets
-- **Feedback & Interaction:** 9/10 -- Immediate dropdown close, loading spinners on all mutations, confirmation dialog for destructive actions, toast on every mutation
+- **State Handling:** 10/10 -- Every component handles all relevant states: loading (with skeleton and sr-only text), empty (with icon, description, and CTA), error (with message and retry), populated (with full data), and refreshing (with opacity fade and sr-only announcement)
+- **Accessibility:** 9/10 -- Proper ARIA roles on skeletons and chart, roving tabindex on period selector, focus-visible rings, aria-labels on truncated content and null values, sr-only chart data list, live region for background refetch. Bar chart lacks keyboard navigation (recharts limitation).
+- **Visual Consistency:** 9/10 -- Uses shared StatCard, EmptyState, ErrorState, DataTable components. Chart colors use CSS custom properties. Tooltip styling shared via chart-utils.
+- **Copy Clarity:** 10/10 -- All copy is clear, actionable, and non-technical. Empty states explain next steps. Stat descriptions complement color indicators.
+- **Responsiveness:** 9/10 -- Stat cards stack on mobile, section headers stack on mobile, table scrolls horizontally, chart uses ResponsiveContainer. Period selector has touch-friendly active states.
+- **Feedback & Interaction:** 9/10 -- Period switch triggers immediate visual feedback (opacity fade), loading shows skeleton, errors show retry, chart bars have cursor:pointer, table rows have hover highlight and focus ring.
 
 ### Strengths:
-- Comprehensive state handling across all four features
-- Clean separation of concerns (shared EmptyState/ErrorState components)
-- Theme-aware chart styling with CSS custom properties
-- Proper destructive action confirmation with clear copy
-- Consistent toast feedback pattern across all mutations
-- Good form validation with specific, helpful error messages
+- Independent loading/error/empty states for each section (adherence and progress) so one can succeed while the other fails
+- Proper use of shared components (StatCard, EmptyState, ErrorState, DataTable) maintaining consistency across the dashboard
+- Theme-aware chart colors using CSS custom properties for correct dark mode behavior
+- Comprehensive screen reader support including chart data alternative text, loading announcements, and refresh notifications
+- Period selector follows the WAI-ARIA radiogroup pattern with roving tabindex and arrow key navigation
 
 ### Areas for Future Improvement:
-- Add optimistic updates for notification mark-as-read
-- Consider adding unsaved changes warning when navigating away from a dirty profile form
-- Add keyboard shortcut hints (e.g., "Enter to save" on profile form)
-- Consider animated skeleton shimmer for chart loading states
+- Add keyboard navigation for individual chart bars (requires recharts alternative or custom overlay)
+- Consider adding chart data export (CSV) for accessibility compliance beyond WCAG (useful for trainers who want to share reports)
+- Add animated skeleton shimmer for loading states (currently using static pulse animation)
+- Consider adding a "no change" label for zero weight change instead of showing "+0.0 kg"
 
 ---
 
 **Audit completed by:** UX Auditor Agent
 **Date:** 2026-02-15
-**Pipeline:** 10 -- Web Dashboard Phase 2
-**Verdict:** PASS -- All critical and major UX and accessibility issues fixed. 8 component files modified with 10 usability fixes and 6 accessibility fixes.
+**Pipeline:** 9 -- Web Dashboard Phase 3 (Trainer Analytics)
+**Verdict:** PASS -- All critical and major UX and accessibility issues fixed. 4 component files modified with 13 usability fixes and 9 accessibility fixes. Build and lint pass cleanly.

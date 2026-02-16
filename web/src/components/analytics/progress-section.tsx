@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { Scale, TrendingDown, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DataTable, type Column } from "@/components/shared/data-table";
@@ -47,7 +49,9 @@ function WeightChangeCell({
   weightChange: number | null;
   goal: string | null;
 }) {
-  if (weightChange === null) return <span>—</span>;
+  if (weightChange === null) {
+    return <span aria-label="No data">—</span>;
+  }
 
   const color = getWeightChangeColor(weightChange, goal);
   const sign = weightChange > 0 ? "+" : "";
@@ -77,7 +81,9 @@ const columns: Column<TraineeProgressEntry>[] = [
     header: "Current Weight",
     cell: (row) => (
       <span>
-        {row.current_weight !== null ? `${row.current_weight.toFixed(1)} kg` : "—"}
+        {row.current_weight !== null
+          ? `${row.current_weight.toFixed(1)} kg`
+          : <span aria-label="No data">—</span>}
       </span>
     ),
   },
@@ -98,24 +104,27 @@ const columns: Column<TraineeProgressEntry>[] = [
 function ProgressSkeleton() {
   return (
     <Card>
-      <CardHeader>
-        <Skeleton className="h-5 w-32" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      </CardContent>
+      <div role="status" aria-label="Loading progress data">
+        <span className="sr-only">Loading progress data...</span>
+        <CardHeader>
+          <Skeleton className="h-5 w-32" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-full" />
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </div>
     </Card>
   );
 }
 
 export function ProgressSection() {
   const router = useRouter();
-  const { data, isLoading, isError, refetch } = useProgressAnalytics();
+  const { data, isLoading, isError, isFetching, refetch } = useProgressAnalytics();
 
   const hasData = data && data.trainee_progress.length > 0;
   const isEmpty = data && data.trainee_progress.length === 0;
@@ -135,24 +144,44 @@ export function ProgressSection() {
         />
       ) : isEmpty ? (
         <EmptyState
-          icon={TrendingUp}
+          icon={Scale}
           title="No progress data"
-          description="Trainees will appear here once they start tracking"
+          description="Trainees will appear here once they start tracking their weight."
+          action={
+            <Button asChild>
+              <Link href="/invitations">Invite Trainee</Link>
+            </Button>
+          }
         />
       ) : hasData ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Trainee Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={columns}
-              data={data.trainee_progress}
-              keyExtractor={(row) => row.trainee_id}
-              onRowClick={(row) => router.push(`/trainees/${row.trainee_id}`)}
-            />
-          </CardContent>
-        </Card>
+        <div
+          className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}
+          aria-busy={isFetching}
+        >
+          {isFetching && (
+            <div className="sr-only" role="status" aria-live="polite">
+              Refreshing progress data...
+            </div>
+          )}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Trainee Progress
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  {data.trainee_progress.length} trainee{data.trainee_progress.length !== 1 ? "s" : ""}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable
+                columns={columns}
+                data={data.trainee_progress}
+                keyExtractor={(row) => row.trainee_id}
+                onRowClick={(row) => router.push(`/trainees/${row.trainee_id}`)}
+              />
+            </CardContent>
+          </Card>
+        </div>
       ) : null}
     </section>
   );

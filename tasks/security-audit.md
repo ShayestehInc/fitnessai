@@ -1,41 +1,34 @@
-# Security Audit: Web Dashboard Phase 2 (Pipeline 10)
+# Security Audit: Web Dashboard Phase 3 -- Trainer Analytics Page
 
 **Date:** 2026-02-15
 **Auditor:** Security Engineer (Senior Application Security)
-**Pipeline:** 10
-**Scope:** Settings Page, Progress Charts, Notification Click-Through, Invitation Row Actions
+**Scope:** Trainer Analytics page -- adherence stats, adherence bar chart, progress table, period selector
 
 **New Files Audited:**
-- `web/src/hooks/use-settings.ts` -- Mutation hooks for profile update, image upload, password change
-- `web/src/hooks/use-progress.ts` -- Query hook for trainee progress data
-- `web/src/types/progress.ts` -- TypeScript types for progress API response
-- `web/src/components/settings/profile-section.tsx` -- Profile form with image upload
-- `web/src/components/settings/appearance-section.tsx` -- Theme toggle
-- `web/src/components/settings/security-section.tsx` -- Password change form
-- `web/src/components/trainees/progress-charts.tsx` -- Chart components (Weight, Volume, Adherence)
-- `web/src/components/invitations/invitation-actions.tsx` -- Dropdown menu with Copy/Resend/Cancel
+- `web/src/types/analytics.ts` -- TypeScript types for API responses
+- `web/src/hooks/use-analytics.ts` -- React Query hooks for adherence and progress endpoints
+- `web/src/components/analytics/period-selector.tsx` -- Tab-style period radio group
+- `web/src/components/analytics/adherence-chart.tsx` -- Horizontal bar chart with clickable bars
+- `web/src/components/analytics/adherence-section.tsx` -- Stat cards + chart with loading/error/empty states
+- `web/src/components/analytics/progress-section.tsx` -- Progress table with weight change colors
+- `web/src/app/(dashboard)/analytics/page.tsx` -- Analytics page composing both sections
 
 **Modified Files Audited:**
-- `web/src/providers/auth-provider.tsx` -- Added `refreshUser` to context value
-- `web/src/lib/api-client.ts` -- Added `postFormData()` method, FormData Content-Type fix
-- `web/src/lib/constants.ts` -- New API endpoint URLs
-- `web/src/hooks/use-invitations.ts` -- Added `useResendInvitation()` and `useCancelInvitation()`
-- `web/src/components/notifications/notification-item.tsx` -- Added `getNotificationTraineeId()` helper, ChevronRight indicator
-- `web/src/components/notifications/notification-popover.tsx` -- Click-through navigation with `onClose` prop
-- `web/src/components/notifications/notification-bell.tsx` -- Controlled Popover state
-- `web/src/app/(dashboard)/notifications/page.tsx` -- Click-through navigation via `useRouter`
-- `web/src/app/(dashboard)/settings/page.tsx` -- Replaced placeholder with settings sections
-- `web/src/components/trainees/trainee-progress-tab.tsx` -- Replaced placeholder with chart components
-- `web/src/app/(dashboard)/trainees/[id]/page.tsx` -- Passes `trainee.id` to progress tab
-- `web/src/components/invitations/invitation-columns.tsx` -- Added actions column
+- `web/src/components/layout/nav-links.tsx` -- Added Analytics nav item
+- `web/src/lib/constants.ts` -- Added `ANALYTICS_ADHERENCE` and `ANALYTICS_PROGRESS` API URL constants
+
+**Backend Endpoints Reviewed (for auth/authz only):**
+- `backend/trainer/views.py` -- `AdherenceAnalyticsView`, `ProgressAnalyticsView`
+- `backend/trainer/urls.py` -- URL routing for analytics endpoints
+- `backend/core/permissions.py` -- `IsTrainer` permission class
 
 ---
 
 ## Executive Summary
 
-This audit covers the Phase 2 features added to the web trainer dashboard: Settings page (profile edit, image upload, password change), trainee progress charts, notification click-through navigation, and invitation row actions. All changes are frontend-only (Next.js/React).
+This audit covers the Phase 3 Trainer Analytics page: adherence statistics (three stat cards), a per-trainee adherence bar chart, and a progress table showing weight changes. All changes are frontend-only (Next.js/React), consuming two existing backend API endpoints.
 
-The implementation follows strong security practices: all API calls use JWT Bearer authentication, user input is validated client-side, no XSS vectors introduced, file upload validates type and size, password fields use proper `type="password"` and `autoComplete` attributes, and navigation paths are constructed from validated integer IDs only.
+The implementation follows strong security practices: all API calls use JWT Bearer authentication via the centralized `apiClient`, no XSS vectors introduced, trainee IDs used in navigation are server-provided integers, the `days` query parameter is constrained to a TypeScript union type (`7 | 14 | 30`) on the frontend and clamped to `[1, 365]` on the backend, and both backend views enforce `[IsAuthenticated, IsTrainer]` with row-level filtering by `parent_trainer=user`.
 
 **No Critical or High issues were found. No fixes required.**
 
@@ -43,7 +36,7 @@ The implementation follows strong security practices: all API calls use JWT Bear
 - 0 Critical
 - 0 High
 - 0 Medium
-- 4 Low / Informational
+- 3 Low / Informational
 
 ---
 
@@ -51,14 +44,14 @@ The implementation follows strong security practices: all API calls use JWT Bear
 
 - [x] No secrets, API keys, passwords, or tokens in source code or docs
 - [x] No secrets in git history (`.env.local` is in `.gitignore`, verified not tracked)
-- [x] All user input sanitized (file type/size validation, password length validation, React auto-escaping)
-- [x] Authentication checked on all new API calls (all use `apiClient` which injects Bearer token)
-- [x] Authorization -- correct role/permission guards (existing three-layer TRAINER gating applies to all new pages)
-- [x] No IDOR vulnerabilities (backend row-level security enforced; frontend passes typed numeric IDs)
-- [x] File uploads validated (5MB size limit, MIME type whitelist: JPEG, PNG, GIF, WebP)
-- [x] Rate limiting on sensitive endpoints (backend DRF throttling: 5/hr password change via registration throttle)
-- [x] Error messages don't leak internals (generic toasts like "Failed to update profile")
-- [x] CORS policy appropriate (unchanged from Pipeline 9 -- production restricts origins)
+- [x] All user input sanitized (period selector constrained to `7 | 14 | 30`, React auto-escaping for names)
+- [x] Authentication checked on all new API calls (both hooks use `apiClient.get()` which injects Bearer token)
+- [x] Authorization -- correct role/permission guards (backend: `[IsAuthenticated, IsTrainer]` on both endpoints)
+- [x] No IDOR vulnerabilities (backend filters by `parent_trainer=user`; trainee IDs come from server-provided data)
+- [x] File uploads validated (N/A -- no file uploads in this feature)
+- [x] Rate limiting on sensitive endpoints (N/A -- read-only analytics, no sensitive mutations)
+- [x] Error messages don't leak internals (generic messages: "Failed to load adherence data", "Failed to load progress data")
+- [x] CORS policy appropriate (unchanged from prior audit -- production restricts origins)
 
 ---
 
@@ -66,14 +59,14 @@ The implementation follows strong security practices: all API calls use JWT Bear
 
 ### Scan Methodology
 
-Grepped all new and modified files for:
+Grepped all 7 new files and 2 modified files for:
 - API keys, secret keys, passwords, tokens: `(api[_-]?key|secret[_-]?key|password|token|credential)\s*[=:]\s*['"][A-Za-z0-9]`
 - Provider-specific patterns: `(sk-|pk_|rk_|AIza|ghp_|gho_|AKIA|aws_)`
 - Hardcoded URLs with embedded credentials
 
 ### Results: PASS
 
-No secrets, API keys, passwords, or tokens found in any new or modified files. The only matches for "password" are UI label strings and validation error messages (e.g., `"Password must be at least 8 characters"`), which is expected and safe.
+No secrets, API keys, passwords, or tokens found in any new or modified files. The only token-related code is the pre-existing `apiClient` and `token-manager` (unchanged).
 
 ---
 
@@ -83,241 +76,241 @@ No secrets, API keys, passwords, or tokens found in any new or modified files. T
 
 | Vector | Status | Evidence |
 |--------|--------|----------|
-| `dangerouslySetInnerHTML` | Not used | `grep` returned zero matches across entire `web/src/` |
+| `dangerouslySetInnerHTML` | Not used | `grep` returned zero matches across all analytics files |
 | `innerHTML` / `outerHTML` / `__html` | Not used | `grep` returned zero matches |
-| `eval()` / `new Function()` | Not used | `grep` returned zero matches |
-| React JSX interpolation | Safe | All dynamic content rendered via `{variable}` in JSX (React auto-escapes) |
-| `invitation.email` in Dialog | Safe | Rendered inside `<strong>{invitation.email}</strong>` -- React text node, auto-escaped |
-| `notification.title` / `.message` | Safe | Rendered via JSX text nodes with `title` attribute for truncation tooltips |
-| `user.profile_image` in `<img src>` | Safe | Server-controlled URL, rendered via React `<AvatarImage src={...}>` (no script execution) |
+| `eval()` / `new Function()` | Not used | Zero matches |
+| React JSX interpolation of trainee names | Safe | `{row.trainee_name}` in JSX text nodes -- React auto-escapes |
+| SVG `<text>` element in chart Y-axis | Safe | `{display}` and `<title>{name}</title>` in SVG rendered via React, auto-escaped |
+| `title` attribute on truncated names | Safe | `title={row.trainee_name}` -- React escapes attribute values |
+| Recharts tooltip content | Safe | `formatter` returns string values via array, rendered by recharts in React DOM nodes |
 
-**Analysis:** No new XSS vectors introduced. All user-controlled data (notification titles, invitation emails, user names, profile image URLs) is rendered through React's default text-node escaping. No unsafe DOM APIs used.
+**Analysis:** All user-controlled data (trainee names, adherence rates, weight values) is rendered through React's default text-node and attribute escaping. The adherence chart renders trainee names in SVG `<text>` elements via React JSX, which auto-escapes. No unsafe DOM APIs are used anywhere.
 
 ### Open Redirect: PASS
 
-Two new `router.push()` calls added for notification click-through:
+Two navigation patterns introduced:
 
 ```typescript
-// notification-popover.tsx:32
-router.push(`/trainees/${traineeId}`);
+// adherence-chart.tsx:92
+router.push(`/trainees/${trainee.trainee_id}`);
 
-// notifications/page.tsx:50
-router.push(`/trainees/${traineeId}`);
+// progress-section.tsx:152
+router.push(`/trainees/${row.trainee_id}`);
 ```
 
-The `traineeId` is strictly validated by `getNotificationTraineeId()`:
-1. If `typeof raw === "number"` and `raw > 0` -- returns the number
-2. If `typeof raw === "string"` -- `parseInt(raw, 10)`, must not be `NaN` and must be `> 0`
-3. Otherwise returns `null` (no navigation occurs)
+In both cases, `trainee_id` is a `number` field from the server-provided API response (`TraineeAdherence.trainee_id` and `TraineeProgressEntry.trainee_id`). The TypeScript types enforce this as `number`. The data originates from the backend where `trainee__id` is a Django `AutoField` (integer primary key). There is no user-controllable input that reaches these navigation calls.
 
-This means only positive integers can be inserted into the path template. Inputs like `"../admin"`, `"javascript:alert(1)"`, or `"//evil.com"` all fail `parseInt()` (return `NaN`) and are rejected. No open redirect or path traversal is possible.
+**Verdict:** No open redirect or path traversal possible.
 
-### Path Traversal: PASS
+### SQL Injection: PASS (N/A on Frontend)
 
-All new API URL builder functions use typed `number` parameters:
-```typescript
-traineeProgress: (id: number) => `${API_BASE}/api/trainer/trainees/${id}/progress/`,
-invitationDetail: (id: number) => `${API_BASE}/api/trainer/invitations/${id}/`,
-invitationResend: (id: number) => `${API_BASE}/api/trainer/invitations/${id}/resend/`,
-```
+The `days` query parameter is the only user-controlled value sent to the backend:
 
-TypeScript enforces the `number` type at compile time. Runtime callers pass `invitation.id` and `traineeId` (validated positive integers).
+**Frontend constraint:** `AdherencePeriod = 7 | 14 | 30` -- TypeScript union type prevents arbitrary values at compile time. The `PeriodSelector` component only offers these three options.
+
+**Backend defense:** `days = min(max(int(request.query_params.get('days', 30)), 1), 365)` with `try/except (ValueError, TypeError)` fallback to 30. The value is then used in a `timedelta(days=days)` computation -- never interpolated into SQL. The backend uses Django ORM exclusively (`objects.filter()`, `.annotate()`, `.values()`), not raw queries.
 
 ---
 
-## Auth & Authz Issues
+## Auth & Authz
 
-### Authentication on New Endpoints: PASS
+### Authentication: PASS
 
-All new API calls go through `apiClient` methods, which inject the Bearer token via `getAuthHeaders()`:
+Both new hooks use the centralized `apiClient.get()`:
 
-| Hook | Method | Endpoint | Auth |
-|------|--------|----------|------|
-| `useUpdateProfile` | `apiClient.patch` | `PATCH /api/users/me/` | Bearer |
-| `useUploadProfileImage` | `apiClient.postFormData` | `POST /api/users/profile-image/` | Bearer |
-| `useDeleteProfileImage` | `apiClient.delete` | `DELETE /api/users/profile-image/` | Bearer |
-| `useChangePassword` | `apiClient.post` | `POST /api/auth/users/set_password/` | Bearer |
-| `useTraineeProgress` | `apiClient.get` | `GET /api/trainer/trainees/<id>/progress/` | Bearer |
-| `useResendInvitation` | `apiClient.post` | `POST /api/trainer/invitations/<id>/resend/` | Bearer |
-| `useCancelInvitation` | `apiClient.delete` | `DELETE /api/trainer/invitations/<id>/` | Bearer |
+| Hook | Endpoint | Auth |
+|------|----------|------|
+| `useAdherenceAnalytics(days)` | `GET /api/trainer/analytics/adherence/?days=N` | Bearer token via `apiClient` |
+| `useProgressAnalytics()` | `GET /api/trainer/analytics/progress/` | Bearer token via `apiClient` |
 
-No unauthenticated API calls were introduced. The `postFormData()` method correctly goes through the same `request()` function with `getAuthHeaders()`.
+The `apiClient.get()` calls `request()` which calls `getAuthHeaders()` which reads the JWT from localStorage. If no token exists, it throws `ApiError(401, "No access token", null)`. On 401 response, it attempts one token refresh before redirecting to `/login`.
 
 ### Authorization: PASS
 
-The new settings page is under the `(dashboard)` route group, which is protected by:
-1. Middleware cookie check
-2. Dashboard layout `isAuthenticated` guard
-3. Auth provider TRAINER role validation
+**Backend enforcement:**
 
-The progress endpoint (`/api/trainer/trainees/<id>/progress/`) is scoped under the trainer namespace, which the backend filters by `request.user` (trainers can only see their own trainees' progress).
+Both `AdherenceAnalyticsView` and `ProgressAnalyticsView` have:
+```python
+permission_classes = [IsAuthenticated, IsTrainer]
+```
 
-### IDOR: PASS (Frontend)
+The `IsTrainer` permission class checks `request.user.is_trainer()`, ensuring only users with the TRAINER role can access these endpoints.
 
-- **Profile update/image/password:** Operates on `me/` endpoints -- the backend identifies the user from the JWT, not a URL parameter. No IDOR possible.
-- **Trainee progress:** Uses `trainee.id` from the already-fetched trainee object. Backend enforces row-level security.
-- **Invitation actions:** Uses `invitation.id` from the table data. Backend verifies the invitation belongs to the authenticated trainer.
+**Row-level security:**
 
----
+- `AdherenceAnalyticsView` (line 840): `User.objects.filter(parent_trainer=user, role=User.Role.TRAINEE, is_active=True)` -- only the authenticated trainer's trainees are queried.
+- `ProgressAnalyticsView` (line 900): Same filter pattern -- `parent_trainer=user, role=User.Role.TRAINEE, is_active=True`.
 
-## File Upload Security
+A trainer cannot see another trainer's trainees' analytics. There is no trainee ID parameter in the URL -- the backend scopes everything to the authenticated user.
 
-### Profile Image Upload: PASS
+**Frontend enforcement:**
 
-**Client-side validation** in `profile-section.tsx:52-69`:
+The analytics page is under the `(dashboard)` route group, which is protected by:
+1. Next.js middleware cookie check (redirects to `/login` if no session cookie)
+2. Dashboard layout `isAuthenticated` guard (redirects to `/login` and shows loading spinner)
+3. Auth provider validates the user session on mount
 
-| Check | Implementation | Status |
-|-------|---------------|--------|
-| File size | `file.size > 5 * 1024 * 1024` rejects files over 5MB | PASS |
-| MIME type | Whitelist: `image/jpeg`, `image/png`, `image/gif`, `image/webp` | PASS |
-| HTML `accept` attribute | `accept="image/jpeg,image/png,image/gif,image/webp"` on file input | PASS |
-| FormData transmission | Uses `apiClient.postFormData()` which sets `multipart/form-data` boundary automatically | PASS |
-| Content-Type header | `buildHeaders()` skips `Content-Type: application/json` when body is `FormData` (lets browser set boundary) | PASS |
+### IDOR Analysis: PASS
 
-**Analysis:** Client-side validation is defense-in-depth. The backend must also validate file type/size (which it does via Django's file upload validators). The frontend prevents obviously invalid uploads from reaching the server, improving UX and reducing unnecessary bandwidth.
+The analytics endpoints are aggregate views -- they return data for ALL of the trainer's trainees, not a specific trainee. There is no trainee ID in the request URL or query parameters.
 
-**Note:** The client-side MIME type check relies on `file.type`, which is set by the browser based on the file extension. A sophisticated attacker could bypass this by renaming a file. However, this is only a client-side convenience check -- the backend performs its own validation and is the authoritative security boundary.
-
----
-
-## Password Change Security
-
-### Security Section: PASS
-
-| Check | Implementation | Status |
-|-------|---------------|--------|
-| `type="password"` | All three password fields use `type="password"` | PASS |
-| `autoComplete` attributes | `current-password` and `new-password` -- correct per HTML spec | PASS |
-| Minimum length | Client-side: 8 characters (matches Django default) | PASS |
-| Confirm match | `newPassword !== confirmPassword` check | PASS |
-| `maxLength` | 128 characters on all fields (prevents DoS via bcrypt/argon2 with huge inputs) | PASS |
-| Error handling | Djoser field errors parsed and shown inline; generic toast for unknown errors | PASS |
-| Form clear on success | All fields cleared on successful password change | PASS |
-| No password logging | No `console.log` in settings hooks or components | PASS |
-| Rate limiting | Backend Djoser endpoint has DRF throttling | PASS |
-
-**Analysis:** The password change form follows security best practices. Sensitive field values are cleared from state on success. Error messages from Djoser are parsed for field-specific errors (e.g., "wrong current password") but no password values are leaked in error messages.
+The `trainee_id` values in the response are used only for client-side navigation (`/trainees/{id}`). When the user navigates to a specific trainee, the `TraineeDetailView` backend endpoint enforces `parent_trainer=user` filtering, so even a tampered ID in the URL would return 404.
 
 ---
 
 ## Data Exposure
 
-### API Response Fields: PASS
+### API Response Fields: ACCEPTABLE (with note)
 
-New response types introduced:
-- `UpdateProfileResponse`: `{ success: boolean, user: User }` -- same User type as before, no new sensitive fields
-- `ProfileImageResponse`: `{ success: boolean, profile_image: string | null, user: User }` -- only URL, not file contents
-- `TraineeProgress`: `{ weight_progress, volume_progress, adherence_progress }` -- fitness data, no PII
+**Adherence API response includes:**
+- `trainee_id` (integer) -- needed for navigation
+- `trainee_email` (string) -- **not displayed in UI**
+- `trainee_name` (string) -- displayed in chart and tooltip
+- `adherence_rate` (number) -- displayed in chart
+- `days_tracked` (number) -- not displayed but benign
+
+**Progress API response includes:**
+- `trainee_id` (integer) -- needed for navigation
+- `trainee_email` (string) -- **not displayed in UI**
+- `trainee_name` (string) -- displayed in table
+- `current_weight`, `weight_change`, `goal` -- displayed in table
+
+The `trainee_email` field is present in both TypeScript types but never rendered in any component. While trainers legitimately have access to their trainees' emails (they invited them), this is unnecessary data over the wire for an analytics page. See Low/Informational items below.
 
 ### Error Messages: PASS
 
-All new error messages are generic:
-- `"Failed to update profile"` / `"Profile updated"`
-- `"Failed to upload image"` / `"Image must be under 5MB"` / `"Only JPEG, PNG, GIF, and WebP are allowed"`
-- `"Failed to change password"` / `"Password changed successfully"`
-- `"Failed to load progress data"`
-- `"Failed to resend invitation"` / `"Failed to cancel invitation"`
+All error states use generic messages:
+- `"Failed to load adherence data"` (adherence section)
+- `"Failed to load progress data"` (progress section)
 
-The Djoser password error handling deserializes `error.body` into field-specific messages, but these come from Django's password validators (e.g., "This password is too common", "Incorrect password") and do not leak server internals.
+No server error details, stack traces, or internal identifiers are exposed.
 
 ---
 
-## Dependencies
+## CORS / CSRF
 
-### New Dependency: recharts ^3.7.0
+### CORS: PASS (Unchanged)
 
-| Check | Status |
-|-------|--------|
-| Known CVEs | No known CVEs for recharts (checked Snyk, NVD) |
-| Maintenance | Actively maintained, 6M+ weekly downloads |
-| Attack surface | Client-side charting only, no network requests, no DOM manipulation outside React |
+Backend CORS configuration remains:
+- `DEBUG=True`: `CORS_ALLOW_ALL_ORIGINS = True` (development only)
+- `DEBUG=False`: `CORS_ALLOW_ALL_ORIGINS = False`, origins restricted to `CORS_ALLOWED_ORIGINS` env var
+- `CORS_ALLOW_CREDENTIALS = True` -- needed for cookie-based session indicator
 
-### Existing Dependencies: PASS
+### CSRF: PASS (N/A)
 
-| Package | Version | Status |
-|---------|---------|--------|
-| next | 16.1.6 | Patched for CVE-2025-66478 (fix was in 16.0.7) |
-| react / react-dom | 19.2.3 | Patched for CVE-2025-55182 (fix was in 19.2.1) |
-| All others | Unchanged | No new CVEs since Pipeline 9 audit |
+The analytics endpoints use JWT Bearer token authentication, not session cookies. CSRF is not a concern because the browser does not automatically attach Bearer tokens to cross-origin requests. The Django CSRF middleware is active but DRF's JWT authentication exempts API views from CSRF checks (standard DRF behavior for token-based auth).
+
+---
+
+## Trainee ID in URL -- Validation / Scoping
+
+### Frontend Bar Chart Click:
+```typescript
+// adherence-chart.tsx:89-93
+onClick={(_entry, index) => {
+  const trainee = sorted[index];
+  if (trainee) {
+    router.push(`/trainees/${trainee.trainee_id}`);
+  }
+}}
+```
+
+- `sorted[index]` accesses the pre-sorted array by numeric index from the chart library
+- `trainee.trainee_id` is a `number` from the server response
+- The `if (trainee)` guard prevents navigation if the index is somehow out of bounds
+- **No user-controlled input reaches the URL**
+
+### Frontend Table Row Click:
+```typescript
+// progress-section.tsx:152
+onRowClick={(row) => router.push(`/trainees/${row.trainee_id}`)}
+```
+
+- `row.trainee_id` is typed as `number` from `TraineeProgressEntry`
+- Data comes from the authenticated API response
+- **No user-controlled input reaches the URL**
+
+### Backend Destination:
+```python
+# TraineeDetailView.get_queryset()
+User.objects.filter(parent_trainer=user, role=User.Role.TRAINEE)
+```
+
+Even if a malicious user manually edits the URL to `/trainees/999`, the backend will return 404 if trainee 999 does not belong to that trainer. IDOR is not possible.
+
+**Verdict: PASS** -- Trainee IDs are server-provided, typed as integers, and the destination endpoint enforces row-level security.
 
 ---
 
 ## Low / Informational Items
 
-### 1. Client-Side File Type Validation Is Bypassable (Low)
+### 1. Unused `trainee_email` in API Response Types (Low)
 
-**File:** `web/src/components/settings/profile-section.tsx:61-68`
-**Status:** ACCEPTABLE -- defense in depth
+**Files:** `web/src/types/analytics.ts:5`, `web/src/types/analytics.ts:22`
+**Status:** ACCEPTABLE -- no security impact, minor data minimization concern
 
-The MIME type check uses `file.type`, which is browser-derived from the file extension. An attacker could rename a malicious file to `.jpg`. However, the backend performs its own validation (file content sniffing, extension check, size limit), so this is purely a UX convenience on the frontend.
+Both `TraineeAdherence` and `TraineeProgressEntry` include a `trainee_email: string` field that is never rendered in any component. While trainers have legitimate access to their trainees' emails, sending unnecessary PII over the network increases the data exposure surface. If the API response were ever inadvertently cached by a CDN or browser cache, emails would be included.
 
-### 2. Clipboard API Requires HTTPS in Some Browsers (Low)
+**Recommendation:** Consider removing `trainee_email` from the backend serializer responses for these two analytics endpoints, or omitting the field from the TypeScript types if it serves no frontend purpose. This is a defense-in-depth improvement, not a vulnerability.
 
-**File:** `web/src/components/invitations/invitation-actions.tsx:44-52`
+### 2. JWT in localStorage (Pre-Existing, Informational)
+
+**Status:** UNCHANGED from prior audit
+
+JWT tokens continue to be stored in `localStorage`. This is an accepted tradeoff for SPA architecture. No new XSS vectors were introduced that could enable token theft. The analytics page is read-only and introduces no mutation endpoints.
+
+### 3. Recharts `as unknown as` Type Cast (Informational)
+
+**File:** `tasks/dev-done.md` mentions this; actual code uses `sorted[index]` pattern instead
 **Status:** ACCEPTABLE
 
-`navigator.clipboard.writeText()` requires a secure context (HTTPS) in some browsers. The code has a proper `.then(success, failure)` pattern and a try/catch fallback, so failures are handled gracefully with an error toast.
-
-### 3. Notification `data` Field Typing Is Loose (Informational)
-
-**File:** `web/src/types/notification.ts:19`
-**Status:** ACCEPTABLE
-
-The `data` field is typed as `Record<string, unknown>`, which is appropriate since the backend sends varying JSON payloads. The `getNotificationTraineeId()` helper properly validates the `trainee_id` field at runtime before using it, handling both `number` and `string` types defensively.
-
-### 4. JWT in localStorage (Pre-Existing, Informational)
-
-**Status:** UNCHANGED from Pipeline 9
-
-JWT tokens continue to be stored in `localStorage`. This is an accepted tradeoff for SPA architecture. No new XSS vectors were introduced that could enable token theft. The `refreshUser()` function added to the auth context does not expose tokens -- it re-fetches the user profile via the authenticated API client.
+The dev-done notes mention a `as unknown as TraineeAdherence` cast was considered for the recharts onClick handler, but the final implementation uses `sorted[index]` which is type-safe. No security impact.
 
 ---
 
 ## Security Strengths of This Implementation
 
-1. **No new XSS vectors** -- Zero usage of `dangerouslySetInnerHTML`, `eval`, `innerHTML`, or any unsafe DOM API in any new or modified file.
+1. **No new XSS vectors** -- All trainee names and numeric values rendered through React's auto-escaping. No `dangerouslySetInnerHTML`, `eval`, or unsafe DOM APIs.
 
-2. **Authenticated API client for all calls** -- The `postFormData()` method correctly reuses the same `request()` flow with Bearer token injection, maintaining consistent auth.
+2. **Constrained query parameter** -- The `days` parameter is limited to `7 | 14 | 30` by the TypeScript union type on the frontend, and clamped to `[1, 365]` with type-safe parsing on the backend.
 
-3. **FormData Content-Type handling** -- Correctly avoids setting `Content-Type: application/json` for FormData requests, letting the browser set the proper `multipart/form-data` with boundary. This prevents request corruption and potential security issues from mismatched content types.
+3. **Strong backend auth/authz** -- Both endpoints enforce `[IsAuthenticated, IsTrainer]` and filter by `parent_trainer=user`. No IDOR is possible.
 
-4. **Password field hygiene** -- Proper `type="password"`, correct `autoComplete` values, `maxLength` cap, and form state clearing on success.
+4. **Server-provided trainee IDs** -- Navigation targets use `trainee_id` values from authenticated API responses, not user input. Destination endpoints also enforce row-level security.
 
-5. **Validated navigation targets** -- `getNotificationTraineeId()` strictly validates `trainee_id` as a positive integer before constructing any navigation path, preventing open redirect and path traversal.
+5. **Independent section error handling** -- Each section (adherence, progress) has its own loading/error/empty state, so a failure in one does not expose data from the other or create confusing UI states.
 
-6. **Defensive error handling** -- All mutations use `onError` callbacks with generic user-facing messages. The Djoser password error parsing extracts field-specific validation messages without leaking server internals.
+6. **No mutations** -- The entire analytics page is read-only. No POST/PATCH/DELETE requests, no form submissions, no file uploads. This dramatically reduces the attack surface.
 
-7. **File upload defense in depth** -- Client-side size and type validation reduces attack surface, while the backend remains the authoritative validation boundary.
+7. **React Query cache isolation** -- Adherence data is keyed by `["analytics", "adherence", days]`, so switching periods does not leak data across different time windows.
 
 8. **No console.log or debug output** -- No sensitive data logged to browser console.
 
-9. **Typed API URL construction** -- All new endpoint functions use `number` parameters, preventing injection in URL paths.
-
-10. **Cache invalidation via refreshUser()** -- Profile and image updates trigger `refreshUser()` which re-fetches the current user via the authenticated API, ensuring the UI reflects the latest server state without storing stale data.
+9. **Typed API URL construction** -- `ANALYTICS_ADHERENCE` and `ANALYTICS_PROGRESS` are compile-time constants, not dynamically constructed URLs.
 
 ---
 
 ## Security Score: 9/10
 
 **Breakdown:**
-- **Authentication:** 10/10 (all new endpoints use Bearer auth, FormData path included)
-- **Authorization:** 10/10 (settings on `me/` endpoints, progress/invitations behind trainer namespace)
-- **Input Validation:** 9/10 (file upload validation, password validation, typed IDs, navigation target validation)
+- **Authentication:** 10/10 (all endpoints use Bearer auth via centralized apiClient)
+- **Authorization:** 10/10 (backend enforces IsTrainer + parent_trainer filtering)
+- **Input Validation:** 10/10 (days parameter constrained on both frontend and backend)
 - **Output Encoding:** 10/10 (React auto-escaping, no unsafe HTML rendering)
-- **Secrets Management:** 10/10 (no secrets in code, passwords not logged, form state cleared)
-- **File Upload:** 9/10 (client-side validation is bypassable but backend validates; good defense-in-depth)
-- **Dependencies:** 10/10 (recharts has no known CVEs, React/Next.js patched for recent CVEs)
-- **Data Exposure:** 10/10 (generic error messages, no PII in progress data, password fields masked)
+- **Secrets Management:** 10/10 (no secrets in code)
+- **IDOR Protection:** 10/10 (aggregate endpoints with no user-supplied trainee ID)
+- **Data Exposure:** 9/10 (unused `trainee_email` in response is minor over-fetch)
+- **Dependencies:** 10/10 (no new dependencies, recharts previously audited)
 
 **Deductions:**
-- -0.5: Client-side MIME type validation relies on browser-set `file.type` (bypassable, but backend validates)
+- -0.5: Unused `trainee_email` field in API responses (minor data minimization concern)
 - -0.5: Pre-existing JWT in localStorage concern (unchanged, accepted tradeoff)
 
 ---
 
 ## Recommendation: PASS
 
-**Verdict:** The Phase 2 web dashboard features are **secure for production**. No Critical, High, or Medium issues were found. The implementation demonstrates strong security practices across authentication, file upload validation, password handling, navigation safety, and data exposure controls.
+**Verdict:** The Phase 3 Trainer Analytics page is **secure for production**. No Critical, High, or Medium issues were found. The implementation demonstrates strong security practices across authentication, authorization, input validation, output encoding, and IDOR protection. The read-only nature of this feature significantly limits the attack surface.
 
 **Ship Blockers:** None.
 
