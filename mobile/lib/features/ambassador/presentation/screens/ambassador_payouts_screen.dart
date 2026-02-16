@@ -257,10 +257,31 @@ class _AmbassadorPayoutsScreenState
               border: Border.all(color: theme.dividerColor),
             ),
             child: Center(
-              child: Text(
-                'No payouts yet',
-                style:
-                    TextStyle(color: theme.textTheme.bodySmall?.color),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 48,
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No payouts yet',
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Payouts will appear here once triggered by admin.',
+                    textAlign: TextAlign.center,
+                    style:
+                        TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 13),
+                  ),
+                ],
               ),
             ),
           )
