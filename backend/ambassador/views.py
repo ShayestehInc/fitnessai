@@ -4,10 +4,11 @@ Ambassador views for dashboard, referrals, and admin management.
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any, cast
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Case, Count, Q, QuerySet, Sum, When
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -102,7 +103,7 @@ class AmbassadorDashboardView(APIView):
         ).aggregate(total=Sum('commission_amount'))['total'] or Decimal('0.00')
 
         # Monthly earnings for last 6 months
-        six_months_ago = timezone.now() - timezone.timedelta(days=180)
+        six_months_ago = timezone.now() - timedelta(days=180)
         monthly_data = (
             AmbassadorCommission.objects.filter(
                 ambassador=user,
@@ -236,7 +237,15 @@ class AmbassadorReferralCodeView(APIView):
         new_code = validated['referral_code']
 
         profile.referral_code = new_code
-        profile.save(update_fields=['referral_code', 'updated_at'])
+        try:
+            # The DB unique constraint is the real guard against concurrent
+            # claims; the serializer check is just a user-friendly fast path.
+            profile.save(update_fields=['referral_code'])
+        except IntegrityError:
+            return Response(
+                {'referral_code': ['This referral code is already in use.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         logger.info(
             "Ambassador %s updated referral code to %s",
@@ -407,7 +416,7 @@ class AdminAmbassadorDetailView(APIView):
 
         validated = cast(dict[str, Any], serializer.validated_data)
 
-        update_fields: list[str] = ['updated_at']
+        update_fields: list[str] = []
         if 'commission_rate' in validated:
             profile.commission_rate = validated['commission_rate']
             update_fields.append('commission_rate')
@@ -415,7 +424,10 @@ class AdminAmbassadorDetailView(APIView):
             profile.is_active = validated['is_active']
             update_fields.append('is_active')
 
-        profile.save(update_fields=update_fields)
+        if update_fields:
+            # auto_now=True on updated_at ensures the timestamp is included
+            # automatically by Django whenever update_fields is specified.
+            profile.save(update_fields=update_fields)
 
         logger.info(
             "Admin updated ambassador %s: rate=%s, active=%s",

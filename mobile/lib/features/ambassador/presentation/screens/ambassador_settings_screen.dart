@@ -274,9 +274,12 @@ class _AmbassadorSettingsScreenState
                     ),
                     enabled: !isSaving,
                     onChanged: (_) {
-                      if (errorText != null) {
-                        setDialogState(() => errorText = null);
-                      }
+                      // Always rebuild so the character counter stays in sync.
+                      setDialogState(() {
+                        if (errorText != null) {
+                          errorText = null;
+                        }
+                      });
                     },
                   ),
                 ],
@@ -317,24 +320,23 @@ class _AmbassadorSettingsScreenState
                             errorText = null;
                           });
 
+                          // Capture messenger before the async gap so we don't
+                          // access the widget's context after a pop.
+                          final messenger = ScaffoldMessenger.of(this.context);
+
                           try {
-                            final success = await ref
+                            await ref
                                 .read(ambassadorDashboardProvider.notifier)
                                 .updateReferralCode(code);
 
-                            if (success && mounted) {
+                            if (mounted) {
                               Navigator.pop(dialogContext);
-                              ScaffoldMessenger.of(this.context).showSnackBar(
+                              messenger.showSnackBar(
                                 SnackBar(
                                   content: Text('Referral code updated to $code'),
                                   backgroundColor: Colors.green,
                                 ),
                               );
-                            } else {
-                              setDialogState(() {
-                                isSaving = false;
-                                errorText = 'Failed to update referral code. Please try again.';
-                              });
                             }
                           } catch (e) {
                             final errStr = e.toString();

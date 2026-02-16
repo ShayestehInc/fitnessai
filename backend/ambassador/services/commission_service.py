@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from django.db import transaction
-from django.db.models import QuerySet
 
 from ambassador.models import AmbassadorCommission, AmbassadorProfile
 
@@ -29,6 +28,24 @@ class BulkActionResult:
     processed_count: int
     skipped_count: int
     message: str
+
+
+def _refresh_ambassador_stats(ambassador_profile_id: int) -> None:
+    """Safely refresh cached stats for an ambassador profile.
+
+    Handles the case where the profile does not exist (e.g. deleted between
+    the commission update and the stats refresh) by logging a warning rather
+    than letting a DoesNotExist propagate as a 500.
+    """
+    try:
+        profile = AmbassadorProfile.objects.get(id=ambassador_profile_id)
+    except AmbassadorProfile.DoesNotExist:
+        logger.warning(
+            "Cannot refresh cached stats: AmbassadorProfile %d not found",
+            ambassador_profile_id,
+        )
+        return
+    profile.refresh_cached_stats()
 
 
 class CommissionService:
@@ -85,9 +102,9 @@ class CommissionService:
             commission.status = AmbassadorCommission.Status.APPROVED
             commission.save(update_fields=["status"])
 
-        # Refresh cached stats outside the transaction
-        profile = AmbassadorProfile.objects.get(id=ambassador_profile_id)
-        profile.refresh_cached_stats()
+            # Refresh cached stats inside the transaction so the aggregation
+            # reads a consistent snapshot while the lock is still held.
+            _refresh_ambassador_stats(ambassador_profile_id)
 
         logger.info(
             "Commission %d approved for ambassador profile %d",
@@ -147,9 +164,9 @@ class CommissionService:
             commission.status = AmbassadorCommission.Status.PAID
             commission.save(update_fields=["status"])
 
-        # Refresh cached stats outside the transaction
-        profile = AmbassadorProfile.objects.get(id=ambassador_profile_id)
-        profile.refresh_cached_stats()
+            # Refresh cached stats inside the transaction so the aggregation
+            # reads a consistent snapshot while the lock is still held.
+            _refresh_ambassador_stats(ambassador_profile_id)
 
         logger.info(
             "Commission %d marked paid for ambassador profile %d",
@@ -170,27 +187,33 @@ class CommissionService:
         Uses select_for_update() to lock rows and prevent concurrent processing.
         """
         with transaction.atomic():
-            commissions: QuerySet[AmbassadorCommission] = (
+            # Force evaluation of the locked queryset by materialising the IDs.
+            # This ensures the SELECT FOR UPDATE is executed and locks are held
+            # before the subsequent UPDATE runs.
+            locked_ids: list[int] = list(
                 AmbassadorCommission.objects
                 .select_for_update()
                 .filter(
                     id__in=commission_ids,
                     ambassador_profile_id=ambassador_profile_id,
                 )
+                .values_list('id', flat=True)
             )
 
-            pending_commissions = commissions.filter(
-                status=AmbassadorCommission.Status.PENDING,
-            )
-            total_found = commissions.count()
-            approved_count = pending_commissions.update(
-                status=AmbassadorCommission.Status.APPROVED,
+            total_found = len(locked_ids)
+            approved_count = (
+                AmbassadorCommission.objects
+                .filter(
+                    id__in=locked_ids,
+                    status=AmbassadorCommission.Status.PENDING,
+                )
+                .update(status=AmbassadorCommission.Status.APPROVED)
             )
             skipped_count = total_found - approved_count
 
-        # Refresh cached stats outside the transaction
-        profile = AmbassadorProfile.objects.get(id=ambassador_profile_id)
-        profile.refresh_cached_stats()
+            # Refresh cached stats inside the transaction so the aggregation
+            # reads a consistent snapshot while the lock is still held.
+            _refresh_ambassador_stats(ambassador_profile_id)
 
         logger.info(
             "Bulk approved %d commissions (%d skipped) for ambassador profile %d",
@@ -225,27 +248,33 @@ class CommissionService:
         Uses select_for_update() to lock rows and prevent concurrent processing.
         """
         with transaction.atomic():
-            commissions: QuerySet[AmbassadorCommission] = (
+            # Force evaluation of the locked queryset by materialising the IDs.
+            # This ensures the SELECT FOR UPDATE is executed and locks are held
+            # before the subsequent UPDATE runs.
+            locked_ids: list[int] = list(
                 AmbassadorCommission.objects
                 .select_for_update()
                 .filter(
                     id__in=commission_ids,
                     ambassador_profile_id=ambassador_profile_id,
                 )
+                .values_list('id', flat=True)
             )
 
-            approved_commissions = commissions.filter(
-                status=AmbassadorCommission.Status.APPROVED,
-            )
-            total_found = commissions.count()
-            paid_count = approved_commissions.update(
-                status=AmbassadorCommission.Status.PAID,
+            total_found = len(locked_ids)
+            paid_count = (
+                AmbassadorCommission.objects
+                .filter(
+                    id__in=locked_ids,
+                    status=AmbassadorCommission.Status.APPROVED,
+                )
+                .update(status=AmbassadorCommission.Status.PAID)
             )
             skipped_count = total_found - paid_count
 
-        # Refresh cached stats outside the transaction
-        profile = AmbassadorProfile.objects.get(id=ambassador_profile_id)
-        profile.refresh_cached_stats()
+            # Refresh cached stats inside the transaction so the aggregation
+            # reads a consistent snapshot while the lock is still held.
+            _refresh_ambassador_stats(ambassador_profile_id)
 
         logger.info(
             "Bulk paid %d commissions (%d skipped) for ambassador profile %d",

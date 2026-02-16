@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../ambassador/data/models/ambassador_models.dart';
@@ -365,16 +366,16 @@ class _AdminAmbassadorDetailScreenState
   }
 
   String _parseErrorMessage(Object error, String fallback) {
-    final errorStr = error.toString();
-    // Try to extract server error message from DioException
-    if (errorStr.contains('Commission is already approved')) {
-      return 'Commission is already approved.';
-    }
-    if (errorStr.contains('Commission is already paid')) {
-      return 'Commission is already paid.';
-    }
-    if (errorStr.contains('must be approved before')) {
-      return 'Commission must be approved before it can be marked as paid.';
+    // Extract the server error message from DioException response data
+    // rather than brittle string matching on toString().
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map<String, dynamic>) {
+        final serverError = data['error'];
+        if (serverError is String && serverError.isNotEmpty) {
+          return serverError;
+        }
+      }
     }
     return fallback;
   }

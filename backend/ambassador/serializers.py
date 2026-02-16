@@ -164,7 +164,11 @@ class BulkCommissionActionSerializer(serializers.Serializer[dict[str, Any]]):
 
 
 class CustomReferralCodeSerializer(serializers.Serializer[dict[str, Any]]):
-    """Serializer for updating an ambassador's referral code."""
+    """Serializer for updating an ambassador's referral code.
+
+    Uses CharField instead of RegexField so that strip/uppercase
+    normalisation can run before the regex validation step.
+    """
 
     referral_code = serializers.CharField(
         min_length=4,

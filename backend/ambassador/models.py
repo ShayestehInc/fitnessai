@@ -105,7 +105,7 @@ class AmbassadorProfile(models.Model):
             status__in=[AmbassadorCommission.Status.APPROVED, AmbassadorCommission.Status.PAID],
         ).aggregate(total=models.Sum('commission_amount'))
         self.total_earnings = earnings['total'] or Decimal('0.00')
-        self.save(update_fields=['total_referrals', 'total_earnings', 'updated_at'])
+        self.save(update_fields=['total_referrals', 'total_earnings'])
 
 
 class AmbassadorReferral(models.Model):

@@ -496,7 +496,7 @@ class _AmbassadorDashboardScreenState
         'Join FitnessAI and grow your training business! Use my referral code $code when you sign up.';
     try {
       await Share.share(message);
-    } catch (_) {
+    } on PlatformException {
       // Fallback to clipboard if native share fails (e.g., on some emulators)
       await Clipboard.setData(ClipboardData(text: message));
       if (mounted) {
