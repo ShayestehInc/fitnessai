@@ -21,7 +21,9 @@ class CommunityPostCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: post.isAutoPost
+            ? theme.colorScheme.primary.withValues(alpha: 0.05)
+            : theme.cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor),
       ),
@@ -31,6 +33,11 @@ class CommunityPostCard extends ConsumerWidget {
           // Author row
           _buildAuthorRow(context, theme, isAuthor, ref),
           const SizedBox(height: 12),
+          // Post type badge for auto-posts (above content per AC-29)
+          if (post.isAutoPost) ...[
+            _buildPostTypeBadge(theme),
+            const SizedBox(height: 8),
+          ],
           // Post content
           Text(
             post.content,
@@ -40,11 +47,6 @@ class CommunityPostCard extends ConsumerWidget {
               height: 1.4,
             ),
           ),
-          // Post type badge for auto-posts
-          if (post.isAutoPost) ...[
-            const SizedBox(height: 8),
-            _buildPostTypeBadge(theme),
-          ],
           const SizedBox(height: 12),
           // Reaction bar
           ReactionBar(post: post),

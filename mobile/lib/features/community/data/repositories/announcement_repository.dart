@@ -11,8 +11,9 @@ class AnnouncementRepository {
   /// Fetch trainee's announcements from their trainer.
   Future<List<AnnouncementModel>> getAnnouncements() async {
     final response = await _apiClient.dio.get(ApiConstants.communityAnnouncements);
-    final data = response.data as List<dynamic>;
-    return data
+    final data = response.data as Map<String, dynamic>;
+    final results = data['results'] as List<dynamic>;
+    return results
         .map((e) => AnnouncementModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
@@ -34,8 +35,9 @@ class AnnouncementRepository {
   /// Fetch trainer's own announcements.
   Future<List<AnnouncementModel>> getTrainerAnnouncements() async {
     final response = await _apiClient.dio.get(ApiConstants.trainerAnnouncements);
-    final data = response.data as List<dynamic>;
-    return data
+    final data = response.data as Map<String, dynamic>;
+    final results = data['results'] as List<dynamic>;
+    return results
         .map((e) => AnnouncementModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
