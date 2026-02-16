@@ -34,6 +34,7 @@ export default function AdminTiersPage() {
   const seedDefaults = useSeedDefaultTiers();
 
   const [formOpen, setFormOpen] = useState(false);
+  const [formKey, setFormKey] = useState(0);
   const [editingTier, setEditingTier] = useState<AdminSubscriptionTier | null>(
     null,
   );
@@ -44,6 +45,7 @@ export default function AdminTiersPage() {
 
   function handleCreate() {
     setEditingTier(null);
+    setFormKey((k) => k + 1);
     setFormOpen(true);
   }
 
@@ -143,7 +145,7 @@ export default function AdminTiersPage() {
       )}
 
       <TierFormDialog
-        key={editingTier?.id ?? "new"}
+        key={editingTier?.id ?? `new-${formKey}`}
         tier={editingTier}
         open={formOpen}
         onOpenChange={setFormOpen}

@@ -64,6 +64,7 @@ export function useActivateDeactivateTrainer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "trainers"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "subscriptions"] });
     },
   });
 }

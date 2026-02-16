@@ -40,6 +40,8 @@ const APPLIES_TO_OPTIONS = [
   { value: "both", label: "Both" },
 ];
 
+const AVAILABLE_TIERS = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
+
 export function CouponFormDialog({
   coupon,
   open,
@@ -62,10 +64,19 @@ export function CouponFormDialog({
   const [maxUsesPerUser, setMaxUsesPerUser] = useState(
     coupon ? String(coupon.max_uses_per_user) : "1",
   );
+  const [applicableTiers, setApplicableTiers] = useState<string[]>(
+    coupon?.applicable_tiers ?? [],
+  );
   const [validUntil, setValidUntil] = useState(
     coupon?.valid_until ? coupon.valid_until.slice(0, 16) : "",
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function handleTierToggle(tier: string) {
+    setApplicableTiers((prev) =>
+      prev.includes(tier) ? prev.filter((t) => t !== tier) : [...prev, tier],
+    );
+  }
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
@@ -83,6 +94,14 @@ export function CouponFormDialog({
     if (couponType === "percent" && value > 100)
       newErrors.discount_value = "Percentage discount cannot exceed 100%";
 
+    const maxUsesNum = parseInt(maxUses, 10);
+    if (isNaN(maxUsesNum) || maxUsesNum < 0)
+      newErrors.max_uses = "Must be 0 or greater";
+
+    const maxPerUserNum = parseInt(maxUsesPerUser, 10);
+    if (isNaN(maxPerUserNum) || maxPerUserNum < 1)
+      newErrors.max_uses_per_user = "Must be 1 or greater";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -96,8 +115,9 @@ export function CouponFormDialog({
         const payload: UpdateCouponPayload = {
           description: description.trim(),
           discount_value: parseFloat(discountValue).toFixed(2),
-          max_uses: parseInt(maxUses, 10) || 0,
-          max_uses_per_user: parseInt(maxUsesPerUser, 10) || 1,
+          applicable_tiers: applicableTiers,
+          max_uses: parseInt(maxUses, 10),
+          max_uses_per_user: parseInt(maxUsesPerUser, 10),
           valid_until: validUntil ? new Date(validUntil).toISOString() : null,
         };
         await updateCoupon.mutateAsync({ id: coupon.id, data: payload });
@@ -109,9 +129,9 @@ export function CouponFormDialog({
           coupon_type: couponType,
           discount_value: parseFloat(discountValue).toFixed(2),
           applies_to: appliesTo,
-          applicable_tiers: [],
-          max_uses: parseInt(maxUses, 10) || 0,
-          max_uses_per_user: parseInt(maxUsesPerUser, 10) || 1,
+          applicable_tiers: applicableTiers,
+          max_uses: parseInt(maxUses, 10),
+          max_uses_per_user: parseInt(maxUsesPerUser, 10),
           valid_from: new Date().toISOString(),
           valid_until: validUntil
             ? new Date(validUntil).toISOString()
@@ -254,7 +274,19 @@ export function CouponFormDialog({
                 min="0"
                 value={maxUses}
                 onChange={(e) => setMaxUses(e.target.value)}
+                aria-invalid={!!errors.max_uses}
+                aria-describedby={
+                  errors.max_uses ? "coupon-max-uses-error" : undefined
+                }
               />
+              {errors.max_uses && (
+                <p
+                  id="coupon-max-uses-error"
+                  className="text-xs text-destructive"
+                >
+                  {errors.max_uses}
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <Label htmlFor="coupon-max-per-user">Max Uses Per User</Label>
@@ -264,8 +296,46 @@ export function CouponFormDialog({
                 min="1"
                 value={maxUsesPerUser}
                 onChange={(e) => setMaxUsesPerUser(e.target.value)}
+                aria-invalid={!!errors.max_uses_per_user}
+                aria-describedby={
+                  errors.max_uses_per_user
+                    ? "coupon-max-per-user-error"
+                    : undefined
+                }
               />
+              {errors.max_uses_per_user && (
+                <p
+                  id="coupon-max-per-user-error"
+                  className="text-xs text-destructive"
+                >
+                  {errors.max_uses_per_user}
+                </p>
+              )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Applicable Tiers (leave empty for all tiers)</Label>
+            <div className="flex flex-wrap gap-3">
+              {AVAILABLE_TIERS.map((tier) => (
+                <label
+                  key={tier}
+                  className="flex items-center gap-1.5 text-sm cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={applicableTiers.includes(tier)}
+                    onChange={() => handleTierToggle(tier)}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  {tier}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Select specific tiers this coupon applies to, or leave all
+              unchecked to apply to all tiers.
+            </p>
           </div>
 
           <div className="space-y-1">

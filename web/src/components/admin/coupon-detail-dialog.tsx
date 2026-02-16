@@ -27,13 +27,13 @@ import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
-import type { AdminCouponUsage } from "@/types/admin";
+import type { AdminCoupon, AdminCouponUsage } from "@/types/admin";
 
 interface CouponDetailDialogProps {
   couponId: number | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onEdit: () => void;
+  onEdit: (coupon: AdminCoupon) => void;
 }
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -194,7 +194,7 @@ export function CouponDetailDialog({
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={onEdit}>
+              <Button variant="outline" size="sm" onClick={() => onEdit(data)}>
                 Edit
               </Button>
               {data.status === "active" && (

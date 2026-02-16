@@ -271,3 +271,13 @@ export interface EndImpersonationResponse {
   message: string;
   return_to_admin: boolean;
 }
+
+// ============ Shared Constants ============
+
+export const TIER_COLORS: Record<string, string> = {
+  FREE: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  STARTER: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+  PRO: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+  ENTERPRISE:
+    "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+} as const;

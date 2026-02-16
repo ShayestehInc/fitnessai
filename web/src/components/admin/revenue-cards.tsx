@@ -7,19 +7,11 @@ import {
   CalendarRange,
 } from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { formatCurrency } from "@/lib/format-utils";
 import type { AdminDashboardStats } from "@/types/admin";
 
 interface RevenueCardsProps {
   stats: AdminDashboardStats;
-}
-
-function formatCurrency(value: string): string {
-  const num = parseFloat(value);
-  if (isNaN(num)) return "$0.00";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(num);
 }
 
 export function RevenueCards({ stats }: RevenueCardsProps) {

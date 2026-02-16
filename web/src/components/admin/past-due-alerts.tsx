@@ -12,15 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePastDueSubscriptions } from "@/hooks/use-admin-subscriptions";
-
-function formatCurrency(value: string): string {
-  const num = parseFloat(value);
-  if (isNaN(num)) return "$0.00";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(num);
-}
+import { formatCurrency } from "@/lib/format-utils";
 
 export function PastDueAlerts() {
   const { data: pastDue, isLoading } = usePastDueSubscriptions();
@@ -95,7 +87,7 @@ export function PastDueAlerts() {
                 </div>
               </div>
             ))}
-            {items.length > 5 && (
+            {items.length > 0 && (
               <Button variant="outline" size="sm" className="w-full" asChild>
                 <Link href="/admin/subscriptions?past_due=true">
                   View All ({items.length})

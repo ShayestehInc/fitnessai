@@ -23,21 +23,13 @@ import {
 import { getAccessToken, getRefreshToken, setTokens } from "@/lib/token-manager";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
+import { formatCurrency } from "@/lib/format-utils";
 import type { AdminTrainerListItem } from "@/types/admin";
 
 interface TrainerDetailDialogProps {
   trainer: AdminTrainerListItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-function formatCurrency(value: string): string {
-  const num = parseFloat(value);
-  if (isNaN(num)) return "$0.00";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(num);
 }
 
 export function TrainerDetailDialog({
@@ -140,7 +132,7 @@ export function TrainerDetailDialog({
                   <div>
                     <p className="text-muted-foreground">Status</p>
                     <p className="font-medium capitalize">
-                      {sub.status?.replace("_", " ") ?? "N/A"}
+                      {sub.status?.replace(/_/g, " ") ?? "N/A"}
                     </p>
                   </div>
                   <div>

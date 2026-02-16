@@ -16,6 +16,7 @@ import {
   isAccessTokenExpired,
   refreshAccessToken,
   setTokens,
+  setRoleCookie,
 } from "@/lib/token-manager";
 import { apiClient } from "@/lib/api-client";
 
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
       }
       setUser(userData);
+      setRoleCookie(userData.role);
       return userData;
     } catch (error) {
       clearTokens();

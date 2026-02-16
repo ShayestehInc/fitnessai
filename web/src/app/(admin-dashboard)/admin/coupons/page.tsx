@@ -35,6 +35,7 @@ export default function AdminCouponsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [formOpen, setFormOpen] = useState(false);
+  const [formKey, setFormKey] = useState(0);
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
   const [detailCouponId, setDetailCouponId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -54,6 +55,7 @@ export default function AdminCouponsPage() {
 
   function handleCreate() {
     setEditingCoupon(null);
+    setFormKey((k) => k + 1);
     setFormOpen(true);
   }
 
@@ -62,11 +64,9 @@ export default function AdminCouponsPage() {
     setDetailOpen(true);
   }
 
-  function handleEditFromDetail() {
+  function handleEditFromDetail(coupon: AdminCoupon) {
     setDetailOpen(false);
-    // We don't have the full coupon data from the list item, so we open the form
-    // with null to trigger a create-style edit. The detail dialog fetches full data.
-    setEditingCoupon(null);
+    setEditingCoupon(coupon);
     setFormOpen(true);
   }
 
@@ -154,7 +154,7 @@ export default function AdminCouponsPage() {
       )}
 
       <CouponFormDialog
-        key={editingCoupon?.id ?? "new"}
+        key={editingCoupon?.id ?? `new-${formKey}`}
         coupon={editingCoupon}
         open={formOpen}
         onOpenChange={setFormOpen}

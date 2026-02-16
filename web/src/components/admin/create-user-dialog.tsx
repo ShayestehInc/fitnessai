@@ -20,7 +20,7 @@ import {
   useUpdateAdminUser,
   useDeleteAdminUser,
 } from "@/hooks/use-admin-users";
-import type { AdminUser } from "@/types/admin";
+import type { AdminUser, UpdateUserPayload } from "@/types/admin";
 
 interface CreateUserDialogProps {
   user: AdminUser | null;
@@ -92,7 +92,7 @@ export function CreateUserDialog({
 
     try {
       if (isEdit && user) {
-        const payload: Record<string, unknown> = {
+        const payload: UpdateUserPayload = {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           is_active: isActive,

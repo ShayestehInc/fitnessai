@@ -111,3 +111,4 @@ export const TOKEN_KEYS = {
 } as const;
 
 export const SESSION_COOKIE = "has_session";
+export const ROLE_COOKIE = "user_role";

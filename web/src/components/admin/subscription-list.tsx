@@ -4,7 +4,9 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
+import { TIER_COLORS } from "@/types/admin";
 import type { AdminSubscriptionListItem } from "@/types/admin";
+import { formatCurrency } from "@/lib/format-utils";
 
 interface SubscriptionListProps {
   subscriptions: AdminSubscriptionListItem[];
@@ -18,23 +20,6 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   trialing: "outline",
   suspended: "secondary",
 };
-
-const TIER_COLORS: Record<string, string> = {
-  FREE: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  STARTER: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-  PRO: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-  ENTERPRISE:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
-};
-
-function formatCurrency(value: string): string {
-  const num = parseFloat(value);
-  if (isNaN(num)) return "$0.00";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(num);
-}
 
 const columns: Column<AdminSubscriptionListItem>[] = [
   {
@@ -63,8 +48,8 @@ const columns: Column<AdminSubscriptionListItem>[] = [
     header: "Status",
     cell: (row) => (
       <Badge variant={STATUS_VARIANT[row.status] ?? "secondary"}>
-        {row.status.replace("_", " ").charAt(0).toUpperCase() +
-          row.status.replace("_", " ").slice(1)}
+        {row.status.replace(/_/g, " ").charAt(0).toUpperCase() +
+          row.status.replace(/_/g, " ").slice(1)}
         <span className="sr-only"> status</span>
       </Badge>
     ),

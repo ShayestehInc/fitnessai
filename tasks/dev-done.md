@@ -94,3 +94,52 @@ Implemented the complete Admin Dashboard for the FitnessAI web app. This include
 
 - **Settings page**: Implemented as a placeholder ("Coming soon") since no admin settings endpoints exist yet. The ticket mentioned it as a future concern.
 - **Subscription detail dialog uses tabs**: Instead of separate sections, the overview/payments/changes are organized into tabs for a cleaner UX. This matches the ticket's spirit but uses a slightly different layout approach.
+
+---
+
+## Review Fixes Applied (Round 1)
+
+### Critical Fixes
+- **C1 (Middleware double-redirect)**: Added `user_role` cookie alongside `has_session` in `token-manager.ts`. Middleware now reads the role cookie and redirects admins to `/admin/dashboard` instead of `/dashboard`. AuthProvider sets role cookie on `fetchUser`. Eliminates the visible flash of trainer loading spinner for admin users.
+- **C2 (Missing `applicable_tiers` multi-select)**: Added `AVAILABLE_TIERS` constant and checkbox-based multi-select UI to `coupon-form-dialog.tsx`. The `applicableTiers` state is wired into both create and update payloads. Added helper text explaining that empty = all tiers.
+- **C3 (Edit from detail creates duplicate)**: Changed `CouponDetailDialogProps.onEdit` from `() => void` to `(coupon: AdminCoupon) => void`. Detail dialog now passes the fetched coupon data to the edit callback. Coupons page `handleEditFromDetail` receives and sets the coupon data, so the form opens in edit mode.
+
+### Major Fixes
+- **M1 (Action form state leakage)**: Added `resetAction()` calls to all action button `onClick` handlers in subscription detail. Notes cancel button now calls `resetAction()` instead of `setActionMode("none")`. `resetAction()` also resets `notesValue` and `notesCharCount`. `handleSaveNotes` now calls `resetAction()` on success.
+- **M2 (Subscription detail 583 lines)**: Extracted into 3 files: `subscription-detail-dialog.tsx` (161 lines - dialog shell + overview grid), `subscription-action-forms.tsx` (~260 lines - all 4 action forms with their own state/handlers), `subscription-history-tabs.tsx` (~130 lines - payment/change history table components with column definitions).
+- **M3 (Tier form stale state on consecutive creates)**: Added `formKey` counter state. `handleCreate()` increments `formKey`. Dialog `key` is now `editingTier?.id ?? \`new-\${formKey}\``, forcing remount on each create. Same fix applied to coupon form.
+- **M4 (User update `Record<string, unknown>`)**: Changed payload type to `UpdateUserPayload` with proper import from `types/admin.ts`.
+- **M5 (formatCurrency duplicated 6 times)**: Created `web/src/lib/format-utils.ts` with a module-level cached `Intl.NumberFormat` instance. Replaced all 6 local `formatCurrency` functions with imports from the shared utility.
+- **M6 (TIER_COLORS duplicated 3 times)**: Added `TIER_COLORS` constant to `types/admin.ts`. Replaced local definitions in `trainer-list.tsx`, `subscription-list.tsx`, and `tier-breakdown.tsx` with imports.
+- **M7 (Coupon form negative maxUses/maxUsesPerUser)**: Added validation in `validate()`: `maxUses` must be >= 0, `maxUsesPerUser` must be >= 1. Added `aria-invalid` and `aria-describedby` to both inputs with error messages. Removed `|| 0` and `|| 1` fallbacks from `parseInt()` in submit handler (validation now prevents invalid values).
+- **M8 (Trainer activate/deactivate missing subscription invalidation)**: Added `queryClient.invalidateQueries({ queryKey: ["admin", "subscriptions"] })` to `useActivateDeactivateTrainer.onSuccess`.
+
+### Minor Fixes
+- **m2 (`.replace("_", " ")` only first underscore)**: Changed to `.replace(/_/g, " ")` in `subscription-detail-dialog.tsx`, `subscription-list.tsx`, and `trainer-detail-dialog.tsx`.
+- **m6 ("View All" link threshold)**: Changed `items.length > 5` to `items.length > 0` in `past-due-alerts.tsx`.
+
+### Files Created
+- `web/src/lib/format-utils.ts` -- Shared `formatCurrency` utility with cached formatter
+- `web/src/components/admin/subscription-action-forms.tsx` -- Extracted action forms (tier/status/payment/notes)
+- `web/src/components/admin/subscription-history-tabs.tsx` -- Extracted payment/change history tab components
+
+### Files Modified
+- `web/src/middleware.ts` -- Role-aware redirect using `user_role` cookie
+- `web/src/lib/constants.ts` -- Added `ROLE_COOKIE` constant
+- `web/src/lib/token-manager.ts` -- `setTokens` accepts optional `role`, added `setRoleCookie` and `clearTokens` clears role cookie
+- `web/src/providers/auth-provider.tsx` -- Calls `setRoleCookie` after successful user fetch
+- `web/src/types/admin.ts` -- Added shared `TIER_COLORS` constant
+- `web/src/components/admin/coupon-form-dialog.tsx` -- Added applicable_tiers multi-select, validation for negative maxUses/maxUsesPerUser
+- `web/src/components/admin/coupon-detail-dialog.tsx` -- `onEdit` now passes coupon data
+- `web/src/app/(admin-dashboard)/admin/coupons/page.tsx` -- `handleEditFromDetail` receives coupon, added `formKey` counter
+- `web/src/app/(admin-dashboard)/admin/tiers/page.tsx` -- Added `formKey` counter for consecutive creates
+- `web/src/components/admin/subscription-detail-dialog.tsx` -- Refactored to use extracted sub-components (161 lines)
+- `web/src/components/admin/dashboard-stats.tsx` -- Import shared `formatCurrency`
+- `web/src/components/admin/revenue-cards.tsx` -- Import shared `formatCurrency`
+- `web/src/components/admin/past-due-alerts.tsx` -- Import shared `formatCurrency`, fixed "View All" threshold
+- `web/src/components/admin/subscription-list.tsx` -- Import shared `formatCurrency` and `TIER_COLORS`, fixed `.replace`
+- `web/src/components/admin/trainer-detail-dialog.tsx` -- Import shared `formatCurrency`, fixed `.replace`
+- `web/src/components/admin/trainer-list.tsx` -- Import shared `TIER_COLORS`
+- `web/src/components/admin/tier-breakdown.tsx` -- Import shared `TIER_COLORS`
+- `web/src/components/admin/create-user-dialog.tsx` -- Typed payload as `UpdateUserPayload`
+- `web/src/hooks/use-admin-trainers.ts` -- Added subscription query invalidation on trainer status change
