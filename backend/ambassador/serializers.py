@@ -3,10 +3,12 @@ Serializers for ambassador models and dashboard stats.
 """
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 from typing import Any
 
-from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ObjectDoesNotExist, ValidationError as DjangoValidationError
 from django.db.models import Sum
 from rest_framework import serializers
 
@@ -113,6 +115,14 @@ class AdminCreateAmbassadorSerializer(serializers.Serializer[dict[str, Any]]):
             raise serializers.ValidationError("A user with this email already exists.")
         return value
 
+    def validate_password(self, value: str) -> str:
+        """Run Django's configured password validators (common, numeric, etc.)."""
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return value
+
     def validate_commission_rate(self, value: Decimal) -> Decimal:
         if value < Decimal('0.00') or value > Decimal('1.00'):
             raise serializers.ValidationError("Commission rate must be between 0.00 and 1.00.")
@@ -146,3 +156,61 @@ class AmbassadorListSerializer(serializers.ModelSerializer[AmbassadorProfile]):
             'id', 'user', 'referral_code', 'commission_rate', 'is_active',
             'total_referrals', 'total_earnings', 'created_at',
         ]
+
+
+class BulkCommissionActionSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for bulk commission approve/pay actions."""
+
+    MAX_BULK_IDS = 200
+
+    commission_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        min_length=1,
+        max_length=200,
+        help_text="List of commission IDs to process (max 200)",
+        error_messages={
+            'min_length': 'This field is required and must contain at least one ID.',
+            'empty': 'This field is required and must contain at least one ID.',
+            'max_length': 'Cannot process more than 200 commissions at once.',
+        },
+    )
+
+    def validate_commission_ids(self, value: list[int]) -> list[int]:
+        """Deduplicate IDs to prevent redundant DB work."""
+        return list(dict.fromkeys(value))
+
+
+class CustomReferralCodeSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for updating an ambassador's referral code.
+
+    Uses CharField instead of RegexField so that strip/uppercase
+    normalisation can run before the regex validation step.
+    """
+
+    referral_code = serializers.CharField(
+        min_length=4,
+        max_length=20,
+        help_text="Custom referral code (4-20 alphanumeric characters, A-Z 0-9)",
+    )
+
+    def validate_referral_code(self, value: str) -> str:
+        """Strip whitespace, uppercase, validate format and uniqueness."""
+        cleaned = value.strip().upper()
+
+        if not re.match(r'^[A-Z0-9]{4,20}$', cleaned):
+            raise serializers.ValidationError(
+                "Code must be 4-20 alphanumeric characters (A-Z, 0-9)."
+            )
+
+        # Check uniqueness excluding the current user's profile
+        exclude_profile_id = self.context.get('profile_id')
+        existing = AmbassadorProfile.objects.filter(referral_code=cleaned)
+        if exclude_profile_id is not None:
+            existing = existing.exclude(id=exclude_profile_id)
+
+        if existing.exists():
+            raise serializers.ValidationError(
+                "This referral code is already in use."
+            )
+
+        return cleaned

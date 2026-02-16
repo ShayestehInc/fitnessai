@@ -1,140 +1,42 @@
-# Architecture Review: Admin Dashboard (Pipeline 13)
+# Architecture Review: Ambassador Enhancements (Pipeline 14)
 
 ## Review Date: 2026-02-15
 
 ## Files Reviewed
 
-### Types
-- `web/src/types/admin.ts`
+### Backend (new/modified)
+- `backend/ambassador/services/commission_service.py` (NEW)
+- `backend/ambassador/views.py`
+- `backend/ambassador/serializers.py`
+- `backend/ambassador/urls.py`
+- `backend/ambassador/models.py`
+- `backend/ambassador/migrations/0003_alter_ambassadorprofile_referral_code_and_more.py`
 
-### Hooks (6 files)
-- `web/src/hooks/use-admin-dashboard.ts`
-- `web/src/hooks/use-admin-subscriptions.ts`
-- `web/src/hooks/use-admin-tiers.ts`
-- `web/src/hooks/use-admin-coupons.ts`
-- `web/src/hooks/use-admin-users.ts`
-- `web/src/hooks/use-admin-trainers.ts`
+### Backend (existing pattern reference)
+- `backend/ambassador/services/referral_service.py`
+- `backend/workouts/services/daily_log_service.py`
+- `backend/trainer/views.py`
 
-### Pages (8 files)
-- `web/src/app/(admin-dashboard)/layout.tsx`
-- `web/src/app/(admin-dashboard)/admin/dashboard/page.tsx`
-- `web/src/app/(admin-dashboard)/admin/trainers/page.tsx`
-- `web/src/app/(admin-dashboard)/admin/subscriptions/page.tsx`
-- `web/src/app/(admin-dashboard)/admin/tiers/page.tsx`
-- `web/src/app/(admin-dashboard)/admin/coupons/page.tsx`
-- `web/src/app/(admin-dashboard)/admin/users/page.tsx`
-- `web/src/app/(admin-dashboard)/admin/settings/page.tsx`
-
-### Components (18 files)
-- `web/src/components/admin/` -- all 18 component files
-- `web/src/components/layout/admin-sidebar.tsx`
-- `web/src/components/layout/admin-sidebar-mobile.tsx`
-- `web/src/components/layout/admin-nav-links.ts`
-- `web/src/components/layout/impersonation-banner.tsx`
-
-### Supporting / Shared
-- `web/src/lib/constants.ts`
-- `web/src/lib/format-utils.ts`
-- `web/src/lib/token-manager.ts`
-- `web/src/lib/api-client.ts`
-- `web/src/lib/error-utils.ts`
-- `web/src/providers/auth-provider.tsx`
-- `web/src/components/shared/data-table.tsx`
-
-### Compared Against (Trainer Dashboard)
-- `web/src/app/(dashboard)/layout.tsx`
-- `web/src/app/(dashboard)/dashboard/page.tsx`
-- `web/src/app/(dashboard)/trainees/page.tsx`
-- `web/src/hooks/use-dashboard.ts`
-- `web/src/hooks/use-trainees.ts`
+### Mobile (new/modified)
+- `mobile/lib/features/ambassador/presentation/providers/ambassador_provider.dart`
+- `mobile/lib/features/ambassador/presentation/screens/ambassador_dashboard_screen.dart`
+- `mobile/lib/features/ambassador/presentation/screens/ambassador_settings_screen.dart`
+- `mobile/lib/features/ambassador/presentation/widgets/monthly_earnings_chart.dart`
+- `mobile/lib/features/admin/presentation/screens/admin_ambassador_detail_screen.dart`
+- `mobile/lib/features/ambassador/data/repositories/ambassador_repository.dart`
+- `mobile/lib/features/ambassador/data/models/ambassador_models.dart`
+- `mobile/lib/core/constants/api_constants.dart`
 
 ---
 
 ## Architectural Alignment
 
-- [x] Follows existing layered architecture (hooks -> api-client -> backend)
-- [x] Types in correct location (`types/admin.ts`)
-- [x] No business logic in page components -- delegated to hooks
-- [x] Consistent with existing trainer dashboard patterns
-- [x] Shared components reused (DataTable, PageHeader, ErrorState, EmptyState, StatCard)
-- [x] Route group pattern mirrors trainer `(dashboard)` pattern
-- [x] Query key hierarchy consistent (`["admin", "entity", ...]`)
-
----
-
-## Issues Found & Fixed
-
-### 1. Runtime constants mixed with type definitions (FIXED)
-
-**Severity:** Medium
-**Location:** `web/src/types/admin.ts`
-
-`TIER_COLORS` (a runtime record of Tailwind classes) was exported from a types-only file. This violates separation of concerns -- type files should contain only TypeScript type/interface definitions and enums, not runtime values.
-
-**Fix applied:** Moved `TIER_COLORS` to new `web/src/lib/admin-constants.ts`. Updated all 3 import sites (`trainer-list.tsx`, `subscription-list.tsx`, `tier-breakdown.tsx`) to import from the new location.
-
-### 2. Duplicate `STATUS_VARIANT` maps across 3 files (FIXED)
-
-**Severity:** Medium
-**Location:** `subscription-list.tsx`, `coupon-list.tsx`, `coupon-detail-dialog.tsx`
-
-Three separate `STATUS_VARIANT` Record objects with identical structure were duplicated. When a new status is added (e.g., "paused"), all three must be updated -- a maintenance hazard.
-
-**Fix applied:** Created `SUBSCRIPTION_STATUS_VARIANT` and `COUPON_STATUS_VARIANT` in `web/src/lib/admin-constants.ts`. Replaced all local `STATUS_VARIANT` declarations with centralized imports.
-
-### 3. Duplicate `formatPrice` function in tier-list.tsx (FIXED)
-
-**Severity:** Low
-**Location:** `web/src/components/admin/tier-list.tsx:18-25`
-
-A local `formatPrice` function duplicated the logic of the centralized `formatCurrency` in `lib/format-utils.ts`. It also created a new `Intl.NumberFormat` instance on every call instead of reusing the singleton.
-
-**Fix applied:** Removed `formatPrice`, imported `formatCurrency` from `@/lib/format-utils`.
-
-### 4. Duplicate `formatDiscountValue` / `formatDiscountDisplay` across coupon components (FIXED)
-
-**Severity:** Low
-**Location:** `coupon-list.tsx:21-26`, `coupon-detail-dialog.tsx:33-43`
-
-Two nearly identical functions for formatting coupon discounts, both creating new `Intl.NumberFormat` instances per call.
-
-**Fix applied:** Created a single `formatDiscount(type, value)` in `lib/format-utils.ts` reusing the existing singleton formatter. Replaced both local functions and also replaced the inline `Intl.NumberFormat` usage in the coupon usage table column.
-
-### 5. Duplicated inline `Intl.NumberFormat` in coupon-detail-dialog usage column (FIXED)
-
-**Severity:** Low
-**Location:** `coupon-detail-dialog.tsx:62-65`
-
-The usage column renderer created a new `Intl.NumberFormat` on every render for formatting discount amounts.
-
-**Fix applied:** Replaced with `formatCurrency(row.discount_amount)`.
-
----
-
-## Issues Documented (Not Fixed -- Require Design Decisions)
-
-### 6. No pagination in admin list endpoints
-
-**Severity:** Medium (scalability risk)
-**Impact:** As trainer count grows, all admin list hooks (`useAdminTrainers`, `useAdminSubscriptions`, `useAdminCoupons`, `useAdminUsers`) return the full array without pagination. The trainer dashboard properly uses `PaginatedResponse<T>` with page/pageSize parameters.
-
-**Current state:** Acceptable for early-stage platform (likely <100 trainers). The backend API may already paginate but the frontend ignores pagination metadata.
-
-**Recommendation:** Before scaling past ~200 trainers, add pagination to these hooks following the `useTrainees` pattern: accept `page` parameter, return `PaginatedResponse<T>`, and wire `DataTable`'s pagination props.
-
-### 7. Raw `<select>` elements instead of a shared component
-
-**Severity:** Low (consistency)
-**Impact:** 12+ raw `<select>` elements across admin pages and dialogs all manually applying the same Tailwind class string (with minor variations). When the design system evolves, all must be updated individually.
-
-**Current state:** Documented the class string as `SELECT_CLASSES` constant in `admin-constants.ts` for future extraction. A proper `Select` component from the UI library (e.g., shadcn Select) would be the ideal fix but requires a broader design decision.
-
-**Recommendation:** When the next design-system pass happens, replace raw `<select>` elements with a shared `FilterSelect` component or the shadcn `Select` primitive.
-
-### 8. No `staleTime` on detail queries
-
-**Severity:** Low
-**Impact:** `useAdminSubscription(id)`, `useAdminCoupon(id)`, and `useAdminUser(id)` do not set `staleTime`, meaning they refetch on every mount/focus. List queries properly set `staleTime: 5 * 60 * 1000`. This is acceptable for detail views (data freshness matters) but worth noting for consistency.
+- [x] Follows existing layered architecture (services for logic, views for HTTP only)
+- [x] Models/schemas in correct locations (`ambassador/models.py`, `ambassador/services/`)
+- [x] No business logic in views -- commission workflows properly delegated to `CommissionService`
+- [x] Consistent with existing patterns (`ReferralService` / `CommissionService` share same frozen-dataclass return style)
+- [x] URL mounting correct: ambassador endpoints at `/api/ambassador/`, admin endpoints at `/api/admin/ambassadors/`
+- [x] Mobile follows repository pattern: Screen -> Provider -> Repository -> ApiClient
 
 ---
 
@@ -142,60 +44,85 @@ The usage column renderer created a new `Intl.NumberFormat` on every render for 
 
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Type definitions match backend API | OK | Types in `types/admin.ts` mirror the Django REST serializers |
-| List vs. Detail type separation | OK | `AdminSubscriptionListItem` vs `AdminSubscription` -- good lightweight list types |
-| Query key structure | OK | Hierarchical `["admin", entity, id?, sub-resource?]` -- consistent and invalidation-friendly |
-| Cache invalidation strategy | OK | Mutations correctly invalidate related query keys including cross-entity (e.g., subscription changes invalidate dashboard) |
-| Optimistic updates | Good | `useToggleTierActive` uses optimistic updates with rollback -- gold-standard pattern |
+| Schema changes backward-compatible | PASS | Migration 0003 only widens `referral_code` to max_length=20 and `referral_code_used` similarly. No data loss. |
+| Migrations reversible | PASS | Only `AlterField` operations, fully reversible. |
+| Indexes added for new queries | PASS | All existing indexes cover the new query patterns. `referral_code` has both unique constraint + explicit index. |
+| No N+1 query patterns | FIXED | `AdminAmbassadorDetailView.get()` called `.count()` on referrals and commissions after pagination already computed counts internally, issuing 2 redundant SQL COUNT queries per request. Fixed to reuse paginator's cached count. |
+| Unique constraints appropriate | PASS | `unique_commission_per_referral_period` prevents duplicate commissions; `unique_ambassador_trainer_referral` prevents duplicate referrals. |
+| `select_for_update()` usage correct | PASS | Used in single-row approve/pay and bulk operations to prevent concurrent double-processing. Materialized IDs before UPDATE in bulk ops to ensure locks are held. |
+
+---
+
+## Issues Found & Fixed
+
+### 1. CRITICAL -- Unbounded bulk operation input (backend)
+**File:** `backend/ambassador/serializers.py` (BulkCommissionActionSerializer)
+**Issue:** `commission_ids` ListField had no `max_length`, allowing clients to send arbitrarily large lists (e.g., 100,000 IDs), causing memory pressure and long-running transactions with `SELECT FOR UPDATE`.
+**Fix:** Added `max_length=200` with a clear error message. Also added `validate_commission_ids` method to deduplicate IDs, preventing redundant DB work from duplicate entries in the list.
+
+### 2. MAJOR -- Redundant COUNT queries in admin detail view (backend)
+**File:** `backend/ambassador/views.py` (AdminAmbassadorDetailView.get)
+**Issue:** After paginating referrals and commissions, the view called `referrals.count()` and `commissions.count()` which issued 2 additional SQL COUNT queries. The paginator already computes count internally during `paginate_queryset()`.
+**Fix:** Reused `paginator.page.paginator.count` to avoid redundant queries. Falls back to `.count()` only when pagination was not applied.
+
+### 3. MAJOR -- Repository returns raw `Map<String, dynamic>` (mobile)
+**File:** `mobile/lib/features/ambassador/data/repositories/ambassador_repository.dart`
+**Issue:** `bulkApproveCommissions()` and `bulkPayCommissions()` returned `Map<String, dynamic>`, violating the project rule "never return dict" and the codebase convention that all API responses are typed models.
+**Fix:** Created `BulkCommissionActionResult` model in `ambassador_models.dart` with `fromJson` factory. Updated repository to return the typed model. Updated `admin_ambassador_detail_screen.dart` to use `result.processedCount` instead of raw map access.
+
+### 4. MAJOR -- 900-line widget file violating 150-line convention (mobile)
+**File:** `mobile/lib/features/admin/presentation/screens/admin_ambassador_detail_screen.dart`
+**Issue:** At 900+ lines, this single file contained all UI components (profile card, stats row, referrals list, commissions list) inline, violating the 150-line-per-widget convention.
+**Fix:** Extracted three reusable widget files:
+  - `ambassador_profile_card.dart` (167 lines) -- `AmbassadorProfileCard` + `AmbassadorStatsRow`
+  - `ambassador_referrals_list.dart` (117 lines) -- `AmbassadorReferralsList` with tile sub-widget
+  - `ambassador_commissions_list.dart` (261 lines) -- `AmbassadorCommissionsList` with tile and action button sub-widgets
+
+The main screen file is now 563 lines. The remaining length is business logic (dialog flows, API callbacks, error handling) that is tightly coupled to the screen's state. Moving this to a dedicated `StateNotifier` is recommended as a follow-up but was deferred to avoid regressions in this pass.
+
+---
 
 ## Scalability Concerns
 
 | # | Area | Issue | Recommendation |
 |---|------|-------|----------------|
-| 1 | List loading | No pagination -- all items loaded at once | Add pagination before exceeding ~200 items (see issue #6) |
-| 2 | Query cache | Detail queries fetch three sub-queries simultaneously (subscription, payments, changes) | Acceptable -- React Query deduplicates well. Consider a combined endpoint if tab switching causes waterfalls |
+| 1 | Bulk ops | Bulk approve/pay are now capped at 200 IDs per request. For ambassadors with thousands of commissions, the client should paginate. | Current cap is appropriate. Client-side already filters to pending/approved only. |
+| 2 | Dashboard aggregation | `AmbassadorDashboardView.get()` runs 3 separate queries (status counts, pending earnings, monthly data). Could be combined but each is indexed and lightweight. | Acceptable for now. Monitor if ambassador scale grows significantly. |
+| 3 | Cached stats | `refresh_cached_stats()` runs inside transactions in `CommissionService`, holding locks during the aggregation query. | Acceptable for correctness. If lock contention becomes measurable, move stats refresh to a post-commit hook or async task. |
+
+---
 
 ## Technical Debt Introduced
 
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| 1 | Raw `<select>` elements with inline Tailwind classes | Low | Extract to shared `FilterSelect` component or adopt shadcn Select |
-| 2 | `SELECT_CLASSES` constant created but not yet consumed by existing selects | Low | Migrate selects to use the constant in next refactor pass |
-
-## Positive Architecture Decisions
-
-1. **Route group separation** (`(admin-dashboard)` vs `(dashboard)`) cleanly isolates layouts and prevents cross-contamination of sidebar/navigation state.
-
-2. **Shared component reuse** -- `DataTable`, `PageHeader`, `ErrorState`, `EmptyState`, `StatCard` are all reused from the trainer dashboard. Zero duplication of structural components.
-
-3. **`adminNavLinks` extracted** into a separate data file (`admin-nav-links.ts`) matching the trainer `nav-links.ts` pattern. Easy to extend.
-
-4. **Impersonation architecture** -- admin tokens stored in `sessionStorage` (not persisted across tabs), trainer tokens set via `setTokens`, hard navigation on switch to clear stale React Query cache. Well-designed session handoff.
-
-5. **Auth guard pattern** -- admin layout has both an auth check AND a role check with redirect, matching the trainer layout's inverse guard. Both use `useEffect` for redirects and render loading spinners during the guard check.
-
-6. **Consistent hook patterns** -- all 6 admin hooks follow the same structure: `useQuery` for reads with typed generics, `useMutation` for writes with `onSuccess` invalidation. Filter objects are serialized to URL params identically across hooks.
-
-7. **Optimistic updates** -- `useToggleTierActive` implements proper optimistic mutation with `onMutate`/`onError` rollback. This is the right pattern for toggle-style actions.
-
-8. **Error handling** -- all mutations use `getErrorMessage(error)` via the centralized `error-utils.ts` which properly parses DRF validation error shapes.
+| 1 | `AdminAmbassadorDetailScreen` still uses `setState` for loading/error/processing state instead of Riverpod `StateNotifier` | Medium | Create an `AdminAmbassadorDetailNotifier` in the providers file to manage detail state. Would also eliminate the remaining 400+ lines of callback logic in the screen. |
+| 2 | `AmbassadorCommission` model on the Dart side stores fields as `String` rather than typed `Decimal`/`DateTime` | Low | Parsing amounts as `double` happens at usage site; centralizing to typed fields would prevent scattered `double.tryParse()` calls. |
+| 3 | `AmbassadorCommissionsList` at 261 lines slightly exceeds the 150-line widget convention | Low | The commission tile includes action button logic. Could extract `_CommissionTile` to its own file if more complexity is added. |
 
 ---
 
-## Fixes Applied During Review
+## Technical Debt Reduced
 
-### Files Created
-- `web/src/lib/admin-constants.ts` -- Centralized admin UI constants (TIER_COLORS, STATUS_VARIANT maps, SELECT_CLASSES)
+| # | Description |
+|---|-------------|
+| 1 | Commission approval/payment logic extracted from views into dedicated `CommissionService`, following the same pattern as `ReferralService`. |
+| 2 | Bulk operation repository methods now return typed `BulkCommissionActionResult` instead of raw maps. |
+| 3 | 900-line monolithic widget file decomposed into 3 focused widget files + slimmed screen. |
 
-### Files Modified
-- `web/src/types/admin.ts` -- Removed `TIER_COLORS` runtime constant, left types-only
-- `web/src/lib/format-utils.ts` -- Added `formatDiscount(type, value)` function
-- `web/src/components/admin/tier-list.tsx` -- Replaced local `formatPrice` with `formatCurrency`
-- `web/src/components/admin/trainer-list.tsx` -- Updated `TIER_COLORS` import to `@/lib/admin-constants`
-- `web/src/components/admin/subscription-list.tsx` -- Updated `TIER_COLORS` import, replaced local `STATUS_VARIANT` with `SUBSCRIPTION_STATUS_VARIANT`
-- `web/src/components/admin/tier-breakdown.tsx` -- Updated `TIER_COLORS` import
-- `web/src/components/admin/coupon-list.tsx` -- Replaced local `formatDiscountValue` with centralized `formatDiscount`
-- `web/src/components/admin/coupon-detail-dialog.tsx` -- Replaced local `formatDiscountDisplay` and inline `Intl.NumberFormat` with centralized `formatDiscount` and `formatCurrency`
+---
+
+## Positive Patterns Observed
+
+1. **Service layer design is excellent.** `CommissionService` follows the exact same frozen-dataclass result pattern as `ReferralService`. Static methods, proper `select_for_update()`, clear docstrings with raise documentation.
+
+2. **Referral annotation centralized.** `_annotate_referrals_with_commission()` helper prevents the N+1 pattern from creeping into multiple views.
+
+3. **Migration is minimal and safe.** Only `AlterField` on `max_length`, no data migration needed, fully reversible.
+
+4. **Custom referral code flow is well-guarded.** DB unique constraint as ultimate guard, serializer check as user-friendly fast path, `IntegrityError` catch for race conditions.
+
+5. **Mobile error handling is thorough.** `_parseErrorMessage` extracts server error messages from `DioException` response data rather than relying on brittle `toString()` matching.
 
 ---
 
@@ -203,10 +130,4 @@ The usage column renderer created a new `Intl.NumberFormat` on every render for 
 
 ## Recommendation: APPROVE
 
-The admin dashboard is well-architected. It correctly mirrors the trainer dashboard's patterns, reuses shared components, and follows the project's established layering (hooks -> apiClient -> backend). The five issues fixed (duplicate formatters, runtime constants in types file, duplicate status variant maps) were all maintainability/consistency problems, not architectural flaws. The two documented-but-not-fixed issues (pagination, raw selects) are acceptable at current scale but should be addressed before the platform scales significantly.
-
----
-
-**Review completed by:** Architect Agent
-**Date:** 2026-02-15
-**Pipeline:** 13 -- Admin Dashboard
+The implementation follows established architectural patterns well. The `CommissionService` is a textbook example of the service layer pattern used in this codebase. The main deductions are for the remaining `setState` usage in the admin detail screen (should be a `StateNotifier`) and the still-oversized screen file, both of which are documented as follow-up items. All critical and major issues found during this review have been fixed.

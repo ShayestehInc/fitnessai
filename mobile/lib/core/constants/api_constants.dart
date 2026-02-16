@@ -139,6 +139,14 @@ class ApiConstants {
   static String get adminAmbassadors => '$apiBaseUrl/admin/ambassadors/';
   static String get adminCreateAmbassador => '$apiBaseUrl/admin/ambassadors/create/';
   static String adminAmbassadorDetail(int id) => '$apiBaseUrl/admin/ambassadors/$id/';
+  static String adminAmbassadorCommissionApprove(int ambassadorId, int commissionId) =>
+      '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/$commissionId/approve/';
+  static String adminAmbassadorCommissionPay(int ambassadorId, int commissionId) =>
+      '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/$commissionId/pay/';
+  static String adminAmbassadorBulkApprove(int ambassadorId) =>
+      '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/bulk-approve/';
+  static String adminAmbassadorBulkPay(int ambassadorId) =>
+      '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/bulk-pay/';
 
   // Payment endpoints (Stripe Connect)
   static String get stripeConnectOnboard => '$apiBaseUrl/payments/connect/onboard/';

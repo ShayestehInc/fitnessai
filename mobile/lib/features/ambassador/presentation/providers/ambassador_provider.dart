@@ -48,6 +48,15 @@ class AmbassadorDashboardNotifier extends StateNotifier<AmbassadorDashboardState
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
+
+  /// Update the ambassador's referral code.
+  ///
+  /// Rethrows exceptions so that the calling dialog can catch and display
+  /// errors inline without polluting the dashboard-level error state.
+  Future<void> updateReferralCode(String code) async {
+    await _repository.updateReferralCode(code);
+    await loadDashboard();
+  }
 }
 
 final ambassadorDashboardProvider =

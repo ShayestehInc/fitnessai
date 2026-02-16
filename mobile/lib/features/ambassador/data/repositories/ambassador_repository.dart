@@ -32,6 +32,14 @@ class AmbassadorRepository {
     return ReferralCodeData.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<ReferralCodeData> updateReferralCode(String code) async {
+    final response = await _apiClient.dio.put(
+      ApiConstants.ambassadorReferralCode,
+      data: {'referral_code': code},
+    );
+    return ReferralCodeData.fromJson(response.data as Map<String, dynamic>);
+  }
+
   // Admin endpoints
 
   Future<List<AmbassadorProfile>> getAmbassadors({String? search, bool? isActive}) async {
@@ -85,5 +93,41 @@ class AmbassadorRepository {
       data: data,
     );
     return AmbassadorProfile.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  // Commission action endpoints (admin)
+
+  Future<void> approveCommission(int ambassadorId, int commissionId) async {
+    await _apiClient.dio.post(
+      ApiConstants.adminAmbassadorCommissionApprove(ambassadorId, commissionId),
+    );
+  }
+
+  Future<void> payCommission(int ambassadorId, int commissionId) async {
+    await _apiClient.dio.post(
+      ApiConstants.adminAmbassadorCommissionPay(ambassadorId, commissionId),
+    );
+  }
+
+  Future<BulkCommissionActionResult> bulkApproveCommissions(
+    int ambassadorId,
+    List<int> commissionIds,
+  ) async {
+    final response = await _apiClient.dio.post(
+      ApiConstants.adminAmbassadorBulkApprove(ambassadorId),
+      data: {'commission_ids': commissionIds},
+    );
+    return BulkCommissionActionResult.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<BulkCommissionActionResult> bulkPayCommissions(
+    int ambassadorId,
+    List<int> commissionIds,
+  ) async {
+    final response = await _apiClient.dio.post(
+      ApiConstants.adminAmbassadorBulkPay(ambassadorId),
+      data: {'commission_ids': commissionIds},
+    );
+    return BulkCommissionActionResult.fromJson(response.data as Map<String, dynamic>);
   }
 }

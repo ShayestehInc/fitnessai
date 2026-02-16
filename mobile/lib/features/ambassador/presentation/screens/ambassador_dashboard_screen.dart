@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/models/ambassador_models.dart';
 import '../providers/ambassador_provider.dart';
+import '../widgets/monthly_earnings_chart.dart';
 
 class AmbassadorDashboardScreen extends ConsumerStatefulWidget {
   const AmbassadorDashboardScreen({super.key});
@@ -10,6 +12,27 @@ class AmbassadorDashboardScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<AmbassadorDashboardScreen> createState() =>
       _AmbassadorDashboardScreenState();
+}
+
+/// Format a raw earnings string (e.g., "10500.00") into display currency
+/// with 2 decimal places and comma grouping (e.g., "$10,500.00").
+String _formatCurrency(String raw) {
+  final value = double.tryParse(raw);
+  if (value == null) return '\$$raw';
+  // Manual comma formatting to avoid intl dependency
+  final parts = value.toStringAsFixed(2).split('.');
+  final intPart = parts[0];
+  final decPart = parts[1];
+  final negative = intPart.startsWith('-');
+  final digits = negative ? intPart.substring(1) : intPart;
+  final buffer = StringBuffer();
+  for (int i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) {
+      buffer.write(',');
+    }
+    buffer.write(digits[i]);
+  }
+  return '\$${negative ? '-' : ''}$buffer.$decPart';
 }
 
 class _AmbassadorDashboardScreenState
@@ -134,6 +157,8 @@ class _AmbassadorDashboardScreenState
           const SizedBox(height: 16),
           _buildReferralCodeCard(theme, data),
           const SizedBox(height: 16),
+          MonthlyEarningsChart(monthlyEarnings: data.monthlyEarnings),
+          const SizedBox(height: 16),
           _buildStatsRow(theme, data),
           const SizedBox(height: 24),
           _buildRecentReferrals(theme, data),
@@ -192,7 +217,7 @@ class _AmbassadorDashboardScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            '\$${data.totalEarnings}',
+            _formatCurrency(data.totalEarnings),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 36,
@@ -202,7 +227,7 @@ class _AmbassadorDashboardScreenState
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildEarningStat('Pending', '\$${data.pendingEarnings}'),
+              _buildEarningStat('Pending', _formatCurrency(data.pendingEarnings)),
               const SizedBox(width: 24),
               _buildEarningStat('Commission', '${data.commissionPercent.toStringAsFixed(0)}%'),
             ],
@@ -258,13 +283,17 @@ class _AmbassadorDashboardScreenState
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    data.referralCode,
-                    style: TextStyle(
-                      color: theme.colorScheme.primary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 4,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      data.referralCode,
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 4,
+                      ),
                     ),
                   ),
                 ),
@@ -487,16 +516,24 @@ class _AmbassadorDashboardScreenState
     }
   }
 
-  void _shareCode(String code) {
-    final message = 'Join FitnessAI and grow your training business! Use my referral code $code when you sign up.';
-    Clipboard.setData(ClipboardData(text: message));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Share message copied to clipboard!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+  Future<void> _shareCode(String code) async {
+    final message =
+        'Join FitnessAI and grow your training business! Use my referral code $code when you sign up.';
+    try {
+      await Share.share(message);
+    } catch (_) {
+      // Fallback to clipboard if native share fails (PlatformException,
+      // MissingPluginException, or any other error on emulators/unsupported
+      // platforms).
+      await Clipboard.setData(ClipboardData(text: message));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Share message copied to clipboard!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 }

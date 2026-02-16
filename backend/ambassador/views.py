@@ -4,10 +4,11 @@ Ambassador views for dashboard, referrals, and admin management.
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any, cast
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Case, Count, Q, QuerySet, Sum, When
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -29,7 +30,10 @@ from .serializers import (
     AmbassadorListSerializer,
     AmbassadorProfileSerializer,
     AmbassadorReferralSerializer,
+    BulkCommissionActionSerializer,
+    CustomReferralCodeSerializer,
 )
+from .services.commission_service import CommissionService
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +103,7 @@ class AmbassadorDashboardView(APIView):
         ).aggregate(total=Sum('commission_amount'))['total'] or Decimal('0.00')
 
         # Monthly earnings for last 6 months
-        six_months_ago = timezone.now() - timezone.timedelta(days=180)
+        six_months_ago = timezone.now() - timedelta(days=180)
         monthly_data = (
             AmbassadorCommission.objects.filter(
                 ambassador=user,
@@ -179,28 +183,78 @@ class AmbassadorReferralCodeView(APIView):
     """
     GET /api/ambassador/referral-code/
     Returns the ambassador's referral code and a shareable message.
+
+    PUT /api/ambassador/referral-code/
+    Updates the ambassador's referral code to a custom value.
     """
     permission_classes = [IsAuthenticated, IsAmbassador]
 
+    def _get_profile(self, user: User) -> AmbassadorProfile | None:
+        try:
+            return AmbassadorProfile.objects.get(user=user)
+        except AmbassadorProfile.DoesNotExist:
+            return None
+
+    def _build_share_message(self, referral_code: str) -> str:
+        return (
+            f"Join FitnessAI and grow your training business! "
+            f"Use my referral code {referral_code} when you sign up."
+        )
+
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
+        profile = self._get_profile(user)
 
-        try:
-            profile = AmbassadorProfile.objects.get(user=user)
-        except AmbassadorProfile.DoesNotExist:
+        if profile is None:
             return Response(
                 {'error': 'Ambassador profile not found.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        share_message = (
-            f"Join FitnessAI and grow your training business! "
-            f"Use my referral code {profile.referral_code} when you sign up."
+        return Response({
+            'referral_code': profile.referral_code,
+            'share_message': self._build_share_message(profile.referral_code),
+        })
+
+    def put(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        profile = self._get_profile(user)
+
+        if profile is None:
+            return Response(
+                {'error': 'Ambassador profile not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = CustomReferralCodeSerializer(
+            data=request.data,
+            context={'profile_id': profile.id},
+        )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated = cast(dict[str, Any], serializer.validated_data)
+        new_code = validated['referral_code']
+
+        profile.referral_code = new_code
+        try:
+            # The DB unique constraint is the real guard against concurrent
+            # claims; the serializer check is just a user-friendly fast path.
+            profile.save(update_fields=['referral_code'])
+        except IntegrityError:
+            return Response(
+                {'referral_code': ['This referral code is already in use.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        logger.info(
+            "Ambassador %s updated referral code to %s",
+            user.email, new_code,
         )
 
         return Response({
             'referral_code': profile.referral_code,
-            'share_message': share_message,
+            'share_message': self._build_share_message(profile.referral_code),
         })
 
 
@@ -330,6 +384,12 @@ class AdminAmbassadorDetailView(APIView):
         referral_data = AmbassadorReferralSerializer(
             referral_page if referral_page is not None else referrals, many=True,
         ).data
+        # Reuse the count the paginator already computed to avoid a duplicate COUNT query.
+        referrals_total = (
+            referral_paginator.page.paginator.count
+            if referral_paginator.page is not None
+            else referrals.count()
+        )
 
         # Paginate commissions
         commission_paginator = PageNumberPagination()
@@ -339,13 +399,18 @@ class AdminAmbassadorDetailView(APIView):
         commission_data = AmbassadorCommissionSerializer(
             commission_page if commission_page is not None else commissions, many=True,
         ).data
+        commissions_total = (
+            commission_paginator.page.paginator.count
+            if commission_paginator.page is not None
+            else commissions.count()
+        )
 
         return Response({
             'profile': AmbassadorProfileSerializer(profile).data,
             'referrals': referral_data,
-            'referrals_count': referrals.count(),
+            'referrals_count': referrals_total,
             'commissions': commission_data,
-            'commissions_count': commissions.count(),
+            'commissions_count': commissions_total,
         })
 
     def put(self, request: Request, ambassador_id: int) -> Response:
@@ -362,7 +427,7 @@ class AdminAmbassadorDetailView(APIView):
 
         validated = cast(dict[str, Any], serializer.validated_data)
 
-        update_fields: list[str] = ['updated_at']
+        update_fields: list[str] = []
         if 'commission_rate' in validated:
             profile.commission_rate = validated['commission_rate']
             update_fields.append('commission_rate')
@@ -370,7 +435,10 @@ class AdminAmbassadorDetailView(APIView):
             profile.is_active = validated['is_active']
             update_fields.append('is_active')
 
-        profile.save(update_fields=update_fields)
+        if update_fields:
+            # auto_now=True on updated_at ensures the timestamp is included
+            # automatically by Django whenever update_fields is specified.
+            profile.save(update_fields=update_fields)
 
         logger.info(
             "Admin updated ambassador %s: rate=%s, active=%s",
@@ -378,3 +446,97 @@ class AdminAmbassadorDetailView(APIView):
         )
 
         return Response(AmbassadorProfileSerializer(profile).data)
+
+
+class AdminCommissionApproveView(APIView):
+    """
+    POST /api/admin/ambassadors/<ambassador_id>/commissions/<commission_id>/approve/
+    Approve a single PENDING commission.
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request: Request, ambassador_id: int, commission_id: int) -> Response:
+        result = CommissionService.approve_commission(
+            commission_id=commission_id,
+            ambassador_profile_id=ambassador_id,
+        )
+
+        if not result.success:
+            return Response(
+                {'error': result.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({'message': result.message})
+
+
+class AdminCommissionPayView(APIView):
+    """
+    POST /api/admin/ambassadors/<ambassador_id>/commissions/<commission_id>/pay/
+    Mark a single APPROVED commission as PAID.
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request: Request, ambassador_id: int, commission_id: int) -> Response:
+        result = CommissionService.pay_commission(
+            commission_id=commission_id,
+            ambassador_profile_id=ambassador_id,
+        )
+
+        if not result.success:
+            return Response(
+                {'error': result.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({'message': result.message})
+
+
+class AdminBulkApproveCommissionsView(APIView):
+    """
+    POST /api/admin/ambassadors/<ambassador_id>/commissions/bulk-approve/
+    Bulk approve all PENDING commissions in the provided list.
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request: Request, ambassador_id: int) -> Response:
+        serializer = BulkCommissionActionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated = cast(dict[str, Any], serializer.validated_data)
+        result = CommissionService.bulk_approve(
+            commission_ids=validated['commission_ids'],
+            ambassador_profile_id=ambassador_id,
+        )
+
+        return Response({
+            'message': result.message,
+            'approved_count': result.processed_count,
+            'skipped_count': result.skipped_count,
+        })
+
+
+class AdminBulkPayCommissionsView(APIView):
+    """
+    POST /api/admin/ambassadors/<ambassador_id>/commissions/bulk-pay/
+    Bulk mark all APPROVED commissions as PAID in the provided list.
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request: Request, ambassador_id: int) -> Response:
+        serializer = BulkCommissionActionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated = cast(dict[str, Any], serializer.validated_data)
+        result = CommissionService.bulk_pay(
+            commission_ids=validated['commission_ids'],
+            ambassador_profile_id=ambassador_id,
+        )
+
+        return Response({
+            'message': result.message,
+            'paid_count': result.processed_count,
+            'skipped_count': result.skipped_count,
+        })

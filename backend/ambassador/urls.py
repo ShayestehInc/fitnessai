@@ -19,4 +19,24 @@ admin_urlpatterns = [
     path('', views.AdminAmbassadorListView.as_view(), name='admin-ambassador-list'),
     path('create/', views.AdminCreateAmbassadorView.as_view(), name='admin-ambassador-create'),
     path('<int:ambassador_id>/', views.AdminAmbassadorDetailView.as_view(), name='admin-ambassador-detail'),
+    path(
+        '<int:ambassador_id>/commissions/<int:commission_id>/approve/',
+        views.AdminCommissionApproveView.as_view(),
+        name='admin-commission-approve',
+    ),
+    path(
+        '<int:ambassador_id>/commissions/<int:commission_id>/pay/',
+        views.AdminCommissionPayView.as_view(),
+        name='admin-commission-pay',
+    ),
+    path(
+        '<int:ambassador_id>/commissions/bulk-approve/',
+        views.AdminBulkApproveCommissionsView.as_view(),
+        name='admin-commission-bulk-approve',
+    ),
+    path(
+        '<int:ambassador_id>/commissions/bulk-pay/',
+        views.AdminBulkPayCommissionsView.as_view(),
+        name='admin-commission-bulk-pay',
+    ),
 ]

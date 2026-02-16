@@ -237,6 +237,30 @@ class AmbassadorCommission {
   }
 }
 
+class BulkCommissionActionResult {
+  final String message;
+  final int processedCount;
+  final int skippedCount;
+
+  const BulkCommissionActionResult({
+    required this.message,
+    required this.processedCount,
+    required this.skippedCount,
+  });
+
+  factory BulkCommissionActionResult.fromJson(Map<String, dynamic> json) {
+    // The backend uses 'approved_count' for approve and 'paid_count' for pay.
+    // We normalise both into processedCount.
+    final approved = json['approved_count'] as int?;
+    final paid = json['paid_count'] as int?;
+    return BulkCommissionActionResult(
+      message: json['message'] as String? ?? '',
+      processedCount: approved ?? paid ?? 0,
+      skippedCount: json['skipped_count'] as int? ?? 0,
+    );
+  }
+}
+
 class AmbassadorDetailData {
   final AmbassadorProfile profile;
   final List<AmbassadorReferral> referrals;
