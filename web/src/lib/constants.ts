@@ -38,6 +38,8 @@ export const API_URLS = {
   // Progress / Analytics
   traineeProgress: (id: number) =>
     `${API_BASE}/api/trainer/trainees/${id}/progress/`,
+  ANALYTICS_ADHERENCE: `${API_BASE}/api/trainer/analytics/adherence/`,
+  ANALYTICS_PROGRESS: `${API_BASE}/api/trainer/analytics/progress/`,
 } as const;
 
 export const TOKEN_KEYS = {

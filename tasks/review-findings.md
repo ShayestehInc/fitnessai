@@ -1,245 +1,78 @@
-# Code Review Round 2: Web Dashboard Phase 2 — Settings, Progress Charts, Notifications & Invitations
+# Code Review Round 2: Web Dashboard Phase 3 — Trainer Analytics Page
 
-## Review Date
-2026-02-15 (Round 2)
+## Review Date: 2026-02-15
 
-## Scope of This Review
-Verifying fixes applied in commit `4cd602a` ("wip: review fixes round 1") against all Critical and Major issues from Round 1.
+## Round 1 Issue Verification
 
-## Files Re-Reviewed (changed in fix round)
-- `web/src/providers/auth-provider.tsx` (refreshUser added to context)
-- `web/src/hooks/use-settings.ts` (switched from queryClient.setQueryData to refreshUser)
-- `web/src/components/settings/profile-section.tsx` (form as single object, file input reset timing)
-- `web/src/components/settings/appearance-section.tsx` (useSyncExternalStore hydration fix)
-- `web/src/components/trainees/progress-charts.tsx` (stackId, formatDate, YAxis domain)
-- `web/src/components/invitations/invitation-actions.tsx` (try/catch, status comment)
-- `web/src/components/notifications/notification-bell.tsx` (conditional popover render)
-- `web/src/hooks/use-progress.ts` (staleTime added)
+### Critical Issues
 
----
+| # | Issue | Status | Evidence |
+|---|-------|--------|----------|
+| C1 | Wrong amber color — used green hsl(142 71% 45%) instead of amber | **FIXED** | `adherence-chart.tsx:17` now uses `"hsl(32 95% 44%)"` (amber). Tri-color system is visually correct: green for >=80%, amber for 50-79%, red for <50%. |
+| C2 | No loading feedback on period switch — `isFetching` not used | **FIXED** | `adherence-section.tsx:72` destructures `isFetching` from the hook. Line 102 applies `opacity-50` transition during refetch with `aria-busy={isFetching}` for accessibility. Stale data is visually dimmed while new data loads. |
 
-## Round 1 Fix Verification
+### Major Issues
 
-### C1: React Query cache update targets key nothing reads (FIXED - VERIFIED)
+| # | Issue | Status | Evidence |
+|---|-------|--------|----------|
+| M1 | Fragile recharts `onClick` cast (`as unknown as TraineeAdherence`) | **FIXED** | `adherence-chart.tsx:89-93` now uses `(_entry, index)` and looks up `sorted[index]` with a null guard. Type-safe and index-stable. |
+| M2 | No SVG tooltip on truncated Y-axis names | **FIXED** | `adherence-chart.tsx:58-75` uses a custom `tick` component that renders an SVG `<title>` child inside `<text>`. Full name is accessible on hover. |
+| M3 | Conditional rendering allows overlapping states | **FIXED** | Both `adherence-section.tsx:87-136` and `progress-section.tsx:129-157` now use exclusive ternary chains: `isLoading ? ... : isError ? ... : isEmpty ? ... : hasData ? ... : null`. Exactly one state renders at any time. |
+| M4 | Misleading empty state message ("No active trainees") | **FIXED** | `adherence-section.tsx:97-98` now reads "No adherence data for this period" with description "No trainees have logged activity in the last {days} days. They'll appear here once they start tracking." Accurately reflects data semantics. |
+| M5 | Missing keyboard navigation on radio group | **FIXED** | `period-selector.tsx:16-38` implements roving tabindex with `handleKeyDown` for ArrowLeft/ArrowRight/ArrowUp/ArrowDown with wrap-around. Selected button gets `tabIndex={0}`, others get `tabIndex={-1}` (line 56). Matches the pattern established in `appearance-section.tsx`. |
+| M6 | `days` parameter typed as `number` instead of `7 | 14 | 30` | **FIXED** | `analytics.ts:1` defines `AdherencePeriod = 7 | 14 | 30`. This type is used in `use-analytics.ts:12`, `period-selector.tsx:6,9,10`, and `adherence-section.tsx:71`. Compile-time safety for valid period values. |
+| M7 | Column key "name" doesn't match property "trainee_name" | **FIXED** | `progress-section.tsx:67` now uses `key: "trainee_name"`. |
 
-**Fix applied:** `refreshUser` method exposed from `AuthProvider` context (line 28, 133 of `auth-provider.tsx`). The `useMemo` dependency array correctly includes `fetchUser` (line 135). All three mutations in `use-settings.ts` (`useUpdateProfile`, `useUploadProfileImage`, `useDeleteProfileImage`) now call `refreshUser()` in their `onSuccess` callback instead of `queryClient.setQueryData`.
+### Minor Issues (spot-checked)
 
-**Verification:** The `refreshUser` function is the same `fetchUser` callback (line 133: `refreshUser: fetchUser`). `fetchUser` calls `apiClient.get<User>(API_URLS.CURRENT_USER)` and then `setUser(userData)`, which updates the React Context state directly. This correctly propagates to all consumers of `useAuth()`, including the header nav dropdown. The `useQueryClient` import was also correctly removed from `use-settings.ts`.
-
-**Status: RESOLVED. AC-10 is now PASS.**
-
-### C2: Form state never syncs with user changes (FIXED - VERIFIED)
-
-**Fix applied:** The fixer chose not to add a `useEffect` sync (noting it would cause ESLint exhaustive-deps issues). Instead, form state was consolidated into a single `useState` object (line 31-35 of `profile-section.tsx`). The form initializes from `user` at mount time; after save, `refreshUser()` updates the auth context, but the form retains the values the user just typed (which are correct since the save succeeded).
-
-**Analysis of the approach:** This is actually the right call. The original concern was: "if the component re-renders or the user navigates away and back, the form shows stale data." With the C1 fix in place:
-- If the save succeeds: the form shows what the user typed (correct), and `refreshUser()` updates the context (header updates).
-- If the user navigates away and back: `ProfileSection` remounts, `useState` re-initializes from the now-updated `user` context value (correct).
-- If the save fails: the form keeps the user's typed values for retry (correct), and the context remains unchanged.
-
-The only edge case would be if something *else* updated the user externally while the form was open (e.g., another tab), but that's an edge case not worth adding complexity for. The approach is sound.
-
-**Status: RESOLVED.**
-
-### M1: Hydration mismatch in AppearanceSection (FIXED - VERIFIED)
-
-**Fix applied:** Uses `useSyncExternalStore` with server/client snapshots (line 16, 26 of `appearance-section.tsx`):
-```tsx
-const emptySubscribe = () => () => {};
-const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
-```
-
-When `!mounted`, renders three `Skeleton` placeholders. When mounted, renders the actual theme buttons with `aria-checked` and styling.
-
-**Analysis:** This is a well-known pattern and a valid alternative to the `useState + useEffect` approach. `useSyncExternalStore` with different client/server snapshots is the React 18-blessed way to handle this. The `emptySubscribe` function correctly returns an unsubscribe callback (a no-op). The server snapshot returns `false`, client returns `true`, preventing hydration mismatch. The skeleton placeholder maintains layout stability during the brief unmounted period.
-
-**Status: RESOLVED.**
-
-### M2: Adherence chart grouped instead of stacked (FIXED - VERIFIED)
-
-**Fix applied:** All three `<Bar>` elements now have `stackId="adherence"` (lines 245, 250, 255 of `progress-charts.tsx`). YAxis domain changed from `[0, 1]` to `[0, 3]` with ticks `[0, 1, 2, 3]`. The old `tickFormatter` (yes/no) was removed. The Tooltip formatter now shows `"Yes"` / `"No"` per individual bar segment (line 237-240).
-
-**Analysis:** The stacking is correct. Each bar segment is 0 or 1, so the maximum stacked height is 3 (all three goals met). The YAxis `[0, 3]` domain and `[0, 1, 2, 3]` ticks make sense. Only the top bar (`protein`) has `radius={[2, 2, 0, 0]}` for rounded top corners, which is visually correct for a stacked bar (only the topmost segment should be rounded).
-
-**One minor note:** The tooltip formatter types `value` as `number | undefined` and `name` as `string | undefined`. The `name ?? ""` fallback is fine. The `value === 1 ? "Yes" : "No"` logic is correct for boolean 0/1 values but will show "No" for value `2` or `3` if recharts ever passes aggregate values. Since recharts tooltip shows per-segment values for stacked bars (not totals), this is correct behavior.
-
-**Status: RESOLVED. AC-14 is now PASS.**
-
-### M3: Clipboard writeText try/catch (FIXED - VERIFIED)
-
-**Fix applied:** `handleCopy` in `invitation-actions.tsx` (lines 44-52) now wraps the entire `navigator.clipboard.writeText()` call in a try/catch block. The catch clause calls `toast.error("Failed to copy code")`. The inner `.then(success, failure)` pattern handles promise rejections.
-
-**Status: RESOLVED.**
-
-### M4: Date parsing safety (FIXED - VERIFIED)
-
-**Fix applied:** A `formatDate()` helper function was added at the top of `progress-charts.tsx` (lines 27-30) using `parseISO` + `isValid` from `date-fns`. Falls back to raw `dateStr` if parsing fails. All three chart components now use `formatDate(entry.date)` instead of `format(new Date(entry.date), "MMM d")`.
-
-**Status: RESOLVED.**
-
-### M5: File input reset timing (FIXED - VERIFIED)
-
-**Fix applied:** In `profile-section.tsx`, the `e.target` reference is captured as `const input = e.target` (line 72) before calling `uploadImage.mutate()`. The `input.value = ""` is now inside both `onSuccess` (line 76) and `onError` (line 80) callbacks. This ensures the file input is only reset after the mutation completes, not immediately.
-
-**Analysis:** Capturing `e.target` in a local variable before the async callback is correct -- it prevents the synthetic event from being reused/nullified by React's event pooling (though React 17+ no longer pools, this is still good defensive practice).
-
-**Status: RESOLVED.**
-
-### m1: confirmPassword dependency (REVERTED - ACCEPTED)
-
-**Explanation:** The fixer reports ESLint exhaustive-deps does not flag `confirmPassword` as missing because it's captured via the `validate` function closure, and `validate` is already in the dependency array. I verified: `handleSubmit` at line 89 depends on `[currentPassword, newPassword, validate, changePassword]`. The `validate` function at line 42 depends on `[currentPassword, newPassword, confirmPassword]`. Since `validate` updates when `confirmPassword` changes, and `handleSubmit` depends on `validate`, the dependency chain is complete. ESLint is correct here.
-
-**Status: NOT AN ISSUE. Correctly assessed by the fixer.**
-
-### m3: staleTime on progress query (FIXED - VERIFIED)
-
-**Fix applied:** `staleTime: 5 * 60 * 1000` added to `useTraineeProgress` in `use-progress.ts` (line 14).
-
-**Status: RESOLVED.**
-
-### m6: Status derivation comment (FIXED - VERIFIED)
-
-**Fix applied:** Comment added at `invitation-actions.tsx` line 36: `// Backend keeps status=PENDING even after expiration; is_expired flag distinguishes`.
-
-**Status: RESOLVED.**
-
-### m8: Conditional popover render (FIXED - VERIFIED)
-
-**Fix applied:** `notification-bell.tsx` line 30 now renders `{open && <NotificationPopover .../>}` instead of unconditionally rendering the popover. This ensures `useNotifications()` inside the popover only fires when the popover is actually open.
-
-**Status: RESOLVED.**
+| # | Issue | Status | Notes |
+|---|-------|--------|-------|
+| m1 | StatDisplay duplicates StatCard | Open | Still a local component. Low priority — acceptable to defer. |
+| m2 | Color representations differ between chart and stat cards | Open | Chart uses HSL, stat cards use Tailwind classes. Low priority. |
+| m3 | `labelFormatter` is a no-op | **FIXED** | Removed from Tooltip props. |
+| m4 | Name column has `title` but no truncation CSS | **FIXED** | `progress-section.tsx:70` now has `className="font-medium truncate max-w-[200px] block"`. |
+| m5 | No Next.js metadata export | Open | Page still lacks `export const metadata`. Low priority. |
+| m6 | tooltipContentStyle duplicated across files | Open | Still module-level in adherence-chart.tsx. Low priority. |
+| m7 | Client-side sort is redundant | Open | Still present at `adherence-chart.tsx:36`. Negligible performance impact. |
+| m8 | Verbose `Array.from({ length: N })` pattern | **FIXED** | Both sections now use `[0, 1, 2].map(...)` pattern. |
+| m9 | Tooltip formatter type is loose | Open | Still uses `number | undefined`. Low risk. |
 
 ---
 
-## Previously Identified Issues Still Open (unfixed from Round 1)
+## Additional Checks (Round 2)
 
-### Minor Issues (not blocking)
+### Scroll Container for Large Datasets
+The chart now has `<div className="max-h-[600px] overflow-y-auto">` wrapping the `AdherenceBarChart` component (`adherence-section.tsx:130`). This addresses edge case #6 (50+ trainees chart scrolls vertically). **FIXED.**
 
-| # | File:Line | Issue | Status |
-|---|-----------|-------|--------|
-| m2 | `security-section.tsx:108,127,148` | Error clearing sets empty string instead of removing key | NOT FIXED -- acceptable, `""` is falsy |
-| m4 | `notification-popover.tsx:24` | Magic number `5` for popover limit | NOT FIXED -- cosmetic |
-| m5 | `progress-charts.tsx:81` | YAxis domain uses string math `"dataMin - 2"` | NOT FIXED -- recharts documents this syntax |
-| m7 | `settings/page.tsx:46` | Error retry uses `window.location.reload()` | NOT FIXED -- acceptable for context-based auth |
-| m9 | `use-settings.ts:11` | `business_name` typed as `string` not `string | null` | NOT FIXED -- minor data integrity |
+### isFetching Edge Case
+Verified: when `isFetching` is true during a period change and the user is viewing the data state, the content correctly dims to 50% opacity with a CSS transition. The `aria-busy={isFetching}` attribute provides screen reader feedback. When the section is in an empty or error state, the isFetching indicator does not apply (correct — no stale data to dim). **GOOD.**
 
-All remaining unfixed items are minor and non-blocking.
+### Ternary Chain Completeness
+Both sections end with `: null` as the final fallback. This handles the brief moment when `isLoading=false`, `isError=false`, and `data=undefined` (between mount and first query execution). Renders nothing, which is harmless and unnoticeable. **ACCEPTABLE.**
 
----
-
-## New Issues Introduced by Fixes
-
-### No Critical Issues
-
-### No Major Issues
-
-### Minor Issues (new)
-
-| # | File:Line | Issue | Suggested Fix |
-|---|-----------|-------|---------------|
-| n1 | `auth-provider.tsx:133` | `refreshUser` is exposed as `fetchUser`, which clears tokens and sets user to null on ANY API failure (line 47-48). If the `/api/auth/users/me/` endpoint has a transient 500 error during a `refreshUser()` call triggered by a profile save, the user gets logged out even though their save succeeded. | This is pre-existing behavior in `fetchUser`, not introduced by the fix. Low risk since the endpoint is a simple read. Flagging for awareness, not blocking. |
-| n2 | `use-settings.ts:38,56,70` | `refreshUser()` returns `Promise<void>` but the returned promise is not awaited in `onSuccess`. If the re-fetch fails, the error is silently swallowed. | Since `fetchUser` already handles its own errors internally (catch block in auth-provider), this is acceptable. The save itself succeeded, and the header will update on next navigation/mount. Low priority. |
-
-Neither of these is blocking. They are pre-existing patterns, not regressions introduced by the fixes.
+### Keyboard Navigation Correctness
+The `handleKeyDown` uses modulo arithmetic for wrap-around: `(currentIndex + 1) % PERIODS.length` and `(currentIndex - 1 + PERIODS.length) % PERIODS.length`. Both are correct. Focus is moved programmatically after selection via `buttons?.[nextIndex]?.focus()`. The `useCallback` dependency array includes `[value, onChange]` — correct. **GOOD.**
 
 ---
 
-## Acceptance Criteria Verification (Updated)
+## New Issues Found
 
-### Settings Page (AC-1 through AC-10)
-
-| AC | Description | Status | Evidence |
-|----|-------------|--------|----------|
-| AC-1 | Three sections: Profile, Appearance, Security | PASS | `settings/page.tsx:55-57` |
-| AC-2 | Profile editable fields + save + toast | PASS | `profile-section.tsx:37-48` |
-| AC-3 | Email read-only | PASS | `profile-section.tsx:192-202` |
-| AC-4 | Profile image upload/remove | PASS | `profile-section.tsx:51-92` |
-| AC-5 | Theme toggle (Light/Dark/System) | PASS | `appearance-section.tsx:24-70` |
-| AC-6 | Password change form | PASS | `security-section.tsx:99-168` |
-| AC-7 | Validation | PASS | maxLength, min 8, confirm match |
-| AC-8 | Loading skeleton | PASS | `settings/page.tsx:11-26` |
-| AC-9 | Error state with retry | PASS | `settings/page.tsx:40-49` |
-| AC-10 | Header reflects updated name immediately | **PASS** | `refreshUser()` updates auth context; header reads from `useAuth()` |
-
-### Progress Charts (AC-11 through AC-17)
-
-| AC | Description | Status | Evidence |
-|----|-------------|--------|----------|
-| AC-11 | Fetches progress, shows 3 charts | PASS | |
-| AC-12 | Weight trend line chart + empty state | PASS | |
-| AC-13 | Volume bar chart + empty state | PASS | |
-| AC-14 | Adherence stacked bar with legend | **PASS** | `stackId="adherence"` on all 3 bars, YAxis [0,3] |
-| AC-15 | Charts responsive | PASS | |
-| AC-16 | Loading skeleton | PASS | |
-| AC-17 | Error state with retry | PASS | |
-
-### Notification Click-Through (AC-18 through AC-21)
-
-| AC | Description | Status | Evidence |
-|----|-------------|--------|----------|
-| AC-18 | Click with trainee_id navigates | PASS | |
-| AC-19 | Click without trainee_id only marks read | PASS | |
-| AC-20 | Works in both popover and full page | PASS | |
-| AC-21 | Backend includes trainee_id in data | NOT VERIFIED | No backend changes made; pre-existing |
-
-### Invitation Row Actions (AC-22 through AC-28)
-
-| AC | Description | Status | Evidence |
-|----|-------------|--------|----------|
-| AC-22 | "..." dropdown menu per row | PASS | |
-| AC-23 | PENDING: Copy, Resend, Cancel | PASS | |
-| AC-24 | EXPIRED: Copy, Resend | PASS | |
-| AC-25 | ACCEPTED/CANCELLED: Copy only | PASS | |
-| AC-26 | Copy Code + toast | PASS | Now with try/catch |
-| AC-27 | Resend + toast + refresh | PASS | |
-| AC-28 | Cancel dialog + DELETE + toast + refresh | PASS | |
-
-### Summary: 27/28 ACs PASS, 1 NOT VERIFIED (AC-21 -- backend pre-existing, out of scope for this change).
+None. All critical and major issues from Round 1 have been properly addressed. The remaining open items are all minor (m1, m2, m5, m6, m7, m9) and represent polish/consistency improvements that do not affect correctness, usability, or reliability. These can be addressed in a future cleanup pass.
 
 ---
 
-## Security Concerns
+## Quality Score: 9/10
 
-No new security concerns introduced by the fixes. The `refreshUser` function reuses the existing `fetchUser` which goes through the authenticated `apiClient`.
-
----
-
-## Performance Concerns
-
-The `refreshUser()` call in each mutation's `onSuccess` adds one additional API call after every profile/image mutation. This is acceptable -- it's a single GET request that replaces the previous (broken) approach of writing to an unread cache key. The alternative would be to update context directly from the mutation response, but `refreshUser()` is simpler and ensures the context always reflects server truth.
-
-The `staleTime` addition on progress queries reduces unnecessary refetches. Good improvement.
-
-The conditional popover render eliminates unnecessary notification queries. Good improvement.
-
----
-
-## Quality Score: 8/10
-
-### Breakdown
-- **Functionality: 9/10** -- All critical ACs now pass. AC-21 is out of scope (backend pre-existing).
-- **Code Quality: 8/10** -- Clean fix approach. `useSyncExternalStore` is the right tool. Form state consolidation is clean.
-- **Security: 9/10** -- No issues found or introduced.
-- **Performance: 8/10** -- Reasonable. `refreshUser` adds one API call per save, acceptable trade-off.
-- **Edge Cases: 8/10** -- All ticket edge cases handled. Double-click on dropdown still technically possible but mitigated by mutation `isPending`.
-- **Architecture: 8/10** -- The React Context / mutation interaction is now correct. Auth state is updated through the proper channel.
-
-### What Improved Since Round 1
-- **C1 was the show-stopper** -- now properly resolved with a clean `refreshUser` pattern.
-- **C2 concern is moot** -- form re-initializes from context on remount, and retains typed values during the same session. Correct behavior.
-- **M1 hydration fix** uses the idiomatic React 18 approach with `useSyncExternalStore`.
-- **M2 stacked chart** now matches the spec with proper `stackId` and domain.
-- **M3-M5** all cleanly resolved.
-
-### What Keeps It at 8 (not higher)
-- 5 minor issues from round 1 remain unfixed (m2, m4, m5, m7, m9). None are blocking, but they represent polish debt.
-- AC-21 remains unverified (backend notification `data` field).
-- The `refreshUser` = `fetchUser` pattern logs the user out on transient API errors (pre-existing, not a regression).
+### Breakdown:
+- **Correctness: 9/10** — All functional issues resolved. Tri-color system now visually correct. Period switching provides clear loading feedback. Exclusive ternary chains prevent state overlap.
+- **Type Safety: 9/10** — `AdherencePeriod` union type provides compile-time safety. Recharts onClick uses index-based lookup. Clean type usage throughout.
+- **Accessibility: 9/10** — Full keyboard navigation with roving tabindex on radio group. `aria-busy` during refetch. `aria-checked`, `aria-label`, `aria-labelledby`, `aria-hidden` all present. SVG `<title>` for truncated names.
+- **Code Quality: 8/10** — Clean component structure. Minor duplication (StatDisplay vs StatCard, tooltip styles) remains but does not impede maintainability.
+- **Edge Case Handling: 9/10** — Scroll container for large datasets, truncation with tooltip, period-specific empty state messaging, null weight handling, goal formatting fallback.
+- **Pattern Consistency: 8/10** — Follows existing codebase patterns well. Color system inconsistency between chart HSL and Tailwind classes is minor.
 
 ---
 
 ## Recommendation: APPROVE
 
-All 2 Critical issues and all 5 Major issues from Round 1 have been properly fixed. No new Critical or Major issues were introduced by the fixes. The remaining open items are all Minor severity and do not block merge.
-
-The code is production-ready for this feature set.
+All 2 critical and 7 major issues from Round 1 have been properly fixed. The fixes are well-implemented — not band-aids but proper solutions that follow established patterns in the codebase (e.g., the roving tabindex mirrors `appearance-section.tsx`, the exclusive ternary chain is a clean pattern). The remaining open items are all minor and do not affect the user experience, correctness, or security of the feature. This is ready to merge.

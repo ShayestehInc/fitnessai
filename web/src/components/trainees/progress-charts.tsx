@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
+import { tooltipContentStyle, CHART_COLORS } from "@/lib/chart-utils";
 import type { WeightEntry, VolumeEntry, AdherenceEntry } from "@/types/progress";
 
 function formatDate(dateStr: string): string {
@@ -32,21 +33,6 @@ function formatDate(dateStr: string): string {
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);
 }
-
-/** Shared tooltip styling that follows the design system theme */
-const tooltipContentStyle: React.CSSProperties = {
-  backgroundColor: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "var(--radius)",
-  color: "hsl(var(--card-foreground))",
-};
-
-/** Theme-aware chart colors mapped to --chart-N CSS custom properties */
-const CHART_COLORS = {
-  food: "hsl(var(--chart-2))",
-  workout: "hsl(var(--chart-1))",
-  protein: "hsl(var(--chart-4))",
-} as const;
 
 interface WeightChartProps {
   data: WeightEntry[];

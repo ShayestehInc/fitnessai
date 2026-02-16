@@ -4,6 +4,41 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-15] — Web Dashboard Phase 3 (Trainer Analytics Page)
+
+### Added
+- **Trainer Analytics Page** — New `/analytics` route with two independent sections: Adherence and Progress. Nav link added between Invitations and Notifications.
+- **Adherence Section** — Three `StatCard` components (Food Logged, Workouts Logged, Protein Goal Hit) with color-coded values: green (≥80%), amber (50-79%), red (<50%). Text descriptions ("Above target", "Below target", "Needs attention") for WCAG 1.4.1 color-only compliance.
+- **Adherence Bar Chart** — Horizontal recharts `BarChart` with per-trainee adherence rates sorted descending. Theme-aware colors via CSS custom properties (`--chart-2`, `--chart-4`, `--destructive`). Click-through navigation to trainee detail page. Custom YAxis tick with SVG `<title>` for truncated name tooltips.
+- **Period Selector** — 7d/14d/30d tab-style radio group with WAI-ARIA radiogroup pattern: roving tabindex, arrow key navigation (Left/Right/Up/Down), `aria-checked`, `aria-label` with expanded text. `disabled` prop during initial load. Focus-visible rings and active press states.
+- **Progress Section** — `DataTable` with 4 columns: trainee name (truncated with title tooltip), current weight, weight change (with TrendingUp/TrendingDown icons and goal-aligned coloring), and goal. Click-through to trainee detail.
+- **`AdherencePeriod` type** — Union type `7 | 14 | 30` for compile-time safety on period selector and React Query hook.
+- **`chart-utils.ts`** — Shared module with `tooltipContentStyle` and `CHART_COLORS` constants, eliminating duplication between progress-charts.tsx and adherence-chart.tsx.
+- **`StatCard` `valueClassName` prop** — Extended shared component with optional `valueClassName` for colored analytics values. Backward-compatible.
+
+### Changed
+- **`nav-links.tsx`** — Added Analytics nav item with `BarChart3` icon at index 3 (between Invitations and Notifications).
+- **`constants.ts`** — Added `ANALYTICS_ADHERENCE` and `ANALYTICS_PROGRESS` API URL constants.
+- **`progress-charts.tsx`** — Refactored to import `tooltipContentStyle` and `CHART_COLORS` from shared `@/lib/chart-utils` instead of local definitions.
+
+### Accessibility
+- Screen-reader accessible chart: `role="img"` with descriptive `aria-label` + sr-only `<ul>` listing all trainee adherence data
+- `aria-busy` attribute on sections during background refetch with sr-only live region announcements
+- Skeleton loading states with `role="status"` and `aria-label`
+- `aria-label="No data"` on em-dash placeholder spans in progress table
+- `getIndicatorDescription()` text labels complement color-only stat card indicators (WCAG 1.4.1)
+
+### Quality
+- Code review: 9/10 APPROVE (2 rounds — 2 critical + 7 major issues all fixed in round 1)
+- QA: 21/22 AC pass, HIGH confidence (1 deliberate copy improvement)
+- UX audit: 9/10 (shared StatCard, WCAG fixes, responsive header, disabled period selector, sr-only live regions)
+- Security audit: 9/10 PASS (0 Critical/High/Medium issues)
+- Architecture: 9/10 APPROVE (extracted shared chart-utils, extended StatCard, eliminated 3 duplication instances)
+- Hacker audit: 7/10 (theme-aware amber, scroll trap fix, isFetching on progress, trainee counts)
+- Final verdict: 9/10 SHIP, HIGH confidence
+
+---
+
 ## [2026-02-15] — Web Dashboard Phase 2 (Settings, Charts, Notifications, Invitations)
 
 ### Added
