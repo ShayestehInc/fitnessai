@@ -3,9 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
-import type { AdherenceAnalytics, ProgressAnalytics } from "@/types/analytics";
+import type {
+  AdherenceAnalytics,
+  AdherencePeriod,
+  ProgressAnalytics,
+} from "@/types/analytics";
 
-export function useAdherenceAnalytics(days: number) {
+export function useAdherenceAnalytics(days: AdherencePeriod) {
   return useQuery<AdherenceAnalytics>({
     queryKey: ["analytics", "adherence", days],
     queryFn: () =>

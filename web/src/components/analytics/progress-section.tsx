@@ -64,10 +64,10 @@ function WeightChangeCell({
 
 const columns: Column<TraineeProgressEntry>[] = [
   {
-    key: "name",
+    key: "trainee_name",
     header: "Name",
     cell: (row) => (
-      <span className="font-medium" title={row.trainee_name}>
+      <span className="font-medium truncate max-w-[200px] block" title={row.trainee_name}>
         {row.trainee_name}
       </span>
     ),
@@ -104,7 +104,7 @@ function ProgressSkeleton() {
       <CardContent>
         <div className="space-y-3">
           <Skeleton className="h-10 w-full" />
-          {Array.from({ length: 4 }).map((_, i) => (
+          {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-12 w-full" />
           ))}
         </div>
@@ -117,30 +117,29 @@ export function ProgressSection() {
   const router = useRouter();
   const { data, isLoading, isError, refetch } = useProgressAnalytics();
 
+  const hasData = data && data.trainee_progress.length > 0;
+  const isEmpty = data && data.trainee_progress.length === 0;
+
   return (
     <section aria-labelledby="progress-heading">
       <h2 id="progress-heading" className="mb-4 text-lg font-semibold">
         Progress
       </h2>
 
-      {isLoading && <ProgressSkeleton />}
-
-      {isError && (
+      {isLoading ? (
+        <ProgressSkeleton />
+      ) : isError ? (
         <ErrorState
           message="Failed to load progress data"
           onRetry={() => refetch()}
         />
-      )}
-
-      {data && data.trainee_progress.length === 0 && (
+      ) : isEmpty ? (
         <EmptyState
           icon={TrendingUp}
           title="No progress data"
           description="Trainees will appear here once they start tracking"
         />
-      )}
-
-      {data && data.trainee_progress.length > 0 && (
+      ) : hasData ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Trainee Progress</CardTitle>
@@ -154,7 +153,7 @@ export function ProgressSection() {
             />
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </section>
   );
 }

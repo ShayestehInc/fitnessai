@@ -14,7 +14,7 @@ import type { TraineeAdherence } from "@/types/analytics";
 
 function getAdherenceColor(rate: number): string {
   if (rate >= 80) return "hsl(var(--chart-2))"; // green
-  if (rate >= 50) return "hsl(142 71% 45%)"; // amber/yellow-green
+  if (rate >= 50) return "hsl(32 95% 44%)"; // amber
   return "hsl(var(--destructive))"; // red
 }
 
@@ -55,10 +55,24 @@ export function AdherenceBarChart({ data }: AdherenceBarChartProps) {
             type="category"
             dataKey="trainee_name"
             width={120}
-            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-            tickFormatter={(name: string) =>
-              name.length > 15 ? `${name.slice(0, 15)}...` : name
-            }
+            tick={({ x, y, payload }: { x: string | number; y: string | number; payload: { value: string } }) => {
+              const name = payload.value;
+              const display =
+                name.length > 15 ? `${name.slice(0, 15)}...` : name;
+              return (
+                <text
+                  x={x}
+                  y={y}
+                  textAnchor="end"
+                  fill="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  dominantBaseline="central"
+                >
+                  <title>{name}</title>
+                  {display}
+                </text>
+              );
+            }}
           />
           <Tooltip
             contentStyle={tooltipContentStyle}
@@ -66,18 +80,16 @@ export function AdherenceBarChart({ data }: AdherenceBarChartProps) {
               value !== undefined ? `${value.toFixed(1)}%` : "—",
               "Adherence",
             ]}
-            labelFormatter={(label: React.ReactNode) => label}
           />
           <Bar
             dataKey="adherence_rate"
             name="Adherence"
             radius={[0, 4, 4, 0]}
             cursor="pointer"
-            onClick={(entry) => {
-              const traineeId = (entry as unknown as TraineeAdherence)
-                .trainee_id;
-              if (traineeId) {
-                router.push(`/trainees/${traineeId}`);
+            onClick={(_entry, index) => {
+              const trainee = sorted[index];
+              if (trainee) {
+                router.push(`/trainees/${trainee.trainee_id}`);
               }
             }}
           >

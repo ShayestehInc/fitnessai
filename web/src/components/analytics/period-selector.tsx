@@ -1,15 +1,50 @@
 "use client";
 
-const PERIODS = [7, 14, 30] as const;
+import { useRef, useCallback } from "react";
+import type { AdherencePeriod } from "@/types/analytics";
+
+const PERIODS: AdherencePeriod[] = [7, 14, 30];
 
 interface PeriodSelectorProps {
-  value: number;
-  onChange: (days: number) => void;
+  value: AdherencePeriod;
+  onChange: (days: AdherencePeriod) => void;
 }
 
 export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
+  const groupRef = useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const currentIndex = PERIODS.indexOf(value);
+      let nextIndex = currentIndex;
+
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        nextIndex = (currentIndex + 1) % PERIODS.length;
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        nextIndex = (currentIndex - 1 + PERIODS.length) % PERIODS.length;
+      } else {
+        return;
+      }
+
+      onChange(PERIODS[nextIndex]);
+      const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>(
+        '[role="radio"]',
+      );
+      buttons?.[nextIndex]?.focus();
+    },
+    [value, onChange],
+  );
+
   return (
-    <div className="flex gap-1" role="radiogroup" aria-label="Time period">
+    <div
+      ref={groupRef}
+      className="flex gap-1"
+      role="radiogroup"
+      aria-label="Time period"
+      onKeyDown={handleKeyDown}
+    >
       {PERIODS.map((days) => {
         const isActive = value === days;
         return (
@@ -18,6 +53,7 @@ export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
             type="button"
             role="radio"
             aria-checked={isActive}
+            tabIndex={isActive ? 0 : -1}
             onClick={() => onChange(days)}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               isActive

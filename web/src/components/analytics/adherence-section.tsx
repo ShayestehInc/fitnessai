@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { useAdherenceAnalytics } from "@/hooks/use-analytics";
 import { PeriodSelector } from "./period-selector";
 import { AdherenceBarChart } from "./adherence-chart";
+import type { AdherencePeriod } from "@/types/analytics";
 
 function getIndicatorColor(rate: number): string {
   if (rate >= 80) return "text-green-600 dark:text-green-400";
@@ -42,7 +43,7 @@ function AdherenceSkeleton() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
+        {[0, 1, 2].map((i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-24" />
@@ -67,8 +68,12 @@ function AdherenceSkeleton() {
 }
 
 export function AdherenceSection() {
-  const [days, setDays] = useState(30);
-  const { data, isLoading, isError, refetch } = useAdherenceAnalytics(days);
+  const [days, setDays] = useState<AdherencePeriod>(30);
+  const { data, isLoading, isError, isFetching, refetch } =
+    useAdherenceAnalytics(days);
+
+  const hasData = data && data.trainee_adherence.length > 0;
+  const isEmpty = data && data.trainee_adherence.length === 0;
 
   return (
     <section aria-labelledby="adherence-heading">
@@ -79,25 +84,24 @@ export function AdherenceSection() {
         <PeriodSelector value={days} onChange={setDays} />
       </div>
 
-      {isLoading && <AdherenceSkeleton />}
-
-      {isError && (
+      {isLoading ? (
+        <AdherenceSkeleton />
+      ) : isError ? (
         <ErrorState
           message="Failed to load adherence data"
           onRetry={() => refetch()}
         />
-      )}
-
-      {data && data.trainee_adherence.length === 0 && (
+      ) : isEmpty ? (
         <EmptyState
           icon={BarChart3}
-          title="No active trainees"
-          description="Invite trainees to see analytics"
+          title="No adherence data for this period"
+          description={`No trainees have logged activity in the last ${days} days. They'll appear here once they start tracking.`}
         />
-      )}
-
-      {data && data.trainee_adherence.length > 0 && (
-        <div className="space-y-6">
+      ) : hasData ? (
+        <div
+          className={`space-y-6 transition-opacity ${isFetching ? "opacity-50" : "opacity-100"}`}
+          aria-busy={isFetching}
+        >
           <div className="grid gap-4 sm:grid-cols-3">
             <StatDisplay
               title="Food Logged"
@@ -123,11 +127,13 @@ export function AdherenceSection() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <AdherenceBarChart data={data.trainee_adherence} />
+              <div className="max-h-[600px] overflow-y-auto">
+                <AdherenceBarChart data={data.trainee_adherence} />
+              </div>
             </CardContent>
           </Card>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

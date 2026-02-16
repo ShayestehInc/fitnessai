@@ -1,3 +1,5 @@
+export type AdherencePeriod = 7 | 14 | 30;
+
 export interface TraineeAdherence {
   trainee_id: number;
   trainee_email: string;
