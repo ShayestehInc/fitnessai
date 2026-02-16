@@ -1,102 +1,86 @@
-# Architecture Review: Offline-First Workout & Nutrition Logging with Sync Queue (Pipeline 15)
+# Architecture Review: Health Data Integration + Performance Audit + Offline UI Polish
 
-## Review Date: 2026-02-15
+## Review Date: 2026-02-15 (Pipeline 16)
 
 ## Files Reviewed
 
 ### New Files
-- `mobile/lib/core/database/tables.dart`
-- `mobile/lib/core/database/app_database.dart`
-- `mobile/lib/core/database/daos/sync_queue_dao.dart`
-- `mobile/lib/core/database/daos/workout_cache_dao.dart`
-- `mobile/lib/core/database/daos/nutrition_cache_dao.dart`
-- `mobile/lib/core/database/daos/program_cache_dao.dart`
-- `mobile/lib/core/database/offline_workout_repository.dart`
-- `mobile/lib/core/database/offline_nutrition_repository.dart`
-- `mobile/lib/core/database/offline_weight_repository.dart`
-- `mobile/lib/core/database/offline_save_result.dart`
-- `mobile/lib/core/services/connectivity_service.dart`
-- `mobile/lib/core/services/sync_service.dart`
-- `mobile/lib/core/services/sync_status.dart`
-- `mobile/lib/core/services/network_error_utils.dart` (created during review)
-- `mobile/lib/core/providers/database_provider.dart`
-- `mobile/lib/core/providers/connectivity_provider.dart`
-- `mobile/lib/core/providers/sync_provider.dart`
-- `mobile/lib/shared/widgets/offline_banner.dart`
-- `mobile/lib/shared/widgets/sync_status_badge.dart`
-- `mobile/lib/shared/widgets/failed_sync_sheet.dart`
+- `mobile/lib/core/models/health_metrics.dart`
+- `mobile/lib/core/providers/health_provider.dart`
+- `mobile/lib/shared/widgets/health_card.dart`
+- `mobile/lib/shared/widgets/health_permission_sheet.dart`
 
 ### Modified Files
-- `mobile/lib/main.dart`
+- `mobile/lib/core/services/health_service.dart`
 - `mobile/lib/features/home/presentation/screens/home_screen.dart`
-- `mobile/lib/features/workout_log/presentation/screens/active_workout_screen.dart`
-- `mobile/lib/features/workout_log/presentation/screens/workout_log_screen.dart`
-- `mobile/lib/features/workout_log/presentation/providers/workout_provider.dart`
+- `mobile/lib/features/home/presentation/providers/home_provider.dart`
 - `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart`
-- `mobile/lib/features/nutrition/presentation/screens/weight_checkin_screen.dart`
-- `mobile/lib/features/logging/presentation/providers/logging_provider.dart`
-- `mobile/lib/features/logging/presentation/screens/ai_command_center_screen.dart`
-- `mobile/lib/features/settings/presentation/screens/settings_screen.dart`
-- `mobile/pubspec.yaml`
+- `mobile/lib/features/nutrition/presentation/providers/nutrition_provider.dart`
+- `mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart`
+- `mobile/lib/core/database/daos/workout_cache_dao.dart`
+- `mobile/lib/core/database/daos/nutrition_cache_dao.dart`
+- `mobile/lib/core/providers/sync_provider.dart`
 
 ---
 
 ## Architectural Alignment
 
-- [x] Follows existing layered architecture (Repository -> Provider -> Screen)
-- [x] Models/schemas in correct locations (`core/database` for Drift, `core/services` for business logic)
-- [x] No business logic in views -- offline decision-making is in repositories/services
-- [x] Consistent with existing patterns (Riverpod providers, Dio-based networking)
-- [x] Decorator/wrapper pattern for offline repositories is architecturally sound
+- [x] Follows existing layered architecture (Service -> Provider -> Widget)
+- [x] Models/schemas in correct locations (`core/models/` for data classes, `core/services/` for platform integration, `core/providers/` for Riverpod state)
+- [x] No business logic in views -- health permission flow orchestrated in provider, data fetching in service
+- [x] Consistent with existing patterns (Riverpod StateNotifier, sealed class state, DAO accessor pattern)
 
 ---
 
 ## Overall Assessment
 
-The offline-first implementation is well-designed at the architectural level. The decorator pattern for offline repositories (OfflineWorkoutRepository wrapping WorkoutRepository, etc.) is the correct approach -- it preserves the existing API contracts, avoids modifying online-only code paths, and makes the offline behavior removable or replaceable without cascading changes. The separation of concerns across database layer (Drift tables + DAOs), services (ConnectivityService, SyncService), and providers (Riverpod) is clean and follows the project's established patterns.
+The architecture of this health data integration is well-designed and consistent with the existing codebase patterns. The implementation follows a clean three-layer separation:
 
-### Layering Evaluation
+1. **HealthService** (platform layer) -- wraps the `health` package, handles raw HealthKit/Health Connect API calls, returns typed `HealthMetrics` dataclass.
+2. **HealthDataNotifier** (state management layer) -- manages permission lifecycle, orchestrates data fetching, handles auto-import weight logic, persists permission state.
+3. **TodaysHealthCard** / **HomeScreen** (presentation layer) -- reactively renders based on sealed class state, handles user interaction only.
 
-**Strengths:**
-1. The offline repositories sit cleanly between the providers and the online repositories, acting as a transparent interception layer. The online repositories are completely unmodified.
-2. ConnectivityService encapsulates `connectivity_plus` details and exposes a simplified `ConnectivityStatus` enum. The rest of the app never touches `connectivity_plus` directly.
-3. SyncService is self-contained -- it manages its own lifecycle, listens to connectivity changes, and processes the queue independently of navigation state (AC-29).
-4. The DAO-per-table pattern (SyncQueueDao, WorkoutCacheDao, etc.) keeps database access organized and testable.
-5. `OfflineSaveResult` typed result class demonstrates proper "no dict returns" adherence for save operations.
+This is the correct layering per the project conventions. The health data never touches the backend -- it flows from HealthKit/Health Connect to the service, through the provider, to the UI. The only server interaction is the weight auto-import, which correctly delegates to the existing `OfflineWeightRepository` (preserving the offline-first architecture from Pipeline 15).
+
+### Key Architecture Decisions Validated
+
+1. **Sealed class state hierarchy**: `HealthDataState` with `HealthDataInitial`, `HealthDataLoading`, `HealthDataLoaded`, `HealthDataPermissionDenied`, `HealthDataUnavailable` enables exhaustive pattern matching in the UI. This is Dart 3 idiomatic and prevents unhandled state bugs.
+
+2. **No new Drift tables**: The pending data merge uses existing `PendingWorkoutLogs`, `PendingNutritionLogs`, `PendingWeightCheckins` tables. New DAO methods are simple aliases that delegate to existing queries. No schema migration needed.
+
+3. **Injectable HealthService**: The constructor-based `Health` injection (`HealthService({Health? health})`) and `healthServiceProvider` enable unit testing without real HealthKit calls. This was correctly identified and fixed during code review.
+
+4. **Non-blocking health data**: Health data fetch runs in parallel with the main dashboard load via `_initHealthData()` in `initState`. The card appears via Riverpod state change. This prevents the health API (which can be slow on first call) from blocking the entire dashboard.
+
+5. **Permission-once pattern**: Permission state persisted in SharedPreferences with `health_permission_asked` / `health_permission_granted` keys. The permission bottom sheet is shown at most once per app install. This is the correct UX pattern -- respects the user's choice without nagging.
 
 ---
 
 ## Issues Found & Fixed
 
-### 1. MAJOR -- Non-atomic local save operations
-**Files:** `offline_workout_repository.dart`, `offline_nutrition_repository.dart`, `offline_weight_repository.dart`
-**Issue:** All three `_saveLocally` methods performed two sequential inserts -- one to the pending data table and one to the sync queue table -- without transaction wrapping. If the sync queue insert failed (e.g., UNIQUE constraint violation on clientId race, disk full between operations), the pending data would be orphaned with no corresponding sync queue entry to trigger its eventual upload.
-**Fix:** Wrapped both inserts in `_db.transaction()` in all three repositories. Now either both succeed or both roll back.
+### 1. MODERATE -- `dart:io Platform.isIOS` in `HealthService.healthSettingsUri`
 
-### 2. MAJOR -- Non-atomic user data cleanup
-**File:** `app_database.dart` (`clearUserData`)
-**Issue:** `clearUserData` performed five sequential DELETE operations across five tables without transaction wrapping. A failure mid-way through (unlikely but possible with a corrupted DB or concurrent access) would leave the user's data partially cleared -- some tables cleaned, others still containing stale data.
-**Fix:** Wrapped all five deletes in `_db.transaction()`.
+**File:** `mobile/lib/core/services/health_service.dart`
+**Issue:** The static getter `healthSettingsUri` used `Platform.isIOS` from `dart:io`, which is not web-safe. The code review for this pipeline already fixed the same issue in `health_permission_sheet.dart` (replaced with `Theme.of(context).platform == TargetPlatform.iOS`), but missed the service file. While health functionality is inherently mobile-only, using `dart:io Platform` prevents the service file from even being imported in a web context, which could cause issues when the web dashboard project (Priority #2 in CLAUDE.md) shares code or types.
+**Fix:** Replaced `import 'dart:io' show Platform` with `import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform` and changed `Platform.isIOS` to `defaultTargetPlatform == TargetPlatform.iOS`.
 
-### 3. MAJOR -- Triple-duplicated `_isNetworkError` method
-**Files:** All three offline repositories
-**Issue:** The identical `_isNetworkError(DioException e)` method was copy-pasted into three files. This violates DRY and means any future change to the network error detection logic (e.g., adding a new DioExceptionType) must be replicated in three places.
-**Fix:** Extracted to `core/services/network_error_utils.dart` as a shared top-level function `isNetworkError()`. All three repositories now import and call the shared function.
+### 2. MINOR -- Unnecessary import in `health_card.dart`
 
-### 4. MODERATE -- Recursive `_processQueue` from `finally` block
-**File:** `sync_service.dart`
-**Issue:** When `_pendingRestart` was true, `_processQueue()` was called directly from its own `finally` block. While the `_isSyncing` guard prevents true infinite recursion, a tight loop of "sync starts, connectivity changes, pending restart set, sync ends, restart" could accumulate call stack frames.
-**Fix:** Replaced `_processQueue()` with `Future.microtask(_processQueue)` in the `finally` block, which schedules the restart on the next microtask rather than as a direct recursive call. This eliminates stack depth concerns.
+**File:** `mobile/lib/shared/widgets/health_card.dart`
+**Issue:** `import 'package:flutter/foundation.dart' show debugPrint;` was unnecessary because `package:flutter/material.dart` already re-exports all of `foundation.dart`. This triggered a `unnecessary_import` lint warning.
+**Fix:** Auto-resolved by the linter on save. Import was removed.
 
-### 5. MODERATE -- Missing `MigrationStrategy`
-**File:** `app_database.dart`
-**Issue:** No `MigrationStrategy` was defined. While schemaVersion is 1 (so no migrations are needed yet), the absence means: (a) no `onCreate` hook for initial setup, (b) no `beforeOpen` hook for pragmas like WAL mode, and (c) no skeleton for future schema changes. Drift's default behavior creates tables but doesn't set pragmas.
-**Fix:** Added explicit `MigrationStrategy` with `onCreate` (calls `m.createAll()`), a skeleton `onUpgrade` with comments for future migrations, and `beforeOpen` that enables WAL (Write-Ahead Logging) mode for better concurrent read/write performance on the background isolate.
+### 3. MINOR -- Missing `toString()` on `HealthMetrics`
 
-### 6. MODERATE -- Missing error handling in `_getProgramsFromCache`
-**File:** `offline_workout_repository.dart`
-**Issue:** `_getProgramsFromCache()` called `jsonDecode(cached.programsJson)` and `ProgramModel.fromJson(json)` without catching deserialization errors. Corrupted JSON in the cache (e.g., from a schema change between app versions) would throw an unhandled `FormatException`, crashing the app.
-**Fix:** (Applied by linter automatically) Added `on FormatException` catch that deletes the corrupted cache and returns a clean error, and a generic catch for other deserialization failures.
+**File:** `mobile/lib/core/models/health_metrics.dart`
+**Issue:** While `operator ==` and `hashCode` were properly implemented, `toString()` was missing. For a data class that gets logged in debug `assert()` blocks and stored in provider state, a human-readable `toString()` is important for debuggability. Without it, debug prints show `Instance of 'HealthMetrics'` which is useless.
+**Fix:** Added `toString()` that formats all fields clearly.
+
+### 4. MINOR -- `prefer_const_constructors` lint violations
+
+**Files:** `home_screen.dart` (lines 863-864), `nutrition_screen.dart` (line 163)
+**Issue:** `SnackBar`, `Row`, and `Tooltip` constructors that could be `const` were not marked as such. These were introduced by this pipeline's changes.
+**Fix:** Added `const` modifier to `SnackBar` in home screen and `Tooltip` in nutrition screen.
 
 ---
 
@@ -104,35 +88,74 @@ The offline-first implementation is well-designed at the architectural level. Th
 
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | OK | First version (v1), no backward compatibility concerns |
-| Migrations reversible | N/A | v1 -- MigrationStrategy skeleton added for future use |
-| Indexes added for new queries | RECOMMEND | See index recommendations below |
-| No N+1 query patterns | OK | DAO methods fetch exactly what's needed with WHERE clauses |
-| Column types appropriate | OK | TEXT for JSON, REAL for weight, INTEGER for IDs/counts, DATETIME for timestamps |
-| Nullable vs required correct | OK | `readinessSurveyJson`, `syncedAt`, `lastError` properly nullable |
-| UNIQUE constraints present | OK | `clientId` UNIQUE on all relevant tables for idempotency |
+| Schema changes backward-compatible | N/A | No new Drift tables or schema changes. `HealthMetrics` is a pure in-memory data class. |
+| Migrations reversible | N/A | No database migrations needed for this feature. |
+| Indexes added for new queries | OK | New DAO methods (`getPendingWorkoutsForUser`, `getPendingNutritionForUser`, `getPendingWeightForUser`) are aliases that delegate to existing indexed queries. |
+| No N+1 query patterns | OK | Each pending data type is loaded with a single query per type per load. Health data is fetched in 4 parallel calls (steps, calories, HR, weight). |
+| `HealthMetrics` data class correct | OK | Immutable, `const` constructor, proper `==`/`hashCode`/`toString()`, sensible nullable fields. Follows project's "return dataclass not dict" rule. |
+| Sealed state class hierarchy correct | OK | Exhaustive, each state has `const` constructor, `HealthDataLoaded` has proper equality. |
 
-### Table Design (5 tables)
+### HealthMetrics Data Flow
 
-**PendingWorkoutLogs:** Well-designed. `clientId` UNIQUE for idempotency, `userId` for multi-user scoping, three JSON TEXT columns for the payload parts. No unnecessary columns.
+```
+HealthKit/Health Connect
+    |
+    v
+HealthService.syncTodayHealthData() -> HealthMetrics
+    |
+    v
+HealthDataNotifier.fetchHealthData() -> state = HealthDataLoaded(metrics)
+    |                                    |
+    |                                    +-> _autoImportWeight(metrics) -> OfflineWeightRepository
+    v
+TodaysHealthCard watches healthDataProvider -> renders card or SizedBox.shrink()
+```
 
-**PendingNutritionLogs:** Clean. `targetDate` as TEXT matches the API's date string format, avoiding timezone conversion issues.
+This is clean. No circular dependencies. The weight auto-import reuses the existing offline-first repository chain -- no new data paths introduced.
 
-**PendingWeightCheckins:** Appropriate. `weightKg` as REAL is correct for decimal precision. `notes` defaults to empty string rather than nullable, simplifying downstream handling.
+### Pending Data Merge Flow
 
-**CachedPrograms:** Simple one-row-per-user design. `programsJson` stores the full serialized program list. `cachedAt` enables TTL-based cleanup.
+```
+WorkoutCacheDao.getPendingWorkouts(userId) -> List<PendingWorkoutLog>
+    |
+    v
+HomeNotifier._loadPendingWorkouts() -> List<PendingWorkoutDisplay>
+    |
+    v
+HomeState.pendingWorkouts -> merged into _buildRecentWorkoutsSection()
 
-**SyncQueueItems:** Well-structured central queue. `operationType` and `status` as TEXT strings (matching enum `.value`), `retryCount` for backoff tracking, `clientId` UNIQUE for deduplication.
+NutritionCacheDao.getPendingNutritionForUser(userId, date) -> List<PendingNutritionLog>
+    |
+    v
+NutritionNotifier._loadPendingNutrition(date) -> _PendingNutritionResult
+    |
+    v
+NutritionState.pendingNutritionCount / pendingProtein / etc. -> additive merge in _buildMacroCards()
 
-### Missing Indexes (Recommendation -- not a blocker for V1)
+NutritionCacheDao.getPendingWeightForUser(userId) -> List<PendingWeightCheckin>
+    |
+    v
+NutritionNotifier._loadPendingWeights() -> List<PendingWeightDisplay>
+    |
+    v
+NutritionState.pendingWeights -> merged into WeightTrendsScreen + Nutrition header
+```
 
-For operational queries as data grows beyond trivial size:
-- `SyncQueueItems(userId, status)` -- used by `getNextPending`, `getPendingCount`, `getUnsyncedCount`, `getFailedItems`, and both watch queries
-- `SyncQueueItems(status, syncedAt)` -- used by `deleteOldSynced`
-- `CachedPrograms(userId)` -- used by `getCachedPrograms` and `deleteAllForUser`
-- `PendingNutritionLogs(userId, targetDate)` -- used by `getPendingNutritionForDate`
+This is additive and correct. Pending entries are displayed alongside server data without replacing it. The `syncCompletionProvider` listener ensures badges disappear reactively when sync completes.
 
-At current scale (handful of items per user), SQLite's default indexes are sufficient. Add these when the feature stabilizes.
+---
+
+## Riverpod Pattern Assessment
+
+**StateNotifier usage**: `HealthDataNotifier` correctly extends `StateNotifier<HealthDataState>` with sealed class states. The `mounted` guards after every `await` prevent state mutations on disposed notifiers. This was a critical fix from the code review.
+
+**Provider dependencies**: `healthDataProvider` watches `authStateProvider`, `offlineWeightRepositoryProvider`, `healthServiceProvider`, and `databaseProvider`. All dependencies are correctly declared. No circular chains.
+
+**`ref.listen(syncCompletionProvider)` in `build()`**: Used in 3 screens (HomeScreen, NutritionScreen, WeightTrendsScreen). This is the correct Riverpod pattern for side effects triggered by provider changes. Riverpod handles listener deduplication internally -- calling `ref.listen` in `build()` does not create multiple listeners.
+
+**`select()` usage**: Applied judiciously for the health card spacer visibility (`healthDataProvider.select((state) => state is HealthDataLoaded || state is HealthDataLoading)`). The dev correctly noted that `select()` on providers where multiple fields are needed would add complexity without reducing rebuilds. This is pragmatically correct.
+
+**Lifecycle**: `HealthDataNotifier` is automatically disposed when `healthDataProvider` is no longer watched. The `mounted` checks prevent post-disposal state mutations. No manual cleanup needed since `HealthService` has no streams or subscriptions to dispose.
 
 ---
 
@@ -140,37 +163,25 @@ At current scale (handful of items per user), SQLite's default indexes are suffi
 
 | # | Area | Severity | Issue | Recommendation |
 |---|------|----------|-------|----------------|
-| 1 | Progress display | Low | `getPendingCount` runs once at sync start. New items queued during sync won't update the total in the progress banner ("Syncing 5 of 50"). | Accept for V1. The progress is informational. |
-| 2 | Program cache | Low | Entire program list stored as one JSON blob. With 10+ complex programs, this could be several KB. | Acceptable. SQLite handles multi-KB TEXT columns efficiently. |
-| 3 | Watch queries | Low | `watchPendingCount` and `watchFailedCount` re-fire on any `syncQueueItems` table change (Drift's table-level notification). | COUNT on indexed columns is negligible. Acceptable. |
-| 4 | Startup cleanup | Low | Sequential cleanup before widget tree builds. Thousands of stale items could add to startup time. | Best-effort, non-blocking. Move to post-startup if profiling shows concern. |
-| 5 | Backoff delays | Low | 45-second max delay blocks the entire queue processing loop. Other pending items that would succeed wait behind a failing item. | By-design for DailyLog race condition prevention. Acceptable tradeoff. |
+| 1 | Health data types | Low | Adding more health types (sleep, HRV, blood oxygen) requires modifying `_requestedTypes`, adding getter methods in `HealthService`, adding fields to `HealthMetrics`, and adding tiles to `TodaysHealthCard`. The approach is linear but manageable. | Consider a `HealthMetricType` enum and a map-based approach if more than 6-8 types are ever needed. Current 4-type approach is fine. |
+| 2 | File sizes | Medium | `home_screen.dart` is 1355 lines (9x the 150-line guideline). `nutrition_screen.dart` is 1150 lines. These are pre-existing issues exacerbated by adding health card and pending workout sections. | Extract `_CalorieRing`, `_MacroCircle`, `_VideoCard`, `_RecentWorkoutCard`, `_PendingWorkoutCard` to separate widget files in `features/home/presentation/widgets/`. This is a refactoring task, not a blocker. |
+| 3 | Pending data merge | Low | `_loadPendingWorkouts()` and `_loadPendingNutrition()` are called every time `loadDashboardData()` / `loadInitialData()` is invoked. With many pending entries, the JSON parsing in `_loadPendingWorkouts` could add latency. | Acceptable for V1. The JSON parsing is O(n) per pending entry and n is typically < 10. |
+| 4 | `syncCompletionProvider` | Low | This stream-based provider emits on every sync completion, which triggers full dashboard reload in all 3 screens. With frequent sync events, this could cause unnecessary UI rebuilds. | Acceptable for V1. Sync completion is infrequent (once per reconnect cycle). If it becomes a problem, debounce the listener or scope it to specific data types. |
+| 5 | `NutritionState.copyWith` cannot null out fields | Low | The `copyWith` method uses `??` for all nullable fields (`latestCheckIn`, `goals`, `dailySummary`, etc.), meaning they can never be explicitly set back to `null`. If a user's last weight check-in is deleted, the state cannot reflect that. | For weight, the server returns the latest check-in, so on next refresh the field updates. Not a blocking issue but worth noting for future. |
 
 ---
 
-## Riverpod Pattern Assessment
+## Performance Assessment
 
-**Provider Scoping:** Correct. `databaseProvider` and `connectivityServiceProvider` use the `throw UnimplementedError` pattern, requiring override in `ProviderScope`. This is idiomatic for externally-initialized singletons.
+The performance changes are architecturally sound:
 
-**Lifecycle Management:** `syncServiceProvider` correctly watches `authStateProvider` and auto-creates/disposes `SyncService` on login/logout. `ref.onDispose` ensures cleanup.
+1. **RepaintBoundary placement**: Applied to `_CalorieRing`, `_MacroCircle`, `_MacroCard` (all contain `CircularProgressIndicator`), `_RecentWorkoutCard`, `_PendingWorkoutCard`, and the weight chart `CustomPaint`. These are the right widgets to wrap -- they contain paint-heavy operations that should not trigger parent repaints.
 
-**Nullable Repository Providers:** `offlineWorkoutRepositoryProvider` and `offlineWeightRepositoryProvider` return `null` when unauthenticated, correctly handled at call sites.
+2. **`SliverList.builder` conversion**: Weight trends history correctly converted from `Column` with spread operators to `CustomScrollView` + `SliverList.builder`. This virtualizes the potentially unbounded history list. The `CustomScrollView` approach (vs plain `ListView.builder`) is correct because the screen has non-repeating header content (summary card + chart) that must scroll with the list.
 
-**Memory Leak Risk:** Low. All stream subscriptions and controllers are properly cancelled/closed in `dispose()` methods, which are triggered by `ref.onDispose`. Minor concern: `ConnectivityService` created in `main()` is not explicitly disposed on hot restart -- not a production issue.
+3. **`shouldRepaint` optimization**: `_WeightChartPainter` now uses `listEquals` for data comparison and field-level equality for numeric/color values. This is correct and prevents unnecessary repaints when the widget rebuilds for unrelated reasons.
 
-**Watch vs Read:** Correct throughout. Reactive dependencies use `ref.watch`, one-time reads in callbacks use `ref.read`.
-
----
-
-## Drift Pattern Assessment
-
-**Code Generation:** Properly configured with `part` directives and `@DriftDatabase`/`@DriftAccessor` annotations. Tables and DAOs correctly linked.
-
-**DAO Conventions:** Standard `DatabaseAccessor<AppDatabase>` extension with generated mixins. All queries use Drift's type-safe query builder (no raw SQL).
-
-**Isolate Usage:** `NativeDatabase.createInBackground(file)` correctly offloads all DB I/O to a background isolate. `LazyDatabase` wrapper handles the async path_provider call.
-
-**WAL Mode:** Added during this review in `MigrationStrategy.beforeOpen`. Enables concurrent reads during writes, important for the sync service writing while UI watches.
+4. **Static `NumberFormat`**: `_numberFormat` as `static final` in `_LoadedHealthCardState` avoids creating a new formatter on every build. Minor but correct.
 
 ---
 
@@ -178,28 +189,49 @@ At current scale (handful of items per user), SQLite's default indexes are suffi
 
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| 1 | `getPrograms()` and `getActiveProgram()` in `OfflineWorkoutRepository` return `Map<String, dynamic>` | Medium | Create a `ProgramFetchResult` typed class. Violates the project's "never return dict" rule from `.claude/rules/datatypes.md`. |
-| 2 | String-based status/type matching in DAO queries (e.g., `t.status.equals('pending')`) | Low | Use `SyncItemStatus.pending.value` instead of `'pending'` literals. The enums exist but DAOs use raw strings. |
-| 3 | `_handleLogout` logic duplicated between `home_screen.dart` and `settings_screen.dart` | Low | Extract to a shared utility or Riverpod notifier method. |
-| 4 | `build_runner` and `json_serializable` in both `dependencies` and `dev_dependencies` | Low | Pre-existing. Move to `dev_dependencies` only. |
-| 5 | AC-12, AC-16, AC-18 deferred (merging local data into list views and macro totals) | Medium | The infrastructure exists (DAO methods for fetching pending items) but the UI integration was deferred. Should be completed in a follow-up. |
+| 1 | `home_screen.dart` at 1355 lines, well above 150-line guideline | Medium | Extract `_CalorieRing`, `_MacroCircle`, `_VideoCard`, `_RecentWorkoutCard`, `_PendingWorkoutCard` into `features/home/presentation/widgets/`. Pre-existing issue exacerbated by this pipeline. |
+| 2 | `nutrition_screen.dart` at 1150 lines | Medium | Extract `_MacroCard`, `_MealSection`, `_FoodEntryRow` into `features/nutrition/presentation/widgets/`. Pre-existing issue. |
+| 3 | AC-19 (SyncStatusBadge on individual food entry rows) deferred | Low | Requires refactoring pending nutrition data model from JSON blobs to individual entries. Documented in dev-done.md. Not architecturally blocking. |
+| 4 | `PendingWorkoutDisplay` and `PendingWeightDisplay` classes defined in provider files rather than in `models/` | Low | These are small display-only classes closely tied to their providers. Moving to separate model files would improve discoverability but is not critical. |
+| 5 | Two pre-existing `use_build_context_synchronously` info warnings in home_screen.dart and nutrition_screen.dart | Low | These are in logout/edit flows with `mounted` guards. The lint is being cautious. Not a real bug. |
 
 ## Technical Debt Reduced
 
 | # | Description |
 |---|-------------|
-| 1 | `OfflineSaveResult` typed result class replaces `Map<String, dynamic>` for save operation returns. |
-| 2 | `SyncOperationType` and `SyncItemStatus` enums centralize magic strings with `fromString()` parsers. |
-| 3 | Decorator pattern leaves online repositories completely untouched -- clean separation. |
-| 4 | Connectivity debouncing prevents thrashing of sync queue during unstable network. |
-| 5 | `network_error_utils.dart` centralizes network error detection logic (previously triplicated). |
+| 1 | `HealthService` return type changed from `Map<String, dynamic>` to typed `HealthMetrics` dataclass, adhering to project's "no dict returns" rule. |
+| 2 | `HealthService` bug fixed: `data is NumericHealthValue` (wrong -- was checking the `HealthDataPoint` container) changed to `point.value is NumericHealthValue` (correct -- checks the value property). |
+| 3 | Sleep data removed from health permissions (was requested but never displayed). Cleaner permission scope. |
+| 4 | `Platform.isIOS` replaced with `defaultTargetPlatform == TargetPlatform.iOS` for web safety. |
+| 5 | Weight chart `shouldRepaint` changed from `=> true` to data-comparison-based, eliminating unnecessary repaints. |
+| 6 | All three deferred AC items from Pipeline 15 (AC-12/16/18 -- merging pending data into list views) are now implemented. |
 
 ---
 
 ## Architecture Score: 8/10
 
-**Rationale:** The overall architecture is sound and well-layered. The decorator pattern for offline repos is the right call. The data model is appropriate for the problem. The sync queue design (FIFO, sequential processing, exponential backoff, conflict detection) is production-quality. Points deducted for: (1) missing transactional guarantees (now fixed), (2) `Map<String, dynamic>` return types violating the project's "no dict returns" rule, and (3) deferred UI integration for AC-12/16/18.
+**Rationale:**
+
+**Strengths (contributing to score):**
+- Clean three-layer separation (Service -> Provider -> Widget) for health integration
+- Sealed class state hierarchy with exhaustive pattern matching
+- No backend changes needed -- health data stays local, respecting privacy
+- Weight auto-import correctly reuses existing offline-first repository chain
+- Pending data merge is additive and correct
+- Performance optimizations are targeted and conservative
+- Injectable `HealthService` enables testing
+- `mounted` guards prevent post-disposal state mutations
+
+**Deductions:**
+- (-1) File sizes significantly exceed the 150-line widget file guideline (pre-existing but exacerbated)
+- (-0.5) AC-19 deferred (food entry row sync badges) -- justified but incomplete
+- (-0.5) `PendingWorkoutDisplay` / `PendingWeightDisplay` classes co-located with providers rather than in models directory
+
+**Not deducted (pre-existing issues):**
+- `home_screen.dart` and `nutrition_screen.dart` were already large before this pipeline
+- `use_build_context_synchronously` warnings are pre-existing patterns
+- `Map<String, dynamic>` return types in other parts of the codebase
 
 ## Recommendation: APPROVE
 
-The architecture is solid and appropriate for V1 of offline-first capabilities. The issues found were implementation-level (missing transactions, code duplication, missing error handling) rather than fundamental architectural flaws. All critical and major issues were fixed during this review. The remaining items are low-severity technical debt documented above for follow-up.
+The architecture is sound, consistent with the existing codebase, and scales appropriately for the current feature set. The health integration is correctly isolated as a local-only, display-only feature that reuses existing infrastructure for weight auto-import. The offline UI polish correctly merges pending data additively without introducing new data paths. Performance optimizations are conservative and targeted. All issues found were minor and have been fixed during this review. The remaining items are low-severity technical debt documented above for follow-up.

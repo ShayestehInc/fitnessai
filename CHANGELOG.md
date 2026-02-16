@@ -4,6 +4,45 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-15] — Health Data Integration + Performance Audit + Offline UI Polish (Phase 6 Completion)
+
+### Added
+- **HealthKit / Health Connect Integration** — Reads steps, active calories, heart rate, and weight from Apple Health (iOS) and Health Connect (Android) via the `health` Flutter package. Platform-level aggregation queries (HKStatisticsQuery / AggregateRequest) prevent double-counting from overlapping sources (e.g., iPhone + Apple Watch).
+- **"Today's Health" Card** — New card on trainee home screen displaying 4 health metrics with walking/flame/heart/weight icons. Skeleton loading state, 200ms opacity fade-in, "--" for missing data, NumberFormat for thousands separators. Gear icon opens device health settings.
+- **Health Permission Flow** — One-time bottom sheet with platform-specific explanation ("Apple Health" vs "Health Connect"). "Connect Health" / "Not Now" buttons. Permission status persisted in SharedPreferences. Card hidden entirely when permission denied.
+- **Weight Auto-Import** — Automatically imports weight from HealthKit/Health Connect to WeightCheckIn model via existing OfflineWeightRepository. Date-based deduplication checks both server and local pending data. Notes: "Auto-imported from Health". Silent failure (background operation).
+- **Pending Workout Merge** — Local pending workouts from Drift merged into Home "Recent Workouts" list at top with `SyncStatusBadge`. Tapping shows "Pending sync" snackbar.
+- **Pending Nutrition Merge** — Local pending nutrition entries merged into Nutrition screen macro totals for selected date. "(includes X pending)" label below macro cards with cloud_off icon.
+- **Pending Weight Merge** — Local pending weight check-ins merged into Weight Trends history list and "Latest Weight" display on Nutrition screen. Pending entries show SyncStatusBadge.
+- **DAO Query Methods** — `getPendingWorkoutsForUser()`, `getPendingNutritionForUser()`, `getPendingWeightCheckins()` in Drift DAOs for offline data access.
+- **`syncCompletionProvider`** — Riverpod provider exposing sync completion events. Home, Nutrition, and Weight Trends screens listen and refresh pending data reactively.
+- **`HealthMetrics` Dataclass** — Immutable typed model with const constructor, equality operators, toString(). Replaces Map<String, dynamic> returns.
+- **`HealthDataNotifier`** — Sealed class state hierarchy: Initial, Loading, Loaded, PermissionDenied, Unavailable. Manages permission lifecycle, data fetching, and weight auto-import with mounted guards.
+
+### Changed
+- **`health_service.dart`** — Rewritten: added ACTIVE_ENERGY_BURNED and WEIGHT types, removed SLEEP_IN_BED. Uses `getTotalStepsInInterval()` and `getHealthAggregateDataFromTypes()` for platform-level deduplication. Injectable via Riverpod provider (no more static singleton). Fixed HealthDataPoint value extraction bug.
+- **`home_screen.dart`** — Added TodaysHealthCard between Nutrition and Weekly Progress sections. Pending workouts merged into recent list. RepaintBoundary on CalorieRing and MacroCircle. Riverpod select() for granular health card visibility rebuilds. syncCompletionProvider listener.
+- **`nutrition_screen.dart`** — Pending nutrition macros added to server totals. "(includes X pending)" label. RepaintBoundary on MacroCard. IconButton replacing GestureDetector for touch targets. syncCompletionProvider listener.
+- **`nutrition_provider.dart`** — Loads pending nutrition and weight data in parallel. Merges pending macros into totals. Latest weight considers both server and local data.
+- **`weight_trends_screen.dart`** — Converted to CustomScrollView + SliverList.builder for virtualized rendering. Pending weight rows with SyncStatusBadge. RepaintBoundary on weight chart. shouldRepaint optimization comparing data arrays.
+
+### Performance
+- RepaintBoundary on CalorieRing, MacroCircle, MacroCard, weight chart CustomPaint
+- const constructors audited across priority widget files
+- Riverpod select() for granular rebuilds (home screen health card visibility)
+- SliverList.builder replacing Column + map().toList() in weight trends
+- shouldRepaint optimization on weight chart painter (data comparison vs always true)
+- Static final NumberFormat instances (avoid re-creation per build)
+
+### Accessibility
+- Semantics labels on all health metric tiles, sync status badges, skeleton states
+- ExcludeSemantics on decorative icons
+- Semantics liveRegion on "(includes X pending)" label
+- Minimum 32dp touch targets on all interactive elements
+- Tooltips on icon buttons
+
+---
+
 ## [2026-02-15] — Offline-First Workout & Nutrition Logging (Phase 6)
 
 ### Added

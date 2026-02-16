@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/sync_status.dart';
+import '../../../../shared/widgets/sync_status_badge.dart';
 import '../providers/nutrition_provider.dart';
 import '../../data/models/nutrition_models.dart';
 
@@ -26,6 +30,15 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
     final theme = Theme.of(context);
     final state = ref.watch(nutritionStateProvider);
     final history = state.weightHistory;
+    final pendingWeights = state.pendingWeights;
+    final hasAny = history.isNotEmpty || pendingWeights.isNotEmpty;
+
+    // Reload pending data when sync completes so badges disappear reactively
+    ref.listen(syncCompletionProvider, (_, next) {
+      if (next.valueOrNull == true) {
+        ref.read(nutritionStateProvider.notifier).loadWeightHistory();
+      }
+    });
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -44,34 +57,59 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
           ),
         ],
       ),
-      body: history.isEmpty
+      body: !hasAny
           ? _buildEmptyState(theme)
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Summary card
-                  _buildSummaryCard(theme, history),
-                  const SizedBox(height: 24),
-
-                  // Simple chart
-                  _buildSimpleChart(theme, history),
-                  const SizedBox(height: 24),
-
-                  // History list
-                  Text(
-                    'History',
-                    style: TextStyle(
-                      color: theme.textTheme.bodyLarge?.color,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+          : CustomScrollView(
+              slivers: [
+                // Summary + chart (non-repeating header content)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSummaryCard(theme, history),
+                        const SizedBox(height: 24),
+                        _buildSimpleChart(theme, history),
+                        const SizedBox(height: 24),
+                        Text(
+                          'History',
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  ...history.map((checkIn) => _buildHistoryRow(theme, checkIn)),
-                ],
-              ),
+                ),
+                // Virtualised history list (pending + server entries)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList.builder(
+                    itemCount: pendingWeights.length + history.length,
+                    itemBuilder: (context, index) {
+                      if (index < pendingWeights.length) {
+                        return _buildPendingWeightRow(
+                          theme,
+                          pendingWeights[index],
+                        );
+                      }
+                      final historyIndex = index - pendingWeights.length;
+                      final checkIn = history[historyIndex];
+                      // Server entries are already synced -- no pending badge.
+                      // Only pending entries (shown above) get the SyncStatusBadge.
+                      return _buildHistoryRow(theme, checkIn);
+                    },
+                  ),
+                ),
+                // Bottom padding
+                const SliverPadding(
+                  padding: EdgeInsets.only(bottom: 16),
+                ),
+              ],
             ),
     );
   }
@@ -255,17 +293,19 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            height: 150,
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: _WeightChartPainter(
-                data: chartData,
-                minWeight: minWeight - padding,
-                maxWeight: maxWeight + padding,
-                lineColor: theme.colorScheme.primary,
-                gridColor: theme.dividerColor,
-                textColor: theme.textTheme.bodySmall?.color ?? Colors.grey,
+          RepaintBoundary(
+            child: SizedBox(
+              height: 150,
+              child: CustomPaint(
+                size: Size.infinite,
+                painter: _WeightChartPainter(
+                  data: chartData,
+                  minWeight: minWeight - padding,
+                  maxWeight: maxWeight + padding,
+                  lineColor: theme.colorScheme.primary,
+                  gridColor: theme.dividerColor,
+                  textColor: theme.textTheme.bodySmall?.color ?? Colors.grey,
+                ),
               ),
             ),
           ),
@@ -303,6 +343,8 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
     }
   }
 
+  /// Build a row for a server (synced) weight check-in.
+  /// Server entries never show a SyncStatusBadge -- they are already synced.
   Widget _buildHistoryRow(ThemeData theme, WeightCheckInModel checkIn) {
     final lbs = checkIn.weightKg * 2.20462;
     String formattedDate;
@@ -324,26 +366,28 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                formattedDate,
-                style: TextStyle(
-                  color: theme.textTheme.bodyLarge?.color,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (checkIn.notes.isNotEmpty)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  checkIn.notes,
+                  formattedDate,
                   style: TextStyle(
-                    color: theme.textTheme.bodySmall?.color,
-                    fontSize: 12,
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-            ],
+                if (checkIn.notes.isNotEmpty)
+                  Text(
+                    checkIn.notes,
+                    style: TextStyle(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -366,6 +410,90 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Build a row for a pending weight check-in with SyncStatusBadge.
+  Widget _buildPendingWeightRow(ThemeData theme, PendingWeightDisplay pw) {
+    final lbs = pw.weightKg * 2.20462;
+    String formattedDate;
+    try {
+      final date = DateTime.parse(pw.date);
+      formattedDate = DateFormat('EEEE, MMM d, yyyy').format(date);
+    } catch (_) {
+      formattedDate = pw.date;
+    }
+
+    return Semantics(
+      label: 'Pending weight check-in: ${lbs.round()} lbs on $formattedDate',
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: Stack(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          formattedDate,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (pw.notes.isNotEmpty)
+                          Text(
+                            pw.notes,
+                            style: TextStyle(
+                              color: theme.textTheme.bodySmall?.color,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${lbs.round()} lbs',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${pw.weightKg.toStringAsFixed(1)} kg',
+                        style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Positioned(
+              right: 4,
+              bottom: 4,
+              child: SyncStatusBadge(status: SyncItemStatus.pending),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -441,5 +569,10 @@ class _WeightChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _WeightChartPainter oldDelegate) {
+    return !listEquals(data, oldDelegate.data) ||
+        minWeight != oldDelegate.minWeight ||
+        maxWeight != oldDelegate.maxWeight ||
+        lineColor != oldDelegate.lineColor;
+  }
 }

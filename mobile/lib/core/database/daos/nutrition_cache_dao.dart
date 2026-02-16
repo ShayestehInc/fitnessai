@@ -48,6 +48,14 @@ class NutritionCacheDao extends DatabaseAccessor<AppDatabase>
     return query.get();
   }
 
+  /// Get all pending nutrition logs for a user on a specific date (AC-21 alias).
+  Future<List<PendingNutritionLog>> getPendingNutritionForUser(
+    int userId,
+    String date,
+  ) {
+    return getPendingNutritionForDate(userId, date);
+  }
+
   /// Delete a pending nutrition log by clientId.
   Future<void> deleteNutritionByClientId(String clientId) {
     return (delete(pendingNutritionLogs)
@@ -89,6 +97,11 @@ class NutritionCacheDao extends DatabaseAccessor<AppDatabase>
       ..where((t) => t.userId.equals(userId))
       ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
     return query.get();
+  }
+
+  /// Get all pending weight check-ins for a user (AC-21 alias).
+  Future<List<PendingWeightCheckin>> getPendingWeightForUser(int userId) {
+    return getPendingWeightCheckins(userId);
   }
 
   /// Delete a pending weight check-in by clientId.

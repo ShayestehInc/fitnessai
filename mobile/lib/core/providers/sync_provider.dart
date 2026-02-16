@@ -62,6 +62,18 @@ final failedSyncCountProvider = StreamProvider<int>((ref) {
   return db.syncQueueDao.watchFailedCount(user.id);
 });
 
+/// Emits true whenever sync completes (all synced or has failures).
+/// Widgets can watch this to refresh pending item lists.
+final syncCompletionProvider = StreamProvider<bool>((ref) {
+  final syncService = ref.watch(syncServiceProvider);
+  if (syncService == null) return Stream.value(false);
+  return syncService.statusStream
+      .where((status) =>
+          status.state == SyncState.allSynced ||
+          status.state == SyncState.hasFailed)
+      .map((_) => true);
+});
+
 /// Get the count of unsynced items (pending + failed) for logout warning.
 final unsyncedCountProvider = FutureProvider<int>((ref) async {
   final authState = ref.watch(authStateProvider);

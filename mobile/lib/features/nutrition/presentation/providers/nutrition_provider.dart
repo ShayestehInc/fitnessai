@@ -1,5 +1,10 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/database/app_database.dart';
+import '../../../../core/providers/database_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../onboarding/data/models/user_profile_model.dart';
 import '../../../onboarding/data/repositories/onboarding_repository.dart';
@@ -20,7 +25,10 @@ final nutritionStateProvider =
     StateNotifierProvider<NutritionNotifier, NutritionState>((ref) {
   final nutritionRepo = ref.watch(nutritionRepositoryProvider);
   final onboardingRepo = ref.watch(onboardingRepositoryProvider);
-  return NutritionNotifier(nutritionRepo, onboardingRepo);
+  final db = ref.watch(databaseProvider);
+  final authState = ref.watch(authStateProvider);
+  final userId = authState.user?.id;
+  return NutritionNotifier(nutritionRepo, onboardingRepo, db, userId);
 });
 
 class NutritionState {
@@ -32,6 +40,12 @@ class NutritionState {
   final List<MacroPresetModel> macroPresets;
   final MacroPresetModel? activePreset;
   final UserProfileModel? userProfile;
+  final int pendingNutritionCount;
+  final int pendingCalories;
+  final int pendingProtein;
+  final int pendingCarbs;
+  final int pendingFat;
+  final List<PendingWeightDisplay> pendingWeights;
   final bool isLoading;
   final String? error;
 
@@ -44,6 +58,12 @@ class NutritionState {
     this.macroPresets = const [],
     this.activePreset,
     this.userProfile,
+    this.pendingNutritionCount = 0,
+    this.pendingCalories = 0,
+    this.pendingProtein = 0,
+    this.pendingCarbs = 0,
+    this.pendingFat = 0,
+    this.pendingWeights = const [],
     this.isLoading = false,
     this.error,
   }) : selectedDate = selectedDate ?? DateTime.now();
@@ -57,6 +77,12 @@ class NutritionState {
     List<MacroPresetModel>? macroPresets,
     MacroPresetModel? activePreset,
     UserProfileModel? userProfile,
+    int? pendingNutritionCount,
+    int? pendingCalories,
+    int? pendingProtein,
+    int? pendingCarbs,
+    int? pendingFat,
+    List<PendingWeightDisplay>? pendingWeights,
     bool? isLoading,
     String? error,
   }) {
@@ -69,6 +95,13 @@ class NutritionState {
       macroPresets: macroPresets ?? this.macroPresets,
       activePreset: activePreset ?? this.activePreset,
       userProfile: userProfile ?? this.userProfile,
+      pendingNutritionCount:
+          pendingNutritionCount ?? this.pendingNutritionCount,
+      pendingCalories: pendingCalories ?? this.pendingCalories,
+      pendingProtein: pendingProtein ?? this.pendingProtein,
+      pendingCarbs: pendingCarbs ?? this.pendingCarbs,
+      pendingFat: pendingFat ?? this.pendingFat,
+      pendingWeights: pendingWeights ?? this.pendingWeights,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -158,11 +191,33 @@ class NutritionState {
   }
 }
 
+/// Display data for a pending (offline) weight check-in.
+class PendingWeightDisplay {
+  final String clientId;
+  final String date;
+  final double weightKg;
+  final String notes;
+
+  const PendingWeightDisplay({
+    required this.clientId,
+    required this.date,
+    required this.weightKg,
+    required this.notes,
+  });
+}
+
 class NutritionNotifier extends StateNotifier<NutritionState> {
   final NutritionRepository _nutritionRepo;
   final OnboardingRepository _onboardingRepo;
+  final AppDatabase _db;
+  final int? _userId;
 
-  NutritionNotifier(this._nutritionRepo, this._onboardingRepo) : super(NutritionState());
+  NutritionNotifier(
+    this._nutritionRepo,
+    this._onboardingRepo,
+    this._db,
+    this._userId,
+  ) : super(NutritionState());
 
   Future<void> loadInitialData() async {
     state = state.copyWith(isLoading: true, error: null);
@@ -193,6 +248,28 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
       );
     }
 
+    // Load pending nutrition and weight data from local DB
+    final pendingNutrition = await _loadPendingNutrition(state.dateParam);
+    final pendingWeightList = await _loadPendingWeights();
+
+    // Find effective latest check-in (server or pending, whichever is more recent)
+    WeightCheckInModel? effectiveLatestCheckIn;
+    if (checkInResult['success'] == true) {
+      effectiveLatestCheckIn = checkInResult['checkIn'] as WeightCheckInModel;
+    }
+    if (pendingWeightList.isNotEmpty) {
+      final latestPending = pendingWeightList.first;
+      if (effectiveLatestCheckIn == null ||
+          latestPending.date.compareTo(effectiveLatestCheckIn.date) > 0) {
+        // Pending weight is more recent -- use it for display
+        effectiveLatestCheckIn = WeightCheckInModel(
+          date: latestPending.date,
+          weightKg: latestPending.weightKg,
+          notes: latestPending.notes,
+        );
+      }
+    }
+
     state = state.copyWith(
       isLoading: false,
       goals: goalsResult['success'] == true
@@ -201,40 +278,66 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
       dailySummary: summaryResult['success'] == true
           ? summaryResult['summary'] as DailyNutritionSummary
           : null,
-      latestCheckIn: checkInResult['success'] == true
-          ? checkInResult['checkIn'] as WeightCheckInModel
-          : null,
+      latestCheckIn: effectiveLatestCheckIn,
       userProfile: profileResult['success'] == true
           ? profileResult['profile'] as UserProfileModel
           : null,
       macroPresets: presets,
       activePreset: defaultPreset,
+      pendingNutritionCount: pendingNutrition.count,
+      pendingCalories: pendingNutrition.calories,
+      pendingProtein: pendingNutrition.protein,
+      pendingCarbs: pendingNutrition.carbs,
+      pendingFat: pendingNutrition.fat,
+      pendingWeights: pendingWeightList,
     );
   }
 
   Future<void> loadWeightHistory() async {
-    final result = await _nutritionRepo.getWeightCheckInHistory();
-    if (result['success'] == true) {
+    final results = await Future.wait([
+      _nutritionRepo.getWeightCheckInHistory(),
+      _loadPendingWeights(),
+    ]);
+
+    final historyResult = results[0] as Map<String, dynamic>;
+    final pendingWeightList = results[1] as List<PendingWeightDisplay>;
+
+    if (historyResult['success'] == true) {
       state = state.copyWith(
-        weightHistory: result['checkIns'] as List<WeightCheckInModel>,
+        weightHistory: historyResult['checkIns'] as List<WeightCheckInModel>,
+        pendingWeights: pendingWeightList,
       );
+    } else {
+      // Even if server history fails, update pending weights
+      state = state.copyWith(pendingWeights: pendingWeightList);
     }
   }
 
   Future<void> refreshDailySummary() async {
     state = state.copyWith(isLoading: true, error: null);
 
-    final result = await _nutritionRepo.getDailyNutritionSummary(state.dateParam);
+    final results = await Future.wait([
+      _nutritionRepo.getDailyNutritionSummary(state.dateParam),
+      _loadPendingNutrition(state.dateParam),
+    ]);
 
-    if (result['success'] == true) {
+    final summaryResult = results[0] as Map<String, dynamic>;
+    final pendingNutrition = results[1] as _PendingNutritionResult;
+
+    if (summaryResult['success'] == true) {
       state = state.copyWith(
         isLoading: false,
-        dailySummary: result['summary'] as DailyNutritionSummary,
+        dailySummary: summaryResult['summary'] as DailyNutritionSummary,
+        pendingNutritionCount: pendingNutrition.count,
+        pendingCalories: pendingNutrition.calories,
+        pendingProtein: pendingNutrition.protein,
+        pendingCarbs: pendingNutrition.carbs,
+        pendingFat: pendingNutrition.fat,
       );
     } else {
       state = state.copyWith(
         isLoading: false,
-        error: result['error'] as String?,
+        error: summaryResult['error'] as String?,
       );
     }
   }
@@ -283,6 +386,92 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
     return false;
   }
 
+  /// Load pending nutrition entries from local DB for the given date.
+  /// Sums macros across all pending entries.
+  Future<_PendingNutritionResult> _loadPendingNutrition(String date) async {
+    final userId = _userId;
+    if (userId == null) return const _PendingNutritionResult.empty();
+
+    try {
+      final pendingRows =
+          await _db.nutritionCacheDao.getPendingNutritionForUser(userId, date);
+      if (pendingRows.isEmpty) return const _PendingNutritionResult.empty();
+
+      int totalCalories = 0;
+      int totalProtein = 0;
+      int totalCarbs = 0;
+      int totalFat = 0;
+
+      for (final row in pendingRows) {
+        try {
+          final parsedData =
+              jsonDecode(row.parsedDataJson) as Map<String, dynamic>;
+          // The parsed_data contains the food data from the AI parser
+          // Structure: {"foods": [{"protein": X, "carbs": Y, ...}]}
+          // or it might be a flat map with totals
+          final foods = parsedData['foods'] as List?;
+          if (foods != null) {
+            for (final food in foods) {
+              if (food is Map<String, dynamic>) {
+                totalProtein += (food['protein'] as num?)?.toInt() ?? 0;
+                totalCarbs += (food['carbs'] as num?)?.toInt() ?? 0;
+                totalFat += (food['fat'] as num?)?.toInt() ?? 0;
+                totalCalories += (food['calories'] as num?)?.toInt() ?? 0;
+              }
+            }
+          } else {
+            // Flat structure
+            totalProtein += (parsedData['protein'] as num?)?.toInt() ?? 0;
+            totalCarbs += (parsedData['carbs'] as num?)?.toInt() ?? 0;
+            totalFat += (parsedData['fat'] as num?)?.toInt() ?? 0;
+            totalCalories += (parsedData['calories'] as num?)?.toInt() ?? 0;
+          }
+        } catch (_) {
+          // Corrupted JSON -- skip this entry's macros
+        }
+      }
+
+      return _PendingNutritionResult(
+        count: pendingRows.length,
+        calories: totalCalories,
+        protein: totalProtein,
+        carbs: totalCarbs,
+        fat: totalFat,
+      );
+    } catch (e) {
+      assert(() {
+        debugPrint('Failed to load pending nutrition: $e');
+        return true;
+      }());
+      return const _PendingNutritionResult.empty();
+    }
+  }
+
+  /// Load pending weight check-ins from local DB.
+  Future<List<PendingWeightDisplay>> _loadPendingWeights() async {
+    final userId = _userId;
+    if (userId == null) return [];
+
+    try {
+      final pendingRows =
+          await _db.nutritionCacheDao.getPendingWeightForUser(userId);
+      return pendingRows.map((row) {
+        return PendingWeightDisplay(
+          clientId: row.clientId,
+          date: row.date,
+          weightKg: row.weightKg,
+          notes: row.notes,
+        );
+      }).toList();
+    } catch (e) {
+      assert(() {
+        debugPrint('Failed to load pending weights: $e');
+        return true;
+      }());
+      return [];
+    }
+  }
+
   void clearError() {
     state = state.copyWith(error: null);
   }
@@ -328,4 +517,28 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
       return null;
     }
   }
+}
+
+/// Internal result class for pending nutrition macro totals.
+class _PendingNutritionResult {
+  final int count;
+  final int calories;
+  final int protein;
+  final int carbs;
+  final int fat;
+
+  const _PendingNutritionResult({
+    required this.count,
+    required this.calories,
+    required this.protein,
+    required this.carbs,
+    required this.fat,
+  });
+
+  const _PendingNutritionResult.empty()
+      : count = 0,
+        calories = 0,
+        protein = 0,
+        carbs = 0,
+        fat = 0;
 }

@@ -50,6 +50,11 @@ class WorkoutCacheDao extends DatabaseAccessor<AppDatabase>
         .go();
   }
 
+  /// Get all pending workout logs for a user (alias for AC-21).
+  Future<List<PendingWorkoutLog>> getPendingWorkoutsForUser(int userId) {
+    return getPendingWorkouts(userId);
+  }
+
   /// Watch pending workout count for badges.
   Stream<int> watchPendingCount(int userId) {
     final query = selectOnly(pendingWorkoutLogs)

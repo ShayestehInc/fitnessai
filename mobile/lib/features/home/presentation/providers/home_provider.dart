@@ -1,4 +1,10 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../../../core/database/app_database.dart';
+import '../../../../core/providers/database_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../nutrition/data/repositories/nutrition_repository.dart';
 import '../../../nutrition/data/models/nutrition_models.dart';
@@ -12,7 +18,10 @@ final homeStateProvider =
   final apiClient = ref.watch(apiClientProvider);
   final nutritionRepo = NutritionRepository(apiClient);
   final workoutRepo = WorkoutRepository(apiClient);
-  return HomeNotifier(nutritionRepo, workoutRepo);
+  final db = ref.watch(databaseProvider);
+  final authState = ref.watch(authStateProvider);
+  final userId = authState.user?.id;
+  return HomeNotifier(nutritionRepo, workoutRepo, db, userId);
 });
 
 /// Represents the next scheduled workout
@@ -55,6 +64,26 @@ class VideoItem {
   });
 }
 
+/// Display data for a pending (offline) workout on the home screen.
+class PendingWorkoutDisplay {
+  final String clientId;
+  final String workoutName;
+  final int exerciseCount;
+  final DateTime createdAt;
+
+  const PendingWorkoutDisplay({
+    required this.clientId,
+    required this.workoutName,
+    required this.exerciseCount,
+    required this.createdAt,
+  });
+
+  /// Format the creation date for display (e.g., "Mon, Feb 10").
+  String get formattedDate {
+    return DateFormat('EEE, MMM d').format(createdAt);
+  }
+}
+
 /// Weekly progress data from the API
 class WeeklyProgressData {
   final int totalDays;
@@ -77,6 +106,7 @@ class HomeState {
   final NextWorkout? nextWorkout;
   final List<VideoItem> latestVideos;
   final List<WorkoutHistorySummary> recentWorkouts;
+  final List<PendingWorkoutDisplay> pendingWorkouts;
   final String? recentWorkoutsError;
   final int programProgress; // 0-100
   final WeeklyProgressData? weeklyProgress;
@@ -90,6 +120,7 @@ class HomeState {
     this.nextWorkout,
     this.latestVideos = const [],
     this.recentWorkouts = const [],
+    this.pendingWorkouts = const [],
     this.recentWorkoutsError,
     this.programProgress = 0,
     this.weeklyProgress,
@@ -104,6 +135,7 @@ class HomeState {
     NextWorkout? nextWorkout,
     List<VideoItem>? latestVideos,
     List<WorkoutHistorySummary>? recentWorkouts,
+    List<PendingWorkoutDisplay>? pendingWorkouts,
     String? recentWorkoutsError,
     bool clearRecentWorkoutsError = false,
     int? programProgress,
@@ -118,6 +150,7 @@ class HomeState {
       nextWorkout: nextWorkout ?? this.nextWorkout,
       latestVideos: latestVideos ?? this.latestVideos,
       recentWorkouts: recentWorkouts ?? this.recentWorkouts,
+      pendingWorkouts: pendingWorkouts ?? this.pendingWorkouts,
       recentWorkoutsError: clearRecentWorkoutsError
           ? null
           : (recentWorkoutsError ?? this.recentWorkoutsError),
@@ -168,8 +201,15 @@ class HomeState {
 class HomeNotifier extends StateNotifier<HomeState> {
   final NutritionRepository _nutritionRepo;
   final WorkoutRepository _workoutRepo;
+  final AppDatabase _db;
+  final int? _userId;
 
-  HomeNotifier(this._nutritionRepo, this._workoutRepo) : super(HomeState());
+  HomeNotifier(
+    this._nutritionRepo,
+    this._workoutRepo,
+    this._db,
+    this._userId,
+  ) : super(HomeState());
 
   Future<void> loadDashboardData() async {
     state = state.copyWith(isLoading: true, error: null);
@@ -231,6 +271,9 @@ class HomeNotifier extends StateNotifier<HomeState> {
       // Load sample latest videos (in a real app, this would come from an API)
       final latestVideos = _getSampleVideos();
 
+      // Load pending workouts from local DB
+      final pendingWorkouts = await _loadPendingWorkouts();
+
       state = state.copyWith(
         isLoading: false,
         nutritionGoals: goalsResult['success'] == true
@@ -244,6 +287,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
         programProgress: programProgress,
         weeklyProgress: weeklyProgress,
         recentWorkouts: recentWorkouts,
+        pendingWorkouts: pendingWorkouts,
         recentWorkoutsError: recentWorkoutsError,
         clearRecentWorkoutsError: recentWorkoutsError == null,
         latestVideos: latestVideos,
@@ -253,6 +297,45 @@ class HomeNotifier extends StateNotifier<HomeState> {
         isLoading: false,
         error: e.toString(),
       );
+    }
+  }
+
+  /// Load pending workout logs from the local DB and convert to display data.
+  /// Returns an empty list if there are no pending workouts or if the query fails.
+  Future<List<PendingWorkoutDisplay>> _loadPendingWorkouts() async {
+    final userId = _userId;
+    if (userId == null) return [];
+
+    try {
+      final pendingRows = await _db.workoutCacheDao.getPendingWorkouts(userId);
+      return pendingRows.map((row) {
+        String workoutName = 'Unknown Workout';
+        int exerciseCount = 0;
+
+        try {
+          final summaryMap =
+              jsonDecode(row.workoutSummaryJson) as Map<String, dynamic>;
+          workoutName =
+              summaryMap['workout_name'] as String? ?? 'Unknown Workout';
+          final exercises = summaryMap['exercises'] as List?;
+          exerciseCount = exercises?.length ?? 0;
+        } catch (_) {
+          // Corrupted JSON -- fall back to placeholder data
+        }
+
+        return PendingWorkoutDisplay(
+          clientId: row.clientId,
+          workoutName: workoutName,
+          exerciseCount: exerciseCount,
+          createdAt: row.createdAt,
+        );
+      }).toList();
+    } catch (e) {
+      assert(() {
+        debugPrint('Failed to load pending workouts: $e');
+        return true;
+      }());
+      return [];
     }
   }
 

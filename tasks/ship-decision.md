@@ -1,18 +1,21 @@
-# Ship Decision: Offline-First Workout & Nutrition Logging with Sync Queue (Pipeline 15)
+# Ship Decision: Health Data Integration + Performance Audit + Offline UI Polish (Pipeline 16)
 
 ## Verdict: SHIP
 ## Confidence: HIGH
 ## Quality Score: 8/10
-## Summary: Offline-First Workout & Nutrition Logging (Phase 6) delivers the complete offline infrastructure: Drift local database, sync queue with FIFO processing and exponential backoff, connectivity monitoring with debounce, offline-aware decorator repositories for workouts/nutrition/weight, program caching, 409 conflict detection, and full UI indicators (offline banner, syncing progress, failed sync bottom sheet, logout warning). All critical and major bugs found across 4 review rounds were fixed. 33 of 42 ACs pass; 3 remaining failures are documented deferred UI merge tasks (AC-12/16/18) that do not affect core offline functionality.
+## Summary: All three parts of the feature are production-ready. 24 of 26 acceptance criteria fully pass, 1 is justifiably deferred (AC-19: individual food entry row sync badges), and 1 is partially met due to Android device ecosystem limitations (AC-14: gear icon health settings). All critical and high issues from every pipeline stage have been fixed. Zero new errors introduced in flutter analyze. Architecture is clean, security is solid (no secrets, read-only health, health data stays local), and performance optimizations are correctly targeted.
 
 ---
 
 ## Test Suite Results
 
-- **Flutter analyze:** 223 issues total, **0 in offline feature files**. All issues are pre-existing in `health_service.dart`, `widget_test.dart`, `trainee_detail_screen.dart`, and other unrelated files.
-- **No `print()` debug statements** in any new or modified file
-- **No secrets or credentials** in any new or modified file (confirmed by security audit full regex scan)
-- **Build runner code generation:** 401 outputs generated successfully
+- **Flutter analyze:** 205 issues total across the entire codebase.
+- **1 error** in `test/widget_test.dart:16` (`MyApp` class reference) -- **pre-existing**, NOT modified by this pipeline.
+- **0 errors, 0 warnings in any pipeline-modified files.**
+- 2 info-level `use_build_context_synchronously` in `home_screen.dart:290` and `nutrition_screen.dart:499` -- both have `mounted` guards and are pre-existing patterns.
+- All other issues (warnings, infos) are in files not touched by this pipeline.
+
+**Verdict: PASS** -- No new errors or warnings introduced by this pipeline in modified files.
 
 ---
 
@@ -20,100 +23,94 @@
 
 | Report | Score | Verdict | Key Finding |
 |--------|-------|---------|-------------|
-| Code Review (Round 1) | 5/10 | BLOCK | 4 critical, 9 major issues found |
-| Code Review (Round 2) | 7.5/10 | APPROVE | All R1 critical/major issues fixed, 6 new minor issues |
-| QA Report | MEDIUM-HIGH | 33/42 pass, 3 fail (deferred) | 1 critical bug found and fixed (infinite retry loop) |
-| Security Audit | 9/10 | PASS | 1 medium issue fixed (corrupted JSON crash), 0 critical/high |
-| Architecture Review | 8/10 | APPROVE | 6 issues fixed (transactions, DRY, migration strategy, error handling) |
-| Hacker Report | 7/10 | -- | 5 fixes applied (retryItem, connectivity, weight double-submit, success feedback, badge) |
+| Code Review (Round 2) | 8/10 | APPROVE | All 3 critical, 4 major, and 9 minor issues from Round 1 fixed. 2 new minor issues (trivial redundancy, pre-existing file sizes). |
+| QA Report | HIGH confidence, 0 failed | PASS | 24 PASS, 1 DEFERRED (AC-19), 1 PARTIAL (AC-14). 0 bugs found. All 12 edge cases verified. All 9 error states verified. |
+| UX Audit | 8/10 | PASS | 15 usability fixes implemented (Semantics labels, touch targets, error silencing, misleading chevron removed). All fixed in code. |
+| Security Audit | 9.5/10 | PASS | 0 Critical, 0 High, 0 Medium issues. Health data stays local. Read-only permissions at 3 layers. No secrets leaked. No health data in logs. |
+| Architecture Review | 8/10 | APPROVE | Clean 3-layer separation. Sealed class state. No new Drift tables. Injectable HealthService. 4 minor fixes applied. |
+| Hacker Report | 8/10 | N/A | 1 real logic bug found and fixed (server weight entries getting false-positive pending badges). 4 dead UI elements found (all pre-existing). 8 product improvement suggestions. |
 
 ---
 
-## Acceptance Criteria Verification: 33/42 PASS
+## Acceptance Criteria Verification: 24/26 PASS
 
-### Drift Local Database Setup (4/4 PASS)
-- [x] AC-1: Drift database initialized with 5 tables in `app_database.dart`
-- [x] AC-2: Database stored in documents directory via `path_provider`, persists across restarts
-- [x] AC-3: Uses `drift`, `sqlite3_flutter_libs`, `drift_dev`. `sqlite3` added for `SqliteException`.
-- [x] AC-4: `databaseProvider` Riverpod provider exposes singleton
+### Part A: Health Data Integration (AC-1 through AC-14)
 
-### Network Connectivity Detection (4/4 PASS)
-- [x] AC-5: `connectivity_plus: ^6.0.0` in pubspec, `ConnectivityService` with stream + 2s debounce
-- [x] AC-6: `connectivityStatusProvider` (StreamProvider) + `isOnlineProvider` (sync getter)
-- [x] AC-7: `_onConnectivityChanged` triggers `_processQueue()` on online transition
-- [x] AC-8: All 3 offline repos check 5 DioException types + `SocketException`-narrowed unknown
+| AC | Description | Verdict | Evidence |
+|----|-------------|---------|----------|
+| AC-1 | Health permission request on first home screen visit | **PASS** | `_initHealthData()` called in `initState` via `addPostFrameCallback`. Calls `checkAndRequestPermission()`. Shows bottom sheet if first time. `_requestedTypes` includes `STEPS`, `ACTIVE_ENERGY_BURNED`, `HEART_RATE`, `WEIGHT`. Verified in `home_screen.dart:27-49`, `health_provider.dart:87-114`, `health_service.dart:21-26`. |
+| AC-2 | Permission bottom sheet with explanation | **PASS** | `showHealthPermissionSheet()` renders Material bottom sheet with heart icon (wrapped in `ExcludeSemantics`), "Connect Your Health Data" title, platform-specific description ("Apple Health" / "Health Connect" via `Theme.of(context).platform`), "Connect Health" (ElevatedButton returns true), "Not Now" (TextButton returns false). Verified in `health_permission_sheet.dart:1-131`. |
+| AC-3 | Card hidden when permission denied / unavailable | **PASS** | `TodaysHealthCard.build()` uses exhaustive `switch` on `HealthDataState`. `HealthDataPermissionDenied`, `HealthDataUnavailable`, `HealthDataInitial` all return `SizedBox.shrink()`. Verified in `health_card.dart:22-28`. |
+| AC-4 | Health card with steps, active cal, HR, weight | **PASS** | `_LoadedHealthCard` renders 2x2 grid of `_MetricTile` widgets: Steps (walking icon, green, `NumberFormat('#,###')`), Active Cal (flame icon, red, with "cal" suffix), Heart Rate (heart icon, pink, "bpm" or "--"), Weight (scale icon, blue, `toStringAsFixed(1)` or "--"). Each tile has `minHeight: 48`, `Semantics` label, `TextOverflow.ellipsis`. Verified in `health_card.dart:119-167`. |
+| AC-5 | Health data non-blocking, pull-to-refresh | **PASS** | `_initHealthData()` runs via `addPostFrameCallback` (async, non-blocking). Pull-to-refresh calls `fetchHealthData(isRefresh: true)` without awaiting it. Verified in `home_screen.dart:27-50`, `home_screen.dart:74-83`. |
+| AC-6 | HealthDataProvider with sealed states | **PASS** | `HealthDataState` is a sealed class with 5 subclasses: `HealthDataInitial`, `HealthDataLoading`, `HealthDataLoaded`, `HealthDataPermissionDenied`, `HealthDataUnavailable`. `HealthDataNotifier` extends `StateNotifier<HealthDataState>`. `HealthDataLoaded` has `operator ==` and `hashCode`. Verified in `health_provider.dart:19-57`. |
+| AC-7 | WEIGHT added to HealthService | **PASS** | `HealthDataType.WEIGHT` in `_requestedTypes` (line 25). `getLatestWeight()` fetches past 7 days, returns most recent by `dateFrom`. Returns `(double, DateTime)?`. Verified in `health_service.dart:187-221`. |
+| AC-8 | ACTIVE_ENERGY_BURNED added | **PASS** | `HealthDataType.ACTIVE_ENERGY_BURNED` in `_requestedTypes` (line 23). `getTodayActiveCalories()` uses `getHealthAggregateDataFromTypes()` for platform-level dedup. Verified in `health_service.dart:115-142`. |
+| AC-9 | Weight auto-import with date dedup | **PASS** | `_autoImportWeight()` checks: (1) weightRepo and userId not null, (2) weight exists and date is today, (3) no pending weight for today (queries `cacheDao.getPendingWeightCheckins`), (4) calls `weightRepo.createWeightCheckIn()` for server dedup. Awaited with `mounted` guards. Verified in `health_provider.dart:214-279`. |
+| AC-10 | Auto-import notes "Auto-imported from Health" | **PASS** | `notes: 'Auto-imported from Health'` at `health_provider.dart:261`. |
+| AC-11 | Permission persisted in SharedPreferences | **PASS** | Keys `health_permission_asked` and `health_permission_granted` (both bool). Set in `requestOsPermission()` and `declinePermission()`. Read in `checkAndRequestPermission()` and `wasPermissionAsked()`. Verified in `health_provider.dart:15-16, 87-114, 118-128, 135-156, 160-172`. |
+| AC-12 | HealthService rewritten, typed return | **PASS** | Returns `HealthMetrics` (not `Map<String, dynamic>`). `ACTIVE_ENERGY_BURNED` and `WEIGHT` added. Sleep removed. Bug fixed: `point.value is NumericHealthValue`. Injectable via constructor. Verified in `health_service.dart:1-236`. |
+| AC-13 | iOS entitlements + Android permissions | **PASS** | iOS: `com.apple.developer.healthkit = true`, `com.apple.developer.healthkit.access = []` (empty = read-only). Android: `READ_STEPS`, `READ_HEART_RATE`, `READ_ACTIVE_CALORIES_BURNED`, `READ_WEIGHT` (all READ-only, no WRITE). Verified via `Runner.entitlements` and `AndroidManifest.xml`. |
+| AC-14 | Gear icon opens health settings | **PARTIAL** | `IconButton` with tooltip "Open health settings". `HealthService.healthSettingsUri`: iOS = `x-apple-health://`, Android = `content://com.google.android.apps.healthdata`. Uses `url_launcher`. Android URI may not open Health Connect on all device OEMs -- this is a platform ecosystem limitation, not a code bug. Verified in `health_card.dart:101-114, 174-184`, `health_service.dart:229-235`. |
 
-### Offline Workout Logging (4/5 PASS, 1 FAIL deferred)
-- [x] AC-9: Workout saved to `pendingWorkoutLogs` with `clientId`, `userId`, JSON payloads, `pending` status
-- [x] AC-10: Full payload structure (workout_summary, survey_data, readiness_survey) matches API contract
-- [x] AC-11: Offline success shows SnackBar with cloud_off icon (minor deviation: snackbar vs full success screen)
-- [ ] AC-12: **FAIL (deferred)** -- Home screen does not merge local pending workouts into "Recent Workouts"
-- [x] AC-13: Readiness survey falls back to sync queue when offline
+### Part B: Offline UI Polish (AC-15 through AC-21)
 
-### Offline Nutrition Logging (2/3 PASS, 1 FAIL deferred)
-- [x] AC-14: Nutrition entries saved to `pendingNutritionLogs` + sync queue when offline
-- [x] AC-15: Offline nutrition snackbar with cloud_off icon
-- [ ] AC-16: **FAIL (deferred)** -- Nutrition screen does not merge local entries into macro totals
+| AC | Description | Verdict | Evidence |
+|----|-------------|---------|----------|
+| AC-15 | Pending workouts in home Recent Workouts | **PASS** | `_buildRecentWorkoutsSection()` renders `_PendingWorkoutCard` first, then server workouts. Pending cards use `Stack` + `Positioned(right: 4, bottom: 4)` + `SyncStatusBadge(status: SyncItemStatus.pending)`. Tapping shows snackbar with cloud_off icon "This workout is waiting to sync." No misleading chevron. Verified in `home_screen.dart:839-892, 1273-1358`. |
+| AC-16 | Pending nutrition merged into macro totals | **PASS** | `_buildMacroCards()` adds `state.pendingProtein/Carbs/Fat` to server totals. Progress recalculated. "(includes X pending)" label with cloud_off icon shown when `pendingNutritionCount > 0`. Verified in `nutrition_screen.dart:566-659`. |
+| AC-17 | Pending weights in Weight Trends + Latest Weight | **PASS** | Weight Trends: pending entries shown first via `_buildPendingWeightRow()` with `SyncStatusBadge`. Nutrition screen Latest Weight: shows cloud_off icon (12px, amber) with `Tooltip('Pending sync')` when latest weight date matches a pending entry date. Verified in `weight_trends_screen.dart:88-107, 418-498`, `nutrition_screen.dart:146-179`. |
+| AC-18 | SyncStatusBadge on pending workout cards | **PASS** | `_PendingWorkoutCard` uses `Stack` + `Positioned(right: 4, bottom: 4)` + `SyncStatusBadge(status: SyncItemStatus.pending)`. Badge is 16x16 with 12px icon. Wrapped in `RepaintBoundary`. Verified in `home_screen.dart:1291-1356`. |
+| AC-19 | SyncStatusBadge on food entry rows | **DEFERRED** | Pending nutrition entries are stored as raw JSON blobs (entire AI-parsed meal payloads), not individual food items. Mapping to specific meal section rows requires refactoring the pending data model. Macro totals merge + "(includes X pending)" label addresses the user-facing intent. Justified deferral documented in `dev-done.md`. |
+| AC-20 | SyncStatusBadge on pending weight entries | **PASS** | `_buildPendingWeightRow()` uses `Stack` + `Positioned(right: 4, bottom: 4)` + `SyncStatusBadge(status: SyncItemStatus.pending)` with `Semantics` label. Server entries do NOT show badges (hacker fix removed false-positive `isPending` flag). Verified in `weight_trends_screen.dart:418-498`. |
+| AC-21 | DAO alias methods for pending queries | **PASS** | `WorkoutCacheDao.getPendingWorkoutsForUser(int userId)` at line 54. `NutritionCacheDao.getPendingNutritionForUser(int userId, String date)` at line 52. `NutritionCacheDao.getPendingWeightForUser(int userId)` at line 103. All delegate to existing parameterized queries. Verified via grep. |
 
-### Offline Weight Check-In (1/2 PASS, 1 FAIL deferred)
-- [x] AC-17: Weight check-in saved to `pendingWeightCheckins` + sync queue when offline
-- [ ] AC-18: **FAIL (deferred)** -- Weight trends screen does not merge local data
+### Part C: Performance Audit (AC-22 through AC-26)
 
-### Program Caching (4/4 PASS)
-- [x] AC-19: Programs cached in Drift after successful API fetch
-- [x] AC-20: Cache fallback works + "Showing cached program" banner displayed
-- [x] AC-21: Cache overwrite pattern in atomic transaction
-- [x] AC-22: Active workout screen works fully offline with cached program
-
-### Sync Queue (7/7 PASS)
-- [x] AC-23: `sync_queue` table has all required columns (id, clientId, userId, operationType, payloadJson, status, createdAt, syncedAt, retryCount, lastError)
-- [x] AC-24: FIFO order (`createdAt ASC`), sequential processing (while loop, not parallel)
-- [x] AC-25: Status transitions correct: pending -> syncing -> synced/failed
-- [x] AC-26: 3 retries with exponential backoff (5s, 15s, 45s). Verified after QA BUG-1 fix.
-- [x] AC-27: Full FailedSyncSheet bottom sheet with per-item icons, descriptions, error messages, Retry/Delete buttons, Retry All, auto-close
-- [x] AC-28: Synced items deleted after 24 hours on startup (deviation from ticket's 7 days -- documented and justified)
-- [x] AC-29: SyncService runs independently of navigation state
-
-### Conflict Resolution (3/3 PASS)
-- [x] AC-30: HTTP 409 for workouts: marked permanently failed, "Program was updated by your trainer"
-- [x] AC-31: HTTP 409 for nutrition: marked permanently failed, "Nutrition data was updated"
-- [x] AC-32: 5xx/network errors: 3 retries with exponential backoff (5s, 15s, 45s)
-
-### Visual Indicators (3/6 PASS, 3 PARTIAL)
-- [x] AC-33: Amber offline banner with cloud_off icon, 28px height, Semantics liveRegion
-- [x] AC-34: Blue syncing banner with cloud_upload icon, LinearProgressIndicator, progress text
-- [x] AC-35: Green "All changes synced" banner, auto-dismiss after 3 seconds
-- [~] AC-36: **PARTIAL** -- SyncStatusBadge widget exists and works, but not placed on any cards
-- [~] AC-37: **PARTIAL** -- Rotating syncing badge exists but not placed on cards
-- [~] AC-38: **PARTIAL** -- Failed badge exists but not placed on cards
-
-### Performance & Cleanup (4/4 PASS)
-- [x] AC-39: `LazyDatabase` for lazy init, `ref.onDispose` for cleanup
-- [x] AC-40: 24-hour cleanup for synced items (deviation from ticket's 7 days -- documented)
-- [x] AC-41: 30-day stale cache cleanup on startup
-- [x] AC-42: `NativeDatabase.createInBackground` for background isolate
+| AC | Description | Verdict | Evidence |
+|----|-------------|---------|----------|
+| AC-22 | RepaintBoundary on list items with paint ops | **PASS** | `_RecentWorkoutCard` wrapped at `home_screen.dart:1208`. `_PendingWorkoutCard` wrapped at `home_screen.dart:1291`. Weight chart `CustomPaint` wrapped at `weight_trends_screen.dart:296`. `shouldRepaint` uses `listEquals` for deep comparison. Verified by reading actual code. |
+| AC-23 | Const constructor audit on priority files | **PASS** | All new widgets use `const` constructors: `TodaysHealthCard`, `_SkeletonHealthCard`, `_MetricTile`, `_SkeletonTile`, `_PendingWorkoutCard`, `SyncStatusBadge`, `_HealthPermissionSheetContent`. `HealthMetrics.empty` is `static const`. Pre-existing lint fixed (Icon in nutrition_screen). Verified in all new/modified files. |
+| AC-24 | Riverpod select() where beneficial | **PASS** | `_buildHealthCardSpacer()` uses `ref.watch(healthDataProvider.select((state) => state is HealthDataLoaded || state is HealthDataLoading))` at `home_screen.dart:170`. Pragmatic application -- widgets needing multiple fields don't use select() to avoid complexity without benefit. Verified in `home_screen.dart:167-176`. |
+| AC-25 | RepaintBoundary on CalorieRing, MacroCircle, MacroCard | **PASS** | CalorieRing wrapped at `home_screen.dart:435`. 3 MacroCircles wrapped at `home_screen.dart:448, 457, 466`. 3 MacroCards wrapped at `nutrition_screen.dart:587, 601, 615`. Verified by reading actual code. |
+| AC-26 | ListView.builder / SliverList.builder for large lists | **PASS** | Weight trends history uses `CustomScrollView` + `SliverList.builder` with `itemCount: pendingWeights.length + history.length` at `weight_trends_screen.dart:88-107`. Home screen recent workouts (capped at 3-5) kept as `Column` per ticket spec. Verified by reading actual code. |
 
 ---
 
 ## Critical/High Issue Resolution
 
-| Issue | Source | Status | Verification |
-|-------|--------|--------|-------------|
-| Race condition -- missing `_pendingRestart` flag | Code Review R1 C1 | FIXED | `_pendingRestart` flag in sync_service.dart:35, checked in finally block |
-| Retry off-by-one (only 2 retries instead of 3) | Code Review R1 C2 | FIXED | Condition: `item.retryCount + 1 < _maxRetries`. Verified: 3 attempts. |
-| Dead idempotency -- clientId generated inside repo | Code Review R1 C3 | FIXED | `clientId` now required parameter, generated once per widget lifecycle |
-| Logout data leak -- no clearUserData | Code Review R1 C4 | FIXED | Both home_screen and settings_screen call `db.clearUserData(userId)` |
-| Infinite retry loop -- `retryItem()` used for auto-retries | QA BUG-1 | FIXED | `requeueForRetry()` preserves retryCount; `retryItem()` resets to 0 for manual |
-| Non-atomic local saves | Architecture | FIXED | All 3 offline repos wrap dual-inserts in `transaction()` |
-| Non-atomic user data cleanup | Architecture | FIXED | `clearUserData()` wrapped in `transaction()` |
-| Triple-duplicated `_isNetworkError` | Architecture | FIXED | Extracted to `network_error_utils.dart` |
-| Corrupted JSON crashes app | Security M-1 | FIXED | `_getProgramsFromCache` catches FormatException, deletes cache |
-| Connectivity false-negative on Android | Hacker | FIXED | `_mapResults` checks `results.any((r) => r != ConnectivityResult.none)` |
-| Weight check-in double-submit | Hacker | FIXED | Added `_isSaving` flag with proper setState |
-| Weight check-in missing success feedback | Hacker | FIXED | Added success snackbar for online saves |
-| Recursive stack growth from `_processQueue` | Architecture | FIXED | `Future.microtask(_processQueue)` in finally block |
+### From Code Review
 
-**All 13 critical/high issues identified across all review stages have been fixed.**
+| Issue | Severity | Description | Status |
+|-------|----------|-------------|--------|
+| C1 | Critical | Steps double-counting from overlapping sources | FIXED -- Uses `getTotalStepsInInterval()` (platform aggregate) |
+| C2 | Critical | Fire-and-forget async in auto-import weight | FIXED -- Awaited with `mounted` guards |
+| C3 | Critical | Refresh UX skeleton flash | FIXED -- `isRefresh` parameter preserves loaded state |
+| M1 | Major | syncCompletionProvider not wired | FIXED -- `ref.listen` in 3 screens |
+| M2 | Major | Active calories overlapping sources | FIXED -- Uses `getHealthAggregateDataFromTypes()` |
+| M3 | Major | Offline weight dedup missing | FIXED -- Checks pending entries before auto-import |
+| M6/M7 | Major | HealthService not injectable | FIXED -- Constructor injection + provider |
+
+### From Hacker Report
+
+| Issue | Severity | Description | Status |
+|-------|----------|-------------|--------|
+| H1 | High | Server weight entries wrongly showing pending badge | FIXED -- Removed `isPending` from `_buildHistoryRow` |
+
+### From UX Audit
+
+| Issue | Severity | Description | Status |
+|-------|----------|-------------|--------|
+| U1 | High | Health metric tiles no Semantics labels | FIXED |
+| U2 | High | Skeleton loading no screen reader announcement | FIXED |
+
+### From Security Audit
+
+| Issue | Severity | Description | Status |
+|-------|----------|-------------|--------|
+| None | -- | 0 Critical, 0 High, 0 Medium | N/A |
+
+**All critical and high issues across all reports: RESOLVED.**
 
 ---
 
@@ -121,14 +118,17 @@
 
 | Check | Status |
 |-------|--------|
-| No secrets in code | PASS -- full regex scan by security auditor |
-| No SQL injection | PASS -- all queries use Drift parameterized builder |
-| userId filtering in all DAO queries | PASS -- verified every method |
-| Sync uses existing JWT auth | PASS -- ApiClient with token refresh |
-| 401 handling preserves data | PASS -- marks failed with current retryCount |
-| Error messages don't leak internals | PASS -- all user-friendly |
-| Data cleanup on logout is transactional | PASS -- `transaction()` wraps all 5 deletes |
-| Security score | 9/10 |
+| No secrets, API keys, passwords, or tokens in source code | PASS -- full regex scan by security auditor |
+| Health data stays local (steps, calories, HR never sent to backend) | PASS -- only weight via existing save path |
+| Health permissions are read-only at 3 layers (iOS, Android, Dart) | PASS |
+| SharedPreferences stores only boolean flags, not health data | PASS |
+| Debug logging does not leak health metric values | PASS -- assert-wrapped, logs method names only |
+| All DAO queries use Drift parameterized builder (no raw SQL) | PASS |
+| userId filtering on all DAO queries | PASS |
+| Race conditions handled (weight dedup local + server, mounted guards) | PASS |
+| Error messages don't leak internals | PASS |
+| No new dependencies added | PASS |
+| Security score | 9.5/10 |
 
 ---
 
@@ -136,56 +136,78 @@
 
 | Category | Score | Notes |
 |----------|-------|-------|
-| Functionality | 8/10 | 33 of 42 ACs pass. 3 deferred (UI merge tasks for home/nutrition/weight list views). Core offline infrastructure is complete. |
-| Code Quality | 8/10 | Typed `OfflineSaveResult`, enums for operation types/statuses, decorator pattern, `isNetworkError` extracted. Minor: DAO uses raw strings, `getPrograms()` returns Map. |
-| Security | 9/10 | No secrets, parameterized queries, userId isolation, transactional cleanup, user-friendly errors. Unencrypted SQLite is acceptable for fitness data. |
-| Performance | 8/10 | Background isolate via `NativeDatabase.createInBackground`, WAL mode, lazy init, startup cleanup. Minor: backoff blocks queue, totalPending captured once. |
-| UX/Feedback | 7/10 | Offline/syncing/synced/failed banners present. Logout warning with item count. Missing: per-card badges not placed, offline success uses snackbar not full screen. |
-| Architecture | 8/10 | Clean decorator pattern. Proper layering. Transactional saves. Migration strategy. DRY network error utils. Riverpod lifecycle management. |
-| Error Handling | 9/10 | Every error path handled: SqliteException (storage full), FormatException (corrupt JSON), ArgumentError (unknown op type), DioException (network/server/auth/conflict), generic catch-all. All with user-friendly messages. |
-
-**Overall: 8/10 -- Meets the SHIP threshold.**
+| Correctness | 8/10 | All critical bugs fixed. Platform-level aggregate queries for steps/calories. Proper dedup. Refresh preserves data. 24/26 ACs pass. |
+| Architecture | 8/10 | Clean 3-layer separation. Sealed class state. Injectable services. No circular deps. No new Drift tables. Pre-existing file size issue (not blocking). |
+| Security | 9.5/10 | No secrets. Health data local-only. Read-only permissions. No logging of health values. Parameterized queries. |
+| UX/Accessibility | 8/10 | 15 usability fixes applied. Semantics labels on all health metrics and sync badges. Proper touch targets. Missing: shimmer animation on skeleton, tablet layout. |
+| Performance | 8/10 | RepaintBoundary on paint-heavy widgets. SliverList.builder for large lists. select() where beneficial. shouldRepaint optimization. Static NumberFormat. |
+| Code Quality | 7.5/10 | const constructors everywhere. Proper error handling. Debug logging pattern. Pre-existing file size violations (home_screen 1355 lines, nutrition_screen 1150 lines). |
+| Completeness | 8/10 | 24/26 ACs fully met. 1 justifiably deferred. 1 partial (device ecosystem limitation). All edge cases handled. |
+| **Overall** | **8/10** | |
 
 ---
 
 ## Remaining Concerns (Non-Blocking)
 
-1. **AC-12, AC-16, AC-18 deferred** -- Local pending data not merged into home recent workouts, nutrition macro totals, or weight trends. Infrastructure exists (DAO methods for fetching pending items) but UI integration was deferred. Should be completed in a follow-up pipeline.
+1. **AC-19 deferred (SyncStatusBadge on food entry rows)**: Pending nutrition is stored as JSON blobs, not individual food items. Requires data model refactoring. The macro totals merge and "(includes X pending)" label address the user-facing intent. Track for future pipeline.
 
-2. **AC-36, AC-37, AC-38 partial** -- `SyncStatusBadge` widget is fully functional but not placed on any cards in list views. Requires design decisions about which cards to badge and where.
+2. **No health reconnection path after initial denial (Hacker Report finding)**: If a user taps "Not Now" on the permission sheet, there is no in-app way to re-trigger it. The ticket mentions "The user can connect later via Settings" but no Settings screen row was implemented. Non-blocking for launch -- users can enable manually in device health app settings. Track for future pipeline.
 
-3. **DAO raw string literals** -- `sync_queue_dao.dart` uses `'pending'`, `'syncing'`, `'synced'`, `'failed'` instead of `SyncItemStatus` enum values. Low risk (DAO is the database boundary) but a typo could silently break queries.
+3. **Home screen nutrition totals don't include pending (Hacker Report finding)**: Home screen CalorieRing/MacroCircle show server-only data. Nutrition screen shows server + pending. Data inconsistency between screens when pending entries exist. Not in ticket scope (AC-16 only specifies Nutrition screen). Track for future pipeline.
 
-4. **`getPrograms()` returns `Map<String, dynamic>`** -- Violates the project's "no dict returns" rule. A typed `ProgramFetchResult` class should be created in a follow-up.
+4. **Pre-existing file size violations**: `home_screen.dart` (1355 lines) and `nutrition_screen.dart` (1150 lines) exceed the 150-line guideline. Pre-existing issue exacerbated by this pipeline. Non-blocking -- requires dedicated refactoring pass to extract sub-widgets.
 
-5. **Items stuck in `syncing` status after app kill** -- `getNextPending` only fetches `status = 'pending'`, so items left in `syncing` after a force-kill are orphaned. Consider adding a "reset stuck syncing items" step to startup cleanup.
+5. **Pre-existing dead UI elements**: "Copy Meal", "Clear Meal" popup menu items, and video play/like buttons have no handlers. Not introduced by this pipeline.
 
-6. **Backend `client_id` field** -- The sync payloads include a `client_id` field. Backend acceptance of this field has not been verified. Server-side deduplication based on `client_id` should be implemented before production launch.
-
-None of these are ship-blockers for V1 of the offline feature.
+6. **Fade animation replays on widget remount**: Minor UX issue -- 200ms fade on health card replays when navigating back to home screen. Barely noticeable.
 
 ---
 
 ## What Was Built (for changelog)
 
-**Offline-First Workout & Nutrition Logging with Sync Queue (Phase 6)** -- Complete offline-first infrastructure for the mobile app:
+### Health Data Integration
+- HealthKit (iOS) and Health Connect (Android) read integration for steps, active calories, heart rate, and weight
+- "Today's Health" card on the home screen with 2x2 metric grid, skeleton loading state, and 200ms fade-in animation
+- One-time permission bottom sheet explaining why health data is needed, with "Connect Health" and "Not Now" buttons
+- Permission state persisted in SharedPreferences (shown once per app install)
+- Automatic weight import from HealthKit/Health Connect with date-based deduplication (both local and server)
+- Gear icon to open device health settings (iOS Health app, Android Health Connect)
+- Platform-level aggregate queries for steps and active calories (proper deduplication of overlapping sources)
+- Read-only permissions enforced at 3 layers (iOS entitlements, Android manifest, Dart code)
+- Health data stays local -- never sent to backend (except weight via existing save path)
 
-- **Local Database (Drift/SQLite):** 5 tables for pending workouts, nutrition, weight check-ins, cached programs, and sync queue. Background isolate via `NativeDatabase.createInBackground()`. WAL mode for concurrent read/write. Startup cleanup (24h synced items, 30d stale cache). Transactional user data clearing on logout.
+### Offline UI Polish
+- Pending workouts merged into Home screen "Recent Workouts" list with SyncStatusBadge overlay
+- Pending nutrition macros merged into Nutrition screen totals with "(includes X pending)" label
+- Pending weight check-ins merged into Weight Trends screen history with SyncStatusBadge overlay
+- Latest Weight on Nutrition screen shows cloud_off icon when latest weight is a pending entry
+- Sync completion reactively updates all 3 screens (badges disappear when sync completes)
+- DAO alias methods for pending data queries (`getPendingWorkoutsForUser`, `getPendingNutritionForUser`, `getPendingWeightForUser`)
 
-- **Connectivity Monitoring:** `ConnectivityService` wrapping `connectivity_plus` with 2-second debounce to prevent sync thrashing during connection flapping. Handles Android's multi-result connectivity reporting.
+### Performance Audit
+- RepaintBoundary on CalorieRing, MacroCircle (x3), MacroCard (x3), RecentWorkoutCard, PendingWorkoutCard, weight chart CustomPaint
+- SliverList.builder for weight trends history (virtualized rendering)
+- Riverpod select() for health card spacer visibility
+- shouldRepaint optimization on weight chart painter (listEquals for deep comparison)
+- Static NumberFormat allocation (no per-build recreation)
+- const constructors on all new widgets
 
-- **Offline-Aware Repositories:** Decorator pattern wrapping existing WorkoutRepository, LoggingRepository, and NutritionRepository. When online, delegates to API. When offline, saves to Drift + sync queue. UUID-based idempotency prevents duplicate submissions. Storage-full SQLite errors caught with user-friendly messages.
+### Accessibility Improvements
+- Semantics labels on all health metric tiles, sync status badges, and loading states
+- ExcludeSemantics on decorative elements
+- 32dp minimum touch targets on all interactive elements
+- Tooltips on icon buttons
+- liveRegion announcements for dynamic content
 
-- **Sync Queue Engine:** FIFO sequential processing. Exponential backoff (5s, 15s, 45s). Max 3 retries before permanent failure. HTTP 409 conflict detection (no auto-retry). 401 auth error handling (pause sync, preserve data). Corrupted JSON and unknown operation type handled gracefully.
+### Bug Fixes
+- Fixed `HealthService` bug where `data is NumericHealthValue` was checking the wrong object (`HealthDataPoint` instead of `HealthDataPoint.value`)
+- Removed sleep data from health permission requests (was requested but never displayed)
+- Fixed server weight entries incorrectly showing pending SyncStatusBadge when date matched a pending entry
 
-- **Program Caching:** Programs cached locally on successful fetch. Offline fallback reads from cache with "Some data may be outdated" banner. Corrupted cache detected and cleaned up gracefully. Active workout screen works fully offline with cached program data.
-
-- **UI Indicators:** Offline banner (amber), syncing banner (blue with progress), synced banner (green, auto-dismiss 3s), failed banner (red, tap to open failed sync sheet). Failed sync bottom sheet with per-item retry/delete, retry all, operation type icons, error messages. Logout warning dialog with unsynced item count.
-
-**Files: 21 created, 12 modified = 33 files total (+4,521 lines / -1,000 lines)**
+**Files: 4 created, 11 modified = 15 files total (+1,435 lines / -1,447 lines)**
 
 ---
 
 **Verified by:** Final Verifier Agent
 **Date:** 2026-02-15
-**Pipeline:** 15 -- Offline-First Workout & Nutrition Logging with Sync Queue (Phase 6)
+**Pipeline:** 16 -- Health Data Integration + Performance Audit + Offline UI Polish
