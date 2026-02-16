@@ -111,16 +111,22 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  GestureDetector(
-                    onTap: () {
-                      // Refresh goal
+                  IconButton(
+                    onPressed: () {
                       ref.read(nutritionStateProvider.notifier).loadInitialData();
                     },
-                    child: Icon(
+                    icon: Icon(
                       Icons.refresh,
                       size: 16,
                       color: theme.colorScheme.primary,
                     ),
+                    iconSize: 16,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    tooltip: 'Refresh goals',
                   ),
                 ],
               ),
@@ -138,52 +144,59 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
         ),
 
         // Latest Weight section
-        GestureDetector(
-          onTap: () => context.push('/weight-trends'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    state.latestCheckIn != null
-                        ? 'Latest Weight, ${state.latestWeightDate}'
-                        : 'Latest Weight',
-                    style: TextStyle(
-                      color: theme.textTheme.bodySmall?.color,
-                      fontSize: 13,
+        Semantics(
+          button: true,
+          label: 'View weight trends. ${state.latestWeightFormatted}',
+          child: GestureDetector(
+            onTap: () => context.push('/weight-trends'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      state.latestCheckIn != null
+                          ? 'Latest Weight, ${state.latestWeightDate}'
+                          : 'Latest Weight',
+                      style: TextStyle(
+                        color: theme.textTheme.bodySmall?.color,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                  // Show cloud_off icon if the latest weight is from a pending entry
-                  if (state.pendingWeights.isNotEmpty &&
-                      state.latestCheckIn != null &&
-                      state.pendingWeights.any((pw) =>
-                          pw.date == state.latestCheckIn!.date)) ...[
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.cloud_off,
-                      size: 12,
-                      color: Color(0xFFF59E0B),
+                    // Show cloud_off icon if the latest weight is from a pending entry
+                    if (state.pendingWeights.isNotEmpty &&
+                        state.latestCheckIn != null &&
+                        state.pendingWeights.any((pw) =>
+                            pw.date == state.latestCheckIn!.date)) ...[
+                      const SizedBox(width: 4),
+                      const Tooltip(
+                        message: 'Pending sync',
+                        child: Icon(
+                          Icons.cloud_off,
+                          size: 12,
+                          color: Color(0xFFF59E0B),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 6),
+                    Icon(
+                      Icons.bar_chart,
+                      size: 18,
+                      color: theme.colorScheme.primary,
                     ),
                   ],
-                  const SizedBox(width: 6),
-                  Icon(
-                    Icons.bar_chart,
-                    size: 18,
-                    color: theme.colorScheme.primary,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                state.latestWeightFormatted,
-                style: TextStyle(
-                  color: theme.textTheme.bodyLarge?.color,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  state.latestWeightFormatted,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -616,12 +629,29 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
         // "(includes X pending)" label
         if (state.pendingNutritionCount > 0)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              '(includes ${state.pendingNutritionCount} pending)',
-              style: TextStyle(
-                color: theme.textTheme.bodySmall?.color,
-                fontSize: 11,
+            padding: const EdgeInsets.only(top: 6),
+            child: Semantics(
+              liveRegion: true,
+              label: 'Includes ${state.pendingNutritionCount} '
+                  'pending nutrition ${state.pendingNutritionCount == 1 ? 'entry' : 'entries'} '
+                  'waiting to sync',
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.cloud_off,
+                    size: 11,
+                    color: Color(0xFFF59E0B),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '(includes ${state.pendingNutritionCount} pending)',
+                    style: TextStyle(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1004,25 +1034,33 @@ class _MealSection extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              GestureDetector(
+              InkWell(
                 onTap: onAddFood,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.add,
-                      color: theme.colorScheme.primary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Add Food',
-                      style: TextStyle(
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.add,
                         color: theme.colorScheme.primary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                        size: 18,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        'Add Food',
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               PopupMenuButton(
@@ -1134,14 +1172,21 @@ class _FoodEntryRow extends StatelessWidget {
               fontSize: 13,
             ),
           ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: onEdit,
-            child: Icon(
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: onEdit,
+            icon: Icon(
               Icons.edit_outlined,
               size: 16,
               color: theme.textTheme.bodySmall?.color,
             ),
+            iconSize: 16,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 32,
+              minHeight: 32,
+            ),
+            tooltip: 'Edit food entry',
           ),
         ],
       ),

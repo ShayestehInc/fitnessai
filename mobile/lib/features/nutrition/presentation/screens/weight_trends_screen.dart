@@ -40,9 +40,6 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
       }
     });
 
-    // Create the set of pending dates for dedup checking
-    final pendingDates = pendingWeights.map((pw) => pw.date).toSet();
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -102,11 +99,9 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
                       }
                       final historyIndex = index - pendingWeights.length;
                       final checkIn = history[historyIndex];
-                      return _buildHistoryRow(
-                        theme,
-                        checkIn,
-                        isPending: pendingDates.contains(checkIn.date),
-                      );
+                      // Server entries are already synced -- no pending badge.
+                      // Only pending entries (shown above) get the SyncStatusBadge.
+                      return _buildHistoryRow(theme, checkIn);
                     },
                   ),
                 ),
@@ -444,72 +439,75 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
       formattedDate = pw.date;
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Stack(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.dividerColor),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        formattedDate,
-                        style: TextStyle(
-                          color: theme.textTheme.bodyLarge?.color,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (pw.notes.isNotEmpty)
+    return Semantics(
+      label: 'Pending weight check-in: ${lbs.round()} lbs on $formattedDate',
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: Stack(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          pw.notes,
+                          formattedDate,
                           style: TextStyle(
-                            color: theme.textTheme.bodySmall?.color,
-                            fontSize: 12,
+                            color: theme.textTheme.bodyLarge?.color,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
+                        if (pw.notes.isNotEmpty)
+                          Text(
+                            pw.notes,
+                            style: TextStyle(
+                              color: theme.textTheme.bodySmall?.color,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${lbs.round()} lbs',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${pw.weightKg.toStringAsFixed(1)} kg',
+                        style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${lbs.round()} lbs',
-                      style: TextStyle(
-                        color: theme.textTheme.bodyLarge?.color,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '${pw.weightKg.toStringAsFixed(1)} kg',
-                      style: TextStyle(
-                        color: theme.textTheme.bodySmall?.color,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Positioned(
-            right: 4,
-            bottom: 4,
-            child: SyncStatusBadge(status: SyncItemStatus.pending),
-          ),
-        ],
+            const Positioned(
+              right: 4,
+              bottom: 4,
+              child: SyncStatusBadge(status: SyncItemStatus.pending),
+            ),
+          ],
+        ),
       ),
     );
   }

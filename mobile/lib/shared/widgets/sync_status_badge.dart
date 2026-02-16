@@ -13,11 +13,28 @@ class SyncStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 16,
-      height: 16,
-      child: _buildIcon(),
+    return Semantics(
+      label: _semanticsLabel,
+      excludeSemantics: true,
+      child: SizedBox(
+        width: 16,
+        height: 16,
+        child: _buildIcon(),
+      ),
     );
+  }
+
+  String get _semanticsLabel {
+    switch (status) {
+      case SyncItemStatus.pending:
+        return 'Pending sync';
+      case SyncItemStatus.syncing:
+        return 'Syncing';
+      case SyncItemStatus.synced:
+        return '';
+      case SyncItemStatus.failed:
+        return 'Sync failed';
+    }
   }
 
   Widget _buildIcon() {

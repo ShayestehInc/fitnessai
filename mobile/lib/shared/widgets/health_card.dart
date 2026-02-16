@@ -87,12 +87,15 @@ class _LoadedHealthCardState extends State<_LoadedHealthCard>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Today's Health",
-                  style: TextStyle(
-                    color: theme.textTheme.bodySmall?.color,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                Semantics(
+                  header: true,
+                  child: Text(
+                    "Today's Health",
+                    style: TextStyle(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -172,8 +175,12 @@ class _LoadedHealthCardState extends State<_LoadedHealthCard>
     final uri = Uri.parse(HealthService.healthSettingsUri);
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      // Silently fail -- user can open manually
+    } catch (e) {
+      assert(() {
+        debugPrint('_LoadedHealthCard._openHealthSettings error: $e');
+        return true;
+      }());
+      // URL launch failure is non-critical -- user can open manually
     }
   }
 }
@@ -196,44 +203,48 @@ class _MetricTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: 48),
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-      decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: iconColor),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: theme.textTheme.bodySmall?.color,
-                    fontSize: 11,
+    return Semantics(
+      label: '$label: $value',
+      excludeSemantics: true,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: iconColor),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: theme.textTheme.bodyLarge?.color,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -247,43 +258,47 @@ class _SkeletonHealthCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header skeleton
-          Container(
-            width: 100,
-            height: 12,
-            decoration: BoxDecoration(
-              color: theme.dividerColor,
-              borderRadius: BorderRadius.circular(4),
+    return Semantics(
+      label: 'Loading health data',
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header skeleton
+            Container(
+              width: 100,
+              height: 12,
+              decoration: BoxDecoration(
+                color: theme.dividerColor,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          // 2x2 skeleton grid
-          Row(
-            children: [
-              Expanded(child: _SkeletonTile(theme: theme)),
-              const SizedBox(width: 12),
-              Expanded(child: _SkeletonTile(theme: theme)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _SkeletonTile(theme: theme)),
-              const SizedBox(width: 12),
-              Expanded(child: _SkeletonTile(theme: theme)),
-            ],
-          ),
-        ],
+            const SizedBox(height: 16),
+            // 2x2 skeleton grid
+            Row(
+              children: [
+                Expanded(child: _SkeletonTile(theme: theme)),
+                const SizedBox(width: 12),
+                Expanded(child: _SkeletonTile(theme: theme)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _SkeletonTile(theme: theme)),
+                const SizedBox(width: 12),
+                Expanded(child: _SkeletonTile(theme: theme)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

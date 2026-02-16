@@ -52,4 +52,12 @@ class HealthMetrics {
         latestWeightKg,
         weightDate,
       );
+
+  @override
+  String toString() => 'HealthMetrics('
+      'steps: $steps, '
+      'activeCalories: $activeCalories, '
+      'heartRate: $heartRate, '
+      'latestWeightKg: $latestWeightKg, '
+      'weightDate: $weightDate)';
 }

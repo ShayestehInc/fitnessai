@@ -861,7 +861,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('This workout is waiting to sync.'),
+                    content: Row(
+                      children: [
+                        Icon(
+                          Icons.cloud_off,
+                          size: 16,
+                          color: Color(0xFFF59E0B),
+                        ),
+                        SizedBox(width: 8),
+                        Text('This workout is waiting to sync.'),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -1330,12 +1340,6 @@ class _PendingWorkoutCard extends StatelessWidget {
                           color: theme.textTheme.bodySmall?.color,
                           fontSize: 12,
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.chevron_right,
-                        size: 20,
-                        color: theme.textTheme.bodySmall?.color,
                       ),
                     ],
                   ),

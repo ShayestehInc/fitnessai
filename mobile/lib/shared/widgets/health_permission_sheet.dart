@@ -44,17 +44,19 @@ class _HealthPermissionSheetContent extends StatelessWidget {
             ),
 
             // Health icon
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.favorite_rounded,
-                size: 32,
-                color: theme.colorScheme.primary,
+            ExcludeSemantics(
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.favorite_rounded,
+                  size: 32,
+                  color: theme.colorScheme.primary,
+                ),
               ),
             ),
             const SizedBox(height: 20),

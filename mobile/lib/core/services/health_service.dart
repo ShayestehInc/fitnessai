@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show TargetPlatform, debugPrint, defaultTargetPlatform;
 import 'package:health/health.dart';
 
 import '../models/health_metrics.dart';
@@ -226,8 +225,9 @@ class HealthService {
   ///
   /// On iOS, opens the Health app directly.
   /// On Android, opens the Health Connect app via intent URI.
+  /// Uses [defaultTargetPlatform] instead of [Platform.isIOS] for web safety.
   static String get healthSettingsUri {
-    if (Platform.isIOS) {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
       return 'x-apple-health://';
     }
     // Android Health Connect deep link

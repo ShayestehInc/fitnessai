@@ -294,11 +294,22 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
   }
 
   Future<void> loadWeightHistory() async {
-    final result = await _nutritionRepo.getWeightCheckInHistory();
-    if (result['success'] == true) {
+    final results = await Future.wait([
+      _nutritionRepo.getWeightCheckInHistory(),
+      _loadPendingWeights(),
+    ]);
+
+    final historyResult = results[0] as Map<String, dynamic>;
+    final pendingWeightList = results[1] as List<PendingWeightDisplay>;
+
+    if (historyResult['success'] == true) {
       state = state.copyWith(
-        weightHistory: result['checkIns'] as List<WeightCheckInModel>,
+        weightHistory: historyResult['checkIns'] as List<WeightCheckInModel>,
+        pendingWeights: pendingWeightList,
       );
+    } else {
+      // Even if server history fails, update pending weights
+      state = state.copyWith(pendingWeights: pendingWeightList);
     }
   }
 
