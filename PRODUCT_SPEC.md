@@ -342,7 +342,22 @@ Dedicated analytics page for trainers with adherence tracking and trainee progre
 - **UX**: Independent React Query hooks for each section (5-min staleTime), `isFetching` opacity transition during period switch, skeleton loading, error with retry, empty states with "Invite Trainee" CTA, responsive header layout.
 - **Quality**: Code review 9/10 APPROVE, QA 21/22 AC pass (HIGH confidence), UX 9/10, Security 9/10 PASS, Architecture 9/10 APPROVE, Hacker 7/10, Final 9/10 SHIP.
 
-### 4.12 Acceptance Criteria
+### 4.12 Web Dashboard Phase 4 (Trainer Program Builder) — COMPLETED (2026-02-15)
+
+Full CRUD program template builder for the trainer web dashboard with exercise bank integration and trainee assignment.
+
+**What was built:**
+- **Program List Page**: DataTable with name, difficulty badge, goal, duration, times used, created date. Search with `useDeferredValue`. Pagination. Empty state with "Create Program" CTA. Three-dot action menu with Edit (owner only), Assign to Trainee, Delete (owner only).
+- **Program Builder**: Two-card layout (metadata + schedule). Name (100 chars), description (500 chars) with character counters and whitespace validation. Duration (1-52 weeks), difficulty, and goal selects with lowercase enum values matching Django backend. Week tabs with horizontal scroll. 7 days per week (Mon-Sun), rest day toggle with exercise loss confirmation. Exercise picker dialog with multi-add, search, muscle group filter, truncation warning. Exercise rows with sets (1-20), reps (1-100 or string ranges like "8-12"), weight (0-9999), unit (lbs/kg), rest seconds (0-600). Move up/down reorder. `reconcileSchedule()` syncs schedule with duration changes. Copy Week to All feature. Ctrl/Cmd+S keyboard shortcut.
+- **Assignment Flow**: Assign dialog with trainee dropdown (up to 200), date picker with local timezone default. Empty trainee state with "Send Invitation" CTA.
+- **Delete Flow**: Confirmation dialog with times_used warning. Prevents close during deletion. "Cannot be undone" copy.
+- **Backend Enhancements**: SearchFilter on ProgramTemplateListCreateView. JSON field validation (schedule_template max 512KB, 52 weeks, 7 days; nutrition_template max 64KB). `is_public` and `image_url` made read-only.
+- **Shared Infrastructure**: `error-utils.ts` with `getErrorMessage()` for DRF field-level error extraction. `useAllTrainees()` hook moved to `use-trainees.ts`. Column memoization with `useMemo`.
+- **UX**: Dirty state tracking with mount guard (no false positives), double-click prevention via `savingRef`, fieldset disabled during save, character counters with amber warning at 90%, data loss confirmation on duration reduction, cancel confirmation when dirty, exercise count per day (max 50), "Back to Programs" navigation on create/edit pages, program name clickable link to edit in list.
+- **Accessibility**: ARIA labels on all inputs and buttons, `role="group"` on exercise rows, `aria-invalid` on whitespace names, focus-visible rings, screen reader exercise names in move/delete labels, `DialogDescription` on all dialogs.
+- **Quality**: Code review 8/10 APPROVE (2 rounds — 4 critical + 8 major all fixed), QA 27/27 AC pass (HIGH confidence), UX 9/10, Security 8/10 CONDITIONAL PASS, Architecture 9/10 APPROVE, Hacker report (16 items fixed), Final 8/10 SHIP.
+
+### 4.13 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
 - [x] Trainer receives notification when trainee starts or finishes a workout
@@ -387,7 +402,7 @@ Dedicated analytics page for trainers with adherence tracking and trainee progre
 - ~~Trainer dashboard (trainee management, stats, notifications, invitations)~~ ✅ Completed 2026-02-15
 - ~~Shared auth with existing JWT system~~ ✅ Completed 2026-02-15
 - ~~Docker integration~~ ✅ Completed 2026-02-15
-- Trainer program builder (web) — Not yet
+- ~~Trainer program builder (web)~~ ✅ Completed 2026-02-15 (full CRUD with exercise bank, assignment, schedule editor)
 - ~~Trainer analytics (web)~~ ✅ Completed 2026-02-15 (adherence + progress sections)
 - Admin dashboard (trainer management, tiers, revenue, platform analytics) — Not yet
 - ~~Settings page (profile, theme toggle, notifications)~~ ✅ Completed 2026-02-15
