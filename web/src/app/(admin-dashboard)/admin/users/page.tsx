@@ -25,6 +25,7 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [formKey, setFormKey] = useState(0);
 
   const debouncedSearch = useDebounce(searchInput, 300);
 
@@ -40,6 +41,7 @@ export default function AdminUsersPage() {
 
   function handleCreate() {
     setSelectedUser(null);
+    setFormKey((k) => k + 1);
     setDialogOpen(true);
   }
 
@@ -120,7 +122,7 @@ export default function AdminUsersPage() {
       )}
 
       <CreateUserDialog
-        key={selectedUser?.id ?? "new"}
+        key={selectedUser?.id ?? `new-${formKey}`}
         user={selectedUser}
         open={dialogOpen}
         onOpenChange={setDialogOpen}

@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { AlertTriangle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { setTokens } from "@/lib/token-manager";
+import { setTokens, setRoleCookie } from "@/lib/token-manager";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import { toast } from "sonner";
@@ -54,8 +54,9 @@ export function ImpersonationBanner() {
       toast.error(`Warning: ${message}`);
     }
 
-    // Restore admin tokens
+    // Restore admin tokens and role cookie
     setTokens(state.adminAccessToken, state.adminRefreshToken);
+    setRoleCookie("ADMIN");
     clearImpersonationState();
     setState(null);
     setIsEnding(false);
