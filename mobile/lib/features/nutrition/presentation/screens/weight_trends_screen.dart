@@ -343,11 +343,9 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
     }
   }
 
-  Widget _buildHistoryRow(
-    ThemeData theme,
-    WeightCheckInModel checkIn, {
-    bool isPending = false,
-  }) {
+  /// Build a row for a server (synced) weight check-in.
+  /// Server entries never show a SyncStatusBadge -- they are already synced.
+  Widget _buildHistoryRow(ThemeData theme, WeightCheckInModel checkIn) {
     final lbs = checkIn.weightKg * 2.20462;
     String formattedDate;
     try {
@@ -359,70 +357,58 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Stack(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.dividerColor),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        formattedDate,
-                        style: TextStyle(
-                          color: theme.textTheme.bodyLarge?.color,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (checkIn.notes.isNotEmpty)
-                        Text(
-                          checkIn.notes,
-                          style: TextStyle(
-                            color: theme.textTheme.bodySmall?.color,
-                            fontSize: 12,
-                          ),
-                        ),
-                    ],
+                Text(
+                  formattedDate,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${lbs.round()} lbs',
-                      style: TextStyle(
-                        color: theme.textTheme.bodyLarge?.color,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                if (checkIn.notes.isNotEmpty)
+                  Text(
+                    checkIn.notes,
+                    style: TextStyle(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontSize: 12,
                     ),
-                    Text(
-                      '${checkIn.weightKg.toStringAsFixed(1)} kg',
-                      style: TextStyle(
-                        color: theme.textTheme.bodySmall?.color,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
               ],
             ),
           ),
-          if (isPending)
-            const Positioned(
-              right: 4,
-              bottom: 4,
-              child: SyncStatusBadge(status: SyncItemStatus.pending),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${lbs.round()} lbs',
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '${checkIn.weightKg.toStringAsFixed(1)} kg',
+                style: TextStyle(
+                  color: theme.textTheme.bodySmall?.color,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
