@@ -61,7 +61,7 @@ export function ExerciseRow({
             max={20}
             value={exercise.sets}
             onChange={(e) =>
-              updateField("sets", Math.max(1, parseInt(e.target.value) || 1))
+              updateField("sets", Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))
             }
             className="h-8 w-14 text-center text-xs"
             aria-label="Sets"
@@ -86,8 +86,9 @@ export function ExerciseRow({
             onChange={(e) => {
               const val = e.target.value;
               const num = parseInt(val);
-              updateField("reps", isNaN(num) ? val : num);
+              updateField("reps", isNaN(num) ? val : Math.max(1, num));
             }}
+            maxLength={10}
             className="h-8 w-16 text-center text-xs"
             aria-label="Reps"
           />
@@ -137,7 +138,7 @@ export function ExerciseRow({
             onChange={(e) =>
               updateField(
                 "rest_seconds",
-                Math.max(0, parseInt(e.target.value) || 0),
+                Math.min(600, Math.max(0, parseInt(e.target.value) || 0)),
               )
             }
             className="h-8 w-14 text-center text-xs"
