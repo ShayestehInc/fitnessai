@@ -184,6 +184,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Progress charts tab | ✅ Done | Shipped 2026-02-15: Weight trend (line), volume (bar), adherence (stacked bar) via recharts. Theme-aware colors, per-chart empty states |
 | Notification click-through navigation | ✅ Done | Shipped 2026-02-15: Notifications with trainee_id navigate to trainee detail. ChevronRight affordance, popover auto-close, "Marked as read" toast for non-navigable |
 | Invitation row actions | ✅ Done | Shipped 2026-02-15: Copy code, resend, cancel with confirmation dialog. Status-aware visibility (PENDING/EXPIRED/ACCEPTED/CANCELLED) |
+| Trainer analytics page | ✅ Done | Shipped 2026-02-15: Adherence section (3 stat cards, horizontal bar chart, 7/14/30d period selector) + Progress section (trainee table with weight change, goal alignment). Theme-aware chart colors, WCAG accessible |
 
 ### 3.10 Other
 | Feature | Status | Notes |
@@ -329,7 +330,19 @@ Four dead UI surfaces in the web trainer dashboard replaced with fully functiona
 - **Auth Enhancement**: `refreshUser()` exposed from AuthProvider — profile/image mutations trigger context refresh so header updates immediately.
 - **Quality**: Code review 8/10 APPROVE, QA 27/28 AC pass (1 partial pre-existing), UX 9/10, Security 9/10 PASS, Architecture 9/10, Hacker 7/10
 
-### 4.11 Acceptance Criteria
+### 4.11 Web Dashboard Phase 3 (Trainer Analytics Page) — COMPLETED (2026-02-15)
+
+Dedicated analytics page for trainers with adherence tracking and trainee progress monitoring.
+
+**What was built:**
+- **Adherence Section**: Three stat cards (Food Logged, Workouts Logged, Protein Goal Hit) with color-coded indicators (green ≥80%, amber 50-79%, red <50%). Horizontal bar chart (recharts) showing per-trainee adherence rates with click-through to trainee detail. Period selector (7/14/30 days) with WAI-ARIA radiogroup keyboard navigation.
+- **Progress Section**: DataTable showing all trainees with current weight, weight change (with TrendingUp/TrendingDown icons), and goal. Weight change color-coded by goal alignment (green = progress toward goal, red = regression).
+- **Shared Infrastructure**: `chart-utils.ts` with shared `tooltipContentStyle` and `CHART_COLORS`. Extended `StatCard` with `valueClassName` prop. `AdherencePeriod` union type (`7 | 14 | 30`) for compile-time safety.
+- **Accessibility**: WCAG 1.4.1 compliance (text descriptions complement color indicators), screen-reader accessible chart (`role="img"` + sr-only data list), `aria-busy` + sr-only live regions during refetch, keyboard-navigable period selector with roving tabindex.
+- **UX**: Independent React Query hooks for each section (5-min staleTime), `isFetching` opacity transition during period switch, skeleton loading, error with retry, empty states with "Invite Trainee" CTA, responsive header layout.
+- **Quality**: Code review 9/10 APPROVE, QA 21/22 AC pass (HIGH confidence), UX 9/10, Security 9/10 PASS, Architecture 9/10 APPROVE, Hacker 7/10, Final 9/10 SHIP.
+
+### 4.12 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
 - [x] Trainer receives notification when trainee starts or finishes a workout
@@ -375,10 +388,10 @@ Four dead UI surfaces in the web trainer dashboard replaced with fully functiona
 - ~~Shared auth with existing JWT system~~ ✅ Completed 2026-02-15
 - ~~Docker integration~~ ✅ Completed 2026-02-15
 - Trainer program builder (web) — Not yet
-- Trainer analytics (web) — Not yet
+- ~~Trainer analytics (web)~~ ✅ Completed 2026-02-15 (adherence + progress sections)
 - Admin dashboard (trainer management, tiers, revenue, platform analytics) — Not yet
-- Settings page (profile, theme toggle, notifications) — Placeholder exists
-- Progress charts tab — Placeholder exists, backend data available
+- ~~Settings page (profile, theme toggle, notifications)~~ ✅ Completed 2026-02-15
+- ~~Progress charts tab~~ ✅ Completed 2026-02-15 (weight trend, volume, adherence charts)
 
 ### Phase 5: Ambassador Enhancements
 - Monthly earnings chart (fl_chart bar chart on dashboard)
