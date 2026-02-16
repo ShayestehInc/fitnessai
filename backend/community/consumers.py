@@ -6,7 +6,6 @@ JWT authentication is performed via query parameter (token=...).
 """
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
