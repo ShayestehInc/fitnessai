@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Users,
   Mail,
+  BarChart3,
   Bell,
   Settings,
 } from "lucide-react";
@@ -17,6 +18,7 @@ export const navLinks: NavLink[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Trainees", href: "/trainees", icon: Users },
   { label: "Invitations", href: "/invitations", icon: Mail },
+  { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
