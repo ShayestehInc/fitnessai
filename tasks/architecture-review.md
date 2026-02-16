@@ -1,176 +1,61 @@
-# Architecture Review: Pipeline 10 -- Web Dashboard Phase 2 (Settings, Progress Charts, Notifications, Invitations)
+# Architecture Review: Web Dashboard Phase 3 -- Trainer Analytics Page
 
-## Review Date
-2026-02-15
+## Review Date: 2026-02-15
 
 ## Files Reviewed
 
 ### New Files
-- `web/src/types/progress.ts`
-- `web/src/hooks/use-progress.ts`
-- `web/src/hooks/use-settings.ts`
-- `web/src/components/settings/profile-section.tsx`
-- `web/src/components/settings/appearance-section.tsx`
-- `web/src/components/settings/security-section.tsx`
-- `web/src/components/trainees/progress-charts.tsx`
-- `web/src/components/invitations/invitation-actions.tsx`
+- `web/src/types/analytics.ts` -- TypeScript types for API responses
+- `web/src/hooks/use-analytics.ts` -- React Query hooks for adherence and progress
+- `web/src/components/analytics/period-selector.tsx` -- Period radio group (7/14/30 days)
+- `web/src/components/analytics/adherence-chart.tsx` -- Horizontal bar chart for trainee adherence
+- `web/src/components/analytics/adherence-section.tsx` -- Adherence stat cards + chart section
+- `web/src/components/analytics/progress-section.tsx` -- Progress data table section
+- `web/src/app/(dashboard)/analytics/page.tsx` -- Page composition
+- `web/src/lib/chart-utils.ts` -- Shared chart styling constants (created during this review)
 
 ### Modified Files
-- `web/src/lib/constants.ts`
+- `web/src/components/layout/nav-links.tsx` -- Added Analytics nav item
+- `web/src/lib/constants.ts` -- Added analytics API URL constants
+- `web/src/components/dashboard/stat-card.tsx` -- Extended with `valueClassName` prop (during this review)
+- `web/src/components/trainees/progress-charts.tsx` -- Refactored to use shared chart-utils (during this review)
+
+### Comparison Files (existing patterns)
+- `web/src/hooks/use-dashboard.ts`
+- `web/src/components/dashboard/stat-card.tsx`
+- `web/src/components/shared/data-table.tsx`
+- `web/src/components/trainees/progress-charts.tsx`
 - `web/src/lib/api-client.ts`
-- `web/src/hooks/use-invitations.ts`
-- `web/src/providers/auth-provider.tsx`
-- `web/src/app/(dashboard)/settings/page.tsx`
-- `web/src/app/(dashboard)/trainees/[id]/page.tsx`
-- `web/src/app/(dashboard)/notifications/page.tsx`
-- `web/src/components/trainees/trainee-progress-tab.tsx`
-- `web/src/components/notifications/notification-item.tsx`
-- `web/src/components/notifications/notification-popover.tsx`
-- `web/src/components/notifications/notification-bell.tsx`
-- `web/src/components/invitations/invitation-columns.tsx`
-- `web/src/components/layout/user-nav.tsx`
+- `backend/trainer/views.py` (lines 825-938)
 
 ---
 
 ## Architectural Alignment
 
-- [x] Follows existing layered architecture (Pages > Hooks > API Client > Backend)
-- [x] Models/schemas in correct locations (`types/progress.ts` alongside existing types)
-- [x] No business logic in pages (pages delegate to hooks and components)
-- [x] Consistent with existing patterns (hooks, components, providers)
+- [x] Follows existing layered architecture (Page -> Section -> Component, Hook -> ApiClient)
+- [x] Types in correct location (`types/analytics.ts`)
+- [x] No business logic in page component -- logic delegated to hooks and child components
+- [x] Consistent with existing patterns (matches `use-dashboard.ts`, `stat-card.tsx`, `data-table.tsx`)
+- [x] Feature directory structure follows convention (`components/analytics/`)
+- [x] API constants centralized in `lib/constants.ts`
 
 ### Layering Assessment
 
-All four features follow the established architecture cleanly:
+The implementation follows the established architecture precisely:
 
 ```
-Settings Page:
-  SettingsPage (page) -> ProfileSection/AppearanceSection/SecuritySection (components)
-    -> useUpdateProfile/useUploadProfileImage/useDeleteProfileImage/useChangePassword (hooks)
-      -> apiClient.patch/postFormData/delete/post (api-client)
-
-Progress Charts:
-  TraineeDetailPage (page) -> TraineeProgressTab (component) -> progress-charts (components)
-    -> useTraineeProgress (hook) -> apiClient.get (api-client)
-
-Notifications:
-  NotificationBell -> NotificationPopover -> NotificationItem (all components)
-    -> useNotifications/useMarkAsRead (existing hooks) + getNotificationTraineeId (helper)
-
-Invitations:
-  InvitationColumns -> InvitationActions (component)
-    -> useResendInvitation/useCancelInvitation (hooks) -> apiClient.post/delete (api-client)
+AnalyticsPage (page)
+  -> AdherenceSection (section component)
+      -> PeriodSelector (presentation component)
+      -> StatCard (shared component, reused from dashboard)
+      -> AdherenceBarChart (chart component)
+      -> useAdherenceAnalytics (hook) -> apiClient.get (api-client)
+  -> ProgressSection (section component)
+      -> DataTable (shared component)
+      -> useProgressAnalytics (hook) -> apiClient.get (api-client)
 ```
 
-**No layering violations detected.** Every data access goes through hooks. No component calls `apiClient` directly. Navigation logic (notification click-through) lives in page/popover containers, not in the `NotificationItem` presentation component.
-
----
-
-## State Management Assessment
-
-### Auth Context vs React Query -- Boundary Analysis
-
-The codebase uses two state management approaches with a clear boundary:
-
-| Concern | Mechanism | Why |
-|---------|-----------|-----|
-| Current user identity | AuthContext (`useState`) | Needed before React Query is initialized; gates route access |
-| Server data (trainees, notifications, invitations) | React Query | Caching, background refetch, optimistic updates |
-| Profile mutations | React Query mutations + `refreshUser()` | Mutation via React Query; user state sync via AuthContext |
-| Theme preference | `next-themes` (localStorage) | Client-only, no server state |
-| Form state (settings) | `useState` | Ephemeral, component-local |
-
-**Assessment:** The boundary is clear and correct. The settings hooks (`use-settings.ts`) call `refreshUser()` (from AuthContext) on mutation success rather than invalidating a React Query cache key for the current user. This is the right call because the `user` object lives in AuthContext state, not in a React Query cache. If the user data were migrated to React Query in the future, the mutations would need to invalidate `["current-user"]` instead, but for now the imperative `refreshUser` approach is simpler and correct.
-
-**One nuance:** After `refreshUser()` updates the `user` reference in AuthContext, `ProfileSection`'s `useState`-based form does NOT automatically re-sync (by design -- `useState` only captures the initial value). This means after save + refreshUser, the form retains the user's local values. Since the save just sent those exact values to the server, they are consistent. The `isDirty` flag uses trimmed comparisons against the server-returned user to correctly disable the Save button after a successful save. This is the right behavior.
-
----
-
-## API Client Assessment
-
-### FormData Addition
-
-The `postFormData<T>()` method was added cleanly to `api-client.ts`:
-
-```typescript
-postFormData<T>(url: string, formData: FormData): Promise<T> {
-  return request<T>(url, { method: "POST", body: formData });
-}
-```
-
-The `buildHeaders()` function correctly skips `Content-Type: application/json` when `body instanceof FormData`, letting the browser set the correct `multipart/form-data` boundary:
-
-```typescript
-...(options.body && !(options.body instanceof FormData)
-  ? { "Content-Type": "application/json" }
-  : {}),
-```
-
-**Assessment:** Clean. The FormData detection is in `buildHeaders` (shared by both initial request and retry), so the 401-retry path also handles FormData correctly. No issues.
-
-### Constants Organization
-
-New endpoints follow the established pattern:
-
-```typescript
-// Static endpoints: SCREAMING_SNAKE_CASE
-UPDATE_PROFILE: `${API_BASE}/api/users/me/`,
-PROFILE_IMAGE: `${API_BASE}/api/users/profile-image/`,
-CHANGE_PASSWORD: `${API_BASE}/api/auth/users/set_password/`,
-
-// Dynamic endpoints: camelCase functions
-traineeProgress: (id: number) => `${API_BASE}/api/trainer/trainees/${id}/progress/`,
-invitationDetail: (id: number) => `${API_BASE}/api/trainer/invitations/${id}/`,
-invitationResend: (id: number) => `${API_BASE}/api/trainer/invitations/${id}/resend/`,
-```
-
-**Note:** `UPDATE_PROFILE` (`/api/users/me/`) and `CURRENT_USER` (`/api/auth/users/me/`) are different endpoints. The naming makes this clear, but a comment explaining the distinction would be helpful for future developers. Not blocking.
-
----
-
-## Component Patterns Assessment
-
-### Settings Components
-
-The three settings sections (Profile, Appearance, Security) follow the established component conventions:
-
-1. **ProfileSection** (223 lines): Slightly over the 150-line guideline, but the file is a single cohesive form with image upload. Splitting the image upload into a separate component would be reasonable but not urgent.
-
-2. **AppearanceSection** (104 lines): Well under limit. Uses `useSyncExternalStore` for hydration-safe mount detection -- this is the correct React 19 approach (avoids the `useEffect(() => setMounted(true), [])` anti-pattern). Keyboard navigation with arrow keys and roving tabindex follows WAI-ARIA radiogroup pattern.
-
-3. **SecuritySection** (173 lines): Slightly over limit. Error handling for Djoser's password validation responses is thorough -- parses `current_password`, `new_password`, and `non_field_errors` from the response body. The form uses `<form onSubmit>` (correct -- enables Enter-to-submit).
-
-### Progress Charts
-
-**progress-charts.tsx** (276 lines): Contains three chart components (`WeightChart`, `VolumeChart`, `AdherenceChart`) and two shared utilities. This exceeds the 150-line guideline, but splitting three tightly related chart components into three separate files would create import churn without meaningful benefit. The file is organized with clear interfaces between each section. Acceptable pragmatic decision.
-
-**Architectural fixes applied:**
-1. **Extracted `tooltipContentStyle`** -- The identical tooltip CSS object was duplicated across all three charts. Extracted to a single shared `const tooltipContentStyle: React.CSSProperties` at the top of the file. Reduces duplication and ensures tooltip styling stays consistent.
-
-2. **Replaced hardcoded HSL colors with theme chart variables** -- The `AdherenceChart` used `hsl(142, 76%, 36%)`, `hsl(221, 83%, 53%)`, `hsl(47, 96%, 53%)` for the stacked bars. These bypassed the design system and would not adapt to dark mode. Replaced with `hsl(var(--chart-2))`, `hsl(var(--chart-1))`, `hsl(var(--chart-4))` which reference the CSS custom properties defined in `globals.css` for both light and dark themes. This is architecturally important for the white-label infrastructure priority -- when per-trainer branding is added, chart colors will automatically follow the theme.
-
-3. **Fixed recharts v3 formatter type** -- The `VolumeChart` tooltip formatter had `(value: number)` but recharts v3's `Formatter` type expects `(value: number | undefined)`. Fixed to handle `undefined` gracefully.
-
-### Notification Click-Through
-
-The `getNotificationTraineeId()` helper in `notification-item.tsx` is an exported pure function that:
-- Handles both `number` and `string` types from the API's `data` JSONField
-- Returns `number | null` (not `number | undefined`) -- clear null-means-absent semantics
-- Validates `> 0` to prevent ID 0 edge cases
-
-This helper is shared between `notification-item.tsx` (visual indicator), `notification-popover.tsx` (navigation), and `notifications/page.tsx` (navigation). Extracting it as a named export rather than duplicating the logic is correct.
-
-**Controlled Popover pattern:** `NotificationBell` uses `useState(false)` for controlled open/close, passing `onClose` to `NotificationPopover`. This is necessary because programmatic close (after navigation) is not possible with uncontrolled Radix Popovers. Correct approach.
-
-### Invitation Actions
-
-`InvitationActions` handles the PENDING/EXPIRED/ACCEPTED/CANCELLED status matrix correctly:
-- Status-dependent action visibility (`canResend`, `canCancel`)
-- `is_expired` flag override (backend keeps `status=PENDING` even after expiration)
-- Controlled dropdown state to prevent UI conflicts between dropdown and dialog
-- Confirmation dialog for destructive cancel action
-
-The mutations use `queryClient.invalidateQueries({ queryKey: ["invitations"] })` which correctly invalidates all paginated invitation queries. No stale data after resend/cancel.
+The page is a thin composition layer. Hooks encapsulate data fetching. Sections handle their own loading/error/empty states. Presentation components are purely visual. This is exactly the same pattern used by the dashboard, trainees, and notifications features.
 
 ---
 
@@ -178,95 +63,131 @@ The mutations use `queryClient.invalidateQueries({ queryKey: ["invitations"] })`
 
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | N/A | No backend changes -- all APIs already existed |
-| Migrations needed | N/A | No new models or fields |
-| Indexes for new queries | PASS | Progress endpoint uses existing indexed fields |
-| No N+1 query patterns | PASS | All new frontend queries are single-endpoint fetches |
+| TypeScript types match backend API response | PASS | Verified against `AdherenceAnalyticsView` (views.py:825) and `ProgressAnalyticsView` (views.py:892). All field names, types, and nullability match exactly. |
+| Nullable fields handled correctly | PASS | `current_weight: number | null`, `weight_change: number | null`, `goal: string | null` match backend where `checkins[-1].weight_kg` or `profile.goal` can be `None`. |
+| Period parameter correctly typed | PASS | `AdherencePeriod = 7 | 14 | 30` is a union literal type, not just `number`. Backend clamps to `min(max(int(...), 1), 365)` so these values are safe. |
+| No schema changes needed | PASS | Analytics endpoints consume existing models (`TraineeActivitySummary`, `WeightCheckIn`, `UserProfile`). No migrations required. |
+| Response shape is stable | PASS | Both APIs return flat JSON with no nested pagination or cursors. Types accurately model this. |
 
-### TypeScript Type Alignment
+---
 
-| TS Type | Backend Source | Status | Notes |
-|---------|---------------|--------|-------|
-| `TraineeProgress` | `GET /api/trainer/trainees/<id>/progress/` | PASS | `weight_progress`, `volume_progress`, `adherence_progress` arrays |
-| `WeightEntry` | Inline in progress response | PASS | `date: string`, `weight_kg: number` |
-| `VolumeEntry` | Inline in progress response | PASS | `date: string`, `volume: number` |
-| `AdherenceEntry` | Inline in progress response | PASS | `date: string`, `logged_food/workout: boolean`, `hit_protein: boolean` |
-| `UpdateProfilePayload` | `PATCH /api/users/me/` | PASS | `first_name`, `last_name`, `business_name` |
-| `ChangePasswordPayload` | `POST /api/auth/users/set_password/` | PASS | Djoser `current_password`, `new_password` |
-| `ProfileImageResponse` | `POST /api/users/profile-image/` | PASS | `success`, `profile_image`, `user` |
+## API Design Assessment
+
+| Aspect | Status | Notes |
+|--------|--------|-------|
+| Hook signature matches codebase conventions | PASS | `useAdherenceAnalytics(days)` and `useProgressAnalytics()` follow the same pattern as `useDashboardStats()` and `useDashboardOverview()`. |
+| Query keys are properly namespaced | PASS | `["analytics", "adherence", days]` and `["analytics", "progress"]`. The `days` parameter in the key ensures React Query refetches when the period changes. |
+| staleTime configured | PASS | Both hooks use `staleTime: 5 * 60 * 1000` (5 min) since analytics data changes infrequently. Dashboard hooks use the default (0), so the analytics hooks are more cache-efficient -- appropriate for aggregate data. |
+| Authenticated requests | PASS | Uses `apiClient.get<T>()` which adds JWT auth headers and handles 401 refresh automatically. |
+| Error handling | PASS | React Query surfaces errors via `isError`; each section has its own `ErrorState` with retry via `refetch()`. |
+
+---
+
+## Frontend Pattern Assessment
+
+| Aspect | Status | Notes |
+|--------|--------|-------|
+| Component reuse | PASS (after fix) | `StatCard` from `dashboard/stat-card.tsx` is now reused instead of duplicated. Extended with `valueClassName` prop for color indicators. |
+| Shared chart styling | PASS (after fix) | `tooltipContentStyle` and `CHART_COLORS` extracted to `lib/chart-utils.ts`, imported by both `progress-charts.tsx` and `adherence-chart.tsx`. |
+| `DataTable` reuse | PASS | Progress section correctly reuses the shared `DataTable` component with typed `Column<TraineeProgressEntry>[]`. |
+| Shared empty/error states | PASS | Uses `EmptyState` and `ErrorState` from `components/shared/`. |
+| Independent section loading | PASS | Both sections fetch independently and manage their own loading/error/empty states, consistent with AC-19. |
+| Icon type consistency | PASS (after fix) | Analytics section now uses `LucideIcon` through `StatCard` rather than `React.ElementType`. |
+| `"use client"` directives | PASS | Applied correctly to all components that use React hooks or browser APIs. Omitted from the types file and chart-utils (pure declarations). |
 
 ---
 
 ## Scalability Concerns
 
-| # | Area | Status | Notes |
-|---|------|--------|-------|
-| 1 | Progress charts with large datasets | MINOR | recharts renders all data points. For trainees with 365+ weight check-ins, the weight chart would render 365 SVG elements. Currently acceptable (backend returns last N check-ins). If the API ever returns unbounded data, add client-side data downsampling or time-range filtering. |
-| 2 | recharts bundle size | PASS | recharts v3 is tree-shakeable. Only `LineChart`, `BarChart`, and their sub-components are imported. Bundle impact is ~45-60KB gzipped. The `TraineeProgressTab` is only rendered when the user navigates to a specific trainee's Progress tab, so this does not affect initial load. |
-| 3 | Profile image upload size | PASS | Client-side validation at 5MB prevents oversized uploads. Backend likely has its own limit. |
-| 4 | Notification popover slice | MINOR | `data?.results?.slice(0, 5)` fetches a full page (~20 items) and discards 15. A `?page_size=5` parameter would be more efficient. Carried forward from Pipeline 9 debt. |
-| 5 | Settings form re-renders | PASS | `useCallback` on handlers prevents unnecessary child re-renders. `isDirty` is computed inline (not in state) -- correct, avoids stale comparisons. |
+| # | Area | Issue | Severity | Recommendation |
+|---|------|-------|----------|----------------|
+| 1 | Client-side sort | `AdherenceBarChart` re-sorts data on every render. Backend already returns data sorted by `adherence_rate` descending (views.py:888). | Low | The defensive sort is harmless for <100 items and guards against backend changes. Could add `useMemo` for large lists, but not necessary at current scale. No action needed. |
+| 2 | Unbounded trainee list | Neither API paginates. For trainers with 50+ trainees, the chart renders 50+ bars and the table renders 50+ rows. | Low | At current scale (trainers typically have 5-30 trainees), this is fine. The adherence chart container handles overflow. If trainer scale grows to 100+, server-side pagination or virtual scrolling would be needed. Monitor, no action now. |
+| 3 | Progress endpoint performance | `ProgressAnalyticsView` iterates over all trainees and sorts their weight check-ins in Python (views.py:913). With `prefetch_related` this avoids N+1 queries, but sorting is per-trainee in memory. | Low | Acceptable. `prefetch_related('weight_checkins')` prevents N+1. The in-memory sort is on small lists (a trainee typically has <100 check-ins). No action needed. |
+| 4 | Adherence endpoint | Uses a single annotated query with `Count` + `Case/When` (views.py:858-868). | N/A | Excellent -- single query, no N+1. No concern. |
 
 ---
 
-## Technical Debt
+## Technical Debt Assessment
 
-### Debt Introduced
+| # | Description | Severity | Status |
+|---|-------------|----------|--------|
+| 1 | **RESOLVED:** `tooltipContentStyle` was duplicated in `progress-charts.tsx` and `adherence-chart.tsx`. | Medium | Fixed -- extracted to `web/src/lib/chart-utils.ts`. Both files now import from the shared module. |
+| 2 | **RESOLVED:** `StatDisplay` in `adherence-section.tsx` duplicated the `StatCard` component from `dashboard/stat-card.tsx`. | Medium | Fixed -- `StatCard` extended with `valueClassName` prop. `StatDisplay` removed entirely. Analytics section now imports and reuses `StatCard`. |
+| 3 | **RESOLVED:** `CHART_COLORS` constant was defined only in `progress-charts.tsx`. | Low | Fixed -- moved to `web/src/lib/chart-utils.ts` for cross-feature reuse. |
+| 4 | `getIndicatorColor()` in `adherence-section.tsx` uses Tailwind classes while `getAdherenceColor()` in `adherence-chart.tsx` uses HSL CSS vars. | None | These serve different purposes: Tailwind classes for text elements in the DOM, HSL strings for SVG `fill` attributes in recharts. Different tools for different contexts. Not debt. |
+| 5 | `GOAL_LABELS` in `progress-section.tsx` is a local constant. | None | Only used in one component. If goal labels are needed elsewhere, extract to a shared location. No action now. |
 
-| # | Description | Severity | Suggested Resolution |
-|---|-------------|----------|---------------------|
-| 1 | `progress-charts.tsx` is 276 lines (vs 150-line guideline) | LOW | Three chart components + shared utilities in one file. Pragmatic for now; split when a 4th chart is added. |
-| 2 | `ProfileSection` at 223 lines | LOW | Image upload section could be extracted to `ProfileImageUpload` component. Not urgent. |
-| 3 | Dev-done.md lists recharts as `^2.15.3` but package.json has `^3.7.0` | LOW | Documentation inconsistency. The actual dependency is correct at v3. |
-| 4 | `SettingsPage.refreshUser` in error retry uses `window.location.reload()` | LOW | Could use `refreshUser()` directly instead of a full page reload. Minor -- the error state is rare. |
+**Net technical debt: Reduced.** Three instances of duplication were eliminated. One new shared utility file was created that benefits the entire chart ecosystem.
 
-### Debt Reduced
+---
 
-| # | Description | Impact |
-|---|-------------|--------|
-| 1 | Settings page is no longer a placeholder | Removed "Coming soon" technical debt from Pipeline 9 |
-| 2 | Progress tab is no longer a placeholder | Removed "Coming soon" technical debt from Pipeline 9 |
-| 3 | Notification items are now actionable | Notifications go from read-only to click-through navigation |
-| 4 | Invitation table has complete CRUD | Copy/Resend/Cancel actions replace the action-less table |
+## Architectural Decisions Evaluated
+
+### 1. Two Independent Hooks (Good)
+Adherence and progress sections load independently, each with their own loading/error/empty state. This is the correct pattern -- one section failing does not block the other. Matches how the dashboard page works with `useDashboardStats()` and `useDashboardOverview()`.
+
+### 2. Period in Query Key (Good)
+`queryKey: ["analytics", "adherence", days]` -- when the user switches from 30d to 7d, React Query treats it as a new query. The old data remains cached, so switching back to 30d is instant. This is the idiomatic React Query approach.
+
+### 3. `staleTime: 5 * 60 * 1000` (Good)
+Analytics data is computed from daily summaries. Caching for 5 minutes prevents unnecessary refetches when navigating away and back. The dashboard hooks use no staleTime (0), which means they refetch on every mount -- the analytics hooks are more efficient for their use case.
+
+### 4. Extending StatCard vs. Creating a New Component (Good)
+Rather than creating `AnalyticsStatCard`, the existing `StatCard` was extended with an optional `valueClassName` prop. This is backward-compatible -- existing consumers are unaffected. The `cn()` utility merges the base classes with the optional ones safely.
+
+### 5. Shared Chart Utils (Good)
+The `chart-utils.ts` module is placed in `lib/` alongside `utils.ts`, `constants.ts`, and `api-client.ts`. This follows the convention of putting shared, non-component utilities in `lib/`. The module exports only pure constants (no side effects), making it safe to import from any component.
 
 ---
 
 ## Changes Made by Architect
 
-### `web/src/components/trainees/progress-charts.tsx`
-1. **Extracted shared `tooltipContentStyle` constant** -- Replaced three identical inline `contentStyle` objects with a single `const tooltipContentStyle: React.CSSProperties` at the top of the file. Eliminates triple-duplication and makes tooltip styling changes a single-point edit.
+### 1. Created `web/src/lib/chart-utils.ts`
+Extracted `tooltipContentStyle` (shared Recharts tooltip styling) and `CHART_COLORS` (theme-aware chart color constants) into a shared utility module. Previously `tooltipContentStyle` was duplicated across `progress-charts.tsx` and `adherence-chart.tsx`, and `CHART_COLORS` was only available in `progress-charts.tsx`.
 
-2. **Replaced hardcoded HSL colors with theme CSS custom properties** -- Added `CHART_COLORS` constant mapping `food`, `workout`, `protein` to `hsl(var(--chart-2))`, `hsl(var(--chart-1))`, `hsl(var(--chart-4))` respectively. These variables are defined in `globals.css` with both light and dark mode values. The hardcoded `hsl(142, 76%, 36%)`, `hsl(221, 83%, 53%)`, `hsl(47, 96%, 53%)` were bypassing the design system and would not adapt to dark mode or future white-label theming.
+### 2. Extended `web/src/components/dashboard/stat-card.tsx`
+Added optional `valueClassName` prop to `StatCard`, allowing consumers to apply custom styling (e.g., color indicators) to the value text. Uses `cn()` from `lib/utils` for safe class merging. Backward-compatible -- existing consumers are unaffected. Also added `cn` import.
 
-3. **Fixed recharts v3 type error** -- `VolumeChart` tooltip formatter parameter type changed from `(value: number)` to `(value: number | undefined)` to match recharts v3's `Formatter` type. Added `undefined` handling with an em-dash fallback.
+### 3. Refactored `web/src/components/analytics/adherence-section.tsx`
+Replaced the duplicated `StatDisplay` component with the shared `StatCard` from `dashboard/stat-card.tsx`. The `getIndicatorColor()` function is passed via the new `valueClassName` prop, and `getIndicatorDescription()` is passed via the existing `description` prop. Removed dead `StatDisplayProps` interface and `StatDisplay` function.
 
-### `web/src/components/settings/profile-section.tsx`
-4. **Fixed `isDirty` trim consistency** -- Changed `isDirty` comparisons from `form.firstName !== (user?.first_name ?? "")` to `form.firstName.trim() !== (user?.first_name ?? "")`. The `handleSave` already sends `.trim()` values, so `isDirty` should compare trimmed values for consistency. Without this fix, typing " John " then saving would result in `isDirty` being `true` again after `refreshUser` returned "John".
+### 4. Refactored `web/src/components/analytics/adherence-chart.tsx`
+Replaced local `tooltipContentStyle` constant with import from `@/lib/chart-utils`.
 
-5. **Removed `useEffect`-based form sync** -- The previous implementation had a `useEffect` that called `setForm(...)` whenever `user` changed. This violated React 19's `react-hooks/set-state-in-effect` lint rule and caused unnecessary cascading re-renders. Removed the effect entirely. The `useState` initializer captures the user's data at mount time, and subsequent changes after save are handled by the `isDirty` flag. The parent `SettingsPage` guards `!user` before rendering `ProfileSection`, so the initial state is always valid.
-
-### `web/src/components/settings/appearance-section.tsx`
-6. **Removed unused `ThemeValue` type** -- The type alias `type ThemeValue = (typeof themes)[number]["value"]` was defined but never referenced anywhere in the file. Removed dead code.
+### 5. Refactored `web/src/components/trainees/progress-charts.tsx`
+Replaced local `tooltipContentStyle` and `CHART_COLORS` constants with imports from `@/lib/chart-utils`. Removed 12 lines of duplicated constant definitions.
 
 ---
 
 ## Architecture Score: 9/10
 
-**Strengths (what earned points):**
-- All four features follow the established Page > Hook > API Client layering perfectly
-- React Query mutations correctly invalidate related queries on success
-- Auth boundary (Context for user identity, React Query for server data) is clear and consistent
-- FormData handling in api-client is clean with correct Content-Type detection
-- TypeScript types accurately mirror backend API responses
-- getNotificationTraineeId helper is well-designed: handles both string and number types, validates > 0, exported for reuse
-- Controlled popover and dropdown state management handles edge cases (navigation dismiss, dialog opening)
-- Empty/loading/error states handled for every new surface
-- Invitation status matrix correctly handles PENDING/EXPIRED/ACCEPTED/CANCELLED actions
+### Breakdown:
+- **Layering:** 10/10 -- Clean separation: page -> section -> component, hooks encapsulate data fetching, no business logic in views
+- **Data Model:** 10/10 -- Types exactly match backend API responses, nullable fields handled correctly
+- **API Design:** 9/10 -- Consistent with existing hooks, good cache strategy, independent error handling
+- **Frontend Patterns:** 9/10 -- After fixes, all shared components are properly reused. Chart styles consolidated.
+- **Scalability:** 8/10 -- Adequate for current scale (5-30 trainees). Would need pagination at 100+ trainees.
+- **Technical Debt:** 9/10 -- Net reduction in debt. Three instances of duplication eliminated.
 
-**Deductions:**
-- -0.5: Two files exceed 150-line component guideline (pragmatically acceptable but noted)
-- -0.5: Minor documentation inconsistency (recharts version in dev-done.md)
+### Strengths:
+- Perfect alignment with existing architecture and patterns
+- Backend APIs are well-designed (no N+1, single annotated query for adherence)
+- TypeScript types accurately model the API contract
+- Independent section loading for resilience
+- Defensive coding (null checks, sorted data guard, empty state handling)
+
+### Minor Observations (Not Blocking):
+- The client-side sort in `AdherenceBarChart` is redundant since the backend already sorts, but serves as a defensive guard
+- The unbounded trainee list is acceptable at current scale but should be monitored as trainer adoption grows
 
 ## Recommendation: APPROVE
 
-The architecture is clean and consistent. The four new features integrate seamlessly with the established patterns. The fixes applied (theme-aware chart colors, tooltip deduplication, isDirty trim consistency, lint violation resolution) improve the codebase quality. No redesign or major refactoring needed. The codebase is well-positioned for the upcoming white-label infrastructure work since chart colors now participate in the design system's theme variables.
+The implementation follows the established architecture consistently. All three instances of code duplication identified during this review have been fixed. The new shared `chart-utils.ts` module reduces future technical debt for any chart components added to the application. The data model accurately reflects the backend API. No architectural concerns blocking ship.
+
+---
+
+**Review completed by:** Architect Agent
+**Date:** 2026-02-15
+**Build status:** Compiled successfully, 0 TypeScript errors
+**Lint status:** 0 errors, 0 warnings
