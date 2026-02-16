@@ -64,7 +64,7 @@ export function TrainerDetailDialog({
         adminRefreshToken: currentRefresh,
         trainerEmail: trainer.email,
       });
-      setTokens(result.access, result.refresh);
+      setTokens(result.access, result.refresh, "TRAINER");
       onOpenChange(false);
       toast.success(`Now viewing as ${trainer.email}`);
       window.location.href = "/dashboard";

@@ -181,11 +181,13 @@ export function SubscriptionActionForms({
             ))}
           </select>
           <Label htmlFor="tier-reason">Reason</Label>
-          <Input
+          <textarea
             id="tier-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Reason for change"
+            rows={2}
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <div className="flex gap-2">
             <Button
@@ -224,11 +226,13 @@ export function SubscriptionActionForms({
             ))}
           </select>
           <Label htmlFor="status-reason">Reason</Label>
-          <Input
+          <textarea
             id="status-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Reason for change"
+            rows={2}
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <div className="flex gap-2">
             <Button

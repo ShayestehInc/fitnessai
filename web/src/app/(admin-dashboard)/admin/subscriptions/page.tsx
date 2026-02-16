@@ -31,6 +31,13 @@ const TIER_OPTIONS = [
   { value: "ENTERPRISE", label: "Enterprise" },
 ];
 
+const UPCOMING_OPTIONS = [
+  { value: "", label: "All Payments" },
+  { value: "7", label: "Due in 7 days" },
+  { value: "14", label: "Due in 14 days" },
+  { value: "30", label: "Due in 30 days" },
+];
+
 export default function AdminSubscriptionsPage() {
   const searchParams = useSearchParams();
   const initialPastDue = searchParams.get("past_due") === "true";
@@ -40,6 +47,7 @@ export default function AdminSubscriptionsPage() {
     initialPastDue ? "past_due" : "",
   );
   const [tierFilter, setTierFilter] = useState("");
+  const [upcomingFilter, setUpcomingFilter] = useState("");
   const [selectedSubId, setSelectedSubId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -50,8 +58,9 @@ export default function AdminSubscriptionsPage() {
       search: debouncedSearch || undefined,
       status: statusFilter || undefined,
       tier: tierFilter || undefined,
+      upcoming_days: upcomingFilter ? parseInt(upcomingFilter, 10) : undefined,
     }),
-    [debouncedSearch, statusFilter, tierFilter],
+    [debouncedSearch, statusFilter, tierFilter, upcomingFilter],
   );
 
   const subscriptions = useAdminSubscriptions(filters);
@@ -100,6 +109,18 @@ export default function AdminSubscriptionsPage() {
             </option>
           ))}
         </select>
+        <select
+          value={upcomingFilter}
+          onChange={(e) => setUpcomingFilter(e.target.value)}
+          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          aria-label="Filter by upcoming payments"
+        >
+          {UPCOMING_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {subscriptions.isLoading && (
@@ -122,7 +143,7 @@ export default function AdminSubscriptionsPage() {
           icon={CreditCard}
           title="No subscriptions found"
           description={
-            debouncedSearch || statusFilter || tierFilter
+            debouncedSearch || statusFilter || tierFilter || upcomingFilter
               ? "No subscriptions match your filters."
               : "No trainer subscriptions exist yet."
           }

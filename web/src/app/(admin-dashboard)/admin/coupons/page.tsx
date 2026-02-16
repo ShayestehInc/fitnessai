@@ -30,10 +30,18 @@ const TYPE_OPTIONS = [
   { value: "free_trial", label: "Free Trial" },
 ];
 
+const APPLIES_TO_OPTIONS = [
+  { value: "", label: "All Targets" },
+  { value: "trainer", label: "Trainer" },
+  { value: "trainee", label: "Trainee" },
+  { value: "both", label: "Both" },
+];
+
 export default function AdminCouponsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [appliesToFilter, setAppliesToFilter] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
@@ -47,8 +55,9 @@ export default function AdminCouponsPage() {
       search: debouncedSearch || undefined,
       status: statusFilter || undefined,
       type: typeFilter || undefined,
+      applies_to: appliesToFilter || undefined,
     }),
-    [debouncedSearch, statusFilter, typeFilter],
+    [debouncedSearch, statusFilter, typeFilter, appliesToFilter],
   );
 
   const coupons = useAdminCoupons(filters);
@@ -115,6 +124,18 @@ export default function AdminCouponsPage() {
             </option>
           ))}
         </select>
+        <select
+          value={appliesToFilter}
+          onChange={(e) => setAppliesToFilter(e.target.value)}
+          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          aria-label="Filter by applies to"
+        >
+          {APPLIES_TO_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {coupons.isLoading && (
@@ -137,12 +158,12 @@ export default function AdminCouponsPage() {
           icon={Ticket}
           title="No coupons found"
           description={
-            debouncedSearch || statusFilter || typeFilter
+            debouncedSearch || statusFilter || typeFilter || appliesToFilter
               ? "No coupons match your filters."
               : "Create your first coupon to offer discounts."
           }
           action={
-            !debouncedSearch && !statusFilter && !typeFilter ? (
+            !debouncedSearch && !statusFilter && !typeFilter && !appliesToFilter ? (
               <Button onClick={handleCreate}>Create Coupon</Button>
             ) : undefined
           }
