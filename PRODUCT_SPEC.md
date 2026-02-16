@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-15 (Pipeline 15: Offline-First Phase 6)
+> Last updated: 2026-02-15 (Pipeline 16: Health Data Integration + Performance Audit + Offline UI Polish — Phase 6 Complete)
 
 ---
 
@@ -387,11 +387,23 @@ Complete offline-first infrastructure for the mobile app, enabling trainees to l
 - **Shared Utilities**: `network_error_utils.dart` (DRY network error detection), `SyncOperationType` and `SyncItemStatus` enums, `SyncStatusBadge` widget (ready for per-card placement in follow-up).
 - **Quality**: 4 code review rounds, 13 critical/high issues found and fixed across all audit stages. Security 9/10, Architecture 8/10, Final 8/10 SHIP.
 
-**Deferred items (follow-up pipeline):**
-- AC-12: Merge local pending workouts into Home "Recent Workouts" list
-- AC-16: Merge local pending nutrition into macro totals
-- AC-18: Merge local pending weight check-ins into weight trends
-- AC-36/37/38: Place SyncStatusBadge on individual cards in list views
+**Deferred items (completed in Pipeline 16):**
+- ~~AC-12: Merge local pending workouts into Home "Recent Workouts" list~~ ✅
+- ~~AC-16: Merge local pending nutrition into macro totals~~ ✅
+- ~~AC-18: Merge local pending weight check-ins into weight trends~~ ✅
+- ~~AC-36/37/38: Place SyncStatusBadge on individual cards in list views~~ ✅ (workout + weight cards; food entry badges deferred — nutrition entries stored as JSON blobs)
+
+### 4.16 Health Data Integration + Performance Audit + Offline UI Polish (Phase 6 Completion) -- COMPLETED (2026-02-15)
+
+Completes Phase 6 by adding HealthKit/Health Connect integration, app performance optimizations, and the deferred offline UI polish from Pipeline 15.
+
+**What was built:**
+- **Health Data Integration**: Reads steps, active calories, heart rate, and weight from HealthKit (iOS) / Health Connect (Android) via the `health` Flutter package. "Today's Health" card on home screen with 4 metrics, skeleton loading, 200ms fade-in animation. Platform-level aggregation (HKStatisticsQuery/AggregateRequest) for accurate step/calorie deduplication across overlapping sources (iPhone + Apple Watch). One-time permission bottom sheet with platform-specific explanation. Gear icon opens device health settings.
+- **Weight Auto-Import**: Automatically imports weight from HealthKit/Health Connect to WeightCheckIn model. Date-based deduplication prevents duplicate entries. Checks both server and local pending data. Notes field set to "Auto-imported from Health". Silent failure (no snackbar) — background operation.
+- **Offline UI Polish**: Pending workouts merged into Home "Recent Workouts" with SyncStatusBadge. Pending nutrition macros added to server totals with "(includes X pending)" label. Pending weight check-ins merged into Weight Trends history. SyncStatusBadge on workout cards and weight entries. Reactive updates via `syncCompletionProvider` — badges disappear when sync completes.
+- **Performance Audit**: RepaintBoundary on CalorieRing, MacroCircle, MacroCard, weight chart CustomPaint. const constructors audited across priority widget files. Riverpod `select()` for granular rebuilds on home screen health card visibility. SliverList.builder for weight trends history (virtualized rendering). shouldRepaint optimization on weight chart painter.
+- **Architecture**: Sealed class state hierarchy for HealthDataState (exhaustive pattern matching). Injectable HealthService via Riverpod provider. `mounted` guards after every async gap. Independent try-catch per health data type. `HealthMetrics` typed dataclass (no Map returns).
+- **Quality**: Code review R1 6/10 → R2 8/10 APPROVE (3 critical + 4 major fixed). QA 24/26 AC pass HIGH confidence. UX 8/10 (15 usability + 8 accessibility fixes). Security 9.5/10 PASS. Architecture 8/10 APPROVE. Hacker 8/10 (2 fixes). Final 8/10 SHIP.
 
 ### 4.15 Acceptance Criteria
 
@@ -452,13 +464,13 @@ Complete offline-first infrastructure for the mobile app, enabling trainees to l
 - Stripe Connect payout to ambassadors -- Deferred (requires Stripe dashboard configuration)
 - ~~Custom referral codes (ambassador-chosen, e.g., "JOHN20")~~ ✅ Completed 2026-02-15
 
-### Phase 6: Offline-First + Performance -- PARTIALLY COMPLETED (2026-02-15)
+### Phase 6: Offline-First + Performance -- COMPLETED (2026-02-15)
 - ~~Drift (SQLite) local database for offline workout logging~~ ✅ Completed 2026-02-15
 - ~~Sync queue for uploading logs when connection returns~~ ✅ Completed 2026-02-15
-- Background health data sync (HealthKit / Health Connect) -- Not yet (separate ticket)
-- App performance audit (60fps target, RepaintBoundary audit) -- Not yet (separate ticket)
-- Deferred: Merging local pending data into home recent workouts, nutrition macro totals, and weight trends (AC-12/16/18)
-- Deferred: Per-card sync status badges on list items (AC-36/37/38)
+- ~~Background health data sync (HealthKit / Health Connect)~~ ✅ Completed 2026-02-15
+- ~~App performance audit (60fps target, RepaintBoundary audit)~~ ✅ Completed 2026-02-15
+- ~~Merging local pending data into home recent workouts, nutrition macro totals, and weight trends~~ ✅ Completed 2026-02-15
+- ~~Per-card sync status badges on list items~~ ✅ Completed 2026-02-15 (workout + weight cards; food entry badges deferred)
 
 ### Phase 7: Social & Community
 - Forums / community feed (trainee-to-trainee)
