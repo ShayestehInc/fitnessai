@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
@@ -7,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../features/logging/data/repositories/logging_repository.dart';
 import '../services/connectivity_service.dart';
+import '../services/network_error_utils.dart';
 import '../services/sync_status.dart';
 import 'app_database.dart';
 import 'offline_save_result.dart';
@@ -48,7 +48,7 @@ class OfflineNutritionRepository {
           result['error']?.toString() ?? 'Failed to save nutrition',
         );
       } on DioException catch (e) {
-        if (_isNetworkError(e)) {
+        if (isNetworkError(e)) {
           return _saveNutritionLocally(parsedData, date);
         }
         return OfflineSaveResult.failure(e.message ?? 'Network error');
@@ -71,19 +71,21 @@ class OfflineNutritionRepository {
     };
 
     try {
-      await _db.nutritionCacheDao.insertPendingNutrition(
-        clientId: clientId,
-        userId: _userId,
-        parsedDataJson: jsonEncode(parsedData),
-        targetDate: targetDate,
-      );
+      await _db.transaction(() async {
+        await _db.nutritionCacheDao.insertPendingNutrition(
+          clientId: clientId,
+          userId: _userId,
+          parsedDataJson: jsonEncode(parsedData),
+          targetDate: targetDate,
+        );
 
-      await _db.syncQueueDao.insertItem(
-        clientId: clientId,
-        userId: _userId,
-        operationType: SyncOperationType.nutritionLog.value,
-        payloadJson: jsonEncode(payload),
-      );
+        await _db.syncQueueDao.insertItem(
+          clientId: clientId,
+          userId: _userId,
+          operationType: SyncOperationType.nutritionLog.value,
+          payloadJson: jsonEncode(payload),
+        );
+      });
 
       return const OfflineSaveResult.offlineSuccess();
     } on SqliteException catch (e) {
@@ -102,11 +104,4 @@ class OfflineNutritionRepository {
         '${now.day.toString().padLeft(2, '0')}';
   }
 
-  bool _isNetworkError(DioException e) {
-    return e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.sendTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.connectionError ||
-        (e.type == DioExceptionType.unknown && e.error is SocketException);
-  }
 }

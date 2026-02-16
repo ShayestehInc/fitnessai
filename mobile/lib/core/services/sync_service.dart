@@ -129,10 +129,12 @@ class SyncService {
     } finally {
       _isSyncing = false;
       // If new items were queued or connectivity changed while we were syncing,
-      // re-process the queue to pick them up.
+      // re-process the queue to pick them up. Scheduled via Future.microtask
+      // to avoid recursive stack growth if _processQueue completes
+      // synchronously and _pendingRestart is set repeatedly.
       if (_pendingRestart && !_disposed && _connectivityService.isOnline) {
         _pendingRestart = false;
-        _processQueue();
+        Future.microtask(_processQueue);
       }
     }
   }
@@ -284,8 +286,9 @@ class SyncService {
         _getUserFriendlyNetworkError(e),
         item.retryCount,
       );
-      // Reset to pending so it gets picked up again
-      await _db.syncQueueDao.retryItem(item.id);
+      // Reset to pending so it gets picked up again.
+      // Use requeueForRetry (not retryItem) to preserve retryCount.
+      await _db.syncQueueDao.requeueForRetry(item.id);
 
       // Wait with exponential backoff before continuing
       final delayIndex =

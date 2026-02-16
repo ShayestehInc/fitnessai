@@ -59,7 +59,16 @@ class ConnectivityService {
   }
 
   ConnectivityStatus _mapResults(List<ConnectivityResult> results) {
-    if (results.contains(ConnectivityResult.none) || results.isEmpty) {
+    if (results.isEmpty) {
+      return ConnectivityStatus.offline;
+    }
+    // On some Android devices, connectivity_plus can return
+    // [ConnectivityResult.none] alongside real connections like wifi.
+    // Only report offline if 'none' is the sole result.
+    final hasRealConnection = results.any(
+      (r) => r != ConnectivityResult.none,
+    );
+    if (!hasRealConnection) {
       return ConnectivityStatus.offline;
     }
     return ConnectivityStatus.online;

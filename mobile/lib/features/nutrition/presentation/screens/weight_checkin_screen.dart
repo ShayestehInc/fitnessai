@@ -17,6 +17,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
   final _weightController = TextEditingController();
   final _notesController = TextEditingController();
   bool _useMetric = true;
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -197,10 +198,10 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: state.isLoading || _weightController.text.isEmpty
+                onPressed: _isSaving || _weightController.text.isEmpty
                     ? null
                     : _saveCheckIn,
-                child: state.isLoading
+                child: _isSaving
                     ? const SizedBox(
                         height: 20,
                         width: 20,
@@ -228,12 +229,15 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
     final weight = double.tryParse(_weightController.text);
     if (weight == null) return;
 
+    setState(() => _isSaving = true);
+
     // Convert to kg if using lbs
     final weightKg = _useMetric ? weight : weight * 0.453592;
 
     final offlineWeightRepo = ref.read(offlineWeightRepositoryProvider);
     if (offlineWeightRepo == null) {
       if (mounted) {
+        setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please log in to save weight data.')),
         );
@@ -268,11 +272,16 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
             ),
           ),
         );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Weight check-in saved successfully!')),
+        );
       }
       // Trigger sync if online
       ref.read(syncServiceProvider)?.triggerSync();
       context.pop();
     } else {
+      if (mounted) setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.error ?? 'Failed to save')),
       );

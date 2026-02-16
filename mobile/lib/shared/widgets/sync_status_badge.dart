@@ -35,12 +35,8 @@ class SyncStatusBadge extends StatelessWidget {
           color: Color(0xFF3B82F6), // Blue
         );
       case SyncItemStatus.synced:
-        // Synced items typically don't show a badge; render nothing.
-        return const Icon(
-          Icons.cloud_done,
-          size: 12,
-          color: Color(0xFF22C55E), // Green
-        );
+        // AC-38: Synced items show no badge -- the item is server-authoritative.
+        return const SizedBox.shrink();
       case SyncItemStatus.failed:
         return const Icon(
           Icons.error_outline,

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
@@ -7,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../features/nutrition/data/repositories/nutrition_repository.dart';
 import '../services/connectivity_service.dart';
+import '../services/network_error_utils.dart';
 import '../services/sync_status.dart';
 import 'app_database.dart';
 import 'offline_save_result.dart';
@@ -50,7 +50,7 @@ class OfflineWeightRepository {
           result['error']?.toString() ?? 'Failed to save weight',
         );
       } on DioException catch (e) {
-        if (_isNetworkError(e)) {
+        if (isNetworkError(e)) {
           return _saveWeightLocally(
             date: date,
             weightKg: weightKg,
@@ -81,20 +81,22 @@ class OfflineWeightRepository {
     };
 
     try {
-      await _db.nutritionCacheDao.insertPendingWeight(
-        clientId: clientId,
-        userId: _userId,
-        date: date,
-        weightKg: weightKg,
-        notes: notes,
-      );
+      await _db.transaction(() async {
+        await _db.nutritionCacheDao.insertPendingWeight(
+          clientId: clientId,
+          userId: _userId,
+          date: date,
+          weightKg: weightKg,
+          notes: notes,
+        );
 
-      await _db.syncQueueDao.insertItem(
-        clientId: clientId,
-        userId: _userId,
-        operationType: SyncOperationType.weightCheckin.value,
-        payloadJson: jsonEncode(payload),
-      );
+        await _db.syncQueueDao.insertItem(
+          clientId: clientId,
+          userId: _userId,
+          operationType: SyncOperationType.weightCheckin.value,
+          payloadJson: jsonEncode(payload),
+        );
+      });
 
       return const OfflineSaveResult.offlineSuccess();
     } on SqliteException catch (e) {
@@ -107,11 +109,4 @@ class OfflineWeightRepository {
     }
   }
 
-  bool _isNetworkError(DioException e) {
-    return e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.sendTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.connectionError ||
-        (e.type == DioExceptionType.unknown && e.error is SocketException);
-  }
 }

@@ -100,8 +100,22 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
     return query.get();
   }
 
-  /// Reset a failed item back to pending for retry.
+  /// Reset a failed item back to pending for user-initiated (manual) retry.
+  /// Resets retryCount to 0 so the item gets a full set of retry attempts.
   Future<void> retryItem(int id) {
+    return (update(syncQueueItems)..where((t) => t.id.equals(id))).write(
+      const SyncQueueItemsCompanion(
+        status: Value('pending'),
+        lastError: Value(null),
+        retryCount: Value(0),
+      ),
+    );
+  }
+
+  /// Requeue a failed item for automatic retry by the sync engine.
+  /// Preserves retryCount so the exponential backoff and max-retry
+  /// logic continue correctly.
+  Future<void> requeueForRetry(int id) {
     return (update(syncQueueItems)..where((t) => t.id.equals(id))).write(
       const SyncQueueItemsCompanion(
         status: Value('pending'),

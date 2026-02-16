@@ -35,6 +35,24 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => 1;
 
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          // Future schema migrations go here. Since this is v1,
+          // no migrations are needed yet. Example for v2:
+          //
+          // if (from < 2) {
+          //   await m.addColumn(syncQueueItems, syncQueueItems.someNewColumn);
+          // }
+        },
+        beforeOpen: (details) async {
+          // Enable WAL mode for better concurrent read/write performance
+          // on the background isolate.
+          await customStatement('PRAGMA journal_mode=WAL');
+        },
+      );
+
   /// Run startup cleanup tasks:
   /// - Delete synced items older than 24 hours
   /// - Delete stale program caches older than 30 days
@@ -57,12 +75,16 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Clear all data for a specific user (called on logout).
+  /// Wrapped in a transaction so either all data is cleared or none is,
+  /// preventing partial cleanup on failure.
   Future<void> clearUserData(int userId) async {
-    await syncQueueDao.deleteAllForUser(userId);
-    await workoutCacheDao.deleteAllForUser(userId);
-    await nutritionCacheDao.deleteAllNutritionForUser(userId);
-    await nutritionCacheDao.deleteAllWeightForUser(userId);
-    await programCacheDao.deleteAllForUser(userId);
+    await transaction(() async {
+      await syncQueueDao.deleteAllForUser(userId);
+      await workoutCacheDao.deleteAllForUser(userId);
+      await nutritionCacheDao.deleteAllNutritionForUser(userId);
+      await nutritionCacheDao.deleteAllWeightForUser(userId);
+      await programCacheDao.deleteAllForUser(userId);
+    });
   }
 }
 

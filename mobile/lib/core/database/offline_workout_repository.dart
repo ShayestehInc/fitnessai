@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
@@ -8,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../features/workout_log/data/models/workout_models.dart';
 import '../../features/workout_log/data/repositories/workout_repository.dart';
 import '../services/connectivity_service.dart';
+import '../services/network_error_utils.dart';
 import '../services/sync_status.dart';
 import 'app_database.dart';
 import 'offline_save_result.dart';
@@ -58,7 +58,7 @@ class OfflineWorkoutRepository {
           result['error']?.toString() ?? 'Failed to save workout',
         );
       } on DioException catch (e) {
-        if (_isNetworkError(e)) {
+        if (isNetworkError(e)) {
           return _saveWorkoutLocally(
             clientId: clientId,
             workoutSummary: workoutSummary,
@@ -98,21 +98,26 @@ class OfflineWorkoutRepository {
     };
 
     try {
-      await _db.workoutCacheDao.insertPendingWorkout(
-        clientId: clientId,
-        userId: _userId,
-        workoutSummaryJson: jsonEncode(workoutSummary),
-        surveyDataJson: jsonEncode(surveyData),
-        readinessSurveyJson:
-            readinessSurvey != null ? jsonEncode(readinessSurvey) : null,
-      );
+      // Wrap both inserts in a transaction so they either both succeed
+      // or both roll back. Prevents orphaned pending data without a
+      // corresponding sync queue entry.
+      await _db.transaction(() async {
+        await _db.workoutCacheDao.insertPendingWorkout(
+          clientId: clientId,
+          userId: _userId,
+          workoutSummaryJson: jsonEncode(workoutSummary),
+          surveyDataJson: jsonEncode(surveyData),
+          readinessSurveyJson:
+              readinessSurvey != null ? jsonEncode(readinessSurvey) : null,
+        );
 
-      await _db.syncQueueDao.insertItem(
-        clientId: clientId,
-        userId: _userId,
-        operationType: SyncOperationType.workoutLog.value,
-        payloadJson: jsonEncode(payload),
-      );
+        await _db.syncQueueDao.insertItem(
+          clientId: clientId,
+          userId: _userId,
+          operationType: SyncOperationType.workoutLog.value,
+          payloadJson: jsonEncode(payload),
+        );
+      });
 
       return const OfflineSaveResult.offlineSuccess();
     } on SqliteException catch (e) {
@@ -143,7 +148,7 @@ class OfflineWorkoutRepository {
           result['error']?.toString() ?? 'Failed to save survey',
         );
       } on DioException catch (e) {
-        if (_isNetworkError(e)) {
+        if (isNetworkError(e)) {
           return _saveReadinessSurveyLocally(
             workoutName: workoutName,
             surveyData: surveyData,
@@ -207,7 +212,7 @@ class OfflineWorkoutRepository {
         // Online but API error: try cache
         return _getProgramsFromCache();
       } on DioException catch (e) {
-        if (_isNetworkError(e)) {
+        if (isNetworkError(e)) {
           return _getProgramsFromCache();
         }
         return {'success': false, 'error': e.message};
@@ -229,16 +234,36 @@ class OfflineWorkoutRepository {
       };
     }
 
-    final programsData =
-        jsonDecode(cached.programsJson) as List<dynamic>;
-    final programs =
-        programsData.map((json) => ProgramModel.fromJson(json)).toList();
+    try {
+      final programsData =
+          jsonDecode(cached.programsJson) as List<dynamic>;
+      final programs =
+          programsData.map((json) => ProgramModel.fromJson(json)).toList();
 
-    return {
-      'success': true,
-      'programs': programs,
-      'fromCache': true,
-    };
+      return {
+        'success': true,
+        'programs': programs,
+        'fromCache': true,
+      };
+    } on FormatException {
+      // Corrupted JSON in the cache -- delete it and report as missing.
+      await _db.programCacheDao.deleteAllForUser(_userId);
+      return {
+        'success': false,
+        'error': 'Cached program data was corrupted. Connect to the internet '
+            'to reload your program.',
+        'fromCache': true,
+      };
+    } catch (_) {
+      // Any other deserialization error (e.g., ProgramModel.fromJson fails).
+      await _db.programCacheDao.deleteAllForUser(_userId);
+      return {
+        'success': false,
+        'error': 'Cached program data could not be loaded. Connect to the '
+            'internet to reload your program.',
+        'fromCache': true,
+      };
+    }
   }
 
   /// Get active program with offline cache fallback.
@@ -290,11 +315,4 @@ class OfflineWorkoutRepository {
     return _onlineRepo.getWeeklyProgress();
   }
 
-  bool _isNetworkError(DioException e) {
-    return e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.sendTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.connectionError ||
-        (e.type == DioExceptionType.unknown && e.error is SocketException);
-  }
 }
