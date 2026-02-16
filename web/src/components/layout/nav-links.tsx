@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Users,
+  Dumbbell,
   Mail,
   BarChart3,
   Bell,
@@ -17,6 +18,7 @@ export interface NavLink {
 export const navLinks: NavLink[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Trainees", href: "/trainees", icon: Users },
+  { label: "Programs", href: "/programs", icon: Dumbbell },
   { label: "Invitations", href: "/invitations", icon: Mail },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Notifications", href: "/notifications", icon: Bell },
