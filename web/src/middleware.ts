@@ -8,17 +8,18 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = request.cookies.get(SESSION_COOKIE)?.value === "1";
 
-  // Authenticated users visiting login → redirect to dashboard
+  // Authenticated users visiting login -> redirect to dashboard
+  // (Role-aware redirect happens client-side in AuthProvider/layout)
   if (PUBLIC_PATHS.includes(pathname) && hasSession) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Unauthenticated users visiting protected routes → redirect to login
+  // Unauthenticated users visiting protected routes -> redirect to login
   if (!PUBLIC_PATHS.includes(pathname) && !hasSession && pathname !== "/") {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Root path → redirect based on session
+  // Root path -> redirect based on session
   if (pathname === "/") {
     if (hasSession) {
       return NextResponse.redirect(new URL("/dashboard", request.url));

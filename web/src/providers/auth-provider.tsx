@@ -23,9 +23,9 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<User>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -34,25 +34,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUser = useCallback(async () => {
+  const fetchUser = useCallback(async (): Promise<User> => {
     try {
       const userData = await apiClient.get<User>(API_URLS.CURRENT_USER);
-      if (userData.role !== UserRole.TRAINER) {
+      if (
+        userData.role !== UserRole.TRAINER &&
+        userData.role !== UserRole.ADMIN
+      ) {
         clearTokens();
         setUser(null);
-        throw new Error("Only trainer accounts can access this dashboard");
+        throw new Error(
+          "Only trainer and admin accounts can access this dashboard",
+        );
       }
       setUser(userData);
+      return userData;
     } catch (error) {
       clearTokens();
       setUser(null);
       // Re-throw role errors so the login page can display them
       if (
         error instanceof Error &&
-        error.message.includes("Only trainer")
+        error.message.includes("accounts can access")
       ) {
         throw error;
       }
+      throw error;
     }
   }, []);
 
@@ -96,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUser]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string): Promise<User> => {
       const response = await fetch(API_URLS.LOGIN, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json();
       setTokens(data.access, data.refresh);
-      await fetchUser();
+      return fetchUser();
     },
     [fetchUser],
   );

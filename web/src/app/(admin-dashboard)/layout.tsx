@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { UserRole } from "@/types/user";
-import { Sidebar } from "@/components/layout/sidebar";
-import { SidebarMobile } from "@/components/layout/sidebar-mobile";
+import { AdminSidebar } from "@/components/layout/admin-sidebar";
+import { AdminSidebarMobile } from "@/components/layout/admin-sidebar-mobile";
 import { Header } from "@/components/layout/header";
+import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { Loader2 } from "lucide-react";
 
-export default function DashboardLayout({
+export default function AdminDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -24,18 +25,25 @@ export default function DashboardLayout({
     }
   }, [isLoading, isAuthenticated, router]);
 
-  // Redirect ADMIN users to admin dashboard
+  // Redirect non-admin users to trainer dashboard
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user?.role === UserRole.ADMIN) {
-      router.replace("/admin/dashboard");
+    if (!isLoading && isAuthenticated && user && user.role !== UserRole.ADMIN) {
+      router.replace("/dashboard");
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading || !isAuthenticated) {
+  if (isLoading || !isAuthenticated || !user || user.role !== UserRole.ADMIN) {
     return (
-      <div className="flex min-h-screen items-center justify-center" role="status" aria-label="Loading dashboard">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
-        <span className="sr-only">Loading dashboard...</span>
+      <div
+        className="flex min-h-screen items-center justify-center"
+        role="status"
+        aria-label="Loading admin dashboard"
+      >
+        <Loader2
+          className="h-8 w-8 animate-spin text-muted-foreground"
+          aria-hidden="true"
+        />
+        <span className="sr-only">Loading admin dashboard...</span>
       </div>
     );
   }
@@ -48,11 +56,14 @@ export default function DashboardLayout({
       >
         Skip to main content
       </a>
-      <Sidebar />
-      <SidebarMobile open={mobileOpen} onOpenChange={setMobileOpen} />
+      <AdminSidebar />
+      <AdminSidebarMobile open={mobileOpen} onOpenChange={setMobileOpen} />
       <div className="flex flex-1 flex-col">
+        <ImpersonationBanner />
         <Header onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-auto p-4 lg:p-6" id="main-content">{children}</main>
+        <main className="flex-1 overflow-auto p-4 lg:p-6" id="main-content">
+          {children}
+        </main>
       </div>
     </div>
   );

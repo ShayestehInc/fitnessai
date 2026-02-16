@@ -1,18 +1,20 @@
-# Pipeline 12 Focus: Web Dashboard Phase 4 — Trainer Program Builder
+# Pipeline 13 Focus: Admin Dashboard (Web)
 
 ## Priority
-The next Phase 4 item is the **Trainer Program Builder** for the web dashboard. This allows trainers to create, edit, and manage workout programs directly from the web interface — a critical workflow that currently only exists in mobile.
+Complete the final Phase 4 item: Admin dashboard for the web application. This gives the platform super admin full management capabilities via the web.
 
 ## Context
-- Web dashboard foundation, trainee management, notifications, invitations, settings, progress charts, and analytics are all shipped
-- Backend program APIs already exist (`/api/workouts/programs/`, `/api/workouts/exercises/`)
-- Mobile program builder already exists as reference implementation
-- Key models: Program (with schedule JSONField), ProgramTemplate, ProgramWeek, Exercise
+- The trainer web dashboard is fully built (Pipelines 9-12)
+- Backend admin APIs already exist at `/api/admin/`
+- Existing patterns: DataTable, PageHeader, EmptyState, ErrorState, LoadingSpinner, StatCard
+- Auth system with role-based access already in place
+- shadcn/ui component library available
 
 ## Scope
-- Program list page with create/edit/delete
-- Program builder: week editor, day editor, exercise selection
-- Exercise bank browsing (system + trainer-custom)
-- Program template support (save as template, create from template)
-- Program assignment to trainees
-- All CRUD operations with proper loading/error/empty states
+- Admin-only section with role-gated access (ADMIN users only)
+- Admin dashboard overview (platform stats: trainers, trainees, revenue, growth)
+- Trainer management (list, view details, activate/suspend)
+- Subscription tier management (CRUD)
+- Coupon management (CRUD)
+- User management (list all users, view by role)
+- Platform analytics (revenue trends, user growth)

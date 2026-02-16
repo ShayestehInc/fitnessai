@@ -48,6 +48,61 @@ export const API_URLS = {
   programTemplateAssign: (id: number) =>
     `${API_BASE}/api/trainer/program-templates/${id}/assign/`,
   EXERCISES: `${API_BASE}/api/workouts/exercises/`,
+
+  // Admin Dashboard
+  ADMIN_DASHBOARD: `${API_BASE}/api/admin/dashboard/`,
+
+  // Admin Trainers
+  ADMIN_TRAINERS: `${API_BASE}/api/admin/trainers/`,
+
+  // Admin Impersonation
+  adminImpersonate: (trainerId: number) =>
+    `${API_BASE}/api/admin/impersonate/${trainerId}/`,
+  ADMIN_IMPERSONATE_END: `${API_BASE}/api/admin/impersonate/end/`,
+
+  // Admin Users
+  ADMIN_USERS: `${API_BASE}/api/admin/users/`,
+  ADMIN_USERS_CREATE: `${API_BASE}/api/admin/users/create/`,
+  adminUserDetail: (userId: number) =>
+    `${API_BASE}/api/admin/users/${userId}/`,
+
+  // Admin Subscriptions
+  ADMIN_SUBSCRIPTIONS: `${API_BASE}/api/admin/subscriptions/`,
+  adminSubscriptionDetail: (id: number) =>
+    `${API_BASE}/api/admin/subscriptions/${id}/`,
+  adminSubscriptionChangeTier: (id: number) =>
+    `${API_BASE}/api/admin/subscriptions/${id}/change-tier/`,
+  adminSubscriptionChangeStatus: (id: number) =>
+    `${API_BASE}/api/admin/subscriptions/${id}/change-status/`,
+  adminSubscriptionUpdateNotes: (id: number) =>
+    `${API_BASE}/api/admin/subscriptions/${id}/update-notes/`,
+  adminSubscriptionRecordPayment: (id: number) =>
+    `${API_BASE}/api/admin/subscriptions/${id}/record-payment/`,
+  adminSubscriptionPaymentHistory: (id: number) =>
+    `${API_BASE}/api/admin/subscriptions/${id}/payment-history/`,
+  adminSubscriptionChangeHistory: (id: number) =>
+    `${API_BASE}/api/admin/subscriptions/${id}/change-history/`,
+  ADMIN_PAST_DUE: `${API_BASE}/api/admin/past-due/`,
+  ADMIN_UPCOMING_PAYMENTS: `${API_BASE}/api/admin/upcoming-payments/`,
+
+  // Admin Tiers
+  ADMIN_TIERS: `${API_BASE}/api/admin/tiers/`,
+  adminTierDetail: (id: number) =>
+    `${API_BASE}/api/admin/tiers/${id}/`,
+  ADMIN_TIERS_SEED_DEFAULTS: `${API_BASE}/api/admin/tiers/seed-defaults/`,
+  adminTierToggleActive: (id: number) =>
+    `${API_BASE}/api/admin/tiers/${id}/toggle-active/`,
+
+  // Admin Coupons
+  ADMIN_COUPONS: `${API_BASE}/api/admin/coupons/`,
+  adminCouponDetail: (id: number) =>
+    `${API_BASE}/api/admin/coupons/${id}/`,
+  adminCouponRevoke: (id: number) =>
+    `${API_BASE}/api/admin/coupons/${id}/revoke/`,
+  adminCouponReactivate: (id: number) =>
+    `${API_BASE}/api/admin/coupons/${id}/reactivate/`,
+  adminCouponUsages: (id: number) =>
+    `${API_BASE}/api/admin/coupons/${id}/usages/`,
 } as const;
 
 export const TOKEN_KEYS = {
