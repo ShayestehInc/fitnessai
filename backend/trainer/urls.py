@@ -20,6 +20,10 @@ from .notification_views import (
     NotificationListView, UnreadCountView,
     MarkNotificationReadView, MarkAllReadView, DeleteNotificationView,
 )
+from community.trainer_views import (
+    TrainerAnnouncementListCreateView,
+    TrainerAnnouncementDetailView,
+)
 
 urlpatterns = [
     # Dashboard
@@ -76,4 +80,8 @@ urlpatterns = [
     path('ai/chat/', AIChatView.as_view(), name='ai-chat'),
     path('ai/context/<int:trainee_id>/', AIChatTraineeContextView.as_view(), name='ai-context'),
     path('ai/providers/', AIProvidersView.as_view(), name='ai-providers'),
+
+    # Announcements (trainer CRUD)
+    path('announcements/', TrainerAnnouncementListCreateView.as_view(), name='trainer-announcements'),
+    path('announcements/<int:pk>/', TrainerAnnouncementDetailView.as_view(), name='trainer-announcement-detail'),
 ]

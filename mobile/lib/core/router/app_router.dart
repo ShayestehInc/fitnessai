@@ -20,7 +20,12 @@ import '../../features/workout_log/presentation/screens/workout_history_screen.d
 import '../../features/workout_log/presentation/screens/workout_detail_screen.dart';
 import '../../features/workout_log/data/models/workout_history_model.dart';
 import '../../features/workout_log/presentation/providers/workout_provider.dart';
-import '../../features/forums/presentation/screens/forums_screen.dart';
+import '../../features/community/presentation/screens/community_feed_screen.dart';
+import '../../features/community/presentation/screens/announcements_screen.dart';
+import '../../features/community/presentation/screens/achievements_screen.dart';
+import '../../features/community/data/models/announcement_model.dart';
+import '../../features/trainer/presentation/screens/trainer_announcements_screen.dart';
+import '../../features/trainer/presentation/screens/create_announcement_screen.dart';
 import '../../features/tv/presentation/screens/tv_screen.dart';
 import '../../features/logging/presentation/screens/ai_command_center_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
@@ -487,13 +492,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // Forums branch
+          // Community branch
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/forums',
-                name: 'forums',
-                builder: (context, state) => const ForumsScreen(),
+                path: '/community',
+                name: 'community',
+                builder: (context, state) => const CommunityFeedScreen(),
               ),
             ],
           ),
@@ -509,6 +514,33 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+
+      // Community screens (outside shell)
+      GoRoute(
+        path: '/community/announcements',
+        name: 'community-announcements',
+        builder: (context, state) => const AnnouncementsScreen(),
+      ),
+      GoRoute(
+        path: '/community/achievements',
+        name: 'community-achievements',
+        builder: (context, state) => const AchievementsScreen(),
+      ),
+
+      // Trainer announcement management
+      GoRoute(
+        path: '/trainer/announcements',
+        name: 'trainer-announcements-screen',
+        builder: (context, state) => const TrainerAnnouncementsScreen(),
+      ),
+      GoRoute(
+        path: '/trainer/announcements/create',
+        name: 'trainer-create-announcement',
+        builder: (context, state) {
+          final existing = state.extra as AnnouncementModel?;
+          return CreateAnnouncementScreen(existing: existing);
+        },
       ),
 
       // Feature requests (accessible by both trainers and trainees)

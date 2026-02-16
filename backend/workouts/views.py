@@ -578,7 +578,14 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
             }
         
         daily_log.save()
-        
+
+        # Check achievements after nutrition logging (non-blocking)
+        try:
+            from community.services.achievement_service import check_and_award_achievements
+            check_and_award_achievements(user, 'nutrition_logged')
+        except Exception:
+            logger.exception("Achievement check failed after nutrition save for user %s", user.id)
+
         # Return saved log
         log_serializer = DailyLogSerializer(daily_log)
         return Response(
@@ -1125,10 +1132,16 @@ class WeightCheckInViewSet(viewsets.ModelViewSet[WeightCheckIn]):
             return WeightCheckIn.objects.none()
 
     def perform_create(self, serializer: BaseSerializer[WeightCheckIn]) -> None:
-        """Set trainee to current user."""
+        """Set trainee to current user and check achievements."""
         user = cast(User, self.request.user)
         if user.is_trainee():
             serializer.save(trainee=user)
+            # Check achievements after weight check-in (non-blocking)
+            try:
+                from community.services.achievement_service import check_and_award_achievements
+                check_and_award_achievements(user, 'weight_checkin')
+            except Exception:
+                logger.exception("Achievement check failed after weight check-in for user %s", user.id)
         else:
             serializer.save()
 

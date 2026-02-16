@@ -563,6 +563,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       const SizedBox(height: 24),
 
+      // Achievements
+      _buildSectionHeader(context, 'ACHIEVEMENTS', index++),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.emoji_events_outlined,
+        title: 'Badges & Achievements',
+        subtitle: 'View your earned badges',
+        onTap: () => context.push('/community/achievements'),
+        index: index++,
+      ),
+
+      const SizedBox(height: 24),
+
       // Subscription Section
       _buildSectionHeader(context, 'SUBSCRIPTION', index++),
       _buildSettingsTile(

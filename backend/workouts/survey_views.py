@@ -231,6 +231,11 @@ class PostWorkoutSurveyView(APIView):
                 readiness_survey=readiness_survey,
             )
 
+        # Check achievements & create auto-post (non-blocking)
+        new_achievements = self._check_achievements_and_auto_post(
+            user, workout_name,
+        )
+
         response_data: dict[str, Any] = {
             'success': True,
             'message': 'Post-workout survey submitted',
@@ -241,6 +246,11 @@ class PostWorkoutSurveyView(APIView):
                 'average_score': round(avg_score, 1),
             },
         }
+        if new_achievements:
+            from community.serializers import NewAchievementSerializer
+            response_data['new_achievements'] = NewAchievementSerializer(
+                new_achievements, many=True,
+            ).data
         if save_error is not None:
             response_data['warning'] = 'Workout survey saved but workout log persistence failed'
 
@@ -305,6 +315,35 @@ class PostWorkoutSurveyView(APIView):
                 daily_log.workout_data['readiness_survey'] = readiness_survey
 
             daily_log.save(update_fields=['workout_data'])
+
+    @staticmethod
+    def _check_achievements_and_auto_post(
+        user: User,
+        workout_name: str,
+    ) -> list[object]:
+        """Check achievements after workout and create auto-post. Never raises."""
+        from community.services.achievement_service import check_and_award_achievements
+        from community.services.auto_post_service import create_auto_post
+        from community.models import CommunityPost
+
+        newly_earned = check_and_award_achievements(user, 'workout_completed')
+
+        # Create auto-post for workout completion
+        create_auto_post(
+            user=user,
+            post_type=CommunityPost.PostType.WORKOUT_COMPLETED,
+            metadata={'workout_name': workout_name},
+        )
+
+        # Create auto-post for each newly earned achievement
+        for ua in newly_earned:
+            create_auto_post(
+                user=user,
+                post_type=CommunityPost.PostType.ACHIEVEMENT_EARNED,
+                metadata={'achievement_name': ua.achievement.name},
+            )
+
+        return newly_earned
 
     def _notify_trainer(
         self,

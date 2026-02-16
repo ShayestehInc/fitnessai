@@ -29,6 +29,9 @@ urlpatterns = [
 
     # Calendar integration
     path('api/calendar/', include('calendars.urls')),
+
+    # Community (trainee-facing: announcements, achievements, feed)
+    path('api/community/', include('community.urls')),
 ]
 
 # Serve media files in development

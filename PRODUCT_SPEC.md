@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-15 (Pipeline 16: Health Data Integration + Performance Audit + Offline UI Polish — Phase 6 Complete)
+> Last updated: 2026-02-16 (Pipeline 17: Social & Community — Phase 7 Complete)
 
 ---
 
@@ -187,14 +187,29 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Invitation row actions | ✅ Done | Shipped 2026-02-15: Copy code, resend, cancel with confirmation dialog. Status-aware visibility (PENDING/EXPIRED/ACCEPTED/CANCELLED) |
 | Trainer analytics page | ✅ Done | Shipped 2026-02-15: Adherence section (3 stat cards, horizontal bar chart, 7/14/30d period selector) + Progress section (trainee table with weight change, goal alignment). Theme-aware chart colors, WCAG accessible |
 
-### 3.10 Other
+### 3.10 Social & Community
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Trainer announcements (CRUD) | ✅ Done | Shipped 2026-02-16: Trainer create/edit/delete announcements, pinned support, swipe-to-delete with confirmation |
+| Trainee announcement feed | ✅ Done | Shipped 2026-02-16: List with pinned indicators, unread count badge on home screen bell, mark-read on open |
+| Achievement/badge system | ✅ Done | Shipped 2026-02-16: 15 predefined badges across 5 criteria types (workout count, workout streak, weight check-in streak, nutrition streak, program completed) |
+| Achievement hooks | ✅ Done | Shipped 2026-02-16: Auto-check after workout completion, weight check-in, nutrition logging. Fire-and-forget pattern. |
+| Achievement screen | ✅ Done | Shipped 2026-02-16: 3-column badge grid with earned/locked states, detail bottom sheet, progress summary |
+| Community feed | ✅ Done | Shipped 2026-02-16: Trainer-scoped community posts with pull-to-refresh, infinite scroll, compose bottom sheet |
+| Reaction system | ✅ Done | Shipped 2026-02-16: Fire/thumbs_up/heart toggle with optimistic updates and error rollback |
+| Auto-posts | ✅ Done | Shipped 2026-02-16: Automated community posts on workout completion and achievement earning |
+| Community feed moderation | ✅ Done | Shipped 2026-02-16: Author delete + trainer moderation via impersonation |
+| Achievement toast on new badge | 🟡 Partial | Backend returns new_achievements data; mobile toast wiring deferred to workout flow update |
+| Leaderboards | ❌ Not started | Opt-in, trainer-controlled. Deferred to future pipeline. |
+
+### 3.11 Other
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Calendar integration (Google/Microsoft) | 🟡 Partial | Backend API done, mobile basic |
 | Feature request board | ✅ Done | In-app submission + voting |
 | MCP server (Claude Desktop) | ✅ Done | Trainer can query data via Claude Desktop |
 | TV mode | ❌ Placeholder | Screen exists but empty |
-| Forums | ❌ Placeholder | Screen exists but empty |
+| Community feed (replaces Forums) | ✅ Done | Shipped 2026-02-16: Trainer-scoped feed with text posts, reactions (fire/thumbs_up/heart), auto-posts for workouts and achievements, optimistic updates, infinite scroll |
 | Offline-first with local DB | ✅ Done | Shipped 2026-02-15: Drift (SQLite) local database, sync queue with FIFO/exponential backoff, connectivity monitoring with 2s debounce, offline-aware repositories for workouts/nutrition/weight, program caching, 409 conflict detection, UI banners (offline/syncing/synced/failed), failed sync bottom sheet, logout warning |
 
 ---
@@ -405,6 +420,17 @@ Completes Phase 6 by adding HealthKit/Health Connect integration, app performanc
 - **Architecture**: Sealed class state hierarchy for HealthDataState (exhaustive pattern matching). Injectable HealthService via Riverpod provider. `mounted` guards after every async gap. Independent try-catch per health data type. `HealthMetrics` typed dataclass (no Map returns).
 - **Quality**: Code review R1 6/10 → R2 8/10 APPROVE (3 critical + 4 major fixed). QA 24/26 AC pass HIGH confidence. UX 8/10 (15 usability + 8 accessibility fixes). Security 9.5/10 PASS. Architecture 8/10 APPROVE. Hacker 8/10 (2 fixes). Final 8/10 SHIP.
 
+### 4.17 Social & Community (Phase 7) -- COMPLETED (2026-02-16)
+
+Full implementation of the Social & Community feature set: Trainer Announcements, Achievement/Badge System, and Community Feed.
+
+**What was built:**
+- **Backend**: New `community` Django app with 6 models (Announcement, AnnouncementReadStatus, Achievement, UserAchievement, CommunityPost, PostReaction). 13 API endpoints. Achievement service with streak/count calculation and concurrent-safe awarding. Auto-post service for automated community posts. Seed command for 15 predefined achievements. 55 comprehensive backend tests.
+- **Mobile (Trainer)**: Announcements management screen with swipe-to-delete and edit. Create/edit announcement form with character counters and pinned toggle.
+- **Mobile (Trainee)**: Community feed screen (replaces Forums tab) with pull-to-refresh, infinite scroll, shimmer skeletons. Compose post bottom sheet. Reaction bar with optimistic toggle updates and error rollback. Auto-post visual distinction (tinted background, type badge). Post deletion with confirmation dialog. Announcements screen with mark-read on open. Notification bell with unread count badge. Achievements screen with 3-column badge grid (earned/locked states). Settings tile showing earned/total count.
+- **Cross-Cutting**: Full Semantics/accessibility annotations. Shimmer skeleton loading states. Row-level security (all data scoped by parent_trainer). Batch reaction aggregation (no N+1). Proper CASCADE behavior. Database indexes on all query patterns.
+- **Quality**: Code review R1 6/10 → fixes applied. QA 55/55 pass HIGH confidence. UX 8/10 (13 fixes). Security 9/10 PASS. Architecture 9/10 APPROVE. Hacker 7/10 (2 critical pagination bugs found and fixed). Final 8/10 SHIP.
+
 ### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
@@ -472,11 +498,21 @@ Completes Phase 6 by adding HealthKit/Health Connect integration, app performanc
 - ~~Merging local pending data into home recent workouts, nutrition macro totals, and weight trends~~ ✅ Completed 2026-02-15
 - ~~Per-card sync status badges on list items~~ ✅ Completed 2026-02-15 (workout + weight cards; food entry badges deferred)
 
-### Phase 7: Social & Community
-- Forums / community feed (trainee-to-trainee)
-- Trainer announcements (broadcast to all trainees)
-- Achievement / badge system
+### Phase 7: Social & Community -- ✅ COMPLETED (2026-02-16)
+- ~~Forums / community feed (trainee-to-trainee)~~ ✅ Completed 2026-02-16 (trainer-scoped community feed with text posts, reactions, auto-posts, moderation)
+- ~~Trainer announcements (broadcast to all trainees)~~ ✅ Completed 2026-02-16 (full CRUD, pinning, unread tracking, notification bell)
+- ~~Achievement / badge system~~ ✅ Completed 2026-02-16 (15 predefined badges, streak/count calculation, hooks on workout/nutrition/weight, badge grid UI)
+- Leaderboards (opt-in, trainer-controlled) -- Deferred to future pipeline
+
+### Phase 8: Future Enhancements
 - Leaderboards (opt-in, trainer-controlled)
+- Push notifications for announcements, achievements, community posts
+- Rich text / markdown in announcements and posts
+- Image / video attachments on community posts
+- Comment threads on community posts
+- Real-time feed updates (WebSocket)
+- Stripe Connect payout to ambassadors
+- Trainee web access
 
 ---
 
