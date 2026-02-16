@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 
 /// Shows a Material bottom sheet explaining why the app needs health data access.
@@ -25,7 +23,8 @@ class _HealthPermissionSheetContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final platformName = Platform.isIOS ? 'Apple Health' : 'Health Connect';
+    final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+    final platformName = isIOS ? 'Apple Health' : 'Health Connect';
 
     return SafeArea(
       child: Padding(

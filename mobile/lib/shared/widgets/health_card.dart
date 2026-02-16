@@ -41,6 +41,8 @@ class _LoadedHealthCard extends StatefulWidget {
 
 class _LoadedHealthCardState extends State<_LoadedHealthCard>
     with SingleTickerProviderStateMixin {
+  static final _numberFormat = NumberFormat('#,###');
+
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
 
@@ -67,7 +69,7 @@ class _LoadedHealthCardState extends State<_LoadedHealthCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final numberFormat = NumberFormat('#,###');
+    final numberFormat = _numberFormat;
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -93,17 +95,20 @@ class _LoadedHealthCardState extends State<_LoadedHealthCard>
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                Semantics(
-                  button: true,
-                  label: 'Open health settings',
-                  child: GestureDetector(
-                    onTap: _openHealthSettings,
-                    child: Icon(
-                      Icons.settings_outlined,
-                      size: 18,
-                      color: theme.textTheme.bodySmall?.color,
-                    ),
+                IconButton(
+                  onPressed: _openHealthSettings,
+                  icon: Icon(
+                    Icons.settings_outlined,
+                    size: 18,
+                    color: theme.textTheme.bodySmall?.color,
                   ),
+                  iconSize: 18,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  tooltip: 'Open health settings',
                 ),
               ],
             ),

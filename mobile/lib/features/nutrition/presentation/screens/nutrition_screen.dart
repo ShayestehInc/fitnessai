@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../shared/widgets/offline_banner.dart';
 import '../../data/models/nutrition_models.dart';
 import '../providers/nutrition_provider.dart';
@@ -28,6 +29,13 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(nutritionStateProvider);
+
+    // Reload pending data when sync completes so badges disappear reactively
+    ref.listen(syncCompletionProvider, (_, next) {
+      if (next.valueOrNull == true) {
+        ref.read(nutritionStateProvider.notifier).loadInitialData();
+      }
+    });
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,

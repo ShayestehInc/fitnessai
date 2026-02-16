@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../database/daos/nutrition_cache_dao.dart';
 import '../database/offline_weight_repository.dart';
 import '../models/health_metrics.dart';
 import '../services/health_service.dart';
+import 'database_provider.dart';
 import 'sync_provider.dart';
 
 /// SharedPreferences keys for health permission state.
@@ -32,6 +34,16 @@ class HealthDataLoading extends HealthDataState {
 class HealthDataLoaded extends HealthDataState {
   final HealthMetrics metrics;
   const HealthDataLoaded(this.metrics);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HealthDataLoaded &&
+          runtimeType == other.runtimeType &&
+          metrics == other.metrics;
+
+  @override
+  int get hashCode => metrics.hashCode;
 }
 
 /// User denied health data permissions.
@@ -44,20 +56,28 @@ class HealthDataUnavailable extends HealthDataState {
   const HealthDataUnavailable();
 }
 
+/// Provides the [HealthService] for injection and testability.
+final healthServiceProvider = Provider<HealthService>((ref) {
+  return HealthService();
+});
+
 /// Manages health data state: permission handling, data fetching,
 /// and weight auto-import.
 class HealthDataNotifier extends StateNotifier<HealthDataState> {
   final HealthService _healthService;
   final OfflineWeightRepository? _weightRepo;
   final int? _userId;
+  final NutritionCacheDao? _nutritionCacheDao;
 
   HealthDataNotifier({
     required HealthService healthService,
     OfflineWeightRepository? weightRepo,
     int? userId,
+    NutritionCacheDao? nutritionCacheDao,
   })  : _healthService = healthService,
         _weightRepo = weightRepo,
         _userId = userId,
+        _nutritionCacheDao = nutritionCacheDao,
         super(const HealthDataInitial());
 
   /// Check persisted permission state and fetch data if previously granted.
@@ -84,7 +104,11 @@ class HealthDataNotifier extends StateNotifier<HealthDataState> {
 
       // Not yet asked -- caller should show the permission sheet
       return false;
-    } catch (_) {
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthDataNotifier.checkAndRequestPermission error: $e');
+        return true;
+      }());
       state = const HealthDataUnavailable();
       return false;
     }
@@ -95,7 +119,11 @@ class HealthDataNotifier extends StateNotifier<HealthDataState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_kHealthPermissionAsked) ?? false;
-    } catch (_) {
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthDataNotifier.wasPermissionAsked error: $e');
+        return true;
+      }());
       return false;
     }
   }
@@ -118,7 +146,11 @@ class HealthDataNotifier extends StateNotifier<HealthDataState> {
         state = const HealthDataPermissionDenied();
         return false;
       }
-    } catch (_) {
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthDataNotifier.requestOsPermission error: $e');
+        return true;
+      }());
       state = const HealthDataUnavailable();
       return false;
     }
@@ -131,32 +163,53 @@ class HealthDataNotifier extends StateNotifier<HealthDataState> {
       await prefs.setBool(_kHealthPermissionAsked, true);
       await prefs.setBool(_kHealthPermissionGranted, false);
       state = const HealthDataPermissionDenied();
-    } catch (_) {
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthDataNotifier.declinePermission error: $e');
+        return true;
+      }());
       state = const HealthDataPermissionDenied();
     }
   }
 
   /// Fetch today's health data from HealthKit / Health Connect.
   ///
-  /// Updates state to [HealthDataLoaded] with the metrics.
-  /// If the fetch fails entirely, sets state to [HealthDataUnavailable].
-  Future<void> fetchHealthData() async {
-    state = const HealthDataLoading();
+  /// When [isRefresh] is true and we already have loaded data, the existing
+  /// data is preserved on failure instead of transitioning to unavailable.
+  /// This prevents the health card from disappearing on pull-to-refresh
+  /// when HealthKit is temporarily unavailable.
+  Future<void> fetchHealthData({bool isRefresh = false}) async {
+    // On refresh with existing data, keep showing it (no skeleton flash)
+    final currentState = state;
+    if (!isRefresh || currentState is! HealthDataLoaded) {
+      state = const HealthDataLoading();
+    }
 
     try {
       final metrics = await _healthService.syncTodayHealthData();
+      if (!mounted) return;
       state = HealthDataLoaded(metrics);
 
-      // Auto-import weight in background (non-blocking)
-      _autoImportWeight(metrics);
-    } catch (_) {
+      // Auto-import weight (awaited inside try-catch with mounted guard)
+      await _autoImportWeight(metrics);
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthDataNotifier.fetchHealthData error: $e');
+        return true;
+      }());
+      if (!mounted) return;
+      // On refresh failure, preserve existing data instead of hiding the card
+      if (isRefresh && currentState is HealthDataLoaded) {
+        // Keep the stale data -- better than nothing
+        return;
+      }
       state = const HealthDataUnavailable();
     }
   }
 
   /// Auto-import weight from health data to WeightCheckIn if:
   /// 1. A weight reading exists for today
-  /// 2. No check-in already exists for today (date-based dedup)
+  /// 2. No check-in already exists for today (date-based dedup, including offline)
   /// 3. The weight repository is available
   Future<void> _autoImportWeight(HealthMetrics metrics) async {
     final weightRepo = _weightRepo;
@@ -174,6 +227,32 @@ class HealthDataNotifier extends StateNotifier<HealthDataState> {
     }
 
     final todayStr = DateFormat('yyyy-MM-dd').format(today);
+
+    // Check for existing pending weight check-in for today (offline dedup)
+    final cacheDao = _nutritionCacheDao;
+    if (cacheDao != null && _userId != null) {
+      try {
+        final pendingWeights = await cacheDao.getPendingWeightCheckins(_userId!);
+        if (!mounted) return;
+        final hasPendingToday = pendingWeights.any((pw) => pw.date == todayStr);
+        if (hasPendingToday) {
+          assert(() {
+            debugPrint(
+                'Health weight auto-import: skipped, pending entry exists for $todayStr');
+            return true;
+          }());
+          return;
+        }
+      } catch (e) {
+        assert(() {
+          debugPrint('Health weight auto-import: pending check failed: $e');
+          return true;
+        }());
+        // Continue with the import attempt -- server will dedup
+      }
+    }
+
+    if (!mounted) return;
 
     try {
       final result = await weightRepo.createWeightCheckIn(
@@ -207,10 +286,13 @@ final healthDataProvider =
   final authState = ref.watch(authStateProvider);
   final user = authState.user;
   final weightRepo = ref.watch(offlineWeightRepositoryProvider);
+  final healthService = ref.watch(healthServiceProvider);
+  final db = ref.watch(databaseProvider);
 
   return HealthDataNotifier(
-    healthService: HealthService(),
+    healthService: healthService,
     weightRepo: weightRepo,
     userId: user?.id,
+    nutritionCacheDao: db.nutritionCacheDao,
   );
 });

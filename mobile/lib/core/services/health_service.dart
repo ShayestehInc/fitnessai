@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:health/health.dart';
 
 import '../models/health_metrics.dart';
@@ -9,9 +10,13 @@ import '../models/health_metrics.dart';
 ///
 /// This service is read-only -- it never writes health data back.
 /// Each data type fetch is independently try-caught so partial data is valid.
+///
+/// Accept a [Health] instance via constructor for testability. If none is
+/// provided, a default instance is created.
 class HealthService {
-  static Health? _health;
-  static Health get health => _health ??= Health();
+  final Health _health;
+
+  HealthService({Health? health}) : _health = health ?? Health();
 
   /// The data types we request read access for.
   static const List<HealthDataType> _requestedTypes = [
@@ -31,11 +36,15 @@ class HealthService {
         _requestedTypes.length,
         HealthDataAccess.READ,
       );
-      return await health.requestAuthorization(
+      return await _health.requestAuthorization(
         _requestedTypes,
         permissions: permissions,
       );
-    } catch (_) {
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthService.requestPermissions error: $e');
+        return true;
+      }());
       return false;
     }
   }
@@ -47,9 +56,13 @@ class HealthService {
   Future<bool> checkPermissionStatus() async {
     try {
       // hasPermissions returns a bool? -- null means unknown/unavailable
-      final result = await health.hasPermissions(_requestedTypes);
+      final result = await _health.hasPermissions(_requestedTypes);
       return result == true;
-    } catch (_) {
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthService.checkPermissionStatus error: $e');
+        return true;
+      }());
       return false;
     }
   }
@@ -74,55 +87,58 @@ class HealthService {
   }
 
   /// Get total steps from midnight today to now.
+  ///
+  /// Uses [Health.getTotalStepsInInterval] which leverages platform-level
+  /// aggregate queries (HKStatisticsQuery on iOS, AggregateRequest on Android)
+  /// to properly deduplicate overlapping data from multiple sources (e.g.
+  /// iPhone + Apple Watch both reporting steps for the same time interval).
   Future<int> getTodaySteps() async {
     try {
       final now = DateTime.now();
       final todayMidnight = DateTime(now.year, now.month, now.day);
 
-      final dataPoints = await health.getHealthDataFromTypes(
-        startTime: todayMidnight,
-        endTime: now,
-        types: [HealthDataType.STEPS],
-      );
-
-      if (dataPoints.isEmpty) return 0;
-
-      int totalSteps = 0;
-      for (final point in dataPoints) {
-        if (point.value is NumericHealthValue) {
-          totalSteps +=
-              (point.value as NumericHealthValue).numericValue.toInt();
-        }
-      }
-      return totalSteps;
-    } catch (_) {
+      final total = await _health.getTotalStepsInInterval(todayMidnight, now);
+      return total ?? 0;
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthService.getTodaySteps error: $e');
+        return true;
+      }());
       return 0;
     }
   }
 
   /// Get total active calories burned from midnight today to now.
+  ///
+  /// Uses [Health.getHealthAggregateDataFromTypes] which leverages
+  /// platform-level aggregate queries to properly deduplicate overlapping
+  /// data from multiple sources.
   Future<int> getTodayActiveCalories() async {
     try {
       final now = DateTime.now();
       final todayMidnight = DateTime(now.year, now.month, now.day);
 
-      final dataPoints = await health.getHealthDataFromTypes(
-        startTime: todayMidnight,
-        endTime: now,
+      final aggregatePoints = await _health.getHealthAggregateDataFromTypes(
         types: [HealthDataType.ACTIVE_ENERGY_BURNED],
+        startDate: todayMidnight,
+        endDate: now,
       );
 
-      if (dataPoints.isEmpty) return 0;
+      if (aggregatePoints.isEmpty) return 0;
 
       double totalCalories = 0;
-      for (final point in dataPoints) {
+      for (final point in aggregatePoints) {
         if (point.value is NumericHealthValue) {
           totalCalories +=
               (point.value as NumericHealthValue).numericValue.toDouble();
         }
       }
       return totalCalories.round();
-    } catch (_) {
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthService.getTodayActiveCalories error: $e');
+        return true;
+      }());
       return 0;
     }
   }
@@ -135,7 +151,7 @@ class HealthService {
       final now = DateTime.now();
       final dayAgo = now.subtract(const Duration(hours: 24));
 
-      final dataPoints = await health.getHealthDataFromTypes(
+      final dataPoints = await _health.getHealthDataFromTypes(
         startTime: dayAgo,
         endTime: now,
         types: [HealthDataType.HEART_RATE],
@@ -156,7 +172,11 @@ class HealthService {
       }
 
       return null;
-    } catch (_) {
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthService.getLatestHeartRate error: $e');
+        return true;
+      }());
       return null;
     }
   }
@@ -170,7 +190,7 @@ class HealthService {
       final now = DateTime.now();
       final weekAgo = now.subtract(const Duration(days: 7));
 
-      final dataPoints = await health.getHealthDataFromTypes(
+      final dataPoints = await _health.getHealthDataFromTypes(
         startTime: weekAgo,
         endTime: now,
         types: [HealthDataType.WEIGHT],
@@ -193,19 +213,24 @@ class HealthService {
       }
 
       return null;
-    } catch (_) {
+    } catch (e) {
+      assert(() {
+        debugPrint('HealthService.getLatestWeight error: $e');
+        return true;
+      }());
       return null;
     }
   }
 
-  /// Open the device's health app settings.
+  /// Platform-specific URI for the device's health app settings.
   ///
-  /// Returns the platform-specific URI string.
+  /// On iOS, opens the Health app directly.
+  /// On Android, opens the Health Connect app via intent URI.
   static String get healthSettingsUri {
     if (Platform.isIOS) {
       return 'x-apple-health://';
     }
-    // Android Health Connect
-    return 'market://details?id=com.google.android.apps.healthdata';
+    // Android Health Connect deep link
+    return 'content://com.google.android.apps.healthdata';
   }
 }

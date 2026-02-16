@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/sync_status.dart';
 import '../../../../shared/widgets/sync_status_badge.dart';
 import '../providers/nutrition_provider.dart';
@@ -30,6 +32,13 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
     final history = state.weightHistory;
     final pendingWeights = state.pendingWeights;
     final hasAny = history.isNotEmpty || pendingWeights.isNotEmpty;
+
+    // Reload pending data when sync completes so badges disappear reactively
+    ref.listen(syncCompletionProvider, (_, next) {
+      if (next.valueOrNull == true) {
+        ref.read(nutritionStateProvider.notifier).loadWeightHistory();
+      }
+    });
 
     // Create the set of pending dates for dedup checking
     final pendingDates = pendingWeights.map((pw) => pw.date).toSet();
@@ -577,7 +586,7 @@ class _WeightChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WeightChartPainter oldDelegate) {
-    return data != oldDelegate.data ||
+    return !listEquals(data, oldDelegate.data) ||
         minWeight != oldDelegate.minWeight ||
         maxWeight != oldDelegate.maxWeight ||
         lineColor != oldDelegate.lineColor;

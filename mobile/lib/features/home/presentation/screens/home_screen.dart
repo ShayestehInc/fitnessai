@@ -56,6 +56,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final homeState = ref.watch(homeStateProvider);
     final user = authState.user;
 
+    // Reload pending data when sync completes so badges disappear reactively
+    ref.listen(syncCompletionProvider, (_, next) {
+      if (next.valueOrNull == true) {
+        ref.read(homeStateProvider.notifier).loadDashboardData();
+      }
+    });
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
@@ -70,7 +77,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     final healthState = ref.read(healthDataProvider);
                     if (healthState is HealthDataLoaded ||
                         healthState is HealthDataLoading) {
-                      ref.read(healthDataProvider.notifier).fetchHealthData();
+                      ref.read(healthDataProvider.notifier).fetchHealthData(
+                            isRefresh: true,
+                          );
                     }
                 },
                 child: SingleChildScrollView(

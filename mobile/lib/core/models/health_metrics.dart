@@ -32,4 +32,24 @@ class HealthMetrics {
     steps: 0,
     activeCalories: 0,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HealthMetrics &&
+          runtimeType == other.runtimeType &&
+          steps == other.steps &&
+          activeCalories == other.activeCalories &&
+          heartRate == other.heartRate &&
+          latestWeightKg == other.latestWeightKg &&
+          weightDate == other.weightDate;
+
+  @override
+  int get hashCode => Object.hash(
+        steps,
+        activeCalories,
+        heartRate,
+        latestWeightKg,
+        weightDate,
+      );
 }

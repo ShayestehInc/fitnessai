@@ -132,6 +132,45 @@ Implemented all three parts of the ticket: Health Data Integration (Part A), Off
 
 ---
 
+## Review Fixes Applied (Round 1)
+
+### Critical Fixes
+1. **C1 (Steps double-counting)**: Replaced `getHealthDataFromTypes()` + manual sum in `getTodaySteps()` with `getTotalStepsInInterval()` which uses platform-level aggregate queries (HKStatisticsQuery on iOS, AggregateRequest on Android) for proper deduplication of overlapping sources.
+
+2. **C2 (Fire-and-forget async)**: Changed `_autoImportWeight(metrics)` from fire-and-forget to `await _autoImportWeight(metrics)` inside the existing try-catch. Added `if (!mounted) return;` guards after every `await` in `fetchHealthData()` and `_autoImportWeight()` to prevent state mutations on disposed notifiers.
+
+3. **C3 (Refresh UX)**: Added `isRefresh` parameter to `fetchHealthData()`. When refreshing with existing data, skips the `HealthDataLoading` state (no skeleton flash) and on failure preserves the existing `HealthDataLoaded` state instead of transitioning to `HealthDataUnavailable`. Home screen passes `isRefresh: true` on pull-to-refresh.
+
+### Major Fixes
+4. **M1 (syncCompletionProvider unused)**: Wired `ref.listen(syncCompletionProvider, ...)` into `HomeScreen.build()`, `NutritionScreen.build()`, and `WeightTrendsScreen.build()` to reload pending data when sync completes, so badges disappear reactively.
+
+5. **M2 (Active calories overlapping sources)**: Replaced `getHealthDataFromTypes()` + manual sum in `getTodayActiveCalories()` with `getHealthAggregateDataFromTypes()` which uses platform-level aggregate queries.
+
+6. **M3 (Offline weight dedup)**: Before auto-importing weight, now queries `nutritionCacheDao.getPendingWeightCheckins()` and checks if any pending entry already has today's date. If so, skips the import to prevent duplicate offline entries.
+
+7. **M6/M7 (HealthService not injectable)**: Changed `HealthService` from static `_health` singleton to instance field via constructor (`HealthService({Health? health})`). Created `healthServiceProvider` for Riverpod injection. `healthDataProvider` now uses `ref.watch(healthServiceProvider)`.
+
+### Minor Fixes
+8. **m1 (Gear icon accessibility)**: Replaced `GestureDetector` with `IconButton` for proper ripple feedback, 32dp minimum touch target, and tooltip.
+
+9. **m2 (Platform.isIOS not web-safe)**: Replaced `Platform.isIOS` with `Theme.of(context).platform == TargetPlatform.iOS` in `health_permission_sheet.dart`.
+
+10. **m3 (Android health settings URI)**: Changed Android URI from Play Store URL to Health Connect content URI (`content://com.google.android.apps.healthdata`).
+
+11. **m4 (shouldRepaint reference equality)**: Added `import 'package:flutter/foundation.dart' show listEquals;` and changed `data != oldDelegate.data` to `!listEquals(data, oldDelegate.data)` for proper deep list comparison.
+
+12. **m5 (HealthMetrics equality)**: Added `operator ==` and `hashCode` to `HealthMetrics` using `Object.hash(steps, activeCalories, heartRate, latestWeightKg, weightDate)`.
+
+13. **m6 (Error silencing)**: Added `assert(() { debugPrint('...error: $e'); return true; }());` debug logging to all `catch` blocks in `HealthService` and `HealthDataNotifier`.
+
+14. **m7 (Hardcoded date arrays)**: Replaced manual weekday/month arrays in `PendingWorkoutDisplay.formattedDate` with `DateFormat('EEE, MMM d').format(createdAt)` from the `intl` package.
+
+15. **m11 (HealthDataLoaded equality)**: Added `operator ==` and `hashCode` to `HealthDataLoaded` that delegates to `HealthMetrics` equality.
+
+16. **m12 (NumberFormat allocation)**: Made `NumberFormat('#,###')` a static final field in `_LoadedHealthCardState` instead of recreating it on every build.
+
+---
+
 ## Deviations from Ticket
 
 1. **AC-19 (SyncStatusBadge on food entry rows)**: Partially deferred. Pending nutrition entries are stored as raw JSON blobs in Drift, not as individual `MealEntry` objects. The architecture stores an entire AI-parsed meal payload, not individual food items. Mapping them back to specific meal section rows would require significant refactoring of the pending data model. Instead, the macro totals merge and "(includes X pending)" label address the intent of showing that offline data is reflected in the display.

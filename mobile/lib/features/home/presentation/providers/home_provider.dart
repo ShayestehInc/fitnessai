@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/providers/database_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -79,14 +80,7 @@ class PendingWorkoutDisplay {
 
   /// Format the creation date for display (e.g., "Mon, Feb 10").
   String get formattedDate {
-    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    final weekday = weekdays[createdAt.weekday - 1];
-    final month = months[createdAt.month - 1];
-    return '$weekday, $month ${createdAt.day}';
+    return DateFormat('EEE, MMM d').format(createdAt);
   }
 }
 
