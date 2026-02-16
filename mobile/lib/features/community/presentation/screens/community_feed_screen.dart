@@ -79,6 +79,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _showComposeSheet,
         backgroundColor: theme.colorScheme.primary,
+        tooltip: 'New post',
         child: const Icon(Icons.edit),
       ),
     );
@@ -230,7 +231,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   }
 
   Widget _buildLoadingSkeleton(ThemeData theme) {
-    return ListView.builder(
+    return Semantics(
+      label: 'Loading community feed',
+      child: ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: 3,
       itemBuilder: (context, index) {
@@ -295,6 +298,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
           ),
         );
       },
+    ),
     );
   }
 

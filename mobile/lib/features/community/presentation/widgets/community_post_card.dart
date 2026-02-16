@@ -192,9 +192,16 @@ class CommunityPostCard extends ConsumerWidget {
           ),
         ],
       ),
-    ).then((confirmed) {
+    ).then((confirmed) async {
       if (confirmed == true) {
-        ref.read(communityFeedProvider.notifier).deletePost(post.id);
+        final success = await ref.read(communityFeedProvider.notifier).deletePost(post.id);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Post deleted' : 'Failed to delete post'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     });
   }

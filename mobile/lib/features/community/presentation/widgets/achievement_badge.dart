@@ -34,11 +34,17 @@ class AchievementBadge extends StatelessWidget {
     final earned = achievement.earned;
     final iconData = _iconMap[achievement.iconName] ?? Icons.emoji_events;
 
-    return GestureDetector(
-      onTap: () => _showDetail(context),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    return Semantics(
+      label: earned
+          ? '${achievement.name}, earned'
+          : '${achievement.name}, locked',
+      button: true,
+      child: InkWell(
+        onTap: () => _showDetail(context),
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           Container(
             width: 64,
             height: 64,
@@ -72,11 +78,12 @@ class AchievementBadge extends StatelessWidget {
               color: earned
                   ? theme.textTheme.bodyLarge?.color
                   : theme.textTheme.bodySmall?.color,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: earned ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
         ],
+      ),
       ),
     );
   }

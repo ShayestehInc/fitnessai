@@ -43,6 +43,7 @@ class _TrainerAnnouncementsScreenState
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/trainer/announcements/create'),
         backgroundColor: theme.colorScheme.primary,
+        tooltip: 'New announcement',
         child: const Icon(Icons.add),
       ),
     );
@@ -50,7 +51,7 @@ class _TrainerAnnouncementsScreenState
 
   Widget _buildBody(ThemeData theme, TrainerAnnouncementState state) {
     if (state.isLoading && state.announcements.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildLoadingSkeleton(theme);
     }
 
     if (state.error != null && state.announcements.isEmpty) {
@@ -111,6 +112,45 @@ class _TrainerAnnouncementsScreenState
             extra: a,
           ),
           onDelete: () => _confirmDelete(a.id),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingSkeleton(ThemeData theme) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 3,
+      itemBuilder: (context, index) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(width: 160, height: 14, color: theme.dividerColor),
+                    ),
+                    Container(width: 24, height: 24, color: theme.dividerColor),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Container(width: double.infinity, height: 12, color: theme.dividerColor),
+                const SizedBox(height: 4),
+                Container(width: 200, height: 12, color: theme.dividerColor),
+                const SizedBox(height: 8),
+                Container(width: 80, height: 10, color: theme.dividerColor),
+              ],
+            ),
+          ),
         );
       },
     );

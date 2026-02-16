@@ -72,7 +72,13 @@ class _ReactionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final semanticLabel = isActive
+        ? '$label reaction, $count, active. Tap to remove.'
+        : '$label reaction, $count. Tap to react.';
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      child: Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -113,6 +119,7 @@ class _ReactionButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

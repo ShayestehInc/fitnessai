@@ -41,7 +41,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
 
   Widget _buildBody(ThemeData theme, AchievementState state) {
     if (state.isLoading && state.achievements.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildLoadingSkeleton(theme);
     }
 
     if (state.error != null && state.achievements.isEmpty) {
@@ -109,6 +109,78 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
     );
   }
 
+  Widget _buildLoadingSkeleton(ThemeData theme) {
+    return Semantics(
+      label: 'Loading achievements',
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Progress bar skeleton
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(width: 120, height: 14, color: theme.dividerColor),
+                      Container(width: 40, height: 14, color: theme.dividerColor),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Grid skeleton: 6 circles in 3x2
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 0.75,
+              ),
+              itemCount: 6,
+              itemBuilder: (context, index) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: theme.dividerColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(width: 60, height: 10, color: theme.dividerColor),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProgressSummary(ThemeData theme, AchievementState state) {
     final earned = state.earnedCount;
     final total = state.totalCount;
@@ -126,12 +198,15 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '$earned of $total earned',
-                style: TextStyle(
-                  color: theme.textTheme.bodyLarge?.color,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+              Semantics(
+                header: true,
+                child: Text(
+                  '$earned of $total earned',
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               Text(

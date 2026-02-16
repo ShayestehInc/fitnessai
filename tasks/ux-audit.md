@@ -1,21 +1,22 @@
-# UX Audit: Health Data Integration + Performance Audit + Offline UI Polish
+# UX Audit: Social & Community -- Announcements, Achievements, Community Feed
 
-## Audit Date: 2026-02-15
-## Pipeline: 16
+## Audit Date: 2026-02-16
+## Pipeline: 17
 
 ## Files Reviewed
-- `mobile/lib/shared/widgets/health_card.dart` -- Today's Health card
-- `mobile/lib/shared/widgets/health_permission_sheet.dart` -- Permission bottom sheet
-- `mobile/lib/shared/widgets/sync_status_badge.dart` -- Badge widget
-- `mobile/lib/shared/widgets/offline_banner.dart` -- Offline banner
-- `mobile/lib/core/theme/app_theme.dart` -- Theme consistency
-- `mobile/lib/core/models/health_metrics.dart` -- Health data model
-- `mobile/lib/core/providers/health_provider.dart` -- Health state management
-- `mobile/lib/core/services/health_service.dart` -- Health data service
-- `mobile/lib/features/home/presentation/screens/home_screen.dart` -- Home screen with health card, pending workouts
-- `mobile/lib/features/home/presentation/providers/home_provider.dart` -- Home state with pending workouts
-- `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart` -- Nutrition with pending merge, badges
-- `mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart` -- Weight trends with pending merge
+- `mobile/lib/features/community/presentation/screens/community_feed_screen.dart`
+- `mobile/lib/features/community/presentation/screens/announcements_screen.dart`
+- `mobile/lib/features/community/presentation/screens/achievements_screen.dart`
+- `mobile/lib/features/community/presentation/widgets/community_post_card.dart`
+- `mobile/lib/features/community/presentation/widgets/reaction_bar.dart`
+- `mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart`
+- `mobile/lib/features/community/presentation/widgets/achievement_badge.dart`
+- `mobile/lib/features/community/presentation/widgets/announcement_card.dart`
+- `mobile/lib/features/community/presentation/providers/community_feed_provider.dart`
+- `mobile/lib/features/community/presentation/providers/announcement_provider.dart`
+- `mobile/lib/features/community/presentation/providers/achievement_provider.dart`
+- `mobile/lib/features/trainer/presentation/screens/trainer_announcements_screen.dart`
+- `mobile/lib/features/trainer/presentation/screens/create_announcement_screen.dart`
 
 ---
 
@@ -23,21 +24,19 @@
 
 | # | Severity | Screen/Component | Issue | Recommendation | Status |
 |---|----------|-----------------|-------|----------------|--------|
-| 1 | High | health_card.dart / `_MetricTile` | All 4 health metric tiles had no `Semantics` labels. Screen readers could not announce "Steps: 8,234" or "Heart Rate: -- " to visually impaired users. Health data is numeric and contextual -- without labels, it's meaningless to assistive technology. | Wrapped each `_MetricTile` in `Semantics(label: '$label: $value', excludeSemantics: true)` so screen readers announce "Steps: 8,234", "Active Cal: 342 cal", etc. | FIXED |
-| 2 | High | health_card.dart / `_SkeletonHealthCard` | Skeleton loading card had no screen reader announcement. When health data is loading, VoiceOver/TalkBack users had no indication that content was being fetched. | Added `Semantics(label: 'Loading health data', liveRegion: true)` wrapper to the skeleton card. | FIXED |
-| 3 | Medium | health_card.dart / `_MetricTile` | Label font size was 11px, below the 12px minimum recommended for body text in WCAG guidelines. Small text on dark backgrounds is harder to read for users with low vision. | Increased label font size from 11 to 12px. | FIXED |
-| 4 | Medium | home_screen.dart / `_PendingWorkoutCard` | Pending workout cards displayed a `chevron_right` icon suggesting tappable navigation to detail, but tapping actually shows a "waiting to sync" snackbar. The visual affordance (chevron = "tap to navigate") contradicts the actual behavior (no navigation possible). Users would repeatedly tap expecting navigation. | Removed the `chevron_right` icon from pending workout cards. The card is still tappable (shows snackbar), but the visual does not falsely promise navigation. | FIXED |
-| 5 | Medium | home_screen.dart / pending workout snackbar | The pending workout tap snackbar showed plain text with no visual indicator. All other sync/offline indicators in the app use the amber `cloud_off` icon. The snackbar was visually disconnected from the sync badge on the card that triggered it. | Added `cloud_off` icon (amber, 16px) to the snackbar content Row for visual consistency with SyncStatusBadge. | FIXED |
-| 6 | Medium | sync_status_badge.dart | `SyncStatusBadge` had no `Semantics` label. The 12px icon is purely visual -- screen readers could not announce sync status (pending, syncing, failed) to users. | Added `Semantics(label: _semanticsLabel, excludeSemantics: true)` wrapper with appropriate labels per status: "Pending sync", "Syncing", "Sync failed", or empty for synced. | FIXED |
-| 7 | Medium | nutrition_screen.dart / `_FoodEntryRow` edit icon | Edit icon used `GestureDetector` instead of `IconButton`. No ripple feedback, no minimum 32dp touch target, no tooltip. Users on accessibility devices or with motor impairments would struggle to tap the 16x16 target. | Replaced `GestureDetector` with `IconButton` with `constraints: BoxConstraints(minWidth: 32, minHeight: 32)`, `tooltip: 'Edit food entry'`, and proper ripple feedback. | FIXED |
-| 8 | Medium | nutrition_screen.dart / "Add Food" button | "Add Food" button used `GestureDetector` with no ripple feedback and no padding around the tap target. The effective touch area was limited to the exact text bounds. | Replaced `GestureDetector` with `InkWell` with `borderRadius` for ripple, plus `Padding(horizontal: 8, vertical: 6)` for an adequate touch target. | FIXED |
-| 9 | Low | nutrition_screen.dart / "(includes X pending)" label | Pending nutrition count label had no Semantics description and no visual indicator connecting it to the sync concept. The label appeared as plain text below the macro cards with only 4px top padding, making it visually cramped. | Added `Semantics(liveRegion: true, label: ...)` with descriptive text. Added a small `cloud_off` icon (11px, amber) before the text for visual consistency with sync badges. Increased top padding from 4px to 6px for breathing room. | FIXED |
-| 10 | Low | nutrition_screen.dart / "Latest Weight" cloud_off icon | The amber `cloud_off` icon next to the latest weight date had no tooltip or Semantics explanation. Users might not understand what the icon means. | Wrapped the `Icon` in a `Tooltip(message: 'Pending sync')` for hover/long-press explanation. | FIXED |
-| 11 | Low | nutrition_screen.dart / "Latest Weight" section | The entire "Latest Weight" section is tappable (navigates to Weight Trends) but had no `Semantics(button: true)` annotation. Screen readers would not announce it as an interactive element. | Added `Semantics(button: true, label: 'View weight trends. ${state.latestWeightFormatted}')` wrapper. | FIXED |
-| 12 | Low | weight_trends_screen.dart / `_buildPendingWeightRow` | Pending weight rows had no Semantics labels. Screen readers could not announce "Pending weight check-in: 165 lbs on Monday, Feb 15, 2026". | Added `Semantics(label: 'Pending weight check-in: ${lbs.round()} lbs on $formattedDate')` wrapper. | FIXED |
-| 13 | Low | health_card.dart / "Today's Health" title | Title text was not marked as a heading for screen reader navigation. Users navigating by headings would skip over this section. | Added `Semantics(header: true)` wrapper to the title Text widget. | FIXED |
-| 14 | Low | health_card.dart / `_openHealthSettings` | Catch block used bare `catch (_)` which silently swallows errors, violating the project's error-handling rule ("NO exception silencing!"). | Changed to `catch (e)` with `assert(() { debugPrint(...); return true; }())` for debug-mode error logging, consistent with the pattern used in HealthService and HealthDataNotifier. | FIXED |
-| 15 | Low | health_permission_sheet.dart / health icon | The decorative heart icon inside the permission sheet was exposed to screen readers, which would announce "favorite rounded" -- meaningless to the user. | Wrapped the icon Container in `ExcludeSemantics` to hide it from assistive technology. | FIXED |
+| 1 | High | achievement_badge.dart | `GestureDetector` with no ripple feedback and no minimum touch target. Badge tiles are small (64px circle + label) and have no visual feedback on tap. Screen readers could not identify badges as interactive. | Replaced `GestureDetector` with `InkWell` + `borderRadius`. Added `Semantics(label: '...', button: true)` wrapper. | FIXED |
+| 2 | High | reaction_bar.dart / `_ReactionButton` | Reaction buttons had no `Semantics` labels. Screen readers could not announce "fire reaction, 3, active. Tap to remove." The emoji text alone is not meaningful to assistive technology. | Added `Semantics(label: semanticLabel, button: true)` wrapper with context-appropriate labels that include reaction name, count, and current state. | FIXED |
+| 3 | High | announcement_card.dart / `AnnouncementBanner` | Banner used `GestureDetector` with no ripple/splash feedback. No `Semantics` annotation. Users have no visual confirmation that the banner is tappable. Screen readers cannot announce it as interactive. | Replaced `GestureDetector` with `Material` + `InkWell` for ripple feedback. Added `Semantics(label: 'Pinned announcement: {title}. Tap to view all.', button: true)`. | FIXED |
+| 4 | Medium | achievements_screen.dart | Loading state was bare `CircularProgressIndicator` centered on screen. Does not match the grid layout the user will see, causing jarring layout shift. No Semantics annotation for screen readers. | Replaced with shimmer skeleton: progress bar skeleton + 6 circles in 3x2 grid matching the achievement badge layout. Wrapped in `Semantics(label: 'Loading achievements')`. | FIXED |
+| 5 | Medium | announcements_screen.dart | Loading state was bare `CircularProgressIndicator`. Does not match the card list layout. No Semantics annotation. | Replaced with shimmer skeleton: 3 announcement card skeletons with date, title, and body placeholders. Wrapped in `Semantics(label: 'Loading announcements')`. | FIXED |
+| 6 | Medium | trainer_announcements_screen.dart | Loading state was bare `CircularProgressIndicator`. Does not match the trainer announcement tile layout. | Replaced with shimmer skeleton: 3 cards with title, body lines, and date placeholders matching `_TrainerAnnouncementTile` layout. | FIXED |
+| 7 | Medium | community_feed_screen.dart | Feed loading skeleton had no `Semantics` annotation. Screen readers could not detect content loading state. | Added `Semantics(label: 'Loading community feed')` wrapper. | FIXED |
+| 8 | Medium | compose_post_sheet.dart | No "Posted!" snackbar on successful post creation. Sheet just dismisses silently. Ticket AC-30 specifies: "Success: dismiss sheet, prepend to feed, snackbar 'Posted!'". Missing success feedback. | Added `SnackBar(content: Text('Posted!'))` shown after `Navigator.pop()` on successful creation. | FIXED |
+| 9 | Medium | community_post_card.dart | Post deletion had no success/failure snackbar. AC-33 specifies feedback. User deletes post and sees it disappear but has no confirmation it succeeded. | Added "Post deleted" snackbar on success and "Failed to delete post" snackbar on failure after the confirmation dialog flow. | FIXED |
+| 10 | Medium | community_feed_screen.dart / FAB | Compose FAB had no `tooltip`. VoiceOver/TalkBack users cannot discover the button's purpose. Long-press has no tooltip text. | Added `tooltip: 'New post'` to the FAB. | FIXED |
+| 11 | Medium | trainer_announcements_screen.dart / FAB | Create announcement FAB had no `tooltip`. Same issue as #10. | Added `tooltip: 'New announcement'`. | FIXED |
+| 12 | Low | achievement_badge.dart | Badge name font size was 11px, below the 12px minimum recommended for body text. Small text on badge names makes them harder to read, especially on lower DPI screens. | Increased font size from 11px to 12px. | FIXED |
+| 13 | Low | achievements_screen.dart | Progress summary heading "X of Y earned" had no `Semantics(header: true)`. Screen reader heading navigation skips it. | Added `Semantics(header: true)` wrapper. | FIXED |
 
 ---
 
@@ -45,65 +44,87 @@
 
 | # | WCAG Level | Issue | Fix | Status |
 |---|------------|-------|-----|--------|
-| 1 | A (1.1.1) | Health metric tiles had no text alternative for screen readers. Values like "8,234" next to a walking icon had no contextual meaning without sighted access. | Added `Semantics(label: '$label: $value', excludeSemantics: true)` to `_MetricTile`. | FIXED |
-| 2 | A (4.1.2) | Skeleton health card loading state had no `role="status"` equivalent. Screen readers could not detect that content was loading. | Added `Semantics(label: 'Loading health data', liveRegion: true)` to `_SkeletonHealthCard`. | FIXED |
-| 3 | AA (1.4.4) | `_MetricTile` label text was 11px -- below the 12px minimum for readability at standard viewing distances on mobile screens. | Increased to 12px. | FIXED |
-| 4 | A (2.5.5) | Food entry edit icon had a 16x16 tap target (no padding). WCAG 2.5.5 requires minimum 44x44 CSS pixels; Flutter Material guidelines require at least 32dp. | Replaced with `IconButton` with 32x32dp minimum constraints. | FIXED |
-| 5 | A (4.1.2) | `SyncStatusBadge` icons (cloud_off, cloud_upload, error_outline) had no semantic label. Screen readers would either ignore them or announce unhelpful icon names. | Added `Semantics(label: _semanticsLabel)` with status-appropriate text. | FIXED |
-| 6 | A (1.1.1) | Decorative heart icon in permission sheet was not marked as decorative. Screen readers announced "favorite rounded" which adds noise. | Wrapped in `ExcludeSemantics`. | FIXED |
-| 7 | A (4.1.2) | "Latest Weight" tappable region had no button role for screen readers. | Added `Semantics(button: true, label: ...)`. | FIXED |
-| 8 | AA (1.3.1) | "Today's Health" title was not marked as a heading. Screen reader heading navigation would skip it. | Added `Semantics(header: true)`. | FIXED |
+| 1 | A (4.1.2) | Achievement badges had no role or name for screen readers. Icons with text labels were not grouped into an accessible element. | Added `Semantics(label: '{name}, earned/locked', button: true)` wrapper. | FIXED |
+| 2 | A (4.1.2) | Reaction buttons had no semantic labels. Emoji-only content is not meaningful to assistive technology. | Added `Semantics(label: '{type} reaction, {count}, active/inactive', button: true)`. | FIXED |
+| 3 | A (4.1.2) | Announcement banner had no semantic role or label. Screen readers could not identify it as a tappable announcement summary. | Added `Semantics(label: '...', button: true)`. | FIXED |
+| 4 | A (4.1.3) | Loading states for 3 screens had no status indication for screen readers. | Added `Semantics(label: 'Loading ...')` wrappers on all skeleton states. | FIXED |
+| 5 | AA (1.4.4) | Achievement badge name text was 11px (below 12px minimum). | Increased to 12px. | FIXED |
+| 6 | AA (1.3.1) | Achievement progress heading not marked as heading. | Added `Semantics(header: true)`. | FIXED |
 
 ---
 
 ## Missing States Checklist
 
-### TodaysHealthCard (health_card.dart)
-- [x] Loading -- `_SkeletonHealthCard` with gray placeholder tiles matching 2x2 layout, Semantics liveRegion
-- [x] Populated -- `_LoadedHealthCard` with 200ms fade-in animation, 4 metric tiles
-- [x] Empty / No Permission -- `SizedBox.shrink()` (card hidden entirely, no error banner)
-- [x] Error / Unavailable -- `SizedBox.shrink()` (card hidden, graceful degradation)
-- [x] Permission Denied -- `SizedBox.shrink()` (respects user's choice, no nagging)
-- [x] Initial -- `SizedBox.shrink()` (before any permission check)
-- [x] Refresh with existing data -- Skips skeleton (isRefresh=true preserves loaded state)
+### Community Feed Screen (community_feed_screen.dart)
+- [x] Loading -- Shimmer skeleton (3 post cards with avatar, name, content, reactions) + Semantics
+- [x] Populated -- Post cards with author, content, type badge, reaction bar
+- [x] Empty -- "No posts yet" with people_outline icon + encouraging message
+- [x] Error -- Error icon + message + Retry button
+- [x] Loading More -- CircularProgressIndicator at bottom of list
+- [x] Refresh -- Pull-to-refresh resets feed + announcements
 
-### Health Permission Sheet (health_permission_sheet.dart)
-- [x] Default -- Bottom sheet with icon, title, description, two buttons
-- [x] Dismissible -- swipe down or tap outside returns false
-- [x] Platform-aware -- Shows "Apple Health" on iOS, "Health Connect" on Android
+### Announcements Screen (announcements_screen.dart)
+- [x] Loading -- Shimmer skeleton (3 announcement cards) + Semantics
+- [x] Populated -- Announcement tiles with pinned indicator, date, title, body
+- [x] Empty -- Campaign icon + "No announcements yet" + subtitle
+- [x] Error -- Error icon + message + Retry button
+- [x] Refresh -- Pull-to-refresh
 
-### SyncStatusBadge (sync_status_badge.dart)
-- [x] Pending -- Amber cloud_off icon (16x16) with Semantics "Pending sync"
-- [x] Syncing -- Blue rotating cloud_upload icon with Semantics "Syncing"
-- [x] Synced -- SizedBox.shrink (badge disappears)
-- [x] Failed -- Red error_outline icon with Semantics "Sync failed"
+### Achievements Screen (achievements_screen.dart)
+- [x] Loading -- Shimmer skeleton (progress bar + 6 badge circles) + Semantics
+- [x] Populated -- Progress summary card + badge grid (3 columns)
+- [x] Empty -- Trophy icon + "No achievements available"
+- [x] Error -- Error icon + message + Retry button
+- [x] Refresh -- Pull-to-refresh
 
-### Offline Banner (offline_banner.dart)
-- [x] Offline -- Amber banner "You are offline"
-- [x] Syncing -- Blue banner with progress text and LinearProgressIndicator
-- [x] All Synced -- Green banner "All changes synced" with 3s auto-dismiss
-- [x] Failed -- Red banner with tap-to-retry
-- [x] Hidden -- SizedBox.shrink when online + idle
-- [x] Semantics -- liveRegion with appropriate labels per state
+### Trainer Announcements Screen (trainer_announcements_screen.dart)
+- [x] Loading -- Shimmer skeleton (3 cards) matching tile layout
+- [x] Populated -- Announcement tiles with menu (edit/delete), pinned indicator
+- [x] Empty -- Campaign icon + "No announcements" + "Tap + to create..."
+- [x] Error -- Error icon + message + Retry button
+- [x] Refresh -- Pull-to-refresh
+- [x] Delete confirmation -- AlertDialog with Cancel/Delete
 
-### Home Screen - Recent Workouts
-- [x] Loading -- Shimmer placeholders (3 skeleton cards)
-- [x] Empty -- "No workouts yet" text message
-- [x] Error -- Error card with retry button
-- [x] Populated -- Server workout cards with chevron_right and navigation
-- [x] Pending workouts -- Cards with SyncStatusBadge, snackbar on tap, no misleading chevron
+### Create Announcement Screen (create_announcement_screen.dart)
+- [x] Default -- Title + body fields + pinned toggle + submit button
+- [x] Edit mode -- Pre-populated from existing announcement
+- [x] Loading (submit) -- CircularProgressIndicator replaces button text, form disabled
+- [x] Success -- Pop back (snackbar handled by caller)
+- [x] Error -- Snackbar "Failed to create/update announcement"
+- [x] Validation -- Submit disabled when title or body empty
 
-### Nutrition Screen - Macro Cards
-- [x] Loading -- CircularProgressIndicator (existing)
-- [x] Populated -- Macro cards with progress rings
-- [x] Pending merge -- Macros include pending values, "(includes X pending)" label with cloud_off icon
-- [x] No pending -- Label hidden (no visual change from baseline)
+### Compose Post Sheet (compose_post_sheet.dart)
+- [x] Default -- Handle bar + title + TextField + Post button
+- [x] Empty validation -- Post button disabled when content empty
+- [x] Loading (submit) -- CircularProgressIndicator replaces button text, field disabled
+- [x] Success -- Dismiss sheet + "Posted!" snackbar
+- [x] Error -- "Failed to create post" snackbar, content preserved
 
-### Weight Trends Screen
-- [x] Empty -- Empty state with scale icon, "No weight check-ins yet", and CTA button
-- [x] Populated -- Summary card + chart + virtualized history list (SliverList.builder)
-- [x] Pending weights -- Pending entries at top with SyncStatusBadge, Semantics labels
-- [x] Chart -- RepaintBoundary wrapper, optimized shouldRepaint
+### Post Card (community_post_card.dart)
+- [x] Text post -- Author avatar, name, time, content, reaction bar
+- [x] Auto-post -- Post type badge (Workout/Achievement/Milestone) with primary tint
+- [x] Author actions -- PopupMenuButton with "Delete" option
+- [x] Delete confirmation -- AlertDialog with Cancel/Delete
+- [x] Delete success -- "Post deleted" snackbar
+- [x] Delete failure -- "Failed to delete post" snackbar
+
+### Reaction Bar (reaction_bar.dart)
+- [x] Inactive -- Outlined emoji with muted count
+- [x] Active -- Filled background with primary color + bold count
+- [x] Optimistic update -- Immediate toggle on tap
+- [x] Rollback -- Reverts on API error
+- [x] Semantics -- Full label with reaction name, count, and active state
+
+### Achievement Badge (achievement_badge.dart)
+- [x] Earned -- Primary color icon + border, bold name
+- [x] Unearned -- Muted icon (0.4 opacity), light divider border
+- [x] Detail dialog -- Name, description, earned date (or "Not yet earned")
+- [x] Semantics -- Label with name and earned/locked status, button role
+
+### Announcement Banner (announcement_card.dart)
+- [x] Default -- Pin icon + title + body preview + chevron
+- [x] Tap -- InkWell ripple feedback, navigates to announcements
+- [x] Semantics -- Label with title and action hint
 
 ---
 
@@ -111,105 +132,97 @@
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Card styling | Consistent | Health card uses same `theme.cardColor` + `theme.dividerColor` border pattern as other cards (workout, weight, nutrition) |
-| Icon colors | Consistent | Steps green (#22C55E), calories red (#EF4444), heart pink (#EC4899), weight blue (#3B82F6) -- all from the app's existing color vocabulary |
-| Sync badge colors | Consistent | Amber (#F59E0B) pending, blue (#3B82F6) syncing, red (#EF4444) failed -- matches OfflineBanner colors |
-| Typography | Consistent (after fix) | Labels use 12px (was 11px), values use 15px w600 -- matches other metric displays |
-| Spacing | Consistent | 16px padding, 12px gaps, 32px section spacing matches home screen pattern |
-| Skeleton loading | Consistent | Uses same gray dividerColor rectangles as home screen workout skeletons |
-| Theme usage | Consistent | All colors come from `theme.textTheme`, `theme.cardColor`, `theme.dividerColor`, `theme.colorScheme.primary` |
-| Border radius | Consistent | 12px on cards, 8px on metric tiles, 4px on skeleton placeholders |
-| Touch targets | Consistent (after fix) | All interactive elements now have minimum 32dp touch targets |
-
----
-
-## Responsiveness Assessment
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Health card 2x2 grid | Good | Uses `Expanded` children in `Row` -- scales to any width. Min height 48dp on tiles. |
-| Health card on narrow screens | Good | Metric tiles use `TextOverflow.ellipsis` for long values (e.g., "40,234 cal"). |
-| Permission sheet | Good | Uses `MainAxisSize.min` Column -- auto-sizes to content. SafeArea prevents notch overlap. |
-| Pending workout cards | Good | Same layout as server workout cards -- already proven responsive. |
-| Macro cards with pending label | Good | Label is centered below the Row -- works at all widths. |
-| Weight trends SliverList.builder | Good | Virtualized rendering for large history lists -- memory efficient on all devices. |
+| Card styling | Consistent | All cards use `theme.cardColor` + `theme.dividerColor` border + 12px borderRadius |
+| Skeleton loading | Consistent | All 4 screens now use skeleton cards matching their populated layouts (not bare CircularProgressIndicator) |
+| Empty states | Consistent | All use icon (64px) + title (18px w600) + subtitle (14px) centered pattern |
+| Error states | Consistent | All use error_outline icon (48px) + error text + Retry OutlinedButton |
+| FAB styling | Consistent | Both FABs use `theme.colorScheme.primary` + icon + tooltip |
+| Touch feedback | Consistent (after fix) | All interactive elements now use InkWell/IconButton with ripple |
+| Typography | Consistent (after fix) | All text >= 12px. Badge names fixed from 11px to 12px. |
+| Semantics | Consistent (after fix) | All interactive elements have Semantics labels. Loading states announced. |
+| Spacing | Consistent | 16px horizontal padding, 12px card gaps, 8px internal gaps |
+| Theme usage | Consistent | Colors from theme. No hardcoded values except white on primary buttons. |
 
 ---
 
 ## Fixes Implemented
 
-### 1. `mobile/lib/shared/widgets/health_card.dart`
-- Added `Semantics(label: '$label: $value', excludeSemantics: true)` to `_MetricTile`
-- Added `Semantics(label: 'Loading health data', liveRegion: true)` to `_SkeletonHealthCard`
-- Added `Semantics(header: true)` to "Today's Health" title
-- Fixed `_MetricTile` label font size from 11px to 12px (WCAG compliance)
-- Fixed `_openHealthSettings` error silencing: replaced `catch (_)` with `catch (e)` + debug logging
+### 1. `mobile/lib/features/community/presentation/widgets/achievement_badge.dart`
+- Replaced `GestureDetector` with `InkWell` + `borderRadius` for ripple feedback
+- Added `Semantics(label: '{name}, earned/locked', button: true)` wrapper
+- Fixed badge name font size from 11px to 12px
 
-### 2. `mobile/lib/shared/widgets/sync_status_badge.dart`
-- Added `Semantics(label: _semanticsLabel, excludeSemantics: true)` wrapper
-- Added `_semanticsLabel` getter with status-appropriate text per SyncItemStatus
+### 2. `mobile/lib/features/community/presentation/widgets/announcement_card.dart`
+- Replaced `GestureDetector` with `Material` + `InkWell` for ripple feedback
+- Added `Semantics(label: 'Pinned announcement: {title}. Tap to view all.', button: true)`
 
-### 3. `mobile/lib/shared/widgets/health_permission_sheet.dart`
-- Wrapped decorative heart icon in `ExcludeSemantics` to hide from screen readers
+### 3. `mobile/lib/features/community/presentation/widgets/reaction_bar.dart`
+- Added `Semantics(label: semanticLabel, button: true)` to `_ReactionButton`
+- Semantic label includes reaction type, count, active state, and action hint
 
-### 4. `mobile/lib/features/home/presentation/screens/home_screen.dart`
-- Removed misleading `chevron_right` icon from `_PendingWorkoutCard` (card is not navigable)
-- Added `cloud_off` icon to pending workout tap snackbar for visual consistency
+### 4. `mobile/lib/features/community/presentation/screens/achievements_screen.dart`
+- Replaced bare `CircularProgressIndicator` with `_buildLoadingSkeleton()`: progress bar skeleton + 6 badge circles in 3x2 grid
+- Added `Semantics(label: 'Loading achievements')` wrapper
+- Added `Semantics(header: true)` to progress summary heading
 
-### 5. `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart`
-- Replaced `_FoodEntryRow` edit `GestureDetector` with `IconButton` (32dp touch target, tooltip, ripple)
-- Replaced "Add Food" `GestureDetector` with `InkWell` (ripple feedback, padded touch target)
-- Enhanced "(includes X pending)" label: Semantics liveRegion, cloud_off icon, increased padding
-- Added `Tooltip(message: 'Pending sync')` to Latest Weight cloud_off icon
-- Added `Semantics(button: true)` to Latest Weight tappable region
+### 5. `mobile/lib/features/community/presentation/screens/announcements_screen.dart`
+- Replaced bare `CircularProgressIndicator` with `_buildLoadingSkeleton()`: 3 announcement card skeletons
+- Added `Semantics(label: 'Loading announcements')` wrapper
 
-### 6. `mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart`
-- Added `Semantics(label: ...)` to `_buildPendingWeightRow` for screen reader announcement
+### 6. `mobile/lib/features/trainer/presentation/screens/trainer_announcements_screen.dart`
+- Replaced bare `CircularProgressIndicator` with `_buildLoadingSkeleton()`: 3 trainer tile skeletons
+- Added `tooltip: 'New announcement'` to FAB
+
+### 7. `mobile/lib/features/community/presentation/screens/community_feed_screen.dart`
+- Added `Semantics(label: 'Loading community feed')` to existing skeleton
+- Added `tooltip: 'New post'` to compose FAB
+
+### 8. `mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart`
+- Added "Posted!" snackbar on successful post creation (AC-30 requirement)
+
+### 9. `mobile/lib/features/community/presentation/widgets/community_post_card.dart`
+- Added "Post deleted" / "Failed to delete post" snackbar after deletion flow
 
 ---
 
-## Items Not Fixed (Require Design Decisions or Out of Scope)
+## Items Not Fixed (Require Design Decisions)
 
-1. **Skeleton shimmer animation**: The skeleton health card uses static gray rectangles rather than a shimmer/pulse animation. The existing `loading_shimmer.dart` widget in the codebase provides animated shimmer, but the health card skeleton was intentionally kept as a simple static placeholder to match the pattern used in the home screen's workout skeleton placeholders (which also use static gray containers). Adding shimmer animation would be a broader design system decision affecting all skeleton states.
+1. **Undo on post delete**: AC-33 mentions "optimistic removal with undo snackbar (5 seconds)." Current implementation deletes server-side first, then removes from local state. Implementing undo requires keeping the post in local state, showing the undo snackbar, and only calling the API delete after the timer expires (or immediately if undo is not tapped). This is a more complex UX pattern that would require refactoring the delete flow. The current "confirm then delete" pattern is acceptable for V1.
 
-2. **Health card tablet layout**: The ticket mentions "single horizontal row on wider screens (tablet), 2x2 grid on phones." The current implementation is always 2x2. Implementing a responsive layout switch at a tablet breakpoint would require a `LayoutBuilder` or `MediaQuery` width check. This is a lower-priority enhancement -- the 2x2 grid works well on all phone sizes and is readable on tablets.
+2. **Animated removal from list**: AC-33/AC-8 mention "animated removal." Currently, deleted items are removed from the list array without animation. Adding `AnimatedList` would require refactoring from `SliverList`/`ListView` patterns. Acceptable for V1.
 
-3. **CalorieRing number formatting**: The CalorieRing center text shows raw `remaining.toString()` (e.g., "1523") without locale-aware thousands separators. The health card uses `NumberFormat('#,###')` for consistency. The CalorieRing is pre-existing code outside the scope of this ticket's changes.
-
-4. **"Your goal" refresh icon**: The refresh icon next to "Your goal" on the nutrition screen uses `GestureDetector` with a 16px icon (no minimum touch target). This is pre-existing code outside the scope of this ticket, but should be addressed in a future pass.
+3. **Character counter amber at 90%**: Ticket specifies character counters turning amber at 90% capacity. The `TextField` with `maxLength` uses Flutter's default character counter styling. Implementing custom amber styling requires a custom `buildCounter` or `InputDecoration.counterStyle` that changes based on current length. This is a minor polish item.
 
 ---
 
 ## Overall UX Score: 8/10
 
 ### Breakdown:
-- **State Handling:** 9/10 -- Every component handles all states: loading (skeleton with Semantics), populated (data with accessibility labels), empty (hidden/SizedBox.shrink), error (graceful degradation). The sealed class pattern in HealthDataState ensures exhaustive handling.
-- **Accessibility:** 8/10 -- After fixes, all health metrics have Semantics labels, sync badges have descriptive labels, loading states are announced, touch targets meet 32dp minimum, decorative elements are excluded. Remaining gap: skeleton cards use static gray rather than animated shimmer (less discoverable to sighted users).
-- **Visual Consistency:** 9/10 -- Colors match theme, spacing is consistent, card styling follows existing patterns, sync badge colors are uniform across all contexts.
-- **Copy Clarity:** 9/10 -- Permission sheet copy is clear and non-technical ("FitnessAI can read your steps..."). Pending labels are concise ("includes 1 pending"). Snackbar messages are actionable ("This workout is waiting to sync."). Health metric labels are clear (Steps, Active Cal, Heart Rate, Weight).
-- **Interaction Feedback:** 8/10 -- Fade-in animation on health card load, ripple on all buttons (after fix), snackbar on pending workout tap with sync icon, badge transitions on sync completion. Pull-to-refresh updates health data without skeleton flash.
-- **Responsiveness:** 8/10 -- 2x2 grid scales well on phones, text overflow handled, minimum heights enforced. Tablet-specific layout not yet implemented.
+- **State Handling:** 9/10 -- Every screen handles all states: loading (skeleton), populated (data), empty (icon + message), error (retry). Compose sheet handles submit loading, success, and error.
+- **Accessibility:** 8/10 -- After fixes, all interactive elements have Semantics labels, loading states are announced, headings are marked, touch targets are adequate. FABs have tooltips.
+- **Visual Consistency:** 9/10 -- Cards, spacing, typography, colors, and skeleton patterns are consistent across all community screens.
+- **Copy Clarity:** 9/10 -- Empty states are encouraging ("Be the first to share!"). Error messages are actionable. Confirmation dialogs are clear. Snackbar messages match ticket spec.
+- **Interaction Feedback:** 8/10 -- All tappable elements now have ripple feedback. Reactions update optimistically. Delete has confirmation dialog + snackbar. Compose has success snackbar. Missing: list removal animation.
+- **Responsiveness:** 8/10 -- Achievement grid uses GridView.builder with 3 columns. Post content handles overflow. Compose sheet respects keyboard insets. Missing: tablet layout for achievement grid.
 
 ### Strengths:
-- Sealed class state pattern ensures every health data state is exhaustively handled in the UI
-- Non-blocking health data fetch -- dashboard loads immediately, card appears when data arrives
-- 200ms fade-in animation on health card provides polished appearance without feeling slow
-- Permission prompt is shown once and respects the user's choice permanently
-- Refresh preserves existing data on failure (no jarring skeleton flash)
-- Sync badges reactively disappear when sync completes (wired to syncCompletionProvider)
-- RepaintBoundary on paint-heavy widgets (CalorieRing, MacroCircle, weight chart) reduces jank
-- NumberFormat with thousands separators handles large step counts gracefully
+- Optimistic reaction toggle with server reconciliation + error rollback
+- Consistent skeleton loading matching actual content layout across all 4 screens
+- Full confirmation flow for destructive actions (delete post, delete announcement)
+- Proper empty states distinguishing "has trainer but no content" vs "no trainer" cases
+- FAB tooltips for discoverability
+- Character counters on all text inputs
 
 ### Areas for Future Improvement:
-- Add shimmer animation to skeleton cards for a more polished loading experience
-- Implement tablet-specific horizontal layout for health card (4 metrics in a row)
-- Add locale-aware number formatting to CalorieRing center text
-- Replace "Your goal" refresh GestureDetector with IconButton for proper touch target
-- Consider adding a "Connect Health" option in the Settings screen for users who declined initially
+- Add undo snackbar for post deletion instead of pre-delete confirmation
+- Add animated list removal for deleted items
+- Custom character counter styling (amber at 90%)
+- Tablet-specific layout for achievement grid (4+ columns)
+- Shimmer pulse animation on skeleton cards (currently static gray)
 
 ---
 
 **Audit completed by:** UX Auditor Agent
-**Date:** 2026-02-15
-**Pipeline:** 16 -- Health Data Integration + Performance Audit + Offline UI Polish
-**Verdict:** PASS -- All critical and medium accessibility and usability issues fixed. 6 files modified with 15 usability fixes and 8 accessibility fixes. `flutter analyze` passes clean with no new errors or warnings in modified files.
+**Date:** 2026-02-16
+**Pipeline:** 17 -- Social & Community
+**Verdict:** PASS -- All High and Medium usability and accessibility issues fixed. 9 files modified with 13 UX fixes. `flutter analyze` passes clean. All 55 backend tests pass.

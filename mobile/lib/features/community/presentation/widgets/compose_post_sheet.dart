@@ -119,6 +119,12 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
 
     if (success) {
       Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Posted!'),
+          duration: Duration(seconds: 4),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to create post. Please try again.')),

@@ -44,7 +44,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 
   Widget _buildBody(ThemeData theme, AnnouncementState state) {
     if (state.isLoading && state.announcements.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildLoadingSkeleton(theme);
     }
 
     if (state.error != null && state.announcements.isEmpty) {
@@ -94,6 +94,49 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
       itemBuilder: (context, index) {
         return _AnnouncementTile(announcement: state.announcements[index]);
       },
+    );
+  }
+
+  Widget _buildLoadingSkeleton(ThemeData theme) {
+    return Semantics(
+      label: 'Loading announcements',
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 3,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Date row skeleton
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Container(width: 80, height: 10, color: theme.dividerColor),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Title skeleton
+                  Container(width: 180, height: 14, color: theme.dividerColor),
+                  const SizedBox(height: 6),
+                  // Body skeleton (2 lines)
+                  Container(width: double.infinity, height: 12, color: theme.dividerColor),
+                  const SizedBox(height: 4),
+                  Container(width: 220, height: 12, color: theme.dividerColor),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
