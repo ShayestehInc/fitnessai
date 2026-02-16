@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 from django.db import IntegrityError, transaction
-from django.db.models import Case, Count, Q, QuerySet, Sum, When
+from django.db.models import Case, Count, F, Q, QuerySet, Sum, When
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from rest_framework import status
@@ -688,6 +688,7 @@ class AmbassadorPayoutHistoryView(APIView):
 
         payouts = (
             PayoutRecord.objects.filter(ambassador_profile=profile)
+            .annotate(commission_count=Count('commissions_included'))
             .order_by('-created_at')
         )
 
@@ -703,7 +704,7 @@ class AmbassadorPayoutHistoryView(APIView):
                 'status': payout.status,
                 'stripe_transfer_id': payout.stripe_transfer_id,
                 'error_message': payout.error_message,
-                'commission_count': payout.commissions_included.count(),
+                'commission_count': payout.commission_count,
                 'created_at': payout.created_at,
             })
 

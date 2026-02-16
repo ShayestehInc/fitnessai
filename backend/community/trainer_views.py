@@ -192,4 +192,4 @@ def _notify_trainees_announcement(
                 },
             )
     except Exception:
-        logger.debug("Failed to send announcement push notifications", exc_info=True)
+        logger.warning("Failed to send announcement push notifications", exc_info=True)

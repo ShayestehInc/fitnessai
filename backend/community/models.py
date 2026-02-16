@@ -147,6 +147,12 @@ class UserAchievement(models.Model):
         return f"{self.user.email} earned {self.achievement.name}"
 
 
+def _community_post_image_path(instance: object, filename: str) -> str:
+    """Generate UUID-based upload path for community post images."""
+    ext = os.path.splitext(filename)[1].lower()
+    return f"community_posts/{uuid.uuid4().hex}{ext}"
+
+
 class CommunityPost(models.Model):
     """
     Post in the community feed, scoped by trainer (the implicit group).
@@ -185,7 +191,7 @@ class CommunityPost(models.Model):
         default=ContentFormat.PLAIN,
     )
     image = models.ImageField(
-        upload_to='community_posts/',
+        upload_to=_community_post_image_path,
         null=True,
         blank=True,
         default=None,
@@ -243,12 +249,6 @@ class PostReaction(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.email} {self.reaction_type} on post {self.post_id}"
-
-
-def _community_post_image_path(instance: CommunityPost, filename: str) -> str:
-    """Generate UUID-based upload path for community post images."""
-    ext = os.path.splitext(filename)[1].lower()
-    return f"community_posts/{uuid.uuid4().hex}{ext}"
 
 
 class Leaderboard(models.Model):

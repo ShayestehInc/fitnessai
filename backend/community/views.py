@@ -180,8 +180,8 @@ class AchievementRecentView(views.APIView):
 # Community Feed
 # ---------------------------------------------------------------------------
 
-_ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
-_MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+_ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
+_MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
 
 
 class CommunityFeedView(views.APIView):
@@ -233,12 +233,12 @@ class CommunityFeedView(views.APIView):
         if image_file is not None:
             if image_file.content_type not in _ALLOWED_IMAGE_TYPES:
                 return Response(
-                    {'error': 'Invalid image type. Allowed: JPEG, PNG, GIF, WebP.'},
+                    {'error': 'Invalid image format. Use JPEG, PNG, or WebP.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             if image_file.size > _MAX_IMAGE_SIZE:
                 return Response(
-                    {'error': 'Image too large. Maximum size is 10 MB.'},
+                    {'error': 'Image must be under 5MB.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -367,6 +367,9 @@ class ReactionToggleView(views.APIView):
             .values_list('reaction_type', flat=True)
         )
 
+        # Broadcast reaction update via WebSocket
+        _broadcast_reaction_update(post.trainer_id, post_id, reactions)
+
         return Response({
             'reactions': reactions,
             'user_reactions': user_reactions,
@@ -379,7 +382,7 @@ class ReactionToggleView(views.APIView):
 
 class CommentPagination(PageNumberPagination):
     """Pagination for comments."""
-    page_size = 30
+    page_size = 20
 
 
 class CommentListCreateView(views.APIView):
@@ -391,12 +394,11 @@ class CommentListCreateView(views.APIView):
 
     def get(self, request: Request, post_id: int) -> Response:
         user = cast(User, request.user)
-        post = self._get_post(post_id, user)
-        if post is None:
-            return Response(
-                {'error': 'Post not found.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        post, error_response = self._get_post(post_id, user)
+        if error_response is not None:
+            return error_response
+
+        assert post is not None
 
         comments = (
             Comment.objects.filter(post=post)
@@ -418,12 +420,11 @@ class CommentListCreateView(views.APIView):
 
     def post(self, request: Request, post_id: int) -> Response:
         user = cast(User, request.user)
-        post = self._get_post(post_id, user)
-        if post is None:
-            return Response(
-                {'error': 'Post not found.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        post, error_response = self._get_post(post_id, user)
+        if error_response is not None:
+            return error_response
+
+        assert post is not None
 
         serializer = CreateCommentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -448,18 +449,32 @@ class CommentListCreateView(views.APIView):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     @staticmethod
-    def _get_post(post_id: int, user: User) -> CommunityPost | None:
-        """Get post, ensuring row-level security."""
+    def _get_post(
+        post_id: int,
+        user: User,
+    ) -> tuple[CommunityPost | None, Response | None]:
+        """
+        Get post, ensuring row-level security.
+
+        Returns (post, None) on success, or (None, error_response) on failure.
+        Distinguishes 404 (not found) from 403 (wrong group).
+        """
         try:
             post = CommunityPost.objects.select_related('trainer').get(id=post_id)
         except CommunityPost.DoesNotExist:
-            return None
+            return None, Response(
+                {'error': 'Post not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         # Verify user is in the same trainer group
         if user.parent_trainer is None or post.trainer != user.parent_trainer:
-            return None
+            return None, Response(
+                {'error': 'You do not have access to this post.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        return post
+        return post, None
 
 
 class CommentDeleteView(views.APIView):
@@ -507,24 +522,38 @@ class LeaderboardView(views.APIView):
     """
     permission_classes = [IsAuthenticated, IsTrainee]
 
+    _VALID_METRICS = {'workout_count', 'current_streak'}
+    _VALID_PERIODS = {'weekly', 'monthly'}
+
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
         trainer = user.parent_trainer
         if trainer is None:
             return Response({'entries': [], 'my_rank': None})
 
-        metric_type = request.query_params.get('metric_type', 'workout_count')
-        time_period = request.query_params.get('time_period', 'weekly')
+        metric_type = request.query_params.get('metric_type')
+        time_period = request.query_params.get('time_period')
 
-        # Check if this leaderboard is enabled
-        is_enabled = Leaderboard.objects.filter(
+        if not metric_type or metric_type not in self._VALID_METRICS:
+            return Response(
+                {'error': 'metric_type is required and must be one of: workout_count, current_streak.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not time_period or time_period not in self._VALID_PERIODS:
+            return Response(
+                {'error': 'time_period is required and must be one of: weekly, monthly.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check if this leaderboard is explicitly disabled.
+        # If no config exists, treat as enabled (default is_enabled=True per AC-1).
+        leaderboard_config = Leaderboard.objects.filter(
             trainer=trainer,
             metric_type=metric_type,
             time_period=time_period,
-            is_enabled=True,
-        ).exists()
+        ).first()
 
-        if not is_enabled:
+        if leaderboard_config is not None and not leaderboard_config.is_enabled:
             return Response({
                 'entries': [],
                 'my_rank': None,
@@ -660,10 +689,11 @@ def _broadcast_new_post(trainer_id: int, post_data: dict[str, Any]) -> None:
             {
                 'type': 'feed.new_post',
                 'post': post_data,
+                'timestamp': timezone.now().isoformat(),
             },
         )
     except Exception:
-        logger.debug("Failed to broadcast new post to WebSocket", exc_info=True)
+        logger.warning("Failed to broadcast new post to WebSocket", exc_info=True)
 
 
 def _broadcast_post_deleted(trainer_id: int, post_id: int) -> None:
@@ -682,10 +712,39 @@ def _broadcast_post_deleted(trainer_id: int, post_id: int) -> None:
             {
                 'type': 'feed.post_deleted',
                 'post_id': post_id,
+                'timestamp': timezone.now().isoformat(),
             },
         )
     except Exception:
-        logger.debug("Failed to broadcast post deletion to WebSocket", exc_info=True)
+        logger.warning("Failed to broadcast post deletion to WebSocket", exc_info=True)
+
+
+def _broadcast_reaction_update(
+    trainer_id: int,
+    post_id: int,
+    reactions: dict[str, int],
+) -> None:
+    """Broadcast reaction update to WebSocket group."""
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+
+        group_name = f'community_feed_{trainer_id}'
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'feed.reaction_update',
+                'post_id': post_id,
+                'reactions': reactions,
+                'timestamp': timezone.now().isoformat(),
+            },
+        )
+    except Exception:
+        logger.warning("Failed to broadcast reaction update to WebSocket", exc_info=True)
 
 
 def _broadcast_new_comment(
@@ -709,10 +768,11 @@ def _broadcast_new_comment(
                 'type': 'feed.new_comment',
                 'post_id': post_id,
                 'comment': comment_data,
+                'timestamp': timezone.now().isoformat(),
             },
         )
     except Exception:
-        logger.debug("Failed to broadcast new comment to WebSocket", exc_info=True)
+        logger.warning("Failed to broadcast new comment to WebSocket", exc_info=True)
 
 
 def _notify_post_comment(post: CommunityPost, commenter: User) -> None:
@@ -730,4 +790,4 @@ def _notify_post_comment(post: CommunityPost, commenter: User) -> None:
             },
         )
     except Exception:
-        logger.debug("Failed to send comment notification", exc_info=True)
+        logger.warning("Failed to send comment notification", exc_info=True)

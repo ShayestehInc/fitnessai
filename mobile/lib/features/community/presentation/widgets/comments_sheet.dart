@@ -299,7 +299,9 @@ class _CommentTile extends ConsumerWidget {
     final currentUserId = ref.watch(authStateProvider).user?.id;
     final isAuthor = currentUserId == comment.authorId;
 
-    return Row(
+    return Semantics(
+      label: '${comment.authorDisplayName} said: ${comment.content}',
+      child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CircleAvatar(
@@ -363,6 +365,7 @@ class _CommentTile extends ConsumerWidget {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
           ),
       ],
+      ),
     );
   }
 

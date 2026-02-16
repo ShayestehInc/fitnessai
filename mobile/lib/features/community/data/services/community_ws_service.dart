@@ -90,6 +90,19 @@ class CommunityWsService {
           if (postId != null) {
             _ref.read(communityFeedProvider.notifier).onNewComment(postId);
           }
+        case 'reaction_update':
+          final postId = data['post_id'] as int?;
+          final reactions = data['reactions'] as Map<String, dynamic>?;
+          if (postId != null && reactions != null) {
+            _ref.read(communityFeedProvider.notifier).onReactionUpdate(
+              postId,
+              ReactionCounts(
+                fire: (reactions['fire'] as num?)?.toInt() ?? 0,
+                thumbsUp: (reactions['thumbs_up'] as num?)?.toInt() ?? 0,
+                heart: (reactions['heart'] as num?)?.toInt() ?? 0,
+              ),
+            );
+          }
       }
     } catch (_) {
       // Ignore malformed messages
@@ -109,7 +122,9 @@ class CommunityWsService {
   void _scheduleReconnect() {
     if (_reconnectAttempts >= _maxReconnectAttempts) return;
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(_reconnectDelay, () {
+    // Exponential backoff: 3s, 6s, 12s, 24s, 48s
+    final delay = _reconnectDelay * (1 << _reconnectAttempts);
+    _reconnectTimer = Timer(delay, () {
       _reconnectAttempts++;
       connect();
     });

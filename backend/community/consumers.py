@@ -94,6 +94,14 @@ class CommunityFeedConsumer(AsyncJsonWebSocketConsumer):
             'comment': event['comment'],
         })
 
+    async def feed_reaction_update(self, event: dict[str, Any]) -> None:
+        """Forward reaction count update to the client."""
+        await self.send_json({
+            'type': 'reaction_update',
+            'post_id': event['post_id'],
+            'reactions': event['reactions'],
+        })
+
     # ------------------------------------------------------------------
     # Auth helpers
     # ------------------------------------------------------------------

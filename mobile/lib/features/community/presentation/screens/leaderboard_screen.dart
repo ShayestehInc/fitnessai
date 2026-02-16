@@ -132,7 +132,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
 
   Widget _buildBody(ThemeData theme) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return _LeaderboardSkeleton(theme: theme);
     }
 
     if (_error != null) {
@@ -283,7 +283,9 @@ class _LeaderboardTile extends StatelessWidget {
     final theme = Theme.of(context);
     final isTopThree = entry.rank <= 3;
 
-    return Container(
+    return Semantics(
+      label: 'Rank ${entry.rank}, ${entry.displayName}, ${_formatValue(entry.value)}',
+      child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -358,6 +360,7 @@ class _LeaderboardTile extends StatelessWidget {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -392,5 +395,62 @@ class _LeaderboardTile extends StatelessWidget {
       return '${value}d';
     }
     return '$value';
+  }
+}
+
+/// Skeleton loading placeholder for the leaderboard.
+class _LeaderboardSkeleton extends StatelessWidget {
+  final ThemeData theme;
+
+  const _LeaderboardSkeleton({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: 8,
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              _skeletonBox(36, 16),
+              const SizedBox(width: 10),
+              _skeletonCircle(36),
+              const SizedBox(width: 10),
+              Expanded(child: _skeletonBox(double.infinity, 14)),
+              _skeletonBox(30, 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _skeletonBox(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: theme.dividerColor.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+
+  Widget _skeletonCircle(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: theme.dividerColor.withValues(alpha: 0.3),
+        shape: BoxShape.circle,
+      ),
+    );
   }
 }

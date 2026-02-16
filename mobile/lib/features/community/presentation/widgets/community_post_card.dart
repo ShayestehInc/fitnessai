@@ -252,20 +252,20 @@ class _PostImage extends StatelessWidget {
     return GestureDetector(
       onTap: () => _showFullImage(context),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         child: Image.network(
           imageUrl,
           width: double.infinity,
-          height: 200,
+          height: 250,
           fit: BoxFit.cover,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
             return Container(
               width: double.infinity,
-              height: 200,
+              height: 250,
               decoration: BoxDecoration(
                 color: Theme.of(context).dividerColor,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: const Center(child: CircularProgressIndicator()),
             );
@@ -276,7 +276,7 @@ class _PostImage extends StatelessWidget {
               height: 100,
               decoration: BoxDecoration(
                 color: Theme.of(context).dividerColor,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: const Center(
                 child: Icon(Icons.broken_image_outlined, size: 32),
@@ -455,9 +455,12 @@ class _FullImageScreen extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
-      body: Center(
+      body: Semantics(
+        label: 'Full screen image. Pinch to zoom.',
+        image: true,
+        child: Center(
         child: InteractiveViewer(
-          minScale: 0.5,
+          minScale: 1.0,
           maxScale: 4.0,
           child: Image.network(
             imageUrl,
@@ -486,6 +489,7 @@ class _FullImageScreen extends StatelessWidget {
             },
           ),
         ),
+      ),
       ),
     );
   }

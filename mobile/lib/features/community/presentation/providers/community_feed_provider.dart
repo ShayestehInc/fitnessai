@@ -212,4 +212,16 @@ class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
       }).toList(),
     );
   }
+
+  /// Update reaction counts for a post (from WebSocket).
+  void onReactionUpdate(int postId, ReactionCounts reactions) {
+    state = state.copyWith(
+      posts: state.posts.map((p) {
+        if (p.id == postId) {
+          return p.copyWith(reactions: reactions);
+        }
+        return p;
+      }).toList(),
+    );
+  }
 }

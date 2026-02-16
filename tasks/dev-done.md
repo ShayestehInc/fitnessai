@@ -141,6 +141,31 @@ Implemented all 7 features from the Pipeline 18 ticket across the Django backend
 
 ---
 
+## Review Round 1 Fixes Applied
+
+1. **C1**: Changed image types to JPEG/PNG/WebP only (removed GIF), reduced max size to 5MB (from 10MB)
+2. **C2**: Changed all `logger.debug` to `logger.warning` in WebSocket broadcast and push notification helpers
+3. **C3**: Moved `_community_post_image_path` before `CommunityPost` class (forward reference fix)
+4. **C4**: Fixed mobile ambassador payouts screen to read `onboarding_url` key (was `url`)
+5. **C5**: Added `dart:io` import and fixed `_getPlatform()` to detect iOS/Android properly
+6. **C6**: Fixed trainer announcement notify helper to use `logger.warning`
+7. **M1**: Added validation for `metric_type` and `time_period` query params, return 400 for invalid
+8. **M2**: Changed comment pagination from 30 to 20
+9. **M3**: Implemented dense ranking in leaderboard (ties get same rank, gaps after)
+10. **M4**: Fixed leaderboard enabled check to treat missing config as enabled (per AC-1)
+11. **M5**: Fixed N+1 query in payout history with `annotate(commission_count=Count(...))`
+12. **M7**: Added `_broadcast_reaction_update()` helper and `feed_reaction_update` consumer handler, plus mobile WS handler and provider method
+13. **M8**: Added `timestamp` field to all WebSocket broadcast messages
+14. **M9**: Refactored `_get_post` to return tuple distinguishing 403 vs 404
+15. **m1**: Added `Semantics` labels to leaderboard entries
+16. **m2**: Added `Semantics` labels to comment tiles
+17. **m3**: Fixed InteractiveViewer minScale from 0.5 to 1.0
+18. **m4**: Added `Semantics` to full image viewer
+19. **m5**: Increased post image height 200->250dp, border radius 8->12dp
+20. **m6**: Added 5MB client-side image size validation in compose post sheet
+21. **m10**: Added skeleton loading placeholder for leaderboard screen
+22. **WebSocket reconnect**: Added exponential backoff (3s, 6s, 12s, 24s, 48s)
+
 ## Deviations from Ticket
 
 1. **AC-25 (Markdown toolbar with bold/italic/link/bullet buttons)**: Implemented a simpler markdown toggle chip rather than a full toolbar with syntax insertion buttons. The toggle switches the hint text to show markdown syntax examples. A full toolbar would require cursor position tracking and text manipulation utilities that would be best added as a follow-up.
@@ -149,7 +174,7 @@ Implemented all 7 features from the Pipeline 18 ticket across the Django backend
 
 3. **AC-17 (Foreground notification banner)**: Foreground message handler is stubbed to receive messages. Displaying an in-app material banner requires integration with the app's navigation context, which is deferred to the next pipeline pass.
 
-4. **AC-29 (Pillow verify, dimension check)**: Image validation checks content type and file size. The Pillow-based `Image.open().verify()` and dimension checks were not added to avoid adding Pillow as a dependency (it may already be available via ImageField but the explicit verify step was omitted). Max size is 10MB (ticket says 5MB).
+4. **AC-29 (Pillow verify, dimension check)**: Image validation checks content type and file size. The Pillow-based `Image.open().verify()` and dimension checks were not added to avoid adding Pillow as a dependency (it may already be available via ImageField but the explicit verify step was omitted). Max size corrected to 5MB.
 
 5. **AC-7 and AC-8 (Trainer/trainee leaderboard settings in settings screens)**: The backend endpoints exist but the mobile settings screen toggles were not added in this pass. The leaderboard screen itself is complete.
 

@@ -187,6 +187,8 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
   bool get _canSubmit =>
       !_isSubmitting && _controller.text.trim().isNotEmpty;
 
+  static const int _maxImageSizeBytes = 5 * 1024 * 1024; // 5 MB
+
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(
@@ -196,6 +198,14 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
       imageQuality: 85,
     );
     if (picked != null && mounted) {
+      final fileSize = await File(picked.path).length();
+      if (fileSize > _maxImageSizeBytes) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image must be under 5MB.')),
+        );
+        return;
+      }
       setState(() => _imagePath = picked.path);
     }
   }

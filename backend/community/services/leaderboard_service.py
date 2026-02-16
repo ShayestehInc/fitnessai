@@ -96,11 +96,17 @@ def compute_leaderboard(
     raw_entries.sort(key=lambda e: (-e[1], e[0]))
     raw_entries = raw_entries[:limit]
 
+    # Assign ranks with dense ranking (ties get same rank, next rank skips)
     entries: list[LeaderboardEntry] = []
-    for rank, (uid, val) in enumerate(raw_entries, start=1):
+    current_rank = 0
+    prev_value: int | None = None
+    for idx, (uid, val) in enumerate(raw_entries):
+        if val != prev_value:
+            current_rank = idx + 1
+            prev_value = val
         user = trainee_map[uid]
         entries.append(LeaderboardEntry(
-            rank=rank,
+            rank=current_rank,
             user_id=uid,
             first_name=user.first_name,
             last_name=user.last_name,

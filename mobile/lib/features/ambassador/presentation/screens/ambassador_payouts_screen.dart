@@ -70,7 +70,7 @@ class _AmbassadorPayoutsScreenState
       final apiClient = ref.read(apiClientProvider);
       final resp =
           await apiClient.dio.post(ApiConstants.ambassadorConnectOnboard);
-      final url = (resp.data as Map<String, dynamic>)['url'] as String?;
+      final url = (resp.data as Map<String, dynamic>)['onboarding_url'] as String?;
       if (url != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

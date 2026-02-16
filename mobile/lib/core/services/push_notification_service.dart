@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -120,8 +121,8 @@ class PushNotificationService {
   }
 
   String _getPlatform() {
-    // Dart doesn't have a clean way to check iOS vs Android without
-    // importing dart:io, so we use a simple approach.
-    return 'mobile';
+    if (Platform.isIOS) return 'ios';
+    if (Platform.isAndroid) return 'android';
+    return 'web';
   }
 }
