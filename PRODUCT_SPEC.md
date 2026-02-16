@@ -357,7 +357,22 @@ Full CRUD program template builder for the trainer web dashboard with exercise b
 - **Accessibility**: ARIA labels on all inputs and buttons, `role="group"` on exercise rows, `aria-invalid` on whitespace names, focus-visible rings, screen reader exercise names in move/delete labels, `DialogDescription` on all dialogs.
 - **Quality**: Code review 8/10 APPROVE (2 rounds — 4 critical + 8 major all fixed), QA 27/27 AC pass (HIGH confidence), UX 9/10, Security 8/10 CONDITIONAL PASS, Architecture 9/10 APPROVE, Hacker report (16 items fixed), Final 8/10 SHIP.
 
-### 4.13 Acceptance Criteria
+### 4.13 Web Dashboard Phase 5 (Admin Dashboard) — COMPLETED (2026-02-15)
+
+Full admin dashboard for the platform super admin with 7 management sections.
+
+**What was built:**
+- **Auth & Routing**: Extended AuthProvider to accept ADMIN role. Role cookie for middleware-level routing (admin → /admin/dashboard, trainer → /dashboard). Middleware blocks non-admin users from /admin/* routes. Separate `(admin-dashboard)` route group with admin sidebar and nav.
+- **Admin Dashboard Overview**: Stat cards (MRR, total trainers, active trainers, total trainees). Revenue cards (past due amount, payments due today/week/month). Tier breakdown with color-coded badges. Past due alerts with "View All" link.
+- **Trainer Management**: Searchable/filterable trainer list (active/all toggle). Detail dialog with subscription info, trainee count. Activate/suspend toggle. Impersonation flow (stores admin tokens in sessionStorage, restores on end with role cookie).
+- **Subscription Management**: Filterable list (status, tier, past due, upcoming payments). Detail dialog with 4 action forms (change tier, change status, record payment, admin notes). Payment History and Change History tabs. Action forms reset between switches.
+- **Tier Management**: CRUD with dialog-based forms. Toggle active with optimistic update. Seed defaults for empty state. Delete protection for tiers with active subscriptions. Features as comma-separated input.
+- **Coupon Management**: CRUD with dialog-based forms. Applicable tiers multi-select checkbox UI. Revoke/reactivate lifecycle. Detail dialog with usage history table. Auto-uppercase codes. Status/type/applies_to filters.
+- **User Management**: Role-filtered list (Admin/Trainer). Create admin/trainer accounts. Edit existing users. Self-deletion and self-deactivation protection. Password field with minimum length validation.
+- **Shared Infrastructure**: `admin-constants.ts` with TIER_COLORS, status variant maps, SELECT_CLASSES. `format-utils.ts` with `formatCurrency()` (cached Intl.NumberFormat) and `formatDiscount()`. Impersonation banner component.
+- **Quality**: Code review 8/10 APPROVE (2 rounds — 3 critical + 8 major all fixed), QA 46/49 AC pass (MEDIUM confidence — 3 design deviations), UX audit (16 usability + 6 accessibility fixes), Security 8.5/10 PASS (1 High fixed: middleware route protection), Architecture 8/10 APPROVE (5 deduplication fixes), Hacker 7/10 (13 fixes across 10 files), Final 8/10 SHIP.
+
+### 4.14 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
 - [x] Trainer receives notification when trainee starts or finishes a workout
@@ -397,14 +412,14 @@ Full CRUD program template builder for the trainer web dashboard with exercise b
 - ~~Admin can create/manage ambassadors and set commission rates~~ ✅ Completed 2026-02-14
 - Stripe Connect payout to ambassadors — Not yet (future enhancement)
 
-### Phase 4: Web Dashboard — 🟡 IN PROGRESS
+### Phase 4: Web Dashboard — ✅ COMPLETED
 - ~~React/Next.js with shadcn/ui~~ ✅ Completed 2026-02-15 (Next.js 15 + React 19)
 - ~~Trainer dashboard (trainee management, stats, notifications, invitations)~~ ✅ Completed 2026-02-15
 - ~~Shared auth with existing JWT system~~ ✅ Completed 2026-02-15
 - ~~Docker integration~~ ✅ Completed 2026-02-15
 - ~~Trainer program builder (web)~~ ✅ Completed 2026-02-15 (full CRUD with exercise bank, assignment, schedule editor)
 - ~~Trainer analytics (web)~~ ✅ Completed 2026-02-15 (adherence + progress sections)
-- Admin dashboard (trainer management, tiers, revenue, platform analytics) — Not yet
+- ~~Admin dashboard (trainer management, tiers, revenue, platform analytics)~~ ✅ Completed 2026-02-15 (7 sections: overview, trainers, subscriptions, tiers, coupons, users, settings)
 - ~~Settings page (profile, theme toggle, notifications)~~ ✅ Completed 2026-02-15
 - ~~Progress charts tab~~ ✅ Completed 2026-02-15 (weight trend, volume, adherence charts)
 

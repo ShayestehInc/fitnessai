@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
+import { UserRole } from "@/types/user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,8 +43,12 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      await login(email, password);
-      router.push("/dashboard");
+      const loggedInUser = await login(email, password);
+      const destination =
+        loggedInUser.role === UserRole.ADMIN
+          ? "/admin/dashboard"
+          : "/dashboard";
+      router.push(destination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -59,7 +64,7 @@ export default function LoginPage() {
         </div>
         <CardTitle className="text-2xl">FitnessAI</CardTitle>
         <CardDescription>
-          Sign in to your trainer dashboard
+          Sign in to your dashboard
         </CardDescription>
       </CardHeader>
       <CardContent>

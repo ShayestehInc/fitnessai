@@ -1,4 +1,4 @@
-import { TOKEN_KEYS, API_URLS, SESSION_COOKIE } from "./constants";
+import { TOKEN_KEYS, API_URLS, SESSION_COOKIE, ROLE_COOKIE } from "./constants";
 
 interface TokenPayload {
   exp: number;
@@ -49,16 +49,20 @@ export function getRefreshToken(): string | null {
   return localStorage.getItem(TOKEN_KEYS.REFRESH);
 }
 
-export function setTokens(access: string, refresh: string): void {
+export function setTokens(access: string, refresh: string, role?: string): void {
   localStorage.setItem(TOKEN_KEYS.ACCESS, access);
   localStorage.setItem(TOKEN_KEYS.REFRESH, refresh);
   setCookie(SESSION_COOKIE, "1", 7);
+  if (role) {
+    setCookie(ROLE_COOKIE, role, 7);
+  }
 }
 
 export function clearTokens(): void {
   localStorage.removeItem(TOKEN_KEYS.ACCESS);
   localStorage.removeItem(TOKEN_KEYS.REFRESH);
   deleteCookie(SESSION_COOKIE);
+  deleteCookie(ROLE_COOKIE);
 }
 
 export function isAccessTokenExpired(): boolean {
@@ -104,6 +108,10 @@ export async function refreshAccessToken(): Promise<boolean> {
   })();
 
   return refreshPromise;
+}
+
+export function setRoleCookie(role: string): void {
+  setCookie(ROLE_COOKIE, role, 7);
 }
 
 export function hasValidSession(): boolean {

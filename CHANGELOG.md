@@ -4,6 +4,43 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-15] — Admin Dashboard (Completes Web Dashboard Phase 4)
+
+### Added
+- **Admin Dashboard Overview** — `/admin/dashboard` with stat cards (MRR, trainers, trainees), revenue cards (past due, upcoming payments), tier breakdown, and past due alerts with "View All" link.
+- **Trainer Management** — `/admin/trainers` with searchable/filterable list, detail dialog with subscription info, activate/suspend toggle, and impersonation flow (stores admin tokens in sessionStorage).
+- **Subscription Management** — `/admin/subscriptions` with multi-filter list (status, tier, past due, upcoming). Detail dialog with 4 action forms: change tier, change status, record payment, admin notes. Payment History and Change History tabs.
+- **Tier Management** — `/admin/tiers` with CRUD dialogs, toggle active (optimistic update), seed defaults for empty state, delete protection for tiers with active subscriptions.
+- **Coupon Management** — `/admin/coupons` with CRUD dialogs, applicable tiers multi-select, revoke/reactivate lifecycle, detail dialog with usage history. Status/type/applies_to filters. Auto-uppercase codes.
+- **User Management** — `/admin/users` with role-filtered list, create admin/trainer accounts, edit users, self-deletion/self-deactivation protection.
+- **Admin Layout** — Separate `(admin-dashboard)` route group with admin sidebar, admin nav links, impersonation banner.
+- **`admin-constants.ts`** — Centralized TIER_COLORS, SUBSCRIPTION_STATUS_VARIANT, COUPON_STATUS_VARIANT, SELECT_CLASSES constants.
+- **`format-utils.ts`** — Shared `formatCurrency()` with cached `Intl.NumberFormat`, `formatDiscount()` for coupon display.
+
+### Changed
+- **`auth-provider.tsx`** — Extended to accept ADMIN role. Sets role cookie after login for middleware routing.
+- **`middleware.ts`** — Added admin route protection: checks role cookie, blocks non-admin from `/admin/*` routes.
+- **`token-manager.ts`** — Added `setRoleCookie()`, optional `role` parameter on `setTokens()`, cleanup in `clearTokens()`.
+- **`constants.ts`** — Added 20+ admin API URL constants.
+- **`impersonation-banner.tsx`** — Restores ADMIN role cookie on end-impersonation, sets TRAINER role on start.
+
+### Security
+- Three-layer admin auth: Edge middleware (role cookie) → Layout component (server user check) → Backend API (`IsAdminUser`)
+- Role cookie is client-writable (documented limitation) — backend authorization is the true security boundary
+- Impersonation tokens scoped to sessionStorage (tab isolation), hard page reload on end clears React Query cache
+- No secrets, XSS vectors, or IDOR vulnerabilities found
+
+### Quality
+- Code review: 8/10 APPROVE (2 rounds — 3 critical + 8 major all fixed)
+- QA: 46/49 AC pass, MEDIUM confidence (3 design deviations: dialogs vs dedicated pages)
+- UX audit: 16 usability + 6 accessibility fixes
+- Security audit: 8.5/10 PASS (1 High fixed: middleware route protection)
+- Architecture: 8/10 APPROVE (5 deduplication fixes, centralized constants)
+- Hacker audit: 7/10 (13 fixes across 10 files — overflow protection, error states, same-value guards)
+- Final verdict: 8/10 SHIP, HIGH confidence
+
+---
+
 ## [2026-02-15] — Web Dashboard Phase 4 (Trainer Program Builder)
 
 ### Added

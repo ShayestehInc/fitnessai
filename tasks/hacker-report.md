@@ -1,9 +1,9 @@
-# Hacker Report: Trainer Program Builder (Pipeline 12)
+# Hacker Report: Admin Dashboard (Pipeline 13)
 
 ## Date: 2026-02-15
 
 ## Focus Areas
-Trainer Program Builder: program list page, create/edit program builder, exercise picker dialog, day/week editor, exercise row configuration, assign/delete dialogs, supporting hooks, types, and error utilities.
+Admin Dashboard: dashboard overview page, trainer management, subscription management, tier management, coupon management, user management, impersonation banner, shared utilities, all 18 components, 7 pages, 6 hooks, types file.
 
 ---
 
@@ -11,8 +11,9 @@ Trainer Program Builder: program list page, create/edit program builder, exercis
 
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| 1 | High | ExercisePickerDialog | Exercise selection | User can add multiple exercises in one session | Dialog closed after each selection, requiring reopen for every exercise -- **FIXED**: dialog now stays open with checkmarks on added items and a "Done (N added)" footer button |
-| 2 | Medium | ProgramBuilder (Cancel) | Cancel button | Warns about unsaved changes before navigating away | Silently discarded `isDirtyRef` and navigated without confirmation -- **FIXED**: now shows "You have unsaved changes. Discard and go back?" confirmation dialog |
+| 1 | Medium | subscription-action-forms.tsx | "Change Tier" Confirm button | Should reject when same tier selected | Allowed no-op API call that sends the current tier as the "new" tier. **FIXED**: added same-value guard + disabled state + "(current)" label in dropdown + helper text |
+| 2 | Medium | subscription-action-forms.tsx | "Change Status" Confirm button | Should reject when same status selected | Same issue as #1. **FIXED**: identical treatment |
+| 3 | Low | admin/settings/page.tsx | Entire page | Settings functionality | Shows "Coming soon" placeholder with no indication of what settings will exist or when. Not a bug, but it is a dead nav item that trains users to ignore it |
 
 ---
 
@@ -20,11 +21,12 @@ Trainer Program Builder: program list page, create/edit program builder, exercis
 
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | Medium | ProgramList (name column) | Name column max-width locked at 200px, truncating even on wide screens. Not clickable -- users must find the "..." menu to edit | **FIXED**: widened to 300px. Made name a clickable link to edit page for owners (hover underline). Non-owners see plain text. |
-| 2 | Medium | DeleteProgramDialog | Long program names (100 chars) could overflow the dialog description without wrapping, pushing content off-screen | **FIXED**: wrapped program name in `break-all font-medium` span inside `DialogDescription` for proper line breaking. Added "This action cannot be undone." copy for clarity. |
-| 3 | Low | ProgramBuilder (description) | No character counter -- user had no idea they were approaching the 500 char limit until browser-level maxLength silently stopped input | **FIXED**: added character counter (e.g., "247/500") that turns amber when >90% full |
-| 4 | Low | ProgramBuilder (name) | No character counter for the 100 char max name field | **FIXED**: added character counter with amber color warning at >90% |
-| 5 | Low | ProgramBuilder (description textarea) | Textarea had no disabled styling -- while other inputs disable during save via `<fieldset disabled>`, the textarea looked the same when disabled | **FIXED**: added `disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50` classes |
+| 1 | High | coupon-list.tsx | Coupon code column (`font-mono`) has no max width or truncation. A 50-char code like `SUPERSUMMERDISCOUNTEXTRAVAGANZA2026SPECIALEDITION` blows out the table cell and pushes all other columns off-screen | **FIXED**: Added `max-w-[180px] truncate` with `title` tooltip on hover |
+| 2 | Medium | coupon-detail-dialog.tsx | Dialog title shows the full coupon code in `font-mono` with no truncation. Long codes overflow the dialog header | **FIXED**: Added `max-w-[400px] truncate inline-block` with `title` attribute |
+| 3 | Medium | stat-card.tsx | MRR value of $999,999.00 in `text-2xl font-bold` overflows narrow card on mobile/small screens | **FIXED**: Added `truncate` class and `title` attribute to value div |
+| 4 | Low | trainer-detail-dialog.tsx | Very long trainer emails overflow the `DialogDescription` area | **FIXED**: Added `truncate` class |
+| 5 | Low | subscription-detail-dialog.tsx | Dialog title "Subscription Detail - verylongemail@verylongdomainname.com" overflows | **FIXED**: Added `truncate` class |
+| 6 | Low | subscription-list.tsx | Status badge used `replace(/_/g, " ")` twice on the same string (minor perf waste, slightly harder to read) | **FIXED**: Computed label once into local variable |
 
 ---
 
@@ -32,16 +34,30 @@ Trainer Program Builder: program list page, create/edit program builder, exercis
 
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 1 | Critical | Program Builder duration | 1. Create 8-week program 2. Add exercises to weeks 5-8 3. Change duration to 4 weeks | Confirmation dialog warning about data loss | Weeks 5-8 silently destroyed with all exercise data. No warning. No undo. -- **FIXED**: now shows confirmation "Reducing to 4 weeks will remove 4 weeks that contain exercise data. This cannot be undone. Continue?" Only triggers when removed weeks actually contain data. |
-| 2 | High | Day Editor rest toggle | 1. Add 5 exercises to Monday 2. Click "Rest Day" toggle | Confirmation warning that exercises will be removed | All 5 exercises silently deleted with no warning -- **FIXED**: now shows "Setting Monday as a rest day will remove 5 exercises. Continue?" Only triggers when exercises exist. |
-| 3 | High | Exercise Row weight | 1. Click weight input 2. Type 999999 | Value clamped to reasonable max | Value accepted as-is. Only HTML `min=0` was set, no max. Could submit 999999 lbs to backend -- **FIXED**: added `max=9999` with `Math.min(9999, ...)` clamping |
-| 4 | High | Exercise Row reps (text mode) | 1. Type "10-12" in reps (range notation) 2. Clear and type arbitrary long string | Input sanitized or length-limited | Any arbitrary string accepted. While XSS is mitigated by React's escaping, unconstrained input could produce bad data -- **FIXED**: string values now sliced to 10 chars max with `.slice(0, 10)` |
-| 5 | High | Exercise Row reps (number mode) | 1. Type 999 in reps field | Value clamped to max 100 | Value accepted. HTML `max=100` is advisory only -- **FIXED**: added `Math.min(100, ...)` clamping |
-| 6 | Medium | ProgramBuilder Ctrl+S | 1. Change description 2. Press Ctrl+S | Save triggered with latest state | Keyboard shortcut useEffect captured stale closure -- deps were `[isSaving, name]` but handleSave depends on description, schedule, etc. -- **FIXED**: refactored to use `handleSaveRef` pattern that always calls the latest `handleSave` |
-| 7 | Medium | Day Editor exercise limit | 1. Add 100+ exercises to a single day | Some reasonable limit or warning | No limit at all. User could add unlimited exercises, creating an unusable UI and potentially crashing the browser -- **FIXED**: added MAX_EXERCISES_PER_DAY = 50 cap with toast error and hidden "Add Exercise" button at limit |
-| 8 | Medium | DeleteProgramDialog | 1. Click Delete 2. While deleting, click outside dialog or press Escape | Dialog should stay open during deletion | Dialog could be closed while API call in progress, leaving UI in inconsistent state -- **FIXED**: `handleOpenChange` prevents closing while `deleteMutation.isPending` |
-| 9 | Low | Error utils | 1. Throw a native `Error` (not `ApiError`) | Error message displayed | Returns generic "An unexpected error occurred" even when `Error.message` has useful info -- **FIXED**: added `error instanceof Error` check that returns `error.message` |
-| 10 | Low | Error utils | DRF returns `{"detail": "Not found."}` | User sees "Not found." | User sees "detail: Not found." -- the field key prefix is confusing for `detail` and `non_field_errors` keys -- **FIXED**: added sensitive key stripping so these common DRF keys display cleanly without the prefix |
+| 1 | High | coupon-detail-dialog.tsx | Open coupon detail > API returns error | Should show error message with retry option | Showed only "Coupon Details" title with empty body, no error indication. **FIXED**: Added `isError` state with retry button |
+| 2 | High | subscription-detail-dialog.tsx | Open subscription detail > API returns error | Should show error message with retry option | Same as #1 -- empty body with just "Loading..." text. **FIXED**: Added `isError` state with retry button |
+| 3 | Medium | subscription-detail-dialog.tsx | Open subscription with `max_trainees = 0` (unlimited) | Should show "Unlimited" | Showed `0` because code only checked `=== -1`. Backend tiers use `0` for unlimited. **FIXED**: Changed to `<= 0` check |
+| 4 | Medium | past-due-alerts.tsx | API returns error | Should show error message | Showed nothing (no error handling). **FIXED** (by linter enhancement): Added `isError` state with retry button, plus accessibility improvements (sr-only text, aria labels) |
+| 5 | Low | past-due-alerts.tsx | 3 past due subscriptions | "View All (3)" button shows even though all 3 are already visible in the list (max display is 5) | **FIXED**: Changed condition from `items.length > 0` to `items.length > 5` |
+| 6 | Low | admin/trainers/page.tsx | Open trainer detail > suspend > close > reopen same trainer | Could briefly show stale `is_active` status from the closure-captured data | **FIXED**: Clear `selectedTrainer` to null when dialog closes, forcing fresh data on next open |
+| 7 | Low | coupon-detail-dialog.tsx | Dialog title while loading shows generic "Loading..." | Uninformative title that doesn't tell user what's loading | **FIXED**: Changed to static "Coupon Details" title |
+
+---
+
+## Edge Case Analysis (Verified Clean)
+
+| # | Scenario | Current Behavior | Risk |
+|---|----------|-----------------|------|
+| 1 | 0 trainers, 0 tiers, 0 coupons | All pages show proper EmptyState with icon + message + CTA (where applicable). Tiers page has "Seed Defaults" button for initial setup. Coupons page offers "Create Coupon" in empty state when no filters active. | Low |
+| 2 | Trainer with 999 trainees | Trainee count is a simple number display in both list and detail views, no overflow possible. | Low |
+| 3 | MRR of $999,999 | `formatCurrency` uses `Intl.NumberFormat` which handles commas correctly. Stat card now has `truncate` to prevent overflow. | Low |
+| 4 | Coupon code with 50 chars | Table cell now truncates at 180px with tooltip. Detail dialog title now truncates at 400px. Create form already has `maxLength={50}`. | Low |
+| 5 | Long email addresses | TrainerList, UserList, SubscriptionList all have `truncate` + `min-w-0` on name/email cells. PastDueAlerts uses `truncate` as well. | Low |
+| 6 | Double-submit on forms | All mutation buttons use `disabled={isPending}` pattern consistently across all 18 components. | Low |
+| 7 | Delete tier that has active subscriptions | Error from backend is captured and displayed via `setDeleteError` in a dedicated confirmation dialog with Cancel option. | Low |
+| 8 | Impersonation session management | Impersonation stores admin tokens in `sessionStorage` (tab-scoped). `handleEndImpersonation` tries API call but continues to restore admin tokens even on error. Uses `window.location.href` for hard navigation to clear React Query cache. | Low |
+| 9 | Coupon validation - percentage > 100 | Form validation explicitly checks `couponType === "percent" && value > 100` and shows error. | Low |
+| 10 | Concurrent tier toggle (optimistic update) | Uses onMutate/onError/onSettled pattern correctly: cancels queries, sets optimistic data, rolls back on error, invalidates on settle. | Low |
 
 ---
 
@@ -49,61 +65,57 @@ Trainer Program Builder: program list page, create/edit program builder, exercis
 
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 1 | High | Program Builder | "Copy Week to All" button | Building a 12-week program where most weeks are identical requires manually configuring 12 x 7 = 84 days. A single "Copy Week 1 to All" button reduces this to 7 days of work. -- **IMPLEMENTED** |
-| 2 | High | Program Builder | Cmd+S / Ctrl+S keyboard shortcut | Power users expect Cmd+S to save. Without it, they must scroll down to find the save button every time. The shortcut hint is shown next to the Save button. -- **IMPLEMENTED** |
-| 3 | Medium | Program List | Clickable program name to edit | Users had to find the tiny "..." menu button, then click Edit. Most data tables (Linear, Notion) let you click the row name to open it. -- **IMPLEMENTED** |
-| 4 | Medium | Program Builder | Whitespace-only name validation | User could type "   " (spaces only) and the save button appeared enabled, but save would fail or create a program with a blank display name. Now shows inline "Name cannot be only whitespace" error with `aria-invalid`. -- **IMPLEMENTED** |
-| 5 | Medium | Program Builder | Form disabled during save | While saving, all form inputs should be disabled to prevent editing during the API call. Now wrapped in `<fieldset disabled={isSaving}>`. -- **IMPLEMENTED** |
-| 6 | Low | Exercise Picker | "Added" checkmark feedback | After selecting an exercise, there was zero visual feedback that it was added (since the dialog previously just closed). Now shows a green checkmark next to already-added exercises, and the footer shows "Done (3 added)". -- **IMPLEMENTED** |
-| 7 | Low | Error Utils | Clean DRF field error display | DRF returns `{"detail": "Not found."}` and `{"non_field_errors": [...]}` -- showing "detail: Not found." to users looks like developer output. Now strips these known keys for cleaner messages. -- **IMPLEMENTED** |
-| 8 | Medium | Program Builder | Duplicate exercise warning | User can add the same exercise to a day multiple times with no warning. While valid (e.g., different set/rep schemes), accidental duplicates are common. | **NOT FIXED** -- requires design decision on whether duplicates are intentional |
-| 9 | Medium | Program Builder | Undo/redo for schedule changes | Accidentally deleting exercises or toggling rest day is destructive. An undo stack would let users recover. | **NOT FIXED** -- significant refactor needed, would require a state history manager |
-| 10 | Low | Program List | Bulk delete/assign | If trainer has 20 programs and wants to clean up old ones, they must delete them one by one. Bulk selection would be faster. | **NOT FIXED** -- requires DataTable selection enhancement |
-| 11 | Low | Assign Dialog | Searchable trainee combobox | `useAllTrainees` fetches up to 200 trainees. With many trainees, scrolling through an unsorted `<select>` dropdown is painful. A searchable combobox would be better. | **NOT FIXED** -- requires combobox component |
+| 1 | High | Subscription list | Add a "total count" badge next to the page title showing how many subscriptions match current filters | When filtering, you lose context of the total. Linear and Stripe both show counts next to table titles. |
+| 2 | High | All tables | Implement server-side pagination | Client-side pagination is implicit (all data loads at once). For 100+ trainers/subscriptions, this will be slow. The `DataTable` already supports `totalCount`/`page`/`pageSize`/`onPageChange` props but no page passes them. |
+| 3 | High | Coupon list + detail | Add a "copy code to clipboard" button next to coupon codes | Every admin dashboard (Stripe, Shopify) has copy-to-clipboard for codes. It is table stakes functionality for codes that need to be shared. |
+| 4 | Medium | Dashboard stats | Add trend indicators (up/down arrows with % change from last period) next to key metrics | Current stats are point-in-time snapshots with no trend context. Stripe Dashboard always shows period-over-period deltas. |
+| 5 | Medium | Trainer detail dialog | Add a "View Subscription" link to navigate to the full subscription detail | Currently you see subscription summary in the trainer dialog but cannot navigate to manage it without finding the trainer in the subscriptions page separately. |
+| 6 | Medium | Subscription actions | Add confirmation step for "Change Tier" and "Change Status" that shows the billing impact | Tier changes can have billing implications. A destructive action like downgrade should show what the trainer will lose and require explicit "Yes, change tier" confirmation. |
+| 7 | Medium | All filter selects | Replace native `<select>` elements with the project's UI library Select component | Native selects render differently across browsers and partially break dark mode styling on some platforms (e.g., macOS Safari shows white background on options in dark mode). |
+| 8 | Low | Tier list | Add drag-and-drop reordering for the `sort_order` field | Currently you have to edit each tier individually to change sort order. Drag-and-drop would be 10x faster with 5+ tiers. |
+| 9 | Low | User list | Add bulk actions (activate/deactivate multiple users at once) | Managing users one-by-one does not scale past 20 users. |
+| 10 | Low | Coupon form | Add a "Generate Random Code" button | Saves time and ensures uniqueness. Most coupon systems (Shopify, WooCommerce) offer this. |
 
 ---
 
-## Cannot Fix (Need Design/Backend Changes)
+## Utility Improvements Made
 
-| # | Area | Issue | Suggested Approach |
-|---|------|-------|-------------------|
-| 1 | Exercise Picker | Pagination only fetches first 100 exercises | Backend returns paginated results with `page_size=100`. If the trainer or system has 200+ exercises, only the first page shows. Should add infinite scroll or increase page size, but this requires backend coordination. |
-| 2 | Assign Dialog | Trainee limit of 200 | `useAllTrainees` hardcodes `page_size=200`. Trainers with 201+ trainees silently lose trainees from the dropdown. Should either paginate or use a searchable async combobox. |
-| 3 | Program Builder | No autosave / draft recovery | If the browser crashes or the user accidentally navigates away (bypassing beforeunload), all work is lost. An autosave-to-localStorage mechanism would prevent data loss. Requires design decision on draft storage format. |
-| 4 | Day Editor | No drag-and-drop reorder | Exercise reorder is button-only (up/down arrows). Drag-and-drop would be much faster. Requires a DnD library (dnd-kit) integration. |
+| # | File | Change | Rationale |
+|---|------|--------|-----------|
+| 1 | format-utils.ts | `formatCurrency` now accepts `string \| number` | Function was too restrictive -- accepting number directly avoids unnecessary string conversion at call sites and prevents subtle bugs if a number is passed accidentally. |
 
 ---
 
 ## Summary
 
 - Dead UI elements found: 2
-- Visual bugs found: 5
-- Logic bugs found: 10
-- Improvements suggested: 11
-- Items fixed by hacker: 16
-- Cannot-fix items documented: 4
+- Visual bugs found: 6
+- Logic bugs found: 7
+- Edge cases verified clean: 10
+- Improvements suggested: 10
+- Items fixed by hacker: 13
 
 ## Chaos Score: 7/10
 
 ### Rationale
-The Program Builder is functional for the happy path but had several significant data-loss risks (silent week deletion, silent rest day toggle clearing exercises, no exercise count limits) that would frustrate real users. The exercise picker's one-at-a-time selection pattern was a major UX friction point for anyone building a real program. Input validation relied entirely on advisory HTML attributes without JavaScript clamping, meaning keyboard users could easily enter absurd values (999999 lbs, 999 reps). The Cancel button offered no unsaved changes protection despite having a `beforeunload` handler for browser-level navigation. The Ctrl+S keyboard shortcut had a stale closure bug that would save outdated state.
+The admin dashboard is solidly built. All CRUD flows work correctly, every table has proper empty/loading states, error handling on mutations is consistent with toast notifications, and the impersonation flow is well-engineered with proper token management and audit-trail API calls.
+
+The main gaps were:
+- **Missing error states on detail dialogs** (coupon detail, subscription detail) -- which would leave users staring at a blank modal on API failure with no recovery path
+- **Text overflow on long values** (coupon codes, emails, MRR) -- that would break table layouts and dialog headers at real-world data volumes
+- **No-op tier/status changes** -- allowing users to "change" to the same value, triggering pointless API calls and creating confusing change history entries
+- **Incorrect unlimited trainee check** -- `=== -1` instead of `<= 0` for the unlimited indicator
+
+None of these are data-integrity or security issues, but they would frustrate a daily user of the admin panel. The edge case coverage for empty states, double-submit prevention, optimistic updates, and form validation is strong.
 
 **Good:**
-- Clean architecture: types, hooks, and components are well-separated
-- Consistent state handling: loading, error, and empty states on list page
-- `beforeunload` handler prevents browser-level navigation data loss
-- `reconcileSchedule` properly handles schedule/duration mismatches on edit
-- `useDeferredValue` on search inputs prevents excessive API calls
-- Week tabs with `ScrollArea` handle high week counts gracefully
-- Row-level ownership checks (isOwner) on edit/delete actions
-- All form inputs have proper ARIA labels and IDs
-
-**After Fixes:**
-- All destructive actions require explicit confirmation
-- All numeric inputs have both HTML and JavaScript validation
-- Exercise picker supports multi-add workflow with visual feedback
-- Copy Week to All eliminates repetitive configuration for uniform programs
-- Keyboard shortcut (Cmd/Ctrl+S) enables fast save without scrolling
-- Character counters provide proactive feedback on field limits
-- Error messages are cleaner for common DRF response patterns
-- Delete dialog prevents accidental close during API operation
+- Clean architecture: types, hooks, and components are well-separated with proper TypeScript interfaces
+- Consistent state handling: loading, error, and empty states on all list pages
+- All mutation buttons disable during pending state (no double-submit)
+- Optimistic update on tier toggle with proper rollback on error
+- Impersonation stores admin tokens in sessionStorage (tab-scoped) with graceful fallback on API failure
+- Debounced search inputs across all filtered pages
+- Proper keyboard accessibility: DataTable rows are focusable with Enter/Space activation
+- All icons have `aria-hidden="true"`, screen-reader-only text where needed
+- Form validation with `aria-invalid` and `aria-describedby` error IDs
+- Password strength indicator on user creation form
