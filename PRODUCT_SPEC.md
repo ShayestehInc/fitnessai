@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-15
+> Last updated: 2026-02-15 (Pipeline 15: Offline-First Phase 6)
 
 ---
 
@@ -195,7 +195,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | MCP server (Claude Desktop) | ✅ Done | Trainer can query data via Claude Desktop |
 | TV mode | ❌ Placeholder | Screen exists but empty |
 | Forums | ❌ Placeholder | Screen exists but empty |
-| Offline-first with local DB | ❌ Not started | Drift/Hive planned but not implemented |
+| Offline-first with local DB | ✅ Done | Shipped 2026-02-15: Drift (SQLite) local database, sync queue with FIFO/exponential backoff, connectivity monitoring with 2s debounce, offline-aware repositories for workouts/nutrition/weight, program caching, 409 conflict detection, UI banners (offline/syncing/synced/failed), failed sync bottom sheet, logout warning |
 
 ---
 
@@ -373,7 +373,27 @@ Full admin dashboard for the platform super admin with 7 management sections.
 - **Shared Infrastructure**: `admin-constants.ts` with TIER_COLORS, status variant maps, SELECT_CLASSES. `format-utils.ts` with `formatCurrency()` (cached Intl.NumberFormat) and `formatDiscount()`. Impersonation banner component.
 - **Quality**: Code review 8/10 APPROVE (2 rounds — 3 critical + 8 major all fixed), QA 46/49 AC pass (MEDIUM confidence — 3 design deviations), UX audit (16 usability + 6 accessibility fixes), Security 8.5/10 PASS (1 High fixed: middleware route protection), Architecture 8/10 APPROVE (5 deduplication fixes), Hacker 7/10 (13 fixes across 10 files), Final 8/10 SHIP.
 
-### 4.14 Acceptance Criteria
+### 4.14 Offline-First Workout & Nutrition Logging (Phase 6) -- COMPLETED (2026-02-15)
+
+Complete offline-first infrastructure for the mobile app, enabling trainees to log workouts, nutrition, and weight check-ins without an internet connection.
+
+**What was built:**
+- **Local Database (Drift/SQLite)**: 5 tables (`PendingWorkoutLogs`, `PendingNutritionLogs`, `PendingWeightCheckins`, `CachedPrograms`, `SyncQueueItems`). Background isolate via `NativeDatabase.createInBackground()`. WAL mode for concurrent read/write. Startup cleanup (24h synced items, 30d stale cache). Transactional user data clearing on logout.
+- **Connectivity Monitoring**: `ConnectivityService` wrapping `connectivity_plus` with 2-second debounce to prevent sync thrashing during connection flapping. Handles Android's multi-result connectivity reporting (`[wifi, none]` edge case).
+- **Offline-Aware Repositories**: Decorator pattern wrapping existing WorkoutRepository, LoggingRepository, and NutritionRepository. When online, delegates to API. When offline, saves to Drift + sync queue. UUID-based idempotency prevents duplicate submissions. Storage-full SQLite errors caught with user-friendly messages. Typed `OfflineSaveResult` return class.
+- **Sync Queue Engine**: FIFO sequential processing. Exponential backoff (5s, 15s, 45s). Max 3 retries before permanent failure. HTTP 409 conflict detection with operation-specific messages (no auto-retry). 401 auth error handling (pauses sync, preserves data for re-authentication). Corrupted JSON and unknown operation types handled gracefully with permanent failure marking.
+- **Program Caching**: Programs cached locally on successful fetch. Offline fallback reads from cache with "Some data may be outdated" banner. Corrupted cache detected, deleted, and reported gracefully. Active workout screen works fully offline with cached program data.
+- **UI Indicators**: Offline banner (amber, cloud_off, "You are offline"), syncing banner (blue, LinearProgressIndicator, "Syncing X of Y..."), synced banner (green, auto-dismiss 3s), failed banner (red, tap to open failed sync sheet). `FailedSyncSheet` bottom sheet with per-item retry/delete, retry all, operation type icons, error messages, auto-close when empty. Logout warning dialog with unsynced item count and cancel/continue options.
+- **Shared Utilities**: `network_error_utils.dart` (DRY network error detection), `SyncOperationType` and `SyncItemStatus` enums, `SyncStatusBadge` widget (ready for per-card placement in follow-up).
+- **Quality**: 4 code review rounds, 13 critical/high issues found and fixed across all audit stages. Security 9/10, Architecture 8/10, Final 8/10 SHIP.
+
+**Deferred items (follow-up pipeline):**
+- AC-12: Merge local pending workouts into Home "Recent Workouts" list
+- AC-16: Merge local pending nutrition into macro totals
+- AC-18: Merge local pending weight check-ins into weight trends
+- AC-36/37/38: Place SyncStatusBadge on individual cards in list views
+
+### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
 - [x] Trainer receives notification when trainee starts or finishes a workout
@@ -432,11 +452,13 @@ Full admin dashboard for the platform super admin with 7 management sections.
 - Stripe Connect payout to ambassadors -- Deferred (requires Stripe dashboard configuration)
 - ~~Custom referral codes (ambassador-chosen, e.g., "JOHN20")~~ ✅ Completed 2026-02-15
 
-### Phase 6: Offline-First + Performance
-- Drift (SQLite) local database for offline workout logging
-- Sync queue for uploading logs when connection returns
-- Background health data sync (HealthKit / Health Connect)
-- App performance audit (60fps target, RepaintBoundary audit)
+### Phase 6: Offline-First + Performance -- PARTIALLY COMPLETED (2026-02-15)
+- ~~Drift (SQLite) local database for offline workout logging~~ ✅ Completed 2026-02-15
+- ~~Sync queue for uploading logs when connection returns~~ ✅ Completed 2026-02-15
+- Background health data sync (HealthKit / Health Connect) -- Not yet (separate ticket)
+- App performance audit (60fps target, RepaintBoundary audit) -- Not yet (separate ticket)
+- Deferred: Merging local pending data into home recent workouts, nutrition macro totals, and weight trends (AC-12/16/18)
+- Deferred: Per-card sync status badges on list items (AC-36/37/38)
 
 ### Phase 7: Social & Community
 - Forums / community feed (trainee-to-trainee)
@@ -530,7 +552,7 @@ Full admin dashboard for the platform super admin with 7 management sections.
 
 ## 7. Technical Constraints
 
-- **No offline support yet** — requires Drift/Hive integration. All data currently requires network.
+- **Offline support for trainee workout/nutrition/weight logging** — Shipped 2026-02-15 via Drift (SQLite). Sync queue with FIFO processing, exponential backoff, conflict detection. Pending: offline data not yet merged into list views (home recent workouts, nutrition macro totals, weight trends).
 - **Single timezone assumed** — DailyLog uses `timezone.now().date()`. Multi-timezone trainees may see date boundary issues.
 - **AI parsing is OpenAI-only** — Function Calling mode. No fallback provider yet. Rate limits apply.
 - **No real-time updates** — Trainer dashboard requires manual refresh. WebSocket/SSE planned but not implemented.

@@ -1,100 +1,104 @@
-# Feature: Ambassador Enhancements (Phase 5)
+# Feature: Offline Workout & Nutrition Logging with Sync Queue (Phase 6)
 
 ## Priority
-High
+Critical
 
-## User Stories
-
-### US-1: Monthly Earnings Chart
-As an ambassador, I want to see a bar chart of my monthly earnings on the dashboard so that I can visualize my income trend over the past 6 months and understand whether my referral efforts are growing.
-
-### US-2: Native Share Sheet
-As an ambassador, I want to share my referral code and message via the native iOS/Android share sheet so that I can send it through WhatsApp, iMessage, email, or any other app without manually copying and pasting.
-
-### US-3: Commission Approval and Payment Workflow
-As an admin, I want to approve and mark commissions as paid from the ambassador detail screen (mobile) so that I can manage the full commission lifecycle without needing to access the Django admin.
-
-### US-4: Ambassador Password Reset
-As an ambassador, I want to reset my password via the existing "Forgot Password?" flow so that I am not locked out of my account when I forget my admin-assigned temporary password.
-
-### US-5: Custom Referral Codes
-As an ambassador, I want to choose a custom, memorable referral code (e.g., "JOHN20") so that I can create a branded code that is easier for trainers to remember when they sign up.
+## User Story
+As a trainee at the gym with poor or no internet connection, I want to log my workouts and nutrition without interruption so that I never lose data and can focus on training instead of worrying about connectivity.
 
 ---
 
 ## Acceptance Criteria
 
-### Monthly Earnings Chart (US-1)
-- [ ] AC-1: Ambassador dashboard screen displays a bar chart below the earnings card, showing monthly earnings for the last 6 months.
-- [ ] AC-2: Each bar is labeled with the month abbreviation (e.g., "Sep", "Oct") and the dollar amount is shown on tap/hover.
-- [ ] AC-3: The chart uses the app's primary color (theme-aware) for bars and adapts to light/dark mode.
-- [ ] AC-4: When `monthlyEarnings` is an empty array, the chart area displays an empty state: "No earnings data yet" with a muted chart icon.
-- [ ] AC-5: The `fl_chart` package (version ~0.68.0) is added to `pubspec.yaml` and no other chart package is introduced.
+### Drift Local Database Setup
+- [ ] AC-1: A Drift (SQLite) database is initialized on app startup at `mobile/lib/core/database/app_database.dart` with tables for `pending_workout_logs`, `pending_nutrition_logs`, `pending_weight_checkins`, `cached_programs`, and `sync_queue`.
+- [ ] AC-2: The database file is stored in the app's documents directory via `path_provider` and persists across app restarts.
+- [ ] AC-3: The `drift` and `sqlite3_flutter_libs` packages (already in pubspec.yaml) are used. `drift_dev` (already in dev_dependencies) generates `.g.dart` files. No additional SQLite packages are added.
+- [ ] AC-4: A `DatabaseProvider` (Riverpod provider) exposes the database singleton to the entire app.
 
-### Native Share Sheet (US-2)
-- [ ] AC-6: Tapping "Share Referral Code" on the dashboard opens the native OS share sheet with the referral message.
-- [ ] AC-7: The share message format is: "Join FitnessAI and grow your training business! Use my referral code {CODE} when you sign up."
-- [ ] AC-8: If the share action is cancelled by the user, no snackbar or error is shown (silent dismiss).
-- [ ] AC-9: The copy-to-clipboard button remains as a separate action (icon button next to the code).
-- [ ] AC-10: The `share_plus` package (version ~9.0.0) is added to `pubspec.yaml`.
+### Network Connectivity Detection
+- [ ] AC-5: The `connectivity_plus` package (~6.0.0) is added to `pubspec.yaml` and a `ConnectivityService` monitors network status in real time via stream subscription.
+- [ ] AC-6: A `connectivityProvider` (Riverpod `StreamProvider`) exposes the current connectivity status (`online` / `offline`) to the entire widget tree.
+- [ ] AC-7: When connectivity transitions from offline to online, the sync queue automatically begins processing pending items.
+- [ ] AC-8: When connectivity transitions from online to offline, in-flight API calls that fail with `DioException` of type `connectionTimeout`, `sendTimeout`, `receiveTimeout`, or `connectionError` are automatically saved to the local database instead of showing an error.
 
-### Commission Approval/Payment Workflow (US-3)
-- [ ] AC-11: Backend exposes `POST /api/admin/ambassadors/<id>/commissions/<commission_id>/approve/` that transitions a PENDING commission to APPROVED.
-- [ ] AC-12: Backend exposes `POST /api/admin/ambassadors/<id>/commissions/<commission_id>/pay/` that transitions an APPROVED commission to PAID.
-- [ ] AC-13: Backend exposes `POST /api/admin/ambassadors/<id>/commissions/bulk-approve/` that accepts `{"commission_ids": [1,2,3]}` and approves all PENDING commissions in the list atomically.
-- [ ] AC-14: Backend exposes `POST /api/admin/ambassadors/<id>/commissions/bulk-pay/` that accepts `{"commission_ids": [1,2,3]}` and pays all APPROVED commissions in the list atomically.
-- [ ] AC-15: Attempting to approve an already-APPROVED or PAID commission returns 400 with a descriptive error.
-- [ ] AC-16: Attempting to pay a PENDING commission (not yet approved) returns 400 with a descriptive error.
-- [ ] AC-17: On the admin ambassador detail screen (mobile), each commission tile with status PENDING shows an "Approve" action button.
-- [ ] AC-18: On the admin ambassador detail screen (mobile), each commission tile with status APPROVED shows a "Mark Paid" action button.
-- [ ] AC-19: A "Bulk Approve All Pending" button appears in the commission section header when there are PENDING commissions.
-- [ ] AC-20: Commission status updates reflect immediately in the UI after a successful API call (optimistic update with rollback on failure).
-- [ ] AC-21: After approving or paying, the ambassador's `total_earnings` cached field is recalculated by calling `refresh_cached_stats()`.
+### Offline Workout Logging
+- [ ] AC-9: When the trainee completes a workout (post-workout survey submit) while offline, the workout data is saved to the `pending_workout_logs` Drift table with status `pending` and a `created_at` timestamp.
+- [ ] AC-10: The saved offline workout contains the full `workout_summary` JSON (workout_name, duration, exercises with sets), `survey_data` JSON, and optional `readiness_survey` JSON -- the same payload structure that `POST /api/workouts/surveys/post-workout/` expects.
+- [ ] AC-11: After saving offline, the trainee sees a success screen identical to the online flow, plus a banner: "Workout saved locally. It will sync when you're back online."
+- [ ] AC-12: The home screen's "Recent Workouts" section includes locally-saved workouts (with a cloud-off icon badge) merged with server-fetched workouts, sorted by date descending.
+- [ ] AC-13: The readiness survey submission (`POST /api/workouts/surveys/readiness/`) also falls back to local save when offline, queued for later sync.
 
-### Ambassador Password Reset (US-4)
-- [ ] AC-22: The ambassador login flow uses the same login screen as all other roles (this already works since login is role-agnostic JWT).
-- [ ] AC-23: The "Forgot your password?" link on the login screen navigates to `/forgot-password`, which calls Djoser's `POST /api/auth/users/reset_password/`.
-- [ ] AC-24: Djoser's password reset endpoint works for AMBASSADOR-role users without any role restriction (verify it does not filter by role).
-- [ ] AC-25: After reset, the ambassador can log in with their new password and is routed to `/ambassador` dashboard.
+### Offline Nutrition Logging (Confirm & Save)
+- [ ] AC-14: When the trainee confirms an AI-parsed food entry (`POST /api/workouts/daily-logs/confirm-and-save/`) while offline, the parsed data is saved to the `pending_nutrition_logs` Drift table with the `parsed_data` JSON and target `date`.
+- [ ] AC-15: After saving offline nutrition, the trainee sees a success snackbar: "Food entry saved locally. It will sync when you're back online."
+- [ ] AC-16: The nutrition screen shows locally-saved entries (with a cloud-off icon badge) alongside server-fetched entries, so the trainee's macro totals reflect pending entries optimistically.
 
-### Custom Referral Codes (US-5)
-- [ ] AC-26: Backend exposes `PUT /api/ambassador/referral-code/` that allows the authenticated ambassador to set a custom referral code.
-- [ ] AC-27: Custom codes must be 4-20 characters, alphanumeric only (A-Z, 0-9), stored uppercase.
-- [ ] AC-28: Custom codes are validated for uniqueness across all ambassador profiles.
-- [ ] AC-29: If the requested code is already taken, the API returns 400 with `{"referral_code": ["This referral code is already in use."]}`.
-- [ ] AC-30: The ambassador settings screen shows the current referral code with an "Edit" icon button next to it.
-- [ ] AC-31: Tapping "Edit" opens a dialog with a text field pre-filled with the current code, a "Save" button, and a "Cancel" button.
-- [ ] AC-32: The dialog validates the code client-side (4-20 chars, alphanumeric only) before submitting.
-- [ ] AC-33: After a successful code change, the dashboard and settings screens update to show the new code.
-- [ ] AC-34: The `AmbassadorProfile.referral_code` model field `max_length` is increased from 8 to 20 (migration required).
+### Offline Weight Check-In
+- [ ] AC-17: When the trainee submits a weight check-in (`POST /api/workouts/weight-checkins/`) while offline, the data is saved to `pending_weight_checkins` with `date`, `weight_kg`, and `notes`.
+- [ ] AC-18: The weight trends screen shows locally-saved check-ins (with a cloud-off icon badge) merged with server data.
+
+### Program Caching
+- [ ] AC-19: When programs are fetched successfully online (`GET /api/workouts/programs/`), the full program list (including schedules) is cached in the `cached_programs` Drift table, keyed by trainee user ID.
+- [ ] AC-20: When the programs API call fails due to no network, the app falls back to the cached programs from Drift. The UI shows a subtle banner: "Showing cached program. Some data may be outdated."
+- [ ] AC-21: Cached program data is refreshed every time the programs endpoint returns successfully. Old cache entries are overwritten (not appended).
+- [ ] AC-22: The active workout screen works fully offline when the program schedule is cached -- the trainee can view exercises, log sets, complete the workout, and save locally.
+
+### Sync Queue
+- [ ] AC-23: The `sync_queue` Drift table stores each pending operation with: `id` (auto-increment), `operation_type` (enum: `workout_log`, `nutrition_log`, `weight_checkin`, `readiness_survey`), `payload` (JSON text), `status` (enum: `pending`, `syncing`, `synced`, `failed`), `created_at`, `synced_at` (nullable), `retry_count` (default 0), `last_error` (nullable text).
+- [ ] AC-24: A `SyncQueueService` processes the queue in FIFO order (oldest first) when connectivity is restored. Each item is processed sequentially (not in parallel) to avoid race conditions on `DailyLog` records.
+- [ ] AC-25: Each sync attempt: set status to `syncing`, call the appropriate API endpoint, on success set status to `synced` and `synced_at`, on failure increment `retry_count` and set `last_error`.
+- [ ] AC-26: Items that fail 3 times are set to status `failed` and skipped. The user is notified via a persistent banner on the home screen: "1 item failed to sync. Tap to retry."
+- [ ] AC-27: Tapping the failed-sync banner opens a bottom sheet listing failed items with: operation type, date, error message, and "Retry" / "Delete" buttons per item.
+- [ ] AC-28: Successfully synced items (`status = synced`) are deleted from the local database after 24 hours (cleanup runs on app startup).
+- [ ] AC-29: The sync queue processes items even when the app is in the foreground but the user is on a different screen (the service runs independently of navigation state).
+
+### Conflict Resolution
+- [ ] AC-30: If a workout sync fails with HTTP 409 (conflict -- e.g., trainer changed the program), the sync queue marks the item as `failed` with error "Program was updated by your trainer. Please review." and does NOT retry automatically.
+- [ ] AC-31: If a nutrition sync fails with HTTP 409, same behavior as AC-30 with message "Nutrition data was updated. Please review."
+- [ ] AC-32: For non-conflict server errors (500, 502, 503), the sync queue retries up to 3 times with exponential backoff (5s, 15s, 45s delay between retries).
+
+### Visual Indicators
+- [ ] AC-33: When the device is offline, a thin persistent banner appears at the top of every trainee screen (below the app bar): amber background, "You are offline" text, cloud-off icon. Height: 28px. Does not push content down aggressively.
+- [ ] AC-34: When sync is actively processing, the banner changes to: blue background, "Syncing..." text with a small linear progress indicator, cloud-upload icon.
+- [ ] AC-35: When all items are synced, the banner briefly shows green "All changes synced" for 3 seconds, then disappears.
+- [ ] AC-36: Items that were saved offline but not yet synced show a small `Icons.cloud_off` badge (12px, amber) overlaid on their card/tile in lists.
+- [ ] AC-37: Items that are currently syncing show a small `Icons.cloud_upload` badge (12px, blue) with a rotating animation.
+- [ ] AC-38: Items that failed to sync show a small `Icons.cloud_off` badge (12px, red) with a warning indicator.
+
+### Performance & Cleanup
+- [ ] AC-39: The Drift database connection is opened lazily (on first access) and closed on app termination.
+- [ ] AC-40: Sync queue items older than 7 days with status `synced` are auto-deleted on app startup.
+- [ ] AC-41: Cached programs older than 30 days are auto-deleted on app startup.
+- [ ] AC-42: Database operations (reads and writes) run on isolates via Drift's built-in isolate support to avoid janking the UI thread.
 
 ---
 
 ## Edge Cases
 
-1. **Monthly chart with only 1 month of data:** The chart should still render with a single bar (not crash or look broken). The X-axis should show that single month label.
+1. **Double-submit prevention:** Trainee completes a workout offline, the app saves it locally, then connectivity returns before the trainee navigates away. The sync queue picks it up and syncs. But what if the workout screen's `_submitPostWorkoutSurvey` also fires when connectivity flickers? The sync queue must use idempotency: each pending item gets a UUID `client_id`. Before adding to the queue, check if an item with the same `client_id` already exists. The backend should also be tolerant of duplicate `DailyLog` session entries (the existing `get_or_create` + `sessions` append pattern handles this, but duplicate session names + timestamps should be detected and deduplicated).
 
-2. **Monthly chart with months having $0 earnings:** Months with no commissions should not appear as bars (they are excluded from the API response). The chart should only show months that have data. If all 6 months are $0 (empty array), show the empty state.
+2. **App killed while workout in progress offline:** If the user force-kills the app mid-workout (before hitting "Finish"), the in-progress exercise data is lost (same as online behavior -- we do not auto-save mid-workout in this phase). The readiness survey, if already submitted, is queued. This is acceptable; mid-workout auto-save is a future enhancement.
 
-3. **Share sheet not available on emulator/simulator:** `share_plus` can throw a `PlatformException` on some emulators. Wrap the share call in a try-catch and fall back to clipboard copy with a snackbar if sharing fails.
+3. **Trainee opens app after 3 days offline:** The cached program may be stale. When connectivity returns, the sync queue processes old items, then the app fetches fresh programs. If a program was changed by the trainer during the offline period, the trainee sees the new program after sync. Old workouts logged against the previous program schedule are still valid (they reference exercise IDs and names, not the schedule structure).
 
-4. **Bulk approve with mixed statuses:** If the admin sends `commission_ids` that include both PENDING and non-PENDING commissions, the backend should only approve the PENDING ones and return a result indicating how many were approved vs. skipped.
+4. **Multiple workouts logged offline for the same day:** The backend's `_save_workout_to_daily_log` already handles multiple sessions per day via the `sessions` list append pattern. The sync queue processes them in order, so each session is appended correctly. The `client_id` UUID prevents duplicates.
 
-5. **Concurrent commission approval:** Two admins approve the same commission simultaneously. The backend uses `select_for_update()` to prevent double-processing. The second request should return 400 ("Commission is already APPROVED").
+5. **Nutrition logged offline then the same meal logged online (duplicate):** Each nutrition confirm-and-save is an independent operation on the backend (it creates or appends to the day's `nutrition_data`). The sync queue sends the offline entry, which appends to whatever is already on the server. This may result in apparent duplicates if the user logged the same food twice. This is acceptable -- the user can delete duplicates via the existing edit/delete food entry UI.
 
-6. **Custom code conflicts with auto-generated codes:** An ambassador sets custom code "ABC12345" and later a new ambassador's auto-generated code tries to use the same 8-char substring. Since auto-generated codes are exactly 8 characters from the same alphabet, ensure the uniqueness constraint covers both custom and auto-generated codes in the same `referral_code` column (already the case).
+6. **Connectivity flapping (rapid on/off/on):** The `ConnectivityService` should debounce connectivity changes with a 2-second delay before triggering sync. This prevents the sync queue from starting and immediately failing when connectivity is unstable.
 
-7. **Custom code with leading/trailing whitespace or lowercase:** The backend should strip whitespace and uppercase the input before validation and storage. "  john20  " becomes "JOHN20".
+7. **Sync queue has 50+ items after extended offline period:** The queue processes items sequentially with no artificial limit. Each item takes roughly 1-3 seconds to sync. A 50-item queue takes 1-2 minutes. The sync banner shows progress ("Syncing 5 of 50..."). The user can continue using the app normally during sync.
 
-8. **Custom code that is profane or reserved:** While we do not implement a profanity filter in this phase, the code must be at least 4 characters (preventing trivially short codes like "A") and alphanumeric only (preventing special characters). Reserved words like "ADMIN" or "TEST" are not blocked in this phase.
+8. **User logs out while items are pending sync:** On logout, warn the user: "You have X unsaved changes that haven't synced yet. Logging out will lose this data. Continue?" If they confirm, clear the local database for that user. If they cancel, stay logged in.
 
-9. **Password reset email for non-existent ambassador email:** Djoser's default behavior returns 204 regardless of whether the email exists (to prevent email enumeration). Verify this behavior is preserved for ambassadors.
+9. **Different user logs in on same device:** The Drift database tables include a `user_id` column. When a new user logs in, they only see their own pending items. Old user's synced items are cleaned up, but pending items for other users are preserved (they'll sync when that user logs back in). Actually, for simplicity in V1: on logout, warn about pending items and delete all local data for that user if they confirm.
 
-10. **Ambassador sets custom code, then admin creates a new ambassador whose auto-generated code collides:** The `AmbassadorProfile.save()` retry logic (3 retries on IntegrityError) already handles this. The new ambassador gets a different auto-generated code.
+10. **Server returns 401 during sync (token expired):** The existing Dio interceptor handles token refresh. If refresh also fails (e.g., refresh token expired), the sync queue pauses and the app redirects to login. Pending items remain in the database and will resume syncing after the user logs back in.
 
-11. **Commission approval when ambassador is deactivated:** Approving a commission for a deactivated ambassador should still work (the commission was earned when they were active). The `is_active` flag only prevents new commission creation.
+11. **Device storage full (SQLite write fails):** Drift operations that throw `SqliteException` with "database or disk is full" should be caught. Show a snackbar: "Device storage is full. Free up space to save workout data." The workout data is lost in this case (same as if the API call failed with no fallback).
 
-12. **Empty commission_ids array in bulk endpoints:** Return 400 with `{"commission_ids": ["This field is required and must contain at least one ID."]}`.
+12. **Timezone edge case:** A workout started at 11:55 PM and finished at 12:05 AM (date boundary). The `created_at` uses the timestamp when the workout was completed (12:05 AM), so it goes to the next day's DailyLog. This matches the existing online behavior since `timezone.now().date()` is evaluated at save time on the backend. The local save should use the same date the backend would use -- the date at the time of completion.
 
 ---
 
@@ -102,175 +106,164 @@ As an ambassador, I want to choose a custom, memorable referral code (e.g., "JOH
 
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Chart data fails to load (API error) | Dashboard shows error state with retry button (existing behavior). Chart section is simply absent. | Error caught in provider, stored in state.error |
-| Share sheet throws PlatformException | "Share message copied to clipboard!" snackbar (fallback) | Catch PlatformException, copy to clipboard, show snackbar |
-| Approve commission fails (network error) | "Failed to approve commission. Please try again." error snackbar | Revert optimistic UI update, show error |
-| Approve commission fails (already approved) | "Commission is already approved." warning snackbar | 400 response parsed, specific message shown |
-| Pay commission fails (not yet approved) | "Commission must be approved before it can be marked as paid." warning snackbar | 400 response parsed, specific message shown |
-| Bulk approve with 0 qualifying commissions | "No pending commissions to approve." info snackbar | 200 response with `approved_count: 0` |
-| Custom code fails uniqueness check | Dialog shows inline error: "This referral code is already in use." | 400 response, field-level error parsed and shown under text field |
-| Custom code fails format validation (client) | Dialog shows inline error: "Code must be 4-20 alphanumeric characters." | Validation runs before API call |
-| Password reset email not received | Success screen shows "Check your spam folder" hint and "Didn't receive it? Try again" link | Existing forgot_password_screen.dart behavior (already implemented) |
-| Password reset for deactivated ambassador | Djoser sends reset email regardless of is_active on User model (Django is_active controls login, not email). If User.is_active=False, they cannot log in even after reset. | Djoser default behavior |
+| Workout complete while offline | Success screen + amber banner "Workout saved locally. It will sync when you're back online." | Save to `pending_workout_logs` + add to `sync_queue` |
+| Nutrition confirm while offline | Green snackbar "Food entry saved locally. It will sync when you're back online." | Save to `pending_nutrition_logs` + add to `sync_queue` |
+| Weight check-in while offline | Green snackbar "Weight saved locally. It will sync when you're back online." | Save to `pending_weight_checkins` + add to `sync_queue` |
+| Programs API fails (no network) | Program screen loads from cache + subtle banner "Showing cached program. Some data may be outdated." | Read from `cached_programs` Drift table |
+| Programs API fails (no cache) | Empty state: "No program data available. Connect to the internet to load your program." with retry button | Show error state, no fallback |
+| Sync fails after 3 retries | Persistent banner on home: "1 item failed to sync. Tap to retry." | Set sync_queue status to `failed`, stop retrying |
+| Sync fails with 409 conflict | Failed item banner with message: "Program was updated by your trainer. Please review." | Set to `failed`, do not auto-retry |
+| Device storage full on save | Snackbar: "Device storage is full. Free up space to save your data." | Catch SqliteException, do not save |
+| User logs out with pending items | Dialog: "You have X unsaved changes. Logging out will lose this data." with Cancel/Continue buttons | If continue: clear user's local data. If cancel: stay logged in |
+| Sync in progress when app backgrounded | Sync continues if within ~30 seconds (iOS) | Platform-dependent background execution limits apply |
 
 ---
 
 ## UX Requirements
 
-### Monthly Earnings Chart
-- **Loading state:** Chart area shows a shimmer/skeleton placeholder (same height as the rendered chart, ~180px) while dashboard data loads.
-- **Empty state:** Centered muted bar chart icon (Icons.bar_chart) with "No earnings data yet" text in bodySmall style. Same height as chart would be (~180px).
-- **Populated state:** Vertical bar chart with rounded-top bars. X-axis = month abbreviation (e.g., "Sep"). Y-axis = dollar amounts with "$" prefix. Touch a bar to see tooltip with exact amount. Bars use `theme.colorScheme.primary` with 0.8 opacity. Grid lines are subtle (dividerColor).
-- **Chart height:** Fixed 180px. No horizontal scroll needed (max 6 bars always fit).
-- **Section header:** "Monthly Earnings" with bodyLarge style, placed between the referral code card and the stats row.
-- **Accessibility:** Semantics label on the chart container: "Monthly earnings chart showing earnings for the last 6 months". Each bar should have a semantics label like "September: $150.00".
+### Offline Banner
+- **Position:** Fixed at top of Scaffold body, below AppBar, above all other content.
+- **Offline state:** Amber/orange background (#F59E0B at 15% opacity), cloud_off icon (amber), "You are offline" text in bodySmall, 28px height.
+- **Syncing state:** Blue background (#3B82F6 at 15% opacity), cloud_upload icon (blue), "Syncing..." text + 2px LinearProgressIndicator, 28px height.
+- **Synced state:** Green background (#22C55E at 15% opacity), cloud_done icon (green), "All changes synced" text, auto-dismiss after 3 seconds with fade animation.
+- **Animation:** SlideTransition from top (200ms) on appear, FadeTransition (300ms) on dismiss.
+- **Accessibility:** Semantics liveRegion so screen readers announce state changes.
 
-### Native Share Sheet
-- **Trigger:** The existing "Share Referral Code" ElevatedButton on the dashboard.
-- **Behavior:** Opens native share sheet. No loading indicator needed (OS handles it).
-- **Fallback:** If share fails, copy to clipboard and show green snackbar "Share message copied to clipboard!".
-- **Copy button:** Remains unchanged (copies just the code, not the full message).
+### Sync Status Badges
+- **Badge position:** Bottom-right corner of the card/tile, 4px offset inward.
+- **Badge size:** 16x16px container with 12px icon.
+- **Pending (not yet synced):** `Icons.cloud_off`, amber (#F59E0B).
+- **Syncing:** `Icons.cloud_upload`, blue (#3B82F6), rotating animation (1s loop).
+- **Failed:** `Icons.error_outline`, red (#EF4444).
+- **Synced:** No badge (the item is now server-authoritative).
 
-### Commission Approval/Payment Workflow
-- **Action buttons:** Small outlined buttons inside each commission tile. "Approve" in blue for PENDING, "Mark Paid" in green for APPROVED. PAID commissions show no button (status badge only).
-- **Button loading state:** While the API call is in flight, the button shows a 16px CircularProgressIndicator and is disabled.
-- **Bulk button:** Appears as a TextButton with icon (Icons.check_circle_outline) in the commission section header row, right-aligned. Label: "Approve All Pending" in primary color. Shows loading spinner while in flight.
-- **Confirmation dialog:** Both individual and bulk actions show a confirmation dialog. Individual: "Approve $X.XX commission for trainer@email.com?". Bulk: "Approve X pending commissions totaling $Y.YY?".
-- **Success feedback:** Green snackbar: "Commission approved" / "Commission marked as paid" / "X commissions approved".
-- **Refresh:** After any commission action, refresh the full ambassador detail to get updated stats.
+### Failed Sync Bottom Sheet
+- **Trigger:** Tapping the persistent "X items failed to sync" banner.
+- **Content:** DraggableScrollableSheet with list of failed items. Each item shows: icon for type (fitness_center for workouts, restaurant for nutrition, monitor_weight for weight), description ("Push Day workout from Feb 15"), error message in bodySmall red text, "Retry" outlined button (blue), "Delete" text button (red).
+- **Empty state:** If all items are retried/deleted, sheet auto-closes.
+- **Retry behavior:** Individual retry immediately attempts sync. If successful, item disappears from list with slide animation.
 
-### Ambassador Password Reset
-- **No new UI needed.** The existing login screen already has "Forgot your password?" which navigates to ForgotPasswordScreen. This works for all roles since Djoser's reset_password endpoint is role-agnostic. Verify and document that it works for ambassadors.
+### Logout Warning
+- **Trigger:** User taps logout while `sync_queue` has items with status `pending` or `failed`.
+- **Dialog:** AlertDialog, title "Unsaved Changes", body "You have X workout(s) and Y nutrition entry/entries that haven't synced to the server yet. Logging out will permanently delete this data.", actions: "Cancel" (TextButton), "Logout Anyway" (TextButton, red text).
+- **No pending items:** Normal logout flow (no dialog).
 
-### Custom Referral Codes
-- **Settings screen:** Below the "Referral Code" row in the Ambassador Details card, show the current code with an IconButton (Icons.edit, size 18) to the right of the code value.
-- **Edit dialog:** AlertDialog with title "Change Referral Code", a TextFormField pre-filled with the current code (all caps, max 20 chars), helper text "4-20 alphanumeric characters", inline validation error below the field, "Cancel" and "Save" buttons.
-- **Input formatting:** Auto-uppercase as the user types (TextInputFormatter). Strip non-alphanumeric characters.
-- **Loading state:** Save button shows CircularProgressIndicator while API call is in flight. Cancel button is disabled during save.
-- **Success:** Dialog closes, snackbar "Referral code updated to {CODE}", dashboard refreshes to show new code.
-- **Error:** Dialog stays open, inline error shown below the text field.
+### Active Workout Screen (Offline)
+- **No behavioral change.** The workout screen works identically offline (all state is local during the workout). The only difference is at submission: the data goes to Drift instead of the API.
+- **Post-workout survey screen:** After survey submit, if offline, show the offline success banner before popping back.
+
+### Home Screen
+- **Recent Workouts:** Merge server workouts + local pending workouts. Local pending workouts appear at the top (most recent). Each local workout card has the cloud-off badge.
+- **Nutrition section:** Macro circle values include locally-saved nutrition entries (optimistic addition to consumed values).
+
+### Loading State
+- **Drift DB init:** Happens during app startup (splash screen). No additional loading indicator needed (Drift opens fast, <100ms).
+- **Sync processing:** Only the sync banner indicates activity. No blocking modal or full-screen loader.
+
+### Empty State
+- **No cached program + offline:** Card with cloud_off icon, "No program data available. Connect to the internet to load your program." + "Retry" button (which re-checks connectivity and attempts fetch).
+
+### Success State
+- **Workout saved offline:** Full-screen success with checkmark animation (same as online), plus the amber offline banner text.
+- **Nutrition saved offline:** Snackbar with cloud_off icon prefix.
+- **Weight saved offline:** Snackbar with cloud_off icon prefix.
+- **Sync complete:** Green banner "All changes synced" for 3 seconds.
+
+### Mobile/Responsive Behavior
+- **Offline banner** is full-width, respects safe area insets.
+- **Sync badges** scale with card size (stay proportional).
+- **Failed sync bottom sheet** is 50% initial height, 90% max, handles keyboard if any input were added.
 
 ---
 
 ## Technical Approach
 
-### 1. Monthly Earnings Chart
+### New Files to Create
 
-**Package addition:**
-- File: `mobile/pubspec.yaml` — Add `fl_chart: ~0.68.0` to dependencies.
+#### Core Database Layer
+1. **`mobile/lib/core/database/app_database.dart`** -- Drift database class with all table definitions. Tables: `PendingWorkoutLogs`, `PendingNutritionLogs`, `PendingWeightCheckins`, `CachedPrograms`, `SyncQueueItems`. Uses `@DriftDatabase(tables: [...])` annotation. Includes typed DAOs for each table.
+2. **`mobile/lib/core/database/tables.dart`** -- Drift table definitions as separate classes. Each table has proper column types, defaults, and constraints.
+3. **`mobile/lib/core/database/daos/sync_queue_dao.dart`** -- DAO for sync queue operations: `insertItem()`, `getNextPending()`, `markSyncing()`, `markSynced()`, `markFailed()`, `getPendingCount()`, `getFailedItems()`, `deleteOldSynced()`, `retryFailed()`, `deleteItem()`.
+4. **`mobile/lib/core/database/daos/workout_cache_dao.dart`** -- DAO for workout cache and pending workout operations.
+5. **`mobile/lib/core/database/daos/nutrition_cache_dao.dart`** -- DAO for pending nutrition operations.
+6. **`mobile/lib/core/database/daos/program_cache_dao.dart`** -- DAO for cached program operations.
 
-**New widget file:**
-- File: `mobile/lib/features/ambassador/presentation/widgets/monthly_earnings_chart.dart` — New file. Stateless widget `MonthlyEarningsChart` that takes `List<MonthlyEarnings>` and renders a `BarChart` from `fl_chart`. Handles empty list with empty state widget. Fixed 180px height. Theme-aware colors. Tooltip on bar touch. Semantics labels.
+#### Connectivity Service
+7. **`mobile/lib/core/services/connectivity_service.dart`** -- `ConnectivityService` class that wraps `connectivity_plus`. Exposes a `Stream<ConnectivityStatus>` (enum: `online`, `offline`). Debounces transitions by 2 seconds to handle flapping. Provides a synchronous `isOnline` getter for point-in-time checks.
 
-**Modified files:**
-- File: `mobile/lib/features/ambassador/presentation/screens/ambassador_dashboard_screen.dart` — In `_buildContent()`, insert the chart widget between `_buildReferralCodeCard` and `_buildStatsRow`. Import the new widget.
+#### Sync Engine
+8. **`mobile/lib/core/services/sync_service.dart`** -- `SyncService` that orchestrates the queue. Listens to connectivity changes. When online: pulls next pending item from `SyncQueueDao`, sets to `syncing`, dispatches to the correct API endpoint based on `operation_type`, handles success/failure. Implements exponential backoff for retries (5s, 15s, 45s). Exposes a `syncStatusStream` for the UI banner.
+9. **`mobile/lib/core/services/sync_status.dart`** -- Data classes: `SyncStatus` enum (`idle`, `syncing`, `allSynced`, `hasFailed`), `SyncProgress` (current item, total items), `FailedSyncItem` model.
 
-### 2. Native Share Sheet
+#### Offline-Aware Repositories
+10. **`mobile/lib/core/database/offline_workout_repository.dart`** -- Wraps `WorkoutRepository` with offline fallback. `submitPostWorkoutSurvey()`: tries API first; on network error, saves to Drift + sync queue. `submitReadinessSurvey()`: same pattern. `getPrograms()`: tries API first; on success, caches in Drift; on failure, reads from Drift cache.
+11. **`mobile/lib/core/database/offline_nutrition_repository.dart`** -- Wraps nutrition operations with offline fallback. `confirmAndSave()`: tries API first; on network error, saves to Drift + sync queue.
+12. **`mobile/lib/core/database/offline_weight_repository.dart`** -- Wraps weight check-in with offline fallback.
 
-**Package addition:**
-- File: `mobile/pubspec.yaml` — Add `share_plus: ~9.0.0` to dependencies.
+#### UI Components
+13. **`mobile/lib/shared/widgets/offline_banner.dart`** -- `OfflineBanner` widget. Consumes `connectivityProvider` and `syncStatusProvider`. Renders the appropriate banner state (offline, syncing, synced, hidden). Uses `AnimatedSwitcher` for transitions.
+14. **`mobile/lib/shared/widgets/sync_status_badge.dart`** -- `SyncStatusBadge` widget. Takes a `SyncItemStatus` enum and renders the appropriate icon badge at the designated position.
+15. **`mobile/lib/shared/widgets/failed_sync_sheet.dart`** -- `FailedSyncSheet` bottom sheet widget. Lists failed items from `SyncQueueDao`, provides retry/delete per item.
 
-**Modified files:**
-- File: `mobile/lib/features/ambassador/presentation/screens/ambassador_dashboard_screen.dart` — In `_shareCode()`, replace `Clipboard.setData` with `Share.share(message)` from `share_plus`. Wrap in try-catch, fall back to clipboard on `PlatformException`.
+#### Providers
+16. **`mobile/lib/core/providers/database_provider.dart`** -- Riverpod provider for the Drift database singleton.
+17. **`mobile/lib/core/providers/connectivity_provider.dart`** -- Riverpod `StreamProvider<ConnectivityStatus>` wrapping `ConnectivityService`.
+18. **`mobile/lib/core/providers/sync_provider.dart`** -- Riverpod providers for `SyncService`, `syncStatusProvider` (stream of SyncStatus), `pendingSyncCountProvider`, `failedSyncItemsProvider`.
 
-### 3. Commission Approval/Payment Workflow
+### Existing Files to Modify
 
-**Backend — New service file:**
-- File: `backend/ambassador/services/commission_service.py` — New file. `CommissionService` class with:
-  - `approve_commission(commission_id: int, ambassador_profile_id: int) -> CommissionActionResult` — Uses `select_for_update()` to lock the commission row. Validates the commission belongs to the ambassador. Validates status is PENDING. Transitions to APPROVED. Calls `profile.refresh_cached_stats()`.
-  - `pay_commission(commission_id: int, ambassador_profile_id: int) -> CommissionActionResult` — Same lock pattern. Validates status is APPROVED. Transitions to PAID. Calls `profile.refresh_cached_stats()`.
-  - `bulk_approve(commission_ids: list[int], ambassador_profile_id: int) -> BulkActionResult` — Locks all matching PENDING commissions. Bulk updates to APPROVED. Returns approved_count and skipped_count.
-  - `bulk_pay(commission_ids: list[int], ambassador_profile_id: int) -> BulkActionResult` — Locks all matching APPROVED commissions. Bulk updates to PAID. Returns paid_count and skipped_count.
-  - Result dataclasses: `CommissionActionResult(success: bool, message: str)` and `BulkActionResult(success: bool, processed_count: int, skipped_count: int, message: str)`.
+#### pubspec.yaml
+19. **`mobile/pubspec.yaml`** -- Add `connectivity_plus: ~6.0.0` to dependencies. `drift`, `sqlite3_flutter_libs`, `path_provider`, and `path` are already listed. Add `uuid: ~4.0.0` for client-side idempotency keys.
 
-**Backend — New views:**
-- File: `backend/ambassador/views.py` — Add 4 new view classes:
-  - `AdminCommissionApproveView(APIView)` — POST handler calling `CommissionService.approve_commission()`.
-  - `AdminCommissionPayView(APIView)` — POST handler calling `CommissionService.pay_commission()`.
-  - `AdminBulkApproveCommissionsView(APIView)` — POST handler with `BulkCommissionActionSerializer` validation.
-  - `AdminBulkPayCommissionsView(APIView)` — POST handler with `BulkCommissionActionSerializer` validation.
-  All views have `[IsAuthenticated, IsAdmin]` permissions.
+#### Repositories (Wrap with Offline Layer)
+20. **`mobile/lib/features/workout_log/data/repositories/workout_repository.dart`** -- No changes to this file. The offline layer wraps it externally.
+21. **`mobile/lib/features/workout_log/presentation/providers/workout_provider.dart`** -- Change `workoutRepositoryProvider` to use `OfflineWorkoutRepository` instead of `WorkoutRepository`. Add `programsProvider` that uses the offline-aware programs fetcher.
+22. **`mobile/lib/features/nutrition/data/repositories/nutrition_repository.dart`** -- No changes to this file. The offline layer wraps it externally.
+23. **`mobile/lib/features/nutrition/presentation/providers/nutrition_provider.dart`** -- Change to use `OfflineNutritionRepository`.
 
-**Backend — New serializer:**
-- File: `backend/ambassador/serializers.py` — Add `BulkCommissionActionSerializer` with `commission_ids = serializers.ListField(child=serializers.IntegerField(), min_length=1)`.
+#### Screens (Add Offline Banner + Badges)
+24. **`mobile/lib/features/home/presentation/screens/home_screen.dart`** -- Add `OfflineBanner` widget at top of body. Modify `_buildRecentWorkoutsSection` to merge local pending workouts with server data. Add sync badge to local workout cards. Add failed-sync banner if any items have `failed` status.
+25. **`mobile/lib/features/workout_log/presentation/screens/active_workout_screen.dart`** -- Modify `_submitPostWorkoutSurvey()` to use `OfflineWorkoutRepository`. On offline save, show success with offline banner text. Modify `_submitReadinessSurvey()` similarly.
+26. **`mobile/lib/features/workout_log/presentation/screens/post_workout_survey_screen.dart`** -- Add offline success messaging after survey submission.
+27. **`mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart`** -- Add `OfflineBanner` widget. Show sync badges on locally-saved entries. Merge local pending nutrition data into macro totals.
+28. **`mobile/lib/features/nutrition/presentation/screens/weight_checkin_screen.dart`** -- Use `OfflineWeightRepository` for submissions.
+29. **`mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart`** -- Merge local pending weight check-ins into the trend chart.
+30. **`mobile/lib/features/logging/presentation/screens/ai_command_center_screen.dart`** -- Note: AI parsing requires network by design (it calls OpenAI). The confirm-and-save step uses `OfflineNutritionRepository`. If AI parsing fails due to no network, show: "AI food parsing requires an internet connection. Connect to parse your input."
+31. **`mobile/lib/features/workout_log/presentation/screens/workout_log_screen.dart`** -- Add `OfflineBanner` to the workout log screen. Show cached program data when offline.
 
-**Backend — URL additions:**
-- File: `backend/ambassador/urls.py` — Add to `admin_urlpatterns`:
-  - `path('<int:ambassador_id>/commissions/<int:commission_id>/approve/', ...)`
-  - `path('<int:ambassador_id>/commissions/<int:commission_id>/pay/', ...)`
-  - `path('<int:ambassador_id>/commissions/bulk-approve/', ...)`
-  - `path('<int:ambassador_id>/commissions/bulk-pay/', ...)`
+#### App Initialization
+32. **`mobile/lib/main.dart`** (or equivalent app entry point) -- Initialize `AppDatabase`, `ConnectivityService`, and `SyncService` during app startup. Register providers. Run cleanup (delete old synced items, delete stale caches).
 
-**Mobile — Repository additions:**
-- File: `mobile/lib/features/ambassador/data/repositories/ambassador_repository.dart` — Add 4 new methods:
-  - `Future<void> approveCommission(int ambassadorId, int commissionId)`
-  - `Future<void> payCommission(int ambassadorId, int commissionId)`
-  - `Future<Map<String, dynamic>> bulkApproveCommissions(int ambassadorId, List<int> commissionIds)`
-  - `Future<Map<String, dynamic>> bulkPayCommissions(int ambassadorId, List<int> commissionIds)`
+#### Auth (Logout Warning)
+33. **`mobile/lib/features/auth/presentation/providers/auth_provider.dart`** -- Modify logout to check pending sync count first. If > 0, show warning dialog. On confirmed logout, call `AppDatabase.clearUserData(userId)`.
 
-**Mobile — API constants:**
-- File: `mobile/lib/core/constants/api_constants.dart` — Add 4 new endpoint getters:
-  - `static String adminAmbassadorCommissionApprove(int ambassadorId, int commissionId) => '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/$commissionId/approve/';`
-  - `static String adminAmbassadorCommissionPay(int ambassadorId, int commissionId) => '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/$commissionId/pay/';`
-  - `static String adminAmbassadorBulkApprove(int ambassadorId) => '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/bulk-approve/';`
-  - `static String adminAmbassadorBulkPay(int ambassadorId) => '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/bulk-pay/';`
+### Code Generation
+After creating Drift tables and DAOs, run:
+```bash
+cd mobile && dart run build_runner build --delete-conflicting-outputs
+```
 
-**Mobile — Admin detail screen changes:**
-- File: `mobile/lib/features/admin/presentation/screens/admin_ambassador_detail_screen.dart` — Modify `_buildCommissionTile()` to add:
-  - "Approve" OutlinedButton (blue) when `commission.status == 'PENDING'`.
-  - "Mark Paid" OutlinedButton (green) when `commission.status == 'APPROVED'`.
-  - Loading state per-commission (track in a `Set<int> _processingCommissionIds`).
-  - Confirmation dialogs before each action.
-  - `_buildCommissionsList()` header gets a "Approve All Pending" TextButton (visible when any PENDING commissions exist).
-  - After any action: call `_loadDetail()` to refresh.
-
-### 4. Ambassador Password Reset
-
-**Backend verification (test only, no code changes):**
-- File: `backend/ambassador/tests/test_password_reset.py` — New test file. Test that `POST /api/auth/users/reset_password/` with an ambassador's email returns 204. Test that a non-existent email also returns 204 (Djoser's anti-enumeration behavior). This confirms the existing flow works for ambassadors.
-
-**No mobile changes needed.** The existing login screen's "Forgot your password?" link, ForgotPasswordScreen, and ResetPasswordScreen all work for any role. The router already redirects ambassadors to `/ambassador` after login (line ~708 of app_router.dart).
-
-### 5. Custom Referral Codes
-
-**Backend — Model migration:**
-- File: `backend/ambassador/models.py` — Change `AmbassadorProfile.referral_code` field:
-  - `max_length=8` -> `max_length=20`
-  - Update `help_text` to: "Unique 4-20 char alphanumeric referral code (auto-generated or custom)"
-- Run `python manage.py makemigrations ambassador` to generate migration.
-
-**Backend — Serializer:**
-- File: `backend/ambassador/serializers.py` — Add `CustomReferralCodeSerializer`:
-  - `referral_code = serializers.RegexField(regex=r'^[A-Z0-9]{4,20}$', error_messages={'invalid': 'Code must be 4-20 alphanumeric characters (A-Z, 0-9).'})`
-  - `validate_referral_code(self, value)` — strip, uppercase, check uniqueness excluding current user's profile.
-
-**Backend — View update:**
-- File: `backend/ambassador/views.py` — Update `AmbassadorReferralCodeView` to handle PUT:
-  - Validate with `CustomReferralCodeSerializer`.
-  - Update `profile.referral_code`.
-  - Return updated code and share message.
-
-**Mobile — Repository:**
-- File: `mobile/lib/features/ambassador/data/repositories/ambassador_repository.dart` — Add `Future<ReferralCodeData> updateReferralCode(String code)` method calling `PUT /api/ambassador/referral-code/`.
-
-**Mobile — Provider:**
-- File: `mobile/lib/features/ambassador/presentation/providers/ambassador_provider.dart` — Add `Future<bool> updateReferralCode(String code)` to `AmbassadorDashboardNotifier` that calls repository, reloads dashboard on success, returns success/failure.
-
-**Mobile — Settings screen:**
-- File: `mobile/lib/features/ambassador/presentation/screens/ambassador_settings_screen.dart` — Modify the "Referral Code" `_buildInfoRow` to add an edit icon button. Add `_showEditReferralCodeDialog()` method with:
-  - AlertDialog with TextFormField (pre-filled, `FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]'))`, `UpperCaseTextInputFormatter`, maxLength 20).
-  - Client-side validation (min 4 chars).
-  - Loading state on Save button.
-  - Inline error display from server response.
-  - On success: close dialog, show snackbar, refresh dashboard.
+### Dependencies Summary
+| Package | Version | Purpose | Status |
+|---------|---------|---------|--------|
+| `drift` | ~2.14.1 | SQLite ORM for local DB | Already in pubspec |
+| `sqlite3_flutter_libs` | ~0.5.18 | Native SQLite binaries | Already in pubspec |
+| `drift_dev` | ~2.14.1 | Code generation for Drift | Already in dev_dependencies |
+| `path_provider` | ~2.1.1 | App documents directory | Already in pubspec |
+| `path` | ~1.8.3 | Path joining | Already in pubspec |
+| `connectivity_plus` | ~6.0.0 | Network status monitoring | **New -- add to pubspec** |
+| `uuid` | ~4.0.0 | Idempotency keys for sync queue | **New -- add to pubspec** |
 
 ---
 
 ## Out of Scope
-- Stripe Connect payout to ambassadors (deferred to Phase 6 — requires Stripe dashboard configuration)
-- Push notifications for commission status changes
-- Ambassador earnings export (CSV/PDF)
-- Ambassador-to-ambassador referral chains (multi-level marketing)
-- Web dashboard ambassador views (admin can manage via mobile or Django admin)
-- Profanity filter for custom referral codes
-- Rate limiting on custom code change frequency (can be added later if abused)
+- Offline AI natural language parsing (requires OpenAI API -- network required by nature)
+- Offline support for trainer/admin features (trainer dashboard, admin dashboard)
+- Offline support for the web dashboard (Next.js)
+- Background sync when the app is fully closed (requires platform-specific background execution -- iOS BGTaskScheduler / Android WorkManager)
+- HealthKit / Health Connect integration (Phase 6 item but separate ticket)
+- App performance audit / RepaintBoundary optimization (Phase 6 item but separate ticket)
+- Full offline-first architecture for every feature (only workout, nutrition, and weight logging)
+- Mid-workout auto-save (saving exercise progress before hitting "Finish")
+- Offline exercise video/image caching
+- Conflict resolution UI for merging diverged data (V1 uses simple last-write-wins for most cases, with explicit failure for true conflicts)

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/offline_banner.dart';
 import '../providers/workout_provider.dart';
 
 class WorkoutLogScreen extends ConsumerStatefulWidget {
@@ -27,18 +28,47 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: state.isLoading && state.programWeeks.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: () =>
-                    ref.read(workoutStateProvider.notifier).loadInitialData(),
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    // Header
-                    SliverToBoxAdapter(
-                      child: _buildHeader(theme, state),
+        child: Column(
+          children: [
+            const OfflineBanner(),
+            if (state.programsFromCache)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: theme.textTheme.bodySmall?.color,
                     ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Showing cached program. Some data may be outdated.',
+                        style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: state.isLoading && state.programWeeks.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: () =>
+                          ref.read(workoutStateProvider.notifier).loadInitialData(),
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          // Header
+                          SliverToBoxAdapter(
+                            child: _buildHeader(theme, state),
+                          ),
 
                     // Week tabs
                     SliverToBoxAdapter(
@@ -58,6 +88,9 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
       ),
       bottomSheet: state.programWeeks.isNotEmpty
           ? _buildBottomActions(theme, state)

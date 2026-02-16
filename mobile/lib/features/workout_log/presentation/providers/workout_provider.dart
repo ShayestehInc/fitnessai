@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/database/offline_workout_repository.dart';
+import '../../../../core/providers/sync_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/repositories/workout_repository.dart';
 import '../../data/models/workout_models.dart';
@@ -12,7 +14,8 @@ final workoutRepositoryProvider = Provider<WorkoutRepository>((ref) {
 final workoutStateProvider =
     StateNotifierProvider<WorkoutNotifier, WorkoutState>((ref) {
   final repository = ref.watch(workoutRepositoryProvider);
-  return WorkoutNotifier(repository);
+  final offlineRepo = ref.watch(offlineWorkoutRepositoryProvider);
+  return WorkoutNotifier(repository, offlineRepo);
 });
 
 /// Represents a workout day in the program
@@ -98,6 +101,9 @@ class WorkoutState {
   final String? error;
   final Map<String, LastSetData> exerciseHistory;
 
+  /// Whether the program data was loaded from local cache (offline fallback).
+  final bool programsFromCache;
+
   WorkoutState({
     DateTime? selectedDate,
     this.dailySummary,
@@ -109,6 +115,7 @@ class WorkoutState {
     this.isLoading = false,
     this.error,
     this.exerciseHistory = const {},
+    this.programsFromCache = false,
   }) : selectedDate = selectedDate ?? DateTime.now();
 
   WorkoutState copyWith({
@@ -122,6 +129,7 @@ class WorkoutState {
     bool? isLoading,
     String? error,
     Map<String, LastSetData>? exerciseHistory,
+    bool? programsFromCache,
   }) {
     return WorkoutState(
       selectedDate: selectedDate ?? this.selectedDate,
@@ -134,6 +142,7 @@ class WorkoutState {
       isLoading: isLoading ?? this.isLoading,
       error: error,
       exerciseHistory: exerciseHistory ?? this.exerciseHistory,
+      programsFromCache: programsFromCache ?? this.programsFromCache,
     );
   }
 
@@ -192,16 +201,25 @@ class LastSetData {
 
 class WorkoutNotifier extends StateNotifier<WorkoutState> {
   final WorkoutRepository _repository;
+  final OfflineWorkoutRepository? _offlineRepo;
 
-  WorkoutNotifier(this._repository) : super(WorkoutState());
+  WorkoutNotifier(this._repository, this._offlineRepo) : super(WorkoutState());
 
   Future<void> loadInitialData() async {
     state = state.copyWith(isLoading: true, error: null);
 
+    // Use offline-aware repository for programs (cache fallback).
+    // Fall back to online-only repository if offline repo not available.
+    final offlineRepo = _offlineRepo;
+    final Future<Map<String, dynamic>> programsFuture =
+        offlineRepo != null
+            ? offlineRepo.getPrograms()
+            : _repository.getPrograms();
+
     // Load workout summary and programs in parallel
     final results = await Future.wait([
       _repository.getDailyWorkoutSummary(state.dateParam),
-      _repository.getPrograms(),
+      programsFuture,
     ]);
 
     final summaryResult = results[0];
@@ -210,6 +228,7 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
     ProgramModel? activeProgram;
     List<ProgramModel> programs = [];
     List<ProgramWeekData> programWeeks = [];
+    final fromCache = programsResult['fromCache'] == true;
 
     if (programsResult['success'] == true) {
       programs = programsResult['programs'] as List<ProgramModel>;
@@ -246,6 +265,7 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
       programWeeks: programWeeks,
       selectedWeekIndex: selectedWeekIndex,
       currentDayIndex: currentDayIndex,
+      programsFromCache: fromCache,
     );
   }
 

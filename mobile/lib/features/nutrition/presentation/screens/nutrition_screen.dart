@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/offline_banner.dart';
 import '../../data/models/nutrition_models.dart';
 import '../providers/nutrition_provider.dart';
 import '../widgets/edit_food_entry_sheet.dart';
@@ -31,47 +32,54 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: state.isLoading && state.dailySummary == null
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: () =>
-                    ref.read(nutritionStateProvider.notifier).loadInitialData(),
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Goal and Weight Header
-                        _buildGoalHeader(state, theme),
-                        const SizedBox(height: 16),
+        child: Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(
+              child: state.isLoading && state.dailySummary == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: () =>
+                          ref.read(nutritionStateProvider.notifier).loadInitialData(),
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Goal and Weight Header
+                              _buildGoalHeader(state, theme),
+                              const SizedBox(height: 16),
 
-                        // Check In button
-                        _buildCheckInButton(theme),
-                        const SizedBox(height: 24),
+                              // Check In button
+                              _buildCheckInButton(theme),
+                              const SizedBox(height: 24),
 
-                        // Date navigator
-                        _buildDateNavigator(state, theme),
-                        const SizedBox(height: 20),
+                              // Date navigator
+                              _buildDateNavigator(state, theme),
+                              const SizedBox(height: 20),
 
-                        // Macro presets (if trainer has set any)
-                        if (state.hasPresets) ...[
-                          _buildMacroPresetsSection(state, theme),
-                          const SizedBox(height: 16),
+                              // Macro presets (if trainer has set any)
+                              if (state.hasPresets) ...[
+                                _buildMacroPresetsSection(state, theme),
+                                const SizedBox(height: 16),
+                              ],
+
+                              // Macro cards
+                              _buildMacroCards(state, theme),
+                              const SizedBox(height: 24),
+
+                              // Meals section
+                              _buildMealsSection(state, theme),
                         ],
-
-                        // Macro cards
-                        _buildMacroCards(state, theme),
-                        const SizedBox(height: 24),
-
-                        // Meals section
-                        _buildMealsSection(state, theme),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
+            ),
+          ],
+        ),
       ),
     );
   }

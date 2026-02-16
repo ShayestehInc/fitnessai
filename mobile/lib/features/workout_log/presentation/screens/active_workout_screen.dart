@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
+import '../../../../core/providers/sync_provider.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/classic_workout_layout.dart';
 import '../widgets/minimal_workout_layout.dart';
@@ -404,16 +406,23 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     );
   }
 
+  /// Client ID generated once per workout submission for idempotency.
+  /// If the same submission is retried (e.g., connectivity flickers),
+  /// the same clientId is sent, and the duplicate is caught.
+  late final String _workoutClientId = const Uuid().v4();
+
   Future<void> _submitReadinessSurvey(ReadinessSurveyData data) async {
-    final repository = ref.read(workoutRepositoryProvider);
-    await repository.submitReadinessSurvey(
+    final offlineRepo = ref.read(offlineWorkoutRepositoryProvider);
+    if (offlineRepo == null) return;
+    await offlineRepo.submitReadinessSurvey(
       workoutName: widget.workout.name,
       surveyData: data.toJson(),
     );
   }
 
   Future<void> _submitPostWorkoutSurvey(PostWorkoutSurveyData data) async {
-    final repository = ref.read(workoutRepositoryProvider);
+    final offlineRepo = ref.read(offlineWorkoutRepositoryProvider);
+    if (offlineRepo == null) return;
 
     // Prepare workout summary
     final workoutSummary = {
@@ -430,11 +439,35 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       }).toList(),
     };
 
-    await repository.submitPostWorkoutSurvey(
+    final result = await offlineRepo.submitPostWorkoutSurvey(
+      clientId: _workoutClientId,
       workoutSummary: workoutSummary,
       surveyData: data.toJson(),
       readinessSurvey: _readinessSurveyData?.toJson(),
     );
+
+    // If saved offline, show a snackbar to inform the user
+    if (result.offline && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.cloud_off, color: Color(0xFFF59E0B), size: 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Workout saved locally. It will sync when you\'re back online.',
+                ),
+              ),
+            ],
+          ),
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+
+    // Trigger sync service to pick up new items if online
+    ref.read(syncServiceProvider)?.triggerSync();
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/providers/sync_provider.dart';
 import '../providers/nutrition_provider.dart';
 
 class WeightCheckInScreen extends ConsumerStatefulWidget {
@@ -16,6 +17,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
   final _weightController = TextEditingController();
   final _notesController = TextEditingController();
   bool _useMetric = true;
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -196,10 +198,10 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: state.isLoading || _weightController.text.isEmpty
+                onPressed: _isSaving || _weightController.text.isEmpty
                     ? null
                     : _saveCheckIn,
-                child: state.isLoading
+                child: _isSaving
                     ? const SizedBox(
                         height: 20,
                         width: 20,
@@ -227,18 +229,62 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
     final weight = double.tryParse(_weightController.text);
     if (weight == null) return;
 
+    setState(() => _isSaving = true);
+
     // Convert to kg if using lbs
     final weightKg = _useMetric ? weight : weight * 0.453592;
 
-    final success = await ref
-        .read(nutritionStateProvider.notifier)
-        .createWeightCheckIn(
-          weightKg: weightKg,
-          notes: _notesController.text,
+    final offlineWeightRepo = ref.read(offlineWeightRepositoryProvider);
+    if (offlineWeightRepo == null) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please log in to save weight data.')),
         );
+      }
+      return;
+    }
 
-    if (success && mounted) {
+    final dateParam = ref.read(nutritionStateProvider).dateParam;
+
+    final result = await offlineWeightRepo.createWeightCheckIn(
+      date: dateParam,
+      weightKg: weightKg,
+      notes: _notesController.text,
+    );
+
+    if (!mounted) return;
+
+    if (result.success) {
+      if (result.offline) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.cloud_off, color: Color(0xFFF59E0B), size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Weight saved locally. It will sync when you\'re back online.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Weight check-in saved successfully!')),
+        );
+      }
+      // Trigger sync if online
+      ref.read(syncServiceProvider)?.triggerSync();
       context.pop();
+    } else {
+      if (mounted) setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Failed to save')),
+      );
     }
   }
 }

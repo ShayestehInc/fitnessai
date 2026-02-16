@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/providers/database_provider.dart';
+import '../../../../core/providers/sync_provider.dart';
+import '../../../../shared/widgets/offline_banner.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../workout_log/data/models/workout_history_model.dart';
 import '../providers/home_provider.dart';
@@ -31,18 +34,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () =>
-              ref.read(homeStateProvider.notifier).loadDashboardData(),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  _buildHeader(user?.displayName ?? 'User'),
+        child: Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () =>
+                    ref.read(homeStateProvider.notifier).loadDashboardData(),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header
+                        _buildHeader(user?.displayName ?? 'User'),
                   const SizedBox(height: 24),
 
                   // Nutrition section
@@ -91,11 +98,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _buildLatestVideosSection(homeState),
                   ],
 
-                  const SizedBox(height: 80), // Space for FAB
-                ],
+                    const SizedBox(height: 80), // Space for FAB
+                  ],
+                ),
               ),
             ),
           ),
+        ),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -233,10 +243,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                   onTap: () async {
-                    await ref.read(authStateProvider.notifier).logout();
-                    if (mounted) {
-                      context.go('/login');
-                    }
+                    // Delay to allow popup menu to close first
+                    await Future.delayed(Duration.zero);
+                    if (!mounted) return;
+                    await _handleLogout();
                   },
                 ),
               ],
@@ -245,6 +255,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _handleLogout() async {
+    final unsyncedCount = await ref.read(unsyncedCountProvider.future);
+
+    if (!mounted) return;
+
+    if (unsyncedCount > 0) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Unsynced Data'),
+          content: Text(
+            'You have $unsyncedCount unsynced item${unsyncedCount == 1 ? '' : 's'} '
+            'that will be lost if you log out. '
+            'Are you sure you want to continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(ctx).colorScheme.error,
+              ),
+              child: const Text('Logout Anyway'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true || !mounted) return;
+
+      // Clear local database for this user before logging out
+      final db = ref.read(databaseProvider);
+      final userId = ref.read(authStateProvider).user?.id;
+      if (userId != null) {
+        await db.clearUserData(userId);
+      }
+    }
+
+    await ref.read(authStateProvider.notifier).logout();
+    if (mounted) {
+      context.go('/login');
+    }
   }
 
   Widget _buildSectionHeader(
