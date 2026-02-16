@@ -1,160 +1,239 @@
-# Ship Decision: Pipeline 10 — Web Dashboard Phase 2 (Settings, Progress Charts, Notifications, Invitations)
+# Ship Decision: Web Dashboard Phase 3 -- Trainer Analytics Page
 
 ## Verdict: SHIP
 ## Confidence: HIGH
-## Quality Score: 8/10
-## Summary: All four Phase 2 features (Settings Page, Progress Charts, Notification Click-Through, Invitation Row Actions) are fully implemented, production-ready, and well-tested across all 28 acceptance criteria. Build and lint pass clean, all critical and major review issues resolved, zero security blockers.
-## Remaining Concerns: 5 minor code review items remain unfixed (non-blocking polish); AC-21 partially verified (backend `trainee_id` in notification data confirmed for 2 of 5 notification types — remaining 3 types have no backend creation code yet, not a regression); no automated test runner configured for the web project.
-## What Was Built: Settings page with profile editing (name, business name, profile image upload/remove), appearance theme toggle (Light/Dark/System), and password change with Djoser integration. Trainee progress charts (weight trend line chart, workout volume bar chart, adherence stacked bar chart) with recharts. Notification click-through navigation to trainee detail pages from both popover and full page. Invitation row actions (Copy Code, Resend, Cancel) with confirmation dialog and status-aware visibility.
+## Quality Score: 9/10
+
+## Summary
+
+The Trainer Analytics page is a well-architected, production-ready feature that delivers aggregate adherence and progress analytics for trainers. All 22 acceptance criteria pass. The implementation went through 2 rounds of code review (final APPROVE at 9/10), 1 round of QA (21/22 initially, all 22 after UX auditor fixed the empty state copy), and 4 audits (UX 9/10, Security 9/10 PASS, Architecture 9/10 APPROVE, Hacker 7/10). Build compiles with 0 errors, lint passes with 0 errors/warnings.
 
 ---
 
 ## Test Suite Results
-- **Web build:** `npm run build` — Compiled successfully with Next.js 16.1.6 (Turbopack). 10 routes generated including `/settings` and `/notifications`. Zero errors.
-- **Web lint:** `npm run lint` (ESLint) — Zero errors, zero warnings.
-- **Backend:** No backend changes made in this pipeline; backend tests not re-run (no venv available, and no source changes to validate).
+
+- **Web build:** `npx next build` -- Compiled successfully with Next.js 16.1.6 (Turbopack). 11 routes generated including `/analytics`. Zero TypeScript errors.
+- **Web lint:** `npm run lint` (ESLint) -- Zero errors, zero warnings.
+- **Backend:** No backend changes made in this pipeline; backend tests not re-run (no backend modifications to validate).
+
+---
 
 ## All Report Summaries
 
 | Report | Score | Verdict | Key Finding |
 |--------|-------|---------|------------|
-| Code Review (Round 1) | 6/10 | REQUEST CHANGES | 2 critical + 5 major issues |
-| Code Review (Round 2) | 8/10 | APPROVE | All 7 critical/major issues verified fixed. 2 new minor (pre-existing patterns, non-blocking) |
-| QA Report | HIGH confidence | 42/43 pass, 0 fail, 1 partial | AC-21 partial — pre-existing backend gap |
-| UX Audit | 9/10 | PASS | 10 usability + 6 accessibility issues — all 16 fixed |
-| Security Audit | 9/10 | PASS | 0 Critical, 0 High, 0 Medium, 4 Low/Informational (all acceptable) |
-| Architecture Review | 9/10 | APPROVE | Clean layering, 6 improvements applied (tooltip extraction, theme colors, isDirty trim, etc.) |
-| Hacker Report | 7/10 | — | 3 dead UI, 2 visual bugs, 3 logic bugs found — 6 items fixed, 8 improvement suggestions |
+| Code Review (Round 1) | -- | REQUEST CHANGES | 2 critical + 7 major issues |
+| Code Review (Round 2) | 9/10 | APPROVE | All 9 critical/major issues verified fixed. 5 minor remaining (non-blocking) |
+| QA Report | HIGH confidence | 21/22 pass, 1 fail | AC-11 empty state copy mismatch -- subsequently fixed by UX auditor |
+| UX Audit | 9/10 | PASS | 13 usability + 9 accessibility issues -- all 22 fixed |
+| Security Audit | 9/10 | PASS | 0 Critical, 0 High, 0 Medium, 3 Low/Informational (all acceptable) |
+| Architecture Review | 9/10 | APPROVE | Clean layering, 3 duplications eliminated, shared chart-utils created |
+| Hacker Report | 7/10 | -- | 2 dead UI, 4 visual bugs, 4 logic bugs -- 5 fixed, 8 improvement suggestions |
 
-## Acceptance Criteria Verification (28 total)
+---
 
-### Settings Page (AC-1 through AC-10): 10/10 PASS
+## Acceptance Criteria Verification (22 total)
 
-| AC | Status | Evidence |
-|----|--------|----------|
-| AC-1 | PASS | `settings/page.tsx:55-57` renders ProfileSection, AppearanceSection, SecuritySection |
-| AC-2 | PASS | `profile-section.tsx:42-53` — `updateProfile.mutate()` with trimmed values to `PATCH /api/users/me/`, success toast |
-| AC-3 | PASS | `profile-section.tsx:197-208` — Email field `disabled`, `bg-muted`, `aria-describedby="email-hint"` |
-| AC-4 | PASS | `profile-section.tsx:56-90` — File input validates 5MB size + MIME whitelist, `postFormData()` upload, `deleteImage.mutate()` remove, both call `refreshUser()` for header avatar update |
-| AC-5 | PASS | `appearance-section.tsx:25-99` — `useTheme()` from `next-themes`, 3-option radiogroup, `useSyncExternalStore` for hydration, Skeleton during SSR |
-| AC-6 | PASS | `security-section.tsx:48-93` — `POST /api/auth/users/set_password/`, success: toast + clear fields, error: inline Djoser field errors |
-| AC-7 | PASS | Names `maxLength={150}`, business `maxLength={200}`, password min 8, confirm match, password `maxLength={128}` |
-| AC-8 | PASS | `settings/page.tsx:11-37` — SettingsSkeleton renders 3 skeleton cards |
-| AC-9 | PASS | `settings/page.tsx:40-49` — ErrorState with `refreshUser()` retry |
-| AC-10 | PASS | `use-settings.ts:38,56,70` all call `refreshUser()`. `auth-provider.tsx:133` exposes `fetchUser`. `user-nav.tsx:36-38` renders AvatarImage + displayName from auth context |
-
-### Progress Charts (AC-11 through AC-17): 7/7 PASS
+### Navigation & Layout (AC-1 through AC-3): 3/3 PASS
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-11 | PASS | `trainee-progress-tab.tsx:27,44-46` — `useTraineeProgress(traineeId)` → 3 chart components |
-| AC-12 | PASS | `progress-charts.tsx:55-117` — LineChart, Y-axis weight_kg with " kg" unit, empty state with Scale icon |
-| AC-13 | PASS | `progress-charts.tsx:124-186` — BarChart, formatNumber tooltip, empty state with Dumbbell icon |
-| AC-14 | PASS | `progress-charts.tsx:193-275` — 3 Bars with `stackId="adherence"`, CHART_COLORS, Legend, YAxis [0,3] |
-| AC-15 | PASS | All charts use `<ResponsiveContainer width="100%" height="100%">` |
-| AC-16 | PASS | `trainee-progress-tab.tsx:12-24` — ProgressSkeleton with 3 chart card placeholders |
-| AC-17 | PASS | `trainee-progress-tab.tsx:33-39` — ErrorState with refetch retry |
+| AC-1 | PASS | `nav-links.tsx:21`: `{ label: "Analytics", href: "/analytics", icon: BarChart3 }` at index 3, between Invitations (index 2) and Notifications (index 4). `BarChart3` imported from lucide-react at line 5. |
+| AC-2 | PASS | `web/src/app/(dashboard)/analytics/page.tsx` inside `(dashboard)` route group. Exports default `AnalyticsPage` component. Build confirms route `/analytics` generated. |
+| AC-3 | PASS | `page.tsx:10-13`: `<PageHeader title="Analytics" description="Track trainee performance and adherence" />`. Text matches ticket exactly. |
 
-### Notification Click-Through (AC-18 through AC-21): 3 PASS, 1 PARTIAL
+### Adherence Section (AC-4 through AC-11): 8/8 PASS
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-18 | PASS | Both popover and page: `getNotificationTraineeId(n)` + `markAsRead.mutate(n.id)` + `router.push()` |
-| AC-19 | PASS | Both handlers: if `traineeId === null`, no navigation. Shows "Marked as read" toast for non-navigable |
-| AC-20 | PASS | Shared `getNotificationTraineeId` + `useRouter().push()` in both notification-popover.tsx and notifications/page.tsx |
-| AC-21 | PARTIAL | `trainee_readiness` and `workout_completed` confirmed in survey_views.py. `workout_missed`, `goal_hit`, `check_in` have no backend creation code — pre-existing gap |
+| AC-4 | PASS | `adherence-section.tsx:59`: `useState<AdherencePeriod>(30)` (default 30). `period-selector.tsx:6`: `PERIODS = [7, 14, 30]`. `use-analytics.ts:14`: `queryKey: ["analytics", "adherence", days]` triggers refetch on period change. Keyboard navigation with ArrowLeft/Right/Up/Down and roving tabindex. Disabled during initial load. |
+| AC-5 | PASS | `adherence-section.tsx:104-124`: Three `StatCard` components -- "Food Logged" (`food_logged_rate`), "Workouts Logged" (`workout_logged_rate`), "Protein Goal Hit" (`protein_goal_rate`). Icons: UtensilsCrossed, Dumbbell, Target. |
+| AC-6 | PASS | Values formatted with `.toFixed(1)%`. `getIndicatorColor()` returns green (>=80), amber (>=50), red (<50). Text descriptions ("Above target"/"Below target"/"Needs attention") provide non-color-dependent meaning. |
+| AC-7 | PASS | `adherence-chart.tsx:29`: sorted descending by `adherence_rate`. `layout="vertical"` makes bars horizontal. `YAxis dataKey="trainee_name"` on Y-axis. `XAxis domain={[0, 100]}` with `%` formatter on X-axis. Color-coded cells per bar. |
+| AC-8 | PASS | `adherence-chart.tsx:33-38`: `navigateToTrainee(index)` does `router.push(/trainees/${trainee.trainee_id})` with null guard. |
+| AC-9 | PASS | `AdherenceSkeleton` renders 3 skeleton cards in `sm:grid-cols-3` grid + skeleton chart Card. `role="status"` with `sr-only` loading text. |
+| AC-10 | PASS | `ErrorState message="Failed to load adherence data" onRetry={() => refetch()}`. Message matches ticket Error States table. |
+| AC-11 | PASS | After UX auditor fix: `EmptyState icon={BarChart3} title="No active trainees" description="Invite trainees to see their adherence analytics here."` with `<Button asChild><Link href="/invitations">Invite Trainee</Link></Button>` CTA. Matches ticket spec. |
 
-### Invitation Row Actions (AC-22 through AC-28): 7/7 PASS
+### Progress Section (AC-12 through AC-18): 7/7 PASS
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-22 | PASS | `invitation-columns.tsx:51-56` — Actions column. DropdownMenu with MoreHorizontal trigger |
-| AC-23 | PASS | PENDING: `canResend=true`, `canCancel=true` → Copy Code, Resend, Cancel |
-| AC-24 | PASS | EXPIRED (is_expired override): `canResend=true`, `canCancel=false` → Copy Code, Resend |
-| AC-25 | PASS | ACCEPTED/CANCELLED: both flags false → Copy Code only |
-| AC-26 | PASS | `handleCopy`: `navigator.clipboard.writeText()` with try/catch, success/error toasts |
-| AC-27 | PASS | `resend.mutate(invitation.id)` → `POST .../resend/` → invalidateQueries → toast |
-| AC-28 | PASS | Cancel opens dialog, `cancel.mutate(invitation.id)` → `DELETE` → close dialog → toast, `disabled={cancel.isPending}` with Loader2 |
+| AC-12 | PASS | `progress-section.tsx:69-102`: Four columns -- `trainee_name` (Name, font-medium, truncate max-w-[200px]), `current_weight` (Current Weight, `.toFixed(1) kg`), `weight_change` (Weight Change, via `WeightChangeCell` with +/- sign and TrendingUp/TrendingDown icons), `goal` (Goal, via `formatGoal()`). |
+| AC-13 | PASS | `getWeightChangeColor()` lines 27-43: weight_loss + loss = green, weight_loss + gain = red, muscle_gain + gain = green, muscle_gain + loss = red, other goals = neutral. All branches verified. |
+| AC-14 | PASS | `current_weight` column: null renders `<span aria-label="No data">--</span>`. `WeightChangeCell`: null returns `<span aria-label="No data">--</span>`. Types correctly specify `number | null`. |
+| AC-15 | PASS | `progress-section.tsx:180`: `onRowClick={(row) => router.push(/trainees/${row.trainee_id})}`. `DataTable` provides `cursor-pointer`, `tabIndex={0}`, `role="button"`, Enter/Space keyboard handlers. |
+| AC-16 | PASS | `ProgressSkeleton` renders Card with skeleton header + 4 skeleton rows. `role="status"` with `sr-only` loading text. |
+| AC-17 | PASS | `ErrorState message="Failed to load progress data" onRetry={() => refetch()}`. Message matches ticket. |
+| AC-18 | PASS | `EmptyState icon={Scale} title="No progress data" description="Trainees will appear here once they start tracking their weight."` with "Invite Trainee" CTA button. |
 
-**Total: 27/28 PASS, 1 PARTIAL (AC-21 — pre-existing backend gap, not a regression)**
+### General (AC-19 through AC-22): 4/4 PASS
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-19 | PASS | `AdherenceSection` and `ProgressSection` are independent sibling components, each with own hook, own loading/error/empty state. One can error while other succeeds. |
+| AC-20 | PASS | `use-analytics.ts:16`: `apiClient.get<AdherenceAnalytics>(...)` and line 27: `apiClient.get<ProgressAnalytics>(...)`. Bearer auth injected by apiClient. |
+| AC-21 | PASS | `analytics.ts` defines `AdherencePeriod`, `TraineeAdherence`, `AdherenceAnalytics`, `TraineeProgressEntry`, `ProgressAnalytics`. All fields verified against backend `views.py`. |
+| AC-22 | PASS | `use-analytics.ts:19`: `staleTime: 5 * 60 * 1000` on adherence query. Progress also uses same staleTime (additive, not violating). |
+
+**Total: 22/22 PASS**
+
+---
 
 ## Review Issues Verification
 
-| Issue | Severity | Status |
-|-------|----------|--------|
-| C1: React Query cache update targets unread key | Critical | FIXED — `refreshUser` exposed from AuthProvider, all mutations call it in onSuccess |
-| C2: Form state never syncs | Critical | FIXED — useState initializer + isDirty comparison handles all cases correctly |
-| M1: Hydration mismatch in AppearanceSection | Major | FIXED — `useSyncExternalStore` with server/client snapshots |
-| M2: Adherence chart grouped not stacked | Major | FIXED — `stackId="adherence"` on all 3 bars, YAxis [0,3] |
-| M3: Clipboard writeText no try/catch | Major | FIXED — try/catch + .then(success, failure) |
-| M4: Date parsing safety | Major | FIXED — `formatDate()` with parseISO + isValid fallback |
-| M5: File input reset timing | Major | FIXED — e.target captured, reset in both onSuccess and onError |
-| m1-m9 (minor) | Minor | 4 fixed (m1, m3, m6, m8), 5 remaining (non-blocking) |
+### Critical Issues: 2/2 FIXED
 
-## Security Checklist
-- [x] No secrets in source code — full grep scan clean
-- [x] `.env.local` gitignored, not tracked
-- [x] All new endpoints use Bearer auth via `apiClient`
-- [x] `postFormData()` correctly goes through authenticated `request()` flow
-- [x] No XSS vectors — zero `dangerouslySetInnerHTML`, `eval`, `innerHTML`
-- [x] Navigation targets validated — `getNotificationTraineeId` enforces positive integer
-- [x] File upload: 5MB size limit + MIME whitelist (JPEG, PNG, GIF, WebP)
-- [x] Password fields: `type="password"`, proper `autoComplete`, `maxLength={128}`, form cleared on success
-- [x] Generic error messages — no internals exposed
-- [x] No console.log or debug prints in any new/modified file
-- [x] recharts dependency clean — no known CVEs
-- [x] FormData Content-Type handling correct — browser sets multipart/form-data boundary
+| Issue | Status | Evidence |
+|-------|--------|----------|
+| C1: Wrong amber color (used green HSL instead of amber) | FIXED | `adherence-chart.tsx:18`: now uses `hsl(var(--chart-4))` (theme-aware amber) |
+| C2: No loading feedback on period switch (isFetching not used) | FIXED | `adherence-section.tsx:95`: `opacity-50` transition during refetch with `aria-busy={isFetching}` |
+
+### Major Issues: 7/7 FIXED
+
+| Issue | Status | Evidence |
+|-------|--------|----------|
+| M1: Fragile recharts onClick cast | FIXED | Uses `sorted[index]` with null guard instead of `as unknown as` cast |
+| M2: No SVG tooltip on truncated Y-axis names | FIXED | Custom tick component with `<title>{name}</title>` inside `<text>` |
+| M3: Conditional rendering allows overlapping states | FIXED | Exclusive ternary chains in both sections: `isLoading ? ... : isError ? ... : isEmpty ? ... : hasData ? ... : null` |
+| M4: Misleading empty state message | FIXED | Changed to "No active trainees" with "Invite Trainee" CTA |
+| M5: Missing keyboard navigation on radio group | FIXED | Roving tabindex with ArrowLeft/Right/Up/Down wrap-around |
+| M6: `days` typed as `number` instead of union | FIXED | `AdherencePeriod = 7 | 14 | 30` used throughout |
+| M7: Column key "name" doesn't match "trainee_name" | FIXED | `key: "trainee_name"` |
+
+### Minor Issues: 5 remaining (non-blocking)
+- m1: StatDisplay duplicates StatCard -- FIXED by architect
+- m2: Color representations differ (HSL vs Tailwind) -- Accepted, different contexts
+- m5: No Next.js metadata export -- Low priority cosmetic
+- m6: tooltipContentStyle was duplicated -- FIXED by architect (chart-utils.ts)
+- m7: Client-side sort is redundant -- Defensive, negligible performance impact
+
+---
+
+## QA Bugs Verification
+
+| Bug | Severity | Status |
+|-----|----------|--------|
+| #1: Adherence empty state copy mismatch | Medium | FIXED by UX auditor -- now matches ticket spec exactly |
+| #2: Missing CTA in adherence empty state | Medium | FIXED by UX auditor -- "Invite Trainee" Button linking to `/invitations` |
+| #3: Index-based onClick in chart | Low | ACCEPTED -- code is type-safe with null guard, index matches sorted array order |
+| #4: No table sorting | Low | DEFERRED -- requires DataTable component enhancement, correctly documented |
+
+---
+
+## Audit Findings Verification
+
+### UX Audit (9/10): All 22 fixes implemented
+- StatCard reused from dashboard instead of custom StatDisplay
+- Color-only information supplemented with text descriptions (WCAG 1.4.1)
+- Focus-visible rings on period selector (WCAG 2.4.7)
+- Disabled state on period selector during loading
+- Responsive section header layout (flex-col on mobile)
+- Theme-aware chart colors via CSS custom properties
+- Shared tooltip styling from chart-utils.ts
+- Screen reader announcements for loading, refreshing, and chart data
+- Empty states with CTA buttons and appropriate icons
+
+### Security Audit (9/10 PASS): No issues requiring fixes
+- 0 Critical, 0 High, 0 Medium
+- All endpoints use Bearer auth via apiClient
+- Backend enforces `[IsAuthenticated, IsTrainer]` with `parent_trainer=user` filtering
+- No XSS vectors (zero `dangerouslySetInnerHTML`, `eval`, `innerHTML`)
+- No secrets in code
+- `days` parameter constrained on both frontend (union type) and backend (clamp to [1, 365])
+
+### Architecture Review (9/10 APPROVE): 3 improvements implemented
+- `chart-utils.ts` shared module created, eliminating tooltip style duplication
+- `StatCard` extended with `valueClassName` prop (backward-compatible)
+- `progress-charts.tsx` refactored to use shared chart-utils
+- Net technical debt: Reduced
+
+### Hacker Report (7/10): 5 fixes implemented
+- Hardcoded amber color replaced with theme-aware CSS var
+- Nested scroll trap removed (chart renders at natural height)
+- Progress section isFetching state added for consistency
+- Tooltip formatter type safety improved
+- Trainee count added to chart and table card titles
+
+---
 
 ## Independent Verification (beyond reports)
 
-1. **`refreshUser` safety**: `auth-provider.tsx:37-56` — `fetchUser` clears tokens on any API failure. Transient 500 during refreshUser after save would log user out. Pre-existing behavior, not a regression. Low risk.
+1. **Build output confirms `/analytics` route:** The Next.js build output lists `/analytics` as a static route inside the `(dashboard)` group.
 
-2. **`postFormData` auth + retry path**: `api-client.ts:108-112` calls `request<T>()` which calls `getAuthHeaders()` and `buildHeaders()`. `buildHeaders` line 31 correctly skips `Content-Type: application/json` for FormData. The 401 retry at line 55-58 also calls `buildHeaders`, so FormData is handled correctly on retry.
+2. **Type safety verified end-to-end:** `AdherencePeriod = 7 | 14 | 30` flows from `analytics.ts` -> `use-analytics.ts` (hook parameter) -> `period-selector.tsx` (props) -> `adherence-section.tsx` (state). TypeScript enforces valid values at every layer.
 
-3. **Trainee detail passes correct ID**: `trainees/[id]/page.tsx:92` — `<TraineeProgressTab traineeId={trainee.id} />` passes numeric ID from fetched trainee object.
+3. **Exclusive state rendering verified:** Both sections use ternary chains that are mutually exclusive. The `hasData` and `isEmpty` booleans are computed from `data` after the `isLoading` and `isError` checks, preventing state overlap.
 
-4. **Query invalidation on mutations**: `use-invitations.ts:37,49` — Both resend and cancel invalidate `["invitations"]`, clearing all paginated queries.
+4. **API URL constants verified:** `ANALYTICS_ADHERENCE` = `/api/trainer/analytics/adherence/` and `ANALYTICS_PROGRESS` = `/api/trainer/analytics/progress/` in `constants.ts` match `backend/trainer/urls.py` routing.
 
-5. **Controlled popover prevents unnecessary queries**: `notification-bell.tsx:30` — `{open && <NotificationPopover />}` only mounts popover (and fires `useNotifications()`) when open.
+5. **Navigation targets verified safe:** Both chart bar clicks and table row clicks use `trainee_id` (typed as `number`) from server-provided API responses. The destination `/trainees/{id}` endpoint enforces `parent_trainer=user` filtering, preventing IDOR even with manual URL tampering.
 
-6. **Progress query guard**: `use-progress.ts:13` — `enabled: id > 0` prevents firing query with invalid trainee ID.
+6. **Dark mode verified:** All chart colors use CSS custom properties (`--chart-2`, `--chart-4`, `--destructive`). Tooltip styling uses `hsl(var(--card))` and `hsl(var(--border))`. Stat card indicator colors use `dark:` variants. The feature is fully theme-aware.
+
+7. **Accessibility verified comprehensive:** ARIA radiogroup with roving tabindex on period selector. `role="status"` on all skeletons. `aria-busy` during refetch. `sr-only` live regions for refresh announcements. `aria-label="No data"` on em-dash spans. `role="img"` with descriptive `aria-label` on chart. Screen-reader accessible `<ul>` listing all trainee adherence data.
+
+---
 
 ## Score Breakdown
 
 | Category | Score | Notes |
 |----------|-------|-------|
-| Functionality | 9/10 | 27/28 ACs fully pass; AC-21 partial is pre-existing |
-| Code Quality | 8/10 | Clean hooks, proper TypeScript, good separation. 2 files slightly over 150-line guideline |
-| Security | 9/10 | No vulnerabilities, proper auth, validated inputs |
-| Performance | 8/10 | staleTime on progress, conditional popover, query invalidation |
-| UX/Accessibility | 9/10 | ARIA, roving tabindex, keyboard nav, all states handled |
-| Architecture | 9/10 | Clean layering, correct state boundaries, theme-aware charts |
-| Edge Cases | 8/10 | All 15 ticket edge cases handled. Double-click protection |
+| Functionality | 10/10 | All 22 ACs fully pass |
+| Code Quality | 9/10 | Clean hooks, proper TypeScript, good separation. Strict union types. |
+| Security | 9/10 | No vulnerabilities. Proper auth/authz. Validated inputs. Read-only feature. |
+| Performance | 9/10 | 5-min staleTime, independent section loading, single annotated backend query |
+| UX/Accessibility | 9/10 | All states handled. WCAG-compliant. 22 UX/a11y fixes applied. |
+| Architecture | 9/10 | Clean layering. Shared chart-utils. Net debt reduction. |
+| Edge Cases | 9/10 | All 9 ticket edge cases verified. Null handling, long names, large datasets. |
 
-**Overall: 8/10 — Meets the SHIP threshold.**
+**Overall: 9/10 -- Exceeds the SHIP threshold.**
 
-## Ship Decision Rationale
+---
 
-**Why SHIP:**
-1. Build and lint pass with zero errors
-2. 27 of 28 acceptance criteria fully verified
-3. All 2 Critical and 5 Major review issues properly resolved
-4. Zero bugs found by QA
-5. Zero Critical/High security issues
-6. All four Pipeline 9 placeholder surfaces now fully functional
-7. Code follows established architecture patterns perfectly
-8. Comprehensive state handling across all features
-9. Strong accessibility (16 fixes applied by UX auditor)
-10. Theme-aware chart colors ready for white-label infrastructure
+## Remaining Concerns (Non-Blocking)
 
-**Why not higher than 8/10:**
-- 5 minor review items remain unfixed (polish debt)
-- No automated test runner for web project
-- Two files exceed 150-line component guideline
-- AC-21 partially verified (3 notification types lack backend creation code)
+1. **Progress table sorting** -- DataTable has no sort capability. Low priority, requires cross-cutting component enhancement. Documented in hacker report.
+2. **Chart keyboard navigation** -- Recharts bars not focusable. Mitigated by sr-only list and progress table providing keyboard-accessible trainee navigation.
+3. **Weight unit preference** -- Hardcoded to kg. Requires backend `preferred_unit` field and conversion layer. Out of scope for this feature.
+4. **Unused `trainee_email` in types** -- Present in API response but never rendered. Minor data minimization concern, no security impact.
+5. **No Next.js metadata export** -- Page lacks `export const metadata`. Low priority cosmetic.
+6. **No automated test runner** -- Web project has no Vitest/Jest configured. All verification was code-level inspection.
+
+None of these concerns are ship-blockers. All are correctly documented for future enhancement.
+
+---
+
+## What Was Built (for changelog)
+
+**Trainer Analytics Page** -- A new `/analytics` page in the web dashboard that provides trainers with aggregate performance analytics across all their trainees:
+
+- **Adherence Section**: Period selector (7/14/30 days) with ARIA radiogroup and keyboard navigation, three stat cards showing food logging rate, workout logging rate, and protein goal hit rate with color-coded indicators and descriptive text labels, plus a horizontal bar chart showing per-trainee adherence rates sorted highest to lowest with clickable bars navigating to trainee detail.
+- **Progress Section**: A data table showing each trainee's current weight, weight change (with directional icons and goal-aligned coloring), and fitness goal, with clickable rows navigating to trainee detail.
+- **Full State Coverage**: Independent loading skeletons, error states with retry, and empty states with "Invite Trainee" CTAs for both sections. Background refetch with opacity transition and screen-reader announcements.
+- **Accessibility**: WCAG-compliant with ARIA radiogroup, roving tabindex, focus indicators, screen-reader chart data list, loading announcements, live region refresh notifications, and color-independent status text.
+- **Architecture Improvements**: Shared `chart-utils.ts` module created, `StatCard` extended with `valueClassName` prop, 3 instances of code duplication eliminated across the dashboard.
+
+## Files Changed (8 created, 4 modified)
+
+**Created:**
+- `web/src/types/analytics.ts`
+- `web/src/hooks/use-analytics.ts`
+- `web/src/lib/chart-utils.ts`
+- `web/src/components/analytics/period-selector.tsx`
+- `web/src/components/analytics/adherence-chart.tsx`
+- `web/src/components/analytics/adherence-section.tsx`
+- `web/src/components/analytics/progress-section.tsx`
+- `web/src/app/(dashboard)/analytics/page.tsx`
+
+**Modified:**
+- `web/src/components/layout/nav-links.tsx` (added Analytics nav item)
+- `web/src/lib/constants.ts` (added ANALYTICS_ADHERENCE and ANALYTICS_PROGRESS API URL constants)
+- `web/src/components/dashboard/stat-card.tsx` (extended with `valueClassName` prop)
+- `web/src/components/trainees/progress-charts.tsx` (refactored to use shared chart-utils)
 
 ---
 
 **Verified by:** Final Verifier Agent
 **Date:** 2026-02-15
-**Pipeline:** 10 — Web Dashboard Phase 2
+**Pipeline:** 11 -- Web Dashboard Phase 3 (Trainer Analytics)
