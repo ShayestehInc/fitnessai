@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/database_provider.dart';
+import '../../../../core/providers/health_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/sync_status.dart';
+import '../../../../shared/widgets/health_card.dart';
+import '../../../../shared/widgets/health_permission_sheet.dart';
 import '../../../../shared/widgets/offline_banner.dart';
+import '../../../../shared/widgets/sync_status_badge.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../workout_log/data/models/workout_history_model.dart';
 import '../providers/home_provider.dart';
@@ -21,7 +26,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(homeStateProvider.notifier).loadDashboardData();
+      _initHealthData();
     });
+  }
+
+  Future<void> _initHealthData() async {
+    final healthNotifier = ref.read(healthDataProvider.notifier);
+    final alreadyGranted = await healthNotifier.checkAndRequestPermission();
+    if (alreadyGranted) return;
+
+    // Check if we already asked before
+    final wasAsked = await healthNotifier.wasPermissionAsked();
+    if (wasAsked) return;
+
+    // Show permission bottom sheet (first time only)
+    if (!mounted) return;
+    final userWantsToConnect = await showHealthPermissionSheet(context);
+    if (userWantsToConnect) {
+      await healthNotifier.requestOsPermission();
+    } else {
+      await healthNotifier.declinePermission();
+    }
   }
 
   @override
@@ -39,8 +64,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const OfflineBanner(),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () =>
-                    ref.read(homeStateProvider.notifier).loadDashboardData(),
+                onRefresh: () async {
+                    await ref.read(homeStateProvider.notifier).loadDashboardData();
+                    // Refresh health data in parallel (non-blocking)
+                    final healthState = ref.read(healthDataProvider);
+                    if (healthState is HealthDataLoaded ||
+                        healthState is HealthDataLoading) {
+                      ref.read(healthDataProvider.notifier).fetchHealthData();
+                    }
+                },
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: Padding(
@@ -57,6 +89,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 16),
                   _buildNutritionSection(homeState),
                   const SizedBox(height: 32),
+
+                  // Today's Health card (between Nutrition and Weekly Progress)
+                  const TodaysHealthCard(),
+                  // Add spacing only if the card is visible
+                  _buildHealthCardSpacer(),
 
                   // Weekly Progress section (only if trainee has a program)
                   if (homeState.weeklyProgress case final progress?
@@ -115,6 +152,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         label: const Text('Log'),
       ),
     );
+  }
+
+  /// Only adds spacing below the health card if it is visible (loaded state).
+  Widget _buildHealthCardSpacer() {
+    // Use select() to only rebuild when health card visibility changes,
+    // not when the underlying metrics change.
+    final isVisible = ref.watch(healthDataProvider.select((state) =>
+        state is HealthDataLoaded || state is HealthDataLoading));
+    if (isVisible) {
+      return const SizedBox(height: 32);
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildHeader(String name) {
@@ -372,39 +421,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildNutritionSection(HomeState state) {
     return Column(
       children: [
-        // Large calorie circle
+        // Large calorie circle -- wrapped in RepaintBoundary for performance
         Center(
-          child: _CalorieRing(
-            remaining: state.caloriesRemaining,
-            total: state.caloriesGoal,
-            consumed: state.caloriesConsumed,
+          child: RepaintBoundary(
+            child: _CalorieRing(
+              remaining: state.caloriesRemaining,
+              total: state.caloriesGoal,
+              consumed: state.caloriesConsumed,
+            ),
           ),
         ),
         const SizedBox(height: 24),
-        // Macro circles row
+        // Macro circles row -- each wrapped in RepaintBoundary
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _MacroCircle(
-              label: 'Protein',
-              current: state.proteinConsumed,
-              goal: state.proteinGoal,
-              progress: state.proteinProgress,
-              color: const Color(0xFFDC2626), // Red
+            RepaintBoundary(
+              child: _MacroCircle(
+                label: 'Protein',
+                current: state.proteinConsumed,
+                goal: state.proteinGoal,
+                progress: state.proteinProgress,
+                color: const Color(0xFFDC2626), // Red
+              ),
             ),
-            _MacroCircle(
-              label: 'Carbs',
-              current: state.carbsConsumed,
-              goal: state.carbsGoal,
-              progress: state.carbsProgress,
-              color: const Color(0xFF22C55E), // Green
+            RepaintBoundary(
+              child: _MacroCircle(
+                label: 'Carbs',
+                current: state.carbsConsumed,
+                goal: state.carbsGoal,
+                progress: state.carbsProgress,
+                color: const Color(0xFF22C55E), // Green
+              ),
             ),
-            _MacroCircle(
-              label: 'Fat',
-              current: state.fatConsumed,
-              goal: state.fatGoal,
-              progress: state.fatProgress,
-              color: const Color(0xFF3B82F6), // Blue
+            RepaintBoundary(
+              child: _MacroCircle(
+                label: 'Fat',
+                current: state.fatConsumed,
+                goal: state.fatGoal,
+                progress: state.fatProgress,
+                color: const Color(0xFF3B82F6), // Blue
+              ),
             ),
           ],
         ),
@@ -770,7 +827,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    if (state.recentWorkouts.isEmpty) {
+    final pendingWorkouts = state.pendingWorkouts;
+    final hasAnyWorkouts =
+        state.recentWorkouts.isNotEmpty || pendingWorkouts.isNotEmpty;
+
+    if (!hasAnyWorkouts) {
       return Text(
         'No workouts yet. Complete your first workout to see it here.',
         style: TextStyle(
@@ -781,15 +842,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return Column(
-      children: state.recentWorkouts.map((workout) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _RecentWorkoutCard(
-            workout: workout,
-            onTap: () => context.push('/workout-detail', extra: workout),
-          ),
-        );
-      }).toList(),
+      children: [
+        // Pending workouts first (most recent at top)
+        ...pendingWorkouts.map((pending) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _PendingWorkoutCard(
+              displayData: pending,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('This workout is waiting to sync.'),
+                  ),
+                );
+              },
+            ),
+          );
+        }),
+        // Server workouts
+        ...state.recentWorkouts.map((workout) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _RecentWorkoutCard(
+              workout: workout,
+              onTap: () => context.push('/workout-detail', extra: workout),
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -1106,63 +1186,159 @@ class _RecentWorkoutCard extends StatelessWidget {
       button: true,
       label:
           '${workout.workoutName}, ${workout.formattedDate}, ${workout.exerciseCount} exercises',
-      child: Material(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
+      child: RepaintBoundary(
+        child: Material(
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.dividerColor),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          workout.formattedDate,
+                          style: TextStyle(
+                            color: theme.textTheme.bodySmall?.color,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          workout.workoutName,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${workout.exerciseCount} exercises',
+                    style: TextStyle(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
+                ],
+              ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Card for a pending (offline) workout in the recent workouts section.
+/// Wrapped in a Stack with a SyncStatusBadge at bottom-right.
+class _PendingWorkoutCard extends StatelessWidget {
+  final PendingWorkoutDisplay displayData;
+  final VoidCallback onTap;
+
+  const _PendingWorkoutCard({
+    required this.displayData,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Semantics(
+      button: true,
+      label: '${displayData.workoutName}, pending sync',
+      child: RepaintBoundary(
+        child: Stack(
+          children: [
+            Material(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: theme.dividerColor),
+                  ),
+                  child: Row(
                     children: [
-                      Text(
-                        workout.formattedDate,
-                        style: TextStyle(
-                          color: theme.textTheme.bodySmall?.color,
-                          fontSize: 11,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayData.formattedDate,
+                              style: TextStyle(
+                                color: theme.textTheme.bodySmall?.color,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              displayData.workoutName,
+                              style: TextStyle(
+                                color: theme.textTheme.bodyLarge?.color,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(width: 12),
                       Text(
-                        workout.workoutName,
+                        '${displayData.exerciseCount} exercises',
                         style: TextStyle(
-                          color: theme.textTheme.bodyLarge?.color,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: 12,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: theme.textTheme.bodySmall?.color,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  '${workout.exerciseCount} exercises',
-                  style: TextStyle(
-                    color: theme.textTheme.bodySmall?.color,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: theme.textTheme.bodySmall?.color,
-                ),
-              ],
+              ),
             ),
-          ),
+            const Positioned(
+              right: 4,
+              bottom: 4,
+              child: SyncStatusBadge(status: SyncItemStatus.pending),
+            ),
+          ],
         ),
       ),
     );

@@ -1,104 +1,85 @@
-# Feature: Offline Workout & Nutrition Logging with Sync Queue (Phase 6)
+# Feature: Health Data Integration + Performance Audit + Offline UI Polish
 
 ## Priority
-Critical
+High
 
 ## User Story
-As a trainee at the gym with poor or no internet connection, I want to log my workouts and nutrition without interruption so that I never lose data and can focus on training instead of worrying about connectivity.
+As a **trainee**, I want to see my daily health metrics (steps, active calories, heart rate, weight) pulled from Apple Health / Health Connect directly on my home screen, so that I have a holistic view of my fitness without manually entering data that my phone already tracks.
+
+As a **trainee**, I want my offline-logged workouts, nutrition entries, and weight check-ins to appear in the correct list views (with sync status indicators), so that I can trust the app shows complete data even when I log things offline.
+
+As a **developer**, I want the app to hit 60fps on common scrolling/navigation flows, so that the user experience feels polished and responsive.
 
 ---
 
 ## Acceptance Criteria
 
-### Drift Local Database Setup
-- [ ] AC-1: A Drift (SQLite) database is initialized on app startup at `mobile/lib/core/database/app_database.dart` with tables for `pending_workout_logs`, `pending_nutrition_logs`, `pending_weight_checkins`, `cached_programs`, and `sync_queue`.
-- [ ] AC-2: The database file is stored in the app's documents directory via `path_provider` and persists across app restarts.
-- [ ] AC-3: The `drift` and `sqlite3_flutter_libs` packages (already in pubspec.yaml) are used. `drift_dev` (already in dev_dependencies) generates `.g.dart` files. No additional SQLite packages are added.
-- [ ] AC-4: A `DatabaseProvider` (Riverpod provider) exposes the database singleton to the entire app.
+### Part A: Health Data Integration
 
-### Network Connectivity Detection
-- [ ] AC-5: The `connectivity_plus` package (~6.0.0) is added to `pubspec.yaml` and a `ConnectivityService` monitors network status in real time via stream subscription.
-- [ ] AC-6: A `connectivityProvider` (Riverpod `StreamProvider`) exposes the current connectivity status (`online` / `offline`) to the entire widget tree.
-- [ ] AC-7: When connectivity transitions from offline to online, the sync queue automatically begins processing pending items.
-- [ ] AC-8: When connectivity transitions from online to offline, in-flight API calls that fail with `DioException` of type `connectionTimeout`, `sendTimeout`, `receiveTimeout`, or `connectionError` are automatically saved to the local database instead of showing an error.
+- [ ] **AC-1**: On first launch after update (or first visit to home screen with no prior permission), the app requests HealthKit (iOS) and Health Connect (Android) read permissions for: steps, active energy burned (active calories), heart rate, and weight.
+- [ ] **AC-2**: The permission request uses a clear, non-technical explanation bottom sheet that tells the user *why* the app needs health data before triggering the OS-level prompt. The sheet has "Connect Health" and "Not Now" buttons.
+- [ ] **AC-3**: If the user denies permission or the platform does not support health data (e.g., simulator, unsupported Android device), the "Today's Health" card is hidden entirely from the home screen. No error. No empty card.
+- [ ] **AC-4**: If permission is granted, a "Today's Health" card appears on the home screen between the "Nutrition" section and the "Weekly Progress" section. The card shows:
+  - Steps (integer, e.g., "8,234") with a walking icon
+  - Active Calories (integer, e.g., "342 cal") with a flame icon
+  - Heart Rate (integer, e.g., "68 bpm") with a heart icon -- shows latest reading from the past 24 hours, or "--" if no data
+  - Weight (one decimal, e.g., "75.2 kg") from the most recent HealthKit/Health Connect weight sample, or "--" if none
+- [ ] **AC-5**: Health data is fetched when the home screen loads (`initState`) and when the user pulls to refresh. Health data fetch does NOT block the rest of the dashboard from loading -- it runs in parallel and the card appears/updates when data arrives.
+- [ ] **AC-6**: A `HealthDataProvider` (Riverpod `StateNotifierProvider`) manages the state: `loading`, `loaded(HealthMetrics)`, `unavailable`, `permissionDenied`. The home screen reactively shows/hides the card based on this state.
+- [ ] **AC-7**: The `health` package `HealthDataType.WEIGHT` is added to the types list in `HealthService`. When a weight reading is found from the past 7 days, the service returns it.
+- [ ] **AC-8**: `HealthDataType.ACTIVE_ENERGY_BURNED` is added to the types list. The service returns today's total active calories (summed, same pattern as steps).
+- [ ] **AC-9**: Auto-import weight from HealthKit/Health Connect: When health data is fetched and a weight reading exists for today that is NOT already in the WeightCheckIn model (check by date), the app automatically creates a weight check-in via the existing `OfflineWeightRepository.createWeightCheckIn()`. Deduplication is by date -- if a check-in already exists for today (from manual entry or prior auto-import), skip the import.
+- [ ] **AC-10**: The auto-imported weight check-in has `notes` set to `"Auto-imported from Health"` so the user can distinguish it from manual entries.
+- [ ] **AC-11**: Health permission status is persisted in `SharedPreferences` (`health_permission_granted: bool`, `health_permission_asked: bool`). The permission prompt is shown at most once per app install. After the first ask, the app respects whatever the OS returns silently.
+- [ ] **AC-12**: `HealthService` is rewritten to include `ACTIVE_ENERGY_BURNED` and `WEIGHT` in addition to existing `STEPS`, `HEART_RATE`. Sleep is removed from the permission request (not displayed on the card). The return type of `syncTodayHealthData()` is changed from `Map<String, dynamic>` to a typed `HealthMetrics` dataclass.
+- [ ] **AC-13**: iOS `Runner.entitlements` has `com.apple.developer.healthkit` entitlement added. Android `AndroidManifest.xml` has `READ_ACTIVE_CALORIES_BURNED` and `READ_WEIGHT` permissions added.
+- [ ] **AC-14**: The "Today's Health" card has a gear icon in the top-right corner that opens the device's Health app settings (iOS: opens Health app, Android: opens Health Connect). Uses `url_launcher` with the platform-specific URI.
 
-### Offline Workout Logging
-- [ ] AC-9: When the trainee completes a workout (post-workout survey submit) while offline, the workout data is saved to the `pending_workout_logs` Drift table with status `pending` and a `created_at` timestamp.
-- [ ] AC-10: The saved offline workout contains the full `workout_summary` JSON (workout_name, duration, exercises with sets), `survey_data` JSON, and optional `readiness_survey` JSON -- the same payload structure that `POST /api/workouts/surveys/post-workout/` expects.
-- [ ] AC-11: After saving offline, the trainee sees a success screen identical to the online flow, plus a banner: "Workout saved locally. It will sync when you're back online."
-- [ ] AC-12: The home screen's "Recent Workouts" section includes locally-saved workouts (with a cloud-off icon badge) merged with server-fetched workouts, sorted by date descending.
-- [ ] AC-13: The readiness survey submission (`POST /api/workouts/surveys/readiness/`) also falls back to local save when offline, queued for later sync.
+### Part B: Offline UI Polish (Deferred from Pipeline 15)
 
-### Offline Nutrition Logging (Confirm & Save)
-- [ ] AC-14: When the trainee confirms an AI-parsed food entry (`POST /api/workouts/daily-logs/confirm-and-save/`) while offline, the parsed data is saved to the `pending_nutrition_logs` Drift table with the `parsed_data` JSON and target `date`.
-- [ ] AC-15: After saving offline nutrition, the trainee sees a success snackbar: "Food entry saved locally. It will sync when you're back online."
-- [ ] AC-16: The nutrition screen shows locally-saved entries (with a cloud-off icon badge) alongside server-fetched entries, so the trainee's macro totals reflect pending entries optimistically.
+- [ ] **AC-15**: Local pending workouts from `PendingWorkoutLogs` are merged into the Home screen "Recent Workouts" list. They appear at the top of the list (most recent first), with a `SyncStatusBadge` overlay showing `pending` or `failed` status. Tapping a pending workout shows a "Pending sync" snackbar instead of navigating to detail.
+- [ ] **AC-16**: Local pending nutrition entries from `PendingNutritionLogs` are merged into the Nutrition screen's macro totals for the selected date. When viewing a date that has pending entries, those entries' macros (protein, carbs, fat, calories) are added to the server-provided totals. A small "(includes X pending)" label appears below the macro cards.
+- [ ] **AC-17**: Local pending weight check-ins from `PendingWeightCheckins` are merged into the Weight Trends screen history list and the "Latest Weight" display on the Nutrition screen. Pending check-ins show with a `SyncStatusBadge`. The "Latest Weight" on the nutrition screen header uses the most recent weight across both server and local data.
+- [ ] **AC-18**: `SyncStatusBadge` is placed on each `_RecentWorkoutCard` in the home screen's recent workouts section. The badge is positioned at the bottom-right of the card via a `Stack` + `Positioned` wrapper. Only shown for items that came from local storage (not server data).
+- [ ] **AC-19**: `SyncStatusBadge` is placed on each food entry row in the nutrition screen's meals section for entries that are pending sync. The badge appears after the edit icon.
+- [ ] **AC-20**: `SyncStatusBadge` is placed on each weight check-in entry in the Weight Trends screen's history list for entries that are pending sync.
+- [ ] **AC-21**: The `WorkoutCacheDao` exposes a method `getPendingWorkoutsForUser(int userId)` that returns all pending workout rows, and the `NutritionCacheDao` exposes `getPendingNutritionForUser(int userId, String date)` that returns pending nutrition entries for a given date, and `getPendingWeightForUser(int userId)` that returns all pending weight entries.
 
-### Offline Weight Check-In
-- [ ] AC-17: When the trainee submits a weight check-in (`POST /api/workouts/weight-checkins/`) while offline, the data is saved to `pending_weight_checkins` with `date`, `weight_kg`, and `notes`.
-- [ ] AC-18: The weight trends screen shows locally-saved check-ins (with a cloud-off icon badge) merged with server data.
+### Part C: Performance Audit
 
-### Program Caching
-- [ ] AC-19: When programs are fetched successfully online (`GET /api/workouts/programs/`), the full program list (including schedules) is cached in the `cached_programs` Drift table, keyed by trainee user ID.
-- [ ] AC-20: When the programs API call fails due to no network, the app falls back to the cached programs from Drift. The UI shows a subtle banner: "Showing cached program. Some data may be outdated."
-- [ ] AC-21: Cached program data is refreshed every time the programs endpoint returns successfully. Old cache entries are overwritten (not appended).
-- [ ] AC-22: The active workout screen works fully offline when the program schedule is cached -- the trainee can view exercises, log sets, complete the workout, and save locally.
-
-### Sync Queue
-- [ ] AC-23: The `sync_queue` Drift table stores each pending operation with: `id` (auto-increment), `operation_type` (enum: `workout_log`, `nutrition_log`, `weight_checkin`, `readiness_survey`), `payload` (JSON text), `status` (enum: `pending`, `syncing`, `synced`, `failed`), `created_at`, `synced_at` (nullable), `retry_count` (default 0), `last_error` (nullable text).
-- [ ] AC-24: A `SyncQueueService` processes the queue in FIFO order (oldest first) when connectivity is restored. Each item is processed sequentially (not in parallel) to avoid race conditions on `DailyLog` records.
-- [ ] AC-25: Each sync attempt: set status to `syncing`, call the appropriate API endpoint, on success set status to `synced` and `synced_at`, on failure increment `retry_count` and set `last_error`.
-- [ ] AC-26: Items that fail 3 times are set to status `failed` and skipped. The user is notified via a persistent banner on the home screen: "1 item failed to sync. Tap to retry."
-- [ ] AC-27: Tapping the failed-sync banner opens a bottom sheet listing failed items with: operation type, date, error message, and "Retry" / "Delete" buttons per item.
-- [ ] AC-28: Successfully synced items (`status = synced`) are deleted from the local database after 24 hours (cleanup runs on app startup).
-- [ ] AC-29: The sync queue processes items even when the app is in the foreground but the user is on a different screen (the service runs independently of navigation state).
-
-### Conflict Resolution
-- [ ] AC-30: If a workout sync fails with HTTP 409 (conflict -- e.g., trainer changed the program), the sync queue marks the item as `failed` with error "Program was updated by your trainer. Please review." and does NOT retry automatically.
-- [ ] AC-31: If a nutrition sync fails with HTTP 409, same behavior as AC-30 with message "Nutrition data was updated. Please review."
-- [ ] AC-32: For non-conflict server errors (500, 502, 503), the sync queue retries up to 3 times with exponential backoff (5s, 15s, 45s delay between retries).
-
-### Visual Indicators
-- [ ] AC-33: When the device is offline, a thin persistent banner appears at the top of every trainee screen (below the app bar): amber background, "You are offline" text, cloud-off icon. Height: 28px. Does not push content down aggressively.
-- [ ] AC-34: When sync is actively processing, the banner changes to: blue background, "Syncing..." text with a small linear progress indicator, cloud-upload icon.
-- [ ] AC-35: When all items are synced, the banner briefly shows green "All changes synced" for 3 seconds, then disappears.
-- [ ] AC-36: Items that were saved offline but not yet synced show a small `Icons.cloud_off` badge (12px, amber) overlaid on their card/tile in lists.
-- [ ] AC-37: Items that are currently syncing show a small `Icons.cloud_upload` badge (12px, blue) with a rotating animation.
-- [ ] AC-38: Items that failed to sync show a small `Icons.cloud_off` badge (12px, red) with a warning indicator.
-
-### Performance & Cleanup
-- [ ] AC-39: The Drift database connection is opened lazily (on first access) and closed on app termination.
-- [ ] AC-40: Sync queue items older than 7 days with status `synced` are auto-deleted on app startup.
-- [ ] AC-41: Cached programs older than 30 days are auto-deleted on app startup.
-- [ ] AC-42: Database operations (reads and writes) run on isolates via Drift's built-in isolate support to avoid janking the UI thread.
+- [ ] **AC-22**: All scrollable lists (home screen, nutrition screen meals, workout history, weight trends, trainer trainee list, exercise bank) are audited for `RepaintBoundary` usage. `RepaintBoundary` is added around list item widgets where the item contains animations, progress indicators, or complex paint operations.
+- [ ] **AC-23**: All widget classes across the codebase are audited for `const` constructors. Every widget that CAN have a `const` constructor (no mutable fields, all fields are final with const-compatible types) is converted to use `const`. Priority files: home_screen.dart, nutrition_screen.dart, workout_log_screen.dart, weight_trends_screen.dart, and all shared widgets.
+- [ ] **AC-24**: Riverpod `Consumer` / `ConsumerWidget` usage is audited. Where a widget watches a provider but only uses one field from the state, it is refactored to use `ref.watch(provider.select((s) => s.field))` to avoid unnecessary rebuilds. Priority: home screen (watches `homeStateProvider` in multiple sub-widgets), nutrition screen.
+- [ ] **AC-25**: The `_CalorieRing`, `_MacroCircle`, and `_MacroCard` widgets on the home/nutrition screens are wrapped in `RepaintBoundary` since they contain `CircularProgressIndicator` paint operations that cause expensive repaints.
+- [ ] **AC-26**: `ListView.builder` is used (instead of `Column` with `.map().toList()`) for any list that can exceed 10 items. The home screen's recent workouts section (capped at 3-5) is fine as `Column`, but the workout history screen, weight trends history list, and nutrition meals list (if > 10 entries) should use `ListView.builder` for virtualization.
 
 ---
 
 ## Edge Cases
 
-1. **Double-submit prevention:** Trainee completes a workout offline, the app saves it locally, then connectivity returns before the trainee navigates away. The sync queue picks it up and syncs. But what if the workout screen's `_submitPostWorkoutSurvey` also fires when connectivity flickers? The sync queue must use idempotency: each pending item gets a UUID `client_id`. Before adding to the queue, check if an item with the same `client_id` already exists. The backend should also be tolerant of duplicate `DailyLog` session entries (the existing `get_or_create` + `sessions` append pattern handles this, but duplicate session names + timestamps should be detected and deduplicated).
+1. **Health data returns zero for everything**: Steps = 0, calories = 0, heart rate = null, weight = null. The card should still show: "0" for steps, "0 cal" for calories, "--" for heart rate, "--" for weight. The card should NOT be hidden just because values are zero -- zero is valid data (user hasn't moved yet today).
 
-2. **App killed while workout in progress offline:** If the user force-kills the app mid-workout (before hitting "Finish"), the in-progress exercise data is lost (same as online behavior -- we do not auto-save mid-workout in this phase). The readiness survey, if already submitted, is queued. This is acceptable; mid-workout auto-save is a future enhancement.
+2. **Health permission denied after previously being granted (revoked in Settings)**: The `health` package's `requestAuthorization` returns `true` even if the user subsequently revokes individual data types in iOS Health settings (Apple's privacy design). The service should handle empty/null data gracefully by showing "--" for that metric, not crashing or showing stale data from `SharedPreferences`.
 
-3. **Trainee opens app after 3 days offline:** The cached program may be stale. When connectivity returns, the sync queue processes old items, then the app fetches fresh programs. If a program was changed by the trainer during the offline period, the trainee sees the new program after sync. Old workouts logged against the previous program schedule are still valid (they reference exercise IDs and names, not the schedule structure).
+3. **Multiple weight readings on the same day from HealthKit**: Sum/average is NOT what we want. Use the MOST RECENT weight reading by `dateFrom` timestamp. If the user steps on a smart scale 3 times, we want the last reading.
 
-4. **Multiple workouts logged offline for the same day:** The backend's `_save_workout_to_daily_log` already handles multiple sessions per day via the `sessions` list append pattern. The sync queue processes them in order, so each session is appended correctly. The `client_id` UUID prevents duplicates.
+4. **Auto-import weight races with manual entry**: User opens weight check-in screen and manually enters 75.0 kg. Meanwhile, the home screen loads and tries to auto-import 75.1 kg from HealthKit (smart scale reading from an hour ago). The deduplication check (by date) prevents the auto-import from overwriting the manual entry. Manual entry takes priority because it was already saved by the time the health data fetch completes.
 
-5. **Nutrition logged offline then the same meal logged online (duplicate):** Each nutrition confirm-and-save is an independent operation on the backend (it creates or appends to the day's `nutrition_data`). The sync queue sends the offline entry, which appends to whatever is already on the server. This may result in apparent duplicates if the user logged the same food twice. This is acceptable -- the user can delete duplicates via the existing edit/delete food entry UI.
+5. **Offline pending data + server data have overlapping dates**: A pending nutrition entry from yesterday (saved offline) and the server's data for yesterday (synced before the offline entry was created) should be ADDED together, not replaced. The pending entry represents NEW food logged offline that hasn't been synced yet -- it's additive.
 
-6. **Connectivity flapping (rapid on/off/on):** The `ConnectivityService` should debounce connectivity changes with a 2-second delay before triggering sync. This prevents the sync queue from starting and immediately failing when connectivity is unstable.
+6. **Platform has no health data support at all**: Android devices without Health Connect installed, iOS simulators, or very old Android versions. `health.requestAuthorization()` throws or returns false. The `HealthDataProvider` state should be `unavailable` and the card should be hidden. No crash. No error dialog.
 
-7. **Sync queue has 50+ items after extended offline period:** The queue processes items sequentially with no artificial limit. Each item takes roughly 1-3 seconds to sync. A 50-item queue takes 1-2 minutes. The sync banner shows progress ("Syncing 5 of 50..."). The user can continue using the app normally during sync.
+7. **Large step counts or calorie values**: A marathon runner might have 40,000+ steps or 3,000+ active calories. The card layout must not overflow. Use `NumberFormat` with locale-aware thousands separators (e.g., "40,234" not "40234").
 
-8. **User logs out while items are pending sync:** On logout, warn the user: "You have X unsaved changes that haven't synced yet. Logging out will lose this data. Continue?" If they confirm, clear the local database for that user. If they cancel, stay logged in.
+8. **App launched while device is in airplane mode**: Health data should still be accessible (it's local on-device). The `HealthService` reads from the local HealthKit/Health Connect store, not from a network. This should work even when `ConnectivityService.isOnline` is false.
 
-9. **Different user logs in on same device:** The Drift database tables include a `user_id` column. When a new user logs in, they only see their own pending items. Old user's synced items are cleaned up, but pending items for other users are preserved (they'll sync when that user logs back in). Actually, for simplicity in V1: on logout, warn about pending items and delete all local data for that user if they confirm.
+9. **SyncStatusBadge on a card that gets synced while visible**: When the sync engine processes a pending item and it succeeds, the badge should transition from `pending` to `synced` (which renders as `SizedBox.shrink()` per the existing implementation). The list should reactively update. This requires watching the sync status stream or re-querying pending items after sync events complete.
 
-10. **Server returns 401 during sync (token expired):** The existing Dio interceptor handles token refresh. If refresh also fails (e.g., refresh token expired), the sync queue pauses and the app redirects to login. Pending items remain in the database and will resume syncing after the user logs back in.
+10. **Pending nutrition entries contain invalid or zero macros**: A nutrition entry saved offline might have `protein: 0, carbs: 0, fat: 0, calories: 0` (e.g., water or a zero-calorie drink). This is valid and should still be counted/merged without filtering.
 
-11. **Device storage full (SQLite write fails):** Drift operations that throw `SqliteException` with "database or disk is full" should be caught. Show a snackbar: "Device storage is full. Free up space to save workout data." The workout data is lost in this case (same as if the API call failed with no fallback).
+11. **Weight auto-import when user has never manually checked in**: The `NutritionState.latestCheckIn` may be null. The auto-imported weight creates the first-ever check-in. The nutrition screen's "Latest Weight" should then display this auto-imported value.
 
-12. **Timezone edge case:** A workout started at 11:55 PM and finished at 12:05 AM (date boundary). The `created_at` uses the timestamp when the workout was completed (12:05 AM), so it goes to the next day's DailyLog. This matches the existing online behavior since `timezone.now().date()` is evaluated at save time on the backend. The local save should use the same date the backend would use -- the date at the time of completion.
+12. **User has health permission but HealthKit returns an error for a specific data type**: For example, steps work fine but `ACTIVE_ENERGY_BURNED` throws. Each data type fetch is independent and wrapped in its own try-catch. Partial data is valid.
 
 ---
 
@@ -106,164 +87,108 @@ As a trainee at the gym with poor or no internet connection, I want to log my wo
 
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Workout complete while offline | Success screen + amber banner "Workout saved locally. It will sync when you're back online." | Save to `pending_workout_logs` + add to `sync_queue` |
-| Nutrition confirm while offline | Green snackbar "Food entry saved locally. It will sync when you're back online." | Save to `pending_nutrition_logs` + add to `sync_queue` |
-| Weight check-in while offline | Green snackbar "Weight saved locally. It will sync when you're back online." | Save to `pending_weight_checkins` + add to `sync_queue` |
-| Programs API fails (no network) | Program screen loads from cache + subtle banner "Showing cached program. Some data may be outdated." | Read from `cached_programs` Drift table |
-| Programs API fails (no cache) | Empty state: "No program data available. Connect to the internet to load your program." with retry button | Show error state, no fallback |
-| Sync fails after 3 retries | Persistent banner on home: "1 item failed to sync. Tap to retry." | Set sync_queue status to `failed`, stop retrying |
-| Sync fails with 409 conflict | Failed item banner with message: "Program was updated by your trainer. Please review." | Set to `failed`, do not auto-retry |
-| Device storage full on save | Snackbar: "Device storage is full. Free up space to save your data." | Catch SqliteException, do not save |
-| User logs out with pending items | Dialog: "You have X unsaved changes. Logging out will lose this data." with Cancel/Continue buttons | If continue: clear user's local data. If cancel: stay logged in |
-| Sync in progress when app backgrounded | Sync continues if within ~30 seconds (iOS) | Platform-dependent background execution limits apply |
+| Health permission denied | No health card on home screen | Sets `HealthDataState.permissionDenied`, persists to SharedPreferences. Card hidden. |
+| Health data fetch throws exception | No health card (graceful degradation) | Catches exception, sets state to `unavailable`. Rest of dashboard loads normally. |
+| Health data partially available (e.g., steps yes, heart rate no) | Card shows available data, "--" for missing | Each metric is independently nullable. Card renders what it has. |
+| Platform doesn't support health APIs | No health card | Try-catch around `requestAuthorization`. State = `unavailable`. |
+| HealthKit returns stale data (no readings today) | Steps: 0, Calories: 0, HR: shows last 24h reading or "--", Weight: shows last 7d reading or "--" | Date ranges: steps/calories = today midnight to now, HR = last 24h, weight = last 7 days. |
+| Auto-import weight fails (e.g., storage full) | No visible error (background operation) | Catches `OfflineSaveResult.failure`, does NOT show snackbar. Silent failure -- logged in debug only. |
+| Pending workout has corrupted JSON | Card shows "Unknown Workout" with sync badge | JSON decode wrapped in try-catch. Falls back to placeholder data. |
+| Offline DB query for pending items fails | Server-only data shown (no merge) | Try-catch around DB reads. If DB fails, show server data only. No crash. |
+| SyncStatusBadge shown on already-synced item | Badge disappears (SizedBox.shrink for synced) | Query is re-run after sync completes. Synced items are removed from pending tables. |
 
 ---
 
 ## UX Requirements
 
-### Offline Banner
-- **Position:** Fixed at top of Scaffold body, below AppBar, above all other content.
-- **Offline state:** Amber/orange background (#F59E0B at 15% opacity), cloud_off icon (amber), "You are offline" text in bodySmall, 28px height.
-- **Syncing state:** Blue background (#3B82F6 at 15% opacity), cloud_upload icon (blue), "Syncing..." text + 2px LinearProgressIndicator, 28px height.
-- **Synced state:** Green background (#22C55E at 15% opacity), cloud_done icon (green), "All changes synced" text, auto-dismiss after 3 seconds with fade animation.
-- **Animation:** SlideTransition from top (200ms) on appear, FadeTransition (300ms) on dismiss.
-- **Accessibility:** Semantics liveRegion so screen readers announce state changes.
+### Health Card
+- **Loading state**: Skeleton shimmer placeholder matching the card layout (4 metric placeholders as gray rounded rectangles). Shown while health data is being fetched. Rest of dashboard renders immediately above and below.
+- **Empty state (no permission)**: Card is hidden entirely. No "Connect Health" banner cluttering the home screen uninvited. The user can connect later via Settings.
+- **Error state**: Card hidden. No error toast/banner for health data failures -- it's supplementary data, not core functionality. The dashboard functions perfectly without it.
+- **Success state**: Card fades in with a 200ms opacity animation when data arrives. Metrics update in place on pull-to-refresh.
+- **Permission prompt**: Material bottom sheet with health icon, title "Connect Your Health Data", body text: "FitnessAI can read your steps, calories burned, heart rate, and weight from [Apple Health / Health Connect] to give you a complete picture of your daily activity.", two buttons: "Connect Health" (primary filled button) and "Not Now" (text button). Shown once per app install, on first home screen visit.
+- **Mobile behavior**: The health card is a single horizontal row on wider screens (tablet), 2x2 grid on phones. Each metric tile is 48dp minimum height.
 
-### Sync Status Badges
-- **Badge position:** Bottom-right corner of the card/tile, 4px offset inward.
-- **Badge size:** 16x16px container with 12px icon.
-- **Pending (not yet synced):** `Icons.cloud_off`, amber (#F59E0B).
-- **Syncing:** `Icons.cloud_upload`, blue (#3B82F6), rotating animation (1s loop).
-- **Failed:** `Icons.error_outline`, red (#EF4444).
-- **Synced:** No badge (the item is now server-authoritative).
+### Offline Merge UI
+- **Pending workout cards**: Identical layout to server workout cards but wrapped in a `Stack` with a `Positioned` `SyncStatusBadge` at bottom-right. Tapping shows a snackbar: "This workout is waiting to sync." Not navigable to detail screen.
+- **Pending nutrition merge**: The "(includes X pending)" text is 11px, uses `theme.textTheme.bodySmall?.color`, appears directly below the macro cards row with 4px top padding. Disappears when items sync.
+- **Pending weight in Latest Weight**: If the most recent weight is a pending local entry, the "Latest Weight" number on the nutrition screen shows it with a small 12px `cloud_off` icon (amber) next to the date text.
+- **Sync badge placement**: All badges are 16x16 per the existing `SyncStatusBadge` spec. Positioned via `Positioned(right: 4, bottom: 4)` inside a `Stack`.
 
-### Failed Sync Bottom Sheet
-- **Trigger:** Tapping the persistent "X items failed to sync" banner.
-- **Content:** DraggableScrollableSheet with list of failed items. Each item shows: icon for type (fitness_center for workouts, restaurant for nutrition, monitor_weight for weight), description ("Push Day workout from Feb 15"), error message in bodySmall red text, "Retry" outlined button (blue), "Delete" text button (red).
-- **Empty state:** If all items are retried/deleted, sheet auto-closes.
-- **Retry behavior:** Individual retry immediately attempts sync. If successful, item disappears from list with slide animation.
-
-### Logout Warning
-- **Trigger:** User taps logout while `sync_queue` has items with status `pending` or `failed`.
-- **Dialog:** AlertDialog, title "Unsaved Changes", body "You have X workout(s) and Y nutrition entry/entries that haven't synced to the server yet. Logging out will permanently delete this data.", actions: "Cancel" (TextButton), "Logout Anyway" (TextButton, red text).
-- **No pending items:** Normal logout flow (no dialog).
-
-### Active Workout Screen (Offline)
-- **No behavioral change.** The workout screen works identically offline (all state is local during the workout). The only difference is at submission: the data goes to Drift instead of the API.
-- **Post-workout survey screen:** After survey submit, if offline, show the offline success banner before popping back.
-
-### Home Screen
-- **Recent Workouts:** Merge server workouts + local pending workouts. Local pending workouts appear at the top (most recent). Each local workout card has the cloud-off badge.
-- **Nutrition section:** Macro circle values include locally-saved nutrition entries (optimistic addition to consumed values).
-
-### Loading State
-- **Drift DB init:** Happens during app startup (splash screen). No additional loading indicator needed (Drift opens fast, <100ms).
-- **Sync processing:** Only the sync banner indicates activity. No blocking modal or full-screen loader.
-
-### Empty State
-- **No cached program + offline:** Card with cloud_off icon, "No program data available. Connect to the internet to load your program." + "Retry" button (which re-checks connectivity and attempts fetch).
-
-### Success State
-- **Workout saved offline:** Full-screen success with checkmark animation (same as online), plus the amber offline banner text.
-- **Nutrition saved offline:** Snackbar with cloud_off icon prefix.
-- **Weight saved offline:** Snackbar with cloud_off icon prefix.
-- **Sync complete:** Green banner "All changes synced" for 3 seconds.
-
-### Mobile/Responsive Behavior
-- **Offline banner** is full-width, respects safe area insets.
-- **Sync badges** scale with card size (stay proportional).
-- **Failed sync bottom sheet** is 50% initial height, 90% max, handles keyboard if any input were added.
+### Performance
+- No visible UI changes for the user. Performance improvements are invisible.
+- If `RepaintBoundary` wrapping causes any visual regressions (clipping, shadow cutoff, z-index issues), remove it from that specific widget.
+- `const` constructor additions should not change any runtime behavior.
+- `select()` optimizations should not change any rendered output.
 
 ---
 
 ## Technical Approach
 
-### New Files to Create
+### Files to Create
 
-#### Core Database Layer
-1. **`mobile/lib/core/database/app_database.dart`** -- Drift database class with all table definitions. Tables: `PendingWorkoutLogs`, `PendingNutritionLogs`, `PendingWeightCheckins`, `CachedPrograms`, `SyncQueueItems`. Uses `@DriftDatabase(tables: [...])` annotation. Includes typed DAOs for each table.
-2. **`mobile/lib/core/database/tables.dart`** -- Drift table definitions as separate classes. Each table has proper column types, defaults, and constraints.
-3. **`mobile/lib/core/database/daos/sync_queue_dao.dart`** -- DAO for sync queue operations: `insertItem()`, `getNextPending()`, `markSyncing()`, `markSynced()`, `markFailed()`, `getPendingCount()`, `getFailedItems()`, `deleteOldSynced()`, `retryFailed()`, `deleteItem()`.
-4. **`mobile/lib/core/database/daos/workout_cache_dao.dart`** -- DAO for workout cache and pending workout operations.
-5. **`mobile/lib/core/database/daos/nutrition_cache_dao.dart`** -- DAO for pending nutrition operations.
-6. **`mobile/lib/core/database/daos/program_cache_dao.dart`** -- DAO for cached program operations.
+| File | Purpose |
+|------|---------|
+| `mobile/lib/core/models/health_metrics.dart` | Immutable dataclass: `int steps`, `int activeCalories`, `int? heartRate`, `double? latestWeightKg`, `DateTime? weightDate`. Has `const` constructor. |
+| `mobile/lib/core/providers/health_provider.dart` | `HealthDataProvider` (Riverpod `StateNotifierProvider`). States: `initial`, `loading`, `loaded(HealthMetrics)`, `permissionDenied`, `unavailable`. Methods: `checkAndRequestPermission()`, `fetchHealthData()`, `autoImportWeight()`. Depends on `HealthService`, `SharedPreferences`, `OfflineWeightRepository`. |
+| `mobile/lib/shared/widgets/health_card.dart` | `TodaysHealthCard` widget: ConsumerWidget that watches `healthDataProvider`. Shows skeleton, data card, or nothing based on state. 4-metric layout with icons. Gear settings icon. `const` where possible. |
+| `mobile/lib/shared/widgets/health_permission_sheet.dart` | `showHealthPermissionSheet(BuildContext)` function. Returns `Future<bool>` (true = user tapped Connect). Material bottom sheet with icon, title, body, two buttons. |
 
-#### Connectivity Service
-7. **`mobile/lib/core/services/connectivity_service.dart`** -- `ConnectivityService` class that wraps `connectivity_plus`. Exposes a `Stream<ConnectivityStatus>` (enum: `online`, `offline`). Debounces transitions by 2 seconds to handle flapping. Provides a synchronous `isOnline` getter for point-in-time checks.
+### Files to Modify
 
-#### Sync Engine
-8. **`mobile/lib/core/services/sync_service.dart`** -- `SyncService` that orchestrates the queue. Listens to connectivity changes. When online: pulls next pending item from `SyncQueueDao`, sets to `syncing`, dispatches to the correct API endpoint based on `operation_type`, handles success/failure. Implements exponential backoff for retries (5s, 15s, 45s). Exposes a `syncStatusStream` for the UI banner.
-9. **`mobile/lib/core/services/sync_status.dart`** -- Data classes: `SyncStatus` enum (`idle`, `syncing`, `allSynced`, `hasFailed`), `SyncProgress` (current item, total items), `FailedSyncItem` model.
+| File | Changes |
+|------|---------|
+| `mobile/lib/core/services/health_service.dart` | Rewrite: Add `ACTIVE_ENERGY_BURNED`, `WEIGHT` to types. Remove `SLEEP_IN_BED`. Add `getTodayActiveCalories()`, `getLatestWeight()`. Change `syncTodayHealthData()` to return `HealthMetrics`. Add `checkPermissionStatus()`. Fix API usage: `getHealthDataFromTypes` returns `List<HealthDataPoint>`, extract `.value` properly (the current code checks `data is NumericHealthValue` on a `HealthDataPoint` which is wrong -- should be `data.value is NumericHealthValue`). |
+| `mobile/lib/features/home/presentation/screens/home_screen.dart` | Insert `TodaysHealthCard` between Nutrition and Weekly Progress. Wrap `_CalorieRing` and `_MacroCircle` in `RepaintBoundary`. Modify `_buildRecentWorkoutsSection` to merge pending workouts. Add `SyncStatusBadge` to `_RecentWorkoutCard` via optional `syncStatus` parameter. |
+| `mobile/lib/features/home/presentation/providers/home_provider.dart` | Add `List<PendingWorkoutDisplay> pendingWorkouts` to `HomeState`. In `loadDashboardData()`, query `WorkoutCacheDao.getPendingWorkoutsForUser()` and merge results into recent workouts. |
+| `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart` | Below macro cards, add "(includes X pending)" label when pending count > 0. Add `SyncStatusBadge` to `_FoodEntryRow` for pending items. Wrap `_MacroCard` in `RepaintBoundary`. |
+| `mobile/lib/features/nutrition/presentation/providers/nutrition_provider.dart` | In macro total computation, add pending nutrition macros. Query `NutritionCacheDao.getPendingNutritionForUser()` for the selected date. Add `int pendingNutritionCount` to `NutritionState`. |
+| `mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart` | Merge pending weight check-ins from `NutritionCacheDao.getPendingWeightForUser()` into the history list. Show `SyncStatusBadge` on pending entries. |
+| `mobile/lib/features/nutrition/presentation/screens/weight_checkin_screen.dart` | No functional changes. Already uses `OfflineWeightRepository`. |
+| `mobile/lib/core/database/daos/workout_cache_dao.dart` | Add `Future<List<PendingWorkoutLog>> getPendingWorkoutsForUser(int userId)`. |
+| `mobile/lib/core/database/daos/nutrition_cache_dao.dart` | Add `Future<List<PendingNutritionLog>> getPendingNutritionForUser(int userId, String date)`. Add `Future<List<PendingWeightCheckin>> getPendingWeightForUser(int userId)`. |
+| `mobile/ios/Runner/Runner.entitlements` | Add `com.apple.developer.healthkit` key with value `true`, and `com.apple.developer.healthkit.access` array with empty array (read-only). |
+| `mobile/ios/Runner/Info.plist` | Update `NSHealthShareUsageDescription` to: "FitnessAI reads your steps, active calories, heart rate, and weight to display your daily health summary and auto-import weight check-ins." |
+| `mobile/android/app/src/main/AndroidManifest.xml` | Add `android.permission.health.READ_ACTIVE_CALORIES_BURNED` and `android.permission.health.READ_WEIGHT` permissions. Remove WRITE permissions (we are read-only). |
+| `mobile/lib/core/providers/sync_provider.dart` | Expose a provider or stream that notifies when sync completes, so UI can refresh pending item lists. |
 
-#### Offline-Aware Repositories
-10. **`mobile/lib/core/database/offline_workout_repository.dart`** -- Wraps `WorkoutRepository` with offline fallback. `submitPostWorkoutSurvey()`: tries API first; on network error, saves to Drift + sync queue. `submitReadinessSurvey()`: same pattern. `getPrograms()`: tries API first; on success, caches in Drift; on failure, reads from Drift cache.
-11. **`mobile/lib/core/database/offline_nutrition_repository.dart`** -- Wraps nutrition operations with offline fallback. `confirmAndSave()`: tries API first; on network error, saves to Drift + sync queue.
-12. **`mobile/lib/core/database/offline_weight_repository.dart`** -- Wraps weight check-in with offline fallback.
+### Key Dependencies
+- `health: ^13.2.1` -- already in `pubspec.yaml`
+- `shared_preferences: ^2.2.2` -- already in `pubspec.yaml`
+- `url_launcher: ^6.2.4` -- already in `pubspec.yaml`
+- `intl: ^0.20.2` -- already in `pubspec.yaml` (for `NumberFormat`)
+- No new packages needed.
 
-#### UI Components
-13. **`mobile/lib/shared/widgets/offline_banner.dart`** -- `OfflineBanner` widget. Consumes `connectivityProvider` and `syncStatusProvider`. Renders the appropriate banner state (offline, syncing, synced, hidden). Uses `AnimatedSwitcher` for transitions.
-14. **`mobile/lib/shared/widgets/sync_status_badge.dart`** -- `SyncStatusBadge` widget. Takes a `SyncItemStatus` enum and renders the appropriate icon badge at the designated position.
-15. **`mobile/lib/shared/widgets/failed_sync_sheet.dart`** -- `FailedSyncSheet` bottom sheet widget. Lists failed items from `SyncQueueDao`, provides retry/delete per item.
+### Key Design Decisions
 
-#### Providers
-16. **`mobile/lib/core/providers/database_provider.dart`** -- Riverpod provider for the Drift database singleton.
-17. **`mobile/lib/core/providers/connectivity_provider.dart`** -- Riverpod `StreamProvider<ConnectivityStatus>` wrapping `ConnectivityService`.
-18. **`mobile/lib/core/providers/sync_provider.dart`** -- Riverpod providers for `SyncService`, `syncStatusProvider` (stream of SyncStatus), `pendingSyncCountProvider`, `failedSyncItemsProvider`.
+1. **Health data is display-only, local-only**: No backend changes. Health metrics are never sent to the server. This respects user privacy and avoids HIPAA/GDPR complexity. The only exception is auto-importing weight to WeightCheckIn, which uses the existing save flow (goes through `OfflineWeightRepository` which handles online/offline).
 
-### Existing Files to Modify
+2. **HealthMetrics as a typed dataclass, not Map<String, dynamic>**: Per project rules (`.claude/rules/datatypes.md`), services and utils return dataclasses or Pydantic models, never dicts.
 
-#### pubspec.yaml
-19. **`mobile/pubspec.yaml`** -- Add `connectivity_plus: ~6.0.0` to dependencies. `drift`, `sqlite3_flutter_libs`, `path_provider`, and `path` are already listed. Add `uuid: ~4.0.0` for client-side idempotency keys.
+3. **Permission prompt shown once, via bottom sheet, not blocking**: The bottom sheet is shown on first home screen visit if `health_permission_asked` is false in SharedPreferences. After the user taps "Connect" or "Not Now", the preference is set and the sheet never appears again. This is non-intrusive -- the home screen loads fully behind the sheet.
 
-#### Repositories (Wrap with Offline Layer)
-20. **`mobile/lib/features/workout_log/data/repositories/workout_repository.dart`** -- No changes to this file. The offline layer wraps it externally.
-21. **`mobile/lib/features/workout_log/presentation/providers/workout_provider.dart`** -- Change `workoutRepositoryProvider` to use `OfflineWorkoutRepository` instead of `WorkoutRepository`. Add `programsProvider` that uses the offline-aware programs fetcher.
-22. **`mobile/lib/features/nutrition/data/repositories/nutrition_repository.dart`** -- No changes to this file. The offline layer wraps it externally.
-23. **`mobile/lib/features/nutrition/presentation/providers/nutrition_provider.dart`** -- Change to use `OfflineNutritionRepository`.
+4. **Pending data merge is additive for nutrition, positional for workouts/weight**: Pending nutrition entries add to server totals (they represent new food not yet synced). Pending workouts prepend to the recent list (newest first). Pending weight entries insert chronologically into the trends list.
 
-#### Screens (Add Offline Banner + Badges)
-24. **`mobile/lib/features/home/presentation/screens/home_screen.dart`** -- Add `OfflineBanner` widget at top of body. Modify `_buildRecentWorkoutsSection` to merge local pending workouts with server data. Add sync badge to local workout cards. Add failed-sync banner if any items have `failed` status.
-25. **`mobile/lib/features/workout_log/presentation/screens/active_workout_screen.dart`** -- Modify `_submitPostWorkoutSurvey()` to use `OfflineWorkoutRepository`. On offline save, show success with offline banner text. Modify `_submitReadinessSurvey()` similarly.
-26. **`mobile/lib/features/workout_log/presentation/screens/post_workout_survey_screen.dart`** -- Add offline success messaging after survey submission.
-27. **`mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart`** -- Add `OfflineBanner` widget. Show sync badges on locally-saved entries. Merge local pending nutrition data into macro totals.
-28. **`mobile/lib/features/nutrition/presentation/screens/weight_checkin_screen.dart`** -- Use `OfflineWeightRepository` for submissions.
-29. **`mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart`** -- Merge local pending weight check-ins into the trend chart.
-30. **`mobile/lib/features/logging/presentation/screens/ai_command_center_screen.dart`** -- Note: AI parsing requires network by design (it calls OpenAI). The confirm-and-save step uses `OfflineNutritionRepository`. If AI parsing fails due to no network, show: "AI food parsing requires an internet connection. Connect to parse your input."
-31. **`mobile/lib/features/workout_log/presentation/screens/workout_log_screen.dart`** -- Add `OfflineBanner` to the workout log screen. Show cached program data when offline.
+5. **Performance changes are conservative**: Only add `RepaintBoundary` where there's a clear paint-heavy widget (CircularProgressIndicator, LinearProgressIndicator, animations). Don't wrap every widget -- that increases memory usage with diminishing returns. Focus on the hot paths: home screen scroll, nutrition screen scroll, workout log scroll.
 
-#### App Initialization
-32. **`mobile/lib/main.dart`** (or equivalent app entry point) -- Initialize `AppDatabase`, `ConnectivityService`, and `SyncService` during app startup. Register providers. Run cleanup (delete old synced items, delete stale caches).
+6. **Auto-import weight runs silently**: No snackbar, no dialog. The weight just appears in the check-in history. The `notes` field ("Auto-imported from Health") distinguishes it from manual entries. If auto-import fails (storage full, DB error), it fails silently -- the user can always manually check in. Errors logged in debug mode only.
 
-#### Auth (Logout Warning)
-33. **`mobile/lib/features/auth/presentation/providers/auth_provider.dart`** -- Modify logout to check pending sync count first. If > 0, show warning dialog. On confirmed logout, call `AppDatabase.clearUserData(userId)`.
+7. **Existing HealthService bugs fixed**: The current `health_service.dart` has a bug where it checks `if (data is NumericHealthValue)` on `HealthDataPoint` objects. The `health` package returns `List<HealthDataPoint>` from `getHealthDataFromTypes`, and the numeric value is at `data.value` (a `HealthValue`), not on the `HealthDataPoint` itself. This must be fixed as part of the rewrite.
 
-### Code Generation
-After creating Drift tables and DAOs, run:
-```bash
-cd mobile && dart run build_runner build --delete-conflicting-outputs
-```
-
-### Dependencies Summary
-| Package | Version | Purpose | Status |
-|---------|---------|---------|--------|
-| `drift` | ~2.14.1 | SQLite ORM for local DB | Already in pubspec |
-| `sqlite3_flutter_libs` | ~0.5.18 | Native SQLite binaries | Already in pubspec |
-| `drift_dev` | ~2.14.1 | Code generation for Drift | Already in dev_dependencies |
-| `path_provider` | ~2.1.1 | App documents directory | Already in pubspec |
-| `path` | ~1.8.3 | Path joining | Already in pubspec |
-| `connectivity_plus` | ~6.0.0 | Network status monitoring | **New -- add to pubspec** |
-| `uuid` | ~4.0.0 | Idempotency keys for sync queue | **New -- add to pubspec** |
+8. **No new Drift tables**: Pending data already exists in `PendingWorkoutLogs`, `PendingNutritionLogs`, `PendingWeightCheckins`. We just need new DAO query methods to read them. No schema migration needed.
 
 ---
 
 ## Out of Scope
-- Offline AI natural language parsing (requires OpenAI API -- network required by nature)
-- Offline support for trainer/admin features (trainer dashboard, admin dashboard)
-- Offline support for the web dashboard (Next.js)
-- Background sync when the app is fully closed (requires platform-specific background execution -- iOS BGTaskScheduler / Android WorkManager)
-- HealthKit / Health Connect integration (Phase 6 item but separate ticket)
-- App performance audit / RepaintBoundary optimization (Phase 6 item but separate ticket)
-- Full offline-first architecture for every feature (only workout, nutrition, and weight logging)
-- Mid-workout auto-save (saving exercise progress before hitting "Finish")
-- Offline exercise video/image caching
-- Conflict resolution UI for merging diverged data (V1 uses simple last-write-wins for most cases, with explicit failure for true conflicts)
+
+- Background health data sync (when app is closed) -- requires BGTaskScheduler (iOS) / WorkManager (Android), too complex for this pipeline
+- Writing health data back to HealthKit/Health Connect (read-only integration)
+- Full health dashboard screen -- just a summary card on the home screen
+- Sending health data to the backend -- this is local/display only
+- Sleep tracking display -- was in the original placeholder but not in the focus
+- Heart rate variability (HRV) or resting heart rate (separate HealthKit types) -- just use generic `HEART_RATE`
+- Historical health data charting (past 7/30 days of steps) -- just today's snapshot
+- Health data notifications ("You hit 10,000 steps!")
+- Backend API for health data storage or analytics
+- Workout history screen refactor to `ListView.builder` (already uses pagination/infinite scroll)
+- New Drift schema version / migration -- not needed for this ticket

@@ -146,6 +146,18 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                       fontSize: 13,
                     ),
                   ),
+                  // Show cloud_off icon if the latest weight is from a pending entry
+                  if (state.pendingWeights.isNotEmpty &&
+                      state.latestCheckIn != null &&
+                      state.pendingWeights.any((pw) =>
+                          pw.date == state.latestCheckIn!.date)) ...[
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.cloud_off,
+                      size: 12,
+                      color: Color(0xFFF59E0B),
+                    ),
+                  ],
                   const SizedBox(width: 6),
                   Icon(
                     Icons.bar_chart,
@@ -313,7 +325,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                             ),
                           ),
                           if (preset.isDefault)
-                            Icon(
+                            const Icon(
                               Icons.star,
                               size: 14,
                               color: Colors.amber,
@@ -531,43 +543,80 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
   }
 
   Widget _buildMacroCards(NutritionState state, ThemeData theme) {
-    return Row(
+    // Add pending macros to displayed values
+    final proteinTotal = state.proteinConsumed + state.pendingProtein;
+    final carbsTotal = state.carbsConsumed + state.pendingCarbs;
+    final fatTotal = state.fatConsumed + state.pendingFat;
+
+    final proteinProgress = state.proteinGoal > 0
+        ? proteinTotal / state.proteinGoal
+        : 0.0;
+    final carbsProgress = state.carbsGoal > 0
+        ? carbsTotal / state.carbsGoal
+        : 0.0;
+    final fatProgress = state.fatGoal > 0
+        ? fatTotal / state.fatGoal
+        : 0.0;
+
+    return Column(
       children: [
-        Expanded(
-          child: _MacroCard(
-            label: 'Protein, g',
-            current: state.proteinConsumed,
-            goal: state.proteinGoal,
-            remaining: state.proteinRemaining,
-            progress: state.proteinProgress,
-            color: const Color(0xFFEC4899), // Pink
-            backgroundColor: const Color(0xFF2D1F2F),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: RepaintBoundary(
+                child: _MacroCard(
+                  label: 'Protein, g',
+                  current: proteinTotal,
+                  goal: state.proteinGoal,
+                  remaining: (state.proteinGoal - proteinTotal).clamp(0, state.proteinGoal),
+                  progress: proteinProgress,
+                  color: const Color(0xFFEC4899), // Pink
+                  backgroundColor: const Color(0xFF2D1F2F),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: RepaintBoundary(
+                child: _MacroCard(
+                  label: 'Carbs, g',
+                  current: carbsTotal,
+                  goal: state.carbsGoal,
+                  remaining: (state.carbsGoal - carbsTotal).clamp(0, state.carbsGoal),
+                  progress: carbsProgress,
+                  color: const Color(0xFF22C55E), // Green
+                  backgroundColor: const Color(0xFF1F2D25),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: RepaintBoundary(
+                child: _MacroCard(
+                  label: 'Fat, g',
+                  current: fatTotal,
+                  goal: state.fatGoal,
+                  remaining: (state.fatGoal - fatTotal).clamp(0, state.fatGoal),
+                  progress: fatProgress,
+                  color: const Color(0xFF3B82F6), // Blue
+                  backgroundColor: const Color(0xFF1F252D),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _MacroCard(
-            label: 'Carbs, g',
-            current: state.carbsConsumed,
-            goal: state.carbsGoal,
-            remaining: state.carbsRemaining,
-            progress: state.carbsProgress,
-            color: const Color(0xFF22C55E), // Green
-            backgroundColor: const Color(0xFF1F2D25),
+        // "(includes X pending)" label
+        if (state.pendingNutritionCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '(includes ${state.pendingNutritionCount} pending)',
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 11,
+              ),
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _MacroCard(
-            label: 'Fat, g',
-            current: state.fatConsumed,
-            goal: state.fatGoal,
-            remaining: state.fatRemaining,
-            progress: state.fatProgress,
-            color: const Color(0xFF3B82F6), // Blue
-            backgroundColor: const Color(0xFF1F252D),
-          ),
-        ),
       ],
     );
   }

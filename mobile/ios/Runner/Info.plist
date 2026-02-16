@@ -29,9 +29,7 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID for quick and secure sign in.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>We need your activity data to calculate recovery scores.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>We sync your workouts to your health ring.</string>
+	<string>FitnessAI reads your steps, active calories, heart rate, and weight to display your daily health summary and auto-import weight check-ins.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Select photos to use as exercise images.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
