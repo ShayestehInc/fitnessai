@@ -97,7 +97,7 @@ export function TrainerDetailDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{name}</DialogTitle>
-          <DialogDescription>{trainer.email}</DialogDescription>
+          <DialogDescription className="truncate">{trainer.email}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

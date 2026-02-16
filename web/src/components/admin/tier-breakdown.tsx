@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TIER_COLORS } from "@/types/admin";
+import { TIER_COLORS } from "@/lib/admin-constants";
 
 interface TierBreakdownProps {
   tierBreakdown: Record<string, number>;

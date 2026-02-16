@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 import { useCreateCoupon, useUpdateCoupon } from "@/hooks/use-admin-coupons";
+import { SELECT_CLASSES_FULL_WIDTH } from "@/lib/admin-constants";
 import type {
   AdminCoupon,
   CreateCouponPayload,
@@ -205,7 +206,7 @@ export function CouponFormDialog({
                   id="coupon-type"
                   value={couponType}
                   onChange={(e) => setCouponType(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className={SELECT_CLASSES_FULL_WIDTH}
                 >
                   {COUPON_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>
@@ -220,7 +221,7 @@ export function CouponFormDialog({
                   id="coupon-applies-to"
                   value={appliesTo}
                   onChange={(e) => setAppliesTo(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className={SELECT_CLASSES_FULL_WIDTH}
                 >
                   {APPLIES_TO_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -326,7 +327,7 @@ export function CouponFormDialog({
                     type="checkbox"
                     checked={applicableTiers.includes(tier)}
                     onChange={() => handleTierToggle(tier)}
-                    className="h-4 w-4 rounded border-input"
+                    className="h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   />
                   {tier}
                 </label>

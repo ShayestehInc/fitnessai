@@ -51,7 +51,7 @@ export function SubscriptionDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="truncate">
             Subscription Detail
             {data && ` - ${data.trainer.email}`}
           </DialogTitle>
@@ -61,8 +61,21 @@ export function SubscriptionDetailDialog({
         </DialogHeader>
 
         {subscription.isLoading && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-8" role="status" aria-label="Loading subscription details">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+            <span className="sr-only">Loading subscription details...</span>
+          </div>
+        )}
+
+        {subscription.isError && (
+          <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+            Failed to load subscription details.{" "}
+            <button
+              onClick={() => subscription.refetch()}
+              className="underline hover:no-underline"
+            >
+              Retry
+            </button>
           </div>
         )}
 
@@ -120,7 +133,7 @@ export function SubscriptionDetailDialog({
                   <p className="text-muted-foreground">Trainees</p>
                   <p className="font-medium">
                     {data.trainee_count} /{" "}
-                    {data.max_trainees === -1 ? "Unlimited" : data.max_trainees}
+                    {data.max_trainees <= 0 ? "Unlimited" : data.max_trainees}
                   </p>
                 </div>
                 <div>

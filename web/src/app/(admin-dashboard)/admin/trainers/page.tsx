@@ -55,11 +55,12 @@ export default function AdminTrainersPage() {
           className="max-w-sm"
           aria-label="Search trainers"
         />
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="group" aria-label="Filter trainers by status">
           <Button
             variant={activeFilter === undefined ? "default" : "outline"}
             size="sm"
             onClick={() => setActiveFilter(undefined)}
+            aria-pressed={activeFilter === undefined}
           >
             All
           </Button>
@@ -67,6 +68,7 @@ export default function AdminTrainersPage() {
             variant={activeFilter === true ? "default" : "outline"}
             size="sm"
             onClick={() => setActiveFilter(true)}
+            aria-pressed={activeFilter === true}
           >
             Active
           </Button>
@@ -74,6 +76,7 @@ export default function AdminTrainersPage() {
             variant={activeFilter === false ? "default" : "outline"}
             size="sm"
             onClick={() => setActiveFilter(false)}
+            aria-pressed={activeFilter === false}
           >
             Inactive
           </Button>
@@ -81,10 +84,11 @@ export default function AdminTrainersPage() {
       </div>
 
       {trainers.isLoading && (
-        <div className="space-y-2">
+        <div className="space-y-2" role="status" aria-label="Loading trainers">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-16 w-full" />
           ))}
+          <span className="sr-only">Loading trainers...</span>
         </div>
       )}
 
@@ -117,7 +121,10 @@ export default function AdminTrainersPage() {
       <TrainerDetailDialog
         trainer={selectedTrainer}
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setSelectedTrainer(null);
+        }}
       />
     </div>
   );

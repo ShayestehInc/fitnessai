@@ -12,6 +12,7 @@ import { SubscriptionList } from "@/components/admin/subscription-list";
 import { SubscriptionDetailDialog } from "@/components/admin/subscription-detail-dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SELECT_CLASSES } from "@/lib/admin-constants";
 import type { AdminSubscriptionListItem } from "@/types/admin";
 
 const STATUS_OPTIONS = [
@@ -88,7 +89,7 @@ export default function AdminSubscriptionsPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={SELECT_CLASSES}
           aria-label="Filter by status"
         >
           {STATUS_OPTIONS.map((o) => (
@@ -100,7 +101,7 @@ export default function AdminSubscriptionsPage() {
         <select
           value={tierFilter}
           onChange={(e) => setTierFilter(e.target.value)}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={SELECT_CLASSES}
           aria-label="Filter by tier"
         >
           {TIER_OPTIONS.map((o) => (
@@ -112,7 +113,7 @@ export default function AdminSubscriptionsPage() {
         <select
           value={upcomingFilter}
           onChange={(e) => setUpcomingFilter(e.target.value)}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={SELECT_CLASSES}
           aria-label="Filter by upcoming payments"
         >
           {UPCOMING_OPTIONS.map((o) => (
@@ -124,10 +125,11 @@ export default function AdminSubscriptionsPage() {
       </div>
 
       {subscriptions.isLoading && (
-        <div className="space-y-2">
+        <div className="space-y-2" role="status" aria-label="Loading subscriptions">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-16 w-full" />
           ))}
+          <span className="sr-only">Loading subscriptions...</span>
         </div>
       )}
 

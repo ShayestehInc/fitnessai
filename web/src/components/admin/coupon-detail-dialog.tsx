@@ -27,6 +27,8 @@ import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
+import { COUPON_STATUS_VARIANT } from "@/lib/admin-constants";
+import { formatCurrency, formatDiscount } from "@/lib/format-utils";
 import type { AdminCoupon, AdminCouponUsage } from "@/types/admin";
 
 interface CouponDetailDialogProps {
@@ -34,25 +36,6 @@ interface CouponDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEdit: (coupon: AdminCoupon) => void;
-}
-
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  active: "default",
-  expired: "secondary",
-  revoked: "destructive",
-  exhausted: "outline",
-};
-
-function formatDiscountDisplay(type: string, value: string): string {
-  const num = parseFloat(value);
-  if (type === "percent") return `${num}%`;
-  if (type === "fixed") {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(num);
-  }
-  return `${num} days`;
 }
 
 const usageColumns: Column<AdminCouponUsage>[] = [
@@ -71,11 +54,7 @@ const usageColumns: Column<AdminCouponUsage>[] = [
   {
     key: "discount",
     header: "Discount",
-    cell: (row) =>
-      new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(parseFloat(row.discount_amount)),
+    cell: (row) => formatCurrency(row.discount_amount),
   },
   {
     key: "used_at",
@@ -125,9 +104,9 @@ export function CouponDetailDialog({
         <DialogHeader>
           <DialogTitle>
             {data ? (
-              <span className="font-mono">{data.code}</span>
+              <span className="inline-block max-w-[400px] truncate font-mono" title={data.code}>{data.code}</span>
             ) : (
-              "Loading..."
+              "Coupon Details"
             )}
           </DialogTitle>
           <DialogDescription>
@@ -136,15 +115,28 @@ export function CouponDetailDialog({
         </DialogHeader>
 
         {coupon.isLoading && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-8" role="status" aria-label="Loading coupon details">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+            <span className="sr-only">Loading coupon details...</span>
+          </div>
+        )}
+
+        {coupon.isError && (
+          <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+            Failed to load coupon details.{" "}
+            <button
+              onClick={() => coupon.refetch()}
+              className="underline hover:no-underline"
+            >
+              Retry
+            </button>
           </div>
         )}
 
         {data && (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Badge variant={STATUS_VARIANT[data.status] ?? "secondary"}>
+              <Badge variant={COUPON_STATUS_VARIANT[data.status] ?? "secondary"}>
                 {data.status.charAt(0).toUpperCase() + data.status.slice(1)}
               </Badge>
               <Badge variant="outline">
@@ -159,7 +151,7 @@ export function CouponDetailDialog({
               <div>
                 <p className="text-muted-foreground">Discount</p>
                 <p className="font-medium">
-                  {formatDiscountDisplay(data.coupon_type, data.discount_value)}
+                  {formatDiscount(data.coupon_type, data.discount_value)}
                 </p>
               </div>
               <div>
@@ -249,8 +241,9 @@ export function CouponDetailDialog({
             <div>
               <h4 className="mb-2 text-sm font-semibold">Usages</h4>
               {usages.isLoading && (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <div className="flex items-center justify-center py-4" role="status" aria-label="Loading usages">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+                  <span className="sr-only">Loading usages...</span>
                 </div>
               )}
               {usages.data && usages.data.length === 0 && (

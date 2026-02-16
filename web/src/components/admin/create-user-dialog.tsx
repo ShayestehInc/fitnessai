@@ -20,6 +20,7 @@ import {
   useUpdateAdminUser,
   useDeleteAdminUser,
 } from "@/hooks/use-admin-users";
+import { SELECT_CLASSES_FULL_WIDTH } from "@/lib/admin-constants";
 import type { AdminUser, UpdateUserPayload } from "@/types/admin";
 
 interface CreateUserDialogProps {
@@ -205,7 +206,7 @@ export function CreateUserDialog({
               id="user-role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className={SELECT_CLASSES_FULL_WIDTH}
             >
               {ROLES.map((r) => (
                 <option key={r.value} value={r.value}>
@@ -243,7 +244,7 @@ export function CreateUserDialog({
                 type="checkbox"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
-                className="h-4 w-4 rounded border-input"
+                className="h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
               <Label htmlFor="user-active" className="cursor-pointer">
                 Active

@@ -15,7 +15,7 @@ import { usePastDueSubscriptions } from "@/hooks/use-admin-subscriptions";
 import { formatCurrency } from "@/lib/format-utils";
 
 export function PastDueAlerts() {
-  const { data: pastDue, isLoading } = usePastDueSubscriptions();
+  const { data: pastDue, isLoading, isError, refetch } = usePastDueSubscriptions();
 
   if (isLoading) {
     return (
@@ -24,13 +24,41 @@ export function PastDueAlerts() {
           <CardTitle className="text-base">Past Due Alerts</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
+          <div className="space-y-3" role="status" aria-label="Loading past due alerts">
             {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
                 className="h-12 animate-pulse rounded-md bg-muted"
               />
             ))}
+            <span className="sr-only">Loading past due alerts...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <AlertTriangle
+              className="h-4 w-4 text-destructive"
+              aria-hidden="true"
+            />
+            Past Due Alerts
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-destructive" role="alert">
+            Failed to load past due alerts.{" "}
+            <button
+              onClick={() => refetch()}
+              className="underline hover:no-underline"
+            >
+              Retry
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -87,7 +115,7 @@ export function PastDueAlerts() {
                 </div>
               </div>
             ))}
-            {items.length > 0 && (
+            {items.length > 5 && (
               <Button variant="outline" size="sm" className="w-full" asChild>
                 <Link href="/admin/subscriptions?past_due=true">
                   View All ({items.length})

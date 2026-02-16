@@ -49,29 +49,26 @@ export function PaymentHistoryTab({
 }: PaymentHistoryTabProps) {
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-4">
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center py-4" role="status" aria-label="Loading payment history">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+        <span className="sr-only">Loading payment history...</span>
       </div>
     );
   }
 
-  if (payments && payments.length === 0) {
+  if (!payments || payments.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">No payment history</p>
+      <p className="py-4 text-center text-sm text-muted-foreground">No payment history</p>
     );
   }
 
-  if (payments && payments.length > 0) {
-    return (
-      <DataTable
-        columns={paymentColumns}
-        data={payments}
-        keyExtractor={(row) => row.id}
-      />
-    );
-  }
-
-  return null;
+  return (
+    <DataTable
+      columns={paymentColumns}
+      data={payments}
+      keyExtractor={(row) => row.id}
+    />
+  );
 }
 
 const changeColumns: Column<AdminSubscriptionChange>[] = [
@@ -90,9 +87,17 @@ const changeColumns: Column<AdminSubscriptionChange>[] = [
     header: "Details",
     cell: (row) => {
       if (row.from_tier && row.to_tier)
-        return `${row.from_tier} -> ${row.to_tier}`;
+        return (
+          <span>
+            {row.from_tier} <span aria-label="changed to">&rarr;</span> {row.to_tier}
+          </span>
+        );
       if (row.from_status && row.to_status)
-        return `${row.from_status} -> ${row.to_status}`;
+        return (
+          <span>
+            {row.from_status} <span aria-label="changed to">&rarr;</span> {row.to_status}
+          </span>
+        );
       return "--";
     },
   },
@@ -119,27 +124,24 @@ export function ChangeHistoryTab({
 }: ChangeHistoryTabProps) {
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-4">
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center py-4" role="status" aria-label="Loading change history">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+        <span className="sr-only">Loading change history...</span>
       </div>
     );
   }
 
-  if (changes && changes.length === 0) {
+  if (!changes || changes.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">No change history</p>
+      <p className="py-4 text-center text-sm text-muted-foreground">No change history</p>
     );
   }
 
-  if (changes && changes.length > 0) {
-    return (
-      <DataTable
-        columns={changeColumns}
-        data={changes}
-        keyExtractor={(row) => row.id}
-      />
-    );
-  }
-
-  return null;
+  return (
+    <DataTable
+      columns={changeColumns}
+      data={changes}
+      keyExtractor={(row) => row.id}
+    />
+  );
 }

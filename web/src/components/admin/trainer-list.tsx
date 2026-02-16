@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
-import { TIER_COLORS } from "@/types/admin";
+import { TIER_COLORS } from "@/lib/admin-constants";
 import type { AdminTrainerListItem } from "@/types/admin";
 
 interface TrainerListProps {

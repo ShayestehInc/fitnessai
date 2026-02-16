@@ -4,7 +4,10 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
-import { TIER_COLORS } from "@/types/admin";
+import {
+  TIER_COLORS,
+  SUBSCRIPTION_STATUS_VARIANT,
+} from "@/lib/admin-constants";
 import type { AdminSubscriptionListItem } from "@/types/admin";
 import { formatCurrency } from "@/lib/format-utils";
 
@@ -12,14 +15,6 @@ interface SubscriptionListProps {
   subscriptions: AdminSubscriptionListItem[];
   onRowClick: (sub: AdminSubscriptionListItem) => void;
 }
-
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  active: "default",
-  past_due: "destructive",
-  canceled: "secondary",
-  trialing: "outline",
-  suspended: "secondary",
-};
 
 const columns: Column<AdminSubscriptionListItem>[] = [
   {
@@ -46,13 +41,19 @@ const columns: Column<AdminSubscriptionListItem>[] = [
   {
     key: "status",
     header: "Status",
-    cell: (row) => (
-      <Badge variant={STATUS_VARIANT[row.status] ?? "secondary"}>
-        {row.status.replace(/_/g, " ").charAt(0).toUpperCase() +
-          row.status.replace(/_/g, " ").slice(1)}
-        <span className="sr-only"> status</span>
-      </Badge>
-    ),
+    cell: (row) => {
+      const label = row.status
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      return (
+        <Badge
+          variant={SUBSCRIPTION_STATUS_VARIANT[row.status] ?? "secondary"}
+        >
+          {label}
+          <span className="sr-only"> status</span>
+        </Badge>
+      );
+    },
   },
   {
     key: "price",

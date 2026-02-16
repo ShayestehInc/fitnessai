@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
 import type { AdminSubscriptionTier } from "@/types/admin";
+import { formatCurrency } from "@/lib/format-utils";
 
 interface TierListProps {
   tiers: AdminSubscriptionTier[];
@@ -13,15 +14,6 @@ interface TierListProps {
   onToggleActive: (id: number) => void;
   onDelete: (tier: AdminSubscriptionTier) => void;
   togglingId: number | null;
-}
-
-function formatPrice(price: string): string {
-  const num = parseFloat(price);
-  if (isNaN(num)) return "$0.00";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(num);
 }
 
 export function TierList({
@@ -45,7 +37,7 @@ export function TierList({
     {
       key: "price",
       header: "Price",
-      cell: (row) => `${formatPrice(row.price)}/mo`,
+      cell: (row) => `${formatCurrency(row.price)}/mo`,
     },
     {
       key: "limit",

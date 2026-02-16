@@ -101,10 +101,11 @@ export default function AdminTiersPage() {
       />
 
       {tiers.isLoading && (
-        <div className="space-y-2">
+        <div className="space-y-2" role="status" aria-label="Loading tiers">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-16 w-full" />
           ))}
+          <span className="sr-only">Loading tiers...</span>
         </div>
       )}
 
@@ -165,8 +166,8 @@ export default function AdminTiersPage() {
           <DialogHeader>
             <DialogTitle>Delete Tier</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{deleteTarget?.display_name}
-              &quot;? This action cannot be undone.
+              Are you sure you want to delete &quot;{deleteTarget?.display_name}&quot;?
+              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           {deleteError && (

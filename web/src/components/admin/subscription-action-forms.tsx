@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 import { formatCurrency } from "@/lib/format-utils";
+import { SELECT_CLASSES_FULL_WIDTH } from "@/lib/admin-constants";
 import type { AdminSubscription } from "@/types/admin";
 
 const TIERS = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
@@ -71,6 +72,10 @@ export function SubscriptionActionForms({
 
   async function handleChangeTier() {
     if (!newTier) return;
+    if (newTier === subscription.tier) {
+      toast.error("Please select a different tier");
+      return;
+    }
     try {
       await changeTier.mutateAsync({
         subscriptionId: subscription.id,
@@ -86,6 +91,10 @@ export function SubscriptionActionForms({
 
   async function handleChangeStatus() {
     if (!newStatus) return;
+    if (newStatus === subscription.status) {
+      toast.error("Please select a different status");
+      return;
+    }
     try {
       await changeStatus.mutateAsync({
         subscriptionId: subscription.id,
@@ -172,14 +181,19 @@ export function SubscriptionActionForms({
             id="new-tier"
             value={newTier}
             onChange={(e) => setNewTier(e.target.value)}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            className={SELECT_CLASSES_FULL_WIDTH}
           >
             {TIERS.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {t}{t === subscription.tier ? " (current)" : ""}
               </option>
             ))}
           </select>
+          {newTier === subscription.tier && (
+            <p className="text-xs text-muted-foreground">
+              Select a different tier to make a change.
+            </p>
+          )}
           <Label htmlFor="tier-reason">Reason</Label>
           <textarea
             id="tier-reason"
@@ -193,7 +207,7 @@ export function SubscriptionActionForms({
             <Button
               size="sm"
               onClick={handleChangeTier}
-              disabled={changeTier.isPending}
+              disabled={changeTier.isPending || newTier === subscription.tier}
             >
               {changeTier.isPending && (
                 <Loader2
@@ -217,14 +231,19 @@ export function SubscriptionActionForms({
             id="new-status"
             value={newStatus}
             onChange={(e) => setNewStatus(e.target.value)}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            className={SELECT_CLASSES_FULL_WIDTH}
           >
             {STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s.replace(/_/g, " ")}
+                {s.replace(/_/g, " ")}{s === subscription.status ? " (current)" : ""}
               </option>
             ))}
           </select>
+          {newStatus === subscription.status && (
+            <p className="text-xs text-muted-foreground">
+              Select a different status to make a change.
+            </p>
+          )}
           <Label htmlFor="status-reason">Reason</Label>
           <textarea
             id="status-reason"
@@ -238,7 +257,7 @@ export function SubscriptionActionForms({
             <Button
               size="sm"
               onClick={handleChangeStatus}
-              disabled={changeStatus.isPending}
+              disabled={changeStatus.isPending || newStatus === subscription.status}
             >
               {changeStatus.isPending && (
                 <Loader2

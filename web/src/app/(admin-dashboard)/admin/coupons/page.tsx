@@ -13,6 +13,7 @@ import { CouponDetailDialog } from "@/components/admin/coupon-detail-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SELECT_CLASSES } from "@/lib/admin-constants";
 import type { AdminCoupon, AdminCouponListItem } from "@/types/admin";
 
 const STATUS_OPTIONS = [
@@ -103,7 +104,7 @@ export default function AdminCouponsPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={SELECT_CLASSES}
           aria-label="Filter by status"
         >
           {STATUS_OPTIONS.map((o) => (
@@ -115,7 +116,7 @@ export default function AdminCouponsPage() {
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={SELECT_CLASSES}
           aria-label="Filter by type"
         >
           {TYPE_OPTIONS.map((o) => (
@@ -127,8 +128,8 @@ export default function AdminCouponsPage() {
         <select
           value={appliesToFilter}
           onChange={(e) => setAppliesToFilter(e.target.value)}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          aria-label="Filter by applies to"
+          className={SELECT_CLASSES}
+          aria-label="Filter by target"
         >
           {APPLIES_TO_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -139,10 +140,11 @@ export default function AdminCouponsPage() {
       </div>
 
       {coupons.isLoading && (
-        <div className="space-y-2">
+        <div className="space-y-2" role="status" aria-label="Loading coupons">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-16 w-full" />
           ))}
+          <span className="sr-only">Loading coupons...</span>
         </div>
       )}
 

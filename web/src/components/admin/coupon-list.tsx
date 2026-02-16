@@ -4,6 +4,8 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
+import { COUPON_STATUS_VARIANT } from "@/lib/admin-constants";
+import { formatDiscount } from "@/lib/format-utils";
 import type { AdminCouponListItem } from "@/types/admin";
 
 interface CouponListProps {
@@ -11,31 +13,15 @@ interface CouponListProps {
   onRowClick: (coupon: AdminCouponListItem) => void;
 }
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  active: "default",
-  expired: "secondary",
-  revoked: "destructive",
-  exhausted: "outline",
-};
-
-function formatDiscountValue(coupon: AdminCouponListItem): string {
-  const value = parseFloat(coupon.discount_value);
-  if (coupon.coupon_type === "percent") return `${value}%`;
-  if (coupon.coupon_type === "fixed") {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(value);
-  }
-  if (coupon.coupon_type === "free_trial") return `${value} days`;
-  return String(value);
-}
-
 const columns: Column<AdminCouponListItem>[] = [
   {
     key: "code",
     header: "Code",
-    cell: (row) => <span className="font-mono font-medium">{row.code}</span>,
+    cell: (row) => (
+      <span className="inline-block max-w-[180px] truncate font-mono font-medium" title={row.code}>
+        {row.code}
+      </span>
+    ),
   },
   {
     key: "type",
@@ -52,7 +38,7 @@ const columns: Column<AdminCouponListItem>[] = [
   {
     key: "discount",
     header: "Discount",
-    cell: (row) => formatDiscountValue(row),
+    cell: (row) => formatDiscount(row.coupon_type, row.discount_value),
   },
   {
     key: "applies_to",
@@ -64,7 +50,7 @@ const columns: Column<AdminCouponListItem>[] = [
     key: "status",
     header: "Status",
     cell: (row) => (
-      <Badge variant={STATUS_VARIANT[row.status] ?? "secondary"}>
+      <Badge variant={COUPON_STATUS_VARIANT[row.status] ?? "secondary"}>
         {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
         <span className="sr-only"> status</span>
       </Badge>

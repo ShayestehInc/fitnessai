@@ -12,6 +12,7 @@ import { CreateUserDialog } from "@/components/admin/create-user-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SELECT_CLASSES } from "@/lib/admin-constants";
 import type { AdminUser } from "@/types/admin";
 
 const ROLE_OPTIONS = [
@@ -74,7 +75,7 @@ export default function AdminUsersPage() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={SELECT_CLASSES}
           aria-label="Filter by role"
         >
           {ROLE_OPTIONS.map((o) => (
@@ -86,10 +87,11 @@ export default function AdminUsersPage() {
       </div>
 
       {users.isLoading && (
-        <div className="space-y-2">
+        <div className="space-y-2" role="status" aria-label="Loading users">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-16 w-full" />
           ))}
+          <span className="sr-only">Loading users...</span>
         </div>
       )}
 
