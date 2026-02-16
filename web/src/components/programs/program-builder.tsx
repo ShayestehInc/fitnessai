@@ -252,7 +252,6 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
   handleSaveRef.current = handleSave;
 
   // Ctrl+S / Cmd+S keyboard shortcut to save
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
