@@ -4,6 +4,44 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-15] — Ambassador Enhancements (Phase 5)
+
+### Added
+- **Monthly Earnings Chart** — fl_chart BarChart on ambassador dashboard showing last 6 months of commission earnings. Skeleton loading state, empty state for zero data, accessibility semantics on chart elements.
+- **Native Share Sheet** — share_plus package integration for native iOS/Android share dialog. Automatic fallback to clipboard on unsupported platforms (emulators, web). Broad exception catch handles MissingPluginException.
+- **Commission Approval/Payment Workflow** — Full admin workflow for commission lifecycle (PENDING → APPROVED → PAID). Individual and bulk operations (up to 200 per request). `CommissionService` with atomic transactions, `select_for_update` concurrency control, frozen-dataclass results following `ReferralService` pattern. Admin mobile UI with confirmation dialogs, per-commission loading indicators (`Set<int>`), and "Pay All" bulk button.
+- **Custom Referral Codes** — Ambassadors can set custom 4-20 character alphanumeric codes (e.g., "JOHN20"). Triple-layer validation: serializer uniqueness check (fast-path UX), DB unique constraint (ultimate guard), `IntegrityError` catch (TOCTOU race condition). Edit dialog in ambassador settings with auto-uppercase and server error display.
+- **Ambassador Password Validation** — Django `validate_password()` applied to admin-created ambassador accounts via `AdminCreateAmbassadorSerializer`.
+- **`BulkCommissionActionResult`** — Typed Dart model replacing raw `Map<String, dynamic>` returns from bulk commission repository methods.
+- **3 extracted sub-widgets** — `AmbassadorProfileCard` (167 lines), `AmbassadorReferralsList` (117 lines), `AmbassadorCommissionsList` (261 lines) decomposed from 900-line monolithic screen.
+
+### Changed
+- `referral_code` max_length widened from 8 to 20 characters (migration 0003, `AlterField` only, fully reversible)
+- Commission service logic extracted from views into dedicated `CommissionService` following `ReferralService` pattern
+- `AdminAmbassadorDetailView.get()` reuses paginator's cached count instead of issuing redundant SQL COUNT queries
+- Individual approve/pay buttons disabled during bulk processing to prevent conflicting actions
+- Share exception catch broadened from `PlatformException` to `catch (_)` for `MissingPluginException` compatibility
+- All-zero earnings chart now shows empty state instead of invisible zero-height bars
+- Currency display uses comma-grouped formatting ($10,500.00 instead of 10500.00)
+- Long referral codes wrapped in `FittedBox(fit: BoxFit.scaleDown)` to prevent overflow
+
+### Security
+- State transition guards on `AmbassadorCommission.approve()` and `mark_paid()` — `ValueError` for invalid state transitions
+- Bulk operations capped at 200 IDs with automatic deduplication via `validate_commission_ids`
+- Django password validation on admin-created ambassador accounts
+- `select_for_update()` prevents concurrent double-processing of commissions
+- No secrets, API keys, or credentials in any committed file
+
+### Quality
+- Code review: 8/10 APPROVE (2 rounds — all issues fixed)
+- QA: 34/34 AC pass, HIGH confidence, 0 bugs
+- Security audit: 9/10 PASS (3 fixes applied)
+- Architecture review: 8/10 APPROVE (4 fixes applied)
+- Hacker report: 7/10 (8 fixes applied)
+- Final verdict: 8/10 SHIP, HIGH confidence
+
+---
+
 ## [2026-02-15] — Admin Dashboard (Completes Web Dashboard Phase 4)
 
 ### Added

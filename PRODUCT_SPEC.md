@@ -44,7 +44,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 - Recruited by admin to sell the platform to trainers
 - Earns monthly commission (configurable rate, default 20%) on each referred trainer's subscription
 - Has dedicated dashboard showing referral stats, earnings, and recent referrals
-- Referral code system: 8-char alphanumeric codes, shared to trainers during registration
+- Referral code system: auto-generated or custom codes (4-20 chars, alphanumeric), shared via native share sheet or clipboard
 - Three referral states: PENDING (registered) → ACTIVE (first payment) → CHURNED (cancelled)
 - Commission rate snapshot at time of charge — admin rate changes don't affect historical commissions
 
@@ -162,10 +162,11 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Ambassador referrals screen | ✅ Done | Filterable list with status badges, tier, commission |
 | Ambassador settings screen | ✅ Done | Profile info, commission rate, earnings, logout |
 | Admin ambassador screens | ✅ Done | List with search/filter, create with password, detail with commissions |
-| Monthly earnings chart | ❌ Not started | Backend returns data, mobile needs chart widget (fl_chart) |
-| Native share sheet | ❌ Not started | Currently clipboard-only; needs share_plus package |
-| Commission approval workflow | ❌ Not started | Admin can view but not approve/pay from mobile |
-| Ambassador password reset | ❌ Not started | Admin sets temp password; no self-service reset flow |
+| Monthly earnings chart | ✅ Done | Shipped 2026-02-15: fl_chart BarChart with last 6 months, skeleton loading, empty state, accessibility semantics |
+| Native share sheet | ✅ Done | Shipped 2026-02-15: share_plus for native iOS/Android share, clipboard fallback on unsupported platforms |
+| Commission approval workflow | ✅ Done | Shipped 2026-02-15: Individual + bulk (200 cap) approve/pay, CommissionService with select_for_update, state transition guards, admin mobile UI with confirmation dialogs |
+| Custom referral codes | ✅ Done | Shipped 2026-02-15: Ambassador-chosen 4-20 char codes, triple-layer validation (serializer + DB unique + IntegrityError catch), settings edit dialog |
+| Ambassador password reset | ✅ Done | Shipped 2026-02-15: Django password validation on admin-created ambassador accounts |
 
 ### 3.9 Web Trainer Dashboard
 | Feature | Status | Notes |
@@ -423,13 +424,13 @@ Full admin dashboard for the platform super admin with 7 management sections.
 - ~~Settings page (profile, theme toggle, notifications)~~ ✅ Completed 2026-02-15
 - ~~Progress charts tab~~ ✅ Completed 2026-02-15 (weight trend, volume, adherence charts)
 
-### Phase 5: Ambassador Enhancements
-- Monthly earnings chart (fl_chart bar chart on dashboard)
-- Native share sheet (share_plus package)
-- Commission approval/payment workflow (admin mobile + API)
-- Ambassador password reset / magic link login
-- Stripe Connect payout to ambassadors
-- Custom referral codes (ambassador-chosen, e.g., "JOHN20")
+### Phase 5: Ambassador Enhancements -- ✅ COMPLETED (2026-02-15)
+- ~~Monthly earnings chart (fl_chart bar chart on dashboard)~~ ✅ Completed 2026-02-15
+- ~~Native share sheet (share_plus package)~~ ✅ Completed 2026-02-15
+- ~~Commission approval/payment workflow (admin mobile + API)~~ ✅ Completed 2026-02-15
+- ~~Ambassador password reset / magic link login~~ ✅ Completed 2026-02-15 (admin-created password validation)
+- Stripe Connect payout to ambassadors -- Deferred (requires Stripe dashboard configuration)
+- ~~Custom referral codes (ambassador-chosen, e.g., "JOHN20")~~ ✅ Completed 2026-02-15
 
 ### Phase 6: Offline-First + Performance
 - Drift (SQLite) local database for offline workout logging
@@ -533,4 +534,4 @@ Full admin dashboard for the platform super admin with 7 management sections.
 - **Single timezone assumed** — DailyLog uses `timezone.now().date()`. Multi-timezone trainees may see date boundary issues.
 - **AI parsing is OpenAI-only** — Function Calling mode. No fallback provider yet. Rate limits apply.
 - **No real-time updates** — Trainer dashboard requires manual refresh. WebSocket/SSE planned but not implemented.
-- **Web dashboard is trainer-only** — Web dashboard (Next.js) shipped for trainers (2026-02-15). Admin dashboard and trainee web access not yet built.
+- **Web dashboard is trainer + admin only** — Web dashboard (Next.js) shipped for trainers and admins (2026-02-15). Trainee web access not yet built.
