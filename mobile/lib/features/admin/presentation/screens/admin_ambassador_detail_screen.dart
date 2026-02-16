@@ -338,7 +338,7 @@ class _AdminAmbassadorDetailScreenState
       final result = await repo.bulkApproveCommissions(widget.ambassadorId, ids);
       await _loadDetail();
       if (mounted) {
-        final approvedCount = result['approved_count'] as int? ?? 0;
+        final approvedCount = result.processedCount;
         final message = approvedCount > 0
             ? '$approvedCount commission(s) approved'
             : 'No pending commissions to approve.';
@@ -354,6 +354,73 @@ class _AdminAmbassadorDetailScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Failed to bulk approve commissions. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isBulkProcessing = false);
+      }
+    }
+  }
+
+  Future<void> _bulkPayAll() async {
+    final approvedCommissions = _commissions.where((c) => c.status == 'APPROVED').toList();
+    if (approvedCommissions.isEmpty) return;
+
+    final totalAmount = approvedCommissions.fold<double>(
+      0.0,
+      (sum, c) => sum + (double.tryParse(c.commissionAmount) ?? 0.0),
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Pay All Approved'),
+        content: Text(
+          'Mark ${approvedCommissions.length} approved commission(s) totaling \$${totalAmount.toStringAsFixed(2)} as paid?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Pay All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isBulkProcessing = true);
+
+    try {
+      final repo = ref.read(ambassadorRepositoryProvider);
+      final ids = approvedCommissions.map((c) => c.id).toList();
+      final result = await repo.bulkPayCommissions(widget.ambassadorId, ids);
+      await _loadDetail();
+      if (mounted) {
+        final paidCount = result.processedCount;
+        final message = paidCount > 0
+            ? '$paidCount commission(s) marked as paid'
+            : 'No approved commissions to pay.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: paidCount > 0 ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to bulk pay commissions. Please try again.'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -542,12 +609,15 @@ class _AdminAmbassadorDetailScreenState
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      'Code: ${profile.referralCode}',
-                      style: TextStyle(
-                        color: theme.colorScheme.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                    Flexible(
+                      child: Text(
+                        'Code: ${profile.referralCode}',
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -704,6 +774,7 @@ class _AdminAmbassadorDetailScreenState
 
   Widget _buildCommissionsList(ThemeData theme) {
     final hasPending = _commissions.any((c) => c.status == 'PENDING');
+    final hasApproved = _commissions.any((c) => c.status == 'APPROVED');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -720,28 +791,46 @@ class _AdminAmbassadorDetailScreenState
                 ),
               ),
             ),
-            if (hasPending)
-              _isBulkProcessing
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : TextButton.icon(
-                      onPressed: _bulkApproveAll,
-                      icon: Icon(
-                        Icons.check_circle_outline,
-                        size: 18,
-                        color: theme.colorScheme.primary,
-                      ),
-                      label: Text(
-                        'Approve All Pending',
-                        style: TextStyle(
-                          color: theme.colorScheme.primary,
-                          fontSize: 13,
-                        ),
-                      ),
+            if (_isBulkProcessing)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else ...[
+              if (hasPending)
+                TextButton.icon(
+                  onPressed: _bulkApproveAll,
+                  icon: Icon(
+                    Icons.check_circle_outline,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                  label: Text(
+                    'Approve All',
+                    style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontSize: 13,
                     ),
+                  ),
+                ),
+              if (hasApproved)
+                TextButton.icon(
+                  onPressed: _bulkPayAll,
+                  icon: const Icon(
+                    Icons.payments_outlined,
+                    size: 18,
+                    color: Colors.green,
+                  ),
+                  label: const Text(
+                    'Pay All',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
         const SizedBox(height: 12),
@@ -784,13 +873,14 @@ class _AdminAmbassadorDetailScreenState
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: theme.dividerColor),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          // Top row: trainer email + commission amount
+          Row(
+            children: [
+              Expanded(
+                child: Text(
                   commission.trainerEmail,
                   style: TextStyle(
                     color: theme.textTheme.bodyLarge?.color,
@@ -799,16 +889,8 @@ class _AdminAmbassadorDetailScreenState
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  '${commission.periodStart} - ${commission.periodEnd}',
-                  style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
+              ),
+              const SizedBox(width: 8),
               Text(
                 '\$${commission.commissionAmount}',
                 style: const TextStyle(
@@ -817,28 +899,37 @@ class _AdminAmbassadorDetailScreenState
                   fontSize: 14,
                 ),
               ),
-              Text(
-                'of \$${commission.baseAmount}',
-                style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 10),
-              ),
             ],
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              commission.status,
-              style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
-            ),
+          const SizedBox(height: 4),
+          // Bottom row: period + base amount + status badge + action
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${commission.periodStart} - ${commission.periodEnd}  (of \$${commission.baseAmount})',
+                  style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  commission.status,
+                  style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+              if (commission.status == 'PENDING' || commission.status == 'APPROVED') ...[
+                const SizedBox(width: 8),
+                _buildCommissionActionButton(theme, commission, isProcessing || _isBulkProcessing),
+              ],
+            ],
           ),
-          if (commission.status == 'PENDING' || commission.status == 'APPROVED') ...[
-            const SizedBox(width: 8),
-            _buildCommissionActionButton(theme, commission, isProcessing),
-          ],
         ],
       ),
     );

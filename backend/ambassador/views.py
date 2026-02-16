@@ -384,6 +384,12 @@ class AdminAmbassadorDetailView(APIView):
         referral_data = AmbassadorReferralSerializer(
             referral_page if referral_page is not None else referrals, many=True,
         ).data
+        # Reuse the count the paginator already computed to avoid a duplicate COUNT query.
+        referrals_total = (
+            referral_paginator.page.paginator.count
+            if referral_paginator.page is not None
+            else referrals.count()
+        )
 
         # Paginate commissions
         commission_paginator = PageNumberPagination()
@@ -393,13 +399,18 @@ class AdminAmbassadorDetailView(APIView):
         commission_data = AmbassadorCommissionSerializer(
             commission_page if commission_page is not None else commissions, many=True,
         ).data
+        commissions_total = (
+            commission_paginator.page.paginator.count
+            if commission_paginator.page is not None
+            else commissions.count()
+        )
 
         return Response({
             'profile': AmbassadorProfileSerializer(profile).data,
             'referrals': referral_data,
-            'referrals_count': referrals.count(),
+            'referrals_count': referrals_total,
             'commissions': commission_data,
-            'commissions_count': commissions.count(),
+            'commissions_count': commissions_total,
         })
 
     def put(self, request: Request, ambassador_id: int) -> Response:

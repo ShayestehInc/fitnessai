@@ -109,7 +109,7 @@ class AmbassadorRepository {
     );
   }
 
-  Future<Map<String, dynamic>> bulkApproveCommissions(
+  Future<BulkCommissionActionResult> bulkApproveCommissions(
     int ambassadorId,
     List<int> commissionIds,
   ) async {
@@ -117,10 +117,10 @@ class AmbassadorRepository {
       ApiConstants.adminAmbassadorBulkApprove(ambassadorId),
       data: {'commission_ids': commissionIds},
     );
-    return response.data as Map<String, dynamic>;
+    return BulkCommissionActionResult.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<Map<String, dynamic>> bulkPayCommissions(
+  Future<BulkCommissionActionResult> bulkPayCommissions(
     int ambassadorId,
     List<int> commissionIds,
   ) async {
@@ -128,6 +128,6 @@ class AmbassadorRepository {
       ApiConstants.adminAmbassadorBulkPay(ambassadorId),
       data: {'commission_ids': commissionIds},
     );
-    return response.data as Map<String, dynamic>;
+    return BulkCommissionActionResult.fromJson(response.data as Map<String, dynamic>);
   }
 }

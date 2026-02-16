@@ -7,7 +7,8 @@ import re
 from decimal import Decimal
 from typing import Any
 
-from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ObjectDoesNotExist, ValidationError as DjangoValidationError
 from django.db.models import Sum
 from rest_framework import serializers
 
@@ -114,6 +115,14 @@ class AdminCreateAmbassadorSerializer(serializers.Serializer[dict[str, Any]]):
             raise serializers.ValidationError("A user with this email already exists.")
         return value
 
+    def validate_password(self, value: str) -> str:
+        """Run Django's configured password validators (common, numeric, etc.)."""
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return value
+
     def validate_commission_rate(self, value: Decimal) -> Decimal:
         if value < Decimal('0.00') or value > Decimal('1.00'):
             raise serializers.ValidationError("Commission rate must be between 0.00 and 1.00.")
@@ -152,15 +161,23 @@ class AmbassadorListSerializer(serializers.ModelSerializer[AmbassadorProfile]):
 class BulkCommissionActionSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for bulk commission approve/pay actions."""
 
+    MAX_BULK_IDS = 200
+
     commission_ids = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
         min_length=1,
-        help_text="List of commission IDs to process",
+        max_length=200,
+        help_text="List of commission IDs to process (max 200)",
         error_messages={
             'min_length': 'This field is required and must contain at least one ID.',
             'empty': 'This field is required and must contain at least one ID.',
+            'max_length': 'Cannot process more than 200 commissions at once.',
         },
     )
+
+    def validate_commission_ids(self, value: list[int]) -> list[int]:
+        """Deduplicate IDs to prevent redundant DB work."""
+        return list(dict.fromkeys(value))
 
 
 class CustomReferralCodeSerializer(serializers.Serializer[dict[str, Any]]):

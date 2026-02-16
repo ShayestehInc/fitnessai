@@ -268,11 +268,27 @@ class AmbassadorCommission(models.Model):
         return f"${self.commission_amount} for {self.ambassador.email} ({self.status})"
 
     def approve(self) -> None:
-        """Mark commission as approved."""
+        """Mark commission as approved.
+
+        Raises:
+            ValueError: If current status is not PENDING.
+        """
+        if self.status != self.Status.PENDING:
+            raise ValueError(
+                f"Cannot approve commission in '{self.status}' state; must be PENDING."
+            )
         self.status = self.Status.APPROVED
         self.save(update_fields=['status'])
 
     def mark_paid(self) -> None:
-        """Mark commission as paid."""
+        """Mark commission as paid.
+
+        Raises:
+            ValueError: If current status is not APPROVED.
+        """
+        if self.status != self.Status.APPROVED:
+            raise ValueError(
+                f"Cannot mark commission as paid in '{self.status}' state; must be APPROVED."
+            )
         self.status = self.Status.PAID
         self.save(update_fields=['status'])

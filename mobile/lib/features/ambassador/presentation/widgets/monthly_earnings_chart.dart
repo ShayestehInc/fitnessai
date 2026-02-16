@@ -17,6 +17,10 @@ class MonthlyEarningsChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // Treat all-zero earnings the same as empty -- invisible zero-height bars
+    // with a 100-unit Y-axis are confusing rather than informative.
+    final hasNonZeroEarnings = monthlyEarnings.isNotEmpty && _maxEarning > 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -29,7 +33,7 @@ class MonthlyEarningsChart extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        if (monthlyEarnings.isEmpty)
+        if (!hasNonZeroEarnings)
           _buildEmptyState(theme)
         else
           _buildChart(theme),

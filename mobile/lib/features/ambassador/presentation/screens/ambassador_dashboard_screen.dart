@@ -14,6 +14,27 @@ class AmbassadorDashboardScreen extends ConsumerStatefulWidget {
       _AmbassadorDashboardScreenState();
 }
 
+/// Format a raw earnings string (e.g., "10500.00") into display currency
+/// with 2 decimal places and comma grouping (e.g., "$10,500.00").
+String _formatCurrency(String raw) {
+  final value = double.tryParse(raw);
+  if (value == null) return '\$$raw';
+  // Manual comma formatting to avoid intl dependency
+  final parts = value.toStringAsFixed(2).split('.');
+  final intPart = parts[0];
+  final decPart = parts[1];
+  final negative = intPart.startsWith('-');
+  final digits = negative ? intPart.substring(1) : intPart;
+  final buffer = StringBuffer();
+  for (int i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) {
+      buffer.write(',');
+    }
+    buffer.write(digits[i]);
+  }
+  return '\$${negative ? '-' : ''}$buffer.$decPart';
+}
+
 class _AmbassadorDashboardScreenState
     extends ConsumerState<AmbassadorDashboardScreen> {
   @override
@@ -196,7 +217,7 @@ class _AmbassadorDashboardScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            '\$${data.totalEarnings}',
+            _formatCurrency(data.totalEarnings),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 36,
@@ -206,7 +227,7 @@ class _AmbassadorDashboardScreenState
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildEarningStat('Pending', '\$${data.pendingEarnings}'),
+              _buildEarningStat('Pending', _formatCurrency(data.pendingEarnings)),
               const SizedBox(width: 24),
               _buildEarningStat('Commission', '${data.commissionPercent.toStringAsFixed(0)}%'),
             ],
@@ -262,13 +283,17 @@ class _AmbassadorDashboardScreenState
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    data.referralCode,
-                    style: TextStyle(
-                      color: theme.colorScheme.primary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 4,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      data.referralCode,
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 4,
+                      ),
                     ),
                   ),
                 ),
@@ -496,8 +521,10 @@ class _AmbassadorDashboardScreenState
         'Join FitnessAI and grow your training business! Use my referral code $code when you sign up.';
     try {
       await Share.share(message);
-    } on PlatformException {
-      // Fallback to clipboard if native share fails (e.g., on some emulators)
+    } catch (_) {
+      // Fallback to clipboard if native share fails (PlatformException,
+      // MissingPluginException, or any other error on emulators/unsupported
+      // platforms).
       await Clipboard.setData(ClipboardData(text: message));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
