@@ -1,85 +1,59 @@
-# Security Audit: Offline-First Workout & Nutrition Logging (Pipeline 15)
+# Security Audit: Health Data Integration + Performance Audit + Offline UI Polish (Pipeline 16)
 
 **Date:** 2026-02-15
 **Auditor:** Security Engineer (Senior Application Security)
-**Scope:** Mobile Flutter app only -- Drift (SQLite) local database, connectivity service, sync queue, offline repositories, and UI components. No backend changes.
+**Scope:** Mobile Flutter app only -- HealthKit/Health Connect integration, offline UI merge, performance optimizations. No backend changes.
 
 **Files Audited (New):**
 
-- `mobile/lib/core/database/tables.dart` -- Drift table definitions
-- `mobile/lib/core/database/app_database.dart` -- Main Drift database class
-- `mobile/lib/core/database/daos/sync_queue_dao.dart` -- Sync queue DAO
-- `mobile/lib/core/database/daos/workout_cache_dao.dart` -- Workout cache DAO
-- `mobile/lib/core/database/daos/nutrition_cache_dao.dart` -- Nutrition cache DAO
-- `mobile/lib/core/database/daos/program_cache_dao.dart` -- Program cache DAO
-- `mobile/lib/core/database/offline_workout_repository.dart` -- Offline workout repository
-- `mobile/lib/core/database/offline_nutrition_repository.dart` -- Offline nutrition repository
-- `mobile/lib/core/database/offline_weight_repository.dart` -- Offline weight repository
-- `mobile/lib/core/database/offline_save_result.dart` -- Typed result class
-- `mobile/lib/core/services/connectivity_service.dart` -- Network status monitoring
-- `mobile/lib/core/services/sync_service.dart` -- Sync queue processor
-- `mobile/lib/core/services/sync_status.dart` -- Sync state models
-- `mobile/lib/core/services/network_error_utils.dart` -- Network error detection
-- `mobile/lib/core/providers/database_provider.dart` -- Database Riverpod provider
-- `mobile/lib/core/providers/connectivity_provider.dart` -- Connectivity Riverpod provider
-- `mobile/lib/core/providers/sync_provider.dart` -- Sync Riverpod providers
-- `mobile/lib/shared/widgets/offline_banner.dart` -- Offline status banner
-- `mobile/lib/shared/widgets/failed_sync_sheet.dart` -- Failed sync item list
-- `mobile/lib/shared/widgets/sync_status_badge.dart` -- Sync status badge
+- `mobile/lib/core/models/health_metrics.dart` -- Immutable health data model
+- `mobile/lib/core/providers/health_provider.dart` -- Health state management and permission handling
+- `mobile/lib/shared/widgets/health_card.dart` -- Health metrics display card
+- `mobile/lib/shared/widgets/health_permission_sheet.dart` -- Permission request bottom sheet
 
 **Files Audited (Modified):**
 
-- `mobile/lib/main.dart` -- App initialization with database and connectivity
-- `mobile/lib/features/home/presentation/screens/home_screen.dart` -- Logout with sync warning
-- `mobile/lib/features/settings/presentation/screens/settings_screen.dart` -- Logout with sync warning
-- `mobile/lib/features/workout_log/presentation/screens/active_workout_screen.dart` -- Offline workout submission
-- `mobile/lib/features/workout_log/presentation/screens/workout_log_screen.dart` -- Offline banner
-- `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart` -- Offline banner
-- `mobile/lib/features/nutrition/presentation/screens/weight_checkin_screen.dart` -- Offline weight save
-- `mobile/lib/features/logging/presentation/providers/logging_provider.dart` -- Offline nutrition provider
-- `mobile/lib/features/logging/presentation/screens/ai_command_center_screen.dart` -- Offline notice
-- `mobile/pubspec.yaml` -- New dependencies
+- `mobile/lib/core/services/health_service.dart` -- Health data fetching service (rewritten)
+- `mobile/lib/core/providers/sync_provider.dart` -- Added syncCompletionProvider
+- `mobile/lib/features/home/presentation/screens/home_screen.dart` -- Health card, pending workouts, RepaintBoundary
+- `mobile/lib/features/home/presentation/providers/home_provider.dart` -- Pending workout loading
+- `mobile/lib/core/database/daos/workout_cache_dao.dart` -- New alias method
+- `mobile/lib/core/database/daos/nutrition_cache_dao.dart` -- New alias methods
+- `mobile/lib/features/nutrition/presentation/providers/nutrition_provider.dart` -- Pending nutrition/weight merge
+- `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart` -- Pending UI indicators
+- `mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart` -- Pending weight, virtualised list
+- `mobile/ios/Runner/Runner.entitlements` -- HealthKit entitlement (read-only)
+- `mobile/ios/Runner/Info.plist` -- Updated health usage description, removed write description
+- `mobile/android/app/src/main/AndroidManifest.xml` -- Read-only health permissions, removed write permissions
 
 ---
 
 ## Executive Summary
 
-This audit covers the Offline-First Workout & Nutrition Logging feature, which adds a local SQLite database (via Drift), a sync queue, connectivity monitoring, and offline-aware repositories. The implementation stores user fitness data (workouts, nutrition, weight check-ins, programs) in an unencrypted SQLite database on-device.
+This audit covers the Health Data Integration feature, which adds HealthKit (iOS) and Health Connect (Android) read access for steps, active calories, heart rate, and weight; the Offline UI Polish feature, which merges pending local data into visible UI lists; and a Performance Audit with RepaintBoundary and select() optimizations.
 
 **Critical findings:**
-- **No hardcoded secrets, API keys, or tokens found** across all new and modified files.
-- **No injection vulnerabilities** -- all SQLite queries use Drift's parameterized query builder.
-- **1 Medium severity issue found and FIXED** -- corrupted JSON in cached programs could crash the app (denial of service).
-- **0 Critical or High issues found.**
-
-**Key security observations:**
-- The SQLite database is **unencrypted**, which is acceptable for fitness data (workout sets, nutrition macros, weight) but is documented as a limitation. This is consistent with the existing app architecture, which stores auth tokens in `SharedPreferences` (also unencrypted).
-- **Data isolation by userId** is properly enforced in all DAO queries.
-- **Sync operations are authenticated** -- they go through the existing `ApiClient` with JWT Bearer tokens.
-- **401 (expired token) handling** is correct -- sync pauses and does not silently discard data.
-- **All dual-table inserts are wrapped in transactions** for atomicity.
-- **User data cleanup on logout is wrapped in a transaction** for atomicity.
-
-**Issues found:**
-- 0 Critical severity issues
-- 0 High severity issues
-- 1 Medium severity issue (FIXED)
-- 3 Low / Informational issues (documented)
+- **No hardcoded secrets, API keys, passwords, or tokens found** across all new and modified files.
+- **No health data sent to the backend** -- all health metrics (steps, calories, heart rate) remain local. The only data that reaches the server is the weight value via the existing WeightCheckIn flow, which is identical to manual entry.
+- **No health data logged** -- all debug prints are wrapped in `assert()` blocks (stripped in release builds) and log only method names and error types, never raw health metric values.
+- **SharedPreferences stores only boolean flags** (`health_permission_asked`, `health_permission_granted`), never health data values.
+- **Health permissions are strictly read-only** -- no write access requested on either platform.
+- **0 Critical issues found.**
+- **0 High issues found.**
+- **0 Medium issues found.**
+- **2 Low / Informational issues found (documented).**
 
 ---
 
 ## Security Checklist
 
 - [x] No secrets, API keys, passwords, or tokens in source code or docs
-- [x] No secrets in git history (no new files contain secrets)
-- [x] All user input sanitized (Drift parameterized queries, no raw SQL)
-- [x] Authentication checked on all sync operations (JWT via ApiClient interceptor)
-- [x] Authorization -- userId filtering in all DAO queries prevents cross-user data access
-- [x] No IDOR vulnerabilities (local database, userId scoped from authenticated session)
-- [x] File uploads validated (N/A -- no file uploads in this feature)
-- [x] Rate limiting on sensitive endpoints (N/A -- no new API endpoints; sync uses existing endpoints)
-- [x] Error messages don't leak internals (user-friendly messages for all error conditions)
-- [x] CORS policy appropriate (N/A -- mobile client, not web)
+- [x] No health data leaked to backend or logs
+- [x] All user input sanitized (Drift parameterized queries for all DAO methods)
+- [x] Health permissions are read-only (HealthDataAccess.READ for all types)
+- [x] DAO queries use parameterized builder (no raw SQL anywhere)
+- [x] Error messages don't leak internals (all errors are user-friendly or debug-only)
+- [x] SharedPreferences stores only flags, not data
 
 ---
 
@@ -87,226 +61,203 @@ This audit covers the Offline-First Workout & Nutrition Logging feature, which a
 
 ### Scan Methodology
 
-Grepped all new and modified files for:
+Grepped the full git diff (`HEAD~3`) and all new/modified files for:
 - API keys, secret keys, passwords, tokens: `(api[_-]?key|secret|password|token|auth|bearer|credential|private[_-]?key)`
-- Hardcoded URLs: `(http://|https://|localhost|127\.0\.0\.1)`
-- Encryption-related terms: `(encrypt|sqlcipher|encrypted)`
-- Provider-specific patterns: `(sk_live|pk_live|sk_test|pk_test|AKIA|AIza|ghp_|gho_|xox[bpsa])`
+- Hardcoded URLs containing credentials: `(sk_live|pk_live|sk_test|pk_test|AKIA|AIza|ghp_|gho_|xox[bpsa])`
+- Stripe, OpenAI, and other service keys: `(OPENAI|STRIPE|SK_|PK_)`
 
 ### Results: PASS
 
-**No secrets found in any new or modified file.** Specific observations:
+**No secrets found in any new or modified file.**
 
-1. **`sync_service.dart:260`** -- References "Authentication expired" in a user-facing error message string. This is an error message, not a leaked credential.
+Specific observations:
 
-2. **Database file path** (`app_database.dart:76`) -- `fitnessai_offline.sqlite` is stored in the app's documents directory via `path_provider`. This is the standard secure storage location on both iOS (inside the app sandbox) and Android (app-private internal storage). Other apps cannot access this file without root/jailbreak access.
+1. **GIDClientID in Info.plist** (`678085268098-oiujkrm9mavo40jtpgjq9vbu0ki25nl0.apps.googleusercontent.com`) -- This is a **pre-existing** Google Sign-In OAuth client ID, not introduced by this change. iOS OAuth client IDs are public identifiers (they are embedded in the app binary and URL schemes by design). This is not a secret.
 
-3. **No encryption on SQLite database** -- The database uses `NativeDatabase.createInBackground(file)` without SQLCipher or any encryption layer. This is documented as a known limitation (see L-1 below). The data stored (workout sets, nutrition macros, weight values) is not classified as highly sensitive (no PII beyond userId integer, no payment data, no credentials).
-
----
-
-## Local Data Security
-
-### SQLite Database Access Protection
-
-| Aspect | Status | Notes |
-|--------|--------|-------|
-| iOS sandbox isolation | Protected | `getApplicationDocumentsDirectory()` returns a path inside the app's container. iOS enforces sandbox isolation; other apps cannot access this directory. |
-| Android internal storage | Protected | `getApplicationDocumentsDirectory()` returns the app's internal storage directory, which is accessible only by this app (unless the device is rooted). |
-| Database encryption | Not applied | The database uses plain SQLite (no SQLCipher). Fitness data (workout sets, macros, weight) is not classified as highly sensitive. See L-1. |
-| Sensitive data stored | Low risk | No auth tokens, passwords, or payment data are stored in the Drift database. The `userId` (integer ID) is stored for row-level filtering. |
-| Background isolate | Correct | `NativeDatabase.createInBackground(file)` runs DB operations on a background isolate, which is a performance measure, not a security one. |
-
-### Data at Rest
-
-The following data types are stored in the local SQLite database:
-
-| Table | Data Stored | Sensitivity |
-|-------|------------|-------------|
-| `PendingWorkoutLogs` | Workout summaries (exercise names, sets, reps, weights), survey responses | Low -- no PII |
-| `PendingNutritionLogs` | Parsed food entries (food names, macro values) | Low -- no PII |
-| `PendingWeightCheckins` | Weight values, dates, notes | Low -- body weight |
-| `CachedPrograms` | Full program JSON (exercise names, schedules) | Low -- no PII |
-| `SyncQueueItems` | Operation type, payload JSON, status, error messages | Low -- mirrors the above |
-
-**Assessment:** The data stored locally is fitness-related, not highly sensitive. No credentials, payment information, health data requiring HIPAA compliance, or other regulated data is stored. The lack of encryption is an acceptable tradeoff for V1, though SQLCipher should be considered for future releases (see L-1).
+2. **No hardcoded health data values** appear anywhere in the codebase as constants, test fixtures, or default values. The `HealthMetrics.empty` factory uses `steps: 0, activeCalories: 0` which are valid zero values, not sensitive data.
 
 ---
 
-## Data Isolation
+## Health Data Privacy Audit
 
-### User ID Filtering
+This is the primary security concern for this feature. Health data from HealthKit and Health Connect is subject to Apple and Google privacy policies respectively.
 
-Every DAO query that reads or writes data includes a `userId` filter. This prevents User A's offline data from being visible to User B if they log into the same device.
+### Data Flow Analysis
 
-**Comprehensive userId filter verification:**
+| Data Type | Source | Stored Locally? | Sent to Backend? | Logged? |
+|-----------|--------|----------------|-----------------|---------|
+| Steps (int) | HealthKit / Health Connect | No -- in-memory only via Riverpod state | No | No (debug-only assert prints log method name, not value) |
+| Active Calories (int) | HealthKit / Health Connect | No -- in-memory only via Riverpod state | No | No |
+| Heart Rate (int?) | HealthKit / Health Connect | No -- in-memory only via Riverpod state | No | No |
+| Weight (double?) | HealthKit / Health Connect | Yes -- via existing WeightCheckIn flow (same as manual entry) | Yes -- via OfflineWeightRepository (same as manual entry) | No (debug prints log date, not weight value) |
+| Permission Status (bool) | User action | Yes -- SharedPreferences (two boolean flags) | No | No |
 
-| DAO | Method | userId Filter? | Verified |
-|-----|--------|---------------|----------|
-| `SyncQueueDao` | `insertItem()` | Yes -- stored in row | Yes |
-| `SyncQueueDao` | `getNextPending(userId)` | Yes -- `t.userId.equals(userId)` | Yes |
-| `SyncQueueDao` | `getPendingCount(userId)` | Yes -- `userId.equals(userId)` | Yes |
-| `SyncQueueDao` | `getUnsyncedCount(userId)` | Yes -- `userId.equals(userId)` | Yes |
-| `SyncQueueDao` | `getFailedItems(userId)` | Yes -- `t.userId.equals(userId)` | Yes |
-| `SyncQueueDao` | `deleteAllForUser(userId)` | Yes -- `t.userId.equals(userId)` | Yes |
-| `SyncQueueDao` | `watchPendingCount(userId)` | Yes -- `userId.equals(userId)` | Yes |
-| `SyncQueueDao` | `watchFailedCount(userId)` | Yes -- `userId.equals(userId)` | Yes |
-| `SyncQueueDao` | `existsByClientId(clientId)` | By clientId (UUID) -- acceptable | Yes |
-| `SyncQueueDao` | `markSyncing(id)` / `markSynced(id)` / `markFailed(id)` | By row ID -- acceptable* | Yes |
-| `SyncQueueDao` | `retryItem(id)` / `deleteItem(id)` | By row ID -- acceptable* | Yes |
-| `WorkoutCacheDao` | All methods | Yes -- `userId.equals(userId)` | Yes |
-| `NutritionCacheDao` | All methods | Yes -- `userId.equals(userId)` | Yes |
-| `ProgramCacheDao` | All methods | Yes -- `userId.equals(userId)` | Yes |
+### Weight Auto-Import Analysis
 
-*\*Row-ID-only operations (`markSyncing`, `markSynced`, `markFailed`, `retryItem`, `deleteItem`) are safe because: (1) The item is first fetched via `getNextPending(userId)` or `getFailedItems(userId)` which filters by userId; (2) The database is local to the device -- there is no cross-device attack vector; (3) The `SyncService` constructor takes a fixed `userId` and only processes items for that user.*
+The weight auto-import is the only path where health platform data reaches the backend. Analysis:
 
-### Logout Data Cleanup
+1. **What is sent:** A weight value in kg (e.g., `75.2`) and a date string (e.g., `2026-02-15`), and the notes string `"Auto-imported from Health"`.
+2. **How it's sent:** Via `OfflineWeightRepository.createWeightCheckIn()`, which is the exact same code path used for manual weight entry. The backend endpoint and serializer are unchanged.
+3. **What the notes field contains:** The string `"Auto-imported from Health"` -- a static label, not raw health data. The notes field does not contain the source device name, HealthKit record ID, or any other metadata from the health platform.
+4. **Privacy assessment:** This is consistent with the ticket requirement ("Health data is display-only, local-only. The only exception is auto-importing weight to WeightCheckIn"). The weight value is the same type of data the user would enter manually. This does not constitute a health data privacy violation.
 
-| Aspect | Status | Notes |
-|--------|--------|-------|
-| Cleanup triggered on logout | Yes | Both `home_screen.dart` and `settings_screen.dart` call `db.clearUserData(userId)` before `logout()` |
-| User warned about pending data | Yes | Dialog shows count of unsynced items with "Cancel" / "Logout Anyway" options |
-| Cleanup wrapped in transaction | Yes | `clearUserData()` uses `transaction()` for atomic all-or-nothing cleanup |
-| All tables cleaned | Yes | Deletes from all 5 tables: sync queue, pending workouts, pending nutrition, pending weight, cached programs |
+### SharedPreferences Audit
 
-### Multi-User Scenario
+| Key | Type | Value Range | Contains Health Data? |
+|-----|------|------------|----------------------|
+| `health_permission_asked` | bool | true / false | No -- permission lifecycle flag only |
+| `health_permission_granted` | bool | true / false | No -- permission status flag only |
 
-When a different user logs in on the same device:
-- The new user's `userId` is different, so they see only their own data in all DAO queries.
-- The previous user's data remains in the database but is invisible to the new user.
-- If the previous user logs back in, their pending data is still there and will sync.
-- If the previous user explicitly logged out with the "Logout Anyway" action, their data was deleted.
+**Assessment: PASS.** SharedPreferences stores only boolean permission flags. No health metric values (steps, calories, heart rate, weight, timestamps) are persisted in SharedPreferences.
 
-**Assessment:** Data isolation is properly enforced. No cross-user data leakage is possible through the current implementation.
+### Debug Logging Audit
+
+All `debugPrint` calls in `health_service.dart` and `health_provider.dart` are wrapped in `assert(() { ... return true; }())` blocks. This pattern ensures:
+1. The `debugPrint` is **completely removed in release/profile builds** by the Dart compiler.
+2. The logged messages contain only method names and error types, never raw health values.
+
+Specific verification of each debug print:
+
+| File | Line | Message Content | Leaks Health Data? |
+|------|------|----------------|-------------------|
+| health_service.dart | 45 | `'HealthService.requestPermissions error: $e'` | No -- error only |
+| health_service.dart | 63 | `'HealthService.checkPermissionStatus error: $e'` | No -- error only |
+| health_service.dart | 104 | `'HealthService.getTodaySteps error: $e'` | No -- error only |
+| health_service.dart | 139 | `'HealthService.getTodayActiveCalories error: $e'` | No -- error only |
+| health_service.dart | 177 | `'HealthService.getLatestHeartRate error: $e'` | No -- error only |
+| health_service.dart | 218 | `'HealthService.getLatestWeight error: $e'` | No -- error only |
+| health_provider.dart | 109 | `'HealthDataNotifier.checkAndRequestPermission error: $e'` | No -- error only |
+| health_provider.dart | 124 | `'HealthDataNotifier.wasPermissionAsked error: $e'` | No -- error only |
+| health_provider.dart | 151 | `'HealthDataNotifier.requestOsPermission error: $e'` | No -- error only |
+| health_provider.dart | 168 | `'HealthDataNotifier.declinePermission error: $e'` | No -- error only |
+| health_provider.dart | 197 | `'HealthDataNotifier.fetchHealthData error: $e'` | No -- error only |
+| health_provider.dart | 241 | `'Health weight auto-import: skipped, pending entry exists for $todayStr'` | No -- date only, no weight value |
+| health_provider.dart | 248 | `'Health weight auto-import: pending check failed: $e'` | No -- error only |
+| health_provider.dart | 269 | `'Health weight auto-import skipped: ${result.error}'` | No -- error message only |
+| health_provider.dart | 276 | `'Health weight auto-import error: $e'` | No -- error only |
+
+**Assessment: PASS.** No health data values are logged, even in debug mode.
 
 ---
 
-## Sync Security
+## Platform Permissions Audit
 
-### Authentication
+### iOS
 
-All sync operations use the existing `ApiClient.dio` instance, which has an interceptor that:
-1. Attaches the JWT Bearer token to every request (`options.headers['Authorization'] = 'Bearer $token'`).
-2. On 401 response, attempts token refresh via `/api/auth/jwt/refresh/`.
-3. If refresh fails, the request fails and the error propagates to the sync service.
-
-**Sync service 401 handling (`sync_service.dart:260-268`):**
-```dart
-if (statusCode == 401) {
-  await _db.syncQueueDao.markFailed(
-    item.id,
-    'Authentication expired. Please log in again.',
-    item.retryCount,
-  );
-  return;
-}
+**Runner.entitlements:**
+```xml
+<key>com.apple.developer.healthkit</key>
+<true/>
+<key>com.apple.developer.healthkit.access</key>
+<array/>
 ```
 
-The sync service correctly pauses on 401 and marks the item as failed with the current retry count (not `_maxRetries`), meaning the item remains retryable after re-authentication. The user-facing error message is generic and does not leak auth details.
+- `com.apple.developer.healthkit` = `true` enables HealthKit capability.
+- `com.apple.developer.healthkit.access` = empty array means **read-only access**. No clinical or write capabilities are declared.
+- `NSHealthShareUsageDescription` (read) is present with a clear description.
+- `NSHealthUpdateUsageDescription` (write) has been **removed**. This is correct for read-only access.
 
-### Payload Integrity
+**Assessment: PASS.** iOS permissions are minimal and read-only.
 
-| Aspect | Status | Notes |
-|--------|--------|-------|
-| Payloads validated before storage | Partial | Data comes from the app's own UI (workout survey data, parsed nutrition data) and is serialized via `jsonEncode()`. No external input validation is applied before local storage. However, the data is generated programmatically from the app's own state, not from raw user text input. |
-| Corrupted JSON handling on sync | Yes | `sync_service.dart:168-174` catches `FormatException` from `jsonDecode(item.payloadJson)` and marks the item as permanently failed with a user-friendly message. |
-| Corrupted JSON handling on cache read | Yes (FIXED) | `_getProgramsFromCache()` now catches `FormatException` and any other deserialization error, deletes the corrupted cache, and returns a graceful error. |
-| Unknown operation type handling | Yes | `sync_service.dart:175-179` catches `ArgumentError` from `SyncOperationType.fromString()` and marks as permanently failed. |
-| Unexpected error handling | Yes | `sync_service.dart:182-188` catches all remaining exceptions and marks as permanently failed with a generic message. |
+### Android
 
-### Conflict Resolution
-
-| HTTP Status | Handling | Auto-Retry? |
-|-------------|----------|-------------|
-| 409 Conflict | Marked as permanently failed with descriptive message | No -- requires user review |
-| 401 Unauthorized | Marked as failed with current retry count (retryable) | No -- awaits re-authentication |
-| 5xx Server Error | Retried up to 3 times with exponential backoff (5s, 15s, 45s) | Yes |
-| Network timeout | Retried up to 3 times with exponential backoff | Yes |
-| 400 Bad Request | Marked as permanently failed | No |
-
-### Malicious Sync Payload Injection
-
-Could a compromised or modified app inject malicious payloads into the sync queue?
-
-**Analysis:** The sync queue stores payloads as JSON text in the `payloadJson` column. These payloads are created by the offline repositories from the app's own in-memory state (workout summary maps, parsed nutrition data). The payloads are then deserialized and sent to the backend API endpoints during sync.
-
-**Risk assessment:**
-- On a non-jailbroken/non-rooted device, another app cannot modify the SQLite database (OS-level sandbox protection).
-- On a jailbroken/rooted device, an attacker could modify the database directly to inject arbitrary payloads. However, the backend API endpoints validate all incoming data via DRF serializers before saving. Malicious payloads would be rejected by the server with 400 errors.
-- The sync service does not execute any code based on payload content -- it only passes the JSON to the API via Dio POST requests.
-
-**Assessment:** The risk of malicious payload injection is low. The backend serves as the authoritative validation layer.
-
----
-
-## Input Validation
-
-### Drift Parameterized Queries
-
-All database queries use Drift's type-safe query builder, which generates parameterized SQL. No raw SQL strings or string interpolation is used in any DAO.
-
-Example from `sync_queue_dao.dart`:
-```dart
-final query = select(syncQueueItems)
-  ..where((t) => t.userId.equals(userId) & t.status.equals('pending'))
-  ..orderBy([(t) => OrderingTerm.asc(t.createdAt)])
-  ..limit(1);
+**AndroidManifest.xml health permissions:**
+```xml
+<uses-permission android:name="android.permission.health.READ_STEPS"/>
+<uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
+<uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED"/>
+<uses-permission android:name="android.permission.health.READ_WEIGHT"/>
 ```
 
-This generates parameterized SQL: `SELECT * FROM sync_queue_items WHERE user_id = ? AND status = ? ORDER BY created_at ASC LIMIT 1`.
+- All four permissions are **READ-only**.
+- No `WRITE_*` permissions are declared.
+- Previously present `WRITE_STEPS`, `WRITE_HEART_RATE`, and `READ_SLEEP` permissions have been **removed**.
 
-**Assessment:** No SQL injection vectors. All queries are parameterized by the Drift ORM.
+**Assessment: PASS.** Android permissions are minimal and read-only. Only the four data types displayed on the health card are requested.
 
-### JSON Payload Validation
+### Dart Code Permission Request
 
-| Location | Validation | Status |
-|----------|-----------|--------|
-| `_saveWorkoutLocally` | Workout summary and survey data are Dart `Map<String, dynamic>` serialized via `jsonEncode()` | Data originates from app's own state |
-| `_saveNutritionLocally` | Parsed nutrition data is a `Map<String, dynamic>` from the AI parser or manual entry | Data originates from app's own state |
-| `_saveWeightLocally` | Date string, weight double, notes string | Data from UI text fields with type-specific keyboard |
-| `_processItem` (sync) | `jsonDecode(item.payloadJson)` with `FormatException` catch | Handles corrupted data gracefully |
-| `_getProgramsFromCache` | `jsonDecode(cached.programsJson)` with `FormatException` catch (FIXED) | Handles corrupted data gracefully |
-| `_extractNameFromPayload` (UI) | `jsonDecode(item.payloadJson)` inside try-catch | Returns null on any failure |
+In `health_service.dart:34-41`:
+```dart
+final permissions = List<HealthDataAccess>.filled(
+  _requestedTypes.length,
+  HealthDataAccess.READ,
+);
+return await _health.requestAuthorization(
+  _requestedTypes,
+  permissions: permissions,
+);
+```
 
----
+All permission types are `HealthDataAccess.READ`. The `_requestedTypes` list contains exactly four types: `STEPS`, `ACTIVE_ENERGY_BURNED`, `HEART_RATE`, `WEIGHT`. No write access is requested at the Dart level either.
 
-## Error Messages
-
-All error messages exposed to users are generic and do not leak internal details:
-
-| Context | Error Message | Leaks Internals? |
-|---------|--------------|------------------|
-| Storage full | "Device storage is full. Free up space to save workout data." | No |
-| Sync timeout | "Connection timed out. Will retry automatically." | No |
-| Sync server error | "Server error. Please try again later." | No |
-| 401 during sync | "Authentication expired. Please log in again." | No |
-| 409 conflict (workout) | "Program was updated by your trainer. Please review." | No |
-| 409 conflict (nutrition) | "Nutrition data was updated. Please review." | No |
-| Corrupted payload | "Data is corrupted and cannot be synced." | No |
-| Unknown operation | "Unknown operation type. This item cannot be synced." | No |
-| Unexpected error | "An unexpected error occurred. Please try again later." | No |
-| Max retries exceeded | "Sync failed after 3 attempts." | No |
-| Corrupted cache (FIXED) | "Cached program data was corrupted. Connect to the internet to reload your program." | No |
-| No cached programs | "No program data available. Connect to the internet to load your program." | No |
-| Offline AI parsing | "You are offline. AI parsing requires an internet connection..." | No |
-
-**Assessment:** No information leakage. All error messages are user-friendly and actionable.
+**Assessment: PASS.** Permission requests are consistent across all three layers (platform config, Dart code).
 
 ---
 
-## Injection Vulnerabilities
+## Injection & Data Handling
 
 ### SQL Injection: PASS
 
-No raw SQL anywhere in the codebase. All queries use Drift's type-safe query builder with parameterized values. Drift generates prepared statements at compile time via code generation.
+All new DAO methods use Drift's parameterized query builder:
+- `workout_cache_dao.dart:54` -- `getPendingWorkoutsForUser(int userId)` delegates to `getPendingWorkouts(userId)` which uses `t.userId.equals(userId)` (parameterized).
+- `nutrition_cache_dao.dart:52-56` -- `getPendingNutritionForUser(int userId, String date)` delegates to `getPendingNutritionForDate` which uses `t.userId.equals(userId) & t.targetDate.equals(date)` (parameterized).
+- `nutrition_cache_dao.dart:103-104` -- `getPendingWeightForUser(int userId)` delegates to `getPendingWeightCheckins` which uses `t.userId.equals(userId)` (parameterized).
 
-### XSS: N/A
+No raw SQL (`rawQuery`, `rawInsert`, `rawUpdate`, `rawDelete`, `customStatement`, `customSelect`) exists in any DAO file.
 
-This is a native mobile app, not a web app. No HTML rendering or DOM manipulation.
+### JSON Parsing: PASS
 
-### Command Injection: N/A
+All JSON parsing in new code is wrapped in try-catch:
+- `home_provider.dart:316-324` -- `jsonDecode(row.workoutSummaryJson)` wrapped in try-catch, falls back to "Unknown Workout" on failure.
+- `nutrition_provider.dart:396-418` -- `jsonDecode(row.parsedDataJson)` wrapped in try-catch per row, skips corrupted entries.
+- No `jsonDecode` in health provider or health service (health data is returned as typed objects from the `health` package, not raw JSON).
 
-No system commands, `exec()`, `eval()`, or shell invocations in any audited file.
+### URL Launcher: PASS
+
+The `_openHealthSettings()` method in `health_card.dart` calls `launchUrl()` with a URI from `HealthService.healthSettingsUri`. This is a static getter that returns one of two hardcoded URIs:
+- iOS: `x-apple-health://`
+- Android: `content://com.google.android.apps.healthdata`
+
+There is no user-controlled input in the URI construction. No path traversal or URI injection is possible.
+
+---
+
+## Auth & Authorization
+
+### Health Permission Flow
+
+| Step | Security Check | Status |
+|------|---------------|--------|
+| Permission asked once | `health_permission_asked` flag in SharedPreferences | Correct -- prevents re-prompting |
+| Permission denied respected | State set to `HealthDataPermissionDenied`, card hidden | Correct |
+| OS permission result persisted | `health_permission_granted` flag stored | Correct |
+| Permission revocation handled | `HealthService` returns null/zero for revoked types, card shows "--" | Correct |
+
+### Data Access Authorization
+
+Health data is accessed from the local HealthKit/Health Connect store, which is protected by the OS permission system. The app does not access health data from any backend API.
+
+For the offline merge features (pending workouts, nutrition, weight), all DAO queries filter by `userId` from the authenticated session, maintaining the existing data isolation pattern established in Pipeline 15.
+
+---
+
+## Data Exposure
+
+### Error Messages
+
+| Context | Error Message | Leaks Internals? |
+|---------|--------------|------------------|
+| Health permission denied | No visible error (card hidden) | No |
+| Health data fetch throws | No visible error (card hidden, graceful degradation) | No |
+| Partial health data | Card shows "--" for missing metrics | No |
+| Platform doesn't support health | No visible error (card hidden) | No |
+| Auto-import weight fails | No visible error (silent failure) | No |
+| Pending workout corrupted JSON | Shows "Unknown Workout" placeholder | No |
+| Pending nutrition DB query fails | Server-only data shown, no error | No |
+| URL launch failure (gear icon) | Silent catch, no user feedback | No |
+
+**Assessment: PASS.** No error messages expose health data, internal state, stack traces, or implementation details.
 
 ---
 
@@ -320,137 +271,113 @@ None.
 
 None.
 
-### Medium Issues: 1 (FIXED)
+### Medium Issues: 0
 
-| # | File:Line | Issue | Fix Applied |
-|---|-----------|-------|-------------|
-| M-1 | `offline_workout_repository.dart:232-241` | **Corrupted JSON in cached programs crashes the app.** `_getProgramsFromCache()` called `jsonDecode(cached.programsJson)` without a try-catch. If the cached JSON was corrupted (e.g., partial write, disk error), the `FormatException` would propagate uncaught, crashing the program loading flow. Similarly, `ProgramModel.fromJson(json)` could throw on malformed JSON objects. This constitutes a denial-of-service via corrupted local data. | **FIXED:** Wrapped the JSON decoding and model deserialization in a try-catch that catches `FormatException` (corrupted JSON) and any other exception (malformed model data). On failure, the corrupted cache is deleted via `deleteAllForUser()` and a graceful error is returned directing the user to reconnect for fresh data. |
+None.
 
-### Low / Informational Issues: 3
+### Low / Informational Issues: 2
 
-| # | File:Line | Issue | Recommendation |
-|---|-----------|-------|----------------|
-| L-1 | `app_database.dart:77` | **SQLite database is not encrypted.** The database file `fitnessai_offline.sqlite` is stored as plain SQLite in the app's documents directory. While iOS and Android sandbox protections prevent other apps from accessing it, a user with physical access to a jailbroken/rooted device could read the file directly. The data stored (workout sets, nutrition macros, weight values) is low-sensitivity fitness data, not credentials or payment data. | Consider adding SQLCipher encryption in a future release via the `encrypted_moor` or `sqlcipher_flutter_libs` package. Low priority given the data sensitivity level and the fact that auth tokens are already stored unencrypted in SharedPreferences (a pre-existing architectural decision). |
-| L-2 | `api_client.dart:82-83` | **Auth tokens stored in SharedPreferences (pre-existing).** JWT access and refresh tokens are stored in `SharedPreferences` which is unencrypted plaintext on both platforms. This is a pre-existing issue not introduced by this feature, but is noted because the offline feature relies on these tokens for sync operations. If a device is compromised, the auth tokens could be extracted. | Consider migrating token storage to `flutter_secure_storage` (already in the project's dependencies) which uses the iOS Keychain and Android EncryptedSharedPreferences. This is outside the scope of the offline feature but is recommended as a separate security improvement. |
-| L-3 | `sync_service.dart:290-293` | **Exponential backoff delay blocks the sync loop.** The `await Future.delayed(_retryDelays[delayIndex])` call blocks the sync processing loop during backoff. While the current delays (5s, 15s, 45s) are short, on a slow connection the user might see items stuck in "syncing" state during backoff. This is a UX concern, not a security concern, but is noted because a user might interpret the stuck state as a bug and attempt workarounds (force-killing the app, logging out and back in). | Consider tracking next-retry timestamps in the database and processing other pending items while waiting, instead of blocking the entire queue on one item's backoff delay. Low priority. |
+| # | Severity | File:Line | Issue | Fix | Status |
+|---|----------|-----------|-------|-----|--------|
+| L-1 | Low | `health_service.dart:2,230` | **`dart:io Platform.isIOS` used in static getter.** The `healthSettingsUri` getter imports `dart:io` and uses `Platform.isIOS` which would throw on Flutter web. However, this entire feature (HealthKit/Health Connect) is inherently mobile-only and will never run on web. The `health` package itself depends on `dart:io`. The permission sheet was correctly fixed to use `Theme.of(context).platform`, but the service layer cannot access `BuildContext`. | No fix needed -- the health service is mobile-only by nature. If Flutter web support is added in the future, the health service should be conditionally imported. | Documented |
+| L-2 | Low | `health_provider.dart:89,120,138,162` | **SharedPreferences instance obtained multiple times.** Each method call to `checkAndRequestPermission()`, `wasPermissionAsked()`, `requestOsPermission()`, and `declinePermission()` calls `SharedPreferences.getInstance()` independently. While `SharedPreferences.getInstance()` returns a cached singleton after the first call (so there is no performance or correctness issue), a cleaner pattern would be to inject the SharedPreferences instance via the constructor. This is a code quality observation, not a security issue. | No fix needed -- functionally correct. Consider constructor injection in a future refactor. | Documented |
 
 ---
 
-## Concurrency & Atomicity Analysis
+## Concurrency & Race Condition Analysis
 
-### Transaction Usage: PASS
+### Weight Auto-Import Race Condition
 
-| Operation | Transaction? | Correctness |
-|-----------|-------------|-------------|
-| `_saveWorkoutLocally` (pending workout + sync queue insert) | Yes -- `_db.transaction()` | Prevents orphaned pending data without sync queue entry |
-| `_saveNutritionLocally` (pending nutrition + sync queue insert) | Yes -- `_db.transaction()` | Same as above |
-| `_saveWeightLocally` (pending weight + sync queue insert) | Yes -- `_db.transaction()` | Same as above |
-| `clearUserData` (delete from all 5 tables) | Yes -- `transaction()` | Prevents partial cleanup if app crashes mid-logout |
-| `cachePrograms` (delete old cache + insert new) | Yes -- `transaction()` | Prevents data loss if app crashes between delete and insert |
-| `runStartupCleanup` (delete old synced items + stale cache) | No -- best-effort | Acceptable -- cleanup failure is non-fatal |
+The ticket identifies a potential race condition (Edge Case 4): "User manually enters weight while auto-import runs concurrently."
 
-### Race Condition Analysis
+**Analysis of protection:**
 
-| Scenario | Protection | Status |
-|----------|-----------|--------|
-| Connectivity flickers during workout submission | UUID-based `clientId` + `existsByClientId()` check | Protected -- duplicate prevented |
-| Sync queue processes same item twice | `_isSyncing` flag + `_pendingRestart` flag | Protected -- only one `_processQueue()` runs at a time |
-| Multiple connectivity change events | 2-second debounce in `ConnectivityService` | Protected -- rapid toggling filtered |
-| App killed during sync (item marked "syncing") | On restart, `getNextPending()` only fetches `status = 'pending'` items | Potential issue: items stuck in `syncing` status forever. **However**, since the database is not persisted across fresh installs and startup cleanup runs on each launch, this is acceptable for V1. Consider adding a "reset stuck syncing items" step to startup cleanup in a future release. |
+1. **Local dedup (health_provider.dart:233-245):** Before auto-importing, the code queries `nutritionCacheDao.getPendingWeightCheckins()` and checks if any pending entry has today's date. If so, it skips the import.
+
+2. **Server dedup:** If online, `OfflineWeightRepository.createWeightCheckIn()` calls the backend API, which returns an error if a check-in already exists for today (409 or validation error). The auto-import silently handles this failure.
+
+3. **mounted guards (health_provider.dart:190,200,236,255):** Multiple `if (!mounted) return;` guards prevent state mutations on disposed notifiers after async gaps.
+
+4. **Awaited auto-import (health_provider.dart:194):** `_autoImportWeight(metrics)` is `await`ed inside the existing try-catch, not fire-and-forget. This was a critical fix applied in Round 1.
+
+**Assessment: PASS.** The race condition is properly protected by both local dedup and server dedup.
+
+### Sync Completion Reactivity
+
+The `syncCompletionProvider` stream is listened to by all three screens (home, nutrition, weight trends) to reload pending data when sync completes. This ensures badges disappear reactively without a manual refresh.
+
+**Assessment: PASS.** No race conditions in the sync completion notification flow.
 
 ---
 
 ## Dependency Analysis
 
-### New Dependencies Added
+No new dependencies were added by this feature. All used packages (`health`, `shared_preferences`, `url_launcher`, `intl`) are pre-existing in `pubspec.yaml`.
 
-| Package | Version | Known CVEs | Status |
-|---------|---------|-----------|--------|
-| `connectivity_plus` | ^6.0.0 | None known as of audit date | Acceptable |
-| `uuid` | ^4.0.0 | None known as of audit date | Acceptable |
-
-### Existing Dependencies Used
-
-| Package | Version | Purpose in Feature | Status |
-|---------|---------|-------------------|--------|
-| `drift` | ^2.14.1 | Local SQLite database ORM | Acceptable |
-| `sqlite3` | ^2.9.0 | SQLite native bindings (for SqliteException import) | Acceptable |
-| `sqlite3_flutter_libs` | ^0.5.18 | SQLite native libraries for Flutter | Acceptable |
-| `path_provider` | ^2.1.1 | App documents directory | Acceptable |
-
----
-
-## Fixes Applied (Summary)
-
-### Fix 1: Corrupted JSON crash prevention in `_getProgramsFromCache` (M-1)
-
-**File:** `mobile/lib/core/database/offline_workout_repository.dart`
-
-- Wrapped `jsonDecode(cached.programsJson)` and `ProgramModel.fromJson(json)` in try-catch blocks
-- On `FormatException` (corrupted JSON): deletes the corrupted cache, returns graceful error
-- On any other exception (malformed model data): same cleanup and graceful error
-- Error messages direct the user to reconnect for fresh data
-- No internal details leaked in error messages
+| Package | Usage in Feature | Known CVEs | Status |
+|---------|-----------------|-----------|--------|
+| `health` (^13.2.1) | HealthKit/Health Connect read access | None known as of audit date | Acceptable |
+| `shared_preferences` (^2.2.2) | Permission state persistence (boolean flags only) | None known as of audit date | Acceptable |
+| `url_launcher` (^6.2.4) | Open health app settings | None known as of audit date | Acceptable |
+| `intl` (^0.20.2) | Number formatting (thousands separators) | None known as of audit date | Acceptable |
 
 ---
 
 ## Security Strengths of This Implementation
 
-1. **Proper userId isolation:** Every DAO query filters by `userId`, preventing cross-user data access on shared devices. The `SyncService` is scoped to a single `userId` via its constructor.
+1. **Health data stays local.** Steps, active calories, and heart rate never leave the device. They exist only in Riverpod in-memory state and are garbage collected when the widget is disposed.
 
-2. **Transactional dual-inserts:** All offline save operations wrap the pending data insert and sync queue insert in a single `transaction()`, ensuring atomicity.
+2. **Read-only permissions enforced at three layers.** Platform config files (entitlements, manifest), Dart permission request code, and the absence of any health write API calls all enforce read-only access.
 
-3. **User-friendly error messages throughout:** No raw exception strings, stack traces, or internal details are exposed to the user. Every error path produces a human-readable message.
+3. **No health data in SharedPreferences.** Only boolean flags for permission state are persisted. No metric values, timestamps, or health record IDs are stored.
 
-4. **Idempotent workout submission:** The `clientId` UUID pattern with `existsByClientId()` check prevents duplicate workout submissions during connectivity flickers.
+4. **No health data in debug logs.** All `debugPrint` calls are wrapped in `assert()` (release-stripped) and log only method names and error types, never health metric values.
 
-5. **Correct 401 handling in sync:** The sync service pauses on auth failure and preserves the item for retry after re-authentication, rather than discarding the user's data.
+5. **Weight auto-import uses existing save path.** The auto-imported weight goes through the same `OfflineWeightRepository.createWeightCheckIn()` as manual entry, inheriting all existing validation, auth, and dedup logic.
 
-6. **409 conflict as permanent failure:** Conflict errors are not auto-retried, which is correct -- retrying would produce the same conflict. The user is given a descriptive message.
+6. **Notes field is a static string.** The auto-import notes ("Auto-imported from Health") is a hardcoded label, not derived from health platform metadata. No HealthKit record IDs, source device names, or sample UUIDs leak into the notes.
 
-7. **Corrupted data resilience:** `FormatException` from `jsonDecode` in the sync service marks items as permanently failed with a user-friendly message, preventing infinite retry loops on corrupted data. The cache reader (after fix) handles corrupted JSON gracefully by clearing the cache.
+7. **Mounted guards prevent use-after-dispose.** Every async gap in `HealthDataNotifier` is followed by an `if (!mounted) return;` guard, preventing state mutations on disposed notifiers.
 
-8. **No raw SQL:** All database operations use Drift's parameterized query builder, eliminating SQL injection vectors.
+8. **HealthService is injectable for testing.** The constructor accepts an optional `Health` instance, enabling unit tests to mock the health platform without touching real HealthKit/Health Connect data.
 
-9. **Logout data warning:** Users are warned about unsynced data before logout, with clear counts and a cancel option. Data deletion is transactional.
+9. **Sealed class state ensures exhaustive handling.** The `HealthDataState` sealed class hierarchy guarantees that every state (initial, loading, loaded, denied, unavailable) is handled by the UI via pattern matching.
 
-10. **Sync uses existing auth infrastructure:** No separate auth mechanism is introduced. Sync operations go through the same `ApiClient` with JWT Bearer tokens and token refresh logic.
+10. **DAO queries maintain userId isolation.** All new alias methods delegate to existing userId-filtered queries, maintaining the data isolation established in Pipeline 15.
 
 ---
 
-## Security Score: 9/10
+## Security Score: 9.5/10
 
 **Breakdown:**
-- **Data at Rest:** 8/10 (unencrypted SQLite, but low-sensitivity data; sandbox-protected on both platforms)
-- **Data Isolation:** 10/10 (userId filtering in all DAO queries; transactional cleanup on logout)
-- **Authentication:** 10/10 (sync uses existing JWT auth with token refresh)
-- **Input Validation:** 9/10 (Drift parameterized queries; corrupted JSON handled)
-- **Error Handling:** 10/10 (no information leakage; graceful error paths everywhere)
-- **Secrets Management:** 10/10 (no secrets in code)
-- **Injection Prevention:** 10/10 (no raw SQL; Drift ORM throughout)
-- **Atomicity:** 10/10 (all critical operations transactional)
-- **Dependency Security:** 9/10 (all dependencies are mainstream, no known CVEs)
+- **Health Data Privacy:** 10/10 (no health data sent to backend, logged, or persisted in SharedPreferences)
+- **Platform Permissions:** 10/10 (read-only on iOS and Android, write permissions removed)
+- **Secrets Management:** 10/10 (no secrets in code or config changes)
+- **Input Validation:** 10/10 (Drift parameterized queries, JSON parsing with try-catch)
+- **Error Handling:** 10/10 (no information leakage, graceful degradation)
+- **Injection Prevention:** 10/10 (no raw SQL, no user-controlled URIs)
+- **Data Isolation:** 10/10 (userId filtering on all DAO queries)
+- **Concurrency:** 9/10 (race conditions properly handled with dedup and mounted guards)
+- **Debug Logging:** 10/10 (all debug prints assert-wrapped, no health values logged)
+- **Dependencies:** 9/10 (no new deps, all existing deps are mainstream with no known CVEs)
 
 **Deductions:**
-- -0.5: No database encryption (L-1) -- acceptable for V1 given data sensitivity
-- -0.5: Auth tokens in SharedPreferences (L-2) -- pre-existing, not introduced by this feature
+- -0.5: Minor code quality items (L-1, L-2) documented but not security-impacting
 
 ---
 
 ## Recommendation: PASS
 
-**Verdict:** The Offline-First Workout & Nutrition Logging feature is **secure for production**. No Critical or High issues exist. The one Medium issue (corrupted JSON crash) has been fixed. The Low/Informational issues are documented for future consideration.
+**Verdict:** The Health Data Integration, Offline UI Polish, and Performance Audit features are **secure for production**. No Critical, High, or Medium issues exist. The implementation correctly enforces read-only health permissions, keeps health metrics local (except weight which follows the existing manual entry path), avoids logging health data, and stores only boolean permission flags in SharedPreferences.
 
 **Ship Blockers:** None.
 
 **Follow-up Items:**
-1. Consider SQLCipher encryption for the local database in a future release (L-1)
-2. Consider migrating auth token storage from SharedPreferences to flutter_secure_storage (L-2)
-3. Consider adding a "reset stuck syncing items" step to startup cleanup for items left in `syncing` status after app kill
-4. Consider non-blocking exponential backoff that allows other items to process during retry delays (L-3)
+1. If Flutter web support is ever added, conditionally import the `health_service.dart` to avoid `dart:io` crashes on web (L-1).
+2. Consider constructor-injecting SharedPreferences into HealthDataNotifier for cleaner testability (L-2).
 
 ---
 
 **Audit Completed:** 2026-02-15
-**Fixes Applied:** 1 (M-1: Corrupted JSON crash prevention in program cache reader)
-**Next Review:** Standard review cycle
+**Fixes Applied:** 0 (no issues requiring code changes)
+**Pipeline:** 16 -- Health Data Integration + Performance Audit + Offline UI Polish
