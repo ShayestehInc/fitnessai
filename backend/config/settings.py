@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'features',
     'calendars',
     'ambassador',
+    'community',
 ]
 
 MIDDLEWARE = [

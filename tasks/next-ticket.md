@@ -1,85 +1,142 @@
-# Feature: Health Data Integration + Performance Audit + Offline UI Polish
+# Feature: Social & Community -- Announcements, Achievements, Community Feed
 
 ## Priority
 High
 
 ## User Story
-As a **trainee**, I want to see my daily health metrics (steps, active calories, heart rate, weight) pulled from Apple Health / Health Connect directly on my home screen, so that I have a holistic view of my fitness without manually entering data that my phone already tracks.
+As a **trainer**, I want to broadcast announcements to all my trainees, see which trainees earn achievement badges, and have my trainees engage with each other in a moderated community feed, so that my coaching group feels connected and motivated.
 
-As a **trainee**, I want my offline-logged workouts, nutrition entries, and weight check-ins to appear in the correct list views (with sync status indicators), so that I can trust the app shows complete data even when I log things offline.
-
-As a **developer**, I want the app to hit 60fps on common scrolling/navigation flows, so that the user experience feels polished and responsive.
+As a **trainee**, I want to see announcements from my trainer, earn badges for consistency milestones, and share achievements and updates with other trainees in my group, so that I stay motivated and feel part of a community.
 
 ---
 
 ## Acceptance Criteria
 
-### Part A: Health Data Integration
+### Feature 1: Trainer Announcements
 
-- [ ] **AC-1**: On first launch after update (or first visit to home screen with no prior permission), the app requests HealthKit (iOS) and Health Connect (Android) read permissions for: steps, active energy burned (active calories), heart rate, and weight.
-- [ ] **AC-2**: The permission request uses a clear, non-technical explanation bottom sheet that tells the user *why* the app needs health data before triggering the OS-level prompt. The sheet has "Connect Health" and "Not Now" buttons.
-- [ ] **AC-3**: If the user denies permission or the platform does not support health data (e.g., simulator, unsupported Android device), the "Today's Health" card is hidden entirely from the home screen. No error. No empty card.
-- [ ] **AC-4**: If permission is granted, a "Today's Health" card appears on the home screen between the "Nutrition" section and the "Weekly Progress" section. The card shows:
-  - Steps (integer, e.g., "8,234") with a walking icon
-  - Active Calories (integer, e.g., "342 cal") with a flame icon
-  - Heart Rate (integer, e.g., "68 bpm") with a heart icon -- shows latest reading from the past 24 hours, or "--" if no data
-  - Weight (one decimal, e.g., "75.2 kg") from the most recent HealthKit/Health Connect weight sample, or "--" if none
-- [ ] **AC-5**: Health data is fetched when the home screen loads (`initState`) and when the user pulls to refresh. Health data fetch does NOT block the rest of the dashboard from loading -- it runs in parallel and the card appears/updates when data arrives.
-- [ ] **AC-6**: A `HealthDataProvider` (Riverpod `StateNotifierProvider`) manages the state: `loading`, `loaded(HealthMetrics)`, `unavailable`, `permissionDenied`. The home screen reactively shows/hides the card based on this state.
-- [ ] **AC-7**: The `health` package `HealthDataType.WEIGHT` is added to the types list in `HealthService`. When a weight reading is found from the past 7 days, the service returns it.
-- [ ] **AC-8**: `HealthDataType.ACTIVE_ENERGY_BURNED` is added to the types list. The service returns today's total active calories (summed, same pattern as steps).
-- [ ] **AC-9**: Auto-import weight from HealthKit/Health Connect: When health data is fetched and a weight reading exists for today that is NOT already in the WeightCheckIn model (check by date), the app automatically creates a weight check-in via the existing `OfflineWeightRepository.createWeightCheckIn()`. Deduplication is by date -- if a check-in already exists for today (from manual entry or prior auto-import), skip the import.
-- [ ] **AC-10**: The auto-imported weight check-in has `notes` set to `"Auto-imported from Health"` so the user can distinguish it from manual entries.
-- [ ] **AC-11**: Health permission status is persisted in `SharedPreferences` (`health_permission_granted: bool`, `health_permission_asked: bool`). The permission prompt is shown at most once per app install. After the first ask, the app respects whatever the OS returns silently.
-- [ ] **AC-12**: `HealthService` is rewritten to include `ACTIVE_ENERGY_BURNED` and `WEIGHT` in addition to existing `STEPS`, `HEART_RATE`. Sleep is removed from the permission request (not displayed on the card). The return type of `syncTodayHealthData()` is changed from `Map<String, dynamic>` to a typed `HealthMetrics` dataclass.
-- [ ] **AC-13**: iOS `Runner.entitlements` has `com.apple.developer.healthkit` entitlement added. Android `AndroidManifest.xml` has `READ_ACTIVE_CALORIES_BURNED` and `READ_WEIGHT` permissions added.
-- [ ] **AC-14**: The "Today's Health" card has a gear icon in the top-right corner that opens the device's Health app settings (iOS: opens Health app, Android: opens Health Connect). Uses `url_launcher` with the platform-specific URI.
+**Backend:**
 
-### Part B: Offline UI Polish (Deferred from Pipeline 15)
+- [ ] **AC-1**: `Announcement` model exists in a new `community` Django app with fields: `id`, `trainer` (FK to User, TRAINER), `title` (CharField max 200), `body` (TextField max 2000), `is_pinned` (BooleanField default False), `created_at` (auto_now_add), `updated_at` (auto_now). Table name: `announcements`. Indexed on `(trainer, -created_at)` and `(trainer, is_pinned)`.
+- [ ] **AC-2**: `AnnouncementReadStatus` model exists with fields: `id`, `user` (FK to User), `trainer` (FK to User, TRAINER), `last_read_at` (DateTimeField). Unique constraint on `(user, trainer)`. Table name: `announcement_read_statuses`.
+- [ ] **AC-3**: Trainer CRUD endpoints exist under `/api/trainer/announcements/`:
+  - `GET /api/trainer/announcements/` -- List own announcements, ordered by `is_pinned DESC, created_at DESC`. Paginated (page size 20).
+  - `POST /api/trainer/announcements/` -- Create announcement (title + body required, is_pinned optional). Validates title max 200, body max 2000.
+  - `GET /api/trainer/announcements/<id>/` -- Retrieve single announcement (own only).
+  - `PUT/PATCH /api/trainer/announcements/<id>/` -- Update announcement (own only).
+  - `DELETE /api/trainer/announcements/<id>/` -- Delete announcement (own only). Returns 204.
+  - All endpoints require `[IsAuthenticated, IsTrainer]`. Row-level security: `get_queryset` filters by `trainer=request.user`.
+- [ ] **AC-4**: Trainee announcement endpoints exist under `/api/community/announcements/`:
+  - `GET /api/community/announcements/` -- Returns announcements from the trainee's `parent_trainer`, ordered by `is_pinned DESC, created_at DESC`. Paginated (page size 20). Row-level security: returns empty list if trainee has no `parent_trainer`.
+  - `GET /api/community/announcements/unread-count/` -- Returns `{unread_count: int}`. Count of announcements with `created_at > last_read_at` (or all announcements if no `AnnouncementReadStatus` record exists).
+  - `POST /api/community/announcements/mark-read/` -- Upserts `AnnouncementReadStatus` with `last_read_at = timezone.now()` for the trainee's trainer. Returns `{last_read_at: datetime}`.
+  - All endpoints require `[IsAuthenticated, IsTrainee]`.
 
-- [ ] **AC-15**: Local pending workouts from `PendingWorkoutLogs` are merged into the Home screen "Recent Workouts" list. They appear at the top of the list (most recent first), with a `SyncStatusBadge` overlay showing `pending` or `failed` status. Tapping a pending workout shows a "Pending sync" snackbar instead of navigating to detail.
-- [ ] **AC-16**: Local pending nutrition entries from `PendingNutritionLogs` are merged into the Nutrition screen's macro totals for the selected date. When viewing a date that has pending entries, those entries' macros (protein, carbs, fat, calories) are added to the server-provided totals. A small "(includes X pending)" label appears below the macro cards.
-- [ ] **AC-17**: Local pending weight check-ins from `PendingWeightCheckins` are merged into the Weight Trends screen history list and the "Latest Weight" display on the Nutrition screen. Pending check-ins show with a `SyncStatusBadge`. The "Latest Weight" on the nutrition screen header uses the most recent weight across both server and local data.
-- [ ] **AC-18**: `SyncStatusBadge` is placed on each `_RecentWorkoutCard` in the home screen's recent workouts section. The badge is positioned at the bottom-right of the card via a `Stack` + `Positioned` wrapper. Only shown for items that came from local storage (not server data).
-- [ ] **AC-19**: `SyncStatusBadge` is placed on each food entry row in the nutrition screen's meals section for entries that are pending sync. The badge appears after the edit icon.
-- [ ] **AC-20**: `SyncStatusBadge` is placed on each weight check-in entry in the Weight Trends screen's history list for entries that are pending sync.
-- [ ] **AC-21**: The `WorkoutCacheDao` exposes a method `getPendingWorkoutsForUser(int userId)` that returns all pending workout rows, and the `NutritionCacheDao` exposes `getPendingNutritionForUser(int userId, String date)` that returns pending nutrition entries for a given date, and `getPendingWeightForUser(int userId)` that returns all pending weight entries.
+**Mobile (Trainer):**
 
-### Part C: Performance Audit
+- [ ] **AC-5**: Trainer dashboard has an "Announcements" section showing total announcement count and a "Manage" button that navigates to `/trainer/announcements`.
+- [ ] **AC-6**: Announcements management screen lists all trainer's announcements with title, body preview (first 100 chars, ellipsized), pinned indicator (pin icon), and relative timestamp. Pull-to-refresh. Paginated with infinite scroll. FAB to create. Empty state: "No announcements yet. Create one to broadcast to your trainees." with campaign icon.
+- [ ] **AC-7**: Create/Edit announcement screen: title field (required, max 200 chars, character counter), body field (required, max 2000 chars, character counter), is_pinned toggle. Submit button shows loading spinner while saving. Success: pop back with snackbar "Announcement created" / "Announcement updated". Error: snackbar with error message, form data preserved.
+- [ ] **AC-8**: Swipe-to-delete on announcement cards with confirmation dialog ("Delete this announcement? Your trainees will no longer see it."). Tapping a card opens the edit screen pre-populated.
 
-- [ ] **AC-22**: All scrollable lists (home screen, nutrition screen meals, workout history, weight trends, trainer trainee list, exercise bank) are audited for `RepaintBoundary` usage. `RepaintBoundary` is added around list item widgets where the item contains animations, progress indicators, or complex paint operations.
-- [ ] **AC-23**: All widget classes across the codebase are audited for `const` constructors. Every widget that CAN have a `const` constructor (no mutable fields, all fields are final with const-compatible types) is converted to use `const`. Priority files: home_screen.dart, nutrition_screen.dart, workout_log_screen.dart, weight_trends_screen.dart, and all shared widgets.
-- [ ] **AC-24**: Riverpod `Consumer` / `ConsumerWidget` usage is audited. Where a widget watches a provider but only uses one field from the state, it is refactored to use `ref.watch(provider.select((s) => s.field))` to avoid unnecessary rebuilds. Priority: home screen (watches `homeStateProvider` in multiple sub-widgets), nutrition screen.
-- [ ] **AC-25**: The `_CalorieRing`, `_MacroCircle`, and `_MacroCard` widgets on the home/nutrition screens are wrapped in `RepaintBoundary` since they contain `CircularProgressIndicator` paint operations that cause expensive repaints.
-- [ ] **AC-26**: `ListView.builder` is used (instead of `Column` with `.map().toList()`) for any list that can exceed 10 items. The home screen's recent workouts section (capped at 3-5) is fine as `Column`, but the workout history screen, weight trends history list, and nutrition meals list (if > 10 entries) should use `ListView.builder` for virtualization.
+**Mobile (Trainee):**
+
+- [ ] **AC-9**: Home screen shows "Announcements" section between the header and Nutrition section. Shows latest 3 announcements (pinned first). Each card: title (1 line, ellipsized), body preview (2 lines max), relative timestamp. "View All" link navigates to `/announcements`. Section hidden entirely if trainee has no `parent_trainer`.
+- [ ] **AC-10**: Full announcements screen (`/announcements`): all announcements from trainer, paginated infinite scroll. Pinned announcements have pin icon and subtle primary-color-tinted left border. Pull-to-refresh. Empty state: "No announcements from your trainer yet." with megaphone icon. If no `parent_trainer`: "Join a trainer to see announcements." with person_add icon.
+- [ ] **AC-11**: Notification bell on home screen header shows unread announcement count badge (red circle with white number, max "99+"). Badge count fetched on home screen load via `/api/community/announcements/unread-count/`. Mark-read called when announcements screen is opened (in `initState`). Tapping bell navigates to `/announcements`.
+
+### Feature 2: Achievement / Badge System
+
+**Backend:**
+
+- [ ] **AC-12**: `Achievement` model exists with fields: `id`, `name` (CharField max 100), `description` (TextField max 500), `icon_name` (CharField max 50 -- Material icon name string), `criteria_type` (TextChoices: `workout_count`, `workout_streak`, `weight_checkin_streak`, `nutrition_streak`, `program_completed`), `criteria_value` (PositiveIntegerField). Table name: `achievements`. Unique constraint on `(criteria_type, criteria_value)`.
+- [ ] **AC-13**: `UserAchievement` model exists with fields: `id`, `user` (FK to User), `achievement` (FK to Achievement), `earned_at` (DateTimeField auto_now_add). Table name: `user_achievements`. Unique constraint on `(user, achievement)`. Indexed on `(user, -earned_at)`.
+- [ ] **AC-14**: Seed command `python manage.py seed_achievements` creates predefined achievements (idempotent via `get_or_create`):
+  - Workout count: First Workout (1), Dedicated 10 (10), Quarter Century (25), Half Century (50), Century Club (100)
+  - Workout streak: Hot Streak (3), On Fire (7), Unstoppable (14), Iron Will (30)
+  - Weight check-in streak: Consistent Weigh-In (7), Monthly Tracker (30)
+  - Nutrition streak: Tracking Starter (3), Nutrition Pro (7), Macro Master (30)
+  - Program completed: Program Graduate (1)
+  Total: 15 achievements.
+- [ ] **AC-15**: `check_and_award_achievements(user: User, trigger: str) -> list[UserAchievement]` service function in `backend/community/services/achievement_service.py`:
+  - `trigger` is one of: `workout_completed`, `weight_checkin`, `nutrition_logged`, `program_completed`.
+  - Queries relevant data (DailyLog entries for streaks/counts, WeightCheckIn for weight streaks, Program for completion).
+  - Streak calculation: consecutive calendar days with relevant activity. Gap of 1+ days resets streak to 0.
+  - Workout count: total distinct dates with non-empty `DailyLog.workout_data`.
+  - Compares against unearned achievements matching the trigger's `criteria_type`.
+  - Creates `UserAchievement` via `get_or_create` (handles concurrent calls via IntegrityError catch).
+  - Returns list of newly earned `UserAchievement` objects.
+  - Wrapped in try-except so failures never block the parent operation.
+- [ ] **AC-16**: Achievement check hooks:
+  - Called after workout data is saved to `DailyLog` (trigger: `workout_completed`).
+  - Called after `WeightCheckIn` is created (trigger: `weight_checkin`).
+  - Called after nutrition data is saved to `DailyLog` (trigger: `nutrition_logged`).
+  - Returns newly earned achievements in the API response under a `new_achievements` key so the mobile app can show toast notifications.
+- [ ] **AC-17**: Trainee achievement endpoints under `/api/community/achievements/`:
+  - `GET /api/community/achievements/` -- All achievements with earned status for current user. Response: `[{id, name, description, icon_name, criteria_type, criteria_value, earned: bool, earned_at: datetime|null}]`. Ordered by `criteria_type`, `criteria_value`.
+  - `GET /api/community/achievements/recent/` -- 5 most recently earned achievements for current user.
+  - Both require `[IsAuthenticated, IsTrainee]`.
+
+**Mobile (Trainee):**
+
+- [ ] **AC-18**: Settings screen (trainee) has a new "ACHIEVEMENTS" section between "TRACKING" and "SUBSCRIPTION". Tile: `emoji_events` icon, title "Achievements", subtitle "{earned}/{total} earned". Tapping navigates to `/achievements`.
+- [ ] **AC-19**: Achievements screen (`/achievements`): GridView with 3 columns. Each badge shows icon (from `icon_name` mapped to Material Icons), name, earned status. Earned badges: colored icon with primary color tint, "Earned {relative_date}" subtitle. Unearned badges: grayscale icon with 0.3 opacity, locked overlay icon. Tapping opens a detail bottom sheet with full description, criteria explanation, and earned date if applicable. Pull-to-refresh. Loading: 6 shimmer circles. Error: inline error card with retry. Empty: "No achievements available yet." with trophy icon.
+- [ ] **AC-20**: When the API response from a workout/nutrition/weight action includes `new_achievements`, a toast SnackBar appears: trophy icon + "Achievement Unlocked: {name}". Auto-dismiss after 4 seconds. If multiple achievements earned simultaneously, show one toast per achievement with 500ms stagger.
+
+### Feature 3: Community Feed
+
+**Backend:**
+
+- [ ] **AC-21**: `CommunityPost` model exists with fields: `id`, `author` (FK to User), `trainer` (FK to User, TRAINER -- the group scope), `content` (TextField max 1000), `post_type` (TextChoices: `text`, `workout_completed`, `achievement_earned`, `weight_milestone`), `metadata` (JSONField default dict), `created_at` (auto_now_add). Table name: `community_posts`. Indexed on `(trainer, -created_at)`. `on_delete=CASCADE` for both FKs.
+- [ ] **AC-22**: `PostReaction` model exists with fields: `id`, `user` (FK to User), `post` (FK to CommunityPost, on_delete CASCADE), `reaction_type` (TextChoices: `fire`, `thumbs_up`, `heart`), `created_at` (auto_now_add). Table name: `post_reactions`. Unique constraint on `(user, post, reaction_type)`. Indexed on `(post, reaction_type)`.
+- [ ] **AC-23**: Feed endpoint `GET /api/community/feed/`: Returns posts scoped to trainee's `parent_trainer`. Ordered by `-created_at`. Paginated (page size 20). Each post includes: `id`, `author` object (`id`, `first_name`, `last_name`, `profile_image`), `content`, `post_type`, `metadata`, `created_at`, `reactions` (dict of counts: `{fire: N, thumbs_up: N, heart: N}`), `user_reactions` (list of reaction_types the current user has given). Uses `select_related('author')` and aggregated annotation for reaction counts (no N+1). Returns empty list if trainee has no `parent_trainer`.
+- [ ] **AC-24**: Create post endpoint `POST /api/community/feed/`: Body `{content: string}`. `post_type` auto-set to `text`. `trainer` auto-set from `request.user.parent_trainer`. Content required, max 1000 chars, whitespace-stripped. Returns 400 if trainee has no `parent_trainer` with error "You must be part of a trainer's group to post." Requires `[IsAuthenticated, IsTrainee]`.
+- [ ] **AC-25**: Delete post endpoint `DELETE /api/community/feed/<id>/`: Author can delete own post. Trainer can delete any post in their group (for moderation -- requires `[IsAuthenticated]` and custom permission check: `post.author == request.user OR (request.user.is_trainer() and post.trainer == request.user)`). Returns 204.
+- [ ] **AC-26**: Reaction toggle endpoint `POST /api/community/feed/<post_id>/react/`: Body `{reaction_type: "fire"|"thumbs_up"|"heart"}`. If user already has this reaction, deletes it (toggle off). If not, creates it (toggle on). Returns updated `{reactions: {fire: N, ...}, user_reactions: [...]}`. User must be in the same trainer group as the post (row-level security).
+- [ ] **AC-27**: Auto-post service (`backend/community/services/auto_post_service.py`):
+  - `create_auto_post(user: User, post_type: str, metadata: dict) -> CommunityPost | None`: Creates a community post if user has `parent_trainer`. Returns None silently if no `parent_trainer`.
+  - Auto-post content templates: `workout_completed` -> "Just completed {workout_name}!", `achievement_earned` -> "Earned the {achievement_name} badge!", `weight_milestone` -> "Hit a weight milestone!".
+  - Called after workout completion and after achievement is earned.
+
+**Mobile (Trainee):**
+
+- [ ] **AC-28**: Bottom navigation "Forums" tab renamed to "Community". Icon: `people_outlined` / `people` (active). Route changed from `/forums` to `/community`. The `ForumsScreen` placeholder is replaced.
+- [ ] **AC-29**: Community feed screen: scrollable list with pull-to-refresh and infinite scroll. Each post card: author avatar (CircleAvatar with initials fallback), author first name, relative timestamp, content text, post type indicator for auto-posts (subtle label + icon above content: workout icon for `workout_completed`, trophy for `achievement_earned`, scale for `weight_milestone`), reaction bar at bottom.
+- [ ] **AC-30**: Compose text post via FAB (edit/pencil icon). Opens a bottom sheet with TextField (max 1000 chars, character counter, `maxLines: 5`), "Post" button. Empty content validation. Loading state on submit (disabled field + spinner on button). Success: dismiss sheet, prepend to feed, snackbar "Posted!". Error: snackbar with error, content preserved. Sheet dismissed on successful post.
+- [ ] **AC-31**: Reaction buttons (fire, thumbs up, heart) below each post with counts. Tapping toggles (optimistic update). Active reactions: filled icon + primary color. Inactive: outlined icon + muted color. Count updates immediately. Reverts on API error with snackbar "Couldn't update reaction."
+- [ ] **AC-32**: Auto-posts have distinct visual: slightly tinted background (`primary.withOpacity(0.05)`), type label above content ("Workout Completed" / "Achievement Earned" / "Weight Milestone") with matching icon. Not composed by user -- no delete option for auto-posts except by trainer.
+- [ ] **AC-33**: Long-press on own text post shows "Delete" option. Confirmation dialog: "Delete this post? This cannot be undone." Trainer (via impersonation) can delete any post. Optimistic removal with undo snackbar (5 seconds).
+
+**Mobile (Trainer):**
+
+- [ ] **AC-34**: Trainer dashboard shows a "Community" info card with "Posts today: N" stat. Tapping shows a snackbar "Use Login as Trainee to moderate the community feed." (Trainer moderation is via impersonation for V1.)
 
 ---
 
 ## Edge Cases
 
-1. **Health data returns zero for everything**: Steps = 0, calories = 0, heart rate = null, weight = null. The card should still show: "0" for steps, "0 cal" for calories, "--" for heart rate, "--" for weight. The card should NOT be hidden just because values are zero -- zero is valid data (user hasn't moved yet today).
+1. **Trainee with no parent_trainer**: Announcements show "Join a trainer to see announcements" empty state. Community feed shows "Join a trainer to connect with the community" empty state. Cannot create posts (API 400). Achievements system works independently (user still earns badges).
 
-2. **Health permission denied after previously being granted (revoked in Settings)**: The `health` package's `requestAuthorization` returns `true` even if the user subsequently revokes individual data types in iOS Health settings (Apple's privacy design). The service should handle empty/null data gracefully by showing "--" for that metric, not crashing or showing stale data from `SharedPreferences`.
+2. **Trainer with zero trainees**: Announcements CRUD works normally (pre-create before inviting). Community feed has no posts. Dashboard community card shows "0 posts today."
 
-3. **Multiple weight readings on the same day from HealthKit**: Sum/average is NOT what we want. Use the MOST RECENT weight reading by `dateFrom` timestamp. If the user steps on a smart scale 3 times, we want the last reading.
+3. **Trainee switches trainers (parent_trainer changed)**: Trainee sees new trainer's announcements and community. Old posts remain in DB but are invisible (filtered by current `parent_trainer`). Achievement data persists (user-owned, not trainer-scoped). `AnnouncementReadStatus` for old trainer becomes inert.
 
-4. **Auto-import weight races with manual entry**: User opens weight check-in screen and manually enters 75.0 kg. Meanwhile, the home screen loads and tries to auto-import 75.1 kg from HealthKit (smart scale reading from an hour ago). The deduplication check (by date) prevents the auto-import from overwriting the manual entry. Manual entry takes priority because it was already saved by the time the health data fetch completes.
+4. **Concurrent reaction toggle**: Two users toggling the same reaction simultaneously. `unique_together` constraint prevents duplicates. `get_or_create` + `delete` pattern handles race conditions. IntegrityError caught and treated as a no-op.
 
-5. **Offline pending data + server data have overlapping dates**: A pending nutrition entry from yesterday (saved offline) and the server's data for yesterday (synced before the offline entry was created) should be ADDED together, not replaced. The pending entry represents NEW food logged offline that hasn't been synced yet -- it's additive.
+5. **Achievement double-award prevention**: `unique_together` on `UserAchievement(user, achievement)` prevents duplicates. Service uses `get_or_create`. Concurrent `check_and_award_achievements` calls are safe -- IntegrityError is caught and ignored.
 
-6. **Platform has no health data support at all**: Android devices without Health Connect installed, iOS simulators, or very old Android versions. `health.requestAuthorization()` throws or returns false. The `HealthDataProvider` state should be `unavailable` and the card should be hidden. No crash. No error dialog.
+6. **Very long content at max length**: Backend enforces 200 char title / 2000 char body (announcements), 1000 char content (posts). Mobile enforces same with character counters. Counter turns amber at 90% capacity. Content over limit rejected with validation error.
 
-7. **Large step counts or calorie values**: A marathon runner might have 40,000+ steps or 3,000+ active calories. The card layout must not overflow. Use `NumberFormat` with locale-aware thousands separators (e.g., "40,234" not "40234").
+7. **Deleted user's posts in feed**: `on_delete=CASCADE` removes posts and reactions when user account is deleted. Feed updates on next fetch. Deactivated users' posts remain visible but they cannot create new ones.
 
-8. **App launched while device is in airplane mode**: Health data should still be accessible (it's local on-device). The `HealthService` reads from the local HealthKit/Health Connect store, not from a network. This should work even when `ConnectivityService.isOnline` is false.
+8. **Paginated feed with new posts**: Pull-to-refresh resets to page 1. Posts already loaded on later pages may shift. Acceptable for V1 (no real-time updates).
 
-9. **SyncStatusBadge on a card that gets synced while visible**: When the sync engine processes a pending item and it succeeds, the badge should transition from `pending` to `synced` (which renders as `SizedBox.shrink()` per the existing implementation). The list should reactively update. This requires watching the sync status stream or re-querying pending items after sync events complete.
+9. **Auto-post for user without parent_trainer**: Workout completed but no `parent_trainer` -- `create_auto_post` returns None silently. Achievement is still awarded. No error.
 
-10. **Pending nutrition entries contain invalid or zero macros**: A nutrition entry saved offline might have `protein: 0, carbs: 0, fat: 0, calories: 0` (e.g., water or a zero-calorie drink). This is valid and should still be counted/merged without filtering.
+10. **Empty achievement table (seed not run)**: Achievements endpoint returns empty list. Mobile shows "No achievements available yet." empty state. `check_and_award_achievements` returns empty list gracefully.
 
-11. **Weight auto-import when user has never manually checked in**: The `NutritionState.latestCheckIn` may be null. The auto-imported weight creates the first-ever check-in. The nutrition screen's "Latest Weight" should then display this auto-imported value.
+11. **Announcement pinning limit**: No explicit limit on pinned announcements. If trainer pins 20 announcements, they all show first in the list. This is by design -- the trainer controls their content curation.
 
-12. **User has health permission but HealthKit returns an error for a specific data type**: For example, steps work fine but `ACTIVE_ENERGY_BURNED` throws. Each data type fetch is independent and wrapped in its own try-catch. Partial data is valid.
+12. **User reacts and immediately navigates away**: Optimistic reaction update is in local state. If the API call fails after navigation, the stale state is corrected on next feed load. No ghost reactions persist.
 
 ---
 
@@ -87,108 +144,206 @@ As a **developer**, I want the app to hit 60fps on common scrolling/navigation f
 
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Health permission denied | No health card on home screen | Sets `HealthDataState.permissionDenied`, persists to SharedPreferences. Card hidden. |
-| Health data fetch throws exception | No health card (graceful degradation) | Catches exception, sets state to `unavailable`. Rest of dashboard loads normally. |
-| Health data partially available (e.g., steps yes, heart rate no) | Card shows available data, "--" for missing | Each metric is independently nullable. Card renders what it has. |
-| Platform doesn't support health APIs | No health card | Try-catch around `requestAuthorization`. State = `unavailable`. |
-| HealthKit returns stale data (no readings today) | Steps: 0, Calories: 0, HR: shows last 24h reading or "--", Weight: shows last 7d reading or "--" | Date ranges: steps/calories = today midnight to now, HR = last 24h, weight = last 7 days. |
-| Auto-import weight fails (e.g., storage full) | No visible error (background operation) | Catches `OfflineSaveResult.failure`, does NOT show snackbar. Silent failure -- logged in debug only. |
-| Pending workout has corrupted JSON | Card shows "Unknown Workout" with sync badge | JSON decode wrapped in try-catch. Falls back to placeholder data. |
-| Offline DB query for pending items fails | Server-only data shown (no merge) | Try-catch around DB reads. If DB fails, show server data only. No crash. |
-| SyncStatusBadge shown on already-synced item | Badge disappears (SizedBox.shrink for synced) | Query is re-run after sync completes. Synced items are removed from pending tables. |
+| Network error loading announcements | Error card with "Couldn't load announcements" + Retry button | Log error, show inline error widget |
+| Network error creating announcement | Snackbar "Failed to create announcement. Please try again." | Keep form data, re-enable submit button |
+| Network error loading community feed | Error card with "Couldn't load the feed" + Retry button | Log error, show inline error widget |
+| Network error creating post | Snackbar "Failed to post. Please try again." | Keep content in compose sheet, re-enable Post button |
+| Network error toggling reaction | Silently revert optimistic update, snackbar "Couldn't update reaction." | Revert count and active state to pre-toggle values |
+| Network error loading achievements | Error card with "Couldn't load achievements" + Retry button | Log error, show inline error widget |
+| 400 from create post (no parent_trainer) | Snackbar "You need to be part of a trainer's group to post." | Parse validation error from API response |
+| 404 from delete post (already deleted) | Snackbar "This post has already been removed." | Remove post from local state |
+| 403 from delete post (not author/trainer) | Snackbar "You don't have permission to delete this post." | No local state change |
+| Achievement check fails (DB error) | No user-visible effect | Log error, do not block parent operation (workout save succeeds) |
+| Unread count fetch fails | Bell icon shows no badge (defaults to 0) | Log error, fail silently |
 
 ---
 
 ## UX Requirements
 
-### Health Card
-- **Loading state**: Skeleton shimmer placeholder matching the card layout (4 metric placeholders as gray rounded rectangles). Shown while health data is being fetched. Rest of dashboard renders immediately above and below.
-- **Empty state (no permission)**: Card is hidden entirely. No "Connect Health" banner cluttering the home screen uninvited. The user can connect later via Settings.
-- **Error state**: Card hidden. No error toast/banner for health data failures -- it's supplementary data, not core functionality. The dashboard functions perfectly without it.
-- **Success state**: Card fades in with a 200ms opacity animation when data arrives. Metrics update in place on pull-to-refresh.
-- **Permission prompt**: Material bottom sheet with health icon, title "Connect Your Health Data", body text: "FitnessAI can read your steps, calories burned, heart rate, and weight from [Apple Health / Health Connect] to give you a complete picture of your daily activity.", two buttons: "Connect Health" (primary filled button) and "Not Now" (text button). Shown once per app install, on first home screen visit.
-- **Mobile behavior**: The health card is a single horizontal row on wider screens (tablet), 2x2 grid on phones. Each metric tile is 48dp minimum height.
+### Loading States
+- **Announcements list (trainer/trainee)**: 3 shimmer skeleton cards matching card layout (title bar + 2-line body placeholder + timestamp).
+- **Community feed**: 3 shimmer skeleton post cards (avatar circle + name bar + 3-line content + reaction bar).
+- **Achievements grid**: 6 shimmer circles in 3x2 grid matching badge size.
+- **Create announcement / create post**: Submit button replaces text with `CircularProgressIndicator` (16dp), all form fields disabled via `fieldset` pattern.
+- **Reaction toggle**: Immediate optimistic update. No loading indicator.
 
-### Offline Merge UI
-- **Pending workout cards**: Identical layout to server workout cards but wrapped in a `Stack` with a `Positioned` `SyncStatusBadge` at bottom-right. Tapping shows a snackbar: "This workout is waiting to sync." Not navigable to detail screen.
-- **Pending nutrition merge**: The "(includes X pending)" text is 11px, uses `theme.textTheme.bodySmall?.color`, appears directly below the macro cards row with 4px top padding. Disappears when items sync.
-- **Pending weight in Latest Weight**: If the most recent weight is a pending local entry, the "Latest Weight" number on the nutrition screen shows it with a small 12px `cloud_off` icon (amber) next to the date text.
-- **Sync badge placement**: All badges are 16x16 per the existing `SyncStatusBadge` spec. Positioned via `Positioned(right: 4, bottom: 4)` inside a `Stack`.
+### Empty States
+- **Announcements (trainee, has trainer)**: Megaphone icon + "No announcements from your trainer yet."
+- **Announcements (trainee, no trainer)**: Person_add icon + "Join a trainer to see announcements."
+- **Announcements (trainer)**: Campaign icon + "No announcements yet." + "Create Announcement" button.
+- **Community feed (has trainer)**: Groups icon + "No posts yet. Be the first to share!" + compose FAB visible.
+- **Community feed (no trainer)**: Group_add icon + "Join a trainer to connect with the community."
+- **Achievements (no achievements seeded)**: Emoji_events icon + "No achievements available yet."
+- **Achievements (none earned)**: Full grid in grayscale. Header: "Complete workouts, log nutrition, and stay consistent to earn badges!"
 
-### Performance
-- No visible UI changes for the user. Performance improvements are invisible.
-- If `RepaintBoundary` wrapping causes any visual regressions (clipping, shadow cutoff, z-index issues), remove it from that specific widget.
-- `const` constructor additions should not change any runtime behavior.
-- `select()` optimizations should not change any rendered output.
+### Error States
+- Inline error cards with icon + message + Retry button (consistent with existing home screen error pattern from `_buildRecentWorkoutsSection`).
+- Snackbar for action errors (create, delete, react) -- 4-second auto-dismiss.
+
+### Success Feedback
+- **Announcement created**: Pop back + snackbar "Announcement created".
+- **Announcement updated**: Pop back + snackbar "Announcement updated".
+- **Announcement deleted**: Animated removal from list + snackbar "Announcement deleted".
+- **Post created**: Dismiss sheet, prepend to feed + snackbar "Posted!"
+- **Post deleted**: Animated removal + snackbar "Post deleted" with 5s undo.
+- **Achievement earned**: SnackBar with trophy icon + "Achievement Unlocked: {name}" (4s auto-dismiss, staggered if multiple).
+
+### Mobile Behavior
+- All lists use pull-to-refresh.
+- Community feed and announcements use infinite scroll pagination (consistent with existing workout history pattern).
+- Achievement grid: 3 columns, `GridView.builder` with `SliverGridDelegateWithFixedCrossAxisCount`.
+- Compose post uses bottom sheet (not full screen) for quick access.
+- Character counters turn amber at 90% of max length (consistent with program builder pattern).
+- Reaction buttons: 48dp minimum touch targets.
+- All interactive elements have `Semantics` labels for accessibility.
+- Announcement cards on home screen are dismissible (swipe right to dismiss from view, not delete).
 
 ---
 
 ## Technical Approach
 
-### Files to Create
+### New Django App: `community`
 
-| File | Purpose |
-|------|---------|
-| `mobile/lib/core/models/health_metrics.dart` | Immutable dataclass: `int steps`, `int activeCalories`, `int? heartRate`, `double? latestWeightKg`, `DateTime? weightDate`. Has `const` constructor. |
-| `mobile/lib/core/providers/health_provider.dart` | `HealthDataProvider` (Riverpod `StateNotifierProvider`). States: `initial`, `loading`, `loaded(HealthMetrics)`, `permissionDenied`, `unavailable`. Methods: `checkAndRequestPermission()`, `fetchHealthData()`, `autoImportWeight()`. Depends on `HealthService`, `SharedPreferences`, `OfflineWeightRepository`. |
-| `mobile/lib/shared/widgets/health_card.dart` | `TodaysHealthCard` widget: ConsumerWidget that watches `healthDataProvider`. Shows skeleton, data card, or nothing based on state. 4-metric layout with icons. Gear settings icon. `const` where possible. |
-| `mobile/lib/shared/widgets/health_permission_sheet.dart` | `showHealthPermissionSheet(BuildContext)` function. Returns `Future<bool>` (true = user tapped Connect). Material bottom sheet with icon, title, body, two buttons. |
+Create a new `community` Django app to house all social/community models. This keeps Phase 7 features cleanly separated from `trainer` and `workouts` apps.
 
-### Files to Modify
+**Files to create:**
+- `backend/community/__init__.py`
+- `backend/community/apps.py` -- Django AppConfig
+- `backend/community/models.py` -- `Announcement`, `AnnouncementReadStatus`, `Achievement`, `UserAchievement`, `CommunityPost`, `PostReaction`
+- `backend/community/serializers.py` -- Serializers for all models
+- `backend/community/views.py` -- Views for trainee-facing community endpoints
+- `backend/community/urls.py` -- URL patterns under `/api/community/`
+- `backend/community/admin.py` -- Admin site registration
+- `backend/community/services/__init__.py`
+- `backend/community/services/achievement_service.py` -- `check_and_award_achievements()`
+- `backend/community/services/auto_post_service.py` -- `create_auto_post()`
+- `backend/community/management/__init__.py`
+- `backend/community/management/commands/__init__.py`
+- `backend/community/management/commands/seed_achievements.py` -- Seed command
+- `backend/community/migrations/` -- Auto-generated
 
-| File | Changes |
-|------|---------|
-| `mobile/lib/core/services/health_service.dart` | Rewrite: Add `ACTIVE_ENERGY_BURNED`, `WEIGHT` to types. Remove `SLEEP_IN_BED`. Add `getTodayActiveCalories()`, `getLatestWeight()`. Change `syncTodayHealthData()` to return `HealthMetrics`. Add `checkPermissionStatus()`. Fix API usage: `getHealthDataFromTypes` returns `List<HealthDataPoint>`, extract `.value` properly (the current code checks `data is NumericHealthValue` on a `HealthDataPoint` which is wrong -- should be `data.value is NumericHealthValue`). |
-| `mobile/lib/features/home/presentation/screens/home_screen.dart` | Insert `TodaysHealthCard` between Nutrition and Weekly Progress. Wrap `_CalorieRing` and `_MacroCircle` in `RepaintBoundary`. Modify `_buildRecentWorkoutsSection` to merge pending workouts. Add `SyncStatusBadge` to `_RecentWorkoutCard` via optional `syncStatus` parameter. |
-| `mobile/lib/features/home/presentation/providers/home_provider.dart` | Add `List<PendingWorkoutDisplay> pendingWorkouts` to `HomeState`. In `loadDashboardData()`, query `WorkoutCacheDao.getPendingWorkoutsForUser()` and merge results into recent workouts. |
-| `mobile/lib/features/nutrition/presentation/screens/nutrition_screen.dart` | Below macro cards, add "(includes X pending)" label when pending count > 0. Add `SyncStatusBadge` to `_FoodEntryRow` for pending items. Wrap `_MacroCard` in `RepaintBoundary`. |
-| `mobile/lib/features/nutrition/presentation/providers/nutrition_provider.dart` | In macro total computation, add pending nutrition macros. Query `NutritionCacheDao.getPendingNutritionForUser()` for the selected date. Add `int pendingNutritionCount` to `NutritionState`. |
-| `mobile/lib/features/nutrition/presentation/screens/weight_trends_screen.dart` | Merge pending weight check-ins from `NutritionCacheDao.getPendingWeightForUser()` into the history list. Show `SyncStatusBadge` on pending entries. |
-| `mobile/lib/features/nutrition/presentation/screens/weight_checkin_screen.dart` | No functional changes. Already uses `OfflineWeightRepository`. |
-| `mobile/lib/core/database/daos/workout_cache_dao.dart` | Add `Future<List<PendingWorkoutLog>> getPendingWorkoutsForUser(int userId)`. |
-| `mobile/lib/core/database/daos/nutrition_cache_dao.dart` | Add `Future<List<PendingNutritionLog>> getPendingNutritionForUser(int userId, String date)`. Add `Future<List<PendingWeightCheckin>> getPendingWeightForUser(int userId)`. |
-| `mobile/ios/Runner/Runner.entitlements` | Add `com.apple.developer.healthkit` key with value `true`, and `com.apple.developer.healthkit.access` array with empty array (read-only). |
-| `mobile/ios/Runner/Info.plist` | Update `NSHealthShareUsageDescription` to: "FitnessAI reads your steps, active calories, heart rate, and weight to display your daily health summary and auto-import weight check-ins." |
-| `mobile/android/app/src/main/AndroidManifest.xml` | Add `android.permission.health.READ_ACTIVE_CALORIES_BURNED` and `android.permission.health.READ_WEIGHT` permissions. Remove WRITE permissions (we are read-only). |
-| `mobile/lib/core/providers/sync_provider.dart` | Expose a provider or stream that notifies when sync completes, so UI can refresh pending item lists. |
+**Trainer announcement views** go in `backend/trainer/` (consistent with existing trainer notification views pattern):
+- `backend/trainer/announcement_views.py` -- Trainer CRUD for announcements
 
-### Key Dependencies
-- `health: ^13.2.1` -- already in `pubspec.yaml`
-- `shared_preferences: ^2.2.2` -- already in `pubspec.yaml`
-- `url_launcher: ^6.2.4` -- already in `pubspec.yaml`
-- `intl: ^0.20.2` -- already in `pubspec.yaml` (for `NumberFormat`)
-- No new packages needed.
+**Files to modify:**
+- `backend/config/settings.py` -- Add `'community'` to `INSTALLED_APPS`
+- `backend/config/urls.py` -- Add `path('api/community/', include('community.urls'))`
+- `backend/trainer/urls.py` -- Add announcement CRUD URL patterns
+- `backend/trainer/serializers.py` -- Add `AnnouncementSerializer` for trainer CRUD
+- Workout save views/services -- Add `check_and_award_achievements()` call + `create_auto_post()` call after workout save
+- Nutrition save views/services -- Add `check_and_award_achievements()` call after nutrition save
+- Weight check-in view -- Add `check_and_award_achievements()` call after weight save
+
+### Mobile
+
+**Files to create:**
+- `mobile/lib/features/community/` -- New feature directory
+  - `data/models/announcement_model.dart` -- Announcement, AnnouncementUnreadCount
+  - `data/models/achievement_model.dart` -- Achievement, UserAchievement
+  - `data/models/community_post_model.dart` -- CommunityPost, PostReaction
+  - `data/repositories/announcement_repository.dart` -- CRUD + unread + mark-read
+  - `data/repositories/achievement_repository.dart` -- List + recent
+  - `data/repositories/community_feed_repository.dart` -- Feed + create + delete + react
+  - `presentation/providers/announcement_provider.dart` -- StateNotifier for announcement list + unread count
+  - `presentation/providers/achievement_provider.dart` -- StateNotifier for achievement grid
+  - `presentation/providers/community_feed_provider.dart` -- StateNotifier for feed + compose + reactions
+  - `presentation/screens/announcements_screen.dart` -- Trainee full announcements list
+  - `presentation/screens/achievements_screen.dart` -- Trainee badge grid
+  - `presentation/screens/community_feed_screen.dart` -- Community feed (replaces ForumsScreen)
+  - `presentation/widgets/announcement_card.dart` -- Reusable announcement card
+  - `presentation/widgets/achievement_badge.dart` -- Badge grid item (earned/locked states)
+  - `presentation/widgets/community_post_card.dart` -- Feed post card
+  - `presentation/widgets/compose_post_sheet.dart` -- Bottom sheet for creating posts
+  - `presentation/widgets/reaction_bar.dart` -- Fire/thumbs_up/heart row with counts
+- `mobile/lib/features/trainer/presentation/screens/trainer_announcements_screen.dart` -- Trainer announcement management list
+- `mobile/lib/features/trainer/presentation/screens/create_announcement_screen.dart` -- Create/edit announcement form
+
+**Files to modify:**
+- `mobile/lib/core/constants/api_constants.dart` -- Add 10 new endpoint constants:
+  - `trainerAnnouncements`, `trainerAnnouncementDetail(id)`
+  - `communityAnnouncements`, `communityAnnouncementsUnreadCount`, `communityAnnouncementsMarkRead`
+  - `communityAchievements`, `communityAchievementsRecent`
+  - `communityFeed`, `communityFeedDelete(id)`, `communityFeedReact(postId)`
+- `mobile/lib/core/router/app_router.dart` -- Add routes: `/announcements`, `/achievements`, `/trainer/announcements`, `/trainer/announcements/create`. Change `/forums` to `/community` in the StatefulShellRoute.
+- `mobile/lib/shared/widgets/main_navigation_shell.dart` -- Rename "Forums" to "Community", icon `forum_outlined` -> `people_outlined`, `forum` -> `people`.
+- `mobile/lib/features/home/presentation/screens/home_screen.dart` -- Add announcements section above Nutrition. Update bell icon with unread badge count. Add `_buildAnnouncementsSection()`.
+- `mobile/lib/features/home/presentation/providers/home_provider.dart` -- Add `List<AnnouncementSummary> recentAnnouncements` and `int unreadAnnouncementCount` to `HomeState`. Fetch on `loadDashboardData()`.
+- `mobile/lib/features/settings/presentation/screens/settings_screen.dart` -- Add achievements tile to trainee settings between TRACKING and SUBSCRIPTION sections.
+- `mobile/lib/features/trainer/presentation/screens/trainer_dashboard_screen.dart` -- Add "Announcements" and "Community" summary sections.
+
+### URL Structure
+
+**Trainer endpoints (under `/api/trainer/`):**
+```
+GET/POST    /api/trainer/announcements/
+GET/PUT/PATCH/DELETE  /api/trainer/announcements/<id>/
+```
+
+**Community endpoints (under `/api/community/`):**
+```
+GET         /api/community/announcements/
+GET         /api/community/announcements/unread-count/
+POST        /api/community/announcements/mark-read/
+GET         /api/community/achievements/
+GET         /api/community/achievements/recent/
+GET/POST    /api/community/feed/
+DELETE      /api/community/feed/<id>/
+POST        /api/community/feed/<id>/react/
+```
+
+### Migration Considerations
+- All 6 new models go in `community` app's `0001_initial.py` migration.
+- No schema changes to existing models (User, DailyLog, WeightCheckIn, etc.).
+- `seed_achievements` must be run after migration to populate the achievements table.
+- All ForeignKeys use `on_delete=CASCADE` except `Announcement.trainer` and `CommunityPost.trainer` which should use `on_delete=CASCADE` (if trainer is deleted, their announcements and community group are deleted).
+- Migrations are forward-only with no cross-app dependencies on data.
+
+### Row-Level Security Summary
+
+| Endpoint | Security Rule |
+|----------|---------------|
+| `GET /api/community/announcements/` | Filter by `trainer = user.parent_trainer` |
+| `GET /api/community/feed/` | Filter by `trainer = user.parent_trainer` |
+| `POST /api/community/feed/` | Auto-set `trainer = user.parent_trainer`; reject 400 if null |
+| `DELETE /api/community/feed/<id>/` | `post.author == user` OR `(user.is_trainer() and post.trainer == user)` |
+| `POST /api/community/feed/<id>/react/` | Post's `trainer == user.parent_trainer` |
+| `GET /api/trainer/announcements/` | Filter by `trainer = request.user` |
+| `PUT/DELETE /api/trainer/announcements/<id>/` | `announcement.trainer == request.user` |
+| `GET /api/community/achievements/` | Achievements are global; `earned` flag is per-user via LEFT JOIN on `UserAchievement` |
 
 ### Key Design Decisions
 
-1. **Health data is display-only, local-only**: No backend changes. Health metrics are never sent to the server. This respects user privacy and avoids HIPAA/GDPR complexity. The only exception is auto-importing weight to WeightCheckIn, which uses the existing save flow (goes through `OfflineWeightRepository` which handles online/offline).
+1. **New `community` Django app**: Keeps social features cleanly separated from trainer management and workout/nutrition tracking. Follows the project's app-per-domain pattern (users, workouts, trainer, subscriptions, ambassador).
 
-2. **HealthMetrics as a typed dataclass, not Map<String, dynamic>**: Per project rules (`.claude/rules/datatypes.md`), services and utils return dataclasses or Pydantic models, never dicts.
+2. **Trainer announcement views in `trainer` app, trainee-facing views in `community` app**: Consistent with how `TrainerNotification` views live in `trainer/notification_views.py`. The trainer manages announcements in their dashboard context; trainees consume them in the community context.
 
-3. **Permission prompt shown once, via bottom sheet, not blocking**: The bottom sheet is shown on first home screen visit if `health_permission_asked` is false in SharedPreferences. After the user taps "Connect" or "Not Now", the preference is set and the sheet never appears again. This is non-intrusive -- the home screen loads fully behind the sheet.
+3. **`AnnouncementReadStatus` for unread tracking**: A single row per (user, trainer) with a `last_read_at` timestamp is much more efficient than tracking per-announcement read status. Announcements with `created_at > last_read_at` are unread. This scales to thousands of announcements without bloating a join table.
 
-4. **Pending data merge is additive for nutrition, positional for workouts/weight**: Pending nutrition entries add to server totals (they represent new food not yet synced). Pending workouts prepend to the recent list (newest first). Pending weight entries insert chronologically into the trends list.
+4. **Community feed scoped by `trainer` FK, not a separate "group" model**: The trainer IS the group. Every trainer's trainees form an implicit community. This avoids over-engineering a group/channel system for V1. If multi-group support is needed later, the `trainer` FK can be replaced with a `group` FK without changing the feed logic.
 
-5. **Performance changes are conservative**: Only add `RepaintBoundary` where there's a clear paint-heavy widget (CircularProgressIndicator, LinearProgressIndicator, animations). Don't wrap every widget -- that increases memory usage with diminishing returns. Focus on the hot paths: home screen scroll, nutrition screen scroll, workout log scroll.
+5. **Achievement checking is synchronous but non-blocking**: The `check_and_award_achievements` function runs after the primary operation (workout save, etc.) succeeds. It's wrapped in try-except so failures never block the user's action. Newly earned achievements are returned in the response so the mobile app can show toast notifications without a separate API call.
 
-6. **Auto-import weight runs silently**: No snackbar, no dialog. The weight just appears in the check-in history. The `notes` field ("Auto-imported from Health") distinguishes it from manual entries. If auto-import fails (storage full, DB error), it fails silently -- the user can always manually check in. Errors logged in debug mode only.
+6. **Auto-posts are write-and-forget**: Created silently. If `create_auto_post` fails (no parent_trainer, DB error), it fails silently. The primary action (workout save, achievement award) is never blocked.
 
-7. **Existing HealthService bugs fixed**: The current `health_service.dart` has a bug where it checks `if (data is NumericHealthValue)` on `HealthDataPoint` objects. The `health` package returns `List<HealthDataPoint>` from `getHealthDataFromTypes`, and the numeric value is at `data.value` (a `HealthValue`), not on the `HealthDataPoint` itself. This must be fixed as part of the rewrite.
+7. **Reaction toggle pattern (create-or-delete)**: Instead of a separate "add reaction" and "remove reaction" endpoint, a single `react` endpoint toggles. This matches common UX patterns (tap to like, tap again to unlike) and reduces mobile client complexity.
 
-8. **No new Drift tables**: Pending data already exists in `PendingWorkoutLogs`, `PendingNutritionLogs`, `PendingWeightCheckins`. We just need new DAO query methods to read them. No schema migration needed.
+8. **No comments in V1**: Reactions are enough social signal for an initial launch. Comments add significant complexity (threading, moderation, notifications, rich text). Reactions provide 80% of the engagement value with 20% of the complexity.
 
 ---
 
 ## Out of Scope
 
-- Background health data sync (when app is closed) -- requires BGTaskScheduler (iOS) / WorkManager (Android), too complex for this pipeline
-- Writing health data back to HealthKit/Health Connect (read-only integration)
-- Full health dashboard screen -- just a summary card on the home screen
-- Sending health data to the backend -- this is local/display only
-- Sleep tracking display -- was in the original placeholder but not in the focus
-- Heart rate variability (HRV) or resting heart rate (separate HealthKit types) -- just use generic `HEART_RATE`
-- Historical health data charting (past 7/30 days of steps) -- just today's snapshot
-- Health data notifications ("You hit 10,000 steps!")
-- Backend API for health data storage or analytics
-- Workout history screen refactor to `ListView.builder` (already uses pagination/infinite scroll)
-- New Drift schema version / migration -- not needed for this ticket
+- Push notifications for announcements, achievements, or community posts (in-app only for V1)
+- Rich text / markdown in announcements or posts
+- Image / video attachments on posts
+- Comment threads on community posts (reactions only for V1)
+- Leaderboards (Phase 7 item, deferred to future pipeline)
+- Real-time updates / WebSocket for feed (pull-to-refresh only)
+- Blocking / muting users in community feed
+- Post editing (delete and re-create for V1)
+- Trainer-custom achievements (pre-defined only)
+- Retroactive achievement awarding for past activity before this feature ships
+- Web dashboard community views (mobile-only for V1)
+- Dedicated trainer community moderation screen (uses impersonation flow for V1)
+- Community post reporting / flagging system
+- Achievement progress percentages (earned: yes/no only, no "3 of 10 workouts" progress bars)

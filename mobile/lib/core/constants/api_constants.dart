@@ -192,6 +192,20 @@ class ApiConstants {
   static String trainerAvailabilityDetail(int id) =>
       '$apiBaseUrl/calendar/availability/$id/';
 
+  // Community endpoints (trainee-facing)
+  static String get communityAnnouncements => '$apiBaseUrl/community/announcements/';
+  static String get communityAnnouncementsUnread => '$apiBaseUrl/community/announcements/unread-count/';
+  static String get communityAnnouncementsMarkRead => '$apiBaseUrl/community/announcements/mark-read/';
+  static String get communityAchievements => '$apiBaseUrl/community/achievements/';
+  static String get communityAchievementsRecent => '$apiBaseUrl/community/achievements/recent/';
+  static String get communityFeed => '$apiBaseUrl/community/feed/';
+  static String communityPostDelete(int postId) => '$apiBaseUrl/community/feed/$postId/';
+  static String communityPostReact(int postId) => '$apiBaseUrl/community/feed/$postId/react/';
+
+  // Trainer announcement endpoints
+  static String get trainerAnnouncements => '$apiBaseUrl/trainer/announcements/';
+  static String trainerAnnouncementDetail(int id) => '$apiBaseUrl/trainer/announcements/$id/';
+
   // Headers (these can stay const)
   static const String contentType = 'application/json';
   static const String authorization = 'Authorization';

@@ -60,9 +60,9 @@ class MainNavigationShell extends ConsumerWidget {
                   onTap: () => _onTap(context, 2),
                 ),
                 _NavItem(
-                  icon: Icons.forum_outlined,
-                  activeIcon: Icons.forum,
-                  label: 'Forums',
+                  icon: Icons.people_outlined,
+                  activeIcon: Icons.people,
+                  label: 'Community',
                   isSelected: navigationShell.currentIndex == 3,
                   onTap: () => _onTap(context, 3),
                 ),

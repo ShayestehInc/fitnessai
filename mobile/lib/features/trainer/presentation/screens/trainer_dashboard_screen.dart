@@ -77,6 +77,68 @@ class TrainerDashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
 
+                    // Announcements quick-access
+                    _buildSectionHeader(
+                      context,
+                      'Announcements',
+                      onViewAll: () => context.push('/trainer/announcements'),
+                    ),
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () => context.push('/trainer/announcements'),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.dividerColor),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.campaign,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Manage Announcements',
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyLarge?.color,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Broadcast updates to all your trainees',
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodySmall?.color,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              color: theme.textTheme.bodySmall?.color,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
                     // Programs Carousel
                     _buildSectionHeader(
                       context,

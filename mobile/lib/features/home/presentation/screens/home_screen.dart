@@ -10,6 +10,7 @@ import '../../../../shared/widgets/health_permission_sheet.dart';
 import '../../../../shared/widgets/offline_banner.dart';
 import '../../../../shared/widgets/sync_status_badge.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../community/presentation/providers/announcement_provider.dart';
 import '../../../workout_log/data/models/workout_history_model.dart';
 import '../providers/home_provider.dart';
 
@@ -26,6 +27,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(homeStateProvider.notifier).loadDashboardData();
+      ref.read(announcementProvider.notifier).loadUnreadCount();
       _initHealthData();
     });
   }
@@ -242,27 +244,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         Row(
           children: [
-            IconButton(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Notifications'),
-                    content: const Text(
-                      'Notifications are coming soon! You\'ll be able to see updates from your trainer here.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text('OK'),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              icon: const Icon(Icons.notifications_outlined),
-              color: theme.textTheme.bodySmall?.color,
-            ),
+            _buildAnnouncementBell(theme),
             PopupMenuButton(
               icon: CircleAvatar(
                 radius: 18,
@@ -360,6 +342,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (mounted) {
       context.go('/login');
     }
+  }
+
+  Widget _buildAnnouncementBell(ThemeData theme) {
+    final unreadCount = ref.watch(announcementProvider.select((s) => s.unreadCount));
+
+    return Stack(
+      children: [
+        IconButton(
+          onPressed: () => context.push('/community/announcements'),
+          icon: const Icon(Icons.notifications_outlined),
+          color: theme.textTheme.bodySmall?.color,
+        ),
+        if (unreadCount > 0)
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.error,
+                shape: BoxShape.circle,
+              ),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              child: Text(
+                unreadCount > 99 ? '99+' : '$unreadCount',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   Widget _buildSectionHeader(

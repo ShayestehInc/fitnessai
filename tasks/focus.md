@@ -1,28 +1,36 @@
-# Pipeline 16 Focus: Health Data Sync + Performance Audit (Phase 6 Completion)
+# Pipeline 17 Focus: Social & Community (Phase 7)
 
 ## Priority
-Complete remaining Phase 6 items: HealthKit/Health Connect integration, app performance audit, and deferred offline UI polish.
+Build the Phase 7 Social & Community features: trainer announcements, achievement/badge system, and trainee community feed.
 
-## Phase 6 Remaining Items
-1. Background health data sync (HealthKit on iOS / Health Connect on Android)
-2. App performance audit (60fps target, RepaintBoundary audit)
-3. Deferred offline ACs: merge local pending data into list views (AC-12, AC-16, AC-18), sync badges on cards (AC-36/37/38)
+## Phase 7 Items (from PRODUCT_SPEC.md)
+1. Forums / community feed (trainee-to-trainee)
+2. Trainer announcements (broadcast to all trainees)
+3. Achievement / badge system
+4. Leaderboards (opt-in, trainer-controlled)
+
+## Scoping for This Pipeline
+Given the scope, prioritize the highest-impact features for V1:
+
+### Must Build (this pipeline)
+1. **Trainer Announcements** — Trainer broadcasts messages to all their trainees. Backend model + API + mobile UI (trainer creates, trainee views on home screen). Push notification optional.
+2. **Achievement / Badge System** — Define achievements (streak milestones, weight milestones, workout count, nutrition logging streaks). Backend model + earned tracking + mobile UI (badges on profile, toast on earn).
+3. **Community Feed** — Trainee-to-trainee feed within a trainer's group. Post types: workout completion auto-posts, text posts, milestone celebrations. Like/reactions. Basic moderation (trainer can delete posts).
+
+### Defer to Future Pipeline
+4. **Leaderboards** — Requires opt-in privacy controls, ranking algorithms, and trainer configuration UI. Too complex for this pipeline alongside 3 other features.
 
 ## Context
-- Mobile app uses Flutter 3.0+ with Riverpod state management
-- Drift (SQLite) local database already exists from Pipeline 15 (offline-first)
-- `mobile/lib/core/services/health_service.dart` already exists (placeholder or partial)
-- Weight check-ins model exists: `WeightCheckIn` with `weight_kg`, `date`, `notes`
-- DailyLog has `workout_data` and `nutrition_data` JSON fields
-- The app already tracks workouts, nutrition, and weight manually
-- HealthKit/Health Connect can provide: steps, heart rate, active calories, sleep, weight
-
-## What to build
-1. **Health data integration**: Read steps, active calories, heart rate, and weight from HealthKit (iOS) / Health Connect (Android). Display on trainee home screen. Auto-import weight to weight check-ins (with dedup).
-2. **Performance audit**: Profile the app for jank. Add RepaintBoundary where needed. Audit const constructors. Check for unnecessary rebuilds. Target 60fps on common flows (scrolling lists, workout logging, navigation transitions).
-3. **Offline UI polish**: Wire SyncStatusBadge onto workout/nutrition/weight cards. Merge local pending data into home screen recent workouts and nutrition macro totals.
+- Backend: Django REST Framework with PostgreSQL
+- Mobile: Flutter 3.0+ with Riverpod
+- Existing models: User (with parent_trainer FK), TrainerNotification, DailyLog
+- Existing patterns: ViewSet-based APIs, Riverpod StateNotifier providers, repository pattern
+- The trainer already has a notification system (TrainerNotification model) — announcements are a new concept (trainer→trainees direction)
+- No existing social/community infrastructure
 
 ## What NOT to build
-- Don't add background sync when app is fully closed (requires platform-specific BGTaskScheduler/WorkManager — too complex for this pipeline)
-- Don't write health data back (read-only integration)
-- Don't build a full health dashboard — just surface key metrics on the home screen
+- Real-time chat (too complex for V1 — use polling/pull-to-refresh)
+- Image/video uploads in posts (text-only V1)
+- Comment threads on posts (just likes/reactions for V1)
+- Leaderboard rankings
+- Push notifications for social features (use in-app only)
