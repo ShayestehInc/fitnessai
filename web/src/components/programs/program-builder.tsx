@@ -122,20 +122,8 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
-  // Ctrl+S / Cmd+S keyboard shortcut to save
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        if (!isSaving && name.trim()) {
-          handleSave();
-        }
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSaving, name]);
+  // Keep a ref to the latest save handler for keyboard shortcut
+  const handleSaveRef = useRef<() => void>(() => {});
 
   // Check if weeks being removed have any exercise data
   const weeksHaveData = useCallback(
@@ -259,6 +247,22 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
       savingRef.current = false;
     }
   };
+
+  // Update save ref after handleSave is defined
+  handleSaveRef.current = handleSave;
+
+  // Ctrl+S / Cmd+S keyboard shortcut to save
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        handleSaveRef.current();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   return (
     <div className="space-y-6">

@@ -32,28 +32,40 @@ export function DeleteProgramDialog({
   const handleDelete = async () => {
     try {
       await deleteMutation.mutateAsync(program.id);
-      toast.success("Program deleted");
+      toast.success(`"${program.name}" has been deleted`);
       setOpen(false);
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
   };
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    // Prevent closing while delete is in progress
+    if (!nextOpen && deleteMutation.isPending) return;
+    setOpen(nextOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete Program Template</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to delete &ldquo;{program.name}&rdquo;?
-            {program.times_used > 0 && (
-              <span className="mt-1 block text-amber-600 dark:text-amber-400">
-                This template has been used {program.times_used} time
-                {program.times_used !== 1 ? "s" : ""}. Assigned programs will
-                not be affected.
+          <DialogDescription asChild>
+            <div>
+              <span>Are you sure you want to delete &ldquo;</span>
+              <span className="inline break-all font-medium">
+                {program.name}
               </span>
-            )}
+              <span>&rdquo;? This action cannot be undone.</span>
+              {program.times_used > 0 && (
+                <span className="mt-1 block text-amber-600 dark:text-amber-400">
+                  This template has been used {program.times_used} time
+                  {program.times_used !== 1 ? "s" : ""}. Assigned programs will
+                  not be affected.
+                </span>
+              )}
+            </div>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

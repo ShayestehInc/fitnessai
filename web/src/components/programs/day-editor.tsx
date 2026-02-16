@@ -72,25 +72,25 @@ export function DayEditor({ day, dayIndex, onUpdate }: DayEditorProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">
+            <CardTitle className="shrink-0 text-sm font-semibold text-muted-foreground">
               {day.day}
             </CardTitle>
             {!day.is_rest_day && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 <Label
                   htmlFor={`day-name-${dayIndex}`}
                   className="sr-only"
                 >
-                  Day name
+                  Day name for {day.day}
                 </Label>
                 <Input
                   id={`day-name-${dayIndex}`}
                   value={day.name}
                   onChange={(e) => updateName(e.target.value)}
                   placeholder="Day name (e.g., Push Day)"
-                  className="h-8 w-48 text-sm"
+                  className="h-8 w-full max-w-[200px] text-sm"
                   maxLength={50}
                 />
               </div>
@@ -101,9 +101,14 @@ export function DayEditor({ day, dayIndex, onUpdate }: DayEditorProps) {
             type="button"
             variant={day.is_rest_day ? "default" : "outline"}
             size="sm"
-            className="h-7 gap-1.5 text-xs"
+            className="h-7 shrink-0 gap-1.5 self-start text-xs sm:self-auto"
             onClick={toggleRestDay}
             aria-pressed={day.is_rest_day}
+            aria-label={
+              day.is_rest_day
+                ? `Mark ${day.day} as training day`
+                : `Mark ${day.day} as rest day`
+            }
           >
             <Moon className="h-3.5 w-3.5" aria-hidden="true" />
             Rest Day
@@ -145,20 +150,26 @@ export function DayEditor({ day, dayIndex, onUpdate }: DayEditorProps) {
             </>
           )}
 
-          <ExercisePickerDialog
-            onSelect={addExercise}
-            trigger={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full gap-1.5"
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                Add Exercise
-              </Button>
-            }
-          />
+          {day.exercises.length >= MAX_EXERCISES_PER_DAY ? (
+            <p className="py-2 text-center text-xs text-muted-foreground">
+              Maximum of {MAX_EXERCISES_PER_DAY} exercises reached
+            </p>
+          ) : (
+            <ExercisePickerDialog
+              onSelect={addExercise}
+              trigger={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5"
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  Add Exercise
+                </Button>
+              }
+            />
+          )}
         </CardContent>
       )}
     </Card>

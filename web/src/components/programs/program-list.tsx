@@ -53,14 +53,25 @@ function makeColumns(currentUserId: number | null): Column<ProgramTemplate>[] {
     {
       key: "name",
       header: "Name",
-      cell: (row) => (
-        <span
-          className="block max-w-[200px] truncate font-medium"
-          title={row.name}
-        >
-          {row.name}
-        </span>
-      ),
+      cell: (row) => {
+        const canEdit = currentUserId !== null && row.created_by === currentUserId;
+        return canEdit ? (
+          <Link
+            href={`/programs/${row.id}/edit`}
+            className="block max-w-[300px] truncate font-medium text-foreground underline-offset-4 hover:underline"
+            title={row.name}
+          >
+            {row.name}
+          </Link>
+        ) : (
+          <span
+            className="block max-w-[300px] truncate font-medium"
+            title={row.name}
+          >
+            {row.name}
+          </span>
+        );
+      },
     },
     {
       key: "difficulty_level",
