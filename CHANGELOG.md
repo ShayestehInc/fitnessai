@@ -4,6 +4,75 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-15] — Offline-First Workout & Nutrition Logging (Phase 6)
+
+### Added
+- **Drift (SQLite) Local Database** — 5 tables: `PendingWorkoutLogs`, `PendingNutritionLogs`, `PendingWeightCheckins`, `CachedPrograms`, `SyncQueueItems`. Background isolate via `NativeDatabase.createInBackground()`. WAL mode for concurrent read/write. Startup cleanup (synced items >24h, stale cache >30d). Transactional user data clearing on logout.
+- **Connectivity Monitoring** — `ConnectivityService` wrapping `connectivity_plus` with 2-second debounce to prevent sync thrashing during connection flapping. Handles Android multi-result edge case (`[wifi, none]` reports online, not offline).
+- **Offline-Aware Repositories** — Decorator pattern: `OfflineWorkoutRepository`, `OfflineNutritionRepository`, `OfflineWeightRepository` wrap existing online repos. When online, delegate to API. When offline, save to Drift + sync queue. UUID-based `clientId` idempotency prevents duplicate submissions. Storage-full `SqliteException` caught with user-friendly messages.
+- **Sync Queue Engine** — `SyncService` with FIFO sequential processing, exponential backoff (5s, 15s, 45s), max 3 retries before permanent failure. HTTP 409 conflict detection with operation-specific messages (no auto-retry). 401 auth error handling (pauses sync, preserves data). Corrupted JSON and unknown operation types handled gracefully.
+- **Program Caching** — Programs cached in Drift on successful API fetch. Offline fallback with "Showing cached program. Some data may be outdated." banner. Corrupted cache detected, deleted, and reported gracefully. Active workout screen works fully offline with cached data.
+- **Offline Banner** — 4 visual states: offline (amber, cloud_off), syncing (blue, LinearProgressIndicator, "Syncing X of Y..."), synced (green, auto-dismiss 3s), failed (red, tap to open failed sync sheet). Semantics liveRegion for screen readers. AnimatedSwitcher transitions.
+- **Failed Sync Bottom Sheet** — `DraggableScrollableSheet` listing each failed item with operation type icon, description, error message, Retry/Delete buttons. Retry All in header. Auto-close when empty.
+- **Logout Warning** — Both home screen and settings screen check `unsyncedCountProvider`. Dialog shows count of unsynced items with "Cancel" / "Logout Anyway" options. `clearUserData()` runs in a transaction.
+- **Typed `OfflineSaveResult`** — Replaces `Map<String, dynamic>` returns from offline save operations with typed `success`, `offline`, `error`, `data` fields.
+- **`SyncStatusBadge` widget** — 16x16 badge with 12px icons for pending/syncing/failed states. Ready for per-card placement in follow-up.
+- **`network_error_utils.dart`** — Shared `isNetworkError()` function (DRY, was triplicated across 3 offline repos).
+- **`SyncOperationType` and `SyncItemStatus` enums** — Centralized enums with `fromString()` parsers replacing magic strings.
+
+### Changed
+- **`mobile/lib/main.dart`** — Initializes `AppDatabase` and `ConnectivityService` before `runApp`. Overrides providers in `ProviderScope`.
+- **`active_workout_screen.dart`** — `submitPostWorkoutSurvey` and `submitReadinessSurvey` now use `OfflineWorkoutRepository`. Offline save snackbar with cloud_off icon. `late final _workoutClientId` for idempotency.
+- **`workout_log_screen.dart`** — Added `OfflineBanner` at top. Shows "Showing cached program" banner when programs from cache.
+- **`weight_checkin_screen.dart`** — Uses `OfflineWeightRepository`. Added `_isSaving` flag (prevents double-submit). Success snackbar for both online and offline saves.
+- **`ai_command_center_screen.dart`** — Offline notice banner when device is offline (AI parsing requires network). Offline save feedback snackbar.
+- **`home_screen.dart`** — Added `OfflineBanner`. Logout checks `unsyncedCountProvider` with warning dialog.
+- **`settings_screen.dart`** — All three logout buttons use `_handleLogout` with pending sync check and warning dialog.
+- **`logging_provider.dart`** — `LoggingNotifier` uses `OfflineNutritionRepository`. `savedOffline` field in `LoggingState`.
+- **`workout_provider.dart`** — `WorkoutNotifier` accepts `OfflineWorkoutRepository`. `programsFromCache` flag for cache banner.
+- **`nutrition_screen.dart`** — Added `OfflineBanner` at top of screen body.
+- **`pubspec.yaml`** — Added `connectivity_plus: ^6.0.0`, `uuid: ^4.0.0`, `sqlite3: ^2.9.0`.
+
+### Security
+- No secrets, API keys, or credentials in any committed file (regex scan verified)
+- All SQLite queries use Drift parameterized builder (no raw SQL, no injection vectors)
+- userId filtering in every DAO query prevents cross-user data access
+- Sync uses existing JWT auth via `ApiClient` with token refresh
+- 401 handling preserves user data for retry after re-authentication
+- Error messages are user-friendly, no internal details leaked
+- Transactional dual-inserts (pending data + sync queue) prevent orphaned data
+- Transactional user data cleanup on logout
+- Corrupted JSON in cache/queue handled gracefully (no crashes)
+
+### Fixed
+- **Infinite retry loop** — `retryItem()` was used for both manual and automatic retries, resetting `retryCount` to 0 each time. Added `requeueForRetry()` for automatic retries that preserves retryCount. Manual retries (`retryItem`) correctly reset to 0 for a fresh set of attempts.
+- **Connectivity false-negative on Android** — `_mapResults()` now only reports offline when `ConnectivityResult.none` is the sole result, handling the `[wifi, none]` edge case documented in `connectivity_plus`.
+- **Weight check-in double-submit** — Added local `_isSaving` flag with proper setState management. Button disabled during async save.
+- **Missing weight check-in success feedback** — Added success snackbar for online saves (previously screen popped with no feedback).
+- **Synced badge showing green icon** — Changed to `SizedBox.shrink()` per AC-38 (synced items should show no badge).
+- **Non-atomic local save operations** — Wrapped dual inserts (pending table + sync queue) in `transaction()` in all 3 offline repos.
+- **Non-atomic user data cleanup** — Wrapped all 5 deletes in `clearUserData()` in `transaction()`.
+- **Recursive stack growth** — `_processQueue()` recursion via `_pendingRestart` now uses `Future.microtask()`.
+- **Corrupted JSON crashes app** — `_getProgramsFromCache()` catches `FormatException`, deletes corrupt cache, returns graceful error.
+
+### Quality
+- Code review: 7.5/10 APPROVE (2 rounds — 4 critical + 9 major all fixed)
+- QA: 33/42 AC pass, MEDIUM-HIGH confidence, 1 critical bug found and fixed
+- Security audit: 9/10 PASS (1 medium fixed, 0 critical/high)
+- Architecture review: 8/10 APPROVE (6 issues fixed)
+- Hacker report: 7/10 (5 fixes applied, 13 edge cases verified clean)
+- Final verdict: 8/10 SHIP, HIGH confidence
+
+### Deferred
+- AC-12: Merge local pending workouts into Home "Recent Workouts" list
+- AC-16: Merge local pending nutrition into macro totals
+- AC-18: Merge local pending weight check-ins into weight trends
+- AC-36/37/38: Place SyncStatusBadge on individual cards in list views
+- Background health data sync (HealthKit / Health Connect) -- separate ticket
+- App performance audit (60fps, RepaintBoundary) -- separate ticket
+
+---
+
 ## [2026-02-15] — Ambassador Enhancements (Phase 5)
 
 ### Added
