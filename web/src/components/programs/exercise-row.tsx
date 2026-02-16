@@ -32,26 +32,72 @@ export function ExerciseRow({
   };
 
   return (
-    <div className="flex items-center gap-2 rounded-md border bg-card p-2">
-      <span
-        className="w-6 shrink-0 text-center text-xs font-medium text-muted-foreground"
-        aria-label={`Exercise ${index + 1}`}
-      >
-        {index + 1}
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <p
-          className="truncate text-sm font-medium"
-          title={exercise.exercise_name}
+    <div
+      className="rounded-md border bg-card p-2"
+      role="group"
+      aria-label={`Exercise ${index + 1}: ${exercise.exercise_name}`}
+    >
+      {/* Top row: index, name, reorder/delete actions */}
+      <div className="flex items-center gap-2">
+        <span
+          className="w-6 shrink-0 text-center text-xs font-medium text-muted-foreground"
+          aria-hidden="true"
         >
-          {exercise.exercise_name}
-        </p>
+          {index + 1}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p
+            className="truncate text-sm font-medium"
+            title={exercise.exercise_name}
+          >
+            {exercise.exercise_name}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onMoveUp}
+            disabled={index === 0}
+            aria-label={`Move ${exercise.exercise_name} up`}
+          >
+            <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onMoveDown}
+            disabled={index === totalExercises - 1}
+            aria-label={`Move ${exercise.exercise_name} down`}
+          >
+            <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={onRemove}
+            aria-label={`Remove ${exercise.exercise_name}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          </Button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-1.5">
+      {/* Bottom row: parameter inputs -- wraps responsively */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 pl-8">
         <div className="flex items-center gap-1">
-          <label className="sr-only" htmlFor={`sets-${exercise.exercise_id}-${index}`}>
+          <label
+            className="text-xs font-medium text-muted-foreground"
+            htmlFor={`sets-${exercise.exercise_id}-${index}`}
+          >
             Sets
           </label>
           <Input
@@ -64,9 +110,7 @@ export function ExerciseRow({
               updateField("sets", Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))
             }
             className="h-8 w-14 text-center text-xs"
-            aria-label="Sets"
           />
-          <span className="text-xs text-muted-foreground">sets</span>
         </div>
 
         <span className="text-xs text-muted-foreground" aria-hidden="true">
@@ -74,7 +118,10 @@ export function ExerciseRow({
         </span>
 
         <div className="flex items-center gap-1">
-          <label className="sr-only" htmlFor={`reps-${exercise.exercise_id}-${index}`}>
+          <label
+            className="text-xs font-medium text-muted-foreground"
+            htmlFor={`reps-${exercise.exercise_id}-${index}`}
+          >
             Reps
           </label>
           <Input
@@ -86,38 +133,43 @@ export function ExerciseRow({
             onChange={(e) => {
               const val = e.target.value;
               const num = parseInt(val);
-              updateField("reps", isNaN(num) ? val : Math.max(1, num));
+              if (isNaN(num)) {
+                updateField("reps", val.slice(0, 10));
+              } else {
+                updateField("reps", Math.min(100, Math.max(1, num)));
+              }
             }}
             maxLength={10}
             className="h-8 w-16 text-center text-xs"
-            aria-label="Reps"
           />
-          <span className="text-xs text-muted-foreground">reps</span>
         </div>
 
         <div className="flex items-center gap-1">
-          <label className="sr-only" htmlFor={`weight-${exercise.exercise_id}-${index}`}>
+          <label
+            className="text-xs font-medium text-muted-foreground"
+            htmlFor={`weight-${exercise.exercise_id}-${index}`}
+          >
             Weight
           </label>
           <Input
             id={`weight-${exercise.exercise_id}-${index}`}
             type="number"
             min={0}
+            max={9999}
             step={2.5}
             value={exercise.weight}
             onChange={(e) =>
-              updateField("weight", Math.max(0, parseFloat(e.target.value) || 0))
+              updateField("weight", Math.min(9999, Math.max(0, parseFloat(e.target.value) || 0)))
             }
             className="h-8 w-16 text-center text-xs"
-            aria-label="Weight"
           />
           <select
             value={exercise.unit}
             onChange={(e) =>
               updateField("unit", e.target.value as "lbs" | "kg")
             }
-            className="h-8 rounded-md border bg-background px-1 text-xs"
-            aria-label="Weight unit"
+            className="h-8 rounded-md border border-input bg-background px-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label={`Weight unit for ${exercise.exercise_name}`}
           >
             <option value="lbs">lbs</option>
             <option value="kg">kg</option>
@@ -125,8 +177,11 @@ export function ExerciseRow({
         </div>
 
         <div className="flex items-center gap-1">
-          <label className="sr-only" htmlFor={`rest-${exercise.exercise_id}-${index}`}>
-            Rest seconds
+          <label
+            className="text-xs font-medium text-muted-foreground"
+            htmlFor={`rest-${exercise.exercise_id}-${index}`}
+          >
+            Rest
           </label>
           <Input
             id={`rest-${exercise.exercise_id}-${index}`}
@@ -142,45 +197,9 @@ export function ExerciseRow({
               )
             }
             className="h-8 w-14 text-center text-xs"
-            aria-label="Rest seconds"
           />
           <span className="text-xs text-muted-foreground">s</span>
         </div>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-0.5">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={onMoveUp}
-          disabled={index === 0}
-          aria-label="Move exercise up"
-        >
-          <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={onMoveDown}
-          disabled={index === totalExercises - 1}
-          aria-label="Move exercise down"
-        >
-          <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-destructive hover:text-destructive"
-          onClick={onRemove}
-          aria-label={`Remove ${exercise.exercise_name}`}
-        >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-        </Button>
       </div>
     </div>
   );

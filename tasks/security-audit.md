@@ -1,57 +1,65 @@
-# Security Audit: Web Dashboard Phase 3 -- Trainer Analytics Page
+# Security Audit: Trainer Program Builder (Pipeline 12)
 
 **Date:** 2026-02-15
 **Auditor:** Security Engineer (Senior Application Security)
-**Scope:** Trainer Analytics page -- adherence stats, adherence bar chart, progress table, period selector
+**Scope:** Trainer Program Builder -- CRUD for program templates, schedule editor, exercise picker, trainee assignment
 
-**New Files Audited:**
-- `web/src/types/analytics.ts` -- TypeScript types for API responses
-- `web/src/hooks/use-analytics.ts` -- React Query hooks for adherence and progress endpoints
-- `web/src/components/analytics/period-selector.tsx` -- Tab-style period radio group
-- `web/src/components/analytics/adherence-chart.tsx` -- Horizontal bar chart with clickable bars
-- `web/src/components/analytics/adherence-section.tsx` -- Stat cards + chart with loading/error/empty states
-- `web/src/components/analytics/progress-section.tsx` -- Progress table with weight change colors
-- `web/src/app/(dashboard)/analytics/page.tsx` -- Analytics page composing both sections
+**New Frontend Files Audited:**
+- `web/src/types/program.ts` -- TypeScript types for schedules, exercises, templates, payloads
+- `web/src/hooks/use-programs.ts` -- React Query hooks for program CRUD + assignment
+- `web/src/hooks/use-exercises.ts` -- React Query hook for exercise search
+- `web/src/lib/error-utils.ts` -- Error message extraction utility
+- `web/src/lib/constants.ts` -- API URL additions (PROGRAM_TEMPLATES, EXERCISES)
+- `web/src/components/programs/program-builder.tsx` -- Main builder form with metadata + schedule editor
+- `web/src/components/programs/program-list.tsx` -- DataTable with action dropdown
+- `web/src/components/programs/week-editor.tsx` -- Week-level schedule container
+- `web/src/components/programs/day-editor.tsx` -- Day-level exercise list with rest toggle
+- `web/src/components/programs/exercise-row.tsx` -- Inline exercise parameter editor (sets/reps/weight/rest)
+- `web/src/components/programs/exercise-picker-dialog.tsx` -- Searchable exercise browser dialog
+- `web/src/components/programs/assign-program-dialog.tsx` -- Trainee selection + start date dialog
+- `web/src/components/programs/delete-program-dialog.tsx` -- Confirmation dialog for deletion
+- `web/src/app/(dashboard)/programs/page.tsx` -- Programs listing page
+- `web/src/app/(dashboard)/programs/new/page.tsx` -- New program page
+- `web/src/app/(dashboard)/programs/[id]/edit/page.tsx` -- Edit program page
 
-**Modified Files Audited:**
-- `web/src/components/layout/nav-links.tsx` -- Added Analytics nav item
-- `web/src/lib/constants.ts` -- Added `ANALYTICS_ADHERENCE` and `ANALYTICS_PROGRESS` API URL constants
-
-**Backend Endpoints Reviewed (for auth/authz only):**
-- `backend/trainer/views.py` -- `AdherenceAnalyticsView`, `ProgressAnalyticsView`
-- `backend/trainer/urls.py` -- URL routing for analytics endpoints
+**Backend Files Audited:**
+- `backend/trainer/views.py` -- `ProgramTemplateListCreateView`, `ProgramTemplateDetailView`, `AssignProgramTemplateView`, `ProgramTemplateUploadImageView`
+- `backend/trainer/serializers.py` -- `ProgramTemplateSerializer`, `AssignProgramSerializer`
+- `backend/trainer/urls.py` -- URL routing for program template endpoints
 - `backend/core/permissions.py` -- `IsTrainer` permission class
+- `backend/workouts/models.py` -- `ProgramTemplate` model definition
 
 ---
 
 ## Executive Summary
 
-This audit covers the Phase 3 Trainer Analytics page: adherence statistics (three stat cards), a per-trainee adherence bar chart, and a progress table showing weight changes. All changes are frontend-only (Next.js/React), consuming two existing backend API endpoints.
+This audit covers the Trainer Program Builder feature (Pipeline 12), which enables trainers to create, edit, delete, and assign workout program templates via the web dashboard. The feature includes a complex schedule editor (weeks with 7 days, each containing exercises with sets/reps/weight/rest parameters), an exercise picker with search and muscle group filtering, and trainee assignment with start date selection.
 
-The implementation follows strong security practices: all API calls use JWT Bearer authentication via the centralized `apiClient`, no XSS vectors introduced, trainee IDs used in navigation are server-provided integers, the `days` query parameter is constrained to a TypeScript union type (`7 | 14 | 30`) on the frontend and clamped to `[1, 365]` on the backend, and both backend views enforce `[IsAuthenticated, IsTrainer]` with row-level filtering by `parent_trainer=user`.
+**Critical findings:**
+- **No hardcoded secrets, API keys, or tokens found** across all audited files.
+- **No XSS vectors** -- no `dangerouslySetInnerHTML`, `eval()`, or unsafe DOM APIs.
+- **No SQL injection** -- all backend queries use Django ORM exclusively.
+- **No raw queries** -- verified zero matches for `raw()`, `RawSQL`, `execute()`, `cursor()`.
 
-**No Critical or High issues were found. No fixes required.**
-
-**Issues Found:**
-- 0 Critical
-- 0 High
-- 0 Medium
-- 3 Low / Informational
+**Issues found and fixed:**
+- 2 High severity issues (fixed)
+- 2 Medium severity issues (1 fixed, 1 documented)
+- 2 Low severity issues (documented)
 
 ---
 
 ## Security Checklist
 
 - [x] No secrets, API keys, passwords, or tokens in source code or docs
-- [x] No secrets in git history (`.env.local` is in `.gitignore`, verified not tracked)
-- [x] All user input sanitized (period selector constrained to `7 | 14 | 30`, React auto-escaping for names)
-- [x] Authentication checked on all new API calls (both hooks use `apiClient.get()` which injects Bearer token)
-- [x] Authorization -- correct role/permission guards (backend: `[IsAuthenticated, IsTrainer]` on both endpoints)
-- [x] No IDOR vulnerabilities (backend filters by `parent_trainer=user`; trainee IDs come from server-provided data)
-- [x] File uploads validated (N/A -- no file uploads in this feature)
-- [x] Rate limiting on sensitive endpoints (N/A -- read-only analytics, no sensitive mutations)
-- [x] Error messages don't leak internals (generic messages: "Failed to load adherence data", "Failed to load progress data")
-- [x] CORS policy appropriate (unchanged from prior audit -- production restricts origins)
+- [x] No secrets in git history (`.env.local` is in `.gitignore`)
+- [x] All user input sanitized (React auto-escaping, backend serializer validation)
+- [x] Authentication checked on all new endpoints (JWT Bearer via `apiClient`, backend `[IsAuthenticated, IsTrainer]`)
+- [x] Authorization -- correct role/permission guards (all program template views require IsTrainer)
+- [x] No IDOR vulnerabilities (backend `get_queryset()` filters by `created_by=user` for mutations; trainee assignment validates `parent_trainer`)
+- [x] File uploads validated (image upload: type whitelist, 10MB size limit, UUID-based filenames)
+- [ ] Rate limiting on sensitive endpoints (no rate limiting on template creation -- see Medium #2)
+- [x] Error messages don't leak internals (generic error messages via `getErrorMessage()`)
+- [x] CORS policy appropriate (unchanged -- production restricts origins via env var)
 
 ---
 
@@ -59,14 +67,14 @@ The implementation follows strong security practices: all API calls use JWT Bear
 
 ### Scan Methodology
 
-Grepped all 7 new files and 2 modified files for:
-- API keys, secret keys, passwords, tokens: `(api[_-]?key|secret[_-]?key|password|token|credential)\s*[=:]\s*['"][A-Za-z0-9]`
-- Provider-specific patterns: `(sk-|pk_|rk_|AIza|ghp_|gho_|AKIA|aws_)`
+Grepped all 17 new/modified files for:
+- API keys, secret keys, passwords, tokens: `(api[_-]?key|secret|password|token|credential)\s*[:=]`
+- Provider-specific patterns: `(sk_live|pk_live|sk_test|pk_test|AKIA|AIza|ghp_|gho_|xox[bpsa])`
 - Hardcoded URLs with embedded credentials
 
 ### Results: PASS
 
-No secrets, API keys, passwords, or tokens found in any new or modified files. The only token-related code is the pre-existing `apiClient` and `token-manager` (unchanged).
+No secrets, API keys, passwords, or tokens found in any new or modified files. The `API_BASE` URL in `constants.ts` reads from `process.env.NEXT_PUBLIC_API_URL` and falls back to `http://localhost:8000` -- no credentials embedded. The `TOKEN_KEYS` constants (`fitnessai_access_token`, `fitnessai_refresh_token`) are localStorage key names, not actual tokens.
 
 ---
 
@@ -76,39 +84,40 @@ No secrets, API keys, passwords, or tokens found in any new or modified files. T
 
 | Vector | Status | Evidence |
 |--------|--------|----------|
-| `dangerouslySetInnerHTML` | Not used | `grep` returned zero matches across all analytics files |
-| `innerHTML` / `outerHTML` / `__html` | Not used | `grep` returned zero matches |
+| `dangerouslySetInnerHTML` | Not used | `grep` returned zero matches across all program component files |
+| `innerHTML` / `outerHTML` / `__html` | Not used | Zero matches |
 | `eval()` / `new Function()` | Not used | Zero matches |
-| React JSX interpolation of trainee names | Safe | `{row.trainee_name}` in JSX text nodes -- React auto-escapes |
-| SVG `<text>` element in chart Y-axis | Safe | `{display}` and `<title>{name}</title>` in SVG rendered via React, auto-escaped |
-| `title` attribute on truncated names | Safe | `title={row.trainee_name}` -- React escapes attribute values |
-| Recharts tooltip content | Safe | `formatter` returns string values via array, rendered by recharts in React DOM nodes |
+| React JSX interpolation of exercise/program names | Safe | `{exercise.exercise_name}`, `{program.name}` rendered in JSX text nodes -- React auto-escapes |
+| `title` attribute on truncated names | Safe | `title={exercise.exercise_name}`, `title={row.name}` -- React escapes attribute values |
+| `href` construction for edit links | Safe | `href={/programs/${program.id}/edit}` -- `program.id` is a numeric integer from the server |
+| Trainee names in assign dialog | Safe | `{trainee.first_name} {trainee.last_name}` in JSX `<option>` -- React auto-escapes |
+| Toast messages | Safe | `toast.success()` and `toast.error()` use sonner which renders text content safely |
 
-**Analysis:** All user-controlled data (trainee names, adherence rates, weight values) is rendered through React's default text-node and attribute escaping. The adherence chart renders trainee names in SVG `<text>` elements via React JSX, which auto-escapes. No unsafe DOM APIs are used anywhere.
+**Analysis:** All user-controlled data is rendered through React's default JSX escaping. No unsafe DOM APIs are used. The exercise name, program name, and trainee name strings are all rendered as React text nodes.
 
-### Open Redirect: PASS
+### SQL Injection: PASS
 
-Two navigation patterns introduced:
+All backend queries use Django ORM:
+- `ProgramTemplate.objects.filter(Q(created_by=user) | Q(is_public=True))` -- queryset filtering
+- `ProgramTemplate.objects.get(id=pk, created_by=user)` -- object retrieval
+- `Program.objects.create(...)` -- object creation
+- `User.objects.get(id=..., parent_trainer=user)` -- trainee lookup
 
-```typescript
-// adherence-chart.tsx:92
-router.push(`/trainees/${trainee.trainee_id}`);
+No raw queries, `RawSQL`, `execute()`, or `cursor()` found in any audited file.
 
-// progress-section.tsx:152
-router.push(`/trainees/${row.trainee_id}`);
+### Command Injection: PASS
+
+The `ProgramTemplateUploadImageView` generates filenames using `uuid.uuid4().hex` and validates file extensions against a whitelist. No user-supplied filenames are used directly in system paths. The `os.path.splitext()` call on `image_file.name` is used only for extension detection, and the resulting extension is validated against the `ext_map` whitelist.
+
+### Path Traversal (Image Upload): PASS
+
+The old image deletion logic at line 721-726 of `views.py` processes the existing `image_url` to determine if it should be deleted:
+```python
+old_path = old_url.replace(settings.MEDIA_URL, '').lstrip('/')
+if default_storage.exists(old_path):
+    default_storage.delete(old_path)
 ```
-
-In both cases, `trainee_id` is a `number` field from the server-provided API response (`TraineeAdherence.trainee_id` and `TraineeProgressEntry.trainee_id`). The TypeScript types enforce this as `number`. The data originates from the backend where `trainee__id` is a Django `AutoField` (integer primary key). There is no user-controllable input that reaches these navigation calls.
-
-**Verdict:** No open redirect or path traversal possible.
-
-### SQL Injection: PASS (N/A on Frontend)
-
-The `days` query parameter is the only user-controlled value sent to the backend:
-
-**Frontend constraint:** `AdherencePeriod = 7 | 14 | 30` -- TypeScript union type prevents arbitrary values at compile time. The `PeriodSelector` component only offers these three options.
-
-**Backend defense:** `days = min(max(int(request.query_params.get('days', 30)), 1), 365)` with `try/except (ValueError, TypeError)` fallback to 30. The value is then used in a `timedelta(days=days)` computation -- never interpolated into SQL. The backend uses Django ORM exclusively (`objects.filter()`, `.annotate()`, `.values()`), not raw queries.
+The `old_url` comes from the database (the template's stored `image_url`), not from user input. The new filename uses `uuid.uuid4().hex`, which cannot contain path separators. No path traversal possible.
 
 ---
 
@@ -116,74 +125,105 @@ The `days` query parameter is the only user-controlled value sent to the backend
 
 ### Authentication: PASS
 
-Both new hooks use the centralized `apiClient.get()`:
+All program-related hooks use `apiClient.get()` / `apiClient.post()` / `apiClient.patch()` / `apiClient.delete()`, which calls `getAuthHeaders()` to inject the JWT Bearer token. If no token exists, it throws `ApiError(401, "No access token", null)`. On 401 response, the client attempts one token refresh via `refreshAccessToken()` before redirecting to `/login`.
 
-| Hook | Endpoint | Auth |
-|------|----------|------|
-| `useAdherenceAnalytics(days)` | `GET /api/trainer/analytics/adherence/?days=N` | Bearer token via `apiClient` |
-| `useProgressAnalytics()` | `GET /api/trainer/analytics/progress/` | Bearer token via `apiClient` |
-
-The `apiClient.get()` calls `request()` which calls `getAuthHeaders()` which reads the JWT from localStorage. If no token exists, it throws `ApiError(401, "No access token", null)`. On 401 response, it attempts one token refresh before redirecting to `/login`.
+| Endpoint | Method | Auth |
+|----------|--------|------|
+| `/api/trainer/program-templates/` | GET | Bearer token via `apiClient` |
+| `/api/trainer/program-templates/` | POST | Bearer token via `apiClient` |
+| `/api/trainer/program-templates/{id}/` | GET/PATCH/DELETE | Bearer token via `apiClient` |
+| `/api/trainer/program-templates/{id}/assign/` | POST | Bearer token via `apiClient` |
+| `/api/workouts/exercises/` | GET | Bearer token via `apiClient` |
 
 ### Authorization: PASS
 
-**Backend enforcement:**
+**Backend enforcement on all program template views:**
 
-Both `AdherenceAnalyticsView` and `ProgressAnalyticsView` have:
-```python
-permission_classes = [IsAuthenticated, IsTrainer]
-```
+| View | Permission Classes | Row-Level Security |
+|------|-------------------|-------------------|
+| `ProgramTemplateListCreateView` | `[IsAuthenticated, IsTrainer]` | `Q(created_by=user) \| Q(is_public=True)` for read; `created_by=user` forced on create |
+| `ProgramTemplateDetailView` | `[IsAuthenticated, IsTrainer]` | `created_by=user` -- only owner can edit/delete |
+| `AssignProgramTemplateView` | `[IsAuthenticated, IsTrainer]` | Template: `Q(created_by=user) \| Q(is_public=True)`; Trainee: `parent_trainer=trainer` |
+| `ProgramTemplateUploadImageView` | `[IsAuthenticated, IsTrainer]` | `created_by=user` |
 
-The `IsTrainer` permission class checks `request.user.is_trainer()`, ensuring only users with the TRAINER role can access these endpoints.
-
-**Row-level security:**
-
-- `AdherenceAnalyticsView` (line 840): `User.objects.filter(parent_trainer=user, role=User.Role.TRAINEE, is_active=True)` -- only the authenticated trainer's trainees are queried.
-- `ProgressAnalyticsView` (line 900): Same filter pattern -- `parent_trainer=user, role=User.Role.TRAINEE, is_active=True`.
-
-A trainer cannot see another trainer's trainees' analytics. There is no trainee ID parameter in the URL -- the backend scopes everything to the authenticated user.
+The `IsTrainer` permission class (in `core/permissions.py`) verifies `request.user.is_authenticated` and `request.user.is_trainer()`, ensuring only TRAINER role users can access these endpoints.
 
 **Frontend enforcement:**
-
-The analytics page is under the `(dashboard)` route group, which is protected by:
-1. Next.js middleware cookie check (redirects to `/login` if no session cookie)
-2. Dashboard layout `isAuthenticated` guard (redirects to `/login` and shows loading spinner)
-3. Auth provider validates the user session on mount
+The programs pages are under the `(dashboard)` route group, protected by the Next.js middleware session cookie check and the auth provider's `isAuthenticated` guard.
 
 ### IDOR Analysis: PASS
 
-The analytics endpoints are aggregate views -- they return data for ALL of the trainer's trainees, not a specific trainee. There is no trainee ID in the request URL or query parameters.
+1. **Edit/Delete a template:** `ProgramTemplateDetailView.get_queryset()` filters by `created_by=user`. A trainer cannot modify another trainer's template even by manipulating the URL parameter.
 
-The `trainee_id` values in the response are used only for client-side navigation (`/trainees/{id}`). When the user navigates to a specific trainee, the `TraineeDetailView` backend endpoint enforces `parent_trainer=user` filtering, so even a tampered ID in the URL would return 404.
+2. **Assign a template:** `AssignProgramSerializer.validate_trainee_id()` verifies the trainee has `parent_trainer=trainer`. A trainer cannot assign a program to another trainer's trainee.
+
+3. **View templates:** The list view returns `Q(created_by=user) | Q(is_public=True)`. Public templates from other trainers are intentionally visible (read-only), which is by design. The detail view restricts to `created_by=user`, so other trainers' public templates cannot be edited via the detail endpoint.
+
+4. **Frontend `isOwner` check:** The `ProgramActions` component checks `row.created_by === currentUserId` to conditionally render Edit and Delete actions. This is a UI guard only; the backend enforces the real authorization.
 
 ---
 
 ## Data Exposure
 
-### API Response Fields: ACCEPTABLE (with note)
+### API Response Fields
 
-**Adherence API response includes:**
-- `trainee_id` (integer) -- needed for navigation
-- `trainee_email` (string) -- **not displayed in UI**
-- `trainee_name` (string) -- displayed in chart and tooltip
-- `adherence_rate` (number) -- displayed in chart
-- `days_tracked` (number) -- not displayed but benign
+The `ProgramTemplateSerializer` exposes:
+- `id`, `name`, `description`, `duration_weeks` -- program metadata (non-sensitive)
+- `schedule_template`, `nutrition_template` -- program content (non-sensitive)
+- `difficulty_level`, `goal_type`, `image_url`, `is_public` -- classification (non-sensitive)
+- `created_by` (integer) -- the user ID of the template creator
+- `created_by_email` (string) -- **the email of the template creator**
+- `times_used`, `created_at`, `updated_at` -- usage metrics (non-sensitive)
 
-**Progress API response includes:**
-- `trainee_id` (integer) -- needed for navigation
-- `trainee_email` (string) -- **not displayed in UI**
-- `trainee_name` (string) -- displayed in table
-- `current_weight`, `weight_change`, `goal` -- displayed in table
-
-The `trainee_email` field is present in both TypeScript types but never rendered in any component. While trainers legitimately have access to their trainees' emails (they invited them), this is unnecessary data over the wire for an analytics page. See Low/Informational items below.
+**Concern:** For public templates, `created_by_email` exposes the email address of other trainers. See Medium issue #2 below.
 
 ### Error Messages: PASS
 
-All error states use generic messages:
-- `"Failed to load adherence data"` (adherence section)
-- `"Failed to load progress data"` (progress section)
+The `getErrorMessage()` utility in `error-utils.ts` extracts field-level error messages from the API response body:
+```typescript
+const messages = Object.entries(error.body)
+  .map(([key, value]) => `${key}: ${value.join(", ")}`)
+  .join("; ");
+```
 
-No server error details, stack traces, or internal identifiers are exposed.
+This exposes internal field names (e.g., `schedule_template: This field is required`) but does not expose stack traces, SQL queries, or other sensitive server internals. Django REST Framework's default validation errors contain field names by design. The `error.statusText` fallback provides the HTTP status text, not internal details.
+
+**Verdict:** Acceptable -- DRF field-level errors are expected and safe for end users.
+
+---
+
+## Input Validation
+
+### Frontend Validation
+
+| Input | Component | Validation |
+|-------|-----------|-----------|
+| Program name | `program-builder.tsx` | `maxLength={100}`, required check on save (`!name.trim()`) |
+| Description | `program-builder.tsx` | `maxLength={500}` |
+| Duration weeks | `program-builder.tsx` | `min={1}`, `max={52}`, clamped in `handleDurationChange` |
+| Day name | `day-editor.tsx` | `maxLength={50}` |
+| Sets | `exercise-row.tsx` | `min={1}`, `max={20}`, clamped via `Math.min(20, Math.max(1, ...))` |
+| Reps | `exercise-row.tsx` | `maxLength={10}`, `min={1}`, `max={100}` for numeric values |
+| Weight | `exercise-row.tsx` | `min={0}`, clamped via `Math.max(0, ...)` |
+| Rest seconds | `exercise-row.tsx` | `min={0}`, `max={600}`, clamped via `Math.min(600, Math.max(0, ...))` |
+| Search | `exercise-picker-dialog.tsx` | `maxLength={100}` |
+| Search | `page.tsx` (programs) | `maxLength={100}` |
+
+### Backend Validation
+
+| Field | Model/Serializer | Validation |
+|-------|-----------------|-----------|
+| `name` | `ProgramTemplate.name` | `max_length=255` |
+| `description` | `ProgramTemplate.description` | `TextField` (no max) |
+| `duration_weeks` | `ProgramTemplate.duration_weeks` | `PositiveIntegerField`, `MinValueValidator(1)`, `MaxValueValidator(52)` |
+| `difficulty_level` | `ProgramTemplate.difficulty_level` | `TextChoices` enum validation |
+| `goal_type` | `ProgramTemplate.goal_type` | `TextChoices` enum validation |
+| `schedule_template` | `ProgramTemplate.schedule_template` | `JSONField` -- **was unvalidated, NOW FIXED** |
+| `nutrition_template` | `ProgramTemplate.nutrition_template` | `JSONField` -- **was unvalidated, NOW FIXED** |
+| `trainee_id` | `AssignProgramSerializer` | Validated against `parent_trainer=trainer` |
+| `start_date` | `AssignProgramSerializer` | `DateField` -- standard date parsing |
+| Image file type | `ProgramTemplateUploadImageView` | Whitelist: `['image/jpeg', 'image/png', 'image/gif', 'image/webp']` |
+| Image file size | `ProgramTemplateUploadImageView` | Max 10MB |
 
 ---
 
@@ -191,132 +231,136 @@ No server error details, stack traces, or internal identifiers are exposed.
 
 ### CORS: PASS (Unchanged)
 
-Backend CORS configuration remains:
+Backend CORS configuration (from `backend/config/settings.py`):
 - `DEBUG=True`: `CORS_ALLOW_ALL_ORIGINS = True` (development only)
 - `DEBUG=False`: `CORS_ALLOW_ALL_ORIGINS = False`, origins restricted to `CORS_ALLOWED_ORIGINS` env var
-- `CORS_ALLOW_CREDENTIALS = True` -- needed for cookie-based session indicator
+- `CORS_ALLOW_CREDENTIALS = True`
 
-### CSRF: PASS (N/A)
+### CSRF: PASS (N/A for JWT)
 
-The analytics endpoints use JWT Bearer token authentication, not session cookies. CSRF is not a concern because the browser does not automatically attach Bearer tokens to cross-origin requests. The Django CSRF middleware is active but DRF's JWT authentication exempts API views from CSRF checks (standard DRF behavior for token-based auth).
+All program template endpoints use JWT Bearer token authentication via DRF's `rest_framework_simplejwt`. CSRF is not a concern because Bearer tokens are not automatically attached by the browser to cross-origin requests. The Django CSRF middleware is active but DRF's token-based authentication exempts API views from CSRF checks.
 
 ---
 
-## Trainee ID in URL -- Validation / Scoping
+## Issues Found
 
-### Frontend Bar Chart Click:
-```typescript
-// adherence-chart.tsx:89-93
-onClick={(_entry, index) => {
-  const trainee = sorted[index];
-  if (trainee) {
-    router.push(`/trainees/${trainee.trainee_id}`);
-  }
-}}
-```
+### Critical Issues: 0
 
-- `sorted[index]` accesses the pre-sorted array by numeric index from the chart library
-- `trainee.trainee_id` is a `number` from the server response
-- The `if (trainee)` guard prevents navigation if the index is somehow out of bounds
-- **No user-controlled input reaches the URL**
+None.
 
-### Frontend Table Row Click:
-```typescript
-// progress-section.tsx:152
-onRowClick={(row) => router.push(`/trainees/${row.trainee_id}`)}
-```
+### High Issues: 2 (Both FIXED)
 
-- `row.trainee_id` is typed as `number` from `TraineeProgressEntry`
-- Data comes from the authenticated API response
-- **No user-controlled input reaches the URL**
+| # | File:Line | Issue | Fix Applied |
+|---|-----------|-------|-------------|
+| H-1 | `backend/trainer/serializers.py:244` | **`schedule_template` JSON field had no server-side validation.** A malicious client could POST an arbitrarily large JSON blob (megabytes) as `schedule_template`, causing database bloat, memory pressure, and potential DoS. The `JSONField` on `ProgramTemplate` accepted any valid JSON without structure or size checks. | Added `validate_schedule_template()` method to `ProgramTemplateSerializer`: enforces 512KB max serialized size, validates top-level structure (`weeks` must be a list, max 52 weeks, each week's `days` must be a list with max 7 entries). Also added `validate_nutrition_template()` with 64KB size limit. |
+| H-2 | `backend/trainer/serializers.py:244` | **`is_public` field was writable by any trainer.** The serializer's `read_only_fields` did not include `is_public`, meaning any trainer could set `is_public=True` when creating or updating a template. This could expose trainer-created content to all other trainers without admin review. Additionally, `image_url` was writable via PATCH, allowing a trainer to set an arbitrary URL (potential stored XSS if rendered without sanitization, or phishing via deceptive image URLs). | Added `is_public` and `image_url` to `read_only_fields`. `is_public` should only be set by admin. `image_url` should only be set via the dedicated upload endpoint which validates file type and generates UUID-based filenames. |
 
-### Backend Destination:
+### Medium Issues: 2
+
+| # | File:Line | Issue | Status |
+|---|-----------|-------|--------|
+| M-1 | `backend/trainer/serializers.py:233` | **`created_by_email` exposed for public templates.** The `ProgramTemplateListCreateView` returns public templates from other trainers, and the serializer includes `created_by_email`. This leaks the email addresses of other trainers to any authenticated trainer. | **Not fixed** -- requires a design decision on whether public template attribution should use email or a display name. Recommendation: add a `created_by_display_name` field that returns first/last name only, or omit the email for templates where `created_by != request.user`. |
+| M-2 | `backend/trainer/views.py:573-592` | **No rate limiting on template creation.** The `ProgramTemplateListCreateView` POST endpoint has no rate limiting, allowing a malicious trainer to create thousands of templates rapidly. Combined with the (now-fixed) lack of `schedule_template` size validation, this could have been a DoS vector. | **Not fixed** -- rate limiting requires infrastructure-level configuration (e.g., Django REST Framework throttling classes or reverse proxy rate limits). Recommendation: add `UserRateThrottle` to the POST method with a reasonable limit (e.g., 30 templates/hour). |
+
+### Low / Informational Issues: 2
+
+| # | File:Line | Issue | Recommendation |
+|---|-----------|-------|----------------|
+| L-1 | `web/src/lib/error-utils.ts:8` | **Error messages expose internal field names.** When the server returns validation errors, the utility formats them as `field_name: error message`. While DRF field-level errors are standard, they reveal internal schema details (e.g., `schedule_template: This field is required`). | Consider mapping field names to user-friendly labels in `getErrorMessage()` for a polished UX, or simply display a generic "Validation error" without field details. Low priority -- no sensitive data exposed. |
+| L-2 | `web/src/hooks/use-programs.ts:82` | **`useAllTrainees` fetches up to 200 trainees.** The `page_size=200` parameter means a trainer with many trainees will receive a large response. While this is bounded (not unbounded), a trainer with close to 200 trainees will get a significant payload for the assign dialog. | Consider implementing a searchable trainee selector with server-side filtering instead of loading all trainees upfront. Low priority -- 200 is a reasonable practical limit. |
+
+---
+
+## Fixes Applied (Summary)
+
+### Fix 1: `schedule_template` and `nutrition_template` validation (H-1)
+
+**File:** `/Users/rezashayesteh/Desktop/shayestehinc/fitnessai/backend/trainer/serializers.py`
+
+Added `validate_schedule_template()` method:
+- Rejects non-dict values
+- Enforces 512KB max serialized size
+- Validates `weeks` is a list with max 52 entries
+- Validates each week's `days` is a list with max 7 entries
+
+Added `validate_nutrition_template()` method:
+- Rejects non-dict values
+- Enforces 64KB max serialized size
+
+### Fix 2: `is_public` and `image_url` made read-only (H-2)
+
+**File:** `/Users/rezashayesteh/Desktop/shayestehinc/fitnessai/backend/trainer/serializers.py`
+
+Changed `read_only_fields` from:
 ```python
-# TraineeDetailView.get_queryset()
-User.objects.filter(parent_trainer=user, role=User.Role.TRAINEE)
+read_only_fields = ['created_by', 'times_used', 'created_at', 'updated_at']
 ```
 
-Even if a malicious user manually edits the URL to `/trainees/999`, the backend will return 404 if trainee 999 does not belong to that trainer. IDOR is not possible.
+To:
+```python
+read_only_fields = ['created_by', 'times_used', 'created_at', 'updated_at', 'is_public', 'image_url']
+```
 
-**Verdict: PASS** -- Trainee IDs are server-provided, typed as integers, and the destination endpoint enforces row-level security.
-
----
-
-## Low / Informational Items
-
-### 1. Unused `trainee_email` in API Response Types (Low)
-
-**Files:** `web/src/types/analytics.ts:5`, `web/src/types/analytics.ts:22`
-**Status:** ACCEPTABLE -- no security impact, minor data minimization concern
-
-Both `TraineeAdherence` and `TraineeProgressEntry` include a `trainee_email: string` field that is never rendered in any component. While trainers have legitimate access to their trainees' emails, sending unnecessary PII over the network increases the data exposure surface. If the API response were ever inadvertently cached by a CDN or browser cache, emails would be included.
-
-**Recommendation:** Consider removing `trainee_email` from the backend serializer responses for these two analytics endpoints, or omitting the field from the TypeScript types if it serves no frontend purpose. This is a defense-in-depth improvement, not a vulnerability.
-
-### 2. JWT in localStorage (Pre-Existing, Informational)
-
-**Status:** UNCHANGED from prior audit
-
-JWT tokens continue to be stored in `localStorage`. This is an accepted tradeoff for SPA architecture. No new XSS vectors were introduced that could enable token theft. The analytics page is read-only and introduces no mutation endpoints.
-
-### 3. Recharts `as unknown as` Type Cast (Informational)
-
-**File:** `tasks/dev-done.md` mentions this; actual code uses `sorted[index]` pattern instead
-**Status:** ACCEPTABLE
-
-The dev-done notes mention a `as unknown as TraineeAdherence` cast was considered for the recharts onClick handler, but the final implementation uses `sorted[index]` which is type-safe. No security impact.
+This ensures:
+- `is_public` cannot be toggled by trainers via API -- requires admin action
+- `image_url` can only be set via the dedicated `ProgramTemplateUploadImageView` which validates file type, size, and generates safe UUID filenames
 
 ---
 
 ## Security Strengths of This Implementation
 
-1. **No new XSS vectors** -- All trainee names and numeric values rendered through React's auto-escaping. No `dangerouslySetInnerHTML`, `eval`, or unsafe DOM APIs.
+1. **No XSS vectors** -- All user-controlled data (program names, exercise names, trainee names) is rendered through React's auto-escaping JSX. No unsafe DOM APIs used anywhere.
 
-2. **Constrained query parameter** -- The `days` parameter is limited to `7 | 14 | 30` by the TypeScript union type on the frontend, and clamped to `[1, 365]` with type-safe parsing on the backend.
+2. **Strong IDOR protection** -- Every mutation endpoint (`create`, `update`, `delete`, `assign`, `upload-image`) filters by `created_by=user` or validates `parent_trainer`. The `ProgramTemplateDetailView` returns only the trainer's own templates for mutations.
 
-3. **Strong backend auth/authz** -- Both endpoints enforce `[IsAuthenticated, IsTrainer]` and filter by `parent_trainer=user`. No IDOR is possible.
+3. **Proper file upload security** -- Image uploads validate content type against a whitelist, enforce a 10MB size limit, generate UUID-based filenames (preventing path traversal), and clean up old files before saving new ones.
 
-4. **Server-provided trainee IDs** -- Navigation targets use `trainee_id` values from authenticated API responses, not user input. Destination endpoints also enforce row-level security.
+4. **Type-safe frontend** -- TypeScript types enforce the contract between frontend and backend. `DifficultyLevel` and `GoalType` are constrained to valid enum values. Numeric fields use `Math.min/max` clamping.
 
-5. **Independent section error handling** -- Each section (adherence, progress) has its own loading/error/empty state, so a failure in one does not expose data from the other or create confusing UI states.
+5. **Centralized auth** -- All API calls go through `apiClient` which injects Bearer tokens, handles 401 refresh, and redirects on session expiry.
 
-6. **No mutations** -- The entire analytics page is read-only. No POST/PATCH/DELETE requests, no form submissions, no file uploads. This dramatically reduces the attack surface.
+6. **Backend enum validation** -- `difficulty_level` and `goal_type` use Django `TextChoices`, so invalid values are rejected at the serializer level.
 
-7. **React Query cache isolation** -- Adherence data is keyed by `["analytics", "adherence", days]`, so switching periods does not leak data across different time windows.
+7. **Proper unsaved changes protection** -- The `beforeunload` event listener warns users before navigating away with unsaved changes. The `savingRef` prevents double-submission.
 
-8. **No console.log or debug output** -- No sensitive data logged to browser console.
-
-9. **Typed API URL construction** -- `ANALYTICS_ADHERENCE` and `ANALYTICS_PROGRESS` are compile-time constants, not dynamically constructed URLs.
+8. **No debug output** -- No `console.log`, `print()`, or debug statements found in any audited file.
 
 ---
 
-## Security Score: 9/10
+## Security Score: 8/10
 
 **Breakdown:**
 - **Authentication:** 10/10 (all endpoints use Bearer auth via centralized apiClient)
-- **Authorization:** 10/10 (backend enforces IsTrainer + parent_trainer filtering)
-- **Input Validation:** 10/10 (days parameter constrained on both frontend and backend)
+- **Authorization:** 10/10 (backend enforces IsTrainer + created_by/parent_trainer filtering)
+- **Input Validation:** 8/10 (now strong after fixes; `description` TextField has no max_length at model level)
 - **Output Encoding:** 10/10 (React auto-escaping, no unsafe HTML rendering)
 - **Secrets Management:** 10/10 (no secrets in code)
-- **IDOR Protection:** 10/10 (aggregate endpoints with no user-supplied trainee ID)
-- **Data Exposure:** 9/10 (unused `trainee_email` in response is minor over-fetch)
-- **Dependencies:** 10/10 (no new dependencies, recharts previously audited)
+- **IDOR Protection:** 10/10 (every mutation verifies ownership)
+- **Data Exposure:** 7/10 (`created_by_email` leaks other trainers' emails in public template list)
+- **File Upload Security:** 9/10 (type/size validated, UUID filenames; content-type header can be spoofed)
+- **Rate Limiting:** 5/10 (no rate limiting on creation endpoint)
 
 **Deductions:**
-- -0.5: Unused `trainee_email` field in API responses (minor data minimization concern)
-- -0.5: Pre-existing JWT in localStorage concern (unchanged, accepted tradeoff)
+- -0.5: `created_by_email` exposed for public templates (M-1)
+- -0.5: No rate limiting on template creation (M-2)
+- -0.5: `description` has no model-level max_length (minor DoS potential)
+- -0.5: Pre-existing JWT in localStorage (unchanged, accepted tradeoff)
 
 ---
 
-## Recommendation: PASS
+## Recommendation: CONDITIONAL PASS
 
-**Verdict:** The Phase 3 Trainer Analytics page is **secure for production**. No Critical, High, or Medium issues were found. The implementation demonstrates strong security practices across authentication, authorization, input validation, output encoding, and IDOR protection. The read-only nature of this feature significantly limits the attack surface.
+**Verdict:** The Trainer Program Builder feature is **secure for production** after the two High-severity fixes applied during this audit. No Critical issues exist. The remaining Medium issues (email exposure in public templates, lack of rate limiting) are not ship-blockers but should be addressed in a follow-up iteration.
 
-**Ship Blockers:** None.
+**Ship Blockers:** None remaining (H-1 and H-2 both fixed).
 
-**Fixes Applied:** None required -- no issues of sufficient severity to warrant code changes.
+**Follow-up Items:**
+1. Address `created_by_email` exposure for public templates (M-1)
+2. Add rate limiting to template creation endpoint (M-2)
+3. Consider adding `max_length` to `ProgramTemplate.description` at the model level
 
 ---
 
 **Audit Completed:** 2026-02-15
+**Fixes Applied:** 2 (H-1: JSON field validation, H-2: read-only fields)
 **Next Review:** Standard review cycle

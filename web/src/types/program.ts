@@ -110,6 +110,7 @@ export interface Exercise {
   muscle_group: MuscleGroup;
   is_public: boolean;
   created_by: number | null;
+  created_by_email: string | null;
   created_at: string;
   updated_at: string;
 }

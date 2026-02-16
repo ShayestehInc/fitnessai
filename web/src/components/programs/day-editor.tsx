@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, Moon } from "lucide-react";
+import { Plus, Moon, Dumbbell } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { ExerciseRow } from "./exercise-row";
 import { ExercisePickerDialog } from "./exercise-picker-dialog";
 import type { ScheduleDay, ScheduleExercise } from "@/types/program";
+
+const MAX_EXERCISES_PER_DAY = 50;
 
 interface DayEditorProps {
   day: ScheduleDay;
@@ -21,6 +24,13 @@ export function DayEditor({ day, dayIndex, onUpdate }: DayEditorProps) {
   };
 
   const toggleRestDay = () => {
+    // Warn if toggling to rest day would remove exercises
+    if (!day.is_rest_day && day.exercises.length > 0) {
+      const confirmed = window.confirm(
+        `Setting ${day.day} as a rest day will remove ${day.exercises.length} exercise${day.exercises.length !== 1 ? "s" : ""}. Continue?`,
+      );
+      if (!confirmed) return;
+    }
     onUpdate({
       ...day,
       is_rest_day: !day.is_rest_day,
@@ -30,6 +40,10 @@ export function DayEditor({ day, dayIndex, onUpdate }: DayEditorProps) {
   };
 
   const addExercise = (exercise: ScheduleExercise) => {
+    if (day.exercises.length >= MAX_EXERCISES_PER_DAY) {
+      toast.error(`Maximum ${MAX_EXERCISES_PER_DAY} exercises per day`);
+      return;
+    }
     onUpdate({ ...day, exercises: [...day.exercises, exercise] });
   };
 
@@ -100,24 +114,35 @@ export function DayEditor({ day, dayIndex, onUpdate }: DayEditorProps) {
       {!day.is_rest_day && (
         <CardContent className="space-y-2">
           {day.exercises.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">
-              No exercises added yet
-            </p>
-          ) : (
-            <div className="space-y-1.5">
-              {day.exercises.map((exercise, idx) => (
-                <ExerciseRow
-                  key={`${exercise.exercise_id}-${idx}`}
-                  exercise={exercise}
-                  index={idx}
-                  totalExercises={day.exercises.length}
-                  onUpdate={(updated) => updateExercise(idx, updated)}
-                  onRemove={() => removeExercise(idx)}
-                  onMoveUp={() => moveExercise(idx, -1)}
-                  onMoveDown={() => moveExercise(idx, 1)}
-                />
-              ))}
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <Dumbbell
+                className="mb-2 h-6 w-6 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <p className="text-sm text-muted-foreground">
+                No exercises added yet. Click below to add one.
+              </p>
             </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                {day.exercises.map((exercise, idx) => (
+                  <ExerciseRow
+                    key={`${exercise.exercise_id}-${idx}`}
+                    exercise={exercise}
+                    index={idx}
+                    totalExercises={day.exercises.length}
+                    onUpdate={(updated) => updateExercise(idx, updated)}
+                    onRemove={() => removeExercise(idx)}
+                    onMoveUp={() => moveExercise(idx, -1)}
+                    onMoveDown={() => moveExercise(idx, 1)}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {day.exercises.length} exercise{day.exercises.length !== 1 ? "s" : ""}
+              </p>
+            </>
           )}
 
           <ExercisePickerDialog

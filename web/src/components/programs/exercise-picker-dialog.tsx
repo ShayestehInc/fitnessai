@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useDeferredValue } from "react";
-import { Search, Dumbbell } from "lucide-react";
+import { useState, useDeferredValue, useCallback } from "react";
+import { Search, Dumbbell, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -38,6 +40,7 @@ export function ExercisePickerDialog({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<MuscleGroup | "">("");
+  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
 
   const deferredSearch = useDeferredValue(search);
   const { data, isLoading, isError, refetch } = useExercises(
@@ -50,31 +53,38 @@ export function ExercisePickerDialog({
     if (nextOpen) {
       setSearch("");
       setSelectedGroup("");
+      setAddedIds(new Set());
     }
   };
 
-  const handleSelect = (exercise: Exercise) => {
-    const scheduleExercise: ScheduleExercise = {
-      exercise_id: exercise.id,
-      exercise_name: exercise.name,
-      sets: 3,
-      reps: 10,
-      weight: 0,
-      unit: "lbs",
-      rest_seconds: 60,
-    };
-    onSelect(scheduleExercise);
-    setOpen(false);
-    setSearch("");
-    setSelectedGroup("");
-  };
+  const handleSelect = useCallback(
+    (exercise: Exercise) => {
+      const scheduleExercise: ScheduleExercise = {
+        exercise_id: exercise.id,
+        exercise_name: exercise.name,
+        sets: 3,
+        reps: 10,
+        weight: 0,
+        unit: "lbs",
+        rest_seconds: 60,
+      };
+      onSelect(scheduleExercise);
+      setAddedIds((prev) => new Set([...prev, exercise.id]));
+    },
+    [onSelect],
+  );
+
+  const addedCount = addedIds.size;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[80vh] sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Exercise</DialogTitle>
+          <DialogTitle>Add Exercises</DialogTitle>
+          <DialogDescription>
+            Select exercises to add to this day. You can add multiple at once.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -155,27 +165,52 @@ export function ExercisePickerDialog({
               )}
               <ScrollArea className="h-[40vh]">
                 <ul className="space-y-1" aria-label="Exercise list">
-                  {data.results.map((exercise) => (
-                    <li key={exercise.id}>
-                      <button
-                        type="button"
-                        onClick={() => handleSelect(exercise)}
-                        className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <span className="text-sm font-medium">
-                          {exercise.name}
-                        </span>
-                        <Badge variant="secondary" className="text-xs">
-                          {MUSCLE_GROUP_LABELS[exercise.muscle_group]}
-                        </Badge>
-                      </button>
-                    </li>
-                  ))}
+                  {data.results.map((exercise) => {
+                    const justAdded = addedIds.has(exercise.id);
+                    return (
+                      <li key={exercise.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleSelect(exercise)}
+                          className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span
+                            className="min-w-0 truncate text-sm font-medium"
+                            title={exercise.name}
+                          >
+                            {exercise.name}
+                          </span>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            {justAdded && (
+                              <Check
+                                className="h-4 w-4 text-green-600 dark:text-green-400"
+                                aria-label="Added"
+                              />
+                            )}
+                            <Badge variant="secondary" className="text-xs">
+                              {MUSCLE_GROUP_LABELS[exercise.muscle_group]}
+                            </Badge>
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               </ScrollArea>
             </>
           ) : null}
         </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            onClick={() => handleOpenChange(false)}
+          >
+            {addedCount > 0
+              ? `Done (${addedCount} added)`
+              : "Close"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

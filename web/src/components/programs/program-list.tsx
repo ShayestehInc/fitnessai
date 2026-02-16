@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { MoreHorizontal, Pencil, Trash2, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -205,7 +206,8 @@ export function ProgramList({
   onPageChange,
 }: ProgramListProps) {
   const { user } = useAuth();
-  const columns = makeColumns(user?.id ?? null);
+  const currentUserId = user?.id ?? null;
+  const columns = useMemo(() => makeColumns(currentUserId), [currentUserId]);
 
   return (
     <DataTable

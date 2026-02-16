@@ -3,6 +3,7 @@ Serializers for trainer app.
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from rest_framework import serializers
@@ -241,7 +242,57 @@ class ProgramTemplateSerializer(serializers.ModelSerializer[ProgramTemplate]):
             'created_by', 'created_by_email', 'times_used',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_by', 'times_used', 'created_at', 'updated_at']
+        read_only_fields = ['created_by', 'times_used', 'created_at', 'updated_at', 'is_public', 'image_url']
+
+    def validate_schedule_template(self, value: dict[str, Any] | None) -> dict[str, Any]:
+        """Validate schedule_template structure and enforce size limits to prevent DoS."""
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("schedule_template must be a JSON object.")
+
+        # Enforce a max serialized size of 512KB to prevent oversized payloads
+        serialized = json.dumps(value)
+        max_size = 512 * 1024  # 512 KB
+        if len(serialized) > max_size:
+            raise serializers.ValidationError(
+                f"schedule_template is too large. Maximum size is {max_size // 1024}KB."
+            )
+
+        # Basic structural validation
+        weeks = value.get('weeks')
+        if weeks is not None:
+            if not isinstance(weeks, list):
+                raise serializers.ValidationError("schedule_template.weeks must be a list.")
+            if len(weeks) > 52:
+                raise serializers.ValidationError("schedule_template.weeks cannot exceed 52 weeks.")
+            for week in weeks:
+                if not isinstance(week, dict):
+                    raise serializers.ValidationError("Each week must be a JSON object.")
+                days = week.get('days')
+                if days is not None:
+                    if not isinstance(days, list):
+                        raise serializers.ValidationError("Each week's days must be a list.")
+                    if len(days) > 7:
+                        raise serializers.ValidationError("Each week cannot have more than 7 days.")
+
+        return value
+
+    def validate_nutrition_template(self, value: dict[str, Any] | None) -> dict[str, Any]:
+        """Validate nutrition_template size to prevent oversized payloads."""
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("nutrition_template must be a JSON object.")
+
+        serialized = json.dumps(value)
+        max_size = 64 * 1024  # 64 KB
+        if len(serialized) > max_size:
+            raise serializers.ValidationError(
+                f"nutrition_template is too large. Maximum size is {max_size // 1024}KB."
+            )
+
+        return value
 
 
 class WorkoutLayoutConfigSerializer(serializers.ModelSerializer[WorkoutLayoutConfig]):

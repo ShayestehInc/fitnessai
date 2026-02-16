@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, UserPlus } from "lucide-react";
+import Link from "next/link";
+import { Loader2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -17,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAssignProgram } from "@/hooks/use-programs";
-import { useAllTrainees } from "@/hooks/use-programs";
+import { useAllTrainees } from "@/hooks/use-trainees";
 import { getErrorMessage } from "@/lib/error-utils";
 import type { ProgramTemplate } from "@/types/program";
 
@@ -42,8 +43,16 @@ export function AssignProgramDialog({
   const [selectedTraineeId, setSelectedTraineeId] = useState<number | "">("");
   const [startDate, setStartDate] = useState(getLocalDateString);
 
-  const { data: traineesData, isLoading: traineesLoading } = useAllTrainees();
+  const {
+    data: traineesData,
+    isLoading: traineesLoading,
+    isError: traineesError,
+    refetch: refetchTrainees,
+  } = useAllTrainees();
   const assignMutation = useAssignProgram(program.id);
+
+  const hasNoTrainees =
+    !traineesLoading && !traineesError && traineesData?.length === 0;
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -86,75 +95,112 @@ export function AssignProgramDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="assign-trainee">Trainee</Label>
-            {traineesLoading ? (
-              <Skeleton className="h-10 w-full" />
-            ) : (
-              <select
-                id="assign-trainee"
-                value={selectedTraineeId}
-                onChange={(e) =>
-                  setSelectedTraineeId(
-                    e.target.value ? Number(e.target.value) : "",
-                  )
-                }
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        {traineesError ? (
+          <div className="py-4">
+            <div className="flex flex-col items-center justify-center text-center">
+              <Users className="mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
+              <p className="mb-2 text-sm text-destructive">Failed to load trainees</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchTrainees()}
               >
-                <option value="">Select a trainee...</option>
-                {traineesData?.map((trainee) => (
-                  <option key={trainee.id} value={trainee.id}>
-                    {trainee.first_name} {trainee.last_name} ({trainee.email})
-                  </option>
-                ))}
-              </select>
-            )}
+                Try again
+              </Button>
+            </div>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="assign-start-date">Start Date</Label>
-            <Input
-              id="assign-start-date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
+        ) : hasNoTrainees ? (
+          <div className="py-4">
+            <div className="flex flex-col items-center justify-center text-center">
+              <div className="mb-3 rounded-full bg-muted p-3">
+                <Users className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+              </div>
+              <p className="mb-1 text-sm font-medium">No trainees yet</p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Invite a trainee before assigning programs.
+              </p>
+              <Button size="sm" asChild>
+                <Link href="/invitations" onClick={() => setOpen(false)}>
+                  Send Invitation
+                </Link>
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="assign-trainee">Trainee</Label>
+                {traineesLoading ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <select
+                    id="assign-trainee"
+                    value={selectedTraineeId}
+                    onChange={(e) =>
+                      setSelectedTraineeId(
+                        e.target.value ? Number(e.target.value) : "",
+                      )
+                    }
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={assignMutation.isPending}
+                  >
+                    <option value="">Select a trainee...</option>
+                    {traineesData?.map((trainee) => (
+                      <option key={trainee.id} value={trainee.id}>
+                        {trainee.first_name} {trainee.last_name} ({trainee.email})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-            disabled={assignMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={handleAssign}
-            disabled={
-              !selectedTraineeId || !startDate || assignMutation.isPending
-            }
-          >
-            {assignMutation.isPending ? (
-              <>
-                <Loader2
-                  className="mr-2 h-4 w-4 animate-spin"
-                  aria-hidden="true"
+              <div className="space-y-2">
+                <Label htmlFor="assign-start-date">Start Date</Label>
+                <Input
+                  id="assign-start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  disabled={assignMutation.isPending}
                 />
-                Assigning...
-              </>
-            ) : (
-              <>
-                <UserPlus className="mr-2 h-4 w-4" aria-hidden="true" />
-                Assign
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+                disabled={assignMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAssign}
+                disabled={
+                  !selectedTraineeId || !startDate || assignMutation.isPending
+                }
+              >
+                {assignMutation.isPending ? (
+                  <>
+                    <Loader2
+                      className="mr-2 h-4 w-4 animate-spin"
+                      aria-hidden="true"
+                    />
+                    Assigning...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Assign
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

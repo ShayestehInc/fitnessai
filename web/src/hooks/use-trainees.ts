@@ -21,6 +21,19 @@ export function useTrainees(page: number, search: string) {
   });
 }
 
+export function useAllTrainees() {
+  return useQuery<TraineeListItem[]>({
+    queryKey: ["trainees", "all"],
+    queryFn: async () => {
+      const response = await apiClient.get<PaginatedResponse<TraineeListItem>>(
+        `${API_URLS.TRAINEES}?page_size=200`,
+      );
+      return response.results;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useTrainee(id: number) {
   return useQuery<TraineeDetail>({
     queryKey: ["trainee", id],
