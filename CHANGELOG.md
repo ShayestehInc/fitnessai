@@ -4,6 +4,55 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-15] — Web Dashboard Phase 4 (Trainer Program Builder)
+
+### Added
+- **Program List Page** — `/programs` route with DataTable showing program templates (name, difficulty badge, goal, duration, times used, created date). Search with `useDeferredValue`, pagination, empty state with "Create Program" CTA. Three-dot action menu with Edit (owner only), Assign to Trainee, Delete (owner only).
+- **Program Builder** — Two-card layout (metadata + schedule). Name (100 chars) and description (500 chars) with live character counters and amber warning at 90%. Duration (1-52 weeks), difficulty, and goal selects with lowercase enum values matching Django TextChoices. Week tabs with horizontal scroll. 7 days per week (Mon-Sun), rest day toggle with exercise loss confirmation. Exercise picker dialog with multi-add, search, muscle group filter, truncation warning ("Showing X of Y"). Exercise rows with sets (1-20), reps (1-100 or string ranges), weight (0-9999), unit (lbs/kg), rest (0-600s). Up/down reorder. Max 50 exercises per day. Copy Week to All feature. Ctrl/Cmd+S keyboard shortcut.
+- **Assignment Flow** — Dialog with trainee dropdown (up to 200 via `useAllTrainees`), date picker with local timezone default. Empty trainee state with "Send Invitation" CTA.
+- **Delete Flow** — Confirmation dialog with times_used warning. Prevents close during API call. "Cannot be undone" copy.
+- **`error-utils.ts`** — Shared `getErrorMessage()` for extracting DRF field-level validation error messages. Used across program-builder, assign-program-dialog, and delete-program-dialog.
+- **Backend: JSON field validation** — `validate_schedule_template()` (512KB max, 52 weeks, 7 days/week structure validation) and `validate_nutrition_template()` (64KB max, dict validation) on `ProgramTemplateSerializer`.
+- **Backend: SearchFilter** — Added `filter_backends = [SearchFilter]` with `search_fields = ['name', 'description']` to `ProgramTemplateListCreateView`.
+- **`reconcileSchedule()`** — Syncs schedule weeks with duration when trainer changes week count. Pads new weeks with default 7-day structure, trims excess weeks with confirmation.
+
+### Changed
+- **`nav-links.tsx`** — Added Programs nav item with `Dumbbell` icon between Trainees and Invitations.
+- **`constants.ts`** — Added `PROGRAM_TEMPLATES`, `programTemplateDetail(id)`, `programTemplateAssign(id)`, `EXERCISES` API URL constants.
+- **`use-trainees.ts`** — `useAllTrainees()` hook moved here from `use-programs.ts` (architecture fix).
+- **`program-list.tsx`** — Columns memoized with `useMemo`. Program name is clickable link to edit page for owners.
+- **Backend: `ProgramTemplateSerializer`** — `is_public` and `image_url` added to `read_only_fields` (security fix).
+
+### Accessibility
+- All form inputs have visible labels, `aria-label`, and proper `htmlFor`/`id` associations
+- `role="group"` with descriptive `aria-label` on exercise rows for screen reader grouping
+- `aria-invalid` on whitespace-only program names with `role="alert"` error message
+- Move/delete buttons include exercise name in `aria-label` (e.g., "Move Bench Press up")
+- `DialogDescription` on all dialogs for screen reader context
+- Focus-visible rings on all interactive elements including `<select>` elements
+- Week tabs have `aria-label="Week N of M"`
+
+### UX
+- Dirty state tracking: `hasMountedRef` skips initial mount (no false "unsaved changes" warning), `beforeunload` event only when dirty, cancel button confirms when dirty
+- Double-click prevention: `savingRef` guard + `<fieldset disabled={isSaving}>` disables entire form during save
+- Data loss prevention: Confirmation when reducing duration (removes populated weeks), confirmation when toggling rest day with exercises
+- Character counters with amber warning at 90% capacity on name and description fields
+- "Back to Programs" navigation link on create and edit pages
+- Truncation warning on exercise picker when results exceed page_size
+- Green checkmark on already-added exercises in multi-select picker
+- "Done (N added)" button text in exercise picker footer
+
+### Quality
+- Code review: 8/10 APPROVE (2 rounds — 4 critical + 8 major issues all fixed in round 1)
+- QA: 27/27 AC pass, HIGH confidence (3 minor input clamping bugs fixed)
+- UX audit: 9/10 (19 usability + 10 accessibility fixes)
+- Security audit: 8/10 CONDITIONAL PASS (2 High fixed: JSON validation, read-only fields)
+- Architecture: 9/10 APPROVE (3 fixes: hook placement, missing type field, column memoization)
+- Hacker audit: 16 items fixed (multi-add dialog, Cmd+S, copy week, exercise cap, data loss confirmations)
+- Final verdict: 8/10 SHIP, HIGH confidence
+
+---
+
 ## [2026-02-15] — Web Dashboard Phase 3 (Trainer Analytics Page)
 
 ### Added

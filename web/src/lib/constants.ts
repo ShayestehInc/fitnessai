@@ -40,6 +40,14 @@ export const API_URLS = {
     `${API_BASE}/api/trainer/trainees/${id}/progress/`,
   ANALYTICS_ADHERENCE: `${API_BASE}/api/trainer/analytics/adherence/`,
   ANALYTICS_PROGRESS: `${API_BASE}/api/trainer/analytics/progress/`,
+
+  // Programs & Exercises
+  PROGRAM_TEMPLATES: `${API_BASE}/api/trainer/program-templates/`,
+  programTemplateDetail: (id: number) =>
+    `${API_BASE}/api/trainer/program-templates/${id}/`,
+  programTemplateAssign: (id: number) =>
+    `${API_BASE}/api/trainer/program-templates/${id}/assign/`,
+  EXERCISES: `${API_BASE}/api/workouts/exercises/`,
 } as const;
 
 export const TOKEN_KEYS = {

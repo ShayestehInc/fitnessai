@@ -1,50 +1,47 @@
-# Dev Done: Web Dashboard Phase 3 — Trainer Analytics Page
+# Dev Done: Web Trainer Program Builder
 
-## Date: 2026-02-15
+## Summary
+Implemented a complete program builder feature for the web trainer dashboard, allowing trainers to create, edit, delete, and assign workout program templates from the web interface.
 
-## Files Created
-| File | Purpose |
-|------|---------|
-| `web/src/types/analytics.ts` | TypeScript types for AdherenceAnalytics and ProgressAnalytics API responses |
-| `web/src/hooks/use-analytics.ts` | Two React Query hooks: `useAdherenceAnalytics(days)` with days param in queryKey, `useProgressAnalytics()` — both with 5-min staleTime |
-| `web/src/components/analytics/period-selector.tsx` | Tab-style radio group for 7/14/30 day selection |
-| `web/src/components/analytics/adherence-chart.tsx` | Horizontal bar chart using recharts, color-coded by adherence level, clickable bars navigate to trainee detail |
-| `web/src/components/analytics/adherence-section.tsx` | Three stat cards + adherence chart + period selector with independent loading/error/empty states |
-| `web/src/components/analytics/progress-section.tsx` | Progress table using DataTable with weight change colors and row click navigation |
-| `web/src/app/(dashboard)/analytics/page.tsx` | Analytics page composing both sections with PageHeader |
+## Files Created (14)
 
-## Files Modified
-| File | Changes |
-|------|---------|
-| `web/src/components/layout/nav-links.tsx` | Added Analytics nav item with BarChart3 icon between Invitations and Notifications |
-| `web/src/lib/constants.ts` | Added ANALYTICS_ADHERENCE and ANALYTICS_PROGRESS API URL constants |
+### Types & Hooks
+1. `web/src/types/program.ts` — TypeScript types for ProgramTemplate, Exercise, Schedule JSON, all enums (DifficultyLevel, GoalType, MuscleGroup) with label maps
+2. `web/src/hooks/use-programs.ts` — 6 React Query hooks: usePrograms (paginated + search), useProgram, useCreateProgram, useUpdateProgram, useDeleteProgram, useAssignProgram
+3. `web/src/hooks/use-exercises.ts` — useExercises hook with search + muscle group filter, 5-min staleTime
+
+### Pages
+4. `web/src/app/(dashboard)/programs/page.tsx` — Programs list page with search, empty state, pagination
+5. `web/src/app/(dashboard)/programs/new/page.tsx` — Create program page hosting ProgramBuilder
+6. `web/src/app/(dashboard)/programs/[id]/edit/page.tsx` — Edit program page with data loading
+
+### Components
+7. `web/src/components/programs/program-list.tsx` — DataTable with 7 columns (name, difficulty badge, goal, duration, times used, created date, actions dropdown)
+8. `web/src/components/programs/program-builder.tsx` — Main builder: metadata form (name, description, duration, difficulty, goal) + schedule editor with week tabs
+9. `web/src/components/programs/week-editor.tsx` — Renders 7 DayEditor cards per week
+10. `web/src/components/programs/day-editor.tsx` — Day card with name field, rest day toggle, exercise list, add exercise button
+11. `web/src/components/programs/exercise-row.tsx` — Exercise entry with sets/reps/weight/unit/rest inputs, move up/down, delete
+12. `web/src/components/programs/exercise-picker-dialog.tsx` — Dialog with search + muscle group filter, exercise list with badges
+13. `web/src/components/programs/assign-program-dialog.tsx` — Trainee dropdown + start date picker for program assignment
+14. `web/src/components/programs/delete-program-dialog.tsx` — Confirmation dialog with times_used warning
+
+## Files Modified (2)
+1. `web/src/lib/constants.ts` — Added PROGRAM_TEMPLATES, programTemplateDetail, programTemplateAssign, EXERCISES URLs
+2. `web/src/components/layout/nav-links.tsx` — Added Programs nav link with Dumbbell icon
 
 ## Key Decisions
-1. **Two independent React Query hooks** — Adherence and progress sections load independently (AC-19). Each has its own loading/error/empty state.
-2. **Period selector as radio group** — Uses `role="radiogroup"` and `role="radio"` with `aria-checked` for proper accessibility.
-3. **Horizontal BarChart** — Vertical layout with trainee names on Y-axis for better readability with many trainees.
-4. **Color-coded adherence** — Green (≥80%), amber (50-79%), red (<50%) using CSS custom properties for theme awareness.
-5. **Weight change color logic** — Green for progress toward goal (loss if weight_loss, gain if muscle_gain), red for regression, neutral otherwise.
-6. **Null handling** — Null weight shows "—", null goal shows "Not set".
-7. **Recharts Bar onClick typing** — Used `as unknown as TraineeAdherence` cast because recharts doesn't carry data type generics into click handler.
-8. **5-minute staleTime** — Both queries use `staleTime: 5 * 60 * 1000` since analytics data changes infrequently (AC-22).
+- **Schedule state:** useState with nested JSON structure, structuredClone avoided in favor of spread operators for simple mutations
+- **Week/duration sync:** Changing duration_weeks automatically adds/removes week tabs, preserving existing weeks
+- **Exercise picker:** useDeferredValue for search debouncing, 100 page_size for single-page exercise list
+- **Dirty state tracking:** useRef for isDirtyRef + beforeunload event for unsaved changes warning
+- **Error handling:** ApiError body parsing shows field-specific validation errors from DRF
+- **Dark mode:** All components use theme tokens (no hardcoded colors)
 
-## Deviations from Ticket
-- None. All 22 acceptance criteria addressed.
-
-## How to Manually Test
-1. Navigate to `/analytics` in the sidebar
-2. Verify three stat cards appear with percentage values and colored indicators
-3. Change period selector (7d/14d/30d) — verify data refreshes
-4. Verify horizontal bar chart shows trainees sorted by adherence, color-coded
-5. Click a trainee bar — should navigate to `/trainees/{id}`
-6. Verify progress table shows name, weight, weight change (with arrows), goal
-7. Click a progress table row — should navigate to `/trainees/{id}`
-8. Test empty state by having a trainer with no trainees
-9. Test error state by disconnecting network
-10. Verify responsive layout: stat cards stack on mobile, table scrolls horizontally
-
-## Build & Lint Status
-- `npm run build` — Compiled successfully, 0 errors
-- `npm run lint` — 0 errors, 0 warnings
-- Backend tests — Not runnable (no venv available, no backend changes made)
+## How to Test
+1. Navigate to `/programs` — should show empty state with CTA
+2. Click "Create Program" — opens builder with metadata + 4-week schedule
+3. Fill in name, toggle rest days off, add exercises via picker
+4. Save — creates template, redirects to list
+5. Click three-dot menu on a program → Edit, Assign, Delete
+6. Search programs by name in the list
+7. Assign a template to a trainee with start date

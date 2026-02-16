@@ -577,6 +577,8 @@ class ProgramTemplateListCreateView(generics.ListCreateAPIView[ProgramTemplate])
     """
     permission_classes = [IsAuthenticated, IsTrainer]
     serializer_class = ProgramTemplateSerializer
+    filter_backends = [SearchFilter]
+    search_fields = ['name', 'description']
 
     def get_queryset(self) -> QuerySet[ProgramTemplate]:
         user = cast(User, self.request.user)
