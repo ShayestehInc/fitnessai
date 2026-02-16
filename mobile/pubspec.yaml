@@ -54,6 +54,12 @@ dependencies:
   # Image Picker
   image_picker: ^1.0.7
 
+  # Charts
+  fl_chart: ^0.69.0
+
+  # Share
+  share_plus: ^10.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

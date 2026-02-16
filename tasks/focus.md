@@ -1,20 +1,25 @@
-# Pipeline 13 Focus: Admin Dashboard (Web)
+# Pipeline 14 Focus: Ambassador Enhancements (Phase 5)
 
 ## Priority
-Complete the final Phase 4 item: Admin dashboard for the web application. This gives the platform super admin full management capabilities via the web.
+Complete all Phase 5 ambassador enhancement items.
+
+## Phase 5 Items
+1. Monthly earnings chart (fl_chart bar chart on ambassador dashboard)
+2. Native share sheet (share_plus package for referral code sharing)
+3. Commission approval/payment workflow (admin mobile + backend API)
+4. Ambassador password reset / magic link login
+5. Stripe Connect payout to ambassadors (deferred — requires Stripe configuration)
+6. Custom referral codes (ambassador-chosen, e.g., "JOHN20")
 
 ## Context
-- The trainer web dashboard is fully built (Pipelines 9-12)
-- Backend admin APIs already exist at `/api/admin/`
-- Existing patterns: DataTable, PageHeader, EmptyState, ErrorState, LoadingSpinner, StatCard
-- Auth system with role-based access already in place
-- shadcn/ui component library available
+- Ambassador system is 90% complete (models, APIs, mobile screens all working)
+- Backend has 3 models: AmbassadorProfile, AmbassadorReferral, AmbassadorCommission
+- Mobile has full ambassador dashboard, referrals list, settings, admin management
+- Monthly earnings data already returned by backend (just needs chart UI)
+- Share is clipboard-only (needs share_plus for native share sheet)
+- Commission status flow exists but no admin approval/payment endpoints
+- Password reset infrastructure exists for trainers/trainees (reuse for ambassadors)
+- Custom referral codes need backend validation + ambassador UI to set/change
 
-## Scope
-- Admin-only section with role-gated access (ADMIN users only)
-- Admin dashboard overview (platform stats: trainers, trainees, revenue, growth)
-- Trainer management (list, view details, activate/suspend)
-- Subscription tier management (CRUD)
-- Coupon management (CRUD)
-- User management (list all users, view by role)
-- Platform analytics (revenue trends, user growth)
+## What NOT to build
+- Stripe Connect payout to ambassadors — defer to Phase 6 (requires Stripe dashboard setup)

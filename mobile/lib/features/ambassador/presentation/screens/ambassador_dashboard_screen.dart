@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/models/ambassador_models.dart';
 import '../providers/ambassador_provider.dart';
+import '../widgets/monthly_earnings_chart.dart';
 
 class AmbassadorDashboardScreen extends ConsumerStatefulWidget {
   const AmbassadorDashboardScreen({super.key});
@@ -133,6 +135,8 @@ class _AmbassadorDashboardScreenState
           _buildEarningsCard(theme, data),
           const SizedBox(height: 16),
           _buildReferralCodeCard(theme, data),
+          const SizedBox(height: 16),
+          MonthlyEarningsChart(monthlyEarnings: data.monthlyEarnings),
           const SizedBox(height: 16),
           _buildStatsRow(theme, data),
           const SizedBox(height: 24),
@@ -487,16 +491,22 @@ class _AmbassadorDashboardScreenState
     }
   }
 
-  void _shareCode(String code) {
-    final message = 'Join FitnessAI and grow your training business! Use my referral code $code when you sign up.';
-    Clipboard.setData(ClipboardData(text: message));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Share message copied to clipboard!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+  Future<void> _shareCode(String code) async {
+    final message =
+        'Join FitnessAI and grow your training business! Use my referral code $code when you sign up.';
+    try {
+      await Share.share(message);
+    } catch (_) {
+      // Fallback to clipboard if native share fails (e.g., on some emulators)
+      await Clipboard.setData(ClipboardData(text: message));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Share message copied to clipboard!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 }

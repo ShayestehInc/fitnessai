@@ -3,6 +3,7 @@ Serializers for ambassador models and dashboard stats.
 """
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 from typing import Any
 
@@ -146,3 +147,49 @@ class AmbassadorListSerializer(serializers.ModelSerializer[AmbassadorProfile]):
             'id', 'user', 'referral_code', 'commission_rate', 'is_active',
             'total_referrals', 'total_earnings', 'created_at',
         ]
+
+
+class BulkCommissionActionSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for bulk commission approve/pay actions."""
+
+    commission_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        min_length=1,
+        help_text="List of commission IDs to process",
+        error_messages={
+            'min_length': 'This field is required and must contain at least one ID.',
+            'empty': 'This field is required and must contain at least one ID.',
+        },
+    )
+
+
+class CustomReferralCodeSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for updating an ambassador's referral code."""
+
+    referral_code = serializers.CharField(
+        min_length=4,
+        max_length=20,
+        help_text="Custom referral code (4-20 alphanumeric characters, A-Z 0-9)",
+    )
+
+    def validate_referral_code(self, value: str) -> str:
+        """Strip whitespace, uppercase, validate format and uniqueness."""
+        cleaned = value.strip().upper()
+
+        if not re.match(r'^[A-Z0-9]{4,20}$', cleaned):
+            raise serializers.ValidationError(
+                "Code must be 4-20 alphanumeric characters (A-Z, 0-9)."
+            )
+
+        # Check uniqueness excluding the current user's profile
+        exclude_profile_id = self.context.get('profile_id')
+        existing = AmbassadorProfile.objects.filter(referral_code=cleaned)
+        if exclude_profile_id is not None:
+            existing = existing.exclude(id=exclude_profile_id)
+
+        if existing.exists():
+            raise serializers.ValidationError(
+                "This referral code is already in use."
+            )
+
+        return cleaned

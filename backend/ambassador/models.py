@@ -36,9 +36,9 @@ class AmbassadorProfile(models.Model):
         limit_choices_to={'role': 'AMBASSADOR'},
     )
     referral_code = models.CharField(
-        max_length=8,
+        max_length=20,
         unique=True,
-        help_text="Unique 8-char alphanumeric referral code for sharing",
+        help_text="Unique 4-20 char alphanumeric referral code (auto-generated or custom)",
     )
     commission_rate = models.DecimalField(
         max_digits=4,
@@ -136,7 +136,7 @@ class AmbassadorReferral(models.Model):
         related_name='referrals',
     )
     referral_code_used = models.CharField(
-        max_length=8,
+        max_length=20,
         help_text="The referral code that was used at registration time",
     )
     status = models.CharField(

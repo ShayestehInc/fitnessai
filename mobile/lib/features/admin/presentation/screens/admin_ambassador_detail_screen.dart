@@ -19,6 +19,8 @@ class _AdminAmbassadorDetailScreenState
   bool _isLoading = true;
   bool _isToggling = false;
   String? _error;
+  final Set<int> _processingCommissionIds = {};
+  bool _isBulkProcessing = false;
 
   AmbassadorProfile? get _profile => _detail?.profile;
   List<AmbassadorReferral> get _referrals => _detail?.referrals ?? [];
@@ -187,6 +189,196 @@ class _AdminAmbassadorDetailScreenState
     }
   }
 
+  Future<void> _approveCommission(AmbassadorCommission commission) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Approve Commission'),
+        content: Text(
+          'Approve \$${commission.commissionAmount} commission for ${commission.trainerEmail}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _processingCommissionIds.add(commission.id));
+
+    try {
+      final repo = ref.read(ambassadorRepositoryProvider);
+      await repo.approveCommission(widget.ambassadorId, commission.id);
+      await _loadDetail();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Commission approved'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = _parseErrorMessage(e, 'Failed to approve commission. Please try again.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _processingCommissionIds.remove(commission.id));
+      }
+    }
+  }
+
+  Future<void> _payCommission(AmbassadorCommission commission) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Mark Commission as Paid'),
+        content: Text(
+          'Mark \$${commission.commissionAmount} commission for ${commission.trainerEmail} as paid?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Mark Paid'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _processingCommissionIds.add(commission.id));
+
+    try {
+      final repo = ref.read(ambassadorRepositoryProvider);
+      await repo.payCommission(widget.ambassadorId, commission.id);
+      await _loadDetail();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Commission marked as paid'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = _parseErrorMessage(e, 'Failed to mark commission as paid. Please try again.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _processingCommissionIds.remove(commission.id));
+      }
+    }
+  }
+
+  Future<void> _bulkApproveAll() async {
+    final pendingCommissions = _commissions.where((c) => c.status == 'PENDING').toList();
+    if (pendingCommissions.isEmpty) return;
+
+    final totalAmount = pendingCommissions.fold<double>(
+      0.0,
+      (sum, c) => sum + (double.tryParse(c.commissionAmount) ?? 0.0),
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Approve All Pending'),
+        content: Text(
+          'Approve ${pendingCommissions.length} pending commission(s) totaling \$${totalAmount.toStringAsFixed(2)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Approve All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isBulkProcessing = true);
+
+    try {
+      final repo = ref.read(ambassadorRepositoryProvider);
+      final ids = pendingCommissions.map((c) => c.id).toList();
+      final result = await repo.bulkApproveCommissions(widget.ambassadorId, ids);
+      await _loadDetail();
+      if (mounted) {
+        final approvedCount = result['approved_count'] as int? ?? 0;
+        final message = approvedCount > 0
+            ? '$approvedCount commission(s) approved'
+            : 'No pending commissions to approve.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: approvedCount > 0 ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to bulk approve commissions. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isBulkProcessing = false);
+      }
+    }
+  }
+
+  String _parseErrorMessage(Object error, String fallback) {
+    final errorStr = error.toString();
+    // Try to extract server error message from DioException
+    if (errorStr.contains('Commission is already approved')) {
+      return 'Commission is already approved.';
+    }
+    if (errorStr.contains('Commission is already paid')) {
+      return 'Commission is already paid.';
+    }
+    if (errorStr.contains('must be approved before')) {
+      return 'Commission must be approved before it can be marked as paid.';
+    }
+    return fallback;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -226,43 +418,7 @@ class _AdminAmbassadorDetailScreenState
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Could not load ambassador details',
-                          style: TextStyle(
-                            color: Theme.of(context).textTheme.bodyLarge?.color,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _error!,
-                          style: TextStyle(
-                            color: Theme.of(context).textTheme.bodySmall?.color,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _loadDetail,
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
+              ? _buildErrorState(theme)
               : RefreshIndicator(
                   onRefresh: _loadDetail,
                   child: SingleChildScrollView(
@@ -282,6 +438,46 @@ class _AdminAmbassadorDetailScreenState
                     ),
                   ),
                 ),
+    );
+  }
+
+  Widget _buildErrorState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+            const SizedBox(height: 16),
+            Text(
+              'Could not load ambassador details',
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loadDetail,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -506,16 +702,46 @@ class _AdminAmbassadorDetailScreenState
   }
 
   Widget _buildCommissionsList(ThemeData theme) {
+    final hasPending = _commissions.any((c) => c.status == 'PENDING');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Commission History (${_commissions.length})',
-          style: TextStyle(
-            color: theme.textTheme.bodyLarge?.color,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Commission History (${_commissions.length})',
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (hasPending)
+              _isBulkProcessing
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : TextButton.icon(
+                      onPressed: _bulkApproveAll,
+                      icon: Icon(
+                        Icons.check_circle_outline,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      ),
+                      label: Text(
+                        'Approve All Pending',
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+          ],
         ),
         const SizedBox(height: 12),
         if (_commissions.isEmpty)
@@ -546,6 +772,8 @@ class _AdminAmbassadorDetailScreenState
       'PENDING' => Colors.orange,
       _ => Colors.grey,
     };
+
+    final isProcessing = _processingCommissionIds.contains(commission.id);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -606,8 +834,66 @@ class _AdminAmbassadorDetailScreenState
               style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
+          if (commission.status == 'PENDING' || commission.status == 'APPROVED') ...[
+            const SizedBox(width: 8),
+            _buildCommissionActionButton(theme, commission, isProcessing),
+          ],
         ],
       ),
     );
+  }
+
+  Widget _buildCommissionActionButton(
+    ThemeData theme,
+    AmbassadorCommission commission,
+    bool isProcessing,
+  ) {
+    if (isProcessing) {
+      return const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+
+    if (commission.status == 'PENDING') {
+      return SizedBox(
+        height: 28,
+        child: OutlinedButton(
+          onPressed: () => _approveCommission(commission),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Colors.blue),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: const Text(
+            'Approve',
+            style: TextStyle(color: Colors.blue, fontSize: 11),
+          ),
+        ),
+      );
+    }
+
+    if (commission.status == 'APPROVED') {
+      return SizedBox(
+        height: 28,
+        child: OutlinedButton(
+          onPressed: () => _payCommission(commission),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Colors.green),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: const Text(
+            'Mark Paid',
+            style: TextStyle(color: Colors.green, fontSize: 11),
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 }

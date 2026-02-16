@@ -1,7 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/ambassador_provider.dart';
+
+/// Formatter that forces all text input to uppercase.
+class _UpperCaseTextInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    );
+  }
+}
 
 class AmbassadorSettingsScreen extends ConsumerStatefulWidget {
   const AmbassadorSettingsScreen({super.key});
@@ -170,11 +185,7 @@ class _AmbassadorSettingsScreenState
                   : '--',
             ),
             const Divider(height: 24),
-            _buildInfoRow(
-              theme,
-              'Referral Code',
-              dashState.data?.referralCode ?? '--',
-            ),
+            _buildReferralCodeRow(theme, dashState),
             const Divider(height: 24),
             _buildInfoRow(
               theme,
@@ -195,6 +206,166 @@ class _AmbassadorSettingsScreenState
         ],
       ),
     );
+  }
+
+  Widget _buildReferralCodeRow(ThemeData theme, AmbassadorDashboardState dashState) {
+    final code = dashState.data?.referralCode ?? '--';
+
+    return Semantics(
+      label: 'Referral Code: $code',
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Referral Code', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                code,
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (dashState.data != null)
+                IconButton(
+                  icon: Icon(Icons.edit, size: 18, color: theme.colorScheme.primary),
+                  onPressed: () => _showEditReferralCodeDialog(dashState.data!.referralCode),
+                  padding: const EdgeInsets.only(left: 4),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  tooltip: 'Edit referral code',
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showEditReferralCodeDialog(String currentCode) async {
+    final controller = TextEditingController(text: currentCode);
+    String? errorText;
+    bool isSaving = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Change Referral Code'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: controller,
+                    maxLength: 20,
+                    textCapitalization: TextCapitalization.characters,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                      _UpperCaseTextInputFormatter(),
+                    ],
+                    decoration: InputDecoration(
+                      helperText: '4-20 alphanumeric characters',
+                      errorText: errorText,
+                      counterText: '${controller.text.length}/20',
+                    ),
+                    enabled: !isSaving,
+                    onChanged: (_) {
+                      if (errorText != null) {
+                        setDialogState(() => errorText = null);
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final code = controller.text.trim().toUpperCase();
+
+                          // Client-side validation
+                          if (code.length < 4 || code.length > 20) {
+                            setDialogState(() {
+                              errorText = 'Code must be 4-20 alphanumeric characters.';
+                            });
+                            return;
+                          }
+
+                          if (!RegExp(r'^[A-Z0-9]+$').hasMatch(code)) {
+                            setDialogState(() {
+                              errorText = 'Code must be 4-20 alphanumeric characters.';
+                            });
+                            return;
+                          }
+
+                          if (code == currentCode) {
+                            Navigator.pop(dialogContext);
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSaving = true;
+                            errorText = null;
+                          });
+
+                          try {
+                            final success = await ref
+                                .read(ambassadorDashboardProvider.notifier)
+                                .updateReferralCode(code);
+
+                            if (success && mounted) {
+                              Navigator.pop(dialogContext);
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Referral code updated to $code'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } else {
+                              setDialogState(() {
+                                isSaving = false;
+                                errorText = 'Failed to update referral code. Please try again.';
+                              });
+                            }
+                          } catch (e) {
+                            final errStr = e.toString();
+                            String displayError = 'Failed to update referral code.';
+                            if (errStr.contains('already in use')) {
+                              displayError = 'This referral code is already in use.';
+                            } else if (errStr.contains('alphanumeric')) {
+                              displayError = 'Code must be 4-20 alphanumeric characters.';
+                            }
+                            setDialogState(() {
+                              isSaving = false;
+                              errorText = displayError;
+                            });
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
   }
 
   Future<void> _confirmLogout(ThemeData theme) async {

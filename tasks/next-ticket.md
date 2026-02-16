@@ -1,234 +1,276 @@
-# Feature: Web Admin Dashboard
+# Feature: Ambassador Enhancements (Phase 5)
 
 ## Priority
 High
 
-## User Story
-As the platform super admin, I want a web-based admin dashboard so that I can manage trainers, subscription tiers, coupons, and monitor platform health (MRR, past due accounts, user growth) without relying on the Django admin panel or mobile app.
+## User Stories
 
-## Context
-The trainer web dashboard is fully built (Next.js 16 + React 19 + shadcn/ui). All backend admin APIs already exist at `/api/admin/`. The auth system supports role-based access but currently restricts to TRAINER role only. This ticket extends the web dashboard with an admin route group that reuses existing shared components (DataTable, StatCard, EmptyState, ErrorState, LoadingSpinner) and adds admin-specific pages.
+### US-1: Monthly Earnings Chart
+As an ambassador, I want to see a bar chart of my monthly earnings on the dashboard so that I can visualize my income trend over the past 6 months and understand whether my referral efforts are growing.
+
+### US-2: Native Share Sheet
+As an ambassador, I want to share my referral code and message via the native iOS/Android share sheet so that I can send it through WhatsApp, iMessage, email, or any other app without manually copying and pasting.
+
+### US-3: Commission Approval and Payment Workflow
+As an admin, I want to approve and mark commissions as paid from the ambassador detail screen (mobile) so that I can manage the full commission lifecycle without needing to access the Django admin.
+
+### US-4: Ambassador Password Reset
+As an ambassador, I want to reset my password via the existing "Forgot Password?" flow so that I am not locked out of my account when I forget my admin-assigned temporary password.
+
+### US-5: Custom Referral Codes
+As an ambassador, I want to choose a custom, memorable referral code (e.g., "JOHN20") so that I can create a branded code that is easier for trainers to remember when they sign up.
+
+---
 
 ## Acceptance Criteria
 
-### Auth & Access Control
-- [ ] AC-1: AuthProvider `fetchUser()` accepts both ADMIN and TRAINER roles (currently rejects non-TRAINER users)
-- [ ] AC-2: Middleware allows admin routes under `/admin/` path for authenticated sessions
-- [ ] AC-3: Admin sidebar nav is shown when user.role === "ADMIN"; trainer sidebar nav is shown when user.role === "TRAINER"
-- [ ] AC-4: Admin route group `(admin-dashboard)` with its own layout at `/admin/*` is completely separate from trainer `(dashboard)` routes
-- [ ] AC-5: TRAINER users navigating to `/admin/*` are redirected to `/dashboard`; ADMIN users navigating to `/dashboard` (trainer routes) are redirected to `/admin`
+### Monthly Earnings Chart (US-1)
+- [ ] AC-1: Ambassador dashboard screen displays a bar chart below the earnings card, showing monthly earnings for the last 6 months.
+- [ ] AC-2: Each bar is labeled with the month abbreviation (e.g., "Sep", "Oct") and the dollar amount is shown on tap/hover.
+- [ ] AC-3: The chart uses the app's primary color (theme-aware) for bars and adapts to light/dark mode.
+- [ ] AC-4: When `monthlyEarnings` is an empty array, the chart area displays an empty state: "No earnings data yet" with a muted chart icon.
+- [ ] AC-5: The `fl_chart` package (version ~0.68.0) is added to `pubspec.yaml` and no other chart package is introduced.
 
-### Admin Dashboard Overview (`/admin`)
-- [ ] AC-6: Dashboard displays 4 primary stat cards: Total Trainers, Active Trainers, Total Trainees, Monthly Recurring Revenue (MRR) formatted as currency
-- [ ] AC-7: Dashboard displays a "Revenue & Payments" section with cards for: Total Past Due (formatted as currency), Payments Due Today, Payments Due This Week, Payments Due This Month
-- [ ] AC-8: Dashboard displays a "Tier Breakdown" section showing a horizontal bar chart or list of trainer counts per subscription tier (FREE, STARTER, PRO, ENTERPRISE)
-- [ ] AC-9: Dashboard displays a "Past Due Alerts" section listing subscriptions with past_due_amount > 0, showing trainer name, email, amount owed, and days past due, with a "View All" link to subscriptions page filtered by past due
-- [ ] AC-10: Past due count > 0 shows a warning badge/banner at the top of the dashboard
+### Native Share Sheet (US-2)
+- [ ] AC-6: Tapping "Share Referral Code" on the dashboard opens the native OS share sheet with the referral message.
+- [ ] AC-7: The share message format is: "Join FitnessAI and grow your training business! Use my referral code {CODE} when you sign up."
+- [ ] AC-8: If the share action is cancelled by the user, no snackbar or error is shown (silent dismiss).
+- [ ] AC-9: The copy-to-clipboard button remains as a separate action (icon button next to the code).
+- [ ] AC-10: The `share_plus` package (version ~9.0.0) is added to `pubspec.yaml`.
 
-### Trainer Management (`/admin/trainers`)
-- [ ] AC-11: Trainer list shows a DataTable with columns: Name, Email, Status (active/inactive badge), Tier, Trainee Count, Created Date, Actions
-- [ ] AC-12: Trainer list supports search by name/email with 300ms debounce
-- [ ] AC-13: Trainer list supports filter by active/inactive toggle
-- [ ] AC-14: Clicking a trainer row navigates to trainer detail view at `/admin/trainers/[id]`
-- [ ] AC-15: Trainer detail shows: profile info, subscription details (tier, status, payment dates, past due), trainee count, and action buttons
-- [ ] AC-16: "Impersonate Trainer" button calls POST `/api/admin/impersonate/{id}/`, stores current admin tokens in sessionStorage, sets trainer tokens, and redirects to `/dashboard` (trainer view). A banner at the top indicates impersonation mode with "End Impersonation" button
-- [ ] AC-17: "End Impersonation" restores admin tokens from sessionStorage, calls POST `/api/admin/impersonate/end/`, and redirects back to `/admin/trainers`
-- [ ] AC-18: "Activate/Suspend" toggle button on trainer detail calls PATCH `/api/admin/users/{id}/` with `{is_active: true/false}` and shows confirmation dialog for suspend
+### Commission Approval/Payment Workflow (US-3)
+- [ ] AC-11: Backend exposes `POST /api/admin/ambassadors/<id>/commissions/<commission_id>/approve/` that transitions a PENDING commission to APPROVED.
+- [ ] AC-12: Backend exposes `POST /api/admin/ambassadors/<id>/commissions/<commission_id>/pay/` that transitions an APPROVED commission to PAID.
+- [ ] AC-13: Backend exposes `POST /api/admin/ambassadors/<id>/commissions/bulk-approve/` that accepts `{"commission_ids": [1,2,3]}` and approves all PENDING commissions in the list atomically.
+- [ ] AC-14: Backend exposes `POST /api/admin/ambassadors/<id>/commissions/bulk-pay/` that accepts `{"commission_ids": [1,2,3]}` and pays all APPROVED commissions in the list atomically.
+- [ ] AC-15: Attempting to approve an already-APPROVED or PAID commission returns 400 with a descriptive error.
+- [ ] AC-16: Attempting to pay a PENDING commission (not yet approved) returns 400 with a descriptive error.
+- [ ] AC-17: On the admin ambassador detail screen (mobile), each commission tile with status PENDING shows an "Approve" action button.
+- [ ] AC-18: On the admin ambassador detail screen (mobile), each commission tile with status APPROVED shows a "Mark Paid" action button.
+- [ ] AC-19: A "Bulk Approve All Pending" button appears in the commission section header when there are PENDING commissions.
+- [ ] AC-20: Commission status updates reflect immediately in the UI after a successful API call (optimistic update with rollback on failure).
+- [ ] AC-21: After approving or paying, the ambassador's `total_earnings` cached field is recalculated by calling `refresh_cached_stats()`.
 
-### Subscription Management (`/admin/subscriptions`)
-- [ ] AC-19: Subscription list shows DataTable with: Trainer Name/Email, Tier (badge), Status (color-coded badge), Monthly Price, Next Payment Date, Past Due Amount, Actions
-- [ ] AC-20: Subscription list supports filters: status dropdown (active, past_due, canceled, trialing, suspended), tier dropdown (FREE, STARTER, PRO, ENTERPRISE), past due toggle, upcoming payments (7/14/30 days), search by trainer email
-- [ ] AC-21: Clicking a subscription row navigates to subscription detail at `/admin/subscriptions/[id]`
-- [ ] AC-22: Subscription detail shows full subscription info with tabs: Overview (all fields, admin notes), Payment History (table of payments), Change History (audit log of tier/status changes)
-- [ ] AC-23: "Change Tier" action opens dialog with tier dropdown and reason textarea, calls POST `change-tier/`
-- [ ] AC-24: "Change Status" action opens dialog with status dropdown and reason textarea, calls POST `change-status/`
-- [ ] AC-25: "Record Payment" action opens dialog with amount input and description textarea, calls POST `record-payment/`
-- [ ] AC-26: Admin notes section on subscription detail is an inline-editable textarea that saves via POST `update-notes/`
+### Ambassador Password Reset (US-4)
+- [ ] AC-22: The ambassador login flow uses the same login screen as all other roles (this already works since login is role-agnostic JWT).
+- [ ] AC-23: The "Forgot your password?" link on the login screen navigates to `/forgot-password`, which calls Djoser's `POST /api/auth/users/reset_password/`.
+- [ ] AC-24: Djoser's password reset endpoint works for AMBASSADOR-role users without any role restriction (verify it does not filter by role).
+- [ ] AC-25: After reset, the ambassador can log in with their new password and is routed to `/ambassador` dashboard.
 
-### Tier Management (`/admin/tiers`)
-- [ ] AC-27: Tier list shows DataTable with: Name, Display Name, Price (formatted as $X.XX/mo), Trainee Limit (or "Unlimited"), Active status (toggle), Sort Order, Actions
-- [ ] AC-28: "Create Tier" button opens a form dialog with fields: name, display_name, description, price, trainee_limit, features (tag/chip input), stripe_price_id (optional), is_active toggle, sort_order
-- [ ] AC-29: Tiers can be edited via edit dialog (same fields as create) calling PUT `/api/admin/tiers/{id}/`
-- [ ] AC-30: "Toggle Active" quick action calls POST `toggle-active/` and updates the row immediately (optimistic update)
-- [ ] AC-31: Delete tier shows confirmation dialog; if tier has active subscriptions, backend returns error and UI shows "Cannot delete tier with X active subscriptions. Deactivate it instead."
-- [ ] AC-32: "Seed Defaults" button (shown only when tier list is empty) calls POST `seed-defaults/` and populates the 4 default tiers
+### Custom Referral Codes (US-5)
+- [ ] AC-26: Backend exposes `PUT /api/ambassador/referral-code/` that allows the authenticated ambassador to set a custom referral code.
+- [ ] AC-27: Custom codes must be 4-20 characters, alphanumeric only (A-Z, 0-9), stored uppercase.
+- [ ] AC-28: Custom codes are validated for uniqueness across all ambassador profiles.
+- [ ] AC-29: If the requested code is already taken, the API returns 400 with `{"referral_code": ["This referral code is already in use."]}`.
+- [ ] AC-30: The ambassador settings screen shows the current referral code with an "Edit" icon button next to it.
+- [ ] AC-31: Tapping "Edit" opens a dialog with a text field pre-filled with the current code, a "Save" button, and a "Cancel" button.
+- [ ] AC-32: The dialog validates the code client-side (4-20 chars, alphanumeric only) before submitting.
+- [ ] AC-33: After a successful code change, the dashboard and settings screens update to show the new code.
+- [ ] AC-34: The `AmbassadorProfile.referral_code` model field `max_length` is increased from 8 to 20 (migration required).
 
-### Coupon Management (`/admin/coupons`)
-- [ ] AC-33: Coupon list shows DataTable with: Code, Type (percent/fixed/free_trial badge), Discount Value (formatted as X% or $X.XX or X days), Applies To, Status (color-coded badge), Usage (current_uses / max_uses or "Unlimited"), Valid Until, Actions
-- [ ] AC-34: Coupon list supports filters: status dropdown, type dropdown, applies_to dropdown, search by code
-- [ ] AC-35: "Create Coupon" button opens form dialog with fields: code (auto-uppercase, alphanumeric only), description, coupon_type select, discount_value, applies_to select, applicable_tiers multi-select, max_uses (0 = unlimited), max_uses_per_user, valid_from datetime, valid_until datetime (optional)
-- [ ] AC-36: Clicking a coupon row navigates to coupon detail at `/admin/coupons/[id]`
-- [ ] AC-37: Coupon detail shows all coupon fields plus a "Usages" tab showing a table of: User Email, User Name, Discount Amount, Used At
-- [ ] AC-38: "Revoke" action button calls POST `revoke/`, updates status badge to "revoked", shows confirmation dialog
-- [ ] AC-39: "Reactivate" action button (shown for revoked coupons) calls POST `reactivate/`, updates status badge. Disabled for exhausted coupons with tooltip explaining why
-- [ ] AC-40: Coupon edit dialog allows updating: description, discount_value, applicable_tiers, max_uses, max_uses_per_user, valid_until
-
-### User Management (`/admin/users`)
-- [ ] AC-41: User list shows DataTable with: Name, Email, Role (ADMIN/TRAINER badge), Active status, Created Date, Trainee Count (for trainers), Actions
-- [ ] AC-42: User list supports filter by role (ADMIN/TRAINER) and search by name/email
-- [ ] AC-43: "Create User" button opens form dialog with fields: email, password (with strength indicator), role select (ADMIN/TRAINER), first_name, last_name
-- [ ] AC-44: User detail can be viewed inline or via expand; supports editing first_name, last_name, is_active, role, password reset
-- [ ] AC-45: Delete user shows confirmation; if trainer has active trainees, backend returns error message shown in dialog
-
-### UX States (all pages)
-- [ ] AC-46: Loading: Skeleton tables (3 skeleton rows matching column layout) on all list pages; Loader2 spinner on all mutation buttons
-- [ ] AC-47: Empty states: Contextual empty states on each list page (e.g., "No trainers yet", "No coupons created", "No tiers configured") with appropriate CTAs
-- [ ] AC-48: Error states: ErrorState component with retry on all list pages; toast notifications on all mutation failures with parsed DRF error messages
-- [ ] AC-49: Success feedback: Toast on all create/update/delete/action operations with descriptive messages
+---
 
 ## Edge Cases
-1. **Admin logs in for first time with no trainers** -- Dashboard stats all show 0, past due section shows empty state, tier breakdown shows empty chart/list
-2. **Admin impersonates trainer then refreshes** -- Impersonation tokens persist in sessionStorage; "End Impersonation" banner re-renders from stored data
-3. **Admin tries to deactivate themselves** -- Backend returns "You cannot deactivate your own account"; UI shows error toast
-4. **Admin tries to delete their own account** -- Backend returns "You cannot delete your own account"; UI shows error toast
-5. **Admin tries to delete trainer with active trainees** -- Backend returns "Cannot delete trainer with X active trainees. Reassign or remove trainees first."; UI shows this in the confirmation dialog error area
-6. **Tier delete with active subscriptions** -- Backend returns "Cannot delete tier with X active subscriptions. Deactivate it instead."; UI shows error in dialog
-7. **Reactivate exhausted coupon** -- Backend returns "Cannot reactivate exhausted coupon"; button is disabled with tooltip
-8. **Coupon code with spaces or lowercase** -- Auto-uppercase and strip spaces in the create form before submission (matching backend behavior)
-9. **Percent discount > 100%** -- Frontend Zod validation rejects before submission; shows inline error "Percentage discount cannot exceed 100%"
-10. **MRR display with many trainers on free tier** -- MRR shows $0.00 correctly; no division errors
-11. **Record payment with negative or zero amount** -- Frontend Zod validation rejects; shows inline error
-12. **Change tier to same tier** -- Backend returns "New tier is the same as current tier"; show toast error
-13. **Concurrent admin edits** -- If another admin changes a subscription between page load and save, the save should succeed (last-write-wins) or fail gracefully with stale data toast
-14. **Session expiry during impersonation** -- Token refresh fails, user is redirected to login, impersonation state is cleared from sessionStorage
-15. **Very long admin notes** -- Textarea allows up to 2000 characters (matching backend max_length), character counter shown
+
+1. **Monthly chart with only 1 month of data:** The chart should still render with a single bar (not crash or look broken). The X-axis should show that single month label.
+
+2. **Monthly chart with months having $0 earnings:** Months with no commissions should not appear as bars (they are excluded from the API response). The chart should only show months that have data. If all 6 months are $0 (empty array), show the empty state.
+
+3. **Share sheet not available on emulator/simulator:** `share_plus` can throw a `PlatformException` on some emulators. Wrap the share call in a try-catch and fall back to clipboard copy with a snackbar if sharing fails.
+
+4. **Bulk approve with mixed statuses:** If the admin sends `commission_ids` that include both PENDING and non-PENDING commissions, the backend should only approve the PENDING ones and return a result indicating how many were approved vs. skipped.
+
+5. **Concurrent commission approval:** Two admins approve the same commission simultaneously. The backend uses `select_for_update()` to prevent double-processing. The second request should return 400 ("Commission is already APPROVED").
+
+6. **Custom code conflicts with auto-generated codes:** An ambassador sets custom code "ABC12345" and later a new ambassador's auto-generated code tries to use the same 8-char substring. Since auto-generated codes are exactly 8 characters from the same alphabet, ensure the uniqueness constraint covers both custom and auto-generated codes in the same `referral_code` column (already the case).
+
+7. **Custom code with leading/trailing whitespace or lowercase:** The backend should strip whitespace and uppercase the input before validation and storage. "  john20  " becomes "JOHN20".
+
+8. **Custom code that is profane or reserved:** While we do not implement a profanity filter in this phase, the code must be at least 4 characters (preventing trivially short codes like "A") and alphanumeric only (preventing special characters). Reserved words like "ADMIN" or "TEST" are not blocked in this phase.
+
+9. **Password reset email for non-existent ambassador email:** Djoser's default behavior returns 204 regardless of whether the email exists (to prevent email enumeration). Verify this behavior is preserved for ambassadors.
+
+10. **Ambassador sets custom code, then admin creates a new ambassador whose auto-generated code collides:** The `AmbassadorProfile.save()` retry logic (3 retries on IntegrityError) already handles this. The new ambassador gets a different auto-generated code.
+
+11. **Commission approval when ambassador is deactivated:** Approving a commission for a deactivated ambassador should still work (the commission was earned when they were active). The `is_active` flag only prevents new commission creation.
+
+12. **Empty commission_ids array in bulk endpoints:** Return 400 with `{"commission_ids": ["This field is required and must contain at least one ID."]}`.
+
+---
 
 ## Error States
+
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Dashboard API fails | ErrorState with retry | Show ErrorState component on dashboard |
-| Trainer list API fails | ErrorState with retry | Show ErrorState, hide search/filter |
-| Impersonate fails (trainer not found) | Toast "Trainer not found" | Parse 404 response |
-| Impersonate fails (not admin) | Toast "Permission denied" | Parse 403 response |
-| Change tier fails (same tier) | Toast "New tier is the same as current tier" | Parse 400 body |
-| Change status fails (same status) | Toast "New status is the same as current status" | Parse 400 body |
-| Record payment fails (invalid amount) | Inline form error "Invalid amount format" | Parse 400 body |
-| Create user fails (duplicate email) | Inline form error "A user with this email already exists" | Parse 400 body |
-| Create user fails (weak password) | Inline form error "Password must be at least 8 characters" | Parse 400 body |
-| Create tier fails (duplicate name) | Inline form error on name field | Parse DRF unique constraint error |
-| Delete tier with subscriptions | Dialog error "Cannot delete tier with X active subscriptions" | Parse 400 body, show in dialog |
-| Create coupon fails (duplicate code) | Inline form error on code field | Parse DRF unique constraint error |
-| Revoke coupon fails | Toast "Failed to revoke coupon" | Parse error body |
-| Network timeout on any request | Toast "Network error. Please try again." | ApiError handler |
+| Chart data fails to load (API error) | Dashboard shows error state with retry button (existing behavior). Chart section is simply absent. | Error caught in provider, stored in state.error |
+| Share sheet throws PlatformException | "Share message copied to clipboard!" snackbar (fallback) | Catch PlatformException, copy to clipboard, show snackbar |
+| Approve commission fails (network error) | "Failed to approve commission. Please try again." error snackbar | Revert optimistic UI update, show error |
+| Approve commission fails (already approved) | "Commission is already approved." warning snackbar | 400 response parsed, specific message shown |
+| Pay commission fails (not yet approved) | "Commission must be approved before it can be marked as paid." warning snackbar | 400 response parsed, specific message shown |
+| Bulk approve with 0 qualifying commissions | "No pending commissions to approve." info snackbar | 200 response with `approved_count: 0` |
+| Custom code fails uniqueness check | Dialog shows inline error: "This referral code is already in use." | 400 response, field-level error parsed and shown under text field |
+| Custom code fails format validation (client) | Dialog shows inline error: "Code must be 4-20 alphanumeric characters." | Validation runs before API call |
+| Password reset email not received | Success screen shows "Check your spam folder" hint and "Didn't receive it? Try again" link | Existing forgot_password_screen.dart behavior (already implemented) |
+| Password reset for deactivated ambassador | Djoser sends reset email regardless of is_active on User model (Django is_active controls login, not email). If User.is_active=False, they cannot log in even after reset. | Djoser default behavior |
+
+---
 
 ## UX Requirements
-- **Loading state:** Skeleton tables on every list page (3 rows matching column count). Loader2 spinner inside action buttons during mutations. Dashboard stat cards show Skeleton rectangles during load.
-- **Empty state:** Icon + title + description + CTA pattern using existing EmptyState component. Dashboard: "Welcome to Admin Dashboard" with setup steps if no trainers. Trainers: UserPlus icon, "No trainers yet". Tiers: Layers icon, "No subscription tiers configured" with "Seed Defaults" CTA. Coupons: Ticket icon, "No coupons created" with "Create Coupon" CTA. Users: Users icon, "No users found".
-- **Error state:** ErrorState component (red card with AlertCircle, message, retry button) on list pages. Toast notifications on mutation errors. Inline form errors on dialogs using `aria-invalid` and `aria-describedby`.
-- **Success feedback:** Toast on every mutation: "Trainer suspended", "Tier created", "Coupon revoked", "Payment recorded ($X.XX)", "User created", etc.
-- **Responsive:** All pages work on desktop (table layout) and tablet (horizontal scroll on tables). Admin dashboard is not expected on mobile phones but should not break (single-column stack).
-- **Dark mode:** All components use shadcn/ui theme tokens. No hardcoded colors. Status badges use theme-aware variant colors.
-- **Accessibility:** ARIA labels on all interactive elements. Keyboard navigation on table rows. Focus management in dialogs. Screen reader announcements on toasts. Status badges include sr-only text for color-blind users.
-- **Impersonation banner:** Fixed banner at the top of the page (below header) in warning color (amber) with trainer name and "End Impersonation" button. Persists across all pages while impersonating.
+
+### Monthly Earnings Chart
+- **Loading state:** Chart area shows a shimmer/skeleton placeholder (same height as the rendered chart, ~180px) while dashboard data loads.
+- **Empty state:** Centered muted bar chart icon (Icons.bar_chart) with "No earnings data yet" text in bodySmall style. Same height as chart would be (~180px).
+- **Populated state:** Vertical bar chart with rounded-top bars. X-axis = month abbreviation (e.g., "Sep"). Y-axis = dollar amounts with "$" prefix. Touch a bar to see tooltip with exact amount. Bars use `theme.colorScheme.primary` with 0.8 opacity. Grid lines are subtle (dividerColor).
+- **Chart height:** Fixed 180px. No horizontal scroll needed (max 6 bars always fit).
+- **Section header:** "Monthly Earnings" with bodyLarge style, placed between the referral code card and the stats row.
+- **Accessibility:** Semantics label on the chart container: "Monthly earnings chart showing earnings for the last 6 months". Each bar should have a semantics label like "September: $150.00".
+
+### Native Share Sheet
+- **Trigger:** The existing "Share Referral Code" ElevatedButton on the dashboard.
+- **Behavior:** Opens native share sheet. No loading indicator needed (OS handles it).
+- **Fallback:** If share fails, copy to clipboard and show green snackbar "Share message copied to clipboard!".
+- **Copy button:** Remains unchanged (copies just the code, not the full message).
+
+### Commission Approval/Payment Workflow
+- **Action buttons:** Small outlined buttons inside each commission tile. "Approve" in blue for PENDING, "Mark Paid" in green for APPROVED. PAID commissions show no button (status badge only).
+- **Button loading state:** While the API call is in flight, the button shows a 16px CircularProgressIndicator and is disabled.
+- **Bulk button:** Appears as a TextButton with icon (Icons.check_circle_outline) in the commission section header row, right-aligned. Label: "Approve All Pending" in primary color. Shows loading spinner while in flight.
+- **Confirmation dialog:** Both individual and bulk actions show a confirmation dialog. Individual: "Approve $X.XX commission for trainer@email.com?". Bulk: "Approve X pending commissions totaling $Y.YY?".
+- **Success feedback:** Green snackbar: "Commission approved" / "Commission marked as paid" / "X commissions approved".
+- **Refresh:** After any commission action, refresh the full ambassador detail to get updated stats.
+
+### Ambassador Password Reset
+- **No new UI needed.** The existing login screen already has "Forgot your password?" which navigates to ForgotPasswordScreen. This works for all roles since Djoser's reset_password endpoint is role-agnostic. Verify and document that it works for ambassadors.
+
+### Custom Referral Codes
+- **Settings screen:** Below the "Referral Code" row in the Ambassador Details card, show the current code with an IconButton (Icons.edit, size 18) to the right of the code value.
+- **Edit dialog:** AlertDialog with title "Change Referral Code", a TextFormField pre-filled with the current code (all caps, max 20 chars), helper text "4-20 alphanumeric characters", inline validation error below the field, "Cancel" and "Save" buttons.
+- **Input formatting:** Auto-uppercase as the user types (TextInputFormatter). Strip non-alphanumeric characters.
+- **Loading state:** Save button shows CircularProgressIndicator while API call is in flight. Cancel button is disabled during save.
+- **Success:** Dialog closes, snackbar "Referral code updated to {CODE}", dashboard refreshes to show new code.
+- **Error:** Dialog stays open, inline error shown below the text field.
+
+---
 
 ## Technical Approach
 
-### Files to Create
+### 1. Monthly Earnings Chart
 
-**Types:**
-1. `web/src/types/admin.ts` -- TypeScript interfaces for all admin API responses: AdminDashboard, AdminTrainer (with nested subscription), AdminSubscription (full + list variants), AdminSubscriptionTier, AdminCoupon (full + list variants), AdminUser, PaymentHistory, SubscriptionChange, CouponUsage, ImpersonationResponse
+**Package addition:**
+- File: `mobile/pubspec.yaml` — Add `fl_chart: ~0.68.0` to dependencies.
 
-**Hooks (React Query):**
-2. `web/src/hooks/use-admin-dashboard.ts` -- `useAdminDashboard()` query hook fetching GET `/api/admin/dashboard/`
-3. `web/src/hooks/use-admin-trainers.ts` -- `useAdminTrainers(search, active)` query, `useImpersonateTrainer()` mutation, `useEndImpersonation()` mutation
-4. `web/src/hooks/use-admin-subscriptions.ts` -- `useAdminSubscriptions(filters)` query, `useAdminSubscription(id)` query, `useChangeTier()` mutation, `useChangeStatus()` mutation, `useRecordPayment()` mutation, `useUpdateNotes()` mutation, `usePaymentHistory(id)` query, `useChangeHistory(id)` query, `usePastDueSubscriptions()` query
-5. `web/src/hooks/use-admin-tiers.ts` -- `useAdminTiers()` query, `useCreateTier()` mutation, `useUpdateTier()` mutation, `useDeleteTier()` mutation, `useToggleTierActive()` mutation, `useSeedDefaultTiers()` mutation
-6. `web/src/hooks/use-admin-coupons.ts` -- `useAdminCoupons(filters)` query, `useAdminCoupon(id)` query, `useCreateCoupon()` mutation, `useUpdateCoupon()` mutation, `useDeleteCoupon()` mutation, `useRevokeCoupon()` mutation, `useReactivateCoupon()` mutation, `useCouponUsages(id)` query
-7. `web/src/hooks/use-admin-users.ts` -- `useAdminUsers(role, search)` query, `useAdminUser(id)` query, `useCreateAdminUser()` mutation, `useUpdateAdminUser()` mutation, `useDeleteAdminUser()` mutation
+**New widget file:**
+- File: `mobile/lib/features/ambassador/presentation/widgets/monthly_earnings_chart.dart` — New file. Stateless widget `MonthlyEarningsChart` that takes `List<MonthlyEarnings>` and renders a `BarChart` from `fl_chart`. Handles empty list with empty state widget. Fixed 180px height. Theme-aware colors. Tooltip on bar touch. Semantics labels.
 
-**Layout & Navigation:**
-8. `web/src/app/(admin-dashboard)/layout.tsx` -- Admin layout with admin-specific sidebar, header, impersonation banner, auth guard for ADMIN role
-9. `web/src/app/(admin-dashboard)/admin/page.tsx` -- Admin dashboard overview page
-10. `web/src/components/layout/admin-sidebar.tsx` -- Admin sidebar with nav links: Dashboard, Trainers, Subscriptions, Tiers, Coupons, Users, Settings
-11. `web/src/components/layout/admin-nav-links.ts` -- Admin nav link definitions (LayoutDashboard, Users, CreditCard, Layers, Ticket, UserCog, Settings icons)
-12. `web/src/components/layout/impersonation-banner.tsx` -- Amber banner component for impersonation mode, reads from sessionStorage, shows "Viewing as [trainer email]" with "End" button
+**Modified files:**
+- File: `mobile/lib/features/ambassador/presentation/screens/ambassador_dashboard_screen.dart` — In `_buildContent()`, insert the chart widget between `_buildReferralCodeCard` and `_buildStatsRow`. Import the new widget.
 
-**Admin Dashboard Page:**
-13. `web/src/app/(admin-dashboard)/admin/page.tsx` -- Dashboard overview (stat cards, tier breakdown, past due alerts)
-14. `web/src/components/admin/dashboard-stats.tsx` -- 4 primary stat cards (trainers, trainees, MRR) using StatCard
-15. `web/src/components/admin/revenue-cards.tsx` -- Payment/past due stat cards section
-16. `web/src/components/admin/tier-breakdown.tsx` -- Tier distribution chart or card list
-17. `web/src/components/admin/past-due-alerts.tsx` -- List of past due subscriptions with quick actions
+### 2. Native Share Sheet
 
-**Trainer Management Pages:**
-18. `web/src/app/(admin-dashboard)/admin/trainers/page.tsx` -- Trainer list page
-19. `web/src/app/(admin-dashboard)/admin/trainers/[id]/page.tsx` -- Trainer detail page
-20. `web/src/components/admin/trainer-table.tsx` -- Trainer DataTable with columns
-21. `web/src/components/admin/trainer-columns.tsx` -- Column definitions for trainer table
-22. `web/src/components/admin/trainer-detail.tsx` -- Trainer detail view with subscription info and actions
-23. `web/src/components/admin/impersonate-dialog.tsx` -- Confirmation dialog for impersonation
+**Package addition:**
+- File: `mobile/pubspec.yaml` — Add `share_plus: ~9.0.0` to dependencies.
 
-**Subscription Management Pages:**
-24. `web/src/app/(admin-dashboard)/admin/subscriptions/page.tsx` -- Subscription list page with filters
-25. `web/src/app/(admin-dashboard)/admin/subscriptions/[id]/page.tsx` -- Subscription detail page with tabs
-26. `web/src/components/admin/subscription-table.tsx` -- Subscription DataTable
-27. `web/src/components/admin/subscription-columns.tsx` -- Column definitions
-28. `web/src/components/admin/subscription-detail.tsx` -- Detail view with tabs (Overview, Payments, Changes)
-29. `web/src/components/admin/change-tier-dialog.tsx` -- Dialog for changing subscription tier
-30. `web/src/components/admin/change-status-dialog.tsx` -- Dialog for changing subscription status
-31. `web/src/components/admin/record-payment-dialog.tsx` -- Dialog for recording manual payment
-32. `web/src/components/admin/subscription-filters.tsx` -- Filter bar with status, tier, past due, upcoming dropdowns
+**Modified files:**
+- File: `mobile/lib/features/ambassador/presentation/screens/ambassador_dashboard_screen.dart` — In `_shareCode()`, replace `Clipboard.setData` with `Share.share(message)` from `share_plus`. Wrap in try-catch, fall back to clipboard on `PlatformException`.
 
-**Tier Management Pages:**
-33. `web/src/app/(admin-dashboard)/admin/tiers/page.tsx` -- Tier list page
-34. `web/src/components/admin/tier-table.tsx` -- Tier DataTable
-35. `web/src/components/admin/tier-columns.tsx` -- Column definitions
-36. `web/src/components/admin/create-tier-dialog.tsx` -- Create/edit tier form dialog with Zod validation
-37. `web/src/components/admin/tier-features-input.tsx` -- Tag/chip input for tier features array
+### 3. Commission Approval/Payment Workflow
 
-**Coupon Management Pages:**
-38. `web/src/app/(admin-dashboard)/admin/coupons/page.tsx` -- Coupon list page with filters
-39. `web/src/app/(admin-dashboard)/admin/coupons/[id]/page.tsx` -- Coupon detail page with usages
-40. `web/src/components/admin/coupon-table.tsx` -- Coupon DataTable
-41. `web/src/components/admin/coupon-columns.tsx` -- Column definitions
-42. `web/src/components/admin/create-coupon-dialog.tsx` -- Create coupon form dialog with Zod validation
-43. `web/src/components/admin/edit-coupon-dialog.tsx` -- Edit coupon form dialog
-44. `web/src/components/admin/coupon-detail.tsx` -- Coupon detail with usages table
-45. `web/src/components/admin/coupon-filters.tsx` -- Filter bar with status, type, applies_to dropdowns
+**Backend — New service file:**
+- File: `backend/ambassador/services/commission_service.py` — New file. `CommissionService` class with:
+  - `approve_commission(commission_id: int, ambassador_profile_id: int) -> CommissionActionResult` — Uses `select_for_update()` to lock the commission row. Validates the commission belongs to the ambassador. Validates status is PENDING. Transitions to APPROVED. Calls `profile.refresh_cached_stats()`.
+  - `pay_commission(commission_id: int, ambassador_profile_id: int) -> CommissionActionResult` — Same lock pattern. Validates status is APPROVED. Transitions to PAID. Calls `profile.refresh_cached_stats()`.
+  - `bulk_approve(commission_ids: list[int], ambassador_profile_id: int) -> BulkActionResult` — Locks all matching PENDING commissions. Bulk updates to APPROVED. Returns approved_count and skipped_count.
+  - `bulk_pay(commission_ids: list[int], ambassador_profile_id: int) -> BulkActionResult` — Locks all matching APPROVED commissions. Bulk updates to PAID. Returns paid_count and skipped_count.
+  - Result dataclasses: `CommissionActionResult(success: bool, message: str)` and `BulkActionResult(success: bool, processed_count: int, skipped_count: int, message: str)`.
 
-**User Management Pages:**
-46. `web/src/app/(admin-dashboard)/admin/users/page.tsx` -- User list page
-47. `web/src/components/admin/user-table.tsx` -- User DataTable
-48. `web/src/components/admin/user-columns.tsx` -- Column definitions
-49. `web/src/components/admin/create-user-dialog.tsx` -- Create admin/trainer form dialog
-50. `web/src/components/admin/edit-user-dialog.tsx` -- Edit user form dialog
+**Backend — New views:**
+- File: `backend/ambassador/views.py` — Add 4 new view classes:
+  - `AdminCommissionApproveView(APIView)` — POST handler calling `CommissionService.approve_commission()`.
+  - `AdminCommissionPayView(APIView)` — POST handler calling `CommissionService.pay_commission()`.
+  - `AdminBulkApproveCommissionsView(APIView)` — POST handler with `BulkCommissionActionSerializer` validation.
+  - `AdminBulkPayCommissionsView(APIView)` — POST handler with `BulkCommissionActionSerializer` validation.
+  All views have `[IsAuthenticated, IsAdmin]` permissions.
 
-### Files to Modify
+**Backend — New serializer:**
+- File: `backend/ambassador/serializers.py` — Add `BulkCommissionActionSerializer` with `commission_ids = serializers.ListField(child=serializers.IntegerField(), min_length=1)`.
 
-1. `web/src/providers/auth-provider.tsx` -- Change role check from `userData.role !== UserRole.TRAINER` to allow both ADMIN and TRAINER roles. Redirect ADMIN to `/admin`, TRAINER to `/dashboard`.
-2. `web/src/middleware.ts` -- Add `/admin` routes to protected paths. Add role-aware redirect logic: root `/` redirects ADMIN to `/admin`, TRAINER to `/dashboard`. Note: middleware cannot check role (no token access), so redirect logic happens client-side in AuthProvider and layouts.
-3. `web/src/lib/constants.ts` -- Add all admin API URL constants under a new `ADMIN_API_URLS` section: ADMIN_DASHBOARD, ADMIN_TRAINERS, ADMIN_USERS, ADMIN_SUBSCRIPTIONS, ADMIN_TIERS, ADMIN_COUPONS, ADMIN_IMPERSONATE, ADMIN_PAST_DUE, ADMIN_UPCOMING_PAYMENTS, plus dynamic URL functions for detail/action endpoints.
-4. `web/src/types/user.ts` -- Already has ADMIN in UserRole enum (no change needed, just confirming).
-5. `web/src/lib/error-utils.ts` -- May need to extend `getErrorMessage()` to handle admin-specific error shapes (e.g., `{error: "..."}` format used by admin views alongside DRF field-level errors).
-6. `web/src/app/page.tsx` -- Update root redirect to be role-aware (admin -> /admin, trainer -> /dashboard).
+**Backend — URL additions:**
+- File: `backend/ambassador/urls.py` — Add to `admin_urlpatterns`:
+  - `path('<int:ambassador_id>/commissions/<int:commission_id>/approve/', ...)`
+  - `path('<int:ambassador_id>/commissions/<int:commission_id>/pay/', ...)`
+  - `path('<int:ambassador_id>/commissions/bulk-approve/', ...)`
+  - `path('<int:ambassador_id>/commissions/bulk-pay/', ...)`
 
-### Key Design Decisions
+**Mobile — Repository additions:**
+- File: `mobile/lib/features/ambassador/data/repositories/ambassador_repository.dart` — Add 4 new methods:
+  - `Future<void> approveCommission(int ambassadorId, int commissionId)`
+  - `Future<void> payCommission(int ambassadorId, int commissionId)`
+  - `Future<Map<String, dynamic>> bulkApproveCommissions(int ambassadorId, List<int> commissionIds)`
+  - `Future<Map<String, dynamic>> bulkPayCommissions(int ambassadorId, List<int> commissionIds)`
 
-- **Separate route group:** Admin pages live under `(admin-dashboard)/admin/` route group with its own layout, completely isolated from the trainer `(dashboard)` routes. This prevents nav confusion and allows independent layouts.
-- **Shared components:** Reuse DataTable, StatCard, EmptyState, ErrorState, LoadingSpinner, PageHeader, Badge, and all shadcn/ui primitives. No duplication.
-- **Admin sidebar:** New component with admin-specific nav links. Reuses the same visual pattern as the trainer sidebar (256px width, same styling tokens) but with different links.
-- **Impersonation flow:** Admin tokens stored in sessionStorage (not localStorage -- lost on tab close for safety). On impersonate: store admin tokens, set trainer tokens via setTokens(), redirect to trainer dashboard. On end: restore admin tokens, redirect to admin dashboard.
-- **Inline vs page detail:** Trainers, subscriptions, and coupons get dedicated detail pages (enough data to warrant a full page). Tiers and users use dialog-based editing (simpler data models).
-- **React Query patterns:** Follow existing hook patterns (staleTime: 5 minutes, queryKey conventions). Mutations invalidate related queries on success. Optimistic updates for toggle-active on tiers.
-- **Zod validation:** All create/edit forms use Zod schemas matching backend validation rules. Errors shown inline using `aria-invalid` and `aria-describedby` patterns (matching existing settings page).
-- **Error message parsing:** Admin backend uses both `{error: "..."}` (custom views) and DRF field-level errors (`{field: ["error"]}`) -- the `getErrorMessage()` utility handles both.
-- **No backend changes needed:** All admin APIs already exist and are tested. This is a pure frontend feature.
+**Mobile — API constants:**
+- File: `mobile/lib/core/constants/api_constants.dart` — Add 4 new endpoint getters:
+  - `static String adminAmbassadorCommissionApprove(int ambassadorId, int commissionId) => '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/$commissionId/approve/';`
+  - `static String adminAmbassadorCommissionPay(int ambassadorId, int commissionId) => '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/$commissionId/pay/';`
+  - `static String adminAmbassadorBulkApprove(int ambassadorId) => '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/bulk-approve/';`
+  - `static String adminAmbassadorBulkPay(int ambassadorId) => '$apiBaseUrl/admin/ambassadors/$ambassadorId/commissions/bulk-pay/';`
 
-### Dependencies
-- All shadcn/ui components already installed (Dialog, Tabs, Select, Input, Button, Card, Badge, Toast, DropdownMenu, Tooltip, Skeleton)
-- React Query v5 already configured
-- Zod v4 already installed
-- recharts already installed (for tier breakdown chart)
-- lucide-react already installed (for icons)
-- next-themes already installed (for dark mode)
-- apiClient already supports GET/POST/PATCH/DELETE/postFormData
+**Mobile — Admin detail screen changes:**
+- File: `mobile/lib/features/admin/presentation/screens/admin_ambassador_detail_screen.dart` — Modify `_buildCommissionTile()` to add:
+  - "Approve" OutlinedButton (blue) when `commission.status == 'PENDING'`.
+  - "Mark Paid" OutlinedButton (green) when `commission.status == 'APPROVED'`.
+  - Loading state per-commission (track in a `Set<int> _processingCommissionIds`).
+  - Confirmation dialogs before each action.
+  - `_buildCommissionsList()` header gets a "Approve All Pending" TextButton (visible when any PENDING commissions exist).
+  - After any action: call `_loadDetail()` to refresh.
+
+### 4. Ambassador Password Reset
+
+**Backend verification (test only, no code changes):**
+- File: `backend/ambassador/tests/test_password_reset.py` — New test file. Test that `POST /api/auth/users/reset_password/` with an ambassador's email returns 204. Test that a non-existent email also returns 204 (Djoser's anti-enumeration behavior). This confirms the existing flow works for ambassadors.
+
+**No mobile changes needed.** The existing login screen's "Forgot your password?" link, ForgotPasswordScreen, and ResetPasswordScreen all work for any role. The router already redirects ambassadors to `/ambassador` after login (line ~708 of app_router.dart).
+
+### 5. Custom Referral Codes
+
+**Backend — Model migration:**
+- File: `backend/ambassador/models.py` — Change `AmbassadorProfile.referral_code` field:
+  - `max_length=8` -> `max_length=20`
+  - Update `help_text` to: "Unique 4-20 char alphanumeric referral code (auto-generated or custom)"
+- Run `python manage.py makemigrations ambassador` to generate migration.
+
+**Backend — Serializer:**
+- File: `backend/ambassador/serializers.py` — Add `CustomReferralCodeSerializer`:
+  - `referral_code = serializers.RegexField(regex=r'^[A-Z0-9]{4,20}$', error_messages={'invalid': 'Code must be 4-20 alphanumeric characters (A-Z, 0-9).'})`
+  - `validate_referral_code(self, value)` — strip, uppercase, check uniqueness excluding current user's profile.
+
+**Backend — View update:**
+- File: `backend/ambassador/views.py` — Update `AmbassadorReferralCodeView` to handle PUT:
+  - Validate with `CustomReferralCodeSerializer`.
+  - Update `profile.referral_code`.
+  - Return updated code and share message.
+
+**Mobile — Repository:**
+- File: `mobile/lib/features/ambassador/data/repositories/ambassador_repository.dart` — Add `Future<ReferralCodeData> updateReferralCode(String code)` method calling `PUT /api/ambassador/referral-code/`.
+
+**Mobile — Provider:**
+- File: `mobile/lib/features/ambassador/presentation/providers/ambassador_provider.dart` — Add `Future<bool> updateReferralCode(String code)` to `AmbassadorDashboardNotifier` that calls repository, reloads dashboard on success, returns success/failure.
+
+**Mobile — Settings screen:**
+- File: `mobile/lib/features/ambassador/presentation/screens/ambassador_settings_screen.dart` — Modify the "Referral Code" `_buildInfoRow` to add an edit icon button. Add `_showEditReferralCodeDialog()` method with:
+  - AlertDialog with TextFormField (pre-filled, `FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]'))`, `UpperCaseTextInputFormatter`, maxLength 20).
+  - Client-side validation (min 4 chars).
+  - Loading state on Save button.
+  - Inline error display from server response.
+  - On success: close dialog, show snackbar, refresh dashboard.
+
+---
 
 ## Out of Scope
-- Platform-wide analytics page with revenue trends over time (would need new backend endpoints for time-series data)
-- Ambassador management from admin web dashboard (already available on mobile)
-- Real-time updates via WebSocket/SSE (would need backend infrastructure)
-- Bulk operations (e.g., suspend all past-due trainers, bulk tier change)
-- Export to CSV/PDF for financial reports
-- Admin settings page (notification preferences, platform config)
-- Audit log page (all admin actions across the platform)
-- Admin dark mode toggle (inherits from existing theme system)
+- Stripe Connect payout to ambassadors (deferred to Phase 6 — requires Stripe dashboard configuration)
+- Push notifications for commission status changes
+- Ambassador earnings export (CSV/PDF)
+- Ambassador-to-ambassador referral chains (multi-level marketing)
+- Web dashboard ambassador views (admin can manage via mobile or Django admin)
+- Profanity filter for custom referral codes
+- Rate limiting on custom code change frequency (can be added later if abused)
