@@ -4,7 +4,10 @@ class CommunityPostModel {
   final PostAuthor author;
   final String content;
   final String postType;
+  final String contentFormat;
+  final String? imageUrl;
   final Map<String, dynamic> metadata;
+  final int commentCount;
   final DateTime createdAt;
   final ReactionCounts reactions;
   final List<String> userReactions;
@@ -14,7 +17,10 @@ class CommunityPostModel {
     required this.author,
     required this.content,
     required this.postType,
+    this.contentFormat = 'plain',
+    this.imageUrl,
     required this.metadata,
+    this.commentCount = 0,
     required this.createdAt,
     required this.reactions,
     required this.userReactions,
@@ -26,7 +32,10 @@ class CommunityPostModel {
       author: PostAuthor.fromJson(json['author'] as Map<String, dynamic>),
       content: json['content'] as String,
       postType: json['post_type'] as String? ?? 'text',
+      contentFormat: json['content_format'] as String? ?? 'plain',
+      imageUrl: json['image_url'] as String?,
       metadata: (json['metadata'] as Map<String, dynamic>?) ?? {},
+      commentCount: json['comment_count'] as int? ?? 0,
       createdAt: DateTime.parse(json['created_at'] as String),
       reactions: ReactionCounts.fromJson(
         (json['reactions'] as Map<String, dynamic>?) ?? {},
@@ -41,6 +50,12 @@ class CommunityPostModel {
   /// Whether this is an auto-generated post (workout, achievement, milestone).
   bool get isAutoPost => postType != 'text';
 
+  /// Whether this post has markdown content.
+  bool get isMarkdown => contentFormat == 'markdown';
+
+  /// Whether this post has an image attachment.
+  bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
+
   /// Total reaction count across all types.
   int get totalReactions =>
       reactions.fire + reactions.thumbsUp + reactions.heart;
@@ -48,13 +63,17 @@ class CommunityPostModel {
   CommunityPostModel copyWith({
     ReactionCounts? reactions,
     List<String>? userReactions,
+    int? commentCount,
   }) {
     return CommunityPostModel(
       id: id,
       author: author,
       content: content,
       postType: postType,
+      contentFormat: contentFormat,
+      imageUrl: imageUrl,
       metadata: metadata,
+      commentCount: commentCount ?? this.commentCount,
       createdAt: createdAt,
       reactions: reactions ?? this.reactions,
       userReactions: userReactions ?? this.userReactions,

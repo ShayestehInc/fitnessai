@@ -23,6 +23,7 @@ from .notification_views import (
 from community.trainer_views import (
     TrainerAnnouncementListCreateView,
     TrainerAnnouncementDetailView,
+    TrainerLeaderboardSettingsView,
 )
 
 urlpatterns = [
@@ -84,4 +85,7 @@ urlpatterns = [
     # Announcements (trainer CRUD)
     path('announcements/', TrainerAnnouncementListCreateView.as_view(), name='trainer-announcements'),
     path('announcements/<int:pk>/', TrainerAnnouncementDetailView.as_view(), name='trainer-announcement-detail'),
+
+    # Leaderboard settings
+    path('leaderboard-settings/', TrainerLeaderboardSettingsView.as_view(), name='trainer-leaderboard-settings'),
 ]

@@ -87,9 +87,17 @@ class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
     }
   }
 
-  Future<bool> createPost(String content) async {
+  Future<bool> createPost({
+    required String content,
+    String contentFormat = 'plain',
+    String? imagePath,
+  }) async {
     try {
-      final post = await _repo.createPost(content);
+      final post = await _repo.createPost(
+        content: content,
+        contentFormat: contentFormat,
+        imagePath: imagePath,
+      );
       state = state.copyWith(posts: [post, ...state.posts]);
       return true;
     } catch (_) {
@@ -177,5 +185,31 @@ class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
       // Rollback to previous state on error
       state = state.copyWith(posts: previousPosts);
     }
+  }
+
+  /// Handle a new post from WebSocket.
+  void onNewPost(CommunityPostModel post) {
+    // Avoid duplicates
+    if (state.posts.any((p) => p.id == post.id)) return;
+    state = state.copyWith(posts: [post, ...state.posts]);
+  }
+
+  /// Handle post deletion from WebSocket.
+  void onPostDeleted(int postId) {
+    state = state.copyWith(
+      posts: state.posts.where((p) => p.id != postId).toList(),
+    );
+  }
+
+  /// Increment comment count for a post (from WebSocket).
+  void onNewComment(int postId) {
+    state = state.copyWith(
+      posts: state.posts.map((p) {
+        if (p.id == postId) {
+          return p.copyWith(commentCount: p.commentCount + 1);
+        }
+        return p;
+      }).toList(),
+    );
   }
 }

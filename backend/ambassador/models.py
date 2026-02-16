@@ -292,3 +292,79 @@ class AmbassadorCommission(models.Model):
             )
         self.status = self.Status.PAID
         self.save(update_fields=['status'])
+
+
+class AmbassadorStripeAccount(models.Model):
+    """
+    Stripe Connect Express account linked to an ambassador for receiving payouts.
+    """
+    ambassador_profile = models.OneToOneField(
+        AmbassadorProfile,
+        on_delete=models.CASCADE,
+        related_name='stripe_account',
+    )
+    stripe_account_id = models.CharField(
+        max_length=255,
+        unique=True,
+        null=True,
+        blank=True,
+    )
+    charges_enabled = models.BooleanField(default=False)
+    payouts_enabled = models.BooleanField(default=False)
+    details_submitted = models.BooleanField(default=False)
+    onboarding_completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'ambassador_stripe_accounts'
+        indexes = [
+            models.Index(fields=['ambassador_profile']),
+        ]
+
+    def __str__(self) -> str:
+        return f"StripeConnect for {self.ambassador_profile.user.email}: {self.stripe_account_id}"
+
+
+class PayoutRecord(models.Model):
+    """
+    Record of a payout to an ambassador via Stripe Connect transfer.
+    """
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        COMPLETED = 'completed', 'Completed'
+        FAILED = 'failed', 'Failed'
+
+    ambassador_profile = models.ForeignKey(
+        AmbassadorProfile,
+        on_delete=models.CASCADE,
+        related_name='payouts',
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    stripe_transfer_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    error_message = models.TextField(blank=True, default='')
+    commissions_included = models.ManyToManyField(
+        AmbassadorCommission,
+        blank=True,
+        related_name='payout_records',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'ambassador_payout_records'
+        indexes = [
+            models.Index(fields=['ambassador_profile', '-created_at']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f"${self.amount} to {self.ambassador_profile.user.email} ({self.status})"

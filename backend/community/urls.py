@@ -12,6 +12,9 @@ from .views import (
     CommunityFeedView,
     CommunityPostDeleteView,
     ReactionToggleView,
+    CommentListCreateView,
+    CommentDeleteView,
+    LeaderboardView,
 )
 
 urlpatterns = [
@@ -28,4 +31,15 @@ urlpatterns = [
     path('feed/', CommunityFeedView.as_view(), name='community-feed'),
     path('feed/<int:pk>/', CommunityPostDeleteView.as_view(), name='community-post-delete'),
     path('feed/<int:post_id>/react/', ReactionToggleView.as_view(), name='community-post-react'),
+
+    # Comments
+    path('feed/<int:post_id>/comments/', CommentListCreateView.as_view(), name='community-post-comments'),
+    path(
+        'feed/<int:post_id>/comments/<int:comment_id>/',
+        CommentDeleteView.as_view(),
+        name='community-comment-delete',
+    ),
+
+    # Leaderboard
+    path('leaderboard/', LeaderboardView.as_view(), name='community-leaderboard'),
 ]

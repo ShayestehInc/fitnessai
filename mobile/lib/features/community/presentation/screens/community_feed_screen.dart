@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/services/community_ws_service.dart';
 import '../providers/announcement_provider.dart';
 import '../providers/community_feed_provider.dart';
 import '../widgets/announcement_card.dart';
@@ -25,6 +26,8 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(communityFeedProvider.notifier).loadFeed();
       ref.read(announcementProvider.notifier).loadAnnouncements();
+      // Connect WebSocket for real-time updates
+      ref.read(communityWsServiceProvider).connect();
     });
     _scrollController.addListener(_onScroll);
   }
@@ -54,6 +57,11 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
         title: const Text('Community'),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.leaderboard_outlined),
+            onPressed: () => context.push('/community/leaderboard'),
+            tooltip: 'Leaderboard',
+          ),
           if (announcementState.unreadCount > 0)
             _UnreadBadgeButton(
               count: announcementState.unreadCount,

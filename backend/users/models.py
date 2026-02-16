@@ -215,6 +215,12 @@ class UserProfile(models.Model):
         validators=[MinValueValidator(2), MaxValueValidator(6)]
     )
 
+    # Leaderboard opt-in
+    leaderboard_opt_in = models.BooleanField(
+        default=True,
+        help_text="Whether this trainee appears on leaderboards",
+    )
+
     # Onboarding status
     onboarding_completed = models.BooleanField(default=False)
 
@@ -226,3 +232,43 @@ class UserProfile(models.Model):
 
     def __str__(self) -> str:
         return f"Profile for {self.user.email}"
+
+
+class DeviceToken(models.Model):
+    """
+    FCM device token for push notifications.
+    One user can have multiple tokens (multiple devices).
+    """
+    class Platform(models.TextChoices):
+        IOS = 'ios', 'iOS'
+        ANDROID = 'android', 'Android'
+        WEB = 'web', 'Web'
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='device_tokens',
+    )
+    token = models.CharField(max_length=512)
+    platform = models.CharField(
+        max_length=10,
+        choices=Platform.choices,
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'device_tokens'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'token'],
+                name='unique_user_device_token',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user.email}: {self.platform} ({'active' if self.is_active else 'inactive'})"

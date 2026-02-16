@@ -12,6 +12,14 @@ urlpatterns = [
     path('dashboard/', views.AmbassadorDashboardView.as_view(), name='ambassador-dashboard'),
     path('referrals/', views.AmbassadorReferralsView.as_view(), name='ambassador-referrals'),
     path('referral-code/', views.AmbassadorReferralCodeView.as_view(), name='ambassador-referral-code'),
+
+    # Stripe Connect
+    path('connect/status/', views.AmbassadorConnectStatusView.as_view(), name='ambassador-connect-status'),
+    path('connect/onboard/', views.AmbassadorConnectOnboardView.as_view(), name='ambassador-connect-onboard'),
+    path('connect/return/', views.AmbassadorConnectReturnView.as_view(), name='ambassador-connect-return'),
+
+    # Payout history
+    path('payouts/', views.AmbassadorPayoutHistoryView.as_view(), name='ambassador-payouts'),
 ]
 
 # Admin-facing endpoints (mounted at /api/admin/ambassadors/)
@@ -38,5 +46,10 @@ admin_urlpatterns = [
         '<int:ambassador_id>/commissions/bulk-pay/',
         views.AdminBulkPayCommissionsView.as_view(),
         name='admin-commission-bulk-pay',
+    ),
+    path(
+        '<int:ambassador_id>/payout/',
+        views.AdminTriggerPayoutView.as_view(),
+        name='admin-ambassador-payout',
     ),
 ]

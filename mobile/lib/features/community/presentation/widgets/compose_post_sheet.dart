@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../providers/community_feed_provider.dart';
 
-/// Bottom sheet for composing a new text post.
+/// Bottom sheet for composing a new text post with optional image.
 class ComposePostSheet extends ConsumerStatefulWidget {
   const ComposePostSheet({super.key});
 
@@ -13,6 +15,8 @@ class ComposePostSheet extends ConsumerStatefulWidget {
 class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
   final _controller = TextEditingController();
   bool _isSubmitting = false;
+  bool _isMarkdown = false;
+  String? _imagePath;
 
   @override
   void dispose() {
@@ -56,14 +60,19 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          // Toolbar row
+          _buildToolbar(theme),
+          const SizedBox(height: 8),
           TextField(
             controller: _controller,
             maxLines: 4,
             maxLength: 1000,
             autofocus: true,
             decoration: InputDecoration(
-              hintText: 'What\'s on your mind?',
+              hintText: _isMarkdown
+                  ? 'Write using **bold**, *italic*, etc.'
+                  : 'What\'s on your mind?',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -72,6 +81,11 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
             ),
             onChanged: (_) => setState(() {}),
           ),
+          // Image preview
+          if (_imagePath != null) ...[
+            const SizedBox(height: 8),
+            _buildImagePreview(theme),
+          ],
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -102,8 +116,89 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
     );
   }
 
+  Widget _buildToolbar(ThemeData theme) {
+    return Row(
+      children: [
+        // Markdown toggle
+        FilterChip(
+          selected: _isMarkdown,
+          label: const Text('Markdown'),
+          avatar: Icon(
+            Icons.text_format,
+            size: 18,
+            color: _isMarkdown
+                ? theme.colorScheme.onPrimary
+                : theme.iconTheme.color,
+          ),
+          onSelected: (val) => setState(() => _isMarkdown = val),
+          selectedColor: theme.colorScheme.primary,
+          labelStyle: TextStyle(
+            color: _isMarkdown
+                ? theme.colorScheme.onPrimary
+                : theme.textTheme.bodyMedium?.color,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Image picker
+        ActionChip(
+          label: Text(
+            _imagePath != null ? 'Change Image' : 'Add Image',
+            style: const TextStyle(fontSize: 12),
+          ),
+          avatar: const Icon(Icons.image_outlined, size: 18),
+          onPressed: _pickImage,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImagePreview(ThemeData theme) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.file(
+            File(_imagePath!),
+            height: 120,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned(
+          top: 4,
+          right: 4,
+          child: GestureDetector(
+            onTap: () => setState(() => _imagePath = null),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, size: 16, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   bool get _canSubmit =>
       !_isSubmitting && _controller.text.trim().isNotEmpty;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+    if (picked != null && mounted) {
+      setState(() => _imagePath = picked.path);
+    }
+  }
 
   Future<void> _submit() async {
     final content = _controller.text.trim();
@@ -112,7 +207,11 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
     setState(() => _isSubmitting = true);
 
     final success =
-        await ref.read(communityFeedProvider.notifier).createPost(content);
+        await ref.read(communityFeedProvider.notifier).createPost(
+              content: content,
+              contentFormat: _isMarkdown ? 'markdown' : 'plain',
+              imagePath: _imagePath,
+            );
 
     if (!mounted) return;
     setState(() => _isSubmitting = false);
