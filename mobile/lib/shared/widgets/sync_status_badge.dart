@@ -1,16 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// The sync state of a locally-saved item.
-enum SyncItemStatus {
-  /// Saved locally, waiting to be synced.
-  pending,
-
-  /// Currently being synced to the server.
-  syncing,
-
-  /// Failed to sync after retries.
-  failed,
-}
+import '../../core/services/sync_status.dart';
 
 /// A small badge overlay indicating the sync status of an item.
 ///
@@ -43,6 +33,13 @@ class SyncStatusBadge extends StatelessWidget {
           icon: Icons.cloud_upload,
           size: 12,
           color: Color(0xFF3B82F6), // Blue
+        );
+      case SyncItemStatus.synced:
+        // Synced items typically don't show a badge; render nothing.
+        return const Icon(
+          Icons.cloud_done,
+          size: 12,
+          color: Color(0xFF22C55E), // Green
         );
       case SyncItemStatus.failed:
         return const Icon(

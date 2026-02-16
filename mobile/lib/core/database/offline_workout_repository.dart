@@ -1,12 +1,16 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:sqlite3/sqlite3.dart' show SqliteException;
 import 'package:uuid/uuid.dart';
 
 import '../../features/workout_log/data/models/workout_models.dart';
 import '../../features/workout_log/data/repositories/workout_repository.dart';
 import '../services/connectivity_service.dart';
+import '../services/sync_status.dart';
 import 'app_database.dart';
+import 'offline_save_result.dart';
 
 const _uuid = Uuid();
 
@@ -30,8 +34,12 @@ class OfflineWorkoutRepository {
         _userId = userId;
 
   /// Submit a post-workout survey. Falls back to local save if offline.
-  /// Returns a map with 'success', 'offline' (bool), and optionally 'error'.
-  Future<Map<String, dynamic>> submitPostWorkoutSurvey({
+  ///
+  /// [clientId] must be generated once at the call site and reused on retry.
+  /// This enables idempotency: if the same workout submission is attempted
+  /// twice (e.g., connectivity flickers), the duplicate is caught.
+  Future<OfflineSaveResult> submitPostWorkoutSurvey({
+    required String clientId,
     required Map<String, dynamic> workoutSummary,
     required Map<String, dynamic> surveyData,
     Map<String, dynamic>? readinessSurvey,
@@ -44,41 +52,43 @@ class OfflineWorkoutRepository {
           readinessSurvey: readinessSurvey,
         );
         if (result['success'] == true) {
-          return {'success': true, 'offline': false};
+          return const OfflineSaveResult.onlineSuccess();
         }
-        // If it failed for a non-network reason, return the error
-        return {'success': false, 'offline': false, 'error': result['error']};
+        return OfflineSaveResult.failure(
+          result['error']?.toString() ?? 'Failed to save workout',
+        );
       } on DioException catch (e) {
         if (_isNetworkError(e)) {
           return _saveWorkoutLocally(
+            clientId: clientId,
             workoutSummary: workoutSummary,
             surveyData: surveyData,
             readinessSurvey: readinessSurvey,
           );
         }
-        return {'success': false, 'offline': false, 'error': e.message};
+        return OfflineSaveResult.failure(e.message ?? 'Network error');
       }
     }
 
     return _saveWorkoutLocally(
+      clientId: clientId,
       workoutSummary: workoutSummary,
       surveyData: surveyData,
       readinessSurvey: readinessSurvey,
     );
   }
 
-  Future<Map<String, dynamic>> _saveWorkoutLocally({
+  Future<OfflineSaveResult> _saveWorkoutLocally({
+    required String clientId,
     required Map<String, dynamic> workoutSummary,
     required Map<String, dynamic> surveyData,
     Map<String, dynamic>? readinessSurvey,
   }) async {
-    final clientId = _uuid.v4();
-
-    // Check for duplicate
+    // Idempotency check: if this clientId already exists, it's a duplicate
     final alreadyExists =
         await _db.syncQueueDao.existsByClientId(clientId);
     if (alreadyExists) {
-      return {'success': true, 'offline': true};
+      return const OfflineSaveResult.offlineSuccess();
     }
 
     final payload = {
@@ -87,35 +97,50 @@ class OfflineWorkoutRepository {
       'readiness_survey': readinessSurvey,
     };
 
-    await _db.workoutCacheDao.insertPendingWorkout(
-      clientId: clientId,
-      userId: _userId,
-      workoutSummaryJson: jsonEncode(workoutSummary),
-      surveyDataJson: jsonEncode(surveyData),
-      readinessSurveyJson:
-          readinessSurvey != null ? jsonEncode(readinessSurvey) : null,
-    );
+    try {
+      await _db.workoutCacheDao.insertPendingWorkout(
+        clientId: clientId,
+        userId: _userId,
+        workoutSummaryJson: jsonEncode(workoutSummary),
+        surveyDataJson: jsonEncode(surveyData),
+        readinessSurveyJson:
+            readinessSurvey != null ? jsonEncode(readinessSurvey) : null,
+      );
 
-    await _db.syncQueueDao.insertItem(
-      clientId: clientId,
-      userId: _userId,
-      operationType: 'workout_log',
-      payloadJson: jsonEncode(payload),
-    );
+      await _db.syncQueueDao.insertItem(
+        clientId: clientId,
+        userId: _userId,
+        operationType: SyncOperationType.workoutLog.value,
+        payloadJson: jsonEncode(payload),
+      );
 
-    return {'success': true, 'offline': true};
+      return const OfflineSaveResult.offlineSuccess();
+    } on SqliteException catch (e) {
+      if (e.toString().contains('full')) {
+        return const OfflineSaveResult.failure(
+          'Device storage is full. Free up space to save workout data.',
+        );
+      }
+      rethrow;
+    }
   }
 
   /// Submit a readiness survey. Falls back to local queue if offline.
-  Future<Map<String, dynamic>> submitReadinessSurvey({
+  Future<OfflineSaveResult> submitReadinessSurvey({
     required String workoutName,
     required Map<String, dynamic> surveyData,
   }) async {
     if (_connectivityService.isOnline) {
       try {
-        return await _onlineRepo.submitReadinessSurvey(
+        final result = await _onlineRepo.submitReadinessSurvey(
           workoutName: workoutName,
           surveyData: surveyData,
+        );
+        if (result['success'] == true) {
+          return const OfflineSaveResult.onlineSuccess();
+        }
+        return OfflineSaveResult.failure(
+          result['error']?.toString() ?? 'Failed to save survey',
         );
       } on DioException catch (e) {
         if (_isNetworkError(e)) {
@@ -124,7 +149,7 @@ class OfflineWorkoutRepository {
             surveyData: surveyData,
           );
         }
-        return {'success': false, 'error': e.message};
+        return OfflineSaveResult.failure(e.message ?? 'Network error');
       }
     }
 
@@ -134,7 +159,7 @@ class OfflineWorkoutRepository {
     );
   }
 
-  Future<Map<String, dynamic>> _saveReadinessSurveyLocally({
+  Future<OfflineSaveResult> _saveReadinessSurveyLocally({
     required String workoutName,
     required Map<String, dynamic> surveyData,
   }) async {
@@ -144,14 +169,23 @@ class OfflineWorkoutRepository {
       'survey_data': surveyData,
     };
 
-    await _db.syncQueueDao.insertItem(
-      clientId: clientId,
-      userId: _userId,
-      operationType: 'readiness_survey',
-      payloadJson: jsonEncode(payload),
-    );
+    try {
+      await _db.syncQueueDao.insertItem(
+        clientId: clientId,
+        userId: _userId,
+        operationType: SyncOperationType.readinessSurvey.value,
+        payloadJson: jsonEncode(payload),
+      );
 
-    return {'success': true, 'offline': true};
+      return const OfflineSaveResult.offlineSuccess();
+    } on SqliteException catch (e) {
+      if (e.toString().contains('full')) {
+        return const OfflineSaveResult.failure(
+          'Device storage is full. Free up space to save data.',
+        );
+      }
+      rethrow;
+    }
   }
 
   /// Get programs with offline cache fallback.
@@ -261,6 +295,6 @@ class OfflineWorkoutRepository {
         e.type == DioExceptionType.sendTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.connectionError ||
-        e.type == DioExceptionType.unknown;
+        (e.type == DioExceptionType.unknown && e.error is SocketException);
   }
 }

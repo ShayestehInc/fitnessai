@@ -1,11 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:sqlite3/sqlite3.dart' show SqliteException;
 import 'package:uuid/uuid.dart';
 
 import '../../features/logging/data/repositories/logging_repository.dart';
 import '../services/connectivity_service.dart';
+import '../services/sync_status.dart';
 import 'app_database.dart';
+import 'offline_save_result.dart';
 
 const _uuid = Uuid();
 
@@ -29,7 +33,7 @@ class OfflineNutritionRepository {
 
   /// Confirm and save parsed nutrition data.
   /// Falls back to local save when offline.
-  Future<Map<String, dynamic>> confirmAndSave(
+  Future<OfflineSaveResult> confirmAndSave(
     Map<String, dynamic> parsedData, {
     String? date,
   }) async {
@@ -38,25 +42,23 @@ class OfflineNutritionRepository {
         final result =
             await _onlineRepo.confirmAndSave(parsedData, date: date);
         if (result['success'] == true) {
-          return {'success': true, 'offline': false};
+          return const OfflineSaveResult.onlineSuccess();
         }
-        return {
-          'success': false,
-          'offline': false,
-          'error': result['error'],
-        };
+        return OfflineSaveResult.failure(
+          result['error']?.toString() ?? 'Failed to save nutrition',
+        );
       } on DioException catch (e) {
         if (_isNetworkError(e)) {
           return _saveNutritionLocally(parsedData, date);
         }
-        return {'success': false, 'offline': false, 'error': e.message};
+        return OfflineSaveResult.failure(e.message ?? 'Network error');
       }
     }
 
     return _saveNutritionLocally(parsedData, date);
   }
 
-  Future<Map<String, dynamic>> _saveNutritionLocally(
+  Future<OfflineSaveResult> _saveNutritionLocally(
     Map<String, dynamic> parsedData,
     String? date,
   ) async {
@@ -68,21 +70,30 @@ class OfflineNutritionRepository {
       'date': targetDate,
     };
 
-    await _db.nutritionCacheDao.insertPendingNutrition(
-      clientId: clientId,
-      userId: _userId,
-      parsedDataJson: jsonEncode(parsedData),
-      targetDate: targetDate,
-    );
+    try {
+      await _db.nutritionCacheDao.insertPendingNutrition(
+        clientId: clientId,
+        userId: _userId,
+        parsedDataJson: jsonEncode(parsedData),
+        targetDate: targetDate,
+      );
 
-    await _db.syncQueueDao.insertItem(
-      clientId: clientId,
-      userId: _userId,
-      operationType: 'nutrition_log',
-      payloadJson: jsonEncode(payload),
-    );
+      await _db.syncQueueDao.insertItem(
+        clientId: clientId,
+        userId: _userId,
+        operationType: SyncOperationType.nutritionLog.value,
+        payloadJson: jsonEncode(payload),
+      );
 
-    return {'success': true, 'offline': true};
+      return const OfflineSaveResult.offlineSuccess();
+    } on SqliteException catch (e) {
+      if (e.toString().contains('full')) {
+        return const OfflineSaveResult.failure(
+          'Device storage is full. Free up space to save your data.',
+        );
+      }
+      rethrow;
+    }
   }
 
   String _todayDate() {
@@ -96,6 +107,6 @@ class OfflineNutritionRepository {
         e.type == DioExceptionType.sendTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.connectionError ||
-        e.type == DioExceptionType.unknown;
+        (e.type == DioExceptionType.unknown && e.error is SocketException);
   }
 }

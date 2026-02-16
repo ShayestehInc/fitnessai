@@ -32,6 +32,7 @@ class SyncService {
 
   StreamSubscription<ConnectivityStatus>? _connectivitySubscription;
   bool _isSyncing = false;
+  bool _pendingRestart = false;
   bool _disposed = false;
 
   SyncService({
@@ -61,7 +62,11 @@ class SyncService {
   void _onConnectivityChanged(ConnectivityStatus status) {
     if (_disposed) return;
     if (status == ConnectivityStatus.online) {
-      _processQueue();
+      if (_isSyncing) {
+        _pendingRestart = true;
+      } else {
+        _processQueue();
+      }
     }
   }
 
@@ -69,6 +74,7 @@ class SyncService {
   Future<void> _processQueue() async {
     if (_isSyncing || _disposed) return;
     _isSyncing = true;
+    _pendingRestart = false;
 
     try {
       // Count total pending items for progress display
@@ -102,19 +108,19 @@ class SyncService {
 
       // After processing, check for failures
       if (!_disposed) {
-        final failedCount =
-            await _db.syncQueueDao.getUnsyncedCount(_userId);
+        final failedItems =
+            await _db.syncQueueDao.getFailedItems(_userId);
         final pendingCount =
             await _db.syncQueueDao.getPendingCount(_userId);
 
-        if (pendingCount == 0 && failedCount == 0 && processedCount > 0) {
+        if (pendingCount == 0 && failedItems.isEmpty && processedCount > 0) {
           _statusController.add(const SyncStatus(
             state: SyncState.allSynced,
           ));
-        } else if (failedCount > 0) {
+        } else if (failedItems.isNotEmpty) {
           _statusController.add(SyncStatus(
             state: SyncState.hasFailed,
-            failedCount: failedCount,
+            failedCount: failedItems.length,
           ));
         } else {
           _emitIdle();
@@ -122,6 +128,12 @@ class SyncService {
       }
     } finally {
       _isSyncing = false;
+      // If new items were queued or connectivity changed while we were syncing,
+      // re-process the queue to pick them up.
+      if (_pendingRestart && !_disposed && _connectivityService.isOnline) {
+        _pendingRestart = false;
+        _processQueue();
+      }
     }
   }
 
@@ -132,31 +144,47 @@ class SyncService {
     try {
       final payload =
           jsonDecode(item.payloadJson) as Map<String, dynamic>;
+      final operationType = SyncOperationType.fromString(item.operationType);
 
-      switch (item.operationType) {
-        case 'workout_log':
+      switch (operationType) {
+        case SyncOperationType.workoutLog:
           await _syncWorkoutLog(payload, item.clientId);
-        case 'nutrition_log':
+        case SyncOperationType.nutritionLog:
           await _syncNutritionLog(payload, item.clientId);
-        case 'weight_checkin':
+        case SyncOperationType.weightCheckin:
           await _syncWeightCheckin(payload, item.clientId);
-        case 'readiness_survey':
+        case SyncOperationType.readinessSurvey:
           await _syncReadinessSurvey(payload);
-        default:
-          throw StateError(
-              'Unknown operation type: ${item.operationType}');
       }
 
       // Success: mark synced and clean up local pending data
       await _db.syncQueueDao.markSynced(item.id);
-      await _cleanupLocalData(item.operationType, item.clientId);
+      await _cleanupLocalData(
+        SyncOperationType.fromString(item.operationType),
+        item.clientId,
+      );
     } on DioException catch (e) {
       await _handleSyncError(item, e);
-    } catch (e) {
+    } on FormatException {
+      // Corrupt payload JSON -- mark permanently failed, no retry.
       await _db.syncQueueDao.markFailed(
         item.id,
-        e.toString(),
-        item.retryCount,
+        'Data is corrupted and cannot be synced.',
+        _maxRetries,
+      );
+    } on ArgumentError {
+      // Unknown operation type -- mark permanently failed, no retry.
+      await _db.syncQueueDao.markFailed(
+        item.id,
+        'Unknown operation type. This item cannot be synced.',
+        _maxRetries,
+      );
+    } catch (e) {
+      // Any other unexpected error -- mark permanently failed.
+      await _db.syncQueueDao.markFailed(
+        item.id,
+        'An unexpected error occurred. Please try again later.',
+        _maxRetries,
       );
     }
   }
@@ -247,11 +275,13 @@ class SyncService {
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.connectionError;
 
-    if (isRetryable && item.retryCount < _maxRetries - 1) {
-      // Set back to pending with incremented retry count
+    if (isRetryable && item.retryCount + 1 < _maxRetries) {
+      // markFailed increments retryCount by 1, so the stored value becomes
+      // item.retryCount + 1. We check item.retryCount + 1 < _maxRetries
+      // to allow exactly 3 retry attempts (retryCount 0, 1, 2).
       await _db.syncQueueDao.markFailed(
         item.id,
-        e.message ?? 'Network error',
+        _getUserFriendlyNetworkError(e),
         item.retryCount,
       );
       // Reset to pending so it gets picked up again
@@ -263,37 +293,76 @@ class SyncService {
       await Future.delayed(_retryDelays[delayIndex]);
     } else {
       // Max retries reached, mark as permanently failed
-      final errorMsg = e.response?.data?['error']?.toString() ??
-          e.message ??
-          'Sync failed after $_maxRetries attempts';
+      final errorMsg = _getUserFriendlyErrorMessage(e);
       await _db.syncQueueDao.markFailed(item.id, errorMsg, item.retryCount);
     }
   }
 
-  String _getConflictMessage(String operationType) {
-    switch (operationType) {
-      case 'workout_log':
-        return 'Program was updated by your trainer. Please review.';
-      case 'nutrition_log':
-        return 'Nutrition data was updated. Please review.';
+  /// Map a DioException to a user-friendly network error message.
+  String _getUserFriendlyNetworkError(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 'Connection timed out. Will retry automatically.';
+      case DioExceptionType.connectionError:
+        return 'Unable to reach the server. Will retry automatically.';
       default:
-        return 'Data conflict detected. Please review.';
+        return 'Network error. Will retry automatically.';
+    }
+  }
+
+  /// Map a DioException to a user-friendly final error message.
+  String _getUserFriendlyErrorMessage(DioException e) {
+    final statusCode = e.response?.statusCode;
+    if (statusCode != null && statusCode >= 500) {
+      return 'Server error. Please try again later.';
+    }
+    if (statusCode == 400) {
+      return 'Invalid data. Please review and try again.';
+    }
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 'Connection timed out after multiple attempts.';
+      case DioExceptionType.connectionError:
+        return 'Unable to reach the server after multiple attempts.';
+      default:
+        return 'Sync failed after $_maxRetries attempts.';
+    }
+  }
+
+  String _getConflictMessage(String operationType) {
+    try {
+      final type = SyncOperationType.fromString(operationType);
+      switch (type) {
+        case SyncOperationType.workoutLog:
+          return 'Program was updated by your trainer. Please review.';
+        case SyncOperationType.nutritionLog:
+          return 'Nutrition data was updated. Please review.';
+        case SyncOperationType.weightCheckin:
+        case SyncOperationType.readinessSurvey:
+          return 'Data conflict detected. Please review.';
+      }
+    } on ArgumentError {
+      return 'Data conflict detected. Please review.';
     }
   }
 
   /// Clean up local pending data after successful sync.
   Future<void> _cleanupLocalData(
-    String operationType,
+    SyncOperationType operationType,
     String clientId,
   ) async {
     switch (operationType) {
-      case 'workout_log':
+      case SyncOperationType.workoutLog:
         await _db.workoutCacheDao.deleteByClientId(clientId);
-      case 'nutrition_log':
+      case SyncOperationType.nutritionLog:
         await _db.nutritionCacheDao.deleteNutritionByClientId(clientId);
-      case 'weight_checkin':
+      case SyncOperationType.weightCheckin:
         await _db.nutritionCacheDao.deleteWeightByClientId(clientId);
-      case 'readiness_survey':
+      case SyncOperationType.readinessSurvey:
         // No local data to clean up for readiness surveys
         break;
     }
@@ -308,7 +377,11 @@ class SyncService {
   /// Manually trigger a sync attempt (e.g., from pull-to-refresh).
   Future<void> triggerSync() async {
     if (_connectivityService.isOnline) {
-      await _processQueue();
+      if (_isSyncing) {
+        _pendingRestart = true;
+      } else {
+        await _processQueue();
+      }
     }
   }
 

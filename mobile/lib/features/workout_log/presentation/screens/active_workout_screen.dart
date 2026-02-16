@@ -2,11 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/database/offline_workout_repository.dart';
-import '../../../../core/providers/database_provider.dart';
-import '../../../../core/providers/connectivity_provider.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/providers/sync_provider.dart';
-import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/classic_workout_layout.dart';
 import '../widgets/minimal_workout_layout.dart';
@@ -409,22 +406,14 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     );
   }
 
-  OfflineWorkoutRepository _getOfflineRepo() {
-    final onlineRepo = ref.read(workoutRepositoryProvider);
-    final db = ref.read(databaseProvider);
-    final connectivity = ref.read(connectivityServiceProvider);
-    final userId = ref.read(authStateProvider).user?.id ?? 0;
-
-    return OfflineWorkoutRepository(
-      onlineRepo: onlineRepo,
-      db: db,
-      connectivityService: connectivity,
-      userId: userId,
-    );
-  }
+  /// Client ID generated once per workout submission for idempotency.
+  /// If the same submission is retried (e.g., connectivity flickers),
+  /// the same clientId is sent, and the duplicate is caught.
+  late final String _workoutClientId = const Uuid().v4();
 
   Future<void> _submitReadinessSurvey(ReadinessSurveyData data) async {
-    final offlineRepo = _getOfflineRepo();
+    final offlineRepo = ref.read(offlineWorkoutRepositoryProvider);
+    if (offlineRepo == null) return;
     await offlineRepo.submitReadinessSurvey(
       workoutName: widget.workout.name,
       surveyData: data.toJson(),
@@ -432,7 +421,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   Future<void> _submitPostWorkoutSurvey(PostWorkoutSurveyData data) async {
-    final offlineRepo = _getOfflineRepo();
+    final offlineRepo = ref.read(offlineWorkoutRepositoryProvider);
+    if (offlineRepo == null) return;
 
     // Prepare workout summary
     final workoutSummary = {
@@ -450,13 +440,14 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     };
 
     final result = await offlineRepo.submitPostWorkoutSurvey(
+      clientId: _workoutClientId,
       workoutSummary: workoutSummary,
       surveyData: data.toJson(),
       readinessSurvey: _readinessSurveyData?.toJson(),
     );
 
     // If saved offline, show a snackbar to inform the user
-    if (result['offline'] == true && mounted) {
+    if (result.offline && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Row(

@@ -11,21 +11,25 @@ class ProgramCacheDao extends DatabaseAccessor<AppDatabase>
 
   /// Save or update cached programs for a user.
   /// Overwrites any existing cache entry for this user.
+  /// Wrapped in a transaction for atomicity: if the app crashes between
+  /// delete and insert, no data is lost.
   Future<void> cachePrograms({
     required int userId,
     required String programsJson,
   }) async {
-    // Delete existing cache for this user first (overwrite, not append)
-    await (delete(cachedPrograms)
-          ..where((t) => t.userId.equals(userId)))
-        .go();
+    await transaction(() async {
+      // Delete existing cache for this user first (overwrite, not append)
+      await (delete(cachedPrograms)
+            ..where((t) => t.userId.equals(userId)))
+          .go();
 
-    await into(cachedPrograms).insert(
-      CachedProgramsCompanion.insert(
-        userId: userId,
-        programsJson: programsJson,
-      ),
-    );
+      await into(cachedPrograms).insert(
+        CachedProgramsCompanion.insert(
+          userId: userId,
+          programsJson: programsJson,
+        ),
+      );
+    });
   }
 
   /// Get cached programs for a user. Returns null if no cache exists.

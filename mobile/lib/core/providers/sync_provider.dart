@@ -1,5 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/nutrition/presentation/providers/nutrition_provider.dart';
+import '../../features/workout_log/presentation/providers/workout_provider.dart';
+import '../database/offline_workout_repository.dart';
+import '../database/offline_weight_repository.dart';
 import '../services/sync_service.dart';
 import '../services/sync_status.dart';
 import 'connectivity_provider.dart';
@@ -66,4 +70,44 @@ final unsyncedCountProvider = FutureProvider<int>((ref) async {
 
   final db = ref.watch(databaseProvider);
   return db.syncQueueDao.getUnsyncedCount(user.id);
+});
+
+/// Provides an [OfflineWorkoutRepository] for the current user.
+/// Returns null if the user is not logged in.
+final offlineWorkoutRepositoryProvider =
+    Provider<OfflineWorkoutRepository?>((ref) {
+  final authState = ref.watch(authStateProvider);
+  final user = authState.user;
+  if (user == null) return null;
+
+  final onlineRepo = ref.watch(workoutRepositoryProvider);
+  final db = ref.watch(databaseProvider);
+  final connectivity = ref.watch(connectivityServiceProvider);
+
+  return OfflineWorkoutRepository(
+    onlineRepo: onlineRepo,
+    db: db,
+    connectivityService: connectivity,
+    userId: user.id,
+  );
+});
+
+/// Provides an [OfflineWeightRepository] for the current user.
+/// Returns null if the user is not logged in.
+final offlineWeightRepositoryProvider =
+    Provider<OfflineWeightRepository?>((ref) {
+  final authState = ref.watch(authStateProvider);
+  final user = authState.user;
+  if (user == null) return null;
+
+  final onlineRepo = ref.watch(nutritionRepositoryProvider);
+  final db = ref.watch(databaseProvider);
+  final connectivity = ref.watch(connectivityServiceProvider);
+
+  return OfflineWeightRepository(
+    onlineRepo: onlineRepo,
+    db: db,
+    connectivityService: connectivity,
+    userId: user.id,
+  );
 });

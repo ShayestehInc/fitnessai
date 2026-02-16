@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/providers/database_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -729,6 +730,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
 
       if (confirmed != true || !mounted) return;
+
+      // Clear local database for this user before logging out
+      final db = ref.read(databaseProvider);
+      final userId = ref.read(authStateProvider).user?.id;
+      if (userId != null) {
+        await db.clearUserData(userId);
+      }
     }
 
     await ref.read(authStateProvider.notifier).logout();

@@ -2,10 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/connectivity_service.dart';
 
 /// Provides the ConnectivityService singleton.
+/// Must be overridden in ProviderScope at app startup.
 final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
-  final service = ConnectivityService();
-  ref.onDispose(() => service.dispose());
-  return service;
+  throw UnimplementedError(
+    'connectivityServiceProvider must be overridden in ProviderScope',
+  );
 });
 
 /// Streams the current connectivity status for widgets to consume.

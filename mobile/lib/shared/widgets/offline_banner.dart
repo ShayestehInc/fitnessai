@@ -7,6 +7,7 @@ import '../../core/providers/connectivity_provider.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/services/connectivity_service.dart';
 import '../../core/services/sync_status.dart';
+import 'failed_sync_sheet.dart';
 
 /// A thin persistent banner that shows connectivity and sync state.
 ///
@@ -23,9 +24,12 @@ class OfflineBanner extends ConsumerStatefulWidget {
   ConsumerState<OfflineBanner> createState() => _OfflineBannerState();
 }
 
-class _OfflineBannerState extends ConsumerState<OfflineBanner>
-    with SingleTickerProviderStateMixin {
+enum _BannerState { offline, syncing, allSynced, failed, hidden }
+
+class _OfflineBannerState extends ConsumerState<OfflineBanner> {
   _BannerState _currentState = _BannerState.hidden;
+  SyncStatus _lastSyncStatus = const SyncStatus.idle();
+  int _lastFailedCount = 0;
   Timer? _dismissTimer;
 
   @override
@@ -36,6 +40,28 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner>
 
   @override
   Widget build(BuildContext context) {
+    // Use ref.listen for side-effects (timers, state transitions)
+    // instead of computing state inside build with setState.
+    ref.listen<AsyncValue<ConnectivityStatus>>(
+      connectivityStatusProvider,
+      (_, next) => _recalculateBannerState(),
+    );
+    ref.listen<AsyncValue<SyncStatus>>(
+      syncStatusProvider,
+      (_, next) {
+        _lastSyncStatus = next.valueOrNull ?? const SyncStatus.idle();
+        _recalculateBannerState();
+      },
+    );
+    ref.listen<AsyncValue<int>>(
+      failedSyncCountProvider,
+      (_, next) {
+        _lastFailedCount = next.valueOrNull ?? 0;
+        _recalculateBannerState();
+      },
+    );
+
+    // Initial computation on first build
     final connectivityAsync = ref.watch(connectivityStatusProvider);
     final syncAsync = ref.watch(syncStatusProvider);
     final failedCountAsync = ref.watch(failedSyncCountProvider);
@@ -46,32 +72,38 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner>
       error: (_, __) => false,
     );
 
-    final syncStatus = syncAsync.when(
+    _lastSyncStatus = syncAsync.when(
       data: (s) => s,
       loading: () => const SyncStatus.idle(),
       error: (_, __) => const SyncStatus.idle(),
     );
 
-    final failedCount = failedCountAsync.when(
+    _lastFailedCount = failedCountAsync.when(
       data: (c) => c,
       loading: () => 0,
       error: (_, __) => 0,
     );
 
-    // Determine banner state
-    final newState = _determineBannerState(isOffline, syncStatus, failedCount);
+    // Compute the desired state without side-effects
+    final desiredState =
+        _determineBannerState(isOffline, _lastSyncStatus, _lastFailedCount);
 
-    // Handle auto-dismiss for "all synced"
-    if (newState != _currentState) {
-      _dismissTimer?.cancel();
-      if (newState == _BannerState.allSynced) {
-        _dismissTimer = Timer(const Duration(seconds: 3), () {
-          if (mounted) {
-            setState(() => _currentState = _BannerState.hidden);
-          }
-        });
-      }
-      _currentState = newState;
+    // Only update _currentState if it actually changed
+    // (avoids infinite rebuild loops)
+    if (desiredState != _currentState &&
+        desiredState != _BannerState.hidden) {
+      // Schedule the state update for after this build frame
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _updateBannerState(desiredState);
+      });
+    } else if (desiredState == _BannerState.hidden &&
+        _currentState != _BannerState.allSynced &&
+        _currentState != _BannerState.hidden) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _updateBannerState(_BannerState.hidden);
+      });
     }
 
     if (_currentState == _BannerState.hidden) {
@@ -80,7 +112,8 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner>
 
     return Semantics(
       liveRegion: true,
-      label: _semanticsLabel(_currentState, syncStatus, failedCount),
+      label: _semanticsLabel(
+          _currentState, _lastSyncStatus, _lastFailedCount),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         transitionBuilder: (child, animation) {
@@ -92,9 +125,39 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner>
             child: FadeTransition(opacity: animation, child: child),
           );
         },
-        child: _buildBanner(context, syncStatus, failedCount),
+        child: _buildBanner(context, _lastSyncStatus, _lastFailedCount),
       ),
     );
+  }
+
+  void _recalculateBannerState() {
+    if (!mounted) return;
+    final connectivityAsync = ref.read(connectivityStatusProvider);
+    final isOffline = connectivityAsync.when(
+      data: (s) => s == ConnectivityStatus.offline,
+      loading: () => false,
+      error: (_, __) => false,
+    );
+
+    final newState =
+        _determineBannerState(isOffline, _lastSyncStatus, _lastFailedCount);
+    _updateBannerState(newState);
+  }
+
+  void _updateBannerState(_BannerState newState) {
+    if (newState == _currentState) return;
+
+    _dismissTimer?.cancel();
+
+    if (newState == _BannerState.allSynced) {
+      _dismissTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() => _currentState = _BannerState.hidden);
+        }
+      });
+    }
+
+    setState(() => _currentState = newState);
   }
 
   _BannerState _determineBannerState(
@@ -167,7 +230,7 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const _FailedSyncSheetContent(),
+      builder: (_) => const FailedSyncSheet(),
     );
   }
 
@@ -190,8 +253,6 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner>
     }
   }
 }
-
-enum _BannerState { offline, syncing, allSynced, failed, hidden }
 
 /// The actual banner row content.
 class _BannerContent extends StatelessWidget {
@@ -246,114 +307,6 @@ class _BannerContent extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-/// Bottom sheet showing failed sync items with retry/delete actions.
-class _FailedSyncSheetContent extends ConsumerWidget {
-  const _FailedSyncSheetContent();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final failedCount = ref.watch(failedSyncCountProvider);
-    final syncService = ref.watch(syncServiceProvider);
-    final theme = Theme.of(context);
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.5,
-      maxChildSize: 0.9,
-      minChildSize: 0.3,
-      expand: false,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: theme.scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(16),
-            ),
-          ),
-          child: Column(
-            children: [
-              // Handle
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: theme.dividerColor,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              // Title
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Failed Sync Items',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        syncService?.triggerSync();
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text('Retry All'),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(),
-              // Content
-              Expanded(
-                child: failedCount.when(
-                  data: (count) {
-                    if (count == 0) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              size: 48,
-                              color: theme.colorScheme.primary,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No failed items',
-                              style: theme.textTheme.bodyLarge,
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    return ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        Text(
-                          '$count item${count == 1 ? '' : 's'} failed to sync. '
-                          'Tap "Retry All" to attempt syncing again.',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
-                    );
-                  },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(
-                    child: Text('Error: $e'),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

@@ -144,26 +144,32 @@ class LoggingNotifier extends StateNotifier<LoggingState> {
       'needs_clarification': state.parsedData!.needsClarification,
     };
 
-    Map<String, dynamic> result;
-    bool savedOffline = false;
-
     final offlineRepo = _offlineNutritionRepo;
     if (offlineRepo != null) {
-      result = await offlineRepo.confirmAndSave(parsedJson, date: date);
-      savedOffline = result['offline'] == true;
+      final offlineResult =
+          await offlineRepo.confirmAndSave(parsedJson, date: date);
+      if (offlineResult.success) {
+        state = LoggingState(savedOffline: offlineResult.offline);
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: offlineResult.error,
+        );
+        return false;
+      }
     } else {
-      result = await _repository.confirmAndSave(parsedJson, date: date);
-    }
-
-    if (result['success'] == true) {
-      state = LoggingState(savedOffline: savedOffline);
-      return true;
-    } else {
-      state = state.copyWith(
-        isSaving: false,
-        error: result['error'] as String?,
-      );
-      return false;
+      final result = await _repository.confirmAndSave(parsedJson, date: date);
+      if (result['success'] == true) {
+        state = LoggingState();
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: result['error'] as String?,
+        );
+        return false;
+      }
     }
   }
 
@@ -204,26 +210,32 @@ class LoggingNotifier extends StateNotifier<LoggingState> {
       'needs_clarification': false,
     };
 
-    Map<String, dynamic> result;
-    bool savedOffline = false;
-
     final offlineRepo = _offlineNutritionRepo;
     if (offlineRepo != null) {
-      result = await offlineRepo.confirmAndSave(parsedJson, date: date);
-      savedOffline = result['offline'] == true;
+      final offlineResult =
+          await offlineRepo.confirmAndSave(parsedJson, date: date);
+      if (offlineResult.success) {
+        state = LoggingState(savedOffline: offlineResult.offline);
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: offlineResult.error,
+        );
+        return false;
+      }
     } else {
-      result = await _repository.confirmAndSave(parsedJson, date: date);
-    }
-
-    if (result['success'] == true) {
-      state = LoggingState(savedOffline: savedOffline);
-      return true;
-    } else {
-      state = state.copyWith(
-        isSaving: false,
-        error: result['error'] as String?,
-      );
-      return false;
+      final result = await _repository.confirmAndSave(parsedJson, date: date);
+      if (result['success'] == true) {
+        state = LoggingState();
+        return true;
+      } else {
+        state = state.copyWith(
+          isSaving: false,
+          error: result['error'] as String?,
+        );
+        return false;
+      }
     }
   }
 }

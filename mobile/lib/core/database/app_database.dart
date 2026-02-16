@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -37,9 +38,22 @@ class AppDatabase extends _$AppDatabase {
   /// Run startup cleanup tasks:
   /// - Delete synced items older than 24 hours
   /// - Delete stale program caches older than 30 days
+  ///
+  /// Cleanup failures are non-fatal: the app should launch even
+  /// if cleanup fails (e.g., corrupted DB, unexpected schema).
   Future<void> runStartupCleanup() async {
-    await syncQueueDao.deleteOldSynced(const Duration(hours: 24));
-    await programCacheDao.deleteStaleCache(const Duration(days: 30));
+    try {
+      await syncQueueDao.deleteOldSynced(const Duration(hours: 24));
+      await programCacheDao.deleteStaleCache(const Duration(days: 30));
+    } catch (e) {
+      // Startup cleanup is best-effort. Log the error but don't
+      // prevent the app from launching.
+      assert(() {
+        // Only in debug mode: surface the error during development
+        debugPrint('Startup cleanup failed: $e');
+        return true;
+      }());
+    }
   }
 
   /// Clear all data for a specific user (called on logout).

@@ -13,6 +13,46 @@ enum SyncState {
   hasFailed,
 }
 
+/// Type-safe enum for sync queue operation types.
+enum SyncOperationType {
+  workoutLog('workout_log'),
+  nutritionLog('nutrition_log'),
+  weightCheckin('weight_checkin'),
+  readinessSurvey('readiness_survey');
+
+  final String value;
+  const SyncOperationType(this.value);
+
+  /// Parse a raw string into a [SyncOperationType].
+  /// Throws [ArgumentError] if the string is not a valid operation type.
+  static SyncOperationType fromString(String raw) {
+    for (final type in values) {
+      if (type.value == raw) return type;
+    }
+    throw ArgumentError('Unknown SyncOperationType: $raw');
+  }
+}
+
+/// Type-safe enum for sync queue item status.
+enum SyncItemStatus {
+  pending('pending'),
+  syncing('syncing'),
+  synced('synced'),
+  failed('failed');
+
+  final String value;
+  const SyncItemStatus(this.value);
+
+  /// Parse a raw string into a [SyncItemStatus].
+  /// Throws [ArgumentError] if the string is not a valid status.
+  static SyncItemStatus fromString(String raw) {
+    for (final status in values) {
+      if (status.value == raw) return status;
+    }
+    throw ArgumentError('Unknown SyncItemStatus: $raw');
+  }
+}
+
 /// Detailed sync progress for the syncing banner.
 class SyncProgress {
   final int currentItem;
@@ -24,12 +64,23 @@ class SyncProgress {
   });
 
   String get displayText => 'Syncing $currentItem of $totalItems...';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncProgress &&
+          runtimeType == other.runtimeType &&
+          currentItem == other.currentItem &&
+          totalItems == other.totalItems;
+
+  @override
+  int get hashCode => Object.hash(currentItem, totalItems);
 }
 
 /// Represents a single failed sync item for the bottom sheet UI.
 class FailedSyncItem {
   final int id;
-  final String operationType;
+  final SyncOperationType operationType;
   final String description;
   final String errorMessage;
   final DateTime createdAt;
@@ -59,4 +110,16 @@ class SyncStatus {
       : state = SyncState.idle,
         progress = null,
         failedCount = 0;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncStatus &&
+          runtimeType == other.runtimeType &&
+          state == other.state &&
+          progress == other.progress &&
+          failedCount == other.failedCount;
+
+  @override
+  int get hashCode => Object.hash(state, progress, failedCount);
 }

@@ -31,6 +31,31 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
         child: Column(
           children: [
             const OfflineBanner(),
+            if (state.programsFromCache)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: theme.textTheme.bodySmall?.color,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Showing cached program. Some data may be outdated.',
+                        style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: state.isLoading && state.programWeeks.isEmpty
                   ? const Center(child: CircularProgressIndicator())

@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/database/offline_weight_repository.dart';
-import '../../../../core/providers/database_provider.dart';
-import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/nutrition_provider.dart';
 
 class WeightCheckInScreen extends ConsumerStatefulWidget {
@@ -235,18 +231,17 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
     // Convert to kg if using lbs
     final weightKg = _useMetric ? weight : weight * 0.453592;
 
-    final nutritionRepo = ref.read(nutritionRepositoryProvider);
-    final db = ref.read(databaseProvider);
-    final connectivity = ref.read(connectivityServiceProvider);
-    final userId = ref.read(authStateProvider).user?.id ?? 0;
-    final dateParam = ref.read(nutritionStateProvider).dateParam;
+    final offlineWeightRepo = ref.read(offlineWeightRepositoryProvider);
+    if (offlineWeightRepo == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please log in to save weight data.')),
+        );
+      }
+      return;
+    }
 
-    final offlineWeightRepo = OfflineWeightRepository(
-      onlineRepo: nutritionRepo,
-      db: db,
-      connectivityService: connectivity,
-      userId: userId,
-    );
+    final dateParam = ref.read(nutritionStateProvider).dateParam;
 
     final result = await offlineWeightRepo.createWeightCheckIn(
       date: dateParam,
@@ -256,8 +251,8 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
 
     if (!mounted) return;
 
-    if (result['success'] == true) {
-      if (result['offline'] == true) {
+    if (result.success) {
+      if (result.offline) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
@@ -279,7 +274,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
       context.pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['error']?.toString() ?? 'Failed to save')),
+        SnackBar(content: Text(result.error ?? 'Failed to save')),
       );
     }
   }
