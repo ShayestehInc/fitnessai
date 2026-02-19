@@ -4,6 +4,71 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-19] — Web Dashboard Full Parity + UI/UX Polish + E2E Tests (Pipeline 19)
+
+### Added
+- **Trainer Announcements (Web)** -- Full CRUD with pin sort, character counters, format toggle (plain/markdown), skeleton loading, empty state.
+- **Trainer AI Chat (Web)** -- Chat interface with trainee selector dropdown, suggestion chips, clear conversation dialog, AI provider availability check.
+- **Trainer Branding (Web)** -- Color pickers with 12 presets per field, hex input validation, logo upload/remove, live preview card, unsaved changes guard with beforeunload.
+- **Exercise Bank (Web)** -- Responsive card grid, debounced search (300ms), muscle group filter chips, create exercise dialog, exercise detail dialog.
+- **Program Assignment (Web)** -- Assign/change program dialog on trainee detail page with program dropdown.
+- **Edit Trainee Goals (Web)** -- 4 macro fields (protein, carbs, fat, calories) with min/max validation and inline error messages.
+- **Remove Trainee (Web)** -- Confirmation dialog requiring "REMOVE" text match before deletion.
+- **Subscription Management (Web)** -- Stripe Connect 3-state flow (not connected, setup incomplete, fully connected), plan overview card.
+- **Calendar Integration (Web)** -- Google auth popup, calendar connection cards, events list display.
+- **Layout Config (Web)** -- 3 radio-style layout options (classic/card/minimal) with optimistic update and rollback.
+- **Impersonation (Web)** -- Button + confirm dialog (partial -- full token swap deferred to backend integration).
+- **Mark Missed Day (Web)** -- Skip/push radio selection, date picker, program selector.
+- **Feature Requests (Web)** -- Vote toggle, status filters (all/open/planned/completed), create dialog with title/description, comment hooks.
+- **Leaderboard Settings (Web)** -- Toggle switches per metric_type/time_period combination with optimistic update.
+- **Admin Ambassador Management (Web)** -- Server-side search, full CRUD dialogs, commission rate editing, bulk approve/pay operations.
+- **Admin Upcoming Payments & Past Due (Web)** -- Lists with severity color coding (green/amber/red), reminder email button (stub).
+- **Admin Settings (Web)** -- Platform configuration, security notice, profile/appearance/security sections.
+- **Ambassador Dashboard (Web)** -- Earnings stat cards, referral code with clipboard copy, recent referrals list.
+- **Ambassador Referrals (Web)** -- Status filter (all/pending/active/churned), paginated list with status badges.
+- **Ambassador Payouts (Web)** -- Stripe Connect 3-state setup flow, payout history table with status badges.
+- **Ambassador Settings (Web)** -- Profile display, referral code edit with alphanumeric validation.
+- **Ambassador Auth & Routing (Web)** -- Middleware-based routing for AMBASSADOR role, `(ambassador-dashboard)` route group, layout with sidebar nav and auth guards.
+- **Login Page Redesign** -- Two-column layout with animated gradient background, floating fitness icons, framer-motion staggered text animation, feature pills, prefers-reduced-motion support.
+- **Page Transitions** -- PageTransition wrapper component with fade-up animation using framer-motion on all dashboard pages.
+- **Skeleton Loading** -- Content-shaped skeleton placeholders on all data pages (not generic spinners).
+- **Micro-Interactions** -- Button active:scale-95 press feedback, card-hover CSS utility with elevation transition, prefers-reduced-motion media query.
+- **Dashboard Trend Indicators** -- Extended StatCard with TrendingUp/TrendingDown icons and green/red coloring.
+- **Error States** -- ErrorState component with retry button deployed on all data-fetching pages.
+- **Empty States** -- EmptyState component with contextual icons and action CTAs on all list pages.
+- **Playwright E2E Test Suite** -- Configuration with 5 browser targets (Chromium, Firefox, WebKit, Mobile Chrome, Mobile Safari). 19 test files covering auth flows, trainer features (7), admin features (3), ambassador features (4), responsive behavior, error states, dark mode, and navigation. Test helpers: `loginAs()`, `logout()`, mock-api fixtures.
+
+### Fixed
+- **CRITICAL: LeaderboardSection type mismatch** -- Component referenced `setting.id`, `setting.metric`, `setting.label`, `setting.enabled` and `METRIC_DESCRIPTIONS` which did not exist on the `LeaderboardSetting` type from the hook. The hook returns `{ metric_type, time_period, is_enabled }` with no numeric `id`. Complete rewrite with composite key function (`metric_type:time_period`), display name helper, and correct mutation payload.
+- **CRITICAL: StripeConnectSetup type cast** -- Component cast data as `{ is_connected?: boolean }` but the `AmbassadorConnectStatus` type has `has_account` (not `is_connected`). Removed unsafe cast, now uses `data?.has_account` and `data?.payouts_enabled` directly.
+- **Ambassador list redundant variable** -- Removed `const filtered = ambassadors;` that was identical to `ambassadors`. All references updated.
+
+### Accessibility
+- Focus-visible rings (`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`) added to exercise list filter chips, feature request status filters, and branding color picker buttons (24 buttons total)
+- `aria-label` added to ambassador list View button (`View details for {email}`)
+- `role="status"` on EmptyState component, `role="alert"` with `aria-live="assertive"` on ErrorState component
+- `prefers-reduced-motion` support on login animations and card-hover transitions
+
+### Quality Metrics
+- Code Review: 8/10 APPROVE (1 round -- 5 critical + 8 major all fixed)
+- QA: HIGH confidence, 52/60 AC pass, 0 failures (3 partial documented, 5 deferred non-blocking)
+- UX Audit: 8/10 (1 critical type mismatch fixed, 4 medium accessibility fixes, 5 total fixes applied)
+- Security Audit: 9/10 PASS (no secrets, no XSS vectors, proper JWT lifecycle, no critical/high issues)
+- Architecture Audit: 8/10 APPROVE (1 type mismatch fixed, clean layered pattern across 124 files)
+- Hacker Audit: 8/10 (0 dead UI beyond 2 known stubs, 0 console.log, 0 TODOs, 1 cosmetic fix)
+- Final Verdict: SHIP at 8/10, HIGH confidence
+
+### Deferred
+- AC-11: Full impersonation token swap (needs backend integration)
+- AC-22: Ambassador monthly earnings chart and referral stats row
+- AC-33: Onboarding checklist for new trainers
+- AC-26: Community announcements (covered by trainer management)
+- AC-27: Community tab (backend not connected)
+- Past due reminder email (currently a toast.info stub)
+- Server-side pagination on ambassador list UI
+
+---
+
 ## [2026-02-16] — Phase 8 Community & Platform Enhancements (Pipeline 18)
 
 ### Added
