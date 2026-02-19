@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAiChat, useAiProviders } from "@/hooks/use-ai-chat";
 import { ChatMessage } from "./chat-message";
+import { ChatSkeleton } from "./chat-skeleton";
 import { SuggestionChips } from "./suggestion-chips";
 import { TraineeSelector } from "./trainee-selector";
 
@@ -55,11 +56,7 @@ export function ChatContainer() {
   }, []);
 
   if (providers.isLoading) {
-    return (
-      <div className="flex h-[calc(100vh-12rem)] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <ChatSkeleton />;
   }
 
   if (providers.data && !isConfigured) {

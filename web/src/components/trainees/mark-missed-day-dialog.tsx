@@ -35,13 +35,14 @@ export function MarkMissedDayDialog({
 }: MarkMissedDayDialogProps) {
   const [selectedProgramId, setSelectedProgramId] = useState<number | null>(null);
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [action, setAction] = useState<"skip" | "push">("skip");
   const [reason, setReason] = useState("");
   const queryClient = useQueryClient();
 
   const activePrograms = programs.filter((p) => p.is_active);
 
   const markMutation = useMutation({
-    mutationFn: (data: { date: string; reason?: string }) =>
+    mutationFn: (data: { date: string; action: "skip" | "push"; reason?: string }) =>
       apiClient.post(
         API_URLS.programMarkMissed(selectedProgramId ?? 0),
         data,
@@ -69,6 +70,7 @@ export function MarkMissedDayDialog({
       }
       markMutation.mutate({
         date,
+        action,
         reason: reason.trim() || undefined,
       });
     },
@@ -125,6 +127,44 @@ export function MarkMissedDayDialog({
               onChange={(e) => setDate(e.target.value)}
               max={new Date().toISOString().split("T")[0]}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Action</Label>
+            <div className="space-y-2">
+              <label className="flex items-start gap-3 rounded-md border p-3 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                <input
+                  type="radio"
+                  name="missed-action"
+                  value="skip"
+                  checked={action === "skip"}
+                  onChange={() => setAction("skip")}
+                  className="mt-0.5"
+                />
+                <div>
+                  <p className="text-sm font-medium">Skip</p>
+                  <p className="text-xs text-muted-foreground">
+                    Mark as rest day with no schedule change
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 rounded-md border p-3 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                <input
+                  type="radio"
+                  name="missed-action"
+                  value="push"
+                  checked={action === "push"}
+                  onChange={() => setAction("push")}
+                  className="mt-0.5"
+                />
+                <div>
+                  <p className="text-sm font-medium">Push</p>
+                  <p className="text-xs text-muted-foreground">
+                    Shift all remaining program days forward by one day
+                  </p>
+                </div>
+              </label>
+            </div>
           </div>
 
           <div className="space-y-2">

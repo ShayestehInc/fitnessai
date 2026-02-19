@@ -160,15 +160,14 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
         </CardContent>
       </Card>
 
-      <AnnouncementFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        announcement={selectedAnnouncement}
-        isPending={createMutation.isPending}
-        onSubmit={(data) => {
-          if (selectedAnnouncement) {
-            // Update handled within EditWrapper
-          } else {
+      {/* Create dialog (only when no announcement selected) */}
+      {!selectedAnnouncement && (
+        <AnnouncementFormDialog
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          announcement={null}
+          isPending={createMutation.isPending}
+          onSubmit={(data) => {
             createMutation.mutate(data, {
               onSuccess: () => {
                 toast.success("Announcement created");
@@ -176,34 +175,37 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
               },
               onError: (err) => toast.error(getErrorMessage(err)),
             });
-          }
-        }}
-      />
+          }}
+        />
+      )}
 
+      {/* Edit dialog (only when announcement selected) */}
       {selectedAnnouncement && (
-        <>
-          <EditAnnouncementWrapper
-            open={formOpen && Boolean(selectedAnnouncement)}
-            onOpenChange={setFormOpen}
-            announcement={selectedAnnouncement}
-          />
-          <AnnouncementDeleteDialog
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-            title={selectedAnnouncement.title}
-            isPending={deleteMutation.isPending}
-            onConfirm={() => {
-              deleteMutation.mutate(selectedAnnouncement.id, {
-                onSuccess: () => {
-                  toast.success("Announcement deleted");
-                  setDeleteOpen(false);
-                  setSelectedAnnouncement(null);
-                },
-                onError: (err) => toast.error(getErrorMessage(err)),
-              });
-            }}
-          />
-        </>
+        <EditAnnouncementWrapper
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          announcement={selectedAnnouncement}
+        />
+      )}
+
+      {/* Delete dialog */}
+      {selectedAnnouncement && (
+        <AnnouncementDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title={selectedAnnouncement.title}
+          isPending={deleteMutation.isPending}
+          onConfirm={() => {
+            deleteMutation.mutate(selectedAnnouncement.id, {
+              onSuccess: () => {
+                toast.success("Announcement deleted");
+                setDeleteOpen(false);
+                setSelectedAnnouncement(null);
+              },
+              onError: (err) => toast.error(getErrorMessage(err)),
+            });
+          }}
+        />
       )}
     </>
   );

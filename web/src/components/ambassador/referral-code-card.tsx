@@ -34,16 +34,13 @@ export function ReferralCodeCard() {
       toast.error("Code must be at least 3 characters");
       return;
     }
-    updateMutation.mutate(
-      { referral_code: sanitized },
-      {
-        onSuccess: () => {
-          toast.success("Referral code updated");
-          setIsEditing(false);
-        },
-        onError: (err) => toast.error(getErrorMessage(err)),
+    updateMutation.mutate(sanitized, {
+      onSuccess: () => {
+        toast.success("Referral code updated");
+        setIsEditing(false);
       },
-    );
+      onError: (err) => toast.error(getErrorMessage(err)),
+    });
   }, [newCode, updateMutation]);
 
   if (isLoading) {

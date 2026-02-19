@@ -3,14 +3,8 @@ import {
   Users,
   DollarSign,
   Settings,
-  type LucideIcon,
 } from "lucide-react";
-
-export interface NavLink {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-}
+import type { NavLink } from "./nav-links";
 
 export const ambassadorNavLinks: NavLink[] = [
   { label: "Dashboard", href: "/ambassador/dashboard", icon: LayoutDashboard },

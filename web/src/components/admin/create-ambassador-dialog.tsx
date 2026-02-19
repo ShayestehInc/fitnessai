@@ -27,8 +27,10 @@ export function CreateAmbassadorDialog({
   onOpenChange,
 }: CreateAmbassadorDialogProps) {
   const [email, setEmail] = useState("");
-  const [commissionRate, setCommissionRate] = useState("10");
-  const [referralCode, setReferralCode] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [password, setPassword] = useState("");
+  const [commissionRate, setCommissionRate] = useState("20");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const createMutation = useCreateAmbassador();
@@ -41,10 +43,21 @@ export function CreateAmbassadorDialog({
       if (!email.trim() || !email.includes("@")) {
         newErrors.email = "Valid email is required";
       }
+      if (!firstName.trim()) {
+        newErrors.firstName = "First name is required";
+      }
+      if (!lastName.trim()) {
+        newErrors.lastName = "Last name is required";
+      }
+      if (!password || password.length < 8) {
+        newErrors.password = "Password must be at least 8 characters";
+      } else if (/^\d+$/.test(password)) {
+        newErrors.password = "Password cannot be entirely numeric";
+      }
 
       const rate = Number(commissionRate);
-      if (isNaN(rate) || rate < 1 || rate > 50) {
-        newErrors.commission = "Commission rate must be between 1% and 50%";
+      if (isNaN(rate) || rate < 0 || rate > 100) {
+        newErrors.commission = "Commission rate must be between 0% and 100%";
       }
 
       if (Object.keys(newErrors).length > 0) {
@@ -55,23 +68,27 @@ export function CreateAmbassadorDialog({
       createMutation.mutate(
         {
           email: email.trim(),
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          password,
           commission_rate: rate,
-          referral_code: referralCode.trim() || undefined,
         },
         {
           onSuccess: () => {
             toast.success("Ambassador created");
             onOpenChange(false);
             setEmail("");
-            setCommissionRate("10");
-            setReferralCode("");
+            setFirstName("");
+            setLastName("");
+            setPassword("");
+            setCommissionRate("20");
             setErrors({});
           },
           onError: (err) => toast.error(getErrorMessage(err)),
         },
       );
     },
-    [email, commissionRate, referralCode, createMutation, onOpenChange],
+    [email, firstName, lastName, password, commissionRate, createMutation, onOpenChange],
   );
 
   return (
@@ -102,6 +119,60 @@ export function CreateAmbassadorDialog({
             )}
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="amb-first-name">First Name</Label>
+              <Input
+                id="amb-first-name"
+                value={firstName}
+                onChange={(e) => {
+                  setFirstName(e.target.value);
+                  setErrors((prev) => ({ ...prev, firstName: "" }));
+                }}
+                placeholder="Jane"
+                aria-invalid={Boolean(errors.firstName)}
+              />
+              {errors.firstName && (
+                <p className="text-sm text-destructive">{errors.firstName}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="amb-last-name">Last Name</Label>
+              <Input
+                id="amb-last-name"
+                value={lastName}
+                onChange={(e) => {
+                  setLastName(e.target.value);
+                  setErrors((prev) => ({ ...prev, lastName: "" }));
+                }}
+                placeholder="Doe"
+                aria-invalid={Boolean(errors.lastName)}
+              />
+              {errors.lastName && (
+                <p className="text-sm text-destructive">{errors.lastName}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="amb-password">Password</Label>
+            <Input
+              id="amb-password"
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setErrors((prev) => ({ ...prev, password: "" }));
+              }}
+              placeholder="Min 8 characters"
+              autoComplete="new-password"
+              aria-invalid={Boolean(errors.password)}
+            />
+            {errors.password && (
+              <p className="text-sm text-destructive">{errors.password}</p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="amb-commission">Commission Rate (%)</Label>
             <Input
@@ -112,29 +183,15 @@ export function CreateAmbassadorDialog({
                 setCommissionRate(e.target.value);
                 setErrors((prev) => ({ ...prev, commission: "" }));
               }}
-              min={1}
-              max={50}
-              step={1}
+              min={0}
+              max={100}
+              step={0.01}
               aria-invalid={Boolean(errors.commission)}
             />
+            <p className="text-xs text-muted-foreground">Default: 20%</p>
             {errors.commission && (
               <p className="text-sm text-destructive">{errors.commission}</p>
             )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="amb-code">
-              Referral Code (optional, auto-generated if empty)
-            </Label>
-            <Input
-              id="amb-code"
-              value={referralCode}
-              onChange={(e) =>
-                setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
-              }
-              placeholder="AMBASSADOR10"
-              maxLength={20}
-            />
           </div>
 
           <DialogFooter>

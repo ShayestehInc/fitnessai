@@ -7,7 +7,7 @@ import { UserRole } from "@/types/user";
 import { AmbassadorSidebar } from "@/components/layout/ambassador-sidebar";
 import { AmbassadorSidebarMobile } from "@/components/layout/ambassador-sidebar-mobile";
 import { Header } from "@/components/layout/header";
-import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AmbassadorDashboardLayout({
   children,
@@ -44,15 +44,30 @@ export default function AmbassadorDashboardLayout({
     user.role !== UserRole.AMBASSADOR
   ) {
     return (
-      <div
-        className="flex min-h-screen items-center justify-center"
-        role="status"
-        aria-label="Loading ambassador dashboard"
-      >
-        <Loader2
-          className="h-8 w-8 animate-spin text-muted-foreground"
-          aria-hidden="true"
-        />
+      <div className="flex min-h-screen" role="status" aria-label="Loading ambassador dashboard">
+        {/* Sidebar skeleton */}
+        <div className="hidden w-64 border-r bg-background p-4 lg:block">
+          <Skeleton className="mb-6 h-8 w-32" />
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        </div>
+        {/* Main content skeleton */}
+        <div className="flex flex-1 flex-col">
+          <div className="h-14 border-b px-4">
+            <Skeleton className="mt-3 h-8 w-48" />
+          </div>
+          <div className="flex-1 p-6">
+            <Skeleton className="mb-4 h-8 w-64" />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-28 w-full" />
+              ))}
+            </div>
+          </div>
+        </div>
         <span className="sr-only">Loading ambassador dashboard...</span>
       </div>
     );

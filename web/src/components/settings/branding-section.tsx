@@ -39,6 +39,16 @@ export function BrandingSection() {
     }
   }, [branding]);
 
+  // Warn about unsaved changes on navigation
+  useEffect(() => {
+    if (!hasChanges) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasChanges]);
+
   const handleSave = useCallback(() => {
     updateMutation.mutate(
       {

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
-import { Plus, Search, DollarSign, Users, Eye } from "lucide-react";
+import { Plus, Search, Users, Eye } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,20 +16,15 @@ import type { Ambassador } from "@/types/ambassador";
 
 export function AmbassadorList() {
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedAmbassador, setSelectedAmbassador] = useState<Ambassador | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const { data, isLoading } = useAdminAmbassadors();
+  const { data, isLoading } = useAdminAmbassadors(1, debouncedSearch);
 
-  const ambassadors = (data ?? []) as Ambassador[];
-  const filtered = search
-    ? ambassadors.filter(
-        (a) =>
-          a.user_email.toLowerCase().includes(search.toLowerCase()) ||
-          (a.referral_code ?? "").toLowerCase().includes(search.toLowerCase()),
-      )
-    : ambassadors;
+  const ambassadors = data?.results ?? [];
+  const filtered = ambassadors;
 
   if (isLoading) {
     return (
@@ -92,7 +87,7 @@ export function AmbassadorList() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium">
-                      {ambassador.user_email}
+                      {ambassador.user.email}
                     </p>
                     <Badge
                       variant={ambassador.is_active ? "default" : "secondary"}
@@ -108,12 +103,6 @@ export function AmbassadorList() {
                     <span>
                       Referrals: {ambassador.total_referrals ?? 0}
                     </span>
-                    {ambassador.created_at && (
-                      <span>
-                        Since{" "}
-                        {format(new Date(ambassador.created_at), "MMM d, yyyy")}
-                      </span>
-                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
