@@ -125,15 +125,16 @@ test.describe("Trainer Messages", () => {
 
     await page.goto("/messages");
 
-    // Should show both conversation participants
-    await expect(page.getByText("Jane Doe")).toBeVisible();
-    await expect(page.getByText("John Smith")).toBeVisible();
+    // Should show both conversation participants in the conversation list
+    const conversationList = page.getByRole("listbox", { name: /conversations/i });
+    await expect(conversationList.getByText("Jane Doe")).toBeVisible();
+    await expect(conversationList.getByText("John Smith")).toBeVisible();
 
-    // Should show message previews
+    // Should show message previews in the conversation list
     await expect(
-      page.getByText("Hey, how is your progress?"),
+      conversationList.getByText("Hey, how is your progress?"),
     ).toBeVisible();
-    await expect(page.getByText("Great workout today!")).toBeVisible();
+    await expect(conversationList.getByText("Great workout today!")).toBeVisible();
   });
 
   test("should show chat view when selecting a conversation", async ({

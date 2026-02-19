@@ -61,7 +61,9 @@ class _ConversationListScreenState
     }
 
     // Conversation list
-    return RefreshIndicator(
+    return Semantics(
+      label: 'Conversation list',
+      child: RefreshIndicator(
       onRefresh: () =>
           ref.read(conversationListProvider.notifier).loadConversations(),
       child: ListView.separated(
@@ -82,6 +84,7 @@ class _ConversationListScreenState
           );
         },
       ),
+    ),
     );
   }
 

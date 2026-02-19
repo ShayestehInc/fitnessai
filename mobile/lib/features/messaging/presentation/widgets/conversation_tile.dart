@@ -20,8 +20,17 @@ class ConversationTile extends StatelessWidget {
     final theme = Theme.of(context);
     final other = isTrainer ? conversation.trainee : conversation.trainer;
     final hasUnread = conversation.unreadCount > 0;
+    final unreadLabel = hasUnread
+        ? ', ${conversation.unreadCount} unread'
+        : '';
+    final previewLabel = conversation.lastMessagePreview ?? 'No messages yet';
+    final semanticLabel =
+        '${other.displayName}. $previewLabel$unreadLabel';
 
-    return InkWell(
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      child: InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -122,6 +131,7 @@ class ConversationTile extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

@@ -21,3 +21,13 @@ export function formatDiscount(type: string, value: string): string {
   if (type === "free_trial") return `${num} days`;
   return String(num);
 }
+
+/**
+ * Get initials from a first/last name pair.
+ * Returns uppercase initials (e.g. "JD" for "Jane Doe").
+ */
+export function getInitials(firstName: string, lastName: string): string {
+  const first = firstName.charAt(0).toUpperCase();
+  const last = lastName.charAt(0).toUpperCase();
+  return `${first}${last}`.trim();
+}

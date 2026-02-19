@@ -108,7 +108,11 @@ class _ChatInputState extends State<ChatInput> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                SizedBox(
+                Semantics(
+                  label: 'Send message',
+                  button: true,
+                  enabled: _canSend && !_isOverLimit,
+                  child: SizedBox(
                   width: 44,
                   height: 44,
                   child: IconButton(
@@ -136,6 +140,7 @@ class _ChatInputState extends State<ChatInput> {
                                 : theme.textTheme.bodySmall?.color,
                           ),
                   ),
+                ),
                 ),
               ],
             ),

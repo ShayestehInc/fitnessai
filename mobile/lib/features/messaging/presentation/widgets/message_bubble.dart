@@ -18,8 +18,18 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final readStatus = message.isSendFailed
+        ? ', failed to send'
+        : isMine && showReadReceipt
+            ? (message.isRead ? ', read' : ', sent')
+            : '';
+    final senderLabel = isMine ? 'You' : message.sender.displayName;
+    final semanticLabel =
+        '$senderLabel: ${message.content}, ${_formatTimestamp(message.createdAt)}$readStatus';
 
-    return Align(
+    return Semantics(
+      label: semanticLabel,
+      child: Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -90,6 +100,7 @@ class MessageBubble extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

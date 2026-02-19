@@ -3,6 +3,9 @@ Views for the messaging app.
 
 All views enforce row-level security: trainers only see conversations
 with their trainees; trainees only see their own conversation.
+
+Business logic (broadcasting, push notifications, impersonation checks)
+is delegated to the services layer. Views handle request/response only.
 """
 from __future__ import annotations
 
@@ -26,11 +29,15 @@ from .serializers import (
     StartConversationSerializer,
 )
 from .services.messaging_service import (
+    broadcast_new_message,
+    broadcast_read_receipt,
     get_conversations_for_user,
     get_messages_for_conversation,
     get_unread_count,
+    is_impersonating,
     mark_conversation_read,
     send_message,
+    send_message_push_notification,
     send_message_to_trainee,
 )
 
@@ -107,14 +114,6 @@ class ConversationDetailView(views.APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Archived conversations are not accessible to trainees (preserved for
-        # trainer audit only, per ticket spec).
-        if conversation.is_archived and user.id == conversation.trainee_id:
-            return Response(
-                {'error': 'This conversation has been archived.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         try:
             messages = get_messages_for_conversation(user, conversation)
         except ValueError as exc:
@@ -154,7 +153,7 @@ class SendMessageView(views.APIView):
         user = cast(User, request.user)
 
         # Check for impersonation (read-only guard)
-        if _is_impersonating(request):
+        if is_impersonating(request.auth):
             return Response(
                 {'error': 'Cannot send messages during impersonation.'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -197,7 +196,7 @@ class SendMessageView(views.APIView):
         response_serializer = MessageSerializer(message, context={'request': request})
 
         # Broadcast via WebSocket (fire-and-forget)
-        _broadcast_new_message(conversation.id, response_serializer.data)
+        broadcast_new_message(conversation.id, response_serializer.data)
 
         # Send push notification to recipient
         recipient_id = (
@@ -205,7 +204,7 @@ class SendMessageView(views.APIView):
             if user.id == conversation.trainer_id
             else conversation.trainer_id
         )
-        _send_message_push_notification(
+        send_message_push_notification(
             recipient_id=recipient_id,
             sender=user,
             content=result.content,
@@ -234,7 +233,7 @@ class StartConversationView(views.APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if _is_impersonating(request):
+        if is_impersonating(request.auth):
             return Response(
                 {'error': 'Cannot send messages during impersonation.'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -260,11 +259,11 @@ class StartConversationView(views.APIView):
         response_serializer = MessageSerializer(message, context={'request': request})
 
         # Broadcast via WebSocket
-        _broadcast_new_message(result.conversation_id, response_serializer.data)
+        broadcast_new_message(result.conversation_id, response_serializer.data)
 
         # Send push notification
         conversation = Conversation.objects.get(id=result.conversation_id)
-        _send_message_push_notification(
+        send_message_push_notification(
             recipient_id=conversation.trainee_id,
             sender=user,
             content=result.content,
@@ -311,13 +310,6 @@ class MarkReadView(views.APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Archived conversations cannot be mutated
-        if conversation.is_archived:
-            return Response(
-                {'error': 'This conversation has been archived.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         try:
             result = mark_conversation_read(user, conversation)
         except ValueError as exc:
@@ -327,7 +319,7 @@ class MarkReadView(views.APIView):
             )
 
         # Broadcast read receipt via WebSocket
-        _broadcast_read_receipt(
+        broadcast_read_receipt(
             conversation_id=conversation.id,
             reader_id=user.id,
             read_at=result.read_at.isoformat(),
@@ -351,129 +343,3 @@ class UnreadCountView(views.APIView):
         user = cast(User, request.user)
         result = get_unread_count(user)
         return Response({'unread_count': result.unread_count})
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _is_impersonating(request: Request) -> bool:
-    """Check if the current request is from an impersonation session.
-
-    Uses ``request.auth`` (the already-validated token from simplejwt
-    authentication) instead of re-parsing the Authorization header.
-    """
-    token = request.auth
-    if token is None:
-        return False
-    # simplejwt sets request.auth to the validated token object
-    # which supports dict-style access for custom claims.
-    if hasattr(token, 'get'):
-        return bool(token.get('impersonating', False))
-    # Fallback: if auth is not a token object (e.g. SessionAuth)
-    return False
-
-
-def _broadcast_new_message(
-    conversation_id: int,
-    message_data: dict[str, object],
-) -> None:
-    """Broadcast a new message to the conversation's WebSocket group."""
-    try:
-        from channels.layers import get_channel_layer
-        from asgiref.sync import async_to_sync
-        from django.utils import timezone as tz
-
-        channel_layer = get_channel_layer()
-        if channel_layer is None:
-            return
-
-        group_name = f'messaging_conversation_{conversation_id}'
-        async_to_sync(channel_layer.group_send)(
-            group_name,
-            {
-                'type': 'chat.new_message',
-                'message': message_data,
-                'timestamp': tz.now().isoformat(),
-            },
-        )
-    except (ConnectionError, TimeoutError, OSError) as exc:
-        logger.warning(
-            "Failed to broadcast message to WebSocket for conversation %d: %s",
-            conversation_id,
-            exc,
-        )
-
-
-def _broadcast_read_receipt(
-    conversation_id: int,
-    reader_id: int,
-    read_at: str,
-) -> None:
-    """Broadcast a read receipt to the conversation's WebSocket group."""
-    try:
-        from channels.layers import get_channel_layer
-        from asgiref.sync import async_to_sync
-
-        channel_layer = get_channel_layer()
-        if channel_layer is None:
-            return
-
-        group_name = f'messaging_conversation_{conversation_id}'
-        async_to_sync(channel_layer.group_send)(
-            group_name,
-            {
-                'type': 'chat.read_receipt',
-                'reader_id': reader_id,
-                'read_at': read_at,
-            },
-        )
-    except (ConnectionError, TimeoutError, OSError) as exc:
-        logger.warning(
-            "Failed to broadcast read receipt for conversation %d: %s",
-            conversation_id,
-            exc,
-        )
-
-
-def _send_message_push_notification(
-    recipient_id: int | None,
-    sender: User,
-    content: str,
-    conversation_id: int,
-) -> None:
-    """Send push notification for a new message."""
-    if recipient_id is None:
-        logger.warning(
-            "Cannot send push notification: recipient_id is None "
-            "(conversation=%d, sender=%d)",
-            conversation_id,
-            sender.id,
-        )
-        return
-
-    try:
-        from core.services.notification_service import send_push_notification
-
-        preview = content[:100] if len(content) > 100 else content
-        sender_name = f'{sender.first_name} {sender.last_name}'.strip()
-        if not sender_name:
-            sender_name = sender.email
-
-        send_push_notification(
-            user_id=recipient_id,
-            title=f'New message from {sender_name}',
-            body=preview,
-            data={
-                'type': 'direct_message',
-                'conversation_id': str(conversation_id),
-                'sender_id': str(sender.id),
-            },
-        )
-    except (ConnectionError, TimeoutError, OSError) as exc:
-        logger.warning(
-            "Failed to send message push notification to user %d: %s",
-            recipient_id,
-            exc,
-        )

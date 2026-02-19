@@ -31,7 +31,10 @@ class _TypingIndicatorState extends State<TypingIndicator>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Align(
+    return Semantics(
+      liveRegion: true,
+      label: 'Other person is typing',
+      child: Align(
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
@@ -74,6 +77,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
           },
         ),
       ),
+    ),
     );
   }
 

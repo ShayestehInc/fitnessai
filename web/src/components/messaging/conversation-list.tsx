@@ -2,6 +2,7 @@
 
 import { User, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getInitials } from "@/lib/format-utils";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -122,12 +123,6 @@ export function ConversationList({
       })}
     </div>
   );
-}
-
-function getInitials(firstName: string, lastName: string): string {
-  const first = firstName.charAt(0).toUpperCase();
-  const last = lastName.charAt(0).toUpperCase();
-  return `${first}${last}`.trim();
 }
 
 function formatRelativeTime(dateString: string): string {

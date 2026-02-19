@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { ArrowDown, User, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { getInitials } from "@/lib/format-utils";
 import { useMessages, useSendMessage, useMarkConversationRead } from "@/hooks/use-messaging";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,10 @@ export function ChatView({ conversation }: ChatViewProps) {
     }
   }, [conversation.id, conversation.unread_count, markRead]);
 
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
   // Auto-scroll to bottom on initial load and when sending a message
   useEffect(() => {
     if (page === 1 && allMessages.length > 0) {
@@ -84,10 +89,6 @@ export function ChatView({ conversation }: ChatViewProps) {
     }, 5_000);
     return () => clearInterval(interval);
   }, [page, refetch]);
-
-  const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
 
   const handleScroll = useCallback(() => {
     const el = scrollAreaRef.current;
@@ -224,12 +225,6 @@ export function ChatView({ conversation }: ChatViewProps) {
       <ChatInput onSend={handleSend} isSending={sendMessage.isPending} />
     </div>
   );
-}
-
-function getInitials(firstName: string, lastName: string): string {
-  const first = firstName.charAt(0).toUpperCase();
-  const last = lastName.charAt(0).toUpperCase();
-  return `${first}${last}`.trim();
 }
 
 interface MessageGroup {
