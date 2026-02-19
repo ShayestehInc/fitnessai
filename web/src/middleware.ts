@@ -5,11 +5,26 @@ import { SESSION_COOKIE, ROLE_COOKIE } from "@/lib/constants";
 const PUBLIC_PATHS = ["/login"];
 
 function getDashboardPath(role: string | undefined): string {
-  return role === "ADMIN" ? "/admin/dashboard" : "/dashboard";
+  if (role === "ADMIN") return "/admin/dashboard";
+  if (role === "AMBASSADOR") return "/ambassador/dashboard";
+  return "/dashboard";
 }
 
 function isAdminPath(pathname: string): boolean {
   return pathname.startsWith("/admin");
+}
+
+function isAmbassadorPath(pathname: string): boolean {
+  return pathname.startsWith("/ambassador");
+}
+
+function isTrainerDashboardPath(pathname: string): boolean {
+  return (
+    !isAdminPath(pathname) &&
+    !isAmbassadorPath(pathname) &&
+    !PUBLIC_PATHS.includes(pathname) &&
+    pathname !== "/"
+  );
 }
 
 export function middleware(request: NextRequest) {
@@ -29,12 +44,32 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Non-admin users attempting to access admin routes -> redirect to trainer dashboard
+  // Non-admin users attempting to access admin routes -> redirect to their dashboard
   // NOTE: The role cookie is client-writable, so this is a convenience guard only.
   // True authorization is enforced server-side by the API (HTTP 403) and by the
-  // admin layout component which verifies the role from the authenticated user object.
+  // layout component which verifies the role from the authenticated user object.
   if (isAdminPath(pathname) && hasSession && userRole !== "ADMIN") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(
+      new URL(getDashboardPath(userRole), request.url),
+    );
+  }
+
+  // Non-ambassador users attempting to access ambassador routes -> redirect to their dashboard
+  if (isAmbassadorPath(pathname) && hasSession && userRole !== "AMBASSADOR") {
+    return NextResponse.redirect(
+      new URL(getDashboardPath(userRole), request.url),
+    );
+  }
+
+  // Ambassador users attempting to access trainer dashboard routes -> redirect to ambassador dashboard
+  if (
+    isTrainerDashboardPath(pathname) &&
+    hasSession &&
+    userRole === "AMBASSADOR"
+  ) {
+    return NextResponse.redirect(
+      new URL("/ambassador/dashboard", request.url),
+    );
   }
 
   // Root path -> redirect based on session and role

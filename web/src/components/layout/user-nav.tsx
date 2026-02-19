@@ -51,7 +51,13 @@ export function UserNav() {
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link
-            href={user?.role === UserRole.ADMIN ? "/admin/settings" : "/settings"}
+            href={
+              user?.role === UserRole.ADMIN
+                ? "/admin/settings"
+                : user?.role === UserRole.AMBASSADOR
+                  ? "/ambassador/settings"
+                  : "/settings"
+            }
             className="cursor-pointer"
           >
             <Settings className="mr-2 h-4 w-4" />

@@ -1,45 +1,71 @@
-# Pipeline 18 Focus: Phase 8 Enhancements (Items 1-7)
+# Pipeline 19 Focus: Web Dashboard Full Parity + UI Polish + E2E Tests
 
 ## Priority
-Build 7 enhancement features that complete the platform's feature set.
+Bring the web dashboard to FULL feature parity with the mobile app for Trainer, Admin, and Ambassador roles. Redesign the UI to world-class standards. Write comprehensive E2E tests.
 
-## Items to Build
+## Three Workstreams
 
-1. **Leaderboards** — Opt-in, trainer-controlled rankings. Trainee can opt in/out. Trainer configures which metrics to rank (workout count, streak, weight loss %). Weekly/monthly/all-time views. Scoped to trainer's group.
+### Workstream 1: Feature Parity (41 missing features)
 
-2. **Push Notifications** — For announcements (trainer → trainees), achievements (system → user), community posts (reactions on your post). Backend: Firebase Cloud Messaging integration. Mobile: notification permission, foreground/background handling, deep linking to relevant screen.
+#### Trainer Features (10 missing)
+1. **Program Assignment** — Assign program to trainee from trainee detail page
+2. **Program Management** — Change/swap/end program from trainee detail
+3. **Edit Trainee Goals** — Modify trainee goals (macros, weight target, etc.)
+4. **Remove/Deactivate Trainee** — Remove trainee with confirmation
+5. **Trainer Announcements** — Create/edit/delete/pin announcements, list view
+6. **Trainer AI Chat** — AI assistant interface for trainers
+7. **Branding/White-Label** — Logo, colors, app name configuration
+8. **Exercise Bank** — Browse, create custom exercises
+9. **Trainer Subscription Management** — View/manage subscription, pricing, Stripe Connect
+10. **Calendar Integration** — Google/Microsoft calendar sync
 
-3. **Rich Text / Markdown in Announcements and Posts** — Trainer announcements support basic markdown (bold, italic, links, lists). Community posts support the same. Render with a markdown widget in Flutter.
+#### Admin Features (5 missing)
+11. **Ambassador Management Module** — List ambassadors, detail view, create new
+12. **Ambassador Commissions** — Approve/pay commissions, bulk actions
+13. **Upcoming Payments Calendar** — Payment schedule visualization
+14. **Past Due Alerts Page** — Dedicated past due management
+15. **Admin Settings** — Full security/platform settings (not placeholder)
 
-4. **Image / Video Attachments on Community Posts** — Users can attach one image to community posts. Image upload to cloud storage (S3 or similar). Image preview in feed. No video in V1 (too complex for storage/streaming).
+#### Ambassador Features (4 missing — entire role)
+16. **Ambassador Dashboard** — Earnings overview, referral stats, share link
+17. **Ambassador Payouts** — Stripe Connect onboarding, payout history
+18. **Ambassador Referrals** — Referral tracking, conversion stats
+19. **Ambassador Settings** — Profile, commission preferences
 
-5. **Comment Threads on Community Posts** — Users can comment on community feed posts. Flat comments (no nesting). Author + trainer can delete comments. Comment count shown on post card.
+#### Community/Social Features (5 missing)
+20. **Announcements Feed** — View announcements (trainee-facing, but trainers manage from web)
+21. **Community Feed** — Social feed with posts, reactions, comments
+22. **Achievements** — Badge grid, progress tracking
+23. **Leaderboard** — Rankings view
+24. **Feature Requests** — Submit, view, vote on feature requests
 
-6. **Real-time Feed Updates (WebSocket)** — Django Channels for WebSocket support. Live updates to community feed (new posts, new reactions, new comments appear without refresh). Connection management, reconnection logic.
+### Workstream 2: UI/UX Polish & Design Overhaul
+- **Login page redesign** — Fitness-themed with motion/animations (particles, gradients, dynamic elements)
+- **Animations & transitions** — Page transitions, skeleton loading, micro-interactions, hover effects
+- **Dashboard critique** — Evaluate spacing, typography, color usage, card design, data visualization
+- **Responsive design** — Ensure all new pages work on tablet/mobile web
+- **Dark mode** — Ensure new pages support the existing dark mode toggle
+- **Empty states** — Beautiful empty states for all new pages
+- **Loading states** — Skeleton shimmer loading for all data-dependent views
+- **Error states** — Helpful error messages with retry actions
 
-7. **Stripe Connect Payout to Ambassadors** — Ambassador earnings paid out via Stripe Connect. Connect account onboarding flow. Payout scheduling (manual trigger by admin). Dashboard showing payout history.
+### Workstream 3: E2E Testing
+- **Playwright or Cypress** E2E test suite
+- Test every role: Trainer, Admin, Ambassador
+- Test every feature: login, navigation, CRUD operations, edge cases
+- Test responsive behavior
+- Test dark mode
+- Test error states (invalid input, network errors)
+- Test authentication/authorization (role-based access)
 
 ## Context
-- Backend: Django REST Framework with PostgreSQL, existing Stripe integration
-- Mobile: Flutter 3.0+ with Riverpod
-- Community app just built in Pipeline 17 (models: Announcement, CommunityPost, PostReaction, Achievement, UserAchievement)
-- Existing: TrainerNotification model, Stripe Connect basics in subscriptions app
-- Ambassador model exists with commission tracking
-
-## Scoping Guidance
-This is 7 features — the Product Planner should scope aggressively. Some features can be simplified:
-- Leaderboards: start with workout count + streak only (2 metrics)
-- Push notifications: FCM only (no APNs directly — use FCM for both platforms)
-- Rich text: basic markdown rendering only (no WYSIWYG editor)
-- Image attachments: single image per post, simple upload
-- Comments: flat only (no nesting, no editing)
-- WebSocket: community feed only (not announcements or achievements)
-- Stripe Connect: manual admin-triggered payouts only (no automated scheduling)
+- Web: Next.js 15 + React 19 + TypeScript + shadcn/ui + TanStack React Query
+- Backend: Django REST Framework (all APIs already exist from mobile implementation)
+- All backend APIs already exist — this is frontend-only work for feature parity
+- Existing web dashboard pattern: `web/src/` with app router, components, hooks, lib, providers, types
 
 ## What NOT to build
-- Trainee web access (item 8 — explicitly excluded)
-- Video uploads or streaming
-- Nested comment threads
-- WYSIWYG rich text editor
-- Automated payout scheduling
-- Push notification preferences per category (V1: all or nothing)
+- Trainee web access (trainee role is mobile-only)
+- Real-time WebSocket on web (use polling/refresh for V1)
+- Mobile-specific features (offline sync, health data, push notifications)
+- New backend APIs (everything needed already exists)

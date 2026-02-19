@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-16 (Pipeline 18: Phase 8 Community & Platform Enhancements Complete)
+> Last updated: 2026-02-19 (Pipeline 19: Web Dashboard Full Parity + UI/UX Polish + E2E Tests)
 
 ---
 
@@ -186,6 +186,35 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Notification click-through navigation | ✅ Done | Shipped 2026-02-15: Notifications with trainee_id navigate to trainee detail. ChevronRight affordance, popover auto-close, "Marked as read" toast for non-navigable |
 | Invitation row actions | ✅ Done | Shipped 2026-02-15: Copy code, resend, cancel with confirmation dialog. Status-aware visibility (PENDING/EXPIRED/ACCEPTED/CANCELLED) |
 | Trainer analytics page | ✅ Done | Shipped 2026-02-15: Adherence section (3 stat cards, horizontal bar chart, 7/14/30d period selector) + Progress section (trainee table with weight change, goal alignment). Theme-aware chart colors, WCAG accessible |
+| Trainer announcements (web) | ✅ Done | Shipped 2026-02-19: Full CRUD with pin sort, character counters, format toggle, skeleton loading |
+| Trainer AI chat (web) | ✅ Done | Shipped 2026-02-19: Chat interface with trainee selector, suggestion chips, clear dialog, provider check |
+| Trainer branding (web) | ✅ Done | Shipped 2026-02-19: Color pickers (12 presets), hex validation, logo upload/remove, live preview, unsaved changes guard |
+| Exercise bank (web) | ✅ Done | Shipped 2026-02-19: Responsive grid, debounced search, muscle group filters, create/detail dialogs |
+| Program assignment (web) | ✅ Done | Shipped 2026-02-19: Assign/change dialog on trainee detail |
+| Edit trainee goals (web) | ✅ Done | Shipped 2026-02-19: 4 macro fields with min/max validation and inline errors |
+| Remove trainee (web) | ✅ Done | Shipped 2026-02-19: Confirmation dialog with "REMOVE" text match |
+| Subscription management (web) | ✅ Done | Shipped 2026-02-19: Stripe Connect 3-state flow, plan overview |
+| Calendar integration (web) | ✅ Done | Shipped 2026-02-19: Google auth popup, connection cards, events list |
+| Layout config (web) | ✅ Done | Shipped 2026-02-19: 3 radio-style options with optimistic update |
+| Impersonation (web) | 🟡 Partial | Shipped 2026-02-19: Button + confirm dialog exist, token swap deferred to backend integration |
+| Mark missed day (web) | ✅ Done | Shipped 2026-02-19: Skip/push radio, date picker, program selector |
+| Feature requests (web) | ✅ Done | Shipped 2026-02-19: Vote toggle, status filters, create dialog, comment hooks |
+| Leaderboard settings (web) | ✅ Done | Shipped 2026-02-19: Toggle switches with optimistic update |
+| Admin ambassador management (web) | ✅ Done | Shipped 2026-02-19: Server-side search, CRUD, commission actions, bulk operations |
+| Admin upcoming/past due (web) | ✅ Done | Shipped 2026-02-19: Lists with severity color coding |
+| Admin settings (web) | ✅ Done | Shipped 2026-02-19: Platform config, security, profile/appearance/security sections |
+| Ambassador dashboard (web) | ✅ Done | Shipped 2026-02-19: Earnings cards, referral code, recent referrals |
+| Ambassador referrals (web) | ✅ Done | Shipped 2026-02-19: Status filter, pagination |
+| Ambassador payouts (web) | ✅ Done | Shipped 2026-02-19: Stripe Connect 3-state setup, history table |
+| Ambassador settings (web) | ✅ Done | Shipped 2026-02-19: Profile, referral code edit with validation |
+| Ambassador auth & routing (web) | ✅ Done | Shipped 2026-02-19: Middleware routing, layout with auth guards |
+| Login page redesign | ✅ Done | Shipped 2026-02-19: Two-column layout, animated gradient, floating icons, framer-motion stagger, prefers-reduced-motion |
+| Page transitions | ✅ Done | Shipped 2026-02-19: PageTransition wrapper with fade-up animation |
+| Skeleton loading | ✅ Done | Shipped 2026-02-19: Content-shaped skeletons on all pages |
+| Micro-interactions | ✅ Done | Shipped 2026-02-19: Button active:scale, card-hover utility with reduced-motion query |
+| Dashboard trend indicators | ✅ Done | Shipped 2026-02-19: StatCard with TrendingUp/TrendingDown icons |
+| Error/empty states (web) | ✅ Done | Shipped 2026-02-19: ErrorState with retry, EmptyState with contextual icons and action CTAs |
+| E2E test suite (Playwright) | ✅ Done | Shipped 2026-02-19: 19 test files, 5 browser targets, auth/trainer/admin/ambassador/responsive/dark mode coverage |
 
 ### 3.10 Social & Community
 | Feature | Status | Notes |
@@ -451,6 +480,39 @@ Seven features extending the community platform with real-time capabilities, ric
 - **Stripe Connect Ambassador Payouts**: `AmbassadorPayout` model. Stripe Connect Express account onboarding. Admin-triggered payouts with `select_for_update()` + `transaction.atomic()` for race condition protection. Payout history screen with status badges (pending/paid/failed). Payout service with dataclass returns.
 - **Quality**: Code review 8/10 APPROVE (2 rounds, 6 critical + 10 major all fixed). QA 50/61 AC pass HIGH confidence (11 deferred non-blocking). UX 8/10. Security 9/10 PASS. Architecture 9/10 APPROVE. Hacker 8/10. Final 8/10 SHIP.
 
+### 4.19 Web Dashboard Full Parity + UI/UX Polish + E2E Tests (Pipeline 19) -- COMPLETED (2026-02-19)
+
+Three workstreams: full feature parity for Trainer/Admin/Ambassador web dashboards, UI/UX polish with animations and micro-interactions, and a complete E2E test suite with Playwright. 130 files changed, 10,170 insertions.
+
+**What was built:**
+
+**Workstream 1: Feature Parity (28 ACs)**
+- **Trainer Features**: Announcements (CRUD, pin sort, character counters), AI Chat (trainee selector, suggestion chips, clear dialog), Branding (12-preset color pickers, hex validation, logo upload/remove, live preview, unsaved changes guard), Exercise Bank (responsive grid, debounced search, muscle group filters, create/detail dialogs), Program Assignment (assign/change dialog), Edit Trainee Goals (4 macro fields with validation), Remove Trainee (REMOVE text match confirmation), Subscription Management (Stripe Connect 3-state flow), Calendar Integration (Google auth popup, events list), Layout Config (3 radio options, optimistic update), Impersonation (button + confirm dialog, token swap deferred), Mark Missed Day (skip/push radio, date picker), Feature Requests (vote toggle, status filters, create dialog), Leaderboard Settings (toggle switches, optimistic update)
+- **Admin Features**: Ambassador Management (server-side search, CRUD, commission actions, bulk operations), Upcoming Payments & Past Due (severity color coding), Settings (platform config, security, profile/appearance/security sections)
+- **Ambassador Features**: Dashboard (earnings cards, referral code, recent referrals), Referrals (status filter, pagination), Payouts (Stripe Connect 3-state setup, history table), Settings (profile, referral code edit), Auth & Routing (middleware routing, layout with auth guards)
+
+**Workstream 2: UI/UX Polish (7 ACs)**
+- Login Page Redesign (two-column layout, animated gradient, floating icons, framer-motion stagger, feature pills, prefers-reduced-motion)
+- Page Transitions (PageTransition wrapper with fade-up animation)
+- Skeleton Loading (content-shaped skeletons on all pages)
+- Micro-Interactions (button active:scale, card-hover utility with reduced-motion query)
+- Dashboard Trend Indicators (StatCard with TrendingUp/TrendingDown icons)
+- Error States (ErrorState with retry button on all data pages)
+- Empty States (EmptyState with contextual icons and action CTAs)
+
+**Workstream 3: E2E Tests (5 ACs)**
+- Playwright config with 5 browser targets, helpers, mock-api
+- 19 test files: auth, trainer (7), admin (3), ambassador (4), responsive, error states, dark mode, navigation
+- Test helpers: loginAs(), logout(), mock-api fixtures
+
+**Audit Fixes:**
+- CRITICAL: LeaderboardSection type mismatch fixed (was referencing non-existent properties from hook)
+- CRITICAL: StripeConnectSetup type cast fixed (was using `is_connected` instead of `has_account`)
+- Keyboard accessibility: focus-visible rings added to exercise list, feature request, and branding color picker buttons
+- Ambassador list cleanup: removed redundant variable, added aria-label to View button
+
+**Quality**: Code review 8/10 APPROVE (1 round), QA 52/60 AC pass HIGH confidence (3 partial, 5 deferred), UX 8/10, Security 9/10 PASS, Architecture 8/10 APPROVE, Hacker 8/10, Final 8/10 SHIP.
+
 ### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
@@ -533,13 +595,23 @@ Seven features extending the community platform with real-time capabilities, ric
 - ~~Real-time feed updates (WebSocket)~~ ✅ Completed 2026-02-16 (Django Channels, JWT auth, 4 event types, exponential backoff reconnection)
 - ~~Stripe Connect payout to ambassadors~~ ✅ Completed 2026-02-16 (Express account onboarding, admin-triggered payouts, race condition protection, payout history)
 
-### Phase 9: Future Enhancements
+### Phase 9: Web Dashboard Full Parity -- ✅ COMPLETED (2026-02-19)
+- ~~Full feature parity for Trainer web dashboard (announcements, AI chat, branding, exercise bank, program assignment, goals, remove trainee, subscriptions, calendar, layout, impersonation, missed day, feature requests, leaderboard settings)~~ ✅ Completed 2026-02-19
+- ~~Full feature parity for Admin web dashboard (ambassador management, upcoming/past due payments, settings)~~ ✅ Completed 2026-02-19
+- ~~Ambassador web dashboard (dashboard, referrals, payouts, settings, auth/routing)~~ ✅ Completed 2026-02-19
+- ~~UI/UX polish (login redesign, page transitions, skeletons, micro-interactions, trend indicators, error/empty states)~~ ✅ Completed 2026-02-19
+- ~~E2E test suite (Playwright, 19 test files, 5 browser targets)~~ ✅ Completed 2026-02-19
+
+### Phase 10: Future Enhancements
 - Video attachments on community posts
 - Trainee web access
 - In-app messaging (trainer-to-trainee direct messages)
 - Advanced analytics and reporting
 - Multi-language support
 - Social auth (Apple/Google) mobile integration
+- Full impersonation token swap (web dashboard)
+- Ambassador monthly earnings chart (web dashboard)
+- Server-side pagination on ambassador list (web dashboard)
 
 ---
 
@@ -631,4 +703,4 @@ Seven features extending the community platform with real-time capabilities, ric
 - **Single timezone assumed** — DailyLog uses `timezone.now().date()`. Multi-timezone trainees may see date boundary issues.
 - **AI parsing is OpenAI-only** — Function Calling mode. No fallback provider yet. Rate limits apply.
 - **Real-time updates on community feed only** — WebSocket via Django Channels shipped 2026-02-16 for community feed (new posts, deletions, comments, reactions). Trainer dashboard still requires manual refresh.
-- **Web dashboard is trainer + admin only** — Web dashboard (Next.js) shipped for trainers and admins (2026-02-15). Trainee web access not yet built.
+- **Web dashboard covers trainer, admin, and ambassador roles** — Web dashboard (Next.js) shipped for trainers and admins (2026-02-15), ambassador role added (2026-02-19). Full feature parity achieved for all three roles. Trainee web access not yet built.

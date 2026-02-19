@@ -1,0 +1,19 @@
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
+
+export interface AiChatRequest {
+  message: string;
+  trainee_id?: number;
+}
+
+export interface AiChatResponse {
+  response: string;
+}
+
+export interface AiProvider {
+  name: string;
+  is_configured: boolean;
+}
