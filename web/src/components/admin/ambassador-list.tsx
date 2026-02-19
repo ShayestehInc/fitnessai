@@ -116,6 +116,7 @@ export function AmbassadorList() {
                       setSelectedAmbassador(ambassador);
                       setDetailOpen(true);
                     }}
+                    aria-label={`View details for ${ambassador.user.email}`}
                   >
                     <Eye className="h-4 w-4" />
                   </Button>

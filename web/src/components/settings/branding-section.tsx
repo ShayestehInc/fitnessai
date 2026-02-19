@@ -150,7 +150,7 @@ export function BrandingSection() {
                   setHasChanges(true);
                 }}
                 className={cn(
-                  "h-8 w-8 rounded-full border-2 transition-transform hover:scale-110",
+                  "h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   primaryColor === color ? "border-foreground scale-110" : "border-transparent",
                 )}
                 style={{ backgroundColor: color }}
@@ -184,7 +184,7 @@ export function BrandingSection() {
                   setHasChanges(true);
                 }}
                 className={cn(
-                  "h-8 w-8 rounded-full border-2 transition-transform hover:scale-110",
+                  "h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   secondaryColor === color ? "border-foreground scale-110" : "border-transparent",
                 )}
                 style={{ backgroundColor: color }}

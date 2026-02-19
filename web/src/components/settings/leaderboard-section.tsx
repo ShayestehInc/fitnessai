@@ -1,52 +1,70 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Loader2, Trophy } from "lucide-react";
 import { toast } from "sonner";
-import { useLeaderboardSettings, useUpdateLeaderboardSetting } from "@/hooks/use-leaderboard-settings";
+import {
+  useLeaderboardSettings,
+  useUpdateLeaderboardSetting,
+  type LeaderboardSetting,
+} from "@/hooks/use-leaderboard-settings";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/error-utils";
 
-interface LeaderboardSetting {
-  id: number;
-  metric: string;
-  label: string;
-  enabled: boolean;
+const METRIC_LABELS: Record<string, string> = {
+  workout_count: "Workout Count",
+  streak: "Streak",
+};
+
+const TIME_PERIOD_LABELS: Record<string, string> = {
+  weekly: "Weekly",
+  monthly: "Monthly",
+};
+
+function settingKey(setting: LeaderboardSetting): string {
+  return `${setting.metric_type}:${setting.time_period}`;
 }
 
-const METRIC_DESCRIPTIONS: Record<string, string> = {
-  workout_streak: "Consecutive days with logged workouts",
-  calories_adherence: "Percentage of days meeting calorie goals",
-  protein_adherence: "Percentage of days meeting protein goals",
-  workout_volume: "Total sets x reps x weight over time",
-  check_in_streak: "Consecutive days with weight check-ins",
-};
+function settingDisplayName(setting: LeaderboardSetting): string {
+  const metric = METRIC_LABELS[setting.metric_type] ?? setting.metric_type;
+  const period = TIME_PERIOD_LABELS[setting.time_period] ?? setting.time_period;
+  return `${metric} (${period})`;
+}
 
 export function LeaderboardSection() {
   const { data: settings, isLoading } = useLeaderboardSettings();
   const updateMutation = useUpdateLeaderboardSetting();
-  const [pendingToggles, setPendingToggles] = useState<Set<number>>(new Set());
+  const [pendingToggles, setPendingToggles] = useState<Set<string>>(new Set());
 
   const handleToggle = useCallback(
     (setting: LeaderboardSetting) => {
-      setPendingToggles((prev) => new Set(prev).add(setting.id));
+      const key = settingKey(setting);
+      setPendingToggles((prev) => new Set(prev).add(key));
       updateMutation.mutate(
-        { id: setting.id, enabled: !setting.enabled },
+        {
+          metric_type: setting.metric_type,
+          time_period: setting.time_period,
+          is_enabled: !setting.is_enabled,
+        },
         {
           onSuccess: () => {
             toast.success(
-              `${setting.label} ${!setting.enabled ? "enabled" : "disabled"}`,
+              `${settingDisplayName(setting)} ${!setting.is_enabled ? "enabled" : "disabled"}`,
             );
           },
           onError: (err) => toast.error(getErrorMessage(err)),
           onSettled: () => {
             setPendingToggles((prev) => {
               const next = new Set(prev);
-              next.delete(setting.id);
+              next.delete(key);
               return next;
             });
           },
@@ -92,20 +110,24 @@ export function LeaderboardSection() {
           </p>
         ) : (
           leaderboardSettings.map((setting) => {
-            const isPending = pendingToggles.has(setting.id);
+            const key = settingKey(setting);
+            const isPending = pendingToggles.has(key);
             return (
               <div
-                key={setting.id}
+                key={key}
                 className="flex items-center justify-between gap-4 rounded-md border p-3"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">{setting.label}</p>
+                  <p className="text-sm font-medium">
+                    {settingDisplayName(setting)}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    {METRIC_DESCRIPTIONS[setting.metric] ?? setting.metric}
+                    {METRIC_LABELS[setting.metric_type] ?? setting.metric_type} &middot;{" "}
+                    {TIME_PERIOD_LABELS[setting.time_period] ?? setting.time_period}
                   </p>
                 </div>
                 <Button
-                  variant={setting.enabled ? "default" : "outline"}
+                  variant={setting.is_enabled ? "default" : "outline"}
                   size="sm"
                   disabled={isPending}
                   onClick={() => handleToggle(setting)}
@@ -113,7 +135,7 @@ export function LeaderboardSection() {
                 >
                   {isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : setting.enabled ? (
+                  ) : setting.is_enabled ? (
                     "Enabled"
                   ) : (
                     "Disabled"

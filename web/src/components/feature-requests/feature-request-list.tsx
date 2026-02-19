@@ -59,7 +59,7 @@ export function FeatureRequestList({
                 key={value}
                 onClick={() => onStatusFilterChange(value)}
                 className={cn(
-                  "rounded-full border px-3 py-1 text-sm transition-colors",
+                  "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   statusFilter === value
                     ? "border-primary bg-primary text-primary-foreground"
                     : "hover:bg-accent",

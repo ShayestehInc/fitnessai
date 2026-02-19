@@ -63,7 +63,7 @@ export function ExerciseList({
           <button
             onClick={() => onMuscleGroupChange("")}
             className={cn(
-              "rounded-full border px-3 py-1 text-sm transition-colors",
+              "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               !muscleGroup
                 ? "border-primary bg-primary text-primary-foreground"
                 : "hover:bg-accent",
@@ -76,7 +76,7 @@ export function ExerciseList({
               key={key}
               onClick={() => onMuscleGroupChange(key)}
               className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors",
+                "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 muscleGroup === key
                   ? "border-primary bg-primary text-primary-foreground"
                   : "hover:bg-accent",
