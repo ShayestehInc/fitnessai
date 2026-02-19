@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft, MessageSquare } from "lucide-react";
 import { useConversations } from "@/hooks/use-messaging";
 import { PageHeader } from "@/components/shared/page-header";
@@ -9,10 +9,12 @@ import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { ErrorState } from "@/components/shared/error-state";
 import { ConversationList } from "@/components/messaging/conversation-list";
 import { ChatView } from "@/components/messaging/chat-view";
+import { NewConversationView } from "@/components/messaging/new-conversation-view";
 import { Button } from "@/components/ui/button";
 import type { Conversation } from "@/types/messaging";
 
 export default function MessagesPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const conversationIdParam = searchParams.get("conversation");
   const traineeIdParam = searchParams.get("trainee");
@@ -25,6 +27,19 @@ export default function MessagesPage() {
   } = useConversations();
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
+
+  // Determine if we need to show the new-conversation view:
+  // trainee param is present but no matching conversation exists yet.
+  const showNewConversation = useMemo(() => {
+    if (!traineeIdParam || !conversations) return false;
+    const targetTraineeId = parseInt(traineeIdParam, 10);
+    if (isNaN(targetTraineeId)) return false;
+    return !conversations.some((c) => c.trainee.id === targetTraineeId);
+  }, [traineeIdParam, conversations]);
+
+  const newConversationTraineeId = traineeIdParam
+    ? parseInt(traineeIdParam, 10)
+    : 0;
 
   // Auto-select conversation from URL param or first in list
   useEffect(() => {
@@ -53,6 +68,8 @@ export default function MessagesPage() {
         setSelectedConversation(found);
         return;
       }
+      // If we're showing new conversation view, don't auto-select anything
+      if (showNewConversation) return;
     }
 
     // If nothing selected yet, select the first conversation
@@ -69,7 +86,7 @@ export default function MessagesPage() {
         setSelectedConversation(conversations[0]);
       }
     }
-  }, [conversations, conversationIdParam, traineeIdParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [conversations, conversationIdParam, traineeIdParam, showNewConversation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
@@ -77,6 +94,13 @@ export default function MessagesPage() {
 
   const handleBackToList = () => {
     setSelectedConversation(null);
+  };
+
+  const handleNewConversationCreated = (conversationId: number) => {
+    // Refetch conversations so the new one appears, then navigate to it
+    refetch().then(() => {
+      router.replace(`/messages?conversation=${conversationId}`);
+    });
   };
 
   if (isLoading) {
@@ -106,6 +130,9 @@ export default function MessagesPage() {
     );
   }
 
+  // Decide what to show in the chat area
+  const showNewConvView = showNewConversation && !selectedConversation;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeader
@@ -114,10 +141,10 @@ export default function MessagesPage() {
       />
 
       <div className="flex flex-1 overflow-hidden rounded-lg border bg-card">
-        {/* Conversation list sidebar — hidden on small screens when a conversation is selected */}
+        {/* Conversation list sidebar -- hidden on small screens when a conversation or new-conv is active */}
         <div
           className={`w-full shrink-0 overflow-y-auto border-r md:w-80 ${
-            selectedConversation ? "hidden md:block" : "block"
+            selectedConversation || showNewConvView ? "hidden md:block" : "block"
           }`}
         >
           <ConversationList
@@ -127,10 +154,10 @@ export default function MessagesPage() {
           />
         </div>
 
-        {/* Chat area — hidden on small screens when no conversation is selected */}
+        {/* Chat area -- hidden on small screens when no conversation is selected */}
         <div
           className={`min-w-0 flex-1 ${
-            selectedConversation ? "block" : "hidden md:block"
+            selectedConversation || showNewConvView ? "block" : "hidden md:block"
           }`}
         >
           {selectedConversation ? (
@@ -148,6 +175,24 @@ export default function MessagesPage() {
                 </Button>
               </div>
               <ChatView conversation={selectedConversation} />
+            </div>
+          ) : showNewConvView ? (
+            <div className="flex h-full flex-col">
+              <div className="flex items-center border-b px-2 py-1.5 md:hidden">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBackToList}
+                  aria-label="Back to conversations"
+                >
+                  <ArrowLeft className="mr-1 h-4 w-4" />
+                  Back
+                </Button>
+              </div>
+              <NewConversationView
+                traineeId={newConversationTraineeId}
+                onConversationCreated={handleNewConversationCreated}
+              />
             </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center text-center">
