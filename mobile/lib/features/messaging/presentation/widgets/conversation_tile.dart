@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/conversation_model.dart';
+import 'messaging_utils.dart';
 
 /// A single conversation row in the conversation list.
 class ConversationTile extends StatelessWidget {
@@ -125,32 +126,6 @@ class ConversationTile extends StatelessWidget {
   }
 
   String _formatTimestamp(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-
-    if (diff.inMinutes < 1) return 'Now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24 && dt.day == now.day) {
-      final hour = dt.hour > 12 ? dt.hour - 12 : dt.hour;
-      final period = dt.hour >= 12 ? 'PM' : 'AM';
-      final min = dt.minute.toString().padLeft(2, '0');
-      return '$hour:$min $period';
-    }
-    if (diff.inDays == 1 ||
-        (diff.inDays == 0 && dt.day != now.day)) {
-      return 'Yesterday';
-    }
-    if (dt.year == now.year) {
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-      ];
-      return '${months[dt.month - 1]} ${dt.day}';
-    }
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+    return formatConversationTimestamp(dt);
   }
 }

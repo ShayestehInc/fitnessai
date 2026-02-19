@@ -309,6 +309,8 @@ class RemoveTraineeView(views.APIView):
     permission_classes = [IsAuthenticated, IsTrainer]
 
     def post(self, request: Request, pk: int) -> Response:
+        from messaging.services.messaging_service import archive_conversations_for_trainee
+
         user = cast(User, request.user)
         try:
             trainee = User.objects.get(
@@ -320,6 +322,16 @@ class RemoveTraineeView(views.APIView):
             return Response(
                 {'error': 'Trainee not found'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Archive messaging conversations before removing the trainer link
+        archived_count = archive_conversations_for_trainee(trainee)
+        if archived_count > 0:
+            logger.info(
+                "Archived %d conversation(s) for trainee %s (id=%d)",
+                archived_count,
+                trainee.email,
+                trainee.id,
             )
 
         trainee.parent_trainer = None

@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../data/repositories/messaging_repository.dart';
 import '../providers/messaging_provider.dart';
 import '../widgets/chat_input.dart';
 
 /// Screen for starting a new conversation with a trainee.
 /// Shows an input field to send the first message.
-class NewConversationScreen extends ConsumerStatefulWidget {
+class NewConversationScreen extends ConsumerWidget {
   final int traineeId;
   final String? traineeName;
 
@@ -19,22 +17,13 @@ class NewConversationScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<NewConversationScreen> createState() =>
-      _NewConversationScreenState();
-}
-
-class _NewConversationScreenState
-    extends ConsumerState<NewConversationScreen> {
-  bool _isSending = false;
-  String? _error;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final newConvState = ref.watch(newConversationProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.traineeName ?? 'New Message'),
+        title: Text(traineeName ?? 'New Message'),
         centerTitle: false,
       ),
       body: Column(
@@ -53,14 +42,14 @@ class _NewConversationScreenState
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Send a message to ${widget.traineeName ?? 'this trainee'}',
+                      'Send a message to ${traineeName ?? 'this trainee'}',
                       style: theme.textTheme.bodyLarge,
                       textAlign: TextAlign.center,
                     ),
-                    if (_error != null) ...[
+                    if (newConvState.error != null) ...[
                       const SizedBox(height: 16),
                       Text(
-                        _error!,
+                        newConvState.error!,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.error,
                         ),
@@ -73,47 +62,39 @@ class _NewConversationScreenState
             ),
           ),
           ChatInput(
-            onSend: _handleSend,
-            isSending: _isSending,
+            onSend: (content) => _handleSend(context, ref, content),
+            isSending: newConvState.isSending,
           ),
         ],
       ),
     );
   }
 
-  Future<bool> _handleSend(String content) async {
-    setState(() {
-      _isSending = true;
-      _error = null;
-    });
+  Future<bool> _handleSend(
+    BuildContext context,
+    WidgetRef ref,
+    String content,
+  ) async {
+    final notifier = ref.read(newConversationProvider.notifier);
+    final result = await notifier.startConversation(
+      traineeId: traineeId,
+      content: content,
+    );
 
-    try {
-      final apiClient = ref.read(apiClientProvider);
-      final repo = MessagingRepository(apiClient);
-      final result = await repo.startConversation(
-        traineeId: widget.traineeId,
-        content: content,
-      );
-
-      // Refresh conversation list
-      ref.read(conversationListProvider.notifier).loadConversations();
-      ref.read(unreadMessageCountProvider.notifier).refresh();
-
-      if (mounted) {
-        // Navigate to the conversation, replacing this screen
-        context.pushReplacement(
-          '/messages/${result.conversationId}?name=${widget.traineeName ?? ""}',
-        );
-      }
-      return true;
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isSending = false;
-          _error = 'Failed to send message. Please try again.';
-        });
-      }
+    if (result == null) {
       return false;
     }
+
+    // Refresh conversation list and unread count
+    ref.read(conversationListProvider.notifier).loadConversations();
+    ref.read(unreadMessageCountProvider.notifier).refresh();
+
+    if (context.mounted) {
+      // Navigate to the conversation, replacing this screen
+      context.pushReplacement(
+        '/messages/${result.conversationId}?name=${traineeName ?? ""}',
+      );
+    }
+    return true;
   }
 }

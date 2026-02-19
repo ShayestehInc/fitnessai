@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/admin/presentation/widgets/admin_impersonation_banner.dart';
 import '../../features/messaging/presentation/providers/messaging_provider.dart';
 
-class TrainerNavigationShell extends ConsumerWidget {
+class TrainerNavigationShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const TrainerNavigationShell({
@@ -13,18 +13,26 @@ class TrainerNavigationShell extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TrainerNavigationShell> createState() =>
+      _TrainerNavigationShellState();
+}
+
+class _TrainerNavigationShellState
+    extends ConsumerState<TrainerNavigationShell> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh unread count once on first mount, not on every rebuild
+    ref.read(unreadMessageCountProvider.notifier).refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final unreadCount = ref.watch(unreadMessageCountProvider);
 
-    // Refresh unread count on first build
-    ref.listen(unreadMessageCountProvider, (_, __) {});
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(unreadMessageCountProvider.notifier).refresh();
-    });
-
     return Scaffold(
-      body: AdminImpersonationBannerWrapper(child: navigationShell),
+      body: AdminImpersonationBannerWrapper(child: widget.navigationShell),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: theme.cardColor,
@@ -42,21 +50,21 @@ class TrainerNavigationShell extends ConsumerWidget {
                   icon: Icons.dashboard_outlined,
                   activeIcon: Icons.dashboard,
                   label: 'Dashboard',
-                  isSelected: navigationShell.currentIndex == 0,
+                  isSelected: widget.navigationShell.currentIndex == 0,
                   onTap: () => _onTap(context, 0),
                 ),
                 _NavItem(
                   icon: Icons.people_outline,
                   activeIcon: Icons.people,
                   label: 'Trainees',
-                  isSelected: navigationShell.currentIndex == 1,
+                  isSelected: widget.navigationShell.currentIndex == 1,
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
                   icon: Icons.chat_bubble_outline,
                   activeIcon: Icons.chat_bubble,
                   label: 'Messages',
-                  isSelected: navigationShell.currentIndex == 2,
+                  isSelected: widget.navigationShell.currentIndex == 2,
                   onTap: () => _onTap(context, 2),
                   badgeCount: unreadCount,
                 ),
@@ -64,14 +72,14 @@ class TrainerNavigationShell extends ConsumerWidget {
                   icon: Icons.calendar_month_outlined,
                   activeIcon: Icons.calendar_month,
                   label: 'Programs',
-                  isSelected: navigationShell.currentIndex == 3,
+                  isSelected: widget.navigationShell.currentIndex == 3,
                   onTap: () => _onTap(context, 3),
                 ),
                 _NavItem(
                   icon: Icons.settings_outlined,
                   activeIcon: Icons.settings,
                   label: 'Settings',
-                  isSelected: navigationShell.currentIndex == 4,
+                  isSelected: widget.navigationShell.currentIndex == 4,
                   onTap: () => _onTap(context, 4),
                 ),
               ],
@@ -83,9 +91,9 @@ class TrainerNavigationShell extends ConsumerWidget {
   }
 
   void _onTap(BuildContext context, int index) {
-    navigationShell.goBranch(
+    widget.navigationShell.goBranch(
       index,
-      initialLocation: index == navigationShell.currentIndex,
+      initialLocation: index == widget.navigationShell.currentIndex,
     );
   }
 }

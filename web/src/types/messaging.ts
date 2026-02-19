@@ -46,6 +46,13 @@ export interface StartConversationResponse {
   message: Message;
 }
 
+export interface ConversationsResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Conversation[];
+}
+
 export interface UnreadMessageCount {
   unread_count: number;
 }

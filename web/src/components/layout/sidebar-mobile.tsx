@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMessagingUnreadCount } from "@/hooks/use-messaging";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -19,6 +21,8 @@ interface SidebarMobileProps {
 
 export function SidebarMobile({ open, onOpenChange }: SidebarMobileProps) {
   const pathname = usePathname();
+  const { data: unreadData } = useMessagingUnreadCount();
+  const unreadCount = unreadData?.unread_count ?? 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -32,6 +36,7 @@ export function SidebarMobile({ open, onOpenChange }: SidebarMobileProps) {
             const isActive =
               pathname === link.href ||
               (link.href !== "/dashboard" && pathname.startsWith(link.href));
+            const isMessagesLink = link.href === "/messages";
             return (
               <Link
                 key={link.href}
@@ -46,7 +51,15 @@ export function SidebarMobile({ open, onOpenChange }: SidebarMobileProps) {
                 )}
               >
                 <link.icon className="h-4 w-4" aria-hidden="true" />
-                {link.label}
+                <span className="flex-1">{link.label}</span>
+                {isMessagesLink && unreadCount > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="h-5 min-w-[20px] px-1.5 text-[10px]"
+                  >
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Badge>
+                )}
               </Link>
             );
           })}

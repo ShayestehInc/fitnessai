@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/conversation_model.dart';
-import '../../data/models/message_model.dart';
+import '../../data/models/message_model.dart'
+    show MessageModel, MessagesResponse, StartConversationResponse;
 import '../../data/repositories/messaging_repository.dart';
 
 // ---------------------------------------------------------------------------
@@ -119,8 +121,9 @@ class UnreadCountNotifier extends StateNotifier<int> {
     try {
       final count = await _repo.getUnreadCount();
       state = count;
-    } catch (_) {
-      // Keep current count on error
+    } catch (e) {
+      // Keep current count on error, but log it
+      debugPrint('UnreadCountNotifier.refresh() failed: $e');
     }
   }
 
@@ -130,6 +133,68 @@ class UnreadCountNotifier extends StateNotifier<int> {
 
   void decrement(int by) {
     state = (state - by).clamp(0, 999999);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// New conversation state provider
+// ---------------------------------------------------------------------------
+
+class NewConversationState {
+  final bool isSending;
+  final String? error;
+
+  const NewConversationState({
+    this.isSending = false,
+    this.error,
+  });
+
+  NewConversationState copyWith({
+    bool? isSending,
+    String? error,
+    bool clearError = false,
+  }) {
+    return NewConversationState(
+      isSending: isSending ?? this.isSending,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
+}
+
+final newConversationProvider =
+    StateNotifierProvider<NewConversationNotifier, NewConversationState>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return NewConversationNotifier(MessagingRepository(apiClient));
+});
+
+class NewConversationNotifier extends StateNotifier<NewConversationState> {
+  final MessagingRepository _repo;
+
+  NewConversationNotifier(this._repo) : super(const NewConversationState());
+
+  Future<StartConversationResponse?> startConversation({
+    required int traineeId,
+    required String content,
+  }) async {
+    state = const NewConversationState(isSending: true);
+    try {
+      final result = await _repo.startConversation(
+        traineeId: traineeId,
+        content: content,
+      );
+      state = const NewConversationState(isSending: false);
+      return result;
+    } catch (e) {
+      state = const NewConversationState(
+        isSending: false,
+        error: 'Failed to send message. Please try again.',
+      );
+      return null;
+    }
+  }
+
+  void clearError() {
+    state = state.copyWith(clearError: true);
   }
 }
 
@@ -281,8 +346,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
           return m;
         }).toList(),
       );
-    } catch (_) {
-      // Non-critical, ignore
+    } catch (e) {
+      debugPrint('ChatNotifier.markRead() failed: $e');
     }
   }
 

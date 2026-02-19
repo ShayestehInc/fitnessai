@@ -5,7 +5,7 @@ import '../../features/trainer/presentation/providers/trainer_provider.dart';
 import '../../features/trainer/presentation/widgets/impersonation_banner.dart';
 import '../../features/messaging/presentation/providers/messaging_provider.dart';
 
-class MainNavigationShell extends ConsumerWidget {
+class MainNavigationShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainNavigationShell({
@@ -14,22 +14,30 @@ class MainNavigationShell extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainNavigationShell> createState() =>
+      _MainNavigationShellState();
+}
+
+class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh unread count once on first mount, not on every rebuild
+    ref.read(unreadMessageCountProvider.notifier).refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final impersonationState = ref.watch(impersonationProvider);
     final theme = Theme.of(context);
     final unreadCount = ref.watch(unreadMessageCountProvider);
-
-    // Refresh unread count
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(unreadMessageCountProvider.notifier).refresh();
-    });
 
     return Scaffold(
       body: Column(
         children: [
           // Show impersonation banner when trainer is viewing as trainee
           if (impersonationState.isImpersonating) const ImpersonationBanner(),
-          Expanded(child: navigationShell),
+          Expanded(child: widget.navigationShell),
         ],
       ),
       bottomNavigationBar: Container(
@@ -49,35 +57,35 @@ class MainNavigationShell extends ConsumerWidget {
                   icon: Icons.home_outlined,
                   activeIcon: Icons.home,
                   label: 'Home',
-                  isSelected: navigationShell.currentIndex == 0,
+                  isSelected: widget.navigationShell.currentIndex == 0,
                   onTap: () => _onTap(context, 0),
                 ),
                 _NavItem(
                   icon: Icons.restaurant_outlined,
                   activeIcon: Icons.restaurant,
                   label: 'Diet',
-                  isSelected: navigationShell.currentIndex == 1,
+                  isSelected: widget.navigationShell.currentIndex == 1,
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
                   icon: Icons.fitness_center_outlined,
                   activeIcon: Icons.fitness_center,
                   label: 'Logbook',
-                  isSelected: navigationShell.currentIndex == 2,
+                  isSelected: widget.navigationShell.currentIndex == 2,
                   onTap: () => _onTap(context, 2),
                 ),
                 _NavItem(
                   icon: Icons.people_outlined,
                   activeIcon: Icons.people,
                   label: 'Community',
-                  isSelected: navigationShell.currentIndex == 3,
+                  isSelected: widget.navigationShell.currentIndex == 3,
                   onTap: () => _onTap(context, 3),
                 ),
                 _NavItem(
                   icon: Icons.chat_bubble_outline,
                   activeIcon: Icons.chat_bubble,
                   label: 'Messages',
-                  isSelected: navigationShell.currentIndex == 4,
+                  isSelected: widget.navigationShell.currentIndex == 4,
                   onTap: () => _onTap(context, 4),
                   badgeCount: unreadCount,
                 ),
@@ -90,9 +98,9 @@ class MainNavigationShell extends ConsumerWidget {
   }
 
   void _onTap(BuildContext context, int index) {
-    navigationShell.goBranch(
+    widget.navigationShell.goBranch(
       index,
-      initialLocation: index == navigationShell.currentIndex,
+      initialLocation: index == widget.navigationShell.currentIndex,
     );
   }
 }

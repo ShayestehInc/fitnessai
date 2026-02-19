@@ -14,6 +14,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from users.models import User
 
@@ -27,7 +28,6 @@ from .serializers import (
 from .services.messaging_service import (
     get_conversations_for_user,
     get_messages_for_conversation,
-    get_or_create_conversation,
     get_unread_count,
     mark_conversation_read,
     send_message,
@@ -40,6 +40,11 @@ logger = logging.getLogger(__name__)
 class MessagePagination(PageNumberPagination):
     """Pagination for messages within a conversation."""
     page_size = 20
+
+
+class ConversationPagination(PageNumberPagination):
+    """Pagination for conversation list."""
+    page_size = 50
 
 
 # ---------------------------------------------------------------------------
@@ -60,11 +65,17 @@ class ConversationListView(views.APIView):
         user = cast(User, request.user)
         conversations = get_conversations_for_user(user)
 
+        paginator = ConversationPagination()
+        page = paginator.paginate_queryset(conversations, request)
+
         serializer = ConversationListSerializer(
-            conversations,
+            page if page is not None else conversations,
             many=True,
             context={'request': request},
         )
+
+        if paginator.page is not None:
+            return paginator.get_paginated_response(serializer.data)
         return Response(serializer.data)
 
 
@@ -128,6 +139,8 @@ class SendMessageView(views.APIView):
     Send a message in an existing conversation.
     """
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'messaging'
 
     def post(self, request: Request, conversation_id: int) -> Response:
         user = cast(User, request.user)
@@ -201,6 +214,8 @@ class StartConversationView(views.APIView):
     Creates conversation if needed and sends the first message.
     """
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'messaging'
 
     def post(self, request: Request) -> Response:
         user = cast(User, request.user)
@@ -329,24 +344,25 @@ class UnreadCountView(views.APIView):
 
 
 def _is_impersonating(request: Request) -> bool:
-    """Check if the current request is from an impersonation session."""
-    from rest_framework_simplejwt.tokens import AccessToken  # type: ignore[import-untyped]
+    """Check if the current request is from an impersonation session.
 
-    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-    if not auth_header.startswith('Bearer '):
+    Uses ``request.auth`` (the already-validated token from simplejwt
+    authentication) instead of re-parsing the Authorization header.
+    """
+    token = request.auth
+    if token is None:
         return False
-
-    token_str = auth_header.split(' ', 1)[1]
-    try:
-        token = AccessToken(token_str)
+    # simplejwt sets request.auth to the validated token object
+    # which supports dict-style access for custom claims.
+    if hasattr(token, 'get'):
         return bool(token.get('impersonating', False))
-    except Exception:
-        return False
+    # Fallback: if auth is not a token object (e.g. SessionAuth)
+    return False
 
 
 def _broadcast_new_message(
     conversation_id: int,
-    message_data: dict,
+    message_data: dict[str, object],
 ) -> None:
     """Broadcast a new message to the conversation's WebSocket group."""
     try:
@@ -367,11 +383,11 @@ def _broadcast_new_message(
                 'timestamp': tz.now().isoformat(),
             },
         )
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError) as exc:
         logger.warning(
-            "Failed to broadcast message to WebSocket for conversation %d",
+            "Failed to broadcast message to WebSocket for conversation %d: %s",
             conversation_id,
-            exc_info=True,
+            exc,
         )
 
 
@@ -398,11 +414,11 @@ def _broadcast_read_receipt(
                 'read_at': read_at,
             },
         )
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError) as exc:
         logger.warning(
-            "Failed to broadcast read receipt for conversation %d",
+            "Failed to broadcast read receipt for conversation %d: %s",
             conversation_id,
-            exc_info=True,
+            exc,
         )
 
 
@@ -431,9 +447,9 @@ def _send_message_push_notification(
                 'sender_id': str(sender.id),
             },
         )
-    except Exception:
+    except (ConnectionError, TimeoutError, OSError) as exc:
         logger.warning(
-            "Failed to send message push notification to user %d",
+            "Failed to send message push notification to user %d: %s",
             recipient_id,
-            exc_info=True,
+            exc,
         )

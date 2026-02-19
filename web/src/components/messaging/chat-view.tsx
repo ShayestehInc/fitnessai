@@ -27,10 +27,14 @@ export function ChatView({ conversation }: ChatViewProps) {
   const sendMessage = useSendMessage(conversation.id);
   const markRead = useMarkConversationRead(conversation.id);
 
-  const trainee = conversation.trainee;
+  // Show the other party's info in the header
+  const otherParty =
+    user?.id === conversation.trainer.id
+      ? conversation.trainee
+      : conversation.trainer;
   const displayName =
-    `${trainee.first_name} ${trainee.last_name}`.trim() || trainee.email;
-  const initials = getInitials(trainee.first_name, trainee.last_name);
+    `${otherParty.first_name} ${otherParty.last_name}`.trim() || otherParty.email;
+  const initials = getInitials(otherParty.first_name, otherParty.last_name);
 
   // Reset state when conversation changes
   useEffect(() => {
@@ -53,19 +57,24 @@ export function ChatView({ conversation }: ChatViewProps) {
     }
   }, [data, page]);
 
-  // Mark conversation as read on open and when new messages arrive
+  // Mark conversation as read on open (only once per conversation switch)
+  const markReadCalledRef = useRef<number | null>(null);
   useEffect(() => {
-    if (conversation.unread_count > 0) {
+    if (
+      conversation.unread_count > 0 &&
+      markReadCalledRef.current !== conversation.id
+    ) {
+      markReadCalledRef.current = conversation.id;
       markRead.mutate();
     }
-  }, [conversation.id, conversation.unread_count]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [conversation.id, conversation.unread_count, markRead]);
 
   // Auto-scroll to bottom on initial load and when sending a message
   useEffect(() => {
     if (page === 1 && allMessages.length > 0) {
       scrollToBottom();
     }
-  }, [allMessages.length, page]);
+  }, [allMessages.length, page, scrollToBottom]);
 
   // Refetch messages every 5 seconds for near-real-time feel
   useEffect(() => {
@@ -116,8 +125,8 @@ export function ChatView({ conversation }: ChatViewProps) {
       {/* Chat header */}
       <div className="flex items-center gap-3 border-b px-4 py-3">
         <Avatar size="default">
-          {trainee.profile_image ? (
-            <AvatarImage src={trainee.profile_image} alt={displayName} />
+          {otherParty.profile_image ? (
+            <AvatarImage src={otherParty.profile_image} alt={displayName} />
           ) : null}
           <AvatarFallback>
             {initials || <User className="h-4 w-4" aria-hidden="true" />}
@@ -126,7 +135,7 @@ export function ChatView({ conversation }: ChatViewProps) {
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-semibold">{displayName}</h2>
           <p className="truncate text-xs text-muted-foreground">
-            {trainee.email}
+            {otherParty.email}
           </p>
         </div>
       </div>
@@ -205,6 +214,11 @@ export function ChatView({ conversation }: ChatViewProps) {
           </Button>
         )}
       </div>
+
+      {/* Typing indicator: v1 limitation — web uses HTTP polling, not WebSocket.
+         Typing indicators require real-time bidirectional communication which is
+         only available on mobile via WebSocket. The TypingIndicator component exists
+         at ./typing-indicator.tsx for use when web WebSocket support is added. */}
 
       {/* Chat input */}
       <ChatInput onSend={handleSend} isSending={sendMessage.isPending} />

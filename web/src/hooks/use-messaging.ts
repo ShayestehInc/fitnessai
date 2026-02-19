@@ -5,6 +5,7 @@ import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import type {
   Conversation,
+  ConversationsResponse,
   MessagesResponse,
   Message,
   StartConversationResponse,
@@ -14,8 +15,13 @@ import type {
 export function useConversations() {
   return useQuery<Conversation[]>({
     queryKey: ["messaging", "conversations"],
-    queryFn: () =>
-      apiClient.get<Conversation[]>(API_URLS.MESSAGING_CONVERSATIONS),
+    queryFn: async () => {
+      const response = await apiClient.get<ConversationsResponse>(
+        API_URLS.MESSAGING_CONVERSATIONS,
+      );
+      // Backend now returns paginated response; extract results array
+      return response.results;
+    },
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
   });

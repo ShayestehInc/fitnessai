@@ -8,10 +8,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from django.db import transaction
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, OuterRef, Q, QuerySet, Subquery
+from django.db.models.functions import Left
 from django.utils import timezone
 
 from messaging.models import Conversation, Message
@@ -209,21 +209,40 @@ def get_conversations_for_user(user: User) -> QuerySet[Conversation]:
     Trainers see conversations with their trainees.
     Trainees see conversations with their trainer.
     Always excludes archived unless specifically requested.
+
+    The queryset is annotated with:
+    - annotated_last_message_preview: last message content (truncated to 100 chars)
+    - annotated_unread_count: count of unread messages from the other party
     """
     if user.is_trainer():
-        return (
-            Conversation.objects.filter(trainer=user, is_archived=False)
-            .select_related('trainer', 'trainee')
-            .order_by('-last_message_at')
-        )
+        base_qs = Conversation.objects.filter(trainer=user, is_archived=False)
     elif user.is_trainee():
-        return (
-            Conversation.objects.filter(trainee=user, is_archived=False)
-            .select_related('trainer', 'trainee')
-            .order_by('-last_message_at')
-        )
+        base_qs = Conversation.objects.filter(trainee=user, is_archived=False)
+    else:
+        return Conversation.objects.none()
 
-    return Conversation.objects.none()
+    # Subquery: get the content of the most recent message per conversation
+    last_message_subquery = (
+        Message.objects.filter(conversation=OuterRef('pk'))
+        .order_by('-created_at')
+        .values('content')[:1]
+    )
+
+    return (
+        base_qs
+        .select_related('trainer', 'trainee')
+        .annotate(
+            annotated_last_message_preview=Left(
+                Subquery(last_message_subquery),
+                100,
+            ),
+            annotated_unread_count=Count(
+                'messages',
+                filter=Q(messages__is_read=False) & ~Q(messages__sender=user),
+            ),
+        )
+        .order_by('-last_message_at')
+    )
 
 
 def get_messages_for_conversation(

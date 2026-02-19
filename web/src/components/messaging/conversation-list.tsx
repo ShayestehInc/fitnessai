@@ -2,6 +2,7 @@
 
 import { User, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import type { Conversation } from "@/types/messaging";
@@ -17,6 +18,7 @@ export function ConversationList({
   selectedId,
   onSelect,
 }: ConversationListProps) {
+  const { user } = useAuth();
   if (conversations.length === 0) {
     return (
       <div
@@ -40,11 +42,15 @@ export function ConversationList({
   return (
     <div className="flex flex-col" role="listbox" aria-label="Conversations">
       {conversations.map((conversation) => {
-        const trainee = conversation.trainee;
+        // Show the other party: trainer sees trainee info, trainee sees trainer info
+        const otherParty =
+          user?.id === conversation.trainer.id
+            ? conversation.trainee
+            : conversation.trainer;
         const displayName =
-          `${trainee.first_name} ${trainee.last_name}`.trim() ||
-          trainee.email;
-        const initials = getInitials(trainee.first_name, trainee.last_name);
+          `${otherParty.first_name} ${otherParty.last_name}`.trim() ||
+          otherParty.email;
+        const initials = getInitials(otherParty.first_name, otherParty.last_name);
         const isSelected = selectedId === conversation.id;
         const hasUnread = conversation.unread_count > 0;
 
@@ -62,8 +68,8 @@ export function ConversationList({
             )}
           >
             <Avatar size="default">
-              {trainee.profile_image ? (
-                <AvatarImage src={trainee.profile_image} alt={displayName} />
+              {otherParty.profile_image ? (
+                <AvatarImage src={otherParty.profile_image} alt={displayName} />
               ) : null}
               <AvatarFallback>
                 {initials || (

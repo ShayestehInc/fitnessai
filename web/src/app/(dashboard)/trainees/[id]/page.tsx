@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, User, Pencil, Trash2, CalendarOff, MessageSquare } from "lucide-react";
 import { useTrainee } from "@/hooks/use-trainees";
-import { useStartConversation } from "@/hooks/use-messaging";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,25 +34,16 @@ export default function TraineeDetailPage({
   );
 
   const router = useRouter();
-  const startConversation = useStartConversation();
 
   const [editGoalsOpen, setEditGoalsOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [missedDayOpen, setMissedDayOpen] = useState(false);
 
   const handleMessageTrainee = () => {
-    // Send a greeting message to start the conversation and navigate to it
-    startConversation.mutate(
-      {
-        trainee_id: traineeId,
-        content: `Hi ${trainee?.first_name || "there"}!`,
-      },
-      {
-        onSuccess: (result) => {
-          router.push(`/messages?conversation=${result.conversation_id}`);
-        },
-      },
-    );
+    // Navigate to messages page with trainee ID so the user can type their own first message.
+    // If a conversation already exists, the messages page will auto-select it.
+    // If not, we pass trainee info to prompt starting a new conversation.
+    router.push(`/messages?trainee=${traineeId}`);
   };
 
   if (!isValidId || isError || (!isLoading && !trainee)) {
@@ -124,10 +114,9 @@ export default function TraineeDetailPage({
               variant="outline"
               size="sm"
               onClick={handleMessageTrainee}
-              disabled={startConversation.isPending}
             >
               <MessageSquare className="mr-2 h-4 w-4" />
-              {startConversation.isPending ? "Opening..." : "Message"}
+              Message
             </Button>
             <Button
               variant="outline"

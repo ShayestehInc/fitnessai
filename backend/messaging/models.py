@@ -21,7 +21,8 @@ class Conversation(models.Model):
     )
     trainee = models.ForeignKey(
         'users.User',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name='trainee_conversations',
         limit_choices_to={'role': 'TRAINEE'},
     )
@@ -49,8 +50,9 @@ class Conversation(models.Model):
         ordering = ['-last_message_at']
 
     def __str__(self) -> str:
+        trainee_email = self.trainee.email if self.trainee else '[removed]'
         return (
-            f"Conversation({self.trainer.email} <-> {self.trainee.email}, "
+            f"Conversation({self.trainer.email} <-> {trainee_email}, "
             f"archived={self.is_archived})"
         )
 

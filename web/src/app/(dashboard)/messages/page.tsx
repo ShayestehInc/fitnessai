@@ -14,6 +14,7 @@ import type { Conversation } from "@/types/messaging";
 export default function MessagesPage() {
   const searchParams = useSearchParams();
   const conversationIdParam = searchParams.get("conversation");
+  const traineeIdParam = searchParams.get("trainee");
 
   const {
     data: conversations,
@@ -31,9 +32,22 @@ export default function MessagesPage() {
       return;
     }
 
+    // Select by conversation ID
     if (conversationIdParam) {
       const targetId = parseInt(conversationIdParam, 10);
       const found = conversations.find((c) => c.id === targetId);
+      if (found) {
+        setSelectedConversation(found);
+        return;
+      }
+    }
+
+    // Select by trainee ID (from trainee detail "Message" button)
+    if (traineeIdParam) {
+      const targetTraineeId = parseInt(traineeIdParam, 10);
+      const found = conversations.find(
+        (c) => c.trainee.id === targetTraineeId,
+      );
       if (found) {
         setSelectedConversation(found);
         return;
@@ -54,7 +68,7 @@ export default function MessagesPage() {
         setSelectedConversation(conversations[0]);
       }
     }
-  }, [conversations, conversationIdParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [conversations, conversationIdParam, traineeIdParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isLoading) {
     return (
@@ -84,7 +98,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeader
         title="Messages"
         description="Direct messages with your trainees"

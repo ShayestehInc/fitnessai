@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../../core/api/api_client.dart';
@@ -125,8 +126,8 @@ class MessagingWsService {
         case 'pong':
           break;
       }
-    } catch (_) {
-      // Ignore malformed messages
+    } catch (e) {
+      debugPrint('MessagingWsService: failed to parse WS message: $e');
     }
   }
 

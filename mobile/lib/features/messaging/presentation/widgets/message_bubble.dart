@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/message_model.dart';
+import 'messaging_utils.dart';
 
 /// A single message bubble in the chat view.
 class MessageBubble extends StatelessWidget {
@@ -93,34 +94,6 @@ class MessageBubble extends StatelessWidget {
   }
 
   String _formatTimestamp(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-
-    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
-    final period = dt.hour >= 12 ? 'PM' : 'AM';
-    final min = dt.minute.toString().padLeft(2, '0');
-    final time = '$hour:$min $period';
-
-    if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
-      return time;
-    }
-    if (diff.inDays == 1 || (diff.inDays == 0 && dt.day != now.day)) {
-      return 'Yesterday $time';
-    }
-    if (dt.year == now.year) {
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-      ];
-      return '${months[dt.month - 1]} ${dt.day} $time';
-    }
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year} $time';
+    return formatMessageTimestamp(dt);
   }
 }

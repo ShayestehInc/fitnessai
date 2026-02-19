@@ -125,15 +125,14 @@ class DirectMessageConsumer(AsyncJsonWebSocketConsumer):
 
     async def _authenticate(self) -> Any:
         """Authenticate user from JWT token in query params."""
+        from urllib.parse import parse_qs
+
         from channels.db import database_sync_to_async  # type: ignore[import-untyped]
 
         query_string = self.scope.get('query_string', b'').decode('utf-8')
-        params = dict(
-            pair.split('=', 1)
-            for pair in query_string.split('&')
-            if '=' in pair
-        )
-        token = params.get('token')
+        parsed = parse_qs(query_string)
+        token_values = parsed.get('token', [])
+        token = token_values[0] if token_values else None
         if not token:
             return None
 

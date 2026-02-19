@@ -14,7 +14,7 @@ from .models import Conversation, Message
 # Input serializers (validation)
 # ---------------------------------------------------------------------------
 
-class SendMessageSerializer(serializers.Serializer[dict[str, Any]]):
+class SendMessageSerializer(serializers.Serializer):  # type: ignore[type-arg]
     """Validates message send request."""
     content = serializers.CharField(max_length=2000)
 
@@ -25,7 +25,7 @@ class SendMessageSerializer(serializers.Serializer[dict[str, Any]]):
         return stripped
 
 
-class StartConversationSerializer(serializers.Serializer[dict[str, Any]]):
+class StartConversationSerializer(serializers.Serializer):  # type: ignore[type-arg]
     """Validates starting a new conversation (trainer -> trainee)."""
     trainee_id = serializers.IntegerField()
     content = serializers.CharField(max_length=2000)
@@ -41,7 +41,7 @@ class StartConversationSerializer(serializers.Serializer[dict[str, Any]]):
 # Output serializers (response)
 # ---------------------------------------------------------------------------
 
-class MessageSenderSerializer(serializers.Serializer[dict[str, Any]]):
+class MessageSenderSerializer(serializers.Serializer):  # type: ignore[type-arg]
     """Minimal sender info in a message."""
     id = serializers.IntegerField()
     first_name = serializers.CharField()
@@ -71,7 +71,7 @@ class MessageSerializer(serializers.ModelSerializer[Message]):
         ]
 
 
-class ConversationParticipantSerializer(serializers.Serializer[dict[str, Any]]):
+class ConversationParticipantSerializer(serializers.Serializer):  # type: ignore[type-arg]
     """Minimal participant info for conversation list."""
     id = serializers.IntegerField()
     first_name = serializers.CharField()
@@ -107,26 +107,17 @@ class ConversationListSerializer(serializers.ModelSerializer[Conversation]):
         ]
 
     def get_last_message_preview(self, obj: Conversation) -> str | None:
-        """Return the last message content truncated to 100 chars."""
-        last_msg = (
-            Message.objects.filter(conversation=obj)
-            .order_by('-created_at')
-            .values_list('content', flat=True)
-            .first()
-        )
-        if last_msg is None:
-            return None
-        return last_msg[:100] if len(last_msg) > 100 else last_msg
+        """Return the last message content truncated to 100 chars.
+
+        Uses the ``annotated_last_message_preview`` annotation added by
+        ``get_conversations_for_user()`` to avoid N+1 queries.
+        """
+        return getattr(obj, 'annotated_last_message_preview', None)
 
     def get_unread_count(self, obj: Conversation) -> int:
-        """Return unread message count for the requesting user."""
-        request = self.context.get('request')
-        if request is None or not hasattr(request, 'user'):
-            return 0
-        user = request.user
-        return Message.objects.filter(
-            conversation=obj,
-            is_read=False,
-        ).exclude(
-            sender=user,
-        ).count()
+        """Return unread message count for the requesting user.
+
+        Uses the ``annotated_unread_count`` annotation added by
+        ``get_conversations_for_user()`` to avoid N+1 queries.
+        """
+        return getattr(obj, 'annotated_unread_count', 0)
