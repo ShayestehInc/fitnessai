@@ -16,7 +16,7 @@ test.describe("AI Chat", () => {
 
   test("should have message input", async ({ page }) => {
     await expect(
-      page.getByPlaceholder(/type.*message|ask.*question/i),
+      page.getByPlaceholder(/ask.*assistant|type.*message|ask.*question/i),
     ).toBeVisible();
   });
 

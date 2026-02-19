@@ -10,25 +10,27 @@ test.describe("Ambassador Payouts", () => {
 
   test("should display payouts page", async ({ page }) => {
     await expect(
-      page.getByRole("heading", { name: /payouts/i }),
+      page.getByRole("heading", { name: /payouts/i }).first(),
     ).toBeVisible();
   });
 
   test("should show Stripe Connect setup section", async ({ page }) => {
-    await expect(page.getByText(/payout account/i)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /payout account/i }),
+    ).toBeVisible();
   });
 
   test("should show payout history section", async ({ page }) => {
-    await expect(page.getByText(/payout history/i)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /payout history/i }),
+    ).toBeVisible();
   });
 
   test("should show connect button or connected status", async ({ page }) => {
-    const connectBtn = page.getByRole("button", {
-      name: /connect stripe|complete setup/i,
-    });
-    const connectedText = page.getByText(/stripe connected/i);
-    const hasConnect = await connectBtn.isVisible().catch(() => false);
-    const hasConnected = await connectedText.isVisible().catch(() => false);
-    expect(hasConnect || hasConnected).toBeTruthy();
+    // Check for either the connect button or connected status text
+    await expect(
+      page.getByRole("button", { name: /connect stripe account|complete setup/i })
+        .or(page.getByText(/stripe connected/i)),
+    ).toBeVisible();
   });
 });

@@ -4,17 +4,27 @@ test.describe("Responsive Design", () => {
   test("login should work on mobile viewport", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto("/login");
-    await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /fitnessai/i }),
+    ).toBeVisible();
     await expect(page.getByLabel("Email")).toBeVisible();
     await expect(page.getByLabel("Password")).toBeVisible();
-    await expect(page.getByRole("button", { name: /sign in/i })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /sign in/i }),
+    ).toBeVisible();
   });
 
   test("login should show hero on desktop", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/login");
-    // Two-column layout on desktop
-    await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
+    // Two-column layout on desktop with hero visible
+    await expect(
+      page.getByRole("heading", { name: /fitnessai/i }),
+    ).toBeVisible();
+    // Hero words are split into separate motion spans with aria-hidden parent
+    await expect(
+      page.locator("span", { hasText: "Train" }).first(),
+    ).toBeVisible();
   });
 
   test("sidebar should be hidden on mobile by default", async ({ page }) => {
@@ -22,7 +32,7 @@ test.describe("Responsive Design", () => {
     await page.goto("/login");
     // Sidebar aside should not be visible
     const sidebar = page.locator("aside");
-    if (await sidebar.count() > 0) {
+    if ((await sidebar.count()) > 0) {
       await expect(sidebar.first()).toBeHidden();
     }
   });

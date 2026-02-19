@@ -64,17 +64,34 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
 
   if (announcements.length === 0) {
     return (
-      <EmptyState
-        icon={Megaphone}
-        title="No announcements yet"
-        description="Create your first announcement to broadcast to all trainees."
-        action={
-          <Button onClick={handleCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Announcement
-          </Button>
-        }
-      />
+      <>
+        <EmptyState
+          icon={Megaphone}
+          title="No announcements yet"
+          description="Create your first announcement to broadcast to all trainees."
+          action={
+            <Button onClick={handleCreate}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Announcement
+            </Button>
+          }
+        />
+        <AnnouncementFormDialog
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          announcement={null}
+          isPending={createMutation.isPending}
+          onSubmit={(data) => {
+            createMutation.mutate(data, {
+              onSuccess: () => {
+                toast.success("Announcement created");
+                setFormOpen(false);
+              },
+              onError: (err) => toast.error(getErrorMessage(err)),
+            });
+          }}
+        />
+      </>
     );
   }
 

@@ -95,14 +95,16 @@ export default function SubscriptionPage() {
                       Next payment: {plan.next_payment_date}
                     </p>
                   )}
-                  <div className="space-y-1">
-                    {plan.features.map((f) => (
-                      <div key={f} className="flex items-center gap-2 text-sm">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span>{f}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {Array.isArray(plan.features) && plan.features.length > 0 && (
+                    <div className="space-y-1">
+                      {plan.features.map((f) => (
+                        <div key={f} className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <span>{f}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               ) : (
                 <EmptyState

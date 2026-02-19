@@ -33,7 +33,7 @@ test.describe("Announcements", () => {
   }) => {
     await page.getByRole("button", { name: /create|new announcement/i }).click();
     await expect(page.getByLabel(/title/i)).toBeVisible();
-    await expect(page.getByLabel(/message/i)).toBeVisible();
+    await expect(page.getByLabel(/message|body/i)).toBeVisible();
   });
 
   test("should close dialog on cancel", async ({ page }) => {

@@ -15,18 +15,29 @@ test.describe("Admin Settings", () => {
   });
 
   test("should show platform configuration section", async ({ page }) => {
-    await expect(page.getByText(/platform configuration/i)).toBeVisible();
+    // Platform Configuration is a CardTitle (h3)
+    await expect(
+      page.getByRole("heading", { name: /platform configuration/i }),
+    ).toBeVisible();
   });
 
   test("should show security section", async ({ page }) => {
-    await expect(page.getByText(/security/i)).toBeVisible();
+    // There are two Security headings (admin card + SecuritySection), use first
+    await expect(
+      page.getByRole("heading", { name: /^security$/i }).first(),
+    ).toBeVisible();
   });
 
   test("should show profile section", async ({ page }) => {
-    await expect(page.getByText(/profile/i)).toBeVisible();
+    // Profile section heading
+    await expect(
+      page.getByRole("heading", { name: /^profile$/i }),
+    ).toBeVisible();
   });
 
   test("should show appearance section", async ({ page }) => {
-    await expect(page.getByText(/appearance/i)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /appearance/i }),
+    ).toBeVisible();
   });
 });

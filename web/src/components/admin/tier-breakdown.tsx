@@ -17,6 +17,22 @@ interface TierBreakdownProps {
 const TIER_ORDER = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
 
 export function TierBreakdown({ tierBreakdown }: TierBreakdownProps) {
+  if (!tierBreakdown || typeof tierBreakdown !== "object") {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Tier Breakdown</CardTitle>
+          <CardDescription>
+            Trainer distribution across subscription tiers
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No subscription data</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const total = Object.values(tierBreakdown).reduce(
     (sum, count) => sum + count,
     0,

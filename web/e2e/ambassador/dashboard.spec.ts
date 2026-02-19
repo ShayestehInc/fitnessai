@@ -13,23 +13,20 @@ test.describe("Ambassador Dashboard", () => {
   });
 
   test("should show earnings stats", async ({ page }) => {
-    await expect(page.getByText(/total earnings/i)).toBeVisible();
-    await expect(page.getByText(/this month/i)).toBeVisible();
-    await expect(page.getByText(/total referrals/i)).toBeVisible();
-    await expect(page.getByText(/commission rate/i)).toBeVisible();
+    // Use heading role to avoid strict mode violations with description text
+    await expect(page.getByRole("heading", { name: /total earnings/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /this month/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /total referrals/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /commission rate/i })).toBeVisible();
   });
 
   test("should show referral code card", async ({ page }) => {
-    await expect(page.getByText(/your referral code/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /your referral code/i })).toBeVisible();
   });
 
   test("should have copy button for referral code", async ({ page }) => {
-    // The copy button should be in the referral code card
-    const copyBtn = page.getByRole("button").filter({
-      has: page.locator('svg'),
-    });
-    // At least one button should exist in the referral card area
-    await expect(page.getByText(/your referral code/i)).toBeVisible();
+    // The referral code card should be visible with copy button
+    await expect(page.getByRole("heading", { name: /your referral code/i })).toBeVisible();
   });
 
   test("should show ambassador navigation", async ({ page }) => {

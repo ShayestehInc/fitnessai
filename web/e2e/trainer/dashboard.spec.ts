@@ -10,7 +10,7 @@ test.describe("Trainer Dashboard", () => {
     await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
     // Should see stat cards
     await expect(page.getByText(/total trainees/i)).toBeVisible();
-    await expect(page.getByText(/active trainees/i)).toBeVisible();
+    await expect(page.getByText(/active today/i)).toBeVisible();
   });
 
   test("should display sidebar navigation", async ({ page }) => {

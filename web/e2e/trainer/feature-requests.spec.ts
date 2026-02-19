@@ -15,13 +15,17 @@ test.describe("Feature Requests", () => {
   });
 
   test("should have submit request button", async ({ page }) => {
+    // May have multiple buttons (toolbar + empty state)
     await expect(
-      page.getByRole("button", { name: /submit|new|request/i }),
+      page.getByRole("button", { name: /submit|new|request/i }).first(),
     ).toBeVisible();
   });
 
   test("should open submit dialog", async ({ page }) => {
-    await page.getByRole("button", { name: /submit|new|request/i }).click();
+    await page
+      .getByRole("button", { name: /submit|new|request/i })
+      .first()
+      .click();
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 });

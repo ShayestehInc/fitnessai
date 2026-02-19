@@ -15,8 +15,9 @@ test.describe("Admin Ambassador Management", () => {
   });
 
   test("should have add ambassador button", async ({ page }) => {
+    // There may be multiple "Add Ambassador" buttons (toolbar + empty state)
     await expect(
-      page.getByRole("button", { name: /add ambassador/i }),
+      page.getByRole("button", { name: /add ambassador/i }).first(),
     ).toBeVisible();
   });
 
@@ -27,7 +28,10 @@ test.describe("Admin Ambassador Management", () => {
   });
 
   test("should open create ambassador dialog", async ({ page }) => {
-    await page.getByRole("button", { name: /add ambassador/i }).click();
+    await page
+      .getByRole("button", { name: /add ambassador/i })
+      .first()
+      .click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await expect(
       page.getByRole("heading", { name: /add ambassador/i }),
@@ -37,13 +41,19 @@ test.describe("Admin Ambassador Management", () => {
   test("create dialog should have email and commission fields", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: /add ambassador/i }).click();
+    await page
+      .getByRole("button", { name: /add ambassador/i })
+      .first()
+      .click();
     await expect(page.getByLabel(/email/i)).toBeVisible();
     await expect(page.getByLabel(/commission/i)).toBeVisible();
   });
 
   test("should validate email in create dialog", async ({ page }) => {
-    await page.getByRole("button", { name: /add ambassador/i }).click();
+    await page
+      .getByRole("button", { name: /add ambassador/i })
+      .first()
+      .click();
     await page.getByRole("button", { name: /^create$/i }).click();
     await expect(page.getByText(/valid email/i)).toBeVisible();
   });

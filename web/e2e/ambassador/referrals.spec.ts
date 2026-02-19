@@ -21,13 +21,12 @@ test.describe("Ambassador Referrals", () => {
   });
 
   test("should show empty state or referral list", async ({ page }) => {
-    // Either shows empty state or list items
-    const emptyState = page.getByText(/no referrals yet/i);
-    const referralItems = page.locator(".rounded-lg.border").filter({
-      has: page.locator("text=/active|inactive/i"),
-    });
-    const hasEmpty = await emptyState.isVisible().catch(() => false);
-    const hasItems = (await referralItems.count()) > 0;
-    expect(hasEmpty || hasItems).toBeTruthy();
+    // Either shows empty state or list items — use .or() for retrying assertion
+    await expect(
+      page.getByText(/no referrals yet/i)
+        .or(page.locator(".rounded-lg.border").filter({
+          has: page.locator("text=/active|inactive/i"),
+        }).first()),
+    ).toBeVisible();
   });
 });

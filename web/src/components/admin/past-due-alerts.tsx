@@ -65,7 +65,7 @@ export function PastDueAlerts() {
     );
   }
 
-  const items = pastDue ?? [];
+  const items = Array.isArray(pastDue) ? pastDue : [];
   const displayItems = items.slice(0, 5);
 
   return (

@@ -10,19 +10,25 @@ test.describe("Ambassador Settings", () => {
 
   test("should display settings page", async ({ page }) => {
     await expect(
-      page.getByRole("heading", { name: /settings/i }),
+      page.getByRole("heading", { name: /settings/i }).first(),
     ).toBeVisible();
   });
 
   test("should show profile section", async ({ page }) => {
-    await expect(page.getByText(/profile/i)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /^profile$/i }),
+    ).toBeVisible();
   });
 
   test("should show appearance section", async ({ page }) => {
-    await expect(page.getByText(/appearance/i)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /appearance/i }),
+    ).toBeVisible();
   });
 
   test("should show security section", async ({ page }) => {
-    await expect(page.getByText(/security/i)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /^security$/i }),
+    ).toBeVisible();
   });
 });
