@@ -13,13 +13,6 @@ export function StripeConnectSetup() {
   const { data, isLoading } = useAmbassadorConnectStatus();
   const onboardMutation = useAmbassadorConnectOnboard();
 
-  const status = data as {
-    is_connected?: boolean;
-    charges_enabled?: boolean;
-    payouts_enabled?: boolean;
-    details_submitted?: boolean;
-  } | undefined;
-
   const handleOnboard = useCallback(() => {
     onboardMutation.mutate(undefined, {
       onSuccess: (res) => {
@@ -46,8 +39,8 @@ export function StripeConnectSetup() {
     );
   }
 
-  const isConnected = status?.is_connected;
-  const payoutsEnabled = status?.payouts_enabled;
+  const isConnected = data?.has_account;
+  const payoutsEnabled = data?.payouts_enabled;
 
   return (
     <Card>
