@@ -44,6 +44,7 @@ export interface MessagesResponse {
 export interface StartConversationResponse {
   conversation_id: number;
   message: Message;
+  is_new_conversation: boolean;
 }
 
 export interface ConversationsResponse {

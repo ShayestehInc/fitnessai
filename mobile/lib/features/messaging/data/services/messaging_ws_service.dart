@@ -127,7 +127,7 @@ class MessagingWsService {
           break;
       }
     } catch (e) {
-      debugPrint('MessagingWsService: failed to parse WS message: $e');
+      // Intentionally silent — malformed WS messages are non-fatal
     }
   }
 

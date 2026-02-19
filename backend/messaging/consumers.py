@@ -79,14 +79,17 @@ class DirectMessageConsumer(AsyncJsonWebSocketConsumer):
             await self.send_json({'type': 'pong'})
 
         elif msg_type == 'typing':
-            # Broadcast typing indicator to the group (other party)
+            # Broadcast typing indicator to the group (other party).
+            # Coerce is_typing to a strict bool to prevent injection of
+            # arbitrary data via the WebSocket frame.
+            is_typing = bool(content.get('is_typing', True))
             if self.group_name:
                 await self.channel_layer.group_send(
                     self.group_name,
                     {
                         'type': 'chat.typing',
                         'user_id': self.user_id,
-                        'is_typing': content.get('is_typing', True),
+                        'is_typing': is_typing,
                     },
                 )
 
@@ -138,16 +141,18 @@ class DirectMessageConsumer(AsyncJsonWebSocketConsumer):
 
         @database_sync_to_async  # type: ignore[misc]
         def get_user_from_token(jwt_token: str) -> Any:
-            try:
-                from rest_framework_simplejwt.tokens import AccessToken  # type: ignore[import-untyped]
-                from users.models import User
+            from rest_framework_simplejwt.exceptions import TokenError  # type: ignore[import-untyped]
+            from rest_framework_simplejwt.tokens import AccessToken  # type: ignore[import-untyped]
+            from users.models import User
 
+            try:
                 validated = AccessToken(jwt_token)
                 user_id = validated.get('user_id')
                 if user_id is None:
                     return None
                 return User.objects.get(id=user_id, is_active=True)
-            except Exception:
+            except (TokenError, User.DoesNotExist, ValueError, KeyError) as exc:
+                logger.debug("WebSocket JWT auth failed: %s", exc)
                 return None
 
         return await get_user_from_token(token)
@@ -157,7 +162,7 @@ class DirectMessageConsumer(AsyncJsonWebSocketConsumer):
         user: Any,
         conversation_id: int,
     ) -> bool:
-        """Check if user is a participant in the conversation."""
+        """Check if user is a participant in an active (non-archived) conversation."""
         from channels.db import database_sync_to_async  # type: ignore[import-untyped]
 
         @database_sync_to_async  # type: ignore[misc]
@@ -168,6 +173,7 @@ class DirectMessageConsumer(AsyncJsonWebSocketConsumer):
             return Conversation.objects.filter(
                 Q(trainer=u) | Q(trainee=u),
                 id=cid,
+                is_archived=False,
             ).exists()
 
         return await _check(user, conversation_id)

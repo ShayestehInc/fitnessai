@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from django.db import transaction
 from django.db.models import Count, OuterRef, Q, QuerySet, Subquery
@@ -178,22 +179,23 @@ def get_unread_count(user: User) -> UnreadCountResult:
     Get the total number of unread messages across all conversations for a user.
 
     Only counts messages from the OTHER participant.
+    Uses a single query by filtering on conversation ownership directly.
     """
     if user.is_trainer():
-        conversations = Conversation.objects.filter(
-            trainer=user,
-            is_archived=False,
+        conversation_filter = Q(
+            conversation__trainer=user,
+            conversation__is_archived=False,
         )
     elif user.is_trainee():
-        conversations = Conversation.objects.filter(
-            trainee=user,
-            is_archived=False,
+        conversation_filter = Q(
+            conversation__trainee=user,
+            conversation__is_archived=False,
         )
     else:
         return UnreadCountResult(unread_count=0)
 
     unread = Message.objects.filter(
-        conversation__in=conversations,
+        conversation_filter,
         is_read=False,
     ).exclude(
         sender=user,
@@ -298,3 +300,116 @@ def send_message_to_trainee(
 
     conversation, _created = get_or_create_conversation(trainer, trainee)
     return send_message(trainer, conversation, content)
+
+
+# ---------------------------------------------------------------------------
+# WebSocket broadcast helpers
+# ---------------------------------------------------------------------------
+
+def broadcast_new_message(
+    conversation_id: int,
+    message_data: dict[str, Any],
+) -> None:
+    """Broadcast a new message to the conversation's WebSocket group."""
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+
+        group_name = f'messaging_conversation_{conversation_id}'
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'chat.new_message',
+                'message': message_data,
+                'timestamp': timezone.now().isoformat(),
+            },
+        )
+    except (ConnectionError, TimeoutError, OSError) as exc:
+        logger.warning(
+            "Failed to broadcast message to WebSocket for conversation %d: %s",
+            conversation_id,
+            exc,
+        )
+
+
+def broadcast_read_receipt(
+    conversation_id: int,
+    reader_id: int,
+    read_at: str,
+) -> None:
+    """Broadcast a read receipt to the conversation's WebSocket group."""
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+
+        group_name = f'messaging_conversation_{conversation_id}'
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'chat.read_receipt',
+                'reader_id': reader_id,
+                'read_at': read_at,
+            },
+        )
+    except (ConnectionError, TimeoutError, OSError) as exc:
+        logger.warning(
+            "Failed to broadcast read receipt for conversation %d: %s",
+            conversation_id,
+            exc,
+        )
+
+
+def send_message_push_notification(
+    recipient_id: int,
+    sender: User,
+    content: str,
+    conversation_id: int,
+) -> None:
+    """Send push notification for a new message."""
+    try:
+        from core.services.notification_service import send_push_notification
+
+        preview = content[:100] if len(content) > 100 else content
+        sender_name = f'{sender.first_name} {sender.last_name}'.strip()
+        if not sender_name:
+            sender_name = sender.email
+
+        send_push_notification(
+            user_id=recipient_id,
+            title=f'New message from {sender_name}',
+            body=preview,
+            data={
+                'type': 'direct_message',
+                'conversation_id': str(conversation_id),
+                'sender_id': str(sender.id),
+            },
+        )
+    except (ConnectionError, TimeoutError, OSError) as exc:
+        logger.warning(
+            "Failed to send message push notification to user %d: %s",
+            recipient_id,
+            exc,
+        )
+
+
+def is_impersonating(request_auth: Any) -> bool:
+    """Check if the provided auth token indicates an impersonation session.
+
+    Uses the already-validated token from simplejwt authentication.
+    """
+    if request_auth is None:
+        return False
+    # simplejwt sets request.auth to the validated token object
+    # which supports dict-style access for custom claims.
+    if hasattr(request_auth, 'get'):
+        return bool(request_auth.get('impersonating', False))
+    # Fallback: if auth is not a token object (e.g. SessionAuth)
+    return False

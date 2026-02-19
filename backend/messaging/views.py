@@ -107,6 +107,14 @@ class ConversationDetailView(views.APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        # Archived conversations are not accessible to trainees (preserved for
+        # trainer audit only, per ticket spec).
+        if conversation.is_archived and user.id == conversation.trainee_id:
+            return Response(
+                {'error': 'This conversation has been archived.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         try:
             messages = get_messages_for_conversation(user, conversation)
         except ValueError as exc:
@@ -303,6 +311,13 @@ class MarkReadView(views.APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        # Archived conversations cannot be mutated
+        if conversation.is_archived:
+            return Response(
+                {'error': 'This conversation has been archived.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         try:
             result = mark_conversation_read(user, conversation)
         except ValueError as exc:
@@ -423,12 +438,21 @@ def _broadcast_read_receipt(
 
 
 def _send_message_push_notification(
-    recipient_id: int,
+    recipient_id: int | None,
     sender: User,
     content: str,
     conversation_id: int,
 ) -> None:
     """Send push notification for a new message."""
+    if recipient_id is None:
+        logger.warning(
+            "Cannot send push notification: recipient_id is None "
+            "(conversation=%d, sender=%d)",
+            conversation_id,
+            sender.id,
+        )
+        return
+
     try:
         from core.services.notification_service import send_push_notification
 

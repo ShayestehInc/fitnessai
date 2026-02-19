@@ -115,7 +115,7 @@ test.describe("Trainer Messages", () => {
           await route.fulfill({
             status: 200,
             contentType: "application/json",
-            body: JSON.stringify(MOCK_CONVERSATIONS),
+            body: JSON.stringify({ count: MOCK_CONVERSATIONS.length, next: null, previous: null, results: MOCK_CONVERSATIONS }),
           });
         } else {
           await route.fallback();
@@ -147,7 +147,7 @@ test.describe("Trainer Messages", () => {
           await route.fulfill({
             status: 200,
             contentType: "application/json",
-            body: JSON.stringify(MOCK_CONVERSATIONS),
+            body: JSON.stringify({ count: MOCK_CONVERSATIONS.length, next: null, previous: null, results: MOCK_CONVERSATIONS }),
           });
         } else {
           await route.fallback();
@@ -197,7 +197,7 @@ test.describe("Trainer Messages", () => {
           await route.fulfill({
             status: 200,
             contentType: "application/json",
-            body: JSON.stringify(MOCK_CONVERSATIONS),
+            body: JSON.stringify({ count: MOCK_CONVERSATIONS.length, next: null, previous: null, results: MOCK_CONVERSATIONS }),
           });
         } else {
           await route.fallback();
@@ -250,7 +250,7 @@ test.describe("Trainer Messages", () => {
           await route.fulfill({
             status: 200,
             contentType: "application/json",
-            body: JSON.stringify(MOCK_CONVERSATIONS),
+            body: JSON.stringify({ count: MOCK_CONVERSATIONS.length, next: null, previous: null, results: MOCK_CONVERSATIONS }),
           });
         } else {
           await route.fallback();

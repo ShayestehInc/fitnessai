@@ -152,9 +152,9 @@ function getMockResponseForUrl(url: string): unknown {
     return { primary_color: "#000000", secondary_color: "#ffffff", app_name: "FitnessAI" };
   }
 
-  // Messaging conversations (returns array, not paginated)
+  // Messaging conversations (paginated response — useConversations hook extracts .results)
   if (url.includes("/messaging/conversations/") && !url.includes("/messages/") && !url.includes("/send/") && !url.includes("/read/") && !url.includes("/start/")) {
-    return [];
+    return { count: 0, next: null, previous: null, results: [] };
   }
 
   // Messaging unread count

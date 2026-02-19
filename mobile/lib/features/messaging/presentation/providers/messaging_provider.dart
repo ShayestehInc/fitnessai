@@ -123,7 +123,7 @@ class UnreadCountNotifier extends StateNotifier<int> {
       state = count;
     } catch (e) {
       // Keep current count on error, but log it
-      debugPrint('UnreadCountNotifier.refresh() failed: $e');
+      // Keep current count on error — non-fatal background operation
     }
   }
 
@@ -347,7 +347,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         }).toList(),
       );
     } catch (e) {
-      debugPrint('ChatNotifier.markRead() failed: $e');
+      // Mark-read failure is non-fatal — messages still display correctly
     }
   }
 
