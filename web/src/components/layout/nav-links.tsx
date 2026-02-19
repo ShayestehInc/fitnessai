@@ -3,6 +3,7 @@ import {
   Users,
   Dumbbell,
   Mail,
+  MessageSquare,
   BarChart3,
   Bell,
   Settings,
@@ -23,6 +24,7 @@ export interface NavLink {
 export const navLinks: NavLink[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Trainees", href: "/trainees", icon: Users },
+  { label: "Messages", href: "/messages", icon: MessageSquare },
   { label: "Programs", href: "/programs", icon: Dumbbell },
   { label: "AI Chat", href: "/ai-chat", icon: BrainCircuit },
   { label: "Exercises", href: "/exercises", icon: Dumbbell },

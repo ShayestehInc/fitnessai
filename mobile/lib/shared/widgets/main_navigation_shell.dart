@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/trainer/presentation/providers/trainer_provider.dart';
 import '../../features/trainer/presentation/widgets/impersonation_banner.dart';
+import '../../features/messaging/presentation/providers/messaging_provider.dart';
 
 class MainNavigationShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -16,6 +17,12 @@ class MainNavigationShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final impersonationState = ref.watch(impersonationProvider);
     final theme = Theme.of(context);
+    final unreadCount = ref.watch(unreadMessageCountProvider);
+
+    // Refresh unread count
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(unreadMessageCountProvider.notifier).refresh();
+    });
 
     return Scaffold(
       body: Column(
@@ -67,11 +74,12 @@ class MainNavigationShell extends ConsumerWidget {
                   onTap: () => _onTap(context, 3),
                 ),
                 _NavItem(
-                  icon: Icons.play_circle_outline,
-                  activeIcon: Icons.play_circle,
-                  label: 'TV',
+                  icon: Icons.chat_bubble_outline,
+                  activeIcon: Icons.chat_bubble,
+                  label: 'Messages',
                   isSelected: navigationShell.currentIndex == 4,
                   onTap: () => _onTap(context, 4),
+                  badgeCount: unreadCount,
                 ),
               ],
             ),
@@ -95,6 +103,7 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final int badgeCount;
 
   const _NavItem({
     required this.icon,
@@ -102,6 +111,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
@@ -118,10 +128,40 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected ? primaryColor : mutedColor,
-              size: 24,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  isSelected ? activeIcon : icon,
+                  color: isSelected ? primaryColor : mutedColor,
+                  size: 24,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -8,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.error,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: TextStyle(
+                          color: theme.colorScheme.onError,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(

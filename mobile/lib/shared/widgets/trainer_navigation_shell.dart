@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/admin/presentation/widgets/admin_impersonation_banner.dart';
+import '../../features/messaging/presentation/providers/messaging_provider.dart';
 
 class TrainerNavigationShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -14,6 +15,13 @@ class TrainerNavigationShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final unreadCount = ref.watch(unreadMessageCountProvider);
+
+    // Refresh unread count on first build
+    ref.listen(unreadMessageCountProvider, (_, __) {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(unreadMessageCountProvider.notifier).refresh();
+    });
 
     return Scaffold(
       body: AdminImpersonationBannerWrapper(child: navigationShell),
@@ -45,16 +53,17 @@ class TrainerNavigationShell extends ConsumerWidget {
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
+                  icon: Icons.chat_bubble_outline,
+                  activeIcon: Icons.chat_bubble,
+                  label: 'Messages',
+                  isSelected: navigationShell.currentIndex == 2,
+                  onTap: () => _onTap(context, 2),
+                  badgeCount: unreadCount,
+                ),
+                _NavItem(
                   icon: Icons.calendar_month_outlined,
                   activeIcon: Icons.calendar_month,
                   label: 'Programs',
-                  isSelected: navigationShell.currentIndex == 2,
-                  onTap: () => _onTap(context, 2),
-                ),
-                _NavItem(
-                  icon: Icons.fitness_center_outlined,
-                  activeIcon: Icons.fitness_center,
-                  label: 'Exercises',
                   isSelected: navigationShell.currentIndex == 3,
                   onTap: () => _onTap(context, 3),
                 ),
@@ -87,6 +96,7 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final int badgeCount;
 
   const _NavItem({
     required this.icon,
@@ -94,6 +104,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
@@ -110,10 +121,40 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected ? primaryColor : mutedColor,
-              size: 24,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  isSelected ? activeIcon : icon,
+                  color: isSelected ? primaryColor : mutedColor,
+                  size: 24,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -8,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.error,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: TextStyle(
+                          color: theme.colorScheme.onError,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(

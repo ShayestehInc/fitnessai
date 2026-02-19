@@ -2,8 +2,10 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, User, Pencil, Trash2, CalendarOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, User, Pencil, Trash2, CalendarOff, MessageSquare } from "lucide-react";
 import { useTrainee } from "@/hooks/use-trainees";
+import { useStartConversation } from "@/hooks/use-messaging";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,9 +34,27 @@ export default function TraineeDetailPage({
     isValidId ? traineeId : 0,
   );
 
+  const router = useRouter();
+  const startConversation = useStartConversation();
+
   const [editGoalsOpen, setEditGoalsOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [missedDayOpen, setMissedDayOpen] = useState(false);
+
+  const handleMessageTrainee = () => {
+    // Send a greeting message to start the conversation and navigate to it
+    startConversation.mutate(
+      {
+        trainee_id: traineeId,
+        content: `Hi ${trainee?.first_name || "there"}!`,
+      },
+      {
+        onSuccess: (result) => {
+          router.push(`/messages?conversation=${result.conversation_id}`);
+        },
+      },
+    );
+  };
 
   if (!isValidId || isError || (!isLoading && !trainee)) {
     return (
@@ -100,6 +120,15 @@ export default function TraineeDetailPage({
               traineeName={displayName}
               currentProgramId={activeProgram?.id}
             />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMessageTrainee}
+              disabled={startConversation.isPending}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              {startConversation.isPending ? "Opening..." : "Message"}
+            </Button>
             <Button
               variant="outline"
               size="sm"

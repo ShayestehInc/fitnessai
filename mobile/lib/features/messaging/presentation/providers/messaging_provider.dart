@@ -1,0 +1,322 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../data/models/conversation_model.dart';
+import '../../data/models/message_model.dart';
+import '../../data/repositories/messaging_repository.dart';
+
+// ---------------------------------------------------------------------------
+// Conversation list provider
+// ---------------------------------------------------------------------------
+
+class ConversationListState {
+  final List<ConversationModel> conversations;
+  final bool isLoading;
+  final String? error;
+
+  const ConversationListState({
+    this.conversations = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  ConversationListState copyWith({
+    List<ConversationModel>? conversations,
+    bool? isLoading,
+    String? error,
+    bool clearError = false,
+  }) {
+    return ConversationListState(
+      conversations: conversations ?? this.conversations,
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
+}
+
+final conversationListProvider =
+    StateNotifierProvider<ConversationListNotifier, ConversationListState>(
+        (ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return ConversationListNotifier(MessagingRepository(apiClient));
+});
+
+class ConversationListNotifier extends StateNotifier<ConversationListState> {
+  final MessagingRepository _repo;
+
+  ConversationListNotifier(this._repo)
+      : super(const ConversationListState());
+
+  Future<void> loadConversations() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final conversations = await _repo.getConversations();
+      state = state.copyWith(
+        conversations: conversations,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load conversations.',
+      );
+    }
+  }
+
+  /// Update a conversation after a new message (optimistic).
+  void onNewMessageInConversation(
+    int conversationId,
+    String preview,
+    DateTime timestamp,
+  ) {
+    final updated = state.conversations.map((c) {
+      if (c.id == conversationId) {
+        return c.copyWith(
+          lastMessagePreview: preview,
+          lastMessageAt: timestamp,
+          unreadCount: c.unreadCount + 1,
+        );
+      }
+      return c;
+    }).toList();
+    // Re-sort by most recent
+    updated.sort((a, b) {
+      final aTime = a.lastMessageAt ?? a.createdAt;
+      final bTime = b.lastMessageAt ?? b.createdAt;
+      return bTime.compareTo(aTime);
+    });
+    state = state.copyWith(conversations: updated);
+  }
+
+  /// Reset unread count for a conversation.
+  void markConversationRead(int conversationId) {
+    state = state.copyWith(
+      conversations: state.conversations.map((c) {
+        if (c.id == conversationId) {
+          return c.copyWith(unreadCount: 0);
+        }
+        return c;
+      }).toList(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Unread count provider
+// ---------------------------------------------------------------------------
+
+final unreadMessageCountProvider =
+    StateNotifierProvider<UnreadCountNotifier, int>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return UnreadCountNotifier(MessagingRepository(apiClient));
+});
+
+class UnreadCountNotifier extends StateNotifier<int> {
+  final MessagingRepository _repo;
+
+  UnreadCountNotifier(this._repo) : super(0);
+
+  Future<void> refresh() async {
+    try {
+      final count = await _repo.getUnreadCount();
+      state = count;
+    } catch (_) {
+      // Keep current count on error
+    }
+  }
+
+  void increment() {
+    state = state + 1;
+  }
+
+  void decrement(int by) {
+    state = (state - by).clamp(0, 999999);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Chat (single conversation) provider
+// ---------------------------------------------------------------------------
+
+class ChatState {
+  final List<MessageModel> messages;
+  final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final int currentPage;
+  final String? error;
+  final bool isSending;
+  final int? typingUserId;
+
+  const ChatState({
+    this.messages = const [],
+    this.isLoading = false,
+    this.isLoadingMore = false,
+    this.hasMore = true,
+    this.currentPage = 1,
+    this.error,
+    this.isSending = false,
+    this.typingUserId,
+  });
+
+  ChatState copyWith({
+    List<MessageModel>? messages,
+    bool? isLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
+    int? currentPage,
+    String? error,
+    bool clearError = false,
+    bool? isSending,
+    int? typingUserId,
+    bool clearTyping = false,
+  }) {
+    return ChatState(
+      messages: messages ?? this.messages,
+      isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      currentPage: currentPage ?? this.currentPage,
+      error: clearError ? null : (error ?? this.error),
+      isSending: isSending ?? this.isSending,
+      typingUserId: clearTyping ? null : (typingUserId ?? this.typingUserId),
+    );
+  }
+}
+
+final chatProvider =
+    StateNotifierProvider.family<ChatNotifier, ChatState, int>(
+        (ref, conversationId) {
+  final apiClient = ref.watch(apiClientProvider);
+  return ChatNotifier(MessagingRepository(apiClient), conversationId);
+});
+
+class ChatNotifier extends StateNotifier<ChatState> {
+  final MessagingRepository _repo;
+  final int conversationId;
+
+  ChatNotifier(this._repo, this.conversationId) : super(const ChatState());
+
+  Future<void> loadMessages() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final response = await _repo.getMessages(
+        conversationId: conversationId,
+        page: 1,
+      );
+      // Messages come newest-first from API, reverse for display
+      state = state.copyWith(
+        messages: response.results.reversed.toList(),
+        isLoading: false,
+        hasMore: response.next != null,
+        currentPage: 1,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load messages.',
+      );
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoadingMore || !state.hasMore) return;
+
+    state = state.copyWith(isLoadingMore: true);
+    try {
+      final nextPage = state.currentPage + 1;
+      final response = await _repo.getMessages(
+        conversationId: conversationId,
+        page: nextPage,
+      );
+      // Prepend older messages (they come newest-first, so reverse)
+      state = state.copyWith(
+        messages: [
+          ...response.results.reversed.toList(),
+          ...state.messages,
+        ],
+        isLoadingMore: false,
+        hasMore: response.next != null,
+        currentPage: nextPage,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoadingMore: false);
+    }
+  }
+
+  Future<bool> sendMessage(String content) async {
+    state = state.copyWith(isSending: true);
+    try {
+      final message = await _repo.sendMessage(
+        conversationId: conversationId,
+        content: content,
+      );
+      // Add to local list (avoid duplicate from WebSocket)
+      if (!state.messages.any((m) => m.id == message.id)) {
+        state = state.copyWith(
+          messages: [...state.messages, message],
+          isSending: false,
+        );
+      } else {
+        state = state.copyWith(isSending: false);
+      }
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isSending: false,
+        error: 'Failed to send message.',
+      );
+      return false;
+    }
+  }
+
+  Future<void> markRead() async {
+    try {
+      await _repo.markRead(conversationId);
+      // Mark all messages as read locally
+      state = state.copyWith(
+        messages: state.messages.map((m) {
+          if (!m.isRead) {
+            return m.copyWith(isRead: true, readAt: DateTime.now());
+          }
+          return m;
+        }).toList(),
+      );
+    } catch (_) {
+      // Non-critical, ignore
+    }
+  }
+
+  /// Handle new message from WebSocket.
+  void onNewMessage(MessageModel message) {
+    if (state.messages.any((m) => m.id == message.id)) return;
+    state = state.copyWith(
+      messages: [...state.messages, message],
+      clearTyping: true,
+    );
+  }
+
+  /// Handle typing indicator from WebSocket.
+  void onTypingIndicator(int userId, bool isTyping) {
+    if (isTyping) {
+      state = state.copyWith(typingUserId: userId);
+    } else {
+      if (state.typingUserId == userId) {
+        state = state.copyWith(clearTyping: true);
+      }
+    }
+  }
+
+  /// Handle read receipt from WebSocket.
+  void onReadReceipt(int readerId, DateTime readAt) {
+    state = state.copyWith(
+      messages: state.messages.map((m) {
+        // Mark messages sent by the current user as read
+        // (the reader is the other party)
+        if (!m.isRead && m.sender.id != readerId) {
+          return m.copyWith(isRead: true, readAt: readAt);
+        }
+        return m;
+      }).toList(),
+    );
+  }
+}

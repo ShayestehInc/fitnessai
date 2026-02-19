@@ -38,6 +38,7 @@ const PAGINATED_PATTERNS = [
   "/connections/",
   "/events/",
   "/features/",
+  "/messages/",
 ];
 
 // URLs that return array responses
@@ -149,6 +150,16 @@ function getMockResponseForUrl(url: string): unknown {
   // Branding
   if (url.includes("/branding/")) {
     return { primary_color: "#000000", secondary_color: "#ffffff", app_name: "FitnessAI" };
+  }
+
+  // Messaging conversations (returns array, not paginated)
+  if (url.includes("/messaging/conversations/") && !url.includes("/messages/") && !url.includes("/send/") && !url.includes("/read/") && !url.includes("/start/")) {
+    return [];
+  }
+
+  // Messaging unread count
+  if (url.includes("/messaging/unread-count")) {
+    return { unread_count: 0 };
   }
 
   // Unread count
