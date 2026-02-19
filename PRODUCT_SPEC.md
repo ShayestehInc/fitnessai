@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-19 (Pipeline 19: Web Dashboard Full Parity + UI/UX Polish + E2E Tests)
+> Last updated: 2026-02-19 (Pipeline 20: In-App Direct Messaging)
 
 ---
 
@@ -236,6 +236,28 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Comment threads | ✅ Done | Shipped 2026-02-16: Flat comment system with pagination, author/trainer delete, real-time count updates, push notifications |
 | Real-time WebSocket | ✅ Done | Shipped 2026-02-16: Django Channels consumer with JWT auth, 4 broadcast event types, exponential backoff reconnection |
 | Stripe Connect ambassador payouts | ✅ Done | Shipped 2026-02-16: Express account onboarding, admin-triggered payouts with race condition protection, payout history with status badges |
+
+### 3.12 Direct Messaging
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Messaging Django app (models, services, views) | ✅ Done | Shipped 2026-02-19: Conversation + Message models, 6 REST endpoints, row-level security |
+| Trainer-to-trainee 1:1 messaging | ✅ Done | Shipped 2026-02-19: Send/receive messages, auto-create conversations, soft-archive on removal |
+| WebSocket real-time (mobile) | ✅ Done | Shipped 2026-02-19: DirectMessageConsumer with JWT auth, typing indicators, read receipts |
+| HTTP polling real-time (web) | ✅ Done | Shipped 2026-02-19: 5s message polling, 15s conversation polling (v1, WebSocket planned for v2) |
+| Conversation list | ✅ Done | Shipped 2026-02-19: Sorted by recency, last message preview (annotated), unread count, avatar |
+| Message pagination | ✅ Done | Shipped 2026-02-19: 20 per page with infinite scroll |
+| Push notifications | ✅ Done | Shipped 2026-02-19: FCM push on new message to offline recipient |
+| Unread badge | ✅ Done | Shipped 2026-02-19: Mobile nav shells + web sidebar (desktop + mobile), 99+ cap |
+| Read receipts | ✅ Done | Shipped 2026-02-19: Double checkmark pattern on mobile + web |
+| Typing indicators | ✅ Done | Shipped 2026-02-19: Mobile only (WebSocket). Web component exists, awaiting WebSocket |
+| Character counter | ✅ Done | Shipped 2026-02-19: 2000 char max, counter at 90%, server validation |
+| Impersonation read-only guard | ✅ Done | Shipped 2026-02-19: Admin impersonating trainer cannot send messages |
+| Rate limiting | ✅ Done | Shipped 2026-02-19: 30 messages/minute via ScopedRateThrottle |
+| Conversation archival on trainee removal | ✅ Done | Shipped 2026-02-19: Soft-archive, SET_NULL FK, messages preserved for audit |
+| Web messages page | ✅ Done | Shipped 2026-02-19: Split-panel layout, responsive (single-panel on mobile), new conversation flow |
+| Web trainee detail "Message" button | ✅ Done | Shipped 2026-02-19: Navigates to messages page with trainee param |
+| Mobile trainee detail "Send Message" | ✅ Done | Shipped 2026-02-19: Wired existing dead button to new-conversation screen |
+| E2E tests | ✅ Done | Shipped 2026-02-19: 7 Playwright tests for messaging |
 
 ### 3.11 Other
 | Feature | Status | Notes |
@@ -513,6 +535,48 @@ Three workstreams: full feature parity for Trainer/Admin/Ambassador web dashboar
 
 **Quality**: Code review 8/10 APPROVE (1 round), QA 52/60 AC pass HIGH confidence (3 partial, 5 deferred), UX 8/10, Security 9/10 PASS, Architecture 8/10 APPROVE, Hacker 8/10, Final 8/10 SHIP.
 
+### 4.20 In-App Direct Messaging (Pipeline 20) -- COMPLETED (2026-02-19)
+
+Full-stack implementation of 1:1 direct messaging between trainers and trainees across Django backend, Flutter mobile, and Next.js web. 61 files changed, 6,117 insertions.
+
+**What was built:**
+
+**Backend (Django)**
+- New `messaging` app with `Conversation` and `Message` models (unique constraint, 6 indexes, SET_NULL on trainee FK)
+- 6 REST API endpoints with IsAuthenticated, row-level security, ScopedRateThrottle (30/min on write endpoints)
+- Service layer (`messaging_service.py`) with frozen dataclass returns (SendMessageResult, MarkReadResult, UnreadCountResult)
+- WebSocket consumer (`DirectMessageConsumer`) with JWT auth, typing indicators, read receipts, per-conversation channel groups
+- N+1 query elimination via Subquery + Count annotations on conversation list
+- Conversation archival on trainee removal (archive_conversations_for_trainee called in RemoveTraineeView)
+- Impersonation read-only guard (SendMessageView + StartConversationView check JWT 'impersonating' claim)
+- Push notifications via FCM with null-safety for SET_NULL recipient
+
+**Mobile (Flutter)**
+- Full messaging feature: conversations list, chat screen, new conversation flow
+- WebSocket service with exponential backoff reconnection (1s → 30s cap)
+- Riverpod state management: ConversationListNotifier, ChatNotifier, UnreadCountNotifier, NewConversationNotifier
+- Typing indicators (animated 3-dot), read receipts (double checkmark), optimistic message updates
+- Unread badge on both trainer and trainee navigation shells
+- Accessibility: Semantics on MessageBubble, ConversationTile, TypingIndicator, ChatInput, ConversationListScreen
+
+**Web Dashboard (Next.js)**
+- Messages page with responsive split-panel layout (320px sidebar + chat view, single-panel on mobile)
+- New conversation flow (NewConversationView) when trainee param present but no matching conversation
+- Conversation list with relative timestamps, unread badges, empty/error states
+- Chat view with date separators, infinite scroll, auto-scroll, 5s polling
+- Message input with character counter (2000 max), Enter-to-send, Shift+Enter for newline
+- Read receipt icons (Check/CheckCheck), scroll-to-bottom FAB
+- Sidebar unread badge (desktop + mobile), shared getInitials utility
+- 7 Playwright E2E tests
+
+**Pipeline Results:**
+- Code review: 2 rounds, all 5 critical + 9 major + 10 minor issues fixed. Score: 8/10 APPROVE.
+- QA: 93 tests passed, 0 failed. 4 bugs found and fixed. Confidence: HIGH.
+- Security audit: Score 9/10 PASS. 3 High + 2 Medium issues fixed (archived WS access, bare exception, archived message access, archived mark-read, null recipient).
+- Architecture audit: Score 9/10 APPROVE. 4 fixes (business logic in views→services, query optimization, code dedup, null-safety).
+- Hacker audit: Chaos Score 7/10. 2 critical flow bugs fixed (web new-conversation dead end, responsive layout). 5 significant fixes total.
+- Final verdict: 9/10 SHIP.
+
 ### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
@@ -602,10 +666,24 @@ Three workstreams: full feature parity for Trainer/Admin/Ambassador web dashboar
 - ~~UI/UX polish (login redesign, page transitions, skeletons, micro-interactions, trend indicators, error/empty states)~~ ✅ Completed 2026-02-19
 - ~~E2E test suite (Playwright, 19 test files, 5 browser targets)~~ ✅ Completed 2026-02-19
 
-### Phase 10: Future Enhancements
+### Phase 10: In-App Direct Messaging -- ✅ COMPLETED (2026-02-19)
+- ~~In-app messaging (trainer-to-trainee direct messages)~~ ✅ Completed 2026-02-19 (full-stack: Django backend + Flutter mobile + Next.js web)
+- ~~WebSocket real-time delivery (mobile)~~ ✅ Completed 2026-02-19 (DirectMessageConsumer with JWT auth, typing indicators, read receipts)
+- ~~HTTP polling real-time delivery (web v1)~~ ✅ Completed 2026-02-19 (5s messages, 15s conversations, 30s unread count)
+- ~~Unread badge across all platforms~~ ✅ Completed 2026-02-19 (mobile trainer + trainee shells, web desktop + mobile sidebars)
+- ~~Push notifications for offline recipients~~ ✅ Completed 2026-02-19 (FCM integration)
+- ~~Read receipts~~ ✅ Completed 2026-02-19 (double checkmark pattern)
+- ~~Rate limiting (30/min)~~ ✅ Completed 2026-02-19 (ScopedRateThrottle)
+- ~~Conversation archival on trainee removal~~ ✅ Completed 2026-02-19 (soft-archive, SET_NULL FK)
+
+### Phase 11: Future Enhancements
 - Video attachments on community posts
 - Trainee web access
-- In-app messaging (trainer-to-trainee direct messages)
+- WebSocket support for web messaging (replace HTTP polling)
+- Web typing indicators (component exists, awaiting WebSocket)
+- Message editing and deletion
+- Message search
+- File/image attachments in messages
 - Advanced analytics and reporting
 - Multi-language support
 - Social auth (Apple/Google) mobile integration
@@ -702,5 +780,5 @@ Three workstreams: full feature parity for Trainer/Admin/Ambassador web dashboar
 - **Offline support for trainee workout/nutrition/weight logging** — Shipped 2026-02-15 via Drift (SQLite). Sync queue with FIFO processing, exponential backoff, conflict detection. Pending: offline data not yet merged into list views (home recent workouts, nutrition macro totals, weight trends).
 - **Single timezone assumed** — DailyLog uses `timezone.now().date()`. Multi-timezone trainees may see date boundary issues.
 - **AI parsing is OpenAI-only** — Function Calling mode. No fallback provider yet. Rate limits apply.
-- **Real-time updates on community feed only** — WebSocket via Django Channels shipped 2026-02-16 for community feed (new posts, deletions, comments, reactions). Trainer dashboard still requires manual refresh.
+- **Real-time updates on community feed and messaging** — WebSocket via Django Channels shipped for community feed (2026-02-16: new posts, deletions, comments, reactions) and direct messaging (2026-02-19: new messages, typing indicators, read receipts). Web messaging uses HTTP polling (5s) as v1 alternative. Trainer dashboard still requires manual refresh.
 - **Web dashboard covers trainer, admin, and ambassador roles** — Web dashboard (Next.js) shipped for trainers and admins (2026-02-15), ambassador role added (2026-02-19). Full feature parity achieved for all three roles. Trainee web access not yet built.
