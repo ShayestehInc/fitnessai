@@ -32,6 +32,9 @@ urlpatterns = [
 
     # Community (trainee-facing: announcements, achievements, feed)
     path('api/community/', include('community.urls')),
+
+    # Direct messaging (trainer-trainee)
+    path('api/messaging/', include('messaging.urls')),
 ]
 
 # Serve media files in development

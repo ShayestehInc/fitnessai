@@ -2,7 +2,8 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, User, Pencil, Trash2, CalendarOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, User, Pencil, Trash2, CalendarOff, MessageSquare } from "lucide-react";
 import { useTrainee } from "@/hooks/use-trainees";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -32,9 +33,18 @@ export default function TraineeDetailPage({
     isValidId ? traineeId : 0,
   );
 
+  const router = useRouter();
+
   const [editGoalsOpen, setEditGoalsOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [missedDayOpen, setMissedDayOpen] = useState(false);
+
+  const handleMessageTrainee = () => {
+    // Navigate to messages page with trainee ID so the user can type their own first message.
+    // If a conversation already exists, the messages page will auto-select it.
+    // If not, we pass trainee info to prompt starting a new conversation.
+    router.push(`/messages?trainee=${traineeId}`);
+  };
 
   if (!isValidId || isError || (!isLoading && !trainee)) {
     return (
@@ -100,6 +110,14 @@ export default function TraineeDetailPage({
               traineeName={displayName}
               currentProgramId={activeProgram?.id}
             />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMessageTrainee}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Message
+            </Button>
             <Button
               variant="outline"
               size="sm"

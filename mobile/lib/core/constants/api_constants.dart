@@ -233,12 +233,25 @@ class ApiConstants {
   static String adminAmbassadorPayout(int ambassadorId) =>
       '$apiBaseUrl/admin/ambassadors/$ambassadorId/payout/';
 
+  // Messaging endpoints
+  static String get messagingConversations => '$apiBaseUrl/messaging/conversations/';
+  static String get messagingStartConversation => '$apiBaseUrl/messaging/conversations/start/';
+  static String messagingConversationMessages(int conversationId) =>
+      '$apiBaseUrl/messaging/conversations/$conversationId/messages/';
+  static String messagingConversationSend(int conversationId) =>
+      '$apiBaseUrl/messaging/conversations/$conversationId/send/';
+  static String messagingMarkRead(int conversationId) =>
+      '$apiBaseUrl/messaging/conversations/$conversationId/read/';
+  static String get messagingUnreadCount => '$apiBaseUrl/messaging/unread-count/';
+
   // WebSocket
   static String get wsBaseUrl {
     final base = baseUrl.replaceFirst('http', 'ws');
     return '$base/ws';
   }
   static String get wsCommunityFeed => '$wsBaseUrl/community/feed/';
+  static String wsMessaging(int conversationId) =>
+      '$wsBaseUrl/messaging/$conversationId/';
 
   // Headers (these can stay const)
   static const String contentType = 'application/json';

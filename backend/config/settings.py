@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'calendars',
     'ambassador',
     'community',
+    'messaging',
 ]
 
 MIDDLEWARE = [
@@ -166,6 +167,7 @@ REST_FRAMEWORK = {
         'anon': '30/minute',
         'user': '120/minute',
         'registration': '5/hour',
+        'messaging': '30/minute',
     },
 }
 

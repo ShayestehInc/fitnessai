@@ -4,6 +4,72 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-19] — In-App Direct Messaging (Pipeline 20)
+
+### Added
+- **New `messaging` Django app** -- Full backend for 1:1 trainer-to-trainee direct messaging. `Conversation` model (trainer FK CASCADE, trainee FK SET_NULL, unique constraint, 3 indexes, soft-archive via `is_archived`). `Message` model (conversation FK CASCADE, sender FK CASCADE, content max 2000 chars, is_read/read_at, 3 indexes). 2 migrations including SET_NULL fix for trainee FK.
+- **6 REST API endpoints** -- `GET /api/messaging/conversations/` (paginated at 50, annotated preview + unread count), `GET /api/messaging/conversations/<id>/messages/` (paginated at 20), `POST /api/messaging/conversations/<id>/send/` (rate-limited 30/min), `POST /api/messaging/conversations/start/` (trainer-only, creates conversation if needed), `POST /api/messaging/conversations/<id>/read/` (mark all read), `GET /api/messaging/unread-count/` (total unread). All endpoints have IsAuthenticated + row-level security.
+- **WebSocket consumer** -- `DirectMessageConsumer` with JWT authentication via query parameter, per-conversation channel groups (`messaging_conversation_{id}`), typing indicators (coerced to strict bool), read receipt forwarding, ping/pong heartbeat. `is_archived=False` check on connect.
+- **Service layer** -- `messaging_service.py` with frozen dataclass returns (`SendMessageResult`, `MarkReadResult`, `UnreadCountResult`). Functions: `send_message()`, `mark_conversation_read()`, `get_unread_count()` (single Q-object query), `get_conversations_for_user()` (Subquery + Left + Count annotations), `get_messages_for_conversation()`, `get_or_create_conversation()`, `archive_conversations_for_trainee()`, `send_message_to_trainee()`, `broadcast_new_message()`, `broadcast_read_receipt()`, `send_message_push_notification()`, `is_impersonating()`.
+- **Impersonation read-only guard** -- `SendMessageView` and `StartConversationView` check `request.auth` for JWT `impersonating` claim and return 403.
+- **Conversation archival** -- `RemoveTraineeView` now calls `archive_conversations_for_trainee()` before clearing `parent_trainer`. Trainee FK uses SET_NULL to preserve message history for audit.
+- **Mobile messaging feature (Flutter)** -- Full feature with Riverpod state management: `ConversationListNotifier`, `ChatNotifier`, `UnreadCountNotifier`, `NewConversationNotifier`. Conversations list screen, chat screen, new conversation screen. WebSocket service with exponential backoff reconnection (1s base, 30s cap). Typing indicators (animated 3-dot widget), read receipts (single/double checkmark), optimistic message updates.
+- **Mobile navigation integration** -- Messages tab added to both trainer shell (index 2) and trainee shell (index 4) with unread badge. `ConsumerStatefulWidget` with `initState()` refresh (no infinite loop).
+- **Mobile accessibility** -- `Semantics` widgets on MessageBubble, ConversationTile, TypingIndicator, ChatInput send button, ConversationListScreen.
+- **Web messages page** -- Responsive split-panel layout (320px sidebar + chat, single-panel on mobile with back button). Conversation list with relative timestamps, unread badges, empty/error states. Chat view with date separators, infinite scroll (page 2+ on scroll-to-top), auto-scroll to bottom, 5s HTTP polling. Scroll-to-bottom FAB.
+- **Web new conversation flow** -- `NewConversationView` component renders when trainer navigates from trainee detail "Message" button and no existing conversation found. Shows "Send your first message" CTA, calls `startConversation` API, redirects to new conversation on success.
+- **Web message input** -- `ChatInput` component with textarea, 2000 char max, character counter at 90%, Enter-to-send, Shift+Enter for newline, disabled during send.
+- **Web read receipts** -- `MessageBubble` shows `Check` (sent) or `CheckCheck` (read) icons for own messages.
+- **Web sidebar unread badge** -- Both `sidebar.tsx` and `sidebar-mobile.tsx` show red badge next to Messages link via `useMessagingUnreadCount()`. 99+ cap.
+- **Web trainee detail integration** -- "Message" button on `/trainees/[id]` navigates to `/messages?trainee=<id>`.
+- **Shared utility** -- `getInitials()` extracted to `format-utils.ts` (was duplicated in conversation-list and chat-view).
+- **7 Playwright E2E tests** -- `messages.spec.ts` covering: sidebar nav link, page navigation, empty state, conversation list rendering, chat view selection, message input area, send button enable.
+- **E2E mock setup** -- Paginated conversation mock in auth helpers, per-test conversation/message route overrides.
+
+### Fixed
+- **CRITICAL: scrollToBottom ReferenceError** -- `useCallback` for `scrollToBottom` was defined after the `useEffect` that depended on it. `const` is not hoisted, causing runtime crash when any conversation with messages was rendered. Moved definition above the dependent effect.
+- **CRITICAL: Web new-conversation dead end** -- Navigating from trainee detail "Message" when no conversation existed showed "Select a conversation" with no way to create one. Added `NewConversationView` with first-message flow.
+- **HIGH: Web layout unusable on mobile** -- Sidebar was always `w-80` even on mobile screens. Changed to `w-full md:w-80` with show/hide based on selection state. Added back button for mobile navigation.
+- **HIGH: Archived conversation WebSocket access** -- `_check_conversation_access()` did not filter `is_archived=False`. A removed trainee with valid JWT could connect to archived conversation's WebSocket channel. Added filter.
+- **HIGH: Bare exception in WebSocket auth** -- `except Exception` silently swallowed all errors including ImportError/AttributeError. Narrowed to `except (TokenError, User.DoesNotExist, ValueError, KeyError)`. Moved imports outside try block.
+- **HIGH: Archived conversation message access** -- `ConversationDetailView` did not check `is_archived`. Removed trainee could still read all messages. Added archived check (trainees get 403, trainers can view for audit).
+- **MEDIUM: Archived conversation mark-read** -- `MarkReadView` did not check `is_archived`. Added check returning 403.
+- **MEDIUM: Null recipient push notification** -- `recipient_id` could be None after SET_NULL. Added null check with warning log.
+- **Business logic in views** -- Moved `broadcast_new_message()`, `broadcast_read_receipt()`, `send_message_push_notification()`, `is_impersonating()` from views.py to services/messaging_service.py.
+- **Unread count query optimization** -- Consolidated from 2 queries to 1 using Django Q objects.
+- **Duplicated getInitials** -- Extracted to shared `format-utils.ts`.
+- **E2E mock format** -- Changed conversations mock from bare array to paginated response `{ count, next, previous, results }`.
+- **E2E ambiguous selector** -- Scoped conversation list assertion to listbox role.
+- **3 mobile debugPrint calls removed** -- Replaced with descriptive comments explaining non-fatal behavior.
+- **Missing web TypeScript field** -- Added `is_new_conversation: boolean` to `StartConversationResponse` type.
+
+### Accessibility
+- `Semantics` widgets on all mobile messaging widgets (MessageBubble, ConversationTile, TypingIndicator, ChatInput, ConversationListScreen)
+- `role="log"` with `aria-label="Message history"` and `aria-live="polite"` on web message container
+- `role="listbox"` with `aria-label="Conversations"` on web conversation list
+- `aria-label="Scroll to latest messages"` on scroll-to-bottom button
+- `aria-label="Back to conversations"` on mobile-web back button
+- `role="status"` on loading spinners, `role="alert"` on error messages
+- `sr-only` loading text for screen readers
+
+### Quality Metrics
+- Code Review: 8/10 APPROVE (2 rounds -- 5 critical + 9 major + 10 minor all fixed)
+- QA: HIGH confidence, 93 tests passed, 0 failed, 4 bugs found and fixed
+- Security Audit: 9/10 PASS (3 High + 2 Medium all fixed, no secrets leaked)
+- Architecture Audit: 9/10 APPROVE (4 fixes: business logic placement, query optimization, code dedup, null-safety)
+- Hacker Audit: 7/10 (2 critical flow bugs fixed, 5 significant fixes total)
+- Final Verdict: SHIP at 9/10, HIGH confidence
+
+### Deferred
+- Web WebSocket support for messaging (v1 uses HTTP polling at 5s)
+- Web typing indicators (component exists at `typing-indicator.tsx`, awaiting WebSocket)
+- Quick-message from trainee list row on web (must open trainee detail first)
+- Message editing and deletion
+- File/image attachments in messages
+- Message search
+
+---
+
 ## [2026-02-19] — Web Dashboard Full Parity + UI/UX Polish + E2E Tests (Pipeline 19)
 
 ### Added

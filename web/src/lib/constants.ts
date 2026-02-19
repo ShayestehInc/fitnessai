@@ -183,6 +183,17 @@ export const API_URLS = {
   adminTriggerPayout: (ambassadorId: number) =>
     `${API_BASE}/api/admin/ambassadors/${ambassadorId}/payout/`,
 
+  // Messaging
+  MESSAGING_CONVERSATIONS: `${API_BASE}/api/messaging/conversations/`,
+  MESSAGING_START_CONVERSATION: `${API_BASE}/api/messaging/conversations/start/`,
+  MESSAGING_UNREAD_COUNT: `${API_BASE}/api/messaging/unread-count/`,
+  messagingMessages: (conversationId: number) =>
+    `${API_BASE}/api/messaging/conversations/${conversationId}/messages/`,
+  messagingSend: (conversationId: number) =>
+    `${API_BASE}/api/messaging/conversations/${conversationId}/send/`,
+  messagingMarkRead: (conversationId: number) =>
+    `${API_BASE}/api/messaging/conversations/${conversationId}/read/`,
+
   // Ambassador (self-service)
   AMBASSADOR_DASHBOARD: `${API_BASE}/api/ambassador/dashboard/`,
   AMBASSADOR_REFERRAL_CODE: `${API_BASE}/api/ambassador/referral-code/`,

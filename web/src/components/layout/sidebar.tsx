@@ -4,10 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMessagingUnreadCount } from "@/hooks/use-messaging";
+import { Badge } from "@/components/ui/badge";
 import { navLinks } from "./nav-links";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: unreadData } = useMessagingUnreadCount();
+  const unreadCount = unreadData?.unread_count ?? 0;
 
   return (
     <aside className="hidden w-64 shrink-0 border-r bg-sidebar lg:block">
@@ -23,6 +27,7 @@ export function Sidebar() {
             const isActive =
               pathname === link.href ||
               (link.href !== "/dashboard" && pathname.startsWith(link.href));
+            const isMessagesLink = link.href === "/messages";
             return (
               <Link
                 key={link.href}
@@ -36,7 +41,15 @@ export function Sidebar() {
                 )}
               >
                 <link.icon className="h-4 w-4" aria-hidden="true" />
-                {link.label}
+                <span className="flex-1">{link.label}</span>
+                {isMessagesLink && unreadCount > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="h-5 min-w-[20px] px-1.5 text-[10px]"
+                  >
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Badge>
+                )}
               </Link>
             );
           })}

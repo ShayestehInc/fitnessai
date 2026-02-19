@@ -81,6 +81,9 @@ import '../../features/admin/presentation/screens/admin_ambassadors_screen.dart'
 import '../../features/admin/presentation/screens/admin_create_ambassador_screen.dart';
 import '../../features/admin/presentation/screens/admin_ambassador_detail_screen.dart';
 import '../../features/community/presentation/screens/leaderboard_screen.dart';
+import '../../features/messaging/presentation/screens/conversation_list_screen.dart';
+import '../../features/messaging/presentation/screens/chat_screen.dart';
+import '../../features/messaging/presentation/screens/new_conversation_screen.dart';
 
 // Navigation keys for branches
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -166,6 +169,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
+          // Messages branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/trainer/messages',
+                name: 'trainer-messages',
+                builder: (context, state) => const ConversationListScreen(),
+              ),
+            ],
+          ),
+
           // Programs branch
           StatefulShellBranch(
             routes: [
@@ -173,17 +187,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: '/trainer/programs',
                 name: 'trainer-programs',
                 builder: (context, state) => const ProgramsScreen(),
-              ),
-            ],
-          ),
-
-          // Exercises branch
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/trainer/exercises',
-                name: 'trainer-exercises',
-                builder: (context, state) => const ExerciseBankScreen(),
               ),
             ],
           ),
@@ -199,6 +202,46 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+
+      // Exercises (outside shell, accessible from settings/programs)
+      GoRoute(
+        path: '/trainer/exercises',
+        name: 'trainer-exercises',
+        builder: (context, state) => const ExerciseBankScreen(),
+      ),
+
+      // Messaging routes (outside shell, used by both trainers and trainees)
+      GoRoute(
+        path: '/messages',
+        name: 'messages',
+        builder: (context, state) => const ConversationListScreen(),
+      ),
+      GoRoute(
+        path: '/messages/new-conversation',
+        name: 'new-conversation',
+        builder: (context, state) {
+          final traineeId = int.parse(
+            state.uri.queryParameters['trainee_id'] ?? '0',
+          );
+          final name = state.uri.queryParameters['name'];
+          return NewConversationScreen(
+            traineeId: traineeId,
+            traineeName: name,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/messages/:id',
+        name: 'chat',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          final name = state.uri.queryParameters['name'];
+          return ChatScreen(
+            conversationId: id,
+            otherPartyName: name,
+          );
+        },
       ),
 
       // Trainer detail routes (outside shell)
@@ -512,13 +555,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // TV branch
+          // Messages branch (trainee)
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/tv',
-                name: 'tv',
-                builder: (context, state) => const TvScreen(),
+                path: '/trainee-messages',
+                name: 'trainee-messages',
+                builder: (context, state) => const ConversationListScreen(),
               ),
             ],
           ),

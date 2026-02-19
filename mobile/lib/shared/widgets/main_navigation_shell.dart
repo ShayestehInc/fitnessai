@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/trainer/presentation/providers/trainer_provider.dart';
 import '../../features/trainer/presentation/widgets/impersonation_banner.dart';
+import '../../features/messaging/presentation/providers/messaging_provider.dart';
 
-class MainNavigationShell extends ConsumerWidget {
+class MainNavigationShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainNavigationShell({
@@ -13,16 +14,30 @@ class MainNavigationShell extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainNavigationShell> createState() =>
+      _MainNavigationShellState();
+}
+
+class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh unread count once on first mount, not on every rebuild
+    ref.read(unreadMessageCountProvider.notifier).refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final impersonationState = ref.watch(impersonationProvider);
     final theme = Theme.of(context);
+    final unreadCount = ref.watch(unreadMessageCountProvider);
 
     return Scaffold(
       body: Column(
         children: [
           // Show impersonation banner when trainer is viewing as trainee
           if (impersonationState.isImpersonating) const ImpersonationBanner(),
-          Expanded(child: navigationShell),
+          Expanded(child: widget.navigationShell),
         ],
       ),
       bottomNavigationBar: Container(
@@ -42,36 +57,37 @@ class MainNavigationShell extends ConsumerWidget {
                   icon: Icons.home_outlined,
                   activeIcon: Icons.home,
                   label: 'Home',
-                  isSelected: navigationShell.currentIndex == 0,
+                  isSelected: widget.navigationShell.currentIndex == 0,
                   onTap: () => _onTap(context, 0),
                 ),
                 _NavItem(
                   icon: Icons.restaurant_outlined,
                   activeIcon: Icons.restaurant,
                   label: 'Diet',
-                  isSelected: navigationShell.currentIndex == 1,
+                  isSelected: widget.navigationShell.currentIndex == 1,
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
                   icon: Icons.fitness_center_outlined,
                   activeIcon: Icons.fitness_center,
                   label: 'Logbook',
-                  isSelected: navigationShell.currentIndex == 2,
+                  isSelected: widget.navigationShell.currentIndex == 2,
                   onTap: () => _onTap(context, 2),
                 ),
                 _NavItem(
                   icon: Icons.people_outlined,
                   activeIcon: Icons.people,
                   label: 'Community',
-                  isSelected: navigationShell.currentIndex == 3,
+                  isSelected: widget.navigationShell.currentIndex == 3,
                   onTap: () => _onTap(context, 3),
                 ),
                 _NavItem(
-                  icon: Icons.play_circle_outline,
-                  activeIcon: Icons.play_circle,
-                  label: 'TV',
-                  isSelected: navigationShell.currentIndex == 4,
+                  icon: Icons.chat_bubble_outline,
+                  activeIcon: Icons.chat_bubble,
+                  label: 'Messages',
+                  isSelected: widget.navigationShell.currentIndex == 4,
                   onTap: () => _onTap(context, 4),
+                  badgeCount: unreadCount,
                 ),
               ],
             ),
@@ -82,9 +98,9 @@ class MainNavigationShell extends ConsumerWidget {
   }
 
   void _onTap(BuildContext context, int index) {
-    navigationShell.goBranch(
+    widget.navigationShell.goBranch(
       index,
-      initialLocation: index == navigationShell.currentIndex,
+      initialLocation: index == widget.navigationShell.currentIndex,
     );
   }
 }
@@ -95,6 +111,7 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final int badgeCount;
 
   const _NavItem({
     required this.icon,
@@ -102,6 +119,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
@@ -118,10 +136,40 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected ? primaryColor : mutedColor,
-              size: 24,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  isSelected ? activeIcon : icon,
+                  color: isSelected ? primaryColor : mutedColor,
+                  size: 24,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -8,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.error,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: TextStyle(
+                          color: theme.colorScheme.onError,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(

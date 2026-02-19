@@ -126,7 +126,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
         PopupMenuButton<String>(
           onSelected: (value) {
             if (value == 'message') {
-              // Message trainee
+              _openMessageTrainee(context, trainee);
             } else if (value == 'remove') {
               _openRemoveTrainee(context, trainee);
             }
@@ -1679,6 +1679,15 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           traineeEmail: trainee.email,
         ),
       ),
+    );
+  }
+
+  void _openMessageTrainee(BuildContext context, TraineeDetailModel trainee) {
+    final name = '${trainee.firstName ?? ''} ${trainee.lastName ?? ''}'.trim();
+    final displayName = name.isEmpty ? trainee.email.split('@').first : name;
+
+    context.push(
+      '/messages/new-conversation?trainee_id=${trainee.id}&name=$displayName',
     );
   }
 }
