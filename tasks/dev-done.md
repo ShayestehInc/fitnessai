@@ -1,238 +1,236 @@
-# Dev Done: Phase 8 Community & Platform Enhancements (7 Features)
+# Dev Done: Pipeline 19 — Web Dashboard Feature Parity, UI/UX Polish, E2E Tests
 
-## Date
-2026-02-16
+## Date: 2026-02-19
 
 ## Summary
-Implemented all 7 features from the Pipeline 18 ticket across the Django backend and Flutter mobile app: Leaderboards, Push Notifications (FCM), Rich Text/Markdown, Image Attachments, Comment Threads, Real-time WebSocket, and Stripe Connect Payouts for ambassadors.
+Implemented comprehensive web dashboard update across three workstreams:
+1. **Feature Parity** — Brought web dashboard to parity with mobile app features across trainer, admin, and ambassador roles
+2. **UI/UX Polish** — Redesigned login page, added animations, micro-interactions, skeleton loading, page transitions
+3. **E2E Tests** — Set up Playwright with 16+ test spec files across all user roles
 
 ---
 
-## Files Changed
+## Files Changed/Created
 
-### Backend - Models
+### Infrastructure & Config
+- `web/package.json` — Added framer-motion, @playwright/test, e2e scripts
+- `web/playwright.config.ts` — Multi-browser Playwright configuration (Chromium, Firefox, WebKit, mobile)
+- `web/src/lib/constants.ts` — Added ~30 new API URL entries
+- `web/src/middleware.ts` — Added AMBASSADOR role routing and redirect guards
+- `web/src/providers/auth-provider.tsx` — Accept AMBASSADOR role
+- `web/src/app/globals.css` — Added CSS keyframes (gradient-shift, float), card-hover utility, prefers-reduced-motion
 
-| File | Change |
-|------|--------|
-| `backend/community/models.py` | Added `content_format` to `Announcement` and `CommunityPost`. Added `image` ImageField to `CommunityPost`. Added `Leaderboard` model. Added `Comment` model. Added helper function `_community_post_image_path`. |
-| `backend/users/models.py` | Added `leaderboard_opt_in` to `UserProfile`. Added `DeviceToken` model. |
-| `backend/ambassador/models.py` | Added `AmbassadorStripeAccount` model. Added `PayoutRecord` model. |
+### Types (7 New)
+- `web/src/types/announcement.ts` — Announcement, CreateAnnouncementPayload, UpdateAnnouncementPayload
+- `web/src/types/ai-chat.ts` — ChatMessage, AiChatRequest, AiChatResponse, AiProvider
+- `web/src/types/branding.ts` — TrainerBranding, UpdateBrandingPayload
+- `web/src/types/subscription.ts` — StripeConnectStatus, TrainerPayment, TrainerSubscriber, TrainerPricing
+- `web/src/types/calendar.ts` — CalendarConnection, CalendarEvent
+- `web/src/types/feature-request.ts` — FeatureRequest, FeatureComment, CreateFeatureRequestPayload
+- `web/src/types/ambassador.ts` — Ambassador, AmbassadorDashboardData, AmbassadorSelfReferral, AmbassadorPayout, etc.
 
-### Backend - Migrations
+### Hooks (10 New, 1 Modified)
+- `web/src/hooks/use-announcements.ts` — CRUD mutations with queryClient invalidation
+- `web/src/hooks/use-ai-chat.ts` — Local state + sendMessage with streaming
+- `web/src/hooks/use-branding.ts` — useBranding, useUpdateBranding, useUploadLogo, useRemoveLogo
+- `web/src/hooks/use-subscription.ts` — Stripe Connect status/onboard/dashboard, pricing, payments, subscribers
+- `web/src/hooks/use-calendar.ts` — Connections, Google auth, events, disconnect
+- `web/src/hooks/use-feature-requests.ts` — Feature requests CRUD + votes + comments
+- `web/src/hooks/use-trainee-goals.ts` — useUpdateTraineeGoals
+- `web/src/hooks/use-leaderboard-settings.ts` — useLeaderboardSettings, useUpdateLeaderboardSetting
+- `web/src/hooks/use-admin-ambassadors.ts` — Full admin ambassador CRUD + commission management
+- `web/src/hooks/use-ambassador.ts` — Ambassador self-service (dashboard, referrals, payouts, connect)
+- `web/src/hooks/use-exercises.ts` — **Modified**: Added useCreateExercise, useUpdateExercise
 
-| File | Change |
-|------|--------|
-| `backend/community/migrations/0002_add_social_features.py` | New fields on Announcement/CommunityPost + Leaderboard + Comment models |
-| `backend/users/migrations/0006_add_device_tokens_and_leaderboard.py` | leaderboard_opt_in on UserProfile + DeviceToken model |
-| `backend/ambassador/migrations/0004_add_stripe_connect_and_payouts.py` | AmbassadorStripeAccount + PayoutRecord models |
+### Layout & Navigation (5 New, 3 Modified)
+- `web/src/components/layout/nav-links.tsx` — **Modified**: Added 6 trainer nav items (AI Chat, Exercises, Announcements, Feature Requests, Subscription, Calendar)
+- `web/src/components/layout/admin-nav-links.ts` — **Modified**: Added 3 admin nav items (Ambassadors, Upcoming Payments, Past Due)
+- `web/src/components/layout/user-nav.tsx` — **Modified**: Ambassador role routing
+- `web/src/components/layout/ambassador-nav-links.ts` — **New**: 4 items (Dashboard, Referrals, Payouts, Settings)
+- `web/src/components/layout/ambassador-sidebar.tsx` — **New**: Desktop sidebar
+- `web/src/components/layout/ambassador-sidebar-mobile.tsx` — **New**: Mobile sheet sidebar
+- `web/src/app/(ambassador-dashboard)/layout.tsx` — **New**: Ambassador layout with auth guards
+- `web/src/app/(dashboard)/layout.tsx` — **Modified**: AMBASSADOR redirect
 
-### Backend - Services
+### Auth & Login (3 files)
+- `web/src/components/auth/login-hero.tsx` — **New**: Animated hero with gradient, floating icons, tagline
+- `web/src/app/(auth)/layout.tsx` — **Modified**: Two-column grid layout
+- `web/src/app/(auth)/login/page.tsx` — **Modified**: Redesigned with framer-motion animations
 
-| File | Change |
-|------|--------|
-| `backend/community/services/leaderboard_service.py` | NEW - `compute_leaderboard()` with dataclass `LeaderboardEntry` return. Handles workout_count and current_streak metrics, weekly/monthly periods. Filters by leaderboard_opt_in. |
-| `backend/ambassador/services/payout_service.py` | NEW - `PayoutService` class with `get_connect_status()`, `create_connect_account()`, `sync_account_status()`, `execute_payout()`. Uses `transaction.atomic` and `select_for_update()`. Returns dataclasses. |
-| `backend/core/services/notification_service.py` | NEW - FCM wrapper: `send_push_notification()`, `send_push_to_group()`. Lazy Firebase init. Handles UnregisteredError. |
+### Shared Components & UI (3 files)
+- `web/src/components/shared/page-transition.tsx` — **New**: framer-motion fade+slide wrapper
+- `web/src/components/ui/button.tsx` — **Modified**: Added active:scale-[0.98] micro-interaction
+- `web/src/components/dashboard/stat-card.tsx` — **Modified**: Added trend indicator (TrendingUp/Down)
 
-### Backend - Serializers
+### Trainer Features — Announcements (5 files)
+- `web/src/components/announcements/announcement-list-skeleton.tsx`
+- `web/src/components/announcements/announcement-delete-dialog.tsx`
+- `web/src/components/announcements/announcement-form-dialog.tsx`
+- `web/src/components/announcements/announcement-list.tsx`
+- `web/src/app/(dashboard)/announcements/page.tsx`
 
-| File | Change |
-|------|--------|
-| `backend/community/serializers.py` | Added `content_format` to `AnnouncementSerializer` and `AnnouncementCreateSerializer`. Added `CreateCommentSerializer`, `CommentSerializer` with author data. Added `LeaderboardSettingsSerializer`. Updated `CreatePostSerializer` with `content_format`. |
+### Trainer Features — AI Chat (6 files)
+- `web/src/components/ai-chat/chat-skeleton.tsx`
+- `web/src/components/ai-chat/suggestion-chips.tsx`
+- `web/src/components/ai-chat/chat-message.tsx`
+- `web/src/components/ai-chat/trainee-selector.tsx`
+- `web/src/components/ai-chat/chat-container.tsx`
+- `web/src/app/(dashboard)/ai-chat/page.tsx`
 
-### Backend - Views
+### Trainer Features — Exercises (6 files)
+- `web/src/components/exercises/exercise-grid-skeleton.tsx`
+- `web/src/components/exercises/exercise-card.tsx`
+- `web/src/components/exercises/create-exercise-dialog.tsx`
+- `web/src/components/exercises/exercise-detail-dialog.tsx`
+- `web/src/components/exercises/exercise-list.tsx`
+- `web/src/app/(dashboard)/exercises/page.tsx`
 
-| File | Change |
-|------|--------|
-| `backend/community/views.py` | Rewrote to add: multipart parser for image upload, image validation (type + size), `comment_count` annotation, `CommentListCreateView`, `CommentDeleteView`, `LeaderboardView`. Added WebSocket broadcast helpers. Added push notification helper for comments. |
-| `backend/community/trainer_views.py` | Added `content_format` to announcement CRUD. Added `TrainerLeaderboardSettingsView` (GET auto-creates 4 configs, POST toggles). Added `_notify_trainees_announcement()` push notification helper. |
-| `backend/users/views.py` | Added `DeviceTokenView` (POST register, DELETE deactivate). Added `LeaderboardOptInView` (GET/PUT). |
-| `backend/ambassador/views.py` | Added `AmbassadorConnectStatusView`, `AmbassadorConnectOnboardView`, `AmbassadorConnectReturnView`, `AmbassadorPayoutHistoryView`, `AdminTriggerPayoutView`. |
+### Trainer Features — Subscription (2 files)
+- `web/src/components/subscription/subscription-skeleton.tsx`
+- `web/src/app/(dashboard)/subscription/page.tsx`
 
-### Backend - URLs
+### Trainer Features — Calendar (2 files)
+- `web/src/components/calendar/calendar-skeleton.tsx`
+- `web/src/app/(dashboard)/calendar/page.tsx`
 
-| File | Change |
-|------|--------|
-| `backend/community/urls.py` | Added comment routes and leaderboard route |
-| `backend/trainer/urls.py` | Added `TrainerLeaderboardSettingsView` route |
-| `backend/users/urls.py` | Added `DeviceTokenView` and `LeaderboardOptInView` routes |
-| `backend/ambassador/urls.py` | Added Stripe Connect routes and payout routes |
+### Trainer Features — Feature Requests (4 files)
+- `web/src/components/feature-requests/feature-list-skeleton.tsx`
+- `web/src/components/feature-requests/create-feature-request-dialog.tsx`
+- `web/src/components/feature-requests/feature-request-list.tsx`
+- `web/src/app/(dashboard)/feature-requests/page.tsx`
 
-### Backend - WebSocket
+### Trainer Features — Settings (3 files)
+- `web/src/components/settings/branding-section.tsx` — White-label branding (colors, logo, app name)
+- `web/src/components/settings/leaderboard-section.tsx` — Leaderboard metric toggles
+- `web/src/app/(dashboard)/settings/page.tsx` — **Modified**: Added BrandingSection + LeaderboardSection
 
-| File | Change |
-|------|--------|
-| `backend/community/consumers.py` | NEW - `CommunityFeedConsumer` with JWT auth via query param, group join by trainer_id, handlers for new_post/post_deleted/new_comment events |
-| `backend/community/routing.py` | NEW - WebSocket URL routing |
-| `backend/config/asgi.py` | Updated with `ProtocolTypeRouter` for HTTP + WebSocket |
-| `backend/config/settings.py` | Added `daphne`, `channels` to INSTALLED_APPS. Added `CHANNEL_LAYERS` config. Added `FIREBASE_CREDENTIALS_PATH`. |
-| `backend/requirements.txt` | Added `firebase-admin`, `channels`, `channels-redis`, `daphne` |
+### Trainee Detail Enhancements (8 files)
+- `web/src/components/trainees/edit-goals-dialog.tsx` — Edit nutrition goals (calories, protein, carbs, fat)
+- `web/src/components/trainees/remove-trainee-dialog.tsx` — Remove with "REMOVE" confirmation
+- `web/src/components/trainees/assign-program-action.tsx` — Assign/change program trigger
+- `web/src/components/trainees/change-program-dialog.tsx` — Program selection dialog
+- `web/src/components/trainees/layout-config-selector.tsx` — Workout layout picker (default/compact/detailed)
+- `web/src/components/trainees/impersonate-trainee-button.tsx` — Trainer impersonation with audit warning
+- `web/src/components/trainees/mark-missed-day-dialog.tsx` — Mark missed workout day
+- `web/src/app/(dashboard)/trainees/[id]/page.tsx` — **Modified**: Added all actions + Settings tab
 
-### Mobile - Models
+### Admin Features (8 files)
+- `web/src/components/admin/ambassador-list.tsx` — Ambassador management with search
+- `web/src/components/admin/create-ambassador-dialog.tsx` — Create ambassador form with validation
+- `web/src/components/admin/ambassador-detail-dialog.tsx` — Detail + bulk approve/pay/payout
+- `web/src/components/admin/upcoming-payments-list.tsx` — Payment forecast list
+- `web/src/components/admin/past-due-full-list.tsx` — Overdue payments with severity colors
+- `web/src/app/(admin-dashboard)/admin/ambassadors/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/upcoming-payments/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/past-due/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/settings/page.tsx` — **Modified**: Replaced "Coming soon" placeholder
 
-| File | Change |
-|------|--------|
-| `mobile/lib/features/community/data/models/community_post_model.dart` | Added `contentFormat`, `imageUrl`, `commentCount` fields. Added `isMarkdown`, `hasImage` getters. |
-| `mobile/lib/features/community/data/models/comment_model.dart` | NEW - `CommentModel` with `fromJson`, `authorDisplayName`, `authorInitials` |
-| `mobile/lib/features/community/data/models/leaderboard_model.dart` | NEW - `LeaderboardEntry` and `LeaderboardResponse` with `fromJson` |
+### Ambassador Features (11 files)
+- `web/src/components/ambassador/ambassador-dashboard-skeleton.tsx`
+- `web/src/components/ambassador/dashboard-earnings-card.tsx`
+- `web/src/components/ambassador/referral-code-card.tsx` — Copy/edit referral code
+- `web/src/components/ambassador/recent-referrals-list.tsx`
+- `web/src/components/ambassador/referral-list.tsx` — Full referral list with search
+- `web/src/components/ambassador/stripe-connect-setup.tsx` — Payout account setup (3 states)
+- `web/src/components/ambassador/payout-history.tsx` — Payout tracking
+- `web/src/app/(ambassador-dashboard)/ambassador/dashboard/page.tsx`
+- `web/src/app/(ambassador-dashboard)/ambassador/referrals/page.tsx`
+- `web/src/app/(ambassador-dashboard)/ambassador/payouts/page.tsx`
+- `web/src/app/(ambassador-dashboard)/ambassador/settings/page.tsx`
 
-### Mobile - Repository
-
-| File | Change |
-|------|--------|
-| `mobile/lib/features/community/data/repositories/community_feed_repository.dart` | Updated `createPost()` for multipart upload. Added `getComments()`, `createComment()`, `deleteComment()`, `getLeaderboard()`. |
-
-### Mobile - Providers
-
-| File | Change |
-|------|--------|
-| `mobile/lib/features/community/presentation/providers/community_feed_provider.dart` | Updated `createPost()` for content format and image path. Added `onNewPost()`, `onPostDeleted()`, `onNewComment()` methods for WebSocket events. |
-
-### Mobile - Screens
-
-| File | Change |
-|------|--------|
-| `mobile/lib/features/community/presentation/screens/community_feed_screen.dart` | Added leaderboard icon in app bar. Connected WebSocket service on init. |
-| `mobile/lib/features/community/presentation/screens/leaderboard_screen.dart` | NEW - Leaderboard screen with metric/period dropdowns, ranked list, loading/empty/error states. Top 3 highlighted with gold/silver/bronze. |
-| `mobile/lib/features/ambassador/presentation/screens/ambassador_payouts_screen.dart` | NEW - Ambassador payouts screen with Stripe Connect status card + payout history list. |
-
-### Mobile - Widgets
-
-| File | Change |
-|------|--------|
-| `mobile/lib/features/community/presentation/widgets/community_post_card.dart` | Refactored into sub-widgets. Added markdown rendering via `flutter_markdown`. Added image display with loading/error states. Added comment count button. Added fullscreen image viewer with pinch-to-zoom. |
-| `mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart` | Added markdown toggle chip. Added image picker with preview and remove. |
-| `mobile/lib/features/community/presentation/widgets/comments_sheet.dart` | NEW - Bottom sheet with comment list, create, delete. Real-time comment count update via provider. |
-
-### Mobile - Services
-
-| File | Change |
-|------|--------|
-| `mobile/lib/features/community/data/services/community_ws_service.dart` | NEW - WebSocket service with JWT auth, auto-reconnect (5 attempts, 3s delay), event dispatching to provider. |
-| `mobile/lib/core/services/push_notification_service.dart` | NEW - Firebase Messaging init, permission request, token registration, foreground message handling. |
-
-### Mobile - Configuration
-
-| File | Change |
-|------|--------|
-| `mobile/lib/core/constants/api_constants.dart` | Added endpoints for: trainer leaderboard settings, community comments, community leaderboard, device token, leaderboard opt-in, ambassador connect, ambassador payouts, admin ambassador payout, WebSocket URLs. |
-| `mobile/lib/core/router/app_router.dart` | Added routes for leaderboard screen and ambassador payouts screen. |
-| `mobile/pubspec.yaml` | Added: `flutter_markdown`, `web_socket_channel`, `firebase_core`, `firebase_messaging`, `image_picker`. |
+### E2E Tests (19 files)
+- `web/e2e/helpers/auth.ts` — Login helper with test users for all 3 roles
+- `web/e2e/helpers/test-utils.ts` — Shared utilities (waitForPageLoad, expectToast, expectEmptyState, etc.)
+- `web/e2e/helpers/mock-api.ts` — API mocking helpers (mockLogin, mockDashboardStats, mockPaginatedList)
+- `web/e2e/auth.spec.ts` — Login form, validation, error handling, responsive hero
+- `web/e2e/navigation.spec.ts` — Route guards for all dashboard paths
+- `web/e2e/responsive.spec.ts` — Mobile vs desktop layout tests
+- `web/e2e/dark-mode.spec.ts` — Dark/light mode rendering
+- `web/e2e/error-states.spec.ts` — 404 handling, API failure
+- `web/e2e/trainer/dashboard.spec.ts` — Dashboard stats, navigation
+- `web/e2e/trainer/trainees.spec.ts` — Trainee list, detail, actions
+- `web/e2e/trainer/announcements.spec.ts` — CRUD dialog, validation
+- `web/e2e/trainer/exercises.spec.ts` — Exercise bank, create dialog, validation
+- `web/e2e/trainer/settings.spec.ts` — All settings sections visible
+- `web/e2e/trainer/ai-chat.spec.ts` — Chat UI elements
+- `web/e2e/trainer/feature-requests.spec.ts` — Submit dialog
+- `web/e2e/trainer/subscription.spec.ts` — Stripe Connect status
+- `web/e2e/trainer/calendar.spec.ts` — Calendar connections
+- `web/e2e/admin/dashboard.spec.ts` — Admin nav, ambassador/payment pages
+- `web/e2e/admin/ambassadors.spec.ts` — Ambassador CRUD, validation
+- `web/e2e/admin/settings.spec.ts` — Platform config, security, profile
+- `web/e2e/ambassador/dashboard.spec.ts` — Earnings cards, referral code
+- `web/e2e/ambassador/referrals.spec.ts` — Referral list, search
+- `web/e2e/ambassador/payouts.spec.ts` — Stripe Connect setup, history
+- `web/e2e/ambassador/settings.spec.ts` — Profile, appearance, security
 
 ---
 
 ## Key Decisions
 
-1. **Image upload_to uses string path, not lambda**: Django migrations can't serialize lambdas. Using `'community_posts/'` as the upload_to path. Django handles deduplication.
+1. **framer-motion for animations** — Used framer-motion v12 for page transitions and login animations. CSS keyframes for background gradients to reduce JS overhead.
 
-2. **WebSocket auth via query param**: Mobile WebSocket clients can't send HTTP headers, so JWT token is passed as a `?token=` query parameter. The consumer validates it before accepting the connection.
+2. **PageTransition wrapper** — Created reusable `PageTransition` component wrapping framer-motion `AnimatePresence` + `motion.div` for consistent fade-in/slide-up on every page.
 
-3. **Fire-and-forget pattern**: WebSocket broadcasts and push notifications never block API responses. All wrapped in try/except with debug logging.
+3. **Ambassador as separate route group** — Created `(ambassador-dashboard)` route group matching the pattern of `(admin-dashboard)` for complete role isolation with its own layout, sidebar, and auth guards.
 
-4. **Optimistic UI for reactions**: Frontend updates reaction counts immediately, then reconciles with server response. Rolls back on error.
+4. **Stat card trend indicator** — Extended existing `StatCard` with optional `trend` and `trendLabel` props. Backward compatible.
 
-5. **Comment count via annotation**: Used Django's `annotate(comment_count=Count('comments'))` on the feed queryset to avoid N+1 queries.
+5. **Button micro-interaction** — Added `active:scale-[0.98]` to button base styles for subtle press feedback. Works with `prefers-reduced-motion`.
 
-6. **Payout service uses select_for_update()**: Prevents concurrent double-payouts in the ambassador payout flow.
+6. **Remove trainee confirmation** — Requires typing "REMOVE" to confirm, preventing accidental deletion. Redirects to trainee list after success.
 
-7. **Fullscreen image viewer embedded in post card file**: Since it's a private `_FullImageScreen` widget only used from the post card, it lives in the same file rather than requiring a separate route.
+7. **Login two-column layout** — Desktop shows animated hero on left, form on right. Mobile shows form only. Hero has floating icons, gradient animation, feature pills.
 
-8. **Push notification debounce not yet implemented**: AC-14 mentions a cache-based debounce for reaction notifications. The service is set up but debounce logic for reactions was deferred (notifications for comments are implemented).
+8. **Branding section** — Preset color swatches + hex input with regex validation. Logo upload with file type/size validation (5MB, JPEG/PNG/WebP). Live preview.
+
+9. **E2E test structure** — Organized by role with shared helpers. Tests designed to work with or without a running backend. Mock API helpers available for CI.
 
 ---
 
-## Review Round 1 Fixes Applied
-
-1. **C1**: Changed image types to JPEG/PNG/WebP only (removed GIF), reduced max size to 5MB (from 10MB)
-2. **C2**: Changed all `logger.debug` to `logger.warning` in WebSocket broadcast and push notification helpers
-3. **C3**: Moved `_community_post_image_path` before `CommunityPost` class (forward reference fix)
-4. **C4**: Fixed mobile ambassador payouts screen to read `onboarding_url` key (was `url`)
-5. **C5**: Added `dart:io` import and fixed `_getPlatform()` to detect iOS/Android properly
-6. **C6**: Fixed trainer announcement notify helper to use `logger.warning`
-7. **M1**: Added validation for `metric_type` and `time_period` query params, return 400 for invalid
-8. **M2**: Changed comment pagination from 30 to 20
-9. **M3**: Implemented dense ranking in leaderboard (ties get same rank, gaps after)
-10. **M4**: Fixed leaderboard enabled check to treat missing config as enabled (per AC-1)
-11. **M5**: Fixed N+1 query in payout history with `annotate(commission_count=Count(...))`
-12. **M7**: Added `_broadcast_reaction_update()` helper and `feed_reaction_update` consumer handler, plus mobile WS handler and provider method
-13. **M8**: Added `timestamp` field to all WebSocket broadcast messages
-14. **M9**: Refactored `_get_post` to return tuple distinguishing 403 vs 404
-15. **m1**: Added `Semantics` labels to leaderboard entries
-16. **m2**: Added `Semantics` labels to comment tiles
-17. **m3**: Fixed InteractiveViewer minScale from 0.5 to 1.0
-18. **m4**: Added `Semantics` to full image viewer
-19. **m5**: Increased post image height 200->250dp, border radius 8->12dp
-20. **m6**: Added 5MB client-side image size validation in compose post sheet
-21. **m10**: Added skeleton loading placeholder for leaderboard screen
-22. **WebSocket reconnect**: Added exponential backoff (3s, 6s, 12s, 24s, 48s)
-
 ## Deviations from Ticket
 
-1. **AC-25 (Markdown toolbar with bold/italic/link/bullet buttons)**: Implemented a simpler markdown toggle chip rather than a full toolbar with syntax insertion buttons. The toggle switches the hint text to show markdown syntax examples. A full toolbar would require cursor position tracking and text manipulation utilities that would be best added as a follow-up.
-
-2. **AC-15 (Permission explanation bottom sheet)**: Push notification permission is requested programmatically via `FirebaseMessaging.requestPermission()`. The custom explanation bottom sheet before the system prompt was deferred -- the current implementation goes straight to the system permission dialog.
-
-3. **AC-17 (Foreground notification banner)**: Foreground message handler is stubbed to receive messages. Displaying an in-app material banner requires integration with the app's navigation context, which is deferred to the next pipeline pass.
-
-4. **AC-29 (Pillow verify, dimension check)**: Image validation checks content type and file size. The Pillow-based `Image.open().verify()` and dimension checks were not added to avoid adding Pillow as a dependency (it may already be available via ImageField but the explicit verify step was omitted). Max size corrected to 5MB.
-
-5. **AC-7 and AC-8 (Trainer/trainee leaderboard settings in settings screens)**: The backend endpoints exist but the mobile settings screen toggles were not added in this pass. The leaderboard screen itself is complete.
+- **Community features tab** — The community tab on trainee detail was not created because the backend community endpoints are not directly connected to the per-trainee context. Can be added as a follow-up.
+- **Monthly earnings chart** — Omitted standalone chart component for ambassador dashboard because the data type doesn't include monthly breakdown array. The stat cards show the key metrics.
+- **Onboarding checklist** — The dashboard onboarding checklist component was deferred as it requires specific backend endpoint for checklist state tracking.
 
 ---
 
 ## How to Manually Test
 
-### Backend
+### Login Page
+1. Navigate to `/login`
+2. Desktop: Two-column layout with animated hero and form
+3. Mobile: Form only, hero hidden
+4. Submit empty form: browser validation
+5. Invalid credentials: error toast
+
+### Trainer Features
+1. Login as trainer
+2. Verify 6 new nav items: AI Chat, Exercises, Announcements, Feature Requests, Subscription, Calendar
+3. Visit each page: content or empty states with proper skeletons
+4. Settings: Branding (color pickers, logo upload, preview) and Leaderboard sections
+5. Trainee detail: action buttons (Edit Goals, Assign Program, View as Trainee, Mark Missed, Remove)
+6. Trainee detail Settings tab: Layout config selector
+
+### Admin Features
+1. Login as admin
+2. Verify 3 new nav items: Ambassadors, Upcoming Payments, Past Due
+3. Ambassadors: search, create dialog, detail with commission actions
+4. Settings: Platform config, security notice, profile, appearance
+
+### Ambassador Features
+1. Login as ambassador -> `/ambassador/dashboard`
+2. Stat cards, referral code (copy/edit), recent referrals
+3. Referrals page: search, list
+4. Payouts: Stripe Connect setup, payout history
+5. Settings: profile, appearance, security
+
+### E2E Tests
 ```bash
-# Start services
-docker-compose up -d
-
-# Run migrations
-docker-compose exec backend python manage.py migrate
-
-# Test community feed with markdown post
-curl -X POST http://localhost:8000/api/community/feed/ \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"content": "**Bold** and *italic*", "content_format": "markdown"}'
-
-# Test image upload
-curl -X POST http://localhost:8000/api/community/feed/ \
-  -H "Authorization: Bearer <token>" \
-  -F "content=Check this out!" \
-  -F "image=@/path/to/image.jpg"
-
-# Test comments
-curl -X POST http://localhost:8000/api/community/feed/1/comments/ \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"content": "Great post!"}'
-
-# Test leaderboard
-curl http://localhost:8000/api/community/leaderboard/?metric_type=workout_count&time_period=weekly \
-  -H "Authorization: Bearer <token>"
-
-# Test trainer leaderboard settings
-curl http://localhost:8000/api/trainer/leaderboard-settings/ \
-  -H "Authorization: Bearer <trainer_token>"
-
-# Test device token registration
-curl -X POST http://localhost:8000/api/users/device-token/ \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"token": "fcm_token_here", "platform": "ios"}'
-```
-
-### Mobile
-```bash
-cd mobile
-flutter pub get
-flutter run -d ios
-
-# Navigate to Community tab
-# - Verify leaderboard icon in app bar -> leaderboard screen
-# - Create a post with markdown toggle enabled
-# - Create a post with image attachment
-# - Tap comment button on a post -> comments sheet
-# - Verify reactions still work
+cd web
+npx playwright install
+npx playwright test
+# or
+npx playwright test --headed
 ```

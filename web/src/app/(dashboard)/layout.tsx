@@ -24,10 +24,12 @@ export default function DashboardLayout({
     }
   }, [isLoading, isAuthenticated, router]);
 
-  // Redirect ADMIN users to admin dashboard
+  // Redirect ADMIN users to admin dashboard, AMBASSADOR to ambassador dashboard
   useEffect(() => {
     if (!isLoading && isAuthenticated && user?.role === UserRole.ADMIN) {
       router.replace("/admin/dashboard");
+    } else if (!isLoading && isAuthenticated && user?.role === UserRole.AMBASSADOR) {
+      router.replace("/ambassador/dashboard");
     }
   }, [isLoading, isAuthenticated, user, router]);
 

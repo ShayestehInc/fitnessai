@@ -2,16 +2,19 @@
 
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/shared/page-header";
+import { PageTransition } from "@/components/shared/page-transition";
 import { ErrorState } from "@/components/shared/error-state";
 import { ProfileSection } from "@/components/settings/profile-section";
 import { AppearanceSection } from "@/components/settings/appearance-section";
 import { SecuritySection } from "@/components/settings/security-section";
+import { BrandingSection } from "@/components/settings/branding-section";
+import { LeaderboardSection } from "@/components/settings/leaderboard-section";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function SettingsSkeleton() {
   return (
     <div className="space-y-6">
-      {[1, 2, 3].map((i) => (
+      {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} className="rounded-lg border p-6">
           <Skeleton className="mb-2 h-5 w-24" />
           <Skeleton className="mb-6 h-4 w-48" />
@@ -50,11 +53,15 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <PageHeader title="Settings" description="Manage your account" />
-      <ProfileSection />
-      <AppearanceSection />
-      <SecuritySection />
-    </div>
+    <PageTransition>
+      <div className="max-w-2xl space-y-6">
+        <PageHeader title="Settings" description="Manage your account" />
+        <ProfileSection />
+        <BrandingSection />
+        <LeaderboardSection />
+        <AppearanceSection />
+        <SecuritySection />
+      </div>
+    </PageTransition>
   );
 }

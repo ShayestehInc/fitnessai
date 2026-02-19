@@ -103,6 +103,94 @@ export const API_URLS = {
     `${API_BASE}/api/admin/coupons/${id}/reactivate/`,
   adminCouponUsages: (id: number) =>
     `${API_BASE}/api/admin/coupons/${id}/usages/`,
+
+  // Trainer Announcements
+  ANNOUNCEMENTS: `${API_BASE}/api/trainer/announcements/`,
+  announcementDetail: (id: number) =>
+    `${API_BASE}/api/trainer/announcements/${id}/`,
+
+  // Trainer AI Chat
+  AI_CHAT: `${API_BASE}/api/trainer/ai/chat/`,
+  AI_CONTEXT: (traineeId: number) =>
+    `${API_BASE}/api/trainer/ai/context/${traineeId}/`,
+  AI_PROVIDERS: `${API_BASE}/api/trainer/ai/providers/`,
+
+  // Trainer Branding
+  TRAINER_BRANDING: `${API_BASE}/api/trainer/branding/`,
+  TRAINER_BRANDING_LOGO: `${API_BASE}/api/trainer/branding/logo/`,
+
+  // Trainee Goals
+  traineeGoals: (id: number) =>
+    `${API_BASE}/api/trainer/trainees/${id}/goals/`,
+
+  // Remove Trainee
+  traineeRemove: (id: number) =>
+    `${API_BASE}/api/trainer/trainees/${id}/remove/`,
+
+  // Trainee Layout Config
+  traineeLayoutConfig: (traineeId: number) =>
+    `${API_BASE}/api/trainer/trainees/${traineeId}/layout-config/`,
+
+  // Trainer Impersonation (trainee)
+  trainerImpersonateStart: (traineeId: number) =>
+    `${API_BASE}/api/trainer/impersonate/${traineeId}/start/`,
+  TRAINER_IMPERSONATE_END: `${API_BASE}/api/trainer/impersonate/end/`,
+
+  // Mark Missed Day
+  programMarkMissed: (programId: number) =>
+    `${API_BASE}/api/trainer/programs/${programId}/mark-missed/`,
+
+  // Stripe Connect / Subscription
+  STRIPE_CONNECT_STATUS: `${API_BASE}/api/payments/connect/status/`,
+  STRIPE_CONNECT_ONBOARD: `${API_BASE}/api/payments/connect/onboard/`,
+  STRIPE_CONNECT_DASHBOARD: `${API_BASE}/api/payments/connect/dashboard/`,
+  TRAINER_PRICING: `${API_BASE}/api/payments/pricing/`,
+  TRAINER_PAYMENTS: `${API_BASE}/api/payments/trainer/payments/`,
+  TRAINER_SUBSCRIBERS: `${API_BASE}/api/payments/trainer/subscribers/`,
+
+  // Calendar
+  CALENDAR_CONNECTIONS: `${API_BASE}/api/calendar/connections/`,
+  GOOGLE_CALENDAR_AUTH: `${API_BASE}/api/calendar/google/auth/`,
+  CALENDAR_EVENTS: `${API_BASE}/api/calendar/events/`,
+  calendarConnectionDetail: (id: number) =>
+    `${API_BASE}/api/calendar/connections/${id}/`,
+
+  // Feature Requests
+  FEATURE_REQUESTS: `${API_BASE}/api/features/`,
+  featureRequestDetail: (id: number) =>
+    `${API_BASE}/api/features/${id}/`,
+  featureRequestVote: (id: number) =>
+    `${API_BASE}/api/features/${id}/vote/`,
+  featureRequestComments: (id: number) =>
+    `${API_BASE}/api/features/${id}/comments/`,
+
+  // Leaderboard Settings
+  LEADERBOARD_SETTINGS: `${API_BASE}/api/trainer/leaderboard-settings/`,
+
+  // Admin Ambassadors
+  ADMIN_AMBASSADORS: `${API_BASE}/api/admin/ambassadors/`,
+  ADMIN_AMBASSADOR_CREATE: `${API_BASE}/api/admin/ambassadors/create/`,
+  adminAmbassadorDetail: (id: number) =>
+    `${API_BASE}/api/admin/ambassadors/${id}/`,
+  adminCommissionApprove: (ambassadorId: number, commissionId: number) =>
+    `${API_BASE}/api/admin/ambassadors/${ambassadorId}/commissions/${commissionId}/approve/`,
+  adminCommissionPay: (ambassadorId: number, commissionId: number) =>
+    `${API_BASE}/api/admin/ambassadors/${ambassadorId}/commissions/${commissionId}/pay/`,
+  adminBulkApprove: (ambassadorId: number) =>
+    `${API_BASE}/api/admin/ambassadors/${ambassadorId}/commissions/bulk-approve/`,
+  adminBulkPay: (ambassadorId: number) =>
+    `${API_BASE}/api/admin/ambassadors/${ambassadorId}/commissions/bulk-pay/`,
+  adminTriggerPayout: (ambassadorId: number) =>
+    `${API_BASE}/api/admin/ambassadors/${ambassadorId}/payout/`,
+
+  // Ambassador (self-service)
+  AMBASSADOR_DASHBOARD: `${API_BASE}/api/ambassador/dashboard/`,
+  AMBASSADOR_REFERRAL_CODE: `${API_BASE}/api/ambassador/referral-code/`,
+  AMBASSADOR_REFERRALS: `${API_BASE}/api/ambassador/referrals/`,
+  AMBASSADOR_PAYOUTS: `${API_BASE}/api/ambassador/payouts/`,
+  AMBASSADOR_CONNECT_STATUS: `${API_BASE}/api/ambassador/connect/status/`,
+  AMBASSADOR_CONNECT_ONBOARD: `${API_BASE}/api/ambassador/connect/onboard/`,
+  AMBASSADOR_CONNECT_RETURN: `${API_BASE}/api/ambassador/connect/return/`,
 } as const;
 
 export const TOKEN_KEYS = {

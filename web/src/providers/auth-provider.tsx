@@ -40,12 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData = await apiClient.get<User>(API_URLS.CURRENT_USER);
       if (
         userData.role !== UserRole.TRAINER &&
-        userData.role !== UserRole.ADMIN
+        userData.role !== UserRole.ADMIN &&
+        userData.role !== UserRole.AMBASSADOR
       ) {
         clearTokens();
         setUser(null);
         throw new Error(
-          "Only trainer and admin accounts can access this dashboard",
+          "Only trainer, admin, and ambassador accounts can access this dashboard",
         );
       }
       setUser(userData);
