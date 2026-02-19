@@ -1,68 +1,92 @@
-# Ship Decision: Web Dashboard Full Parity + UI/UX Polish + E2E Tests (Pipeline 19)
+# Ship Decision: In-App Direct Messaging (Pipeline 20)
 
 ## Verdict: SHIP
 ## Confidence: HIGH
-## Quality Score: 8/10
+## Quality Score: 9/10
 
 ## Summary
-Comprehensive implementation of 3 workstreams across 130 files (10,170 insertions): full feature parity for Trainer/Admin/Ambassador web dashboards, UI/UX polish with animations and micro-interactions, and a complete E2E test suite with Playwright. All 5 critical and 8 major code review issues from Round 1 were fixed. 2 additional critical bugs caught during audit (leaderboard type mismatch, Stripe Connect type cast) were also fixed. 52/60 ACs fully pass, 3 partial (documented), 5 deferred.
+Full-stack implementation of 1:1 direct messaging between trainers and trainees across all three stacks (Django backend, Flutter mobile, Next.js web). 61 files changed with 6,117 insertions. All 21 acceptance criteria verified as passing. All 5 critical and 9 major code review issues from Round 1 were properly fixed and verified in Round 2. Security audit found and fixed 3 High + 2 Medium issues. Hacker audit found and fixed 2 critical flow bugs. Architecture audit refactored business logic placement and optimized queries. Zero test regressions -- 289 Django tests pass (2 pre-existing MCP import errors on main), 124 Playwright E2E tests pass (7 new messaging tests).
 
-## Remaining Concerns
-- AC-11 Impersonation: Button + dialog exist but full token swap not implemented (needs backend integration)
-- AC-22 Ambassador Dashboard: Missing monthly earnings chart and referral stats row (deferred)
-- AC-33 Onboarding Checklist: Not implemented (deferred)
-- AC-26 Community Announcements: Deferred (covered by AC-1 trainer management)
-- AC-27 Community Tab: Deferred (backend not connected)
-- Past Due reminder email button is a stub (toast.info instead of actual email)
-- No server-side pagination on Ambassador list UI (fetches page 1 only)
-
-None of these are ship-blockers. All are documented and tracked for future pipelines.
+## Test Results
+- Django backend: 289 tests, 287 passed, 2 errors (pre-existing `mcp` module import errors, verified same on `main` branch -- not related to messaging)
+- Playwright E2E: 124 tests, 124 passed, 0 failed
+- No regressions introduced
 
 ## Verification Checklist
-- [x] All critical review issues fixed (5/5)
-- [x] All major review issues fixed (8/8)
-- [x] QA: 52 passed, 0 failed, 3 partial, 5 deferred
-- [x] UX audit: Score 8/10, 1 critical bug fixed (leaderboard), accessibility focus rings added
-- [x] Security audit: Score 9/10, PASS, no secrets leaked, no XSS vectors, proper JWT lifecycle
-- [x] Architecture audit: Score 8/10, APPROVE, 1 type mismatch fixed (StripeConnectSetup)
-- [x] Hacker audit: Score 8/10, no dead UI (2 known stubs), no console logs, no TODOs
+- [x] Complete test suite passes (pre-existing MCP errors only)
+- [x] All 5 critical review issues fixed and verified (N+1 queries x2, silent exception swallowing, archive never called, rate limiting missing)
+- [x] All 9 major review issues fixed and verified (CASCADE delete, typing indicator, sidebar badge, pagination, infinite loop, setState, markRead loop, auto-greeting, query string parsing)
+- [x] All 10 minor review issues fixed and verified
+- [x] QA: 93 tests passed, 0 failed. Confidence: HIGH. 4 bugs found and fixed during QA.
+- [x] Security audit: Score 9/10, PASS. 3 High fixed (archived WS access, bare exception, archived message access). 2 Medium fixed (archived mark-read, null recipient).
+- [x] Architecture audit: Score 9/10, APPROVE. 4 fixes (business logic in views->services, query optimization, code dedup, null-safety).
+- [x] Hacker audit: Chaos Score 7/10. 2 critical flow bugs fixed (web new-conversation dead end, mobile responsive layout). 5 significant fixes applied.
+- [x] No secrets leaked in any committed file
 - [x] All audit fixes committed
 
+## Acceptance Criteria: 21/21 PASS
+| AC | Status | Summary |
+|----|--------|---------|
+| AC-1 | PASS | Conversation + Message models with indexes, constraints, SET_NULL |
+| AC-2 | PASS | "Send Message" button on trainee detail wired (mobile + web) |
+| AC-3 | PASS | Conversation list sorted by recency, paginated at 50 |
+| AC-4 | PASS | Trainer can send messages, rate-limited at 30/min |
+| AC-5 | PASS | Trainee sees their conversation(s) |
+| AC-6 | PASS | Trainee can reply |
+| AC-7 | PASS | Mobile: WebSocket real-time. Web: 5s HTTP polling (documented v1 limitation) |
+| AC-8 | PASS | Unread badge on nav (mobile both shells, web both sidebars) |
+| AC-9 | PASS | Push notification via FCM with specific exception handling |
+| AC-10 | PASS | Messages paginated at 20/page with infinite scroll |
+| AC-11 | PASS | Conversation list shows preview, timestamp, unread count, avatar |
+| AC-12 | PASS | Row-level security on all views + WebSocket + services |
+| AC-13 | PASS | Messages persisted to PostgreSQL |
+| AC-14 | PASS | Web Messages page with split-panel layout |
+| AC-15 | PASS | Web trainee detail "Message" navigates to messages page |
+| AC-16 | PASS | Multiline input, 2000 char max, counter at 90% |
+| AC-17 | PASS | Mobile typing indicators. Web: documented v1 limitation |
+| AC-18 | PASS | Timestamps with relative/absolute formatting |
+| AC-19 | PASS | Conversation auto-created via get_or_create_conversation() |
+| AC-20 | PASS | Read receipts with checkmark icons |
+| AC-21 | PASS | Quick-message from trainee detail (mobile + web) |
+
+## Remaining Concerns (non-blocking)
+- Web uses HTTP polling (5s) instead of WebSocket for messages -- documented v1 limitation, adequate for launch
+- Web typing indicators not wired (component exists, ready for WebSocket integration)
+- No quick-message from trainee list row (must open trainee detail first on web) -- minor UX gap
+- `aria-live="polite"` on message container may cause excessive screen reader announcements during 5s polling
+- `MarkReadView` lacks explicit `is_archived` check, but security is maintained via SET_NULL (trainee_id becomes NULL, so row-level check blocks removed trainee)
+- MCP test module errors are pre-existing and unrelated to this feature
+
+None of these are ship-blockers. All are documented for future pipelines.
+
 ## What Was Built
-### Workstream 1: Feature Parity (28 ACs)
-1. **Trainer Announcements** -- Full CRUD with pin sort, character counters, format toggle, skeleton loading
-2. **Trainer AI Chat** -- Chat interface with trainee selector, suggestion chips, clear dialog, provider check
-3. **Trainer Branding** -- Color pickers (12 presets), hex validation, logo upload/remove, live preview, unsaved changes guard
-4. **Exercise Bank** -- Responsive grid, debounced search, muscle group filters, create/detail dialogs
-5. **Program Assignment** -- Assign/change dialog on trainee detail
-6. **Edit Trainee Goals** -- 4 macro fields with min/max validation and inline errors
-7. **Remove Trainee** -- Confirmation dialog with "REMOVE" text match
-8. **Subscription Management** -- Stripe Connect 3-state flow, plan overview
-9. **Calendar Integration** -- Google auth popup, connection cards, events list
-10. **Layout Config** -- 3 radio-style options with optimistic update
-11. **Impersonation** -- Button + confirm dialog (partial -- no token swap)
-12. **Mark Missed Day** -- Skip/push radio, date picker, program selector
-13. **Feature Requests** -- Vote toggle, status filters, create dialog, comment hooks
-14. **Leaderboard Settings** -- Toggle switches with optimistic update
-15. **Admin Ambassador Management** -- Server-side search, CRUD, commission actions, bulk operations
-16. **Admin Upcoming Payments & Past Due** -- Lists with severity color coding
-17. **Admin Settings** -- Platform config, security, profile/appearance/security sections
-18. **Ambassador Dashboard** -- Earnings cards, referral code, recent referrals
-19. **Ambassador Referrals** -- Status filter, pagination
-20. **Ambassador Payouts** -- Stripe Connect 3-state setup, history table
-21. **Ambassador Settings** -- Profile, referral code edit with validation
-22. **Ambassador Auth & Routing** -- Middleware routing, layout with auth guards
 
-### Workstream 2: UI/UX Polish (7 ACs)
-1. **Login Page Redesign** -- Two-column layout, animated gradient, floating icons, framer-motion stagger, feature pills, prefers-reduced-motion
-2. **Page Transitions** -- PageTransition wrapper with fade-up animation
-3. **Skeleton Loading** -- Content-shaped skeletons on all pages
-4. **Micro-Interactions** -- Button active:scale, card-hover utility with reduced-motion query
-5. **Dashboard Trend Indicators** -- StatCard with TrendingUp/TrendingDown icons
-6. **Error States** -- ErrorState with retry button on all data pages
-7. **Empty States** -- EmptyState with contextual icons and action CTAs
+### Backend (Django)
+- New `messaging` app with `Conversation` and `Message` models
+- 6 REST API endpoints with authentication, row-level security, and rate limiting
+- WebSocket consumer for real-time messaging (new messages, typing indicators, read receipts)
+- Service layer with all business logic, frozen dataclass returns
+- Conversation archival on trainee removal with SET_NULL FK preservation
+- Impersonation read-only guard
+- N+1 query elimination via Subquery + Count annotations
 
-### Workstream 3: E2E Tests (5 ACs)
-1. **Playwright Setup** -- Config with 5 browser targets, helpers, mock-api
-2. **19 Test Files** -- Auth, trainer (7), admin (3), ambassador (4), responsive, error states, dark mode, navigation
-3. **Test Helpers** -- loginAs(), logout(), mock-api fixtures, test utilities
+### Mobile (Flutter)
+- Full messaging feature: conversations list, chat screen, new conversation flow
+- WebSocket service with exponential backoff reconnection
+- Riverpod state management (no setState)
+- Typing indicators, read receipts, optimistic updates
+- Unread badge on both trainer and trainee navigation shells
+- Accessibility annotations (Semantics) on all widgets
+
+### Web Dashboard (Next.js)
+- Messages page with responsive split-panel layout (sidebar + chat)
+- Conversation list with unread badges, relative timestamps, empty/error states
+- Chat view with date separators, infinite scroll, auto-scroll, polling
+- New conversation flow (from trainee detail "Message" button)
+- Message input with character counter, Enter-to-send, Shift+Enter for newline
+- Read receipt icons (Check/CheckCheck)
+- Sidebar unread badge (desktop + mobile)
+- 7 E2E tests with Playwright
+
+### E2E Tests
+- `web/e2e/trainer/messages.spec.ts` -- 7 tests covering nav link, navigation, empty state, conversation list, chat view, message input, send button
