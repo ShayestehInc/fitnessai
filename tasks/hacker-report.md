@@ -1,42 +1,67 @@
-# Hacker Report: Phase 8 Community & Platform Enhancements (Pipeline 18)
+# Hacker Report: Web Dashboard Full Parity + UI/UX Polish + E2E Tests (Pipeline 19)
 
-## Date: 2026-02-16
+## Date: 2026-02-19
 
 ## Dead Buttons & Non-Functional UI
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| None found | | | | | |
+| 1 | Low | PastDueFullList | "Send reminder" mail button | Sends reminder email to trainer | Shows toast.info("Reminder email would be sent to...") -- stub |
+| 2 | Low | ImpersonateTraineeButton | Start Impersonation button | Swaps to trainee's session token | Posts to API then redirects to /dashboard without token swap |
+| 3 | Info | AdminSettings | Platform Name input | Editable field | Disabled with "Contact support to change" note |
+| 4 | Info | AdminSettings | Support Email input | Editable field | Disabled, read-only display |
 
-All buttons, toggles, and interactive elements are properly wired to actions.
+Items 1-2 are known limitations documented in the QA report. Items 3-4 are intentional (admin configuration managed server-side).
 
 ## Visual Misalignments & Layout Bugs
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | Low | _FullImageScreen | No title in app bar (just back button) | Acceptable -- clean image viewer pattern |
-| 2 | Low | Comments sheet | Delete is via small X icon instead of long-press | Works but less discoverable -- follows project's existing pattern |
+| None found | | | | |
+
+All components use consistent Tailwind spacing, padding, and gap values. Cards, dialogs, and lists are properly aligned. Responsive breakpoints (sm, md, lg) are used correctly. Dark mode colors are properly themed.
 
 ## Broken Flows & Logic Bugs
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 1 | Low | Ambassador onboarding | Tap "Connect Stripe Account" | Opens browser with Stripe URL | Shows snackbar with message but does not actually launch URL (url_launcher not integrated) |
-| 2 | Info | WebSocket malformed message | Send invalid JSON over WS | Log and ignore | Silently ignores (no log) |
+| 1 | Fixed | LeaderboardSection | Open settings page with leaderboard settings | Render toggle list | Was crashing -- referenced non-existent properties. Fixed in UX audit. |
+| 2 | Fixed | StripeConnectSetup | Open ambassador payouts page | Show correct connect status | Was referencing `is_connected` instead of `has_account`. Fixed in architecture audit. |
+| 3 | Low | AmbassadorList | Variable `filtered` assigned to `ambassadors` but never used differently | Clean code | Fixed: removed redundant variable, all references now use `ambassadors` directly |
+| 4 | Info | NotFound page | Visit any 404 route | Shows "Go to Dashboard" | Always links to /dashboard even for admin/ambassador users (could be smarter) |
 
 ## Product Improvement Suggestions
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 1 | Medium | Comments | Add "typing indicator" when another user is composing | Real-time feel |
-| 2 | Medium | Feed | Add post sharing within group | Engagement |
-| 3 | Low | Leaderboard | Add animation when rank changes in real-time | Delightful UX |
-| 4 | Low | Image viewer | Add swipe-down-to-dismiss gesture | Standard iOS/Android pattern |
-| 5 | Low | Compose | Show character count near limit (e.g., 950/1000) with color change | Prevent surprise truncation |
+| 1 | Medium | Ambassador Dashboard | Add monthly earnings chart (AC-22 deferred) | Visual trend of earnings over time |
+| 2 | Medium | Onboarding | Add onboarding checklist for new trainers (AC-33 deferred) | Guide new users through setup |
+| 3 | Low | Past Due List | Wire up reminder email button to actual API endpoint | Currently a stub -- admin expects it to work |
+| 4 | Low | Feature Requests | Add server-side pagination when list grows | Currently loads all requests at once |
+| 5 | Low | Exercise Bank | Add bulk delete/edit capability | Trainers with large libraries will want this |
+| 6 | Low | Announcements | Add scheduled publishing (future date) | Common announcement pattern |
+| 7 | Info | 404 Page | Detect user role from cookie and link to correct dashboard | Better UX for admin/ambassador users |
+
+## Code Quality Scan
+| Check | Result |
+|-------|--------|
+| Console.log statements | CLEAN -- zero found |
+| TODO/FIXME/HACK comments | CLEAN -- zero found |
+| Dead click handlers (onClick={() => {}) | CLEAN -- zero found |
+| Dead links (href="#") | CLEAN -- zero found |
+| Placeholder text ("Coming Soon") | CLEAN -- zero found |
+| Type assertions (as any) | CLEAN -- only 2 legitimate `as unknown as T` in api-client for 204 responses |
+| Unused imports | CLEAN |
+| Debug prints | CLEAN |
+
+## Fixes Applied
+1. **Ambassador list cleanup** -- Removed redundant `filtered` variable that was identical to `ambassadors`
+2. Previously fixed (UX audit): LeaderboardSection property mismatch
+3. Previously fixed (Architecture audit): StripeConnectSetup type cast
 
 ## Summary
-- Dead UI elements found: 0
-- Visual bugs found: 0 critical, 2 low
-- Logic bugs found: 1 low (url_launcher not integrated for Stripe), 1 info
-- Improvements suggested: 5
-- Items fixed by hacker: 1 (unused json import removed in architecture pass)
+- Dead UI elements found: 2 (both are known limitations with documented reasons)
+- Visual bugs found: 0
+- Logic bugs found: 2 critical (both fixed in earlier audit passes), 1 cosmetic (fixed)
+- Improvements suggested: 7
+- Items fixed by hacker: 1 (redundant variable cleanup)
 
 ## Chaos Score: 8/10
 
-Very solid implementation. No dead UI, no critical visual or logic bugs. The ambassador Stripe onboarding URL launch is a known limitation (url_launcher package not yet added). All new screens handle loading, empty, and error states properly. The codebase is clean with no TODOs, FIXMEs, or debug prints.
+Very clean implementation. No console logs, no TODOs, no dead handlers, no placeholder text. The two dead buttons (reminder email stub, impersonation stub) are documented limitations. All components handle their loading, empty, error, and success states. The login page animation is polished with prefers-reduced-motion support. Code is well-organized with consistent patterns across 100+ files. The 7 improvement suggestions are quality-of-life enhancements for future pipelines.

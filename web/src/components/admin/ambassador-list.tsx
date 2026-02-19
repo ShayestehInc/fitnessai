@@ -24,7 +24,6 @@ export function AmbassadorList() {
   const { data, isLoading } = useAdminAmbassadors(1, debouncedSearch);
 
   const ambassadors = data?.results ?? [];
-  const filtered = ambassadors;
 
   if (isLoading) {
     return (
@@ -59,7 +58,7 @@ export function AmbassadorList() {
           </Button>
         </div>
 
-        {filtered.length === 0 ? (
+        {ambassadors.length === 0 ? (
           <EmptyState
             icon={Users}
             title={search ? "No ambassadors match your search" : "No ambassadors yet"}
@@ -79,7 +78,7 @@ export function AmbassadorList() {
           />
         ) : (
           <div className="space-y-3">
-            {filtered.map((ambassador) => (
+            {ambassadors.map((ambassador) => (
               <div
                 key={ambassador.id}
                 className="flex items-center justify-between gap-4 rounded-lg border p-4 transition-colors hover:bg-accent/50"
