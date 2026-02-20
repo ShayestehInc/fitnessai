@@ -27,15 +27,30 @@ import type { Conversation, Message } from "@/types/messaging";
 const POLLING_FAST_MS = 5_000;
 const POLLING_OFF = 0;
 
+/** Duration (ms) for the highlight flash animation on a searched message. */
+const HIGHLIGHT_DURATION_MS = 3_000;
+
 interface ChatViewProps {
   conversation: Conversation;
+  /** When set, the chat will scroll to this message and briefly highlight it. */
+  highlightMessageId?: number | null;
+  /** Called after the highlight animation has been triggered (so parent can clear state). */
+  onHighlightShown?: () => void;
 }
 
-export function ChatView({ conversation }: ChatViewProps) {
+export function ChatView({
+  conversation,
+  highlightMessageId,
+  onHighlightShown,
+}: ChatViewProps) {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [allMessages, setAllMessages] = useState<Message[]>([]);
   const [showScrollDown, setShowScrollDown] = useState(false);
+
+  const [activeHighlightId, setActiveHighlightId] = useState<number | null>(
+    null,
+  );
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -163,12 +178,37 @@ export function ChatView({ conversation }: ChatViewProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // Auto-scroll to bottom on initial load and when sending a message
+  // Auto-scroll to bottom on initial load and when sending a message.
+  // Skip when a highlight target is set — the highlight effect handles scrolling.
   useEffect(() => {
+    if (highlightMessageId) return;
     if (page === 1 && allMessages.length > 0) {
       scrollToBottom();
     }
-  }, [allMessages.length, page, scrollToBottom]);
+  }, [allMessages.length, page, scrollToBottom, highlightMessageId]);
+
+  // Scroll to and highlight a specific message (from search result click)
+  useEffect(() => {
+    if (!highlightMessageId || allMessages.length === 0) return;
+
+    // Check if the message exists in the currently loaded messages
+    const found = allMessages.some((m) => m.id === highlightMessageId);
+    if (!found) return;
+
+    // Find the DOM element and scroll to it
+    const el = document.getElementById(`message-${highlightMessageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setActiveHighlightId(highlightMessageId);
+      onHighlightShown?.();
+
+      // Remove highlight after animation duration
+      const timer = setTimeout(() => {
+        setActiveHighlightId(null);
+      }, HIGHLIGHT_DURATION_MS);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightMessageId, allMessages, onHighlightShown]);
 
   // Polling fallback: only active when WS is not connected
   useEffect(() => {
@@ -349,24 +389,33 @@ export function ChatView({ conversation }: ChatViewProps) {
                 </div>
                 <div className="space-y-1.5">
                   {group.messages.map((message) => (
-                    <MessageBubble
+                    <div
                       key={message.id}
-                      message={message}
-                      isOwnMessage={message.sender.id === user?.id}
-                      onEdit={
-                        message.sender.id === user?.id &&
-                        !message.is_deleted
-                          ? (content) =>
-                              handleEditMessage(message.id, content)
-                          : undefined
+                      id={`message-${message.id}`}
+                      className={
+                        activeHighlightId === message.id
+                          ? "animate-search-highlight rounded-lg"
+                          : ""
                       }
-                      onDelete={
-                        message.sender.id === user?.id &&
-                        !message.is_deleted
-                          ? () => handleDeleteMessage(message.id)
-                          : undefined
-                      }
-                    />
+                    >
+                      <MessageBubble
+                        message={message}
+                        isOwnMessage={message.sender.id === user?.id}
+                        onEdit={
+                          message.sender.id === user?.id &&
+                          !message.is_deleted
+                            ? (content) =>
+                                handleEditMessage(message.id, content)
+                            : undefined
+                        }
+                        onDelete={
+                          message.sender.id === user?.id &&
+                          !message.is_deleted
+                            ? () => handleDeleteMessage(message.id)
+                            : undefined
+                        }
+                      />
+                    </div>
                   ))}
                 </div>
               </div>

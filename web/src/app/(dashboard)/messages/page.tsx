@@ -30,6 +30,9 @@ export default function MessagesPage() {
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [highlightMessageId, setHighlightMessageId] = useState<number | null>(
+    null,
+  );
 
   // Determine if we need to show the new-conversation view:
   // trainee param is present but no matching conversation exists yet.
@@ -104,6 +107,7 @@ export default function MessagesPage() {
 
   const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
+    setHighlightMessageId(null);
     setIsSearchOpen(false);
   };
 
@@ -121,6 +125,7 @@ export default function MessagesPage() {
   const handleSearchResultClick = useCallback(
     (result: SearchMessageResult) => {
       setIsSearchOpen(false);
+      setHighlightMessageId(result.message_id);
 
       // Find the conversation in the already-loaded list
       if (conversations) {
@@ -244,7 +249,11 @@ export default function MessagesPage() {
                   Back
                 </Button>
               </div>
-              <ChatView conversation={selectedConversation} />
+              <ChatView
+                conversation={selectedConversation}
+                highlightMessageId={highlightMessageId}
+                onHighlightShown={() => setHighlightMessageId(null)}
+              />
             </div>
           ) : showNewConvView ? (
             <div className="flex h-full flex-col">

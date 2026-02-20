@@ -168,10 +168,44 @@
   }
 }
 
+/* Search result highlight: flash yellow/amber then fade out */
+@keyframes search-highlight {
+  0% {
+    background-color: oklch(0.88 0.12 85);
+  }
+  50% {
+    background-color: oklch(0.88 0.12 85);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.dark .animate-search-highlight {
+  animation: search-highlight-dark 3s ease-out forwards;
+}
+
+@keyframes search-highlight-dark {
+  0% {
+    background-color: oklch(0.4 0.1 85);
+  }
+  50% {
+    background-color: oklch(0.4 0.1 85);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-search-highlight {
+  animation: search-highlight 3s ease-out forwards;
+}
+
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-gradient-shift,
-  .animate-float {
+  .animate-float,
+  .animate-search-highlight {
     animation: none;
   }
 }
