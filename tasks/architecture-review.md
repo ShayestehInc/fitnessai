@@ -1,29 +1,36 @@
-# Architecture Review: Image Attachments in Direct Messages (Pipeline 21)
+# Architecture Review: WebSocket Real-Time Messaging for Web Dashboard (Pipeline 22)
 
 ## Review Date: 2026-02-19
 
 ## Architectural Alignment
-- [x] Follows existing layered architecture (views → services → models)
-- [x] Models/schemas in correct locations
-- [x] No business logic in views (validation in views follows existing community feed pattern)
-- [x] Consistent with existing patterns (ImageField, UUID paths, multipart parsing)
+- [x] Follows existing layered architecture — hooks handle data, components handle UI
+- [x] New hook follows existing hook patterns (useCallback, useEffect, useRef)
+- [x] React Query cache used as single source of truth (consistent with rest of app)
+- [x] Consistent with mobile WebSocket patterns (exponential backoff, JWT auth, same events)
 
 ## Data Model Assessment
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | PASS | Nullable ImageField with default=None |
-| Migrations reversible | PASS | AddField + AlterField are reversible |
-| Indexes added for new queries | N/A | No new queries on image field |
-| No N+1 query patterns | PASS | Subquery annotation for preview |
+| No backend changes needed | PASS | Backend consumer already complete |
+| React Query cache mutations correct | PASS | `setQueryData` with proper dedup |
+| State management clean | PASS | WS state in refs (no re-render), UI state in useState |
 
 ## Scalability Concerns
-None for v1. Future considerations: server-side thumbnail generation, CDN for media.
+| # | Area | Issue | Recommendation |
+|---|------|-------|----------------|
+| None | | | |
 
-## Technical Debt
-| # | Description | Severity | Resolution |
-|---|-------------|----------|------------|
-| 1 | No server-side image compression/thumbnails | Low | Acceptable for v1; add when traffic grows |
-| 2 | Media files served without auth | Low | Standard pattern; add signed URLs if needed |
+## Technical Debt Introduced
+| # | Description | Severity | Suggested Resolution |
+|---|-------------|----------|---------------------|
+| 1 | Dual message store (local state + RQ cache) | Low | Could consolidate to RQ-only in future. Current approach handles WS+HTTP merge correctly. |
 
 ## Architecture Score: 9/10
 ## Recommendation: APPROVE
+
+### Notes
+- Clean separation: WS hook handles connection lifecycle and event parsing; chat-view handles UI integration
+- Graceful degradation pattern (WS → polling fallback) is well-implemented
+- `cancelledRef` pattern properly handles async lifecycle race conditions
+- Token management reuses existing `token-manager.ts` — no duplication
+- WS URL derivation from API_BASE is DRY and environment-aware

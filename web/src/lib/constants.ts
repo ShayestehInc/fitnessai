@@ -1,5 +1,19 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+// WebSocket base: derive ws(s) from the API base URL
+function deriveWsBase(apiBase: string): string {
+  try {
+    const url = new URL(apiBase);
+    const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return `${wsProtocol}//${url.host}`;
+  } catch {
+    // Fallback for development
+    return "ws://localhost:8000";
+  }
+}
+
+const WS_BASE = deriveWsBase(API_BASE);
+
 export const API_URLS = {
   // Auth
   LOGIN: `${API_BASE}/api/auth/jwt/create/`,
@@ -202,6 +216,10 @@ export const API_URLS = {
   AMBASSADOR_CONNECT_STATUS: `${API_BASE}/api/ambassador/connect/status/`,
   AMBASSADOR_CONNECT_ONBOARD: `${API_BASE}/api/ambassador/connect/onboard/`,
   AMBASSADOR_CONNECT_RETURN: `${API_BASE}/api/ambassador/connect/return/`,
+
+  // WebSocket
+  wsMessaging: (conversationId: number) =>
+    `${WS_BASE}/ws/messaging/${conversationId}/`,
 } as const;
 
 export const TOKEN_KEYS = {

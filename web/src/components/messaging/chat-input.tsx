@@ -2,8 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Send, Loader2, Paperclip, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 
 const MAX_LENGTH = 2000;
 const WARNING_THRESHOLD = 0.9;
@@ -15,6 +15,7 @@ interface ChatInputProps {
   isSending: boolean;
   disabled?: boolean;
   placeholder?: string;
+  onTyping?: (isTyping: boolean) => void;
 }
 
 export function ChatInput({
@@ -22,13 +23,13 @@ export function ChatInput({
   isSending,
   disabled = false,
   placeholder = "Type a message...",
+  onTyping,
 }: ChatInputProps) {
   const [content, setContent] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
   // Revoke object URL on unmount to prevent memory leak
   useEffect(() => {
@@ -57,27 +58,19 @@ export function ChatInput({
       e.target.value = "";
 
       if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-        toast({
-          variant: "destructive",
-          title: "Invalid file type",
-          description: "Only JPEG, PNG, and WebP images are supported.",
-        });
+        toast.error("Only JPEG, PNG, and WebP images are supported.");
         return;
       }
 
       if (file.size > MAX_IMAGE_SIZE) {
-        toast({
-          variant: "destructive",
-          title: "Image too large",
-          description: "Image must be under 5MB.",
-        });
+        toast.error("Image must be under 5MB.");
         return;
       }
 
       setSelectedImage(file);
       setImagePreviewUrl(URL.createObjectURL(file));
     },
-    [toast],
+    [],
   );
 
   const removeImage = useCallback(() => {
@@ -90,13 +83,14 @@ export function ChatInput({
 
   const handleSubmit = useCallback(() => {
     if (!canSend || isOverLimit) return;
+    onTyping?.(false);
     onSend(trimmedContent, selectedImage ?? undefined);
     setContent("");
     removeImage();
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [canSend, isOverLimit, trimmedContent, selectedImage, onSend, removeImage]);
+  }, [canSend, isOverLimit, trimmedContent, selectedImage, onSend, removeImage, onTyping]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -115,8 +109,12 @@ export function ChatInput({
       const textarea = e.target;
       textarea.style.height = "auto";
       textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+      // Signal typing activity
+      if (e.target.value.length > 0) {
+        onTyping?.(true);
+      }
     },
-    [],
+    [onTyping],
   );
 
   return (
