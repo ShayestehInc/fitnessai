@@ -1,6 +1,11 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import type { PaginatedResponse } from "@/types/api";
@@ -57,6 +62,7 @@ export function useAmbassadorReferrals(
       apiClient.get<PaginatedResponse<AmbassadorSelfReferral>>(
         `${API_URLS.AMBASSADOR_REFERRALS}?${params.toString()}`,
       ),
+    placeholderData: keepPreviousData,
   });
 }
 

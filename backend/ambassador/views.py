@@ -109,26 +109,39 @@ class AmbassadorDashboardView(APIView):
             status=AmbassadorCommission.Status.PENDING,
         ).aggregate(total=Sum('commission_amount'))['total'] or Decimal('0.00')
 
-        # Monthly earnings for last 6 months
-        six_months_ago = timezone.now() - timedelta(days=180)
+        # Monthly earnings for last 12 months, zero-filled for gaps
+        now = timezone.now()
+        twelve_months_ago = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
         monthly_data = (
             AmbassadorCommission.objects.filter(
                 ambassador=user,
                 status__in=[AmbassadorCommission.Status.APPROVED, AmbassadorCommission.Status.PAID],
-                created_at__gte=six_months_ago,
+                created_at__gte=twelve_months_ago,
             )
             .annotate(month=TruncMonth('created_at'))
             .values('month')
             .annotate(earnings=Sum('commission_amount'))
             .order_by('month')
         )
-        monthly_earnings = [
-            {
-                'month': entry['month'].strftime('%Y-%m'),
-                'earnings': str(entry['earnings']),
-            }
+        # Build lookup of actual earnings by month key
+        earnings_by_month: dict[str, str] = {
+            entry['month'].strftime('%Y-%m'): str(entry['earnings'])
             for entry in monthly_data
-        ]
+        }
+        # Generate all 12 months, zero-filling gaps
+        monthly_earnings: list[dict[str, str]] = []
+        cursor = twelve_months_ago
+        while cursor <= now.replace(day=1):
+            key = cursor.strftime('%Y-%m')
+            monthly_earnings.append({
+                'month': key,
+                'amount': earnings_by_month.get(key, '0.00'),
+            })
+            # Advance to next month
+            if cursor.month == 12:
+                cursor = cursor.replace(year=cursor.year + 1, month=1)
+            else:
+                cursor = cursor.replace(month=cursor.month + 1)
 
         # Recent referrals (last 5) with annotated commission totals to avoid N+1
         recent_referrals = (

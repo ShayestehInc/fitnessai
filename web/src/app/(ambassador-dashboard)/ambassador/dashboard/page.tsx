@@ -5,6 +5,8 @@ import { PageTransition } from "@/components/shared/page-transition";
 import { ErrorState } from "@/components/shared/error-state";
 import { AmbassadorDashboardSkeleton } from "@/components/ambassador/ambassador-dashboard-skeleton";
 import { DashboardEarningsCard } from "@/components/ambassador/dashboard-earnings-card";
+import { EarningsChart } from "@/components/ambassador/earnings-chart";
+import { ReferralStatusBreakdown } from "@/components/ambassador/referral-status-breakdown";
 import { ReferralCodeCard } from "@/components/ambassador/referral-code-card";
 import { RecentReferralsList } from "@/components/ambassador/recent-referrals-list";
 import { useAmbassadorDashboard } from "@/hooks/use-ambassador";
@@ -50,7 +52,15 @@ export default function AmbassadorDashboardPage() {
           description="Track your referrals and earnings"
         />
         <DashboardEarningsCard data={dashboardData} />
-        <ReferralCodeCard />
+        <EarningsChart data={dashboardData.monthly_earnings ?? []} />
+        <div className="grid gap-6 md:grid-cols-2">
+          <ReferralStatusBreakdown
+            active={dashboardData.active_referrals}
+            pending={dashboardData.pending_referrals}
+            churned={dashboardData.churned_referrals}
+          />
+          <ReferralCodeCard />
+        </div>
         <RecentReferralsList referrals={dashboardData.recent_referrals ?? []} />
       </div>
     </PageTransition>
