@@ -106,6 +106,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | AI chat assistant | ✅ Done | Uses trainee context for personalized advice |
 | Adherence analytics | ✅ Done | |
 | Progress analytics | ✅ Done | |
+| Revenue analytics | ✅ Done | Shipped 2026-02-20 (Pipeline 28): MRR, period revenue, subscriber/payment tables, monthly chart |
 | Trainer notifications | ✅ Done | Fixed 2026-02-13: Uses parent_trainer, migration created |
 | Trainer notifications dashboard | ✅ Done | Shipped 2026-02-14: In-app notification feed with pagination, mark-read, swipe-to-dismiss, badge count |
 
@@ -860,7 +861,7 @@ Full-stack message search across all conversations with backend API, web dashboa
 - ~~Web typing indicators (component exists, awaiting WebSocket)~~ ✅ Completed 2026-02-19 (Pipeline 22)
 - ~~Message editing and deletion~~ ✅ Completed 2026-02-19 (Pipeline 23)
 - ~~Message search~~ ✅ Completed 2026-02-20 (Pipeline 24)
-- ~~Advanced analytics and reporting~~ ✅ Partially completed 2026-02-20 (Pipeline 26 — calorie goal rate + adherence trend chart)
+- ~~Advanced analytics and reporting~~ ✅ Completed 2026-02-20 (Pipeline 26 — calorie goal + trend chart; Pipeline 28 — trainer revenue analytics)
 - Multi-language support
 - Social auth (Apple/Google) mobile integration
 - ~~Full impersonation token swap (web dashboard)~~ ✅ Completed 2026-02-20 (Pipeline 27 — trainer→trainee token swap, read-only trainee view page, impersonation banner)
