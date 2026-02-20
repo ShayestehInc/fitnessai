@@ -6,6 +6,7 @@ import { API_URLS } from "@/lib/constants";
 import type {
   AdherenceAnalytics,
   AdherencePeriod,
+  AdherenceTrends,
   ProgressAnalytics,
 } from "@/types/analytics";
 
@@ -15,6 +16,17 @@ export function useAdherenceAnalytics(days: AdherencePeriod) {
     queryFn: () =>
       apiClient.get<AdherenceAnalytics>(
         `${API_URLS.ANALYTICS_ADHERENCE}?days=${days}`,
+      ),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAdherenceTrends(days: AdherencePeriod) {
+  return useQuery<AdherenceTrends>({
+    queryKey: ["analytics", "adherence-trends", days],
+    queryFn: () =>
+      apiClient.get<AdherenceTrends>(
+        `${API_URLS.ANALYTICS_ADHERENCE_TRENDS}?days=${days}`,
       ),
     staleTime: 5 * 60 * 1000,
   });

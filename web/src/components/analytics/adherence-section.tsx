@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { UtensilsCrossed, Dumbbell, Target, BarChart3 } from "lucide-react";
+import { UtensilsCrossed, Dumbbell, Target, Flame, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { useAdherenceAnalytics } from "@/hooks/use-analytics";
 import { PeriodSelector } from "./period-selector";
 import { AdherenceBarChart } from "./adherence-chart";
+import { AdherenceTrendChart } from "./adherence-trend-chart";
 import type { AdherencePeriod } from "@/types/analytics";
 
 function getIndicatorColor(rate: number): string {
@@ -30,8 +31,8 @@ function AdherenceSkeleton() {
   return (
     <div className="space-y-6" role="status" aria-label="Loading adherence data">
       <span className="sr-only">Loading adherence data...</span>
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[0, 1, 2].map((i) => (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-24" />
@@ -43,6 +44,14 @@ function AdherenceSkeleton() {
           </Card>
         ))}
       </div>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-40" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[240px] w-full" />
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <Skeleton className="h-5 w-40" />
@@ -100,7 +109,7 @@ export function AdherenceSection() {
               Refreshing adherence data...
             </div>
           )}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Food Logged"
               value={`${data.food_logged_rate.toFixed(1)}%`}
@@ -122,7 +131,16 @@ export function AdherenceSection() {
               icon={Target}
               valueClassName={getIndicatorColor(data.protein_goal_rate)}
             />
+            <StatCard
+              title="Calorie Goal Hit"
+              value={`${data.calorie_goal_rate.toFixed(1)}%`}
+              description={getIndicatorDescription(data.calorie_goal_rate)}
+              icon={Flame}
+              valueClassName={getIndicatorColor(data.calorie_goal_rate)}
+            />
           </div>
+
+          <AdherenceTrendChart days={days} />
 
           <Card>
             <CardHeader>
