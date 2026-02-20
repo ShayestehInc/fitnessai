@@ -4,6 +4,58 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-19] — Message Editing and Deletion (Pipeline 23)
+
+### Added
+- **Message editing (15-min window)** -- PATCH `/api/messaging/conversations/<id>/messages/<message_id>/` edits message content. Sender-only, within configurable 15-minute window (`EDIT_WINDOW`). Sets `edited_at` timestamp. Content validated (max 2000 chars, not empty for text-only messages, empty allowed for image messages). Race condition prevention via `transaction.atomic()` + `select_for_update()`.
+- **Message soft-deletion** -- DELETE on same endpoint soft-deletes message. Sender-only, no time limit. Clears content to empty string, sets image to None, deletes actual image file from storage. Sets `is_deleted=True`. Race condition prevention via `transaction.atomic()` + `select_for_update()`.
+- **`EditMessageResult` and `DeleteMessageResult` frozen dataclasses** -- Service layer returns typed results per project convention.
+- **WebSocket broadcast events** -- `chat.message_edited` (message_id, content, edited_at) and `chat.message_deleted` (message_id) broadcast to conversation channel group for real-time sync.
+- **Conversation list deleted preview** -- `annotated_last_message_is_deleted` subquery annotation. Serializer returns "This message was deleted" for soft-deleted last messages.
+- **Mobile: Long-press context menu** -- Bottom sheet with Edit (pencil icon), Delete (trash, red), Copy (clipboard). Other users' messages show Copy only. Edit grayed out with "Edit window expired" subtitle when >15 minutes.
+- **Mobile: Edit bottom sheet** -- Pre-filled TextFormField, character counter (X/2000), Save/Cancel buttons. `hasImage` param allows empty content for image-only messages.
+- **Mobile: Delete confirmation** -- AlertDialog: "Delete this message? This can't be undone." with Cancel/Delete buttons.
+- **Mobile: Deleted/edited message states** -- "[This message was deleted]" italic gray placeholder with timestamp preserved. "(edited)" indicator next to timestamp.
+- **Mobile: Optimistic edit/delete** -- Both operations update state immediately and revert on API error. SnackBar error feedback on failure.
+- **Web: Hover action icons** -- Pencil and trash icons appear on hover over own messages. Pencil hidden when edit window expired.
+- **Web: Inline edit mode** -- Textarea replaces content with Save/Cancel buttons. Esc cancels, Cmd/Ctrl+Enter saves (platform-detected modifier key). Save disabled when content unchanged or empty (unless image message).
+- **Web: Delete confirmation** -- Inline dialog with `role="alertdialog"`, aria-label, Escape key dismissal. "Delete this message? This can't be undone."
+- **Web: Deleted/edited message states** -- "[This message was deleted]" muted italic with aria-label. "(edited)" indicator.
+- **Web: `useEditMessage()` and `useDeleteMessage()` mutation hooks** -- React Query mutations with `setQueriesData` across all cached pages and conversation invalidation.
+- **Web: WebSocket edit/delete callbacks** -- `onMessageEdited` and `onMessageDeleted` on `useMessagingWebSocket` hook update local `allMessages` state directly for other party's real-time edits/deletes.
+- **107 backend tests** -- Comprehensive coverage: service layer (21), views (18), serializers (7), model (4), edge cases (13), boundary (2), cross-conversation security (3), trainee edit/delete (4), existing tests (35).
+
+### Fixed
+- **CRITICAL: Race condition on edit/delete** -- Both `edit_message()` and `delete_message()` lacked transaction/row lock. Could corrupt data under concurrent writes. Fixed with `transaction.atomic()` + `Message.objects.select_for_update().get(...)`.
+- **CRITICAL: Test URL mismatch for delete views** -- Delete tests used `/messages/<id>/delete/` URL (non-existent) instead of RESTful `/messages/<id>/` with DELETE method. Fixed 3 test URLs.
+- **HIGH: Orphaned image files on delete** -- Setting `message.image = None` didn't delete actual file from storage. Fixed by saving reference before clearing, calling `old_image_field.delete(save=False)` outside transaction.
+- **HIGH: EditMessageSerializer blocked image message caption clearing** -- `CharField` defaulted to `allow_blank=False`, rejecting empty content at serializer level before service could check for image. Fixed with `allow_blank=True`.
+- **HIGH: Web WS events didn't update local state for other party** -- `useMessagingWebSocket` updated React Query cache but `ChatView` maintained separate `allMessages` state that was stale. Added `onMessageEdited`/`onMessageDeleted` callbacks.
+- **Missing rate limiting on delete** -- `DeleteMessageView` had no throttle. Merged into unified `MessageDetailView` with `throttle_scope = 'messaging'`.
+- **Mobile `orElse` crash risk** -- `firstWhere` with `state.messages.first` as fallback throws `StateError` on empty list. Fixed with `indexWhere` + index check.
+- **Mobile silent exception swallowing** -- WS service caught all exceptions. Fixed to only catch `FormatException` and `TypeError`.
+- **Web delete confirmation mouse leave** -- `onMouseLeave` dismissed confirmation before user could click it. Removed premature dismissal; Escape key dismisses instead.
+- **Web wrong keyboard shortcut hint on macOS** -- Always showed "Ctrl+Enter". Now detects macOS and shows command symbol.
+- **Mobile no error feedback** -- Edit/delete failures silently reverted. Added `ref.listen` for error state → SnackBar display with `clearError()`.
+- **Mobile debugPrint calls** -- 3 `debugPrint()` calls violated convention. Removed with unused import.
+
+### Accessibility
+- Mobile deleted message bubble: `Semantics` widget with sender, deleted status, and timestamp
+- Web delete confirmation: `role="alertdialog"` and `aria-label="Confirm message deletion"`
+- Web deleted message: `aria-label` with sender context and timestamp
+- Web delete confirmation: Escape key listener for keyboard-only users
+
+### Quality Metrics
+- Code Review: 7/10 → fixed (1 round, 4 critical + 8 major all fixed)
+- QA: HIGH confidence, 72 initial → 107 final tests, all pass, 0 failures
+- Security Audit: 9/10 PASS (row-level security gap fixed, views consolidated)
+- Architecture Audit: 9/10 APPROVE (RESTful single-resource, deduplication, AC-32 hooks)
+- UX Audit: 9/10 (6 usability + 4 accessibility issues found and fixed)
+- Hacker Audit: 8/10 (4 bugs found and fixed: test URLs, serializer, WS sync, debugPrint)
+- Final Verdict: SHIP at 9/10, HIGH confidence
+
+---
+
 ## [2026-02-19] — WebSocket Real-Time Web Messaging (Pipeline 22)
 
 ### Added

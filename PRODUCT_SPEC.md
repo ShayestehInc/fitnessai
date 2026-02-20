@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-19 (Pipeline 22: WebSocket Real-Time Web Messaging)
+> Last updated: 2026-02-19 (Pipeline 23: Message Editing and Deletion)
 
 ---
 
@@ -259,6 +259,11 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Mobile trainee detail "Send Message" | ✅ Done | Shipped 2026-02-19: Wired existing dead button to new-conversation screen |
 | WebSocket real-time (web) | ✅ Done | Shipped 2026-02-19 (Pipeline 22): Replaces HTTP polling with WebSocket — instant message delivery, typing indicators, read receipts, graceful HTTP polling fallback, connection state banners, exponential backoff reconnection, tab visibility reconnect |
 | E2E tests | ✅ Done | Shipped 2026-02-19: 7 Playwright tests for messaging |
+| Message editing (15-min window) | ✅ Done | Shipped 2026-02-19 (Pipeline 23): PATCH endpoint, sender-only, edit window, optimistic updates, "(edited)" indicator |
+| Message soft-deletion | ✅ Done | Shipped 2026-02-19 (Pipeline 23): DELETE endpoint, sender-only, no time limit, image file cleanup, "[This message was deleted]" placeholder |
+| Edit/delete WebSocket broadcast | ✅ Done | Shipped 2026-02-19 (Pipeline 23): chat.message_edited and chat.message_deleted events, real-time sync across mobile and web |
+| Mobile edit/delete UI | ✅ Done | Shipped 2026-02-19 (Pipeline 23): Long-press context menu, edit bottom sheet, grayed-out expired edit, delete confirmation dialog |
+| Web edit/delete UI | ✅ Done | Shipped 2026-02-19 (Pipeline 23): Hover action icons, inline edit mode (Esc/Cmd+Enter), delete confirmation, ARIA accessibility |
 
 ### 3.11 Other
 | Feature | Status | Notes |
@@ -656,6 +661,60 @@ Replaced HTTP polling with WebSocket real-time messaging on the web dashboard. Z
 - Hacker audit: Chaos Score 9/10. No dead UI, visual bugs, or logic bugs found.
 - Final verdict: 9/10 SHIP.
 
+### 4.23 Message Editing and Deletion (Pipeline 23) -- COMPLETED (2026-02-19)
+
+Full-stack message editing (within 15-minute window) and soft-deletion across Django backend, Flutter mobile, and Next.js web. 107 tests, 32 acceptance criteria verified.
+
+**What was built:**
+
+**Backend (Django)**
+- `edited_at` (DateTimeField, nullable) and `is_deleted` (BooleanField) fields on Message model with migration
+- Single RESTful `MessageDetailView` handling PATCH (edit) and DELETE (soft-delete) on `/api/messaging/conversations/<id>/messages/<message_id>/`
+- Service layer: `edit_message()` and `delete_message()` with frozen dataclass returns (EditMessageResult, DeleteMessageResult)
+- Race condition prevention: `transaction.atomic()` + `select_for_update()` on both operations
+- Edit validation: sender-only, within 15-minute configurable window, not deleted, content not empty for text-only messages, 2000 char limit
+- Delete validation: sender-only, not already deleted, no time limit
+- Soft-delete clears content to empty string, sets image to None, deletes actual image file from storage
+- WebSocket broadcasts: `chat.message_edited` and `chat.message_deleted` events via channel layer
+- Conversation list preview: "This message was deleted" via `annotated_last_message_is_deleted` subquery
+- Row-level security: participant check in view + sender check in service (defense in depth)
+- Impersonation guard on both operations
+- Rate limiting (30/min) via ScopedRateThrottle on unified view
+- `EditMessageSerializer` with `allow_blank=True` for image message caption clearing (edge case 8)
+
+**Mobile (Flutter)**
+- Long-press context menu: Edit (pencil), Delete (trash, red), Copy (clipboard). Other users' messages show Copy only.
+- Edit grayed out with "Edit window expired" subtitle when >15 minutes
+- Edit bottom sheet: pre-filled TextFormField, character counter (X/2000), Save/Cancel, hasImage param allows empty for image messages
+- Delete confirmation AlertDialog: "Delete this message? This can't be undone."
+- Deleted messages: "[This message was deleted]" in italic gray, timestamp preserved, Semantics for accessibility
+- Edited messages: "(edited)" next to timestamp in italic
+- Optimistic updates with rollback on error for both edit and delete
+- WebSocket handlers for `message_edited` and `message_deleted` events
+- Error feedback: SnackBar on edit/delete failure with clearError()
+- No debug prints (convention compliance)
+
+**Web (Next.js)**
+- Hover action icons (pencil/trash) on own messages, pencil hidden when edit window expired
+- Inline edit mode: textarea with Save/Cancel, Esc cancels, Cmd/Ctrl+Enter saves (platform-detected)
+- Delete confirmation dialog with `role="alertdialog"`, `aria-label`, Escape key dismissal
+- Deleted messages: "[This message was deleted]" in muted italic with aria-label
+- Edited messages: "(edited)" next to timestamp
+- `useEditMessage()` and `useDeleteMessage()` mutation hooks (AC-32)
+- WebSocket `onMessageEdited`/`onMessageDeleted` callbacks update local `allMessages` state directly
+- `setQueriesData` for React Query cache sync across all pages
+- Toast errors on failed edit/delete via sonner
+- Image-only edit: Save button allows empty content when hasImage
+
+**Pipeline Results:**
+- Code review: 1 round, 4 critical + 8 major issues fixed (race conditions, missing rate limiting, crash risk, dead code, cache sync). Score: 7/10 → fixed.
+- QA: 72 tests → 107 tests after audit agents. All pass. Confidence: HIGH.
+- Security audit: Score 9/10 PASS. Row-level security gap fixed (conversation ID enumeration). Views merged into single MessageDetailView.
+- Architecture audit: Score 9/10 APPROVE. RESTful single-resource endpoint, deduplicated _resolve_conversation helper, re-added mutation hooks for AC-32.
+- UX audit: Score 9/10. 6 usability + 4 accessibility issues found and fixed (delete confirmation mouse leave, error feedback, platform keyboard hints, image-only edit, Semantics, ARIA roles).
+- Hacker audit: Chaos Score 8/10. 4 bugs found and fixed (critical test URL mismatch, serializer validation gap, WS state sync for other party, debugPrint convention).
+- Final verdict: 9/10 SHIP.
+
 ### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
@@ -760,7 +819,7 @@ Replaced HTTP polling with WebSocket real-time messaging on the web dashboard. Z
 - Trainee web access
 - ~~WebSocket support for web messaging (replace HTTP polling)~~ ✅ Completed 2026-02-19 (Pipeline 22)
 - ~~Web typing indicators (component exists, awaiting WebSocket)~~ ✅ Completed 2026-02-19 (Pipeline 22)
-- Message editing and deletion
+- ~~Message editing and deletion~~ ✅ Completed 2026-02-19 (Pipeline 23)
 - Message search
 - Advanced analytics and reporting
 - Multi-language support
