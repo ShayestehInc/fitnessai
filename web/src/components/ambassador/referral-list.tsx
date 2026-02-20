@@ -51,15 +51,16 @@ function ReferralCard({ referral }: { referral: AmbassadorSelfReferral }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const lower = status.toLowerCase();
   const variant =
-    status === "active"
+    lower === "active"
       ? "default"
-      : status === "pending"
+      : lower === "pending"
         ? "secondary"
         : "outline";
   return (
     <Badge variant={variant}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {lower.charAt(0).toUpperCase() + lower.slice(1)}
     </Badge>
   );
 }
@@ -150,6 +151,7 @@ export function ReferralList() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search within results..."
+          aria-label="Search referrals by name or email"
           className="pl-9"
         />
       </div>
