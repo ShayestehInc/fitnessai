@@ -424,6 +424,8 @@ class DeleteMessageView(views.APIView):
     Soft-delete a message. Sender only, no time limit.
     """
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'messaging'
 
     def delete(self, request: Request, conversation_id: int, message_id: int) -> Response:
         user = cast(User, request.user)

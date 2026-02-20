@@ -10,6 +10,7 @@ import {
   useSendMessage,
   useMarkConversationRead,
 } from "@/hooks/use-messaging";
+import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import {
@@ -221,7 +222,7 @@ export function ChatView({ conversation }: ChatViewProps) {
           queryKey: ["messaging", "conversations"],
         });
       } catch {
-        // Revert optimistic update
+        toast.error("Failed to edit message");
         refetch();
       }
     },
@@ -246,7 +247,7 @@ export function ChatView({ conversation }: ChatViewProps) {
           queryKey: ["messaging", "conversations"],
         });
       } catch {
-        // Revert optimistic update
+        toast.error("Failed to delete message");
         refetch();
       }
     },
@@ -335,13 +336,15 @@ export function ChatView({ conversation }: ChatViewProps) {
                       message={message}
                       isOwnMessage={message.sender.id === user?.id}
                       onEdit={
-                        message.sender.id === user?.id
+                        message.sender.id === user?.id &&
+                        !message.is_deleted
                           ? (content) =>
                               handleEditMessage(message.id, content)
                           : undefined
                       }
                       onDelete={
-                        message.sender.id === user?.id
+                        message.sender.id === user?.id &&
+                        !message.is_deleted
                           ? () => handleDeleteMessage(message.id)
                           : undefined
                       }

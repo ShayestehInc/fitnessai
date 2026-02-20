@@ -114,7 +114,9 @@ class Message(models.Model):
         ordering = ['created_at']
 
     def __str__(self) -> str:
-        if self.content:
+        if self.is_deleted:
+            preview = '[deleted]'
+        elif self.content:
             preview = self.content[:50]
         elif self.image:
             preview = '[Photo]'

@@ -6,12 +6,14 @@ import 'package:flutter/material.dart';
 /// a character counter, and Save/Cancel buttons.
 class EditMessageSheet extends StatefulWidget {
   final String initialContent;
+  final bool hasImage;
   final void Function(String newContent) onSave;
   final VoidCallback onCancel;
 
   const EditMessageSheet({
     super.key,
     required this.initialContent,
+    this.hasImage = false,
     required this.onSave,
     required this.onCancel,
   });
@@ -38,7 +40,8 @@ class _EditMessageSheetState extends State<EditMessageSheet> {
 
   bool get _canSave {
     final text = _controller.text.trim();
-    return text.isNotEmpty &&
+    final hasContent = text.isNotEmpty || widget.hasImage;
+    return hasContent &&
         text != widget.initialContent &&
         text.length <= _maxLength;
   }

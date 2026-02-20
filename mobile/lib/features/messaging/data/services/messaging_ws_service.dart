@@ -142,8 +142,10 @@ class MessagingWsService {
         case 'pong':
           break;
       }
-    } catch (e) {
-      // Intentionally silent — malformed WS messages are non-fatal
+    } on FormatException catch (_) {
+      // Malformed JSON in WS frame — non-fatal, skip
+    } on TypeError catch (_) {
+      // Unexpected data shape in WS frame — non-fatal, skip
     }
   }
 

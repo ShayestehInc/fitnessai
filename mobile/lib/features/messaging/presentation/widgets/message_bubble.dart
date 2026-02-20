@@ -196,7 +196,7 @@ class MessageBubble extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'This message was deleted',
+                '[This message was deleted]',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontStyle: FontStyle.italic,
                   color: theme.colorScheme.onSurfaceVariant

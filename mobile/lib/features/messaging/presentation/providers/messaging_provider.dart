@@ -454,11 +454,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   /// Edit a message. Optimistic update, revert on error.
   Future<bool> editMessage(int messageId, String newContent) async {
-    final original = state.messages.firstWhere(
-      (m) => m.id == messageId,
-      orElse: () => state.messages.first,
-    );
-    if (original.id != messageId) return false;
+    final idx = state.messages.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return false;
+    final original = state.messages[idx];
 
     // Optimistic update
     state = state.copyWith(
@@ -494,11 +492,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   /// Delete a message. Optimistic update, revert on error.
   Future<bool> deleteMessage(int messageId) async {
-    final original = state.messages.firstWhere(
-      (m) => m.id == messageId,
-      orElse: () => state.messages.first,
-    );
-    if (original.id != messageId) return false;
+    final idx = state.messages.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return false;
+    final original = state.messages[idx];
 
     // Optimistic update
     state = state.copyWith(

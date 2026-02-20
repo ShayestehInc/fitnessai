@@ -391,35 +391,36 @@ def edit_message(
     if user.id not in (conversation.trainer_id, conversation.trainee_id):
         raise PermissionError('You are not a participant in this conversation.')
 
-    try:
-        message = Message.objects.get(
-            id=message_id,
-            conversation=conversation,
-        )
-    except Message.DoesNotExist:
-        raise ValueError('Message not found.')
-
-    if message.sender_id != user.id:
-        raise PermissionError('You can only edit your own messages.')
-
-    if message.is_deleted:
-        raise ValueError('Message has been deleted.')
-
-    now = timezone.now()
-    if (now - message.created_at) > EDIT_WINDOW:
-        raise ValueError('Edit window has expired.')
-
     stripped = new_content.strip()
     if len(stripped) > 2000:
         raise ValueError('Message content cannot exceed 2000 characters.')
 
-    # If message has no image, content cannot be empty
-    if not stripped and not message.image:
-        raise ValueError('Content cannot be empty for a text-only message.')
+    with transaction.atomic():
+        try:
+            message = Message.objects.select_for_update().get(
+                id=message_id,
+                conversation=conversation,
+            )
+        except Message.DoesNotExist:
+            raise ValueError('Message not found.')
 
-    message.content = stripped
-    message.edited_at = now
-    message.save(update_fields=['content', 'edited_at'])
+        if message.sender_id != user.id:
+            raise PermissionError('You can only edit your own messages.')
+
+        if message.is_deleted:
+            raise ValueError('Message has been deleted.')
+
+        now = timezone.now()
+        if (now - message.created_at) > EDIT_WINDOW:
+            raise ValueError('Edit window has expired.')
+
+        # If message has no image, content cannot be empty
+        if not stripped and not message.image:
+            raise ValueError('Content cannot be empty for a text-only message.')
+
+        message.content = stripped
+        message.edited_at = now
+        message.save(update_fields=['content', 'edited_at'])
 
     return EditMessageResult(
         message_id=message.id,
@@ -452,24 +453,42 @@ def delete_message(
     if user.id not in (conversation.trainer_id, conversation.trainee_id):
         raise PermissionError('You are not a participant in this conversation.')
 
-    try:
-        message = Message.objects.get(
-            id=message_id,
-            conversation=conversation,
-        )
-    except Message.DoesNotExist:
-        raise ValueError('Message not found.')
+    old_image_field = None
 
-    if message.sender_id != user.id:
-        raise PermissionError('You can only delete your own messages.')
+    with transaction.atomic():
+        try:
+            message = Message.objects.select_for_update().get(
+                id=message_id,
+                conversation=conversation,
+            )
+        except Message.DoesNotExist:
+            raise ValueError('Message not found.')
 
-    if message.is_deleted:
-        raise ValueError('Message has already been deleted.')
+        if message.sender_id != user.id:
+            raise PermissionError('You can only delete your own messages.')
 
-    message.content = ''
-    message.image = None
-    message.is_deleted = True
-    message.save(update_fields=['content', 'image', 'is_deleted'])
+        if message.is_deleted:
+            raise ValueError('Message has already been deleted.')
+
+        # Save reference to image file before clearing
+        if message.image:
+            old_image_field = message.image
+
+        message.content = ''
+        message.image = None
+        message.is_deleted = True
+        message.save(update_fields=['content', 'image', 'is_deleted'])
+
+    # Delete the actual image file from storage (outside transaction)
+    if old_image_field:
+        try:
+            old_image_field.delete(save=False)
+        except OSError as exc:
+            logger.warning(
+                "Failed to delete image file for message %d: %s",
+                message_id,
+                exc,
+            )
 
     return DeleteMessageResult(
         message_id=message.id,

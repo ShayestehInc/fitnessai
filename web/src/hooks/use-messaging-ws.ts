@@ -216,8 +216,9 @@ export function useMessagingWebSocket({
 
   const updateMessageEdited = useCallback(
     (messageId: number, content: string, editedAt: string) => {
-      queryClient.setQueryData(
-        ["messaging", "messages", conversationId, 1],
+      // Update all cached pages for this conversation
+      queryClient.setQueriesData(
+        { queryKey: ["messaging", "messages", conversationId] },
         (old: { count: number; next: string | null; previous: string | null; results: Message[] } | undefined) => {
           if (!old) return old;
           return {
@@ -240,8 +241,9 @@ export function useMessagingWebSocket({
 
   const updateMessageDeleted = useCallback(
     (messageId: number) => {
-      queryClient.setQueryData(
-        ["messaging", "messages", conversationId, 1],
+      // Update all cached pages for this conversation
+      queryClient.setQueriesData(
+        { queryKey: ["messaging", "messages", conversationId] },
         (old: { count: number; next: string | null; previous: string | null; results: Message[] } | undefined) => {
           if (!old) return old;
           return {

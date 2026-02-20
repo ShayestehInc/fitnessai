@@ -111,49 +111,6 @@ export function useStartConversation() {
   });
 }
 
-interface EditMessageInput {
-  content: string;
-}
-
-export function useEditMessage(conversationId: number, messageId: number) {
-  const queryClient = useQueryClient();
-
-  return useMutation<Message, Error, EditMessageInput>({
-    mutationFn: ({ content }: EditMessageInput) =>
-      apiClient.patch<Message>(
-        API_URLS.messagingEditMessage(conversationId, messageId),
-        { content },
-      ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["messaging", "messages", conversationId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["messaging", "conversations"],
-      });
-    },
-  });
-}
-
-export function useDeleteMessage(conversationId: number, messageId: number) {
-  const queryClient = useQueryClient();
-
-  return useMutation<void, Error>({
-    mutationFn: () =>
-      apiClient.delete(
-        API_URLS.messagingDeleteMessage(conversationId, messageId),
-      ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["messaging", "messages", conversationId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["messaging", "conversations"],
-      });
-    },
-  });
-}
-
 export function useMarkConversationRead(conversationId: number) {
   const queryClient = useQueryClient();
 

@@ -94,7 +94,7 @@ export function MessageBubble({
           )}
         >
           <p className="text-sm italic text-muted-foreground">
-            This message was deleted
+            [This message was deleted]
           </p>
           <div className="flex items-center gap-1 pt-1">
             <span className="text-[10px] text-muted-foreground">

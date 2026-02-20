@@ -138,6 +138,7 @@ void _showEditSheet({
     builder: (sheetContext) {
       return EditMessageSheet(
         initialContent: message.content,
+        hasImage: message.hasImage,
         onSave: (newContent) {
           Navigator.of(sheetContext).pop();
           onEdit?.call(newContent);
