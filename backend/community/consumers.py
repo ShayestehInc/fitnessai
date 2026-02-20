@@ -9,12 +9,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from channels.generic.websocket import AsyncJsonWebSocketConsumer  # type: ignore[import-untyped]
+from channels.generic.websocket import AsyncJsonWebsocketConsumer  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
 
-class CommunityFeedConsumer(AsyncJsonWebSocketConsumer):
+class CommunityFeedConsumer(AsyncJsonWebsocketConsumer):
     """
     WebSocket consumer for the community feed.
 

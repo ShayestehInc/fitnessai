@@ -10,12 +10,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from channels.generic.websocket import AsyncJsonWebSocketConsumer  # type: ignore[import-untyped]
+from channels.generic.websocket import AsyncJsonWebsocketConsumer  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
 
-class DirectMessageConsumer(AsyncJsonWebSocketConsumer):
+class DirectMessageConsumer(AsyncJsonWebsocketConsumer):
     """
     WebSocket consumer for a single conversation.
 
