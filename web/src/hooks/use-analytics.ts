@@ -32,6 +32,7 @@ export function useAdherenceTrends(days: AdherencePeriod) {
         `${API_URLS.ANALYTICS_ADHERENCE_TRENDS}?days=${days}`,
       ),
     staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 

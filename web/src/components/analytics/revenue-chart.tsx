@@ -42,7 +42,8 @@ function formatFullMonth(monthStr: string): string {
 }
 
 function formatDollarAxis(value: number): string {
-  if (value >= 1_000) return `$${(value / 1000).toFixed(1)}K`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
   return `$${value.toFixed(0)}`;
 }
 
@@ -54,7 +55,10 @@ function formatExactAmount(value: number): string {
 }
 
 export function RevenueChart({ data }: RevenueChartProps) {
-  const hasAnyRevenue = data.some((d) => parseFloat(d.amount) > 0);
+  const hasAnyRevenue = data.some((d) => {
+    const parsed = parseFloat(d.amount);
+    return !Number.isNaN(parsed) && parsed > 0;
+  });
 
   if (!data.length || !hasAnyRevenue) {
     return (
@@ -76,12 +80,15 @@ export function RevenueChart({ data }: RevenueChartProps) {
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  const chartData = data.map((d) => ({
-    month: d.month,
-    label: formatMonthLabel(d.month),
-    amount: parseFloat(d.amount),
-    isCurrent: d.month === currentMonthKey,
-  }));
+  const chartData = data.map((d) => {
+    const parsed = parseFloat(d.amount);
+    return {
+      month: d.month,
+      label: formatMonthLabel(d.month),
+      amount: Number.isNaN(parsed) ? 0 : parsed,
+      isCurrent: d.month === currentMonthKey,
+    };
+  });
 
   return (
     <Card>
@@ -117,7 +124,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
                 tickFormatter={formatDollarAxis}
                 tickLine={false}
                 axisLine={false}
-                width={60}
+                width={65}
               />
               <Tooltip
                 contentStyle={tooltipContentStyle}

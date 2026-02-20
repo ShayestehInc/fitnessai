@@ -333,10 +333,11 @@ export function RevenueSection() {
   const { data, isLoading, isError, isFetching, refetch } =
     useRevenueAnalytics(days);
 
+  const totalRevenueParsed = data ? parseFloat(data.total_revenue) : 0;
   const isEmpty =
     data &&
     data.active_subscribers === 0 &&
-    parseFloat(data.total_revenue) === 0 &&
+    (Number.isNaN(totalRevenueParsed) || totalRevenueParsed === 0) &&
     data.recent_payments.length === 0;
 
   const hasData = data && !isEmpty;
