@@ -864,8 +864,8 @@ Full-stack message search across all conversations with backend API, web dashboa
 - Multi-language support
 - Social auth (Apple/Google) mobile integration
 - Full impersonation token swap (web dashboard)
-- Ambassador monthly earnings chart (web dashboard)
-- Server-side pagination on ambassador list (web dashboard)
+- ~~Ambassador monthly earnings chart (web dashboard)~~ ✅ Completed 2026-02-20 (Pipeline 25)
+- ~~Server-side pagination on ambassador list (web dashboard)~~ ✅ Completed 2026-02-20 (Pipeline 25)
 
 ---
 
