@@ -26,6 +26,8 @@ interface DataTableProps<T> {
   pageSize?: number;
   onPageChange?: (page: number) => void;
   onRowClick?: (row: T) => void;
+  /** Generates an aria-label for each clickable row (for screen readers). */
+  rowAriaLabel?: (row: T) => string;
   keyExtractor: (row: T) => string | number;
 }
 
@@ -37,6 +39,7 @@ export function DataTable<T>({
   pageSize = 20,
   onPageChange,
   onRowClick,
+  rowAriaLabel,
   keyExtractor,
 }: DataTableProps<T>) {
   const totalPages =
@@ -83,9 +86,14 @@ export function DataTable<T>({
                   }
                   tabIndex={onRowClick ? 0 : undefined}
                   role={onRowClick ? "button" : undefined}
+                  aria-label={
+                    onRowClick && rowAriaLabel
+                      ? rowAriaLabel(row)
+                      : undefined
+                  }
                   className={
                     onRowClick
-                      ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                       : undefined
                   }
                 >

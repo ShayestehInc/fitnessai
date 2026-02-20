@@ -55,6 +55,7 @@ export const API_URLS = {
   ANALYTICS_ADHERENCE: `${API_BASE}/api/trainer/analytics/adherence/`,
   ANALYTICS_ADHERENCE_TRENDS: `${API_BASE}/api/trainer/analytics/adherence/trends/`,
   ANALYTICS_PROGRESS: `${API_BASE}/api/trainer/analytics/progress/`,
+  ANALYTICS_REVENUE: `${API_BASE}/api/trainer/analytics/revenue/`,
 
   // Programs & Exercises
   PROGRAM_TEMPLATES: `${API_BASE}/api/trainer/program-templates/`,

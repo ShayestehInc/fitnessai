@@ -559,6 +559,8 @@ class TraineePayment(models.Model):
             models.Index(fields=['trainer']),
             models.Index(fields=['status']),
             models.Index(fields=['payment_type']),
+            models.Index(fields=['paid_at']),
+            models.Index(fields=['trainer', 'status', 'paid_at']),
         ]
 
     def __str__(self) -> str:

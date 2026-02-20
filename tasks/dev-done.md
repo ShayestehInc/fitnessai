@@ -1,45 +1,44 @@
-# Dev Done: Full Trainer→Trainee Impersonation Token Swap (Web Dashboard)
+# Dev Done: Trainer Revenue & Subscription Analytics (Web Dashboard)
 
 ## Date
 2026-02-20
 
-## Files Changed
+## Files Created
+- `backend/trainer/services/revenue_analytics_service.py` — Service with frozen dataclasses (`RevenueAnalyticsResult`, `RevenueSubscriberItem`, `RevenuePaymentItem`, `MonthlyRevenuePoint`) and `get_revenue_analytics()` function
+- `web/src/components/analytics/revenue-section.tsx` — Main RevenueSection component with stat cards, period selector, subscriber table, payment table
+- `web/src/components/analytics/revenue-chart.tsx` — Recharts BarChart for monthly revenue (matches ambassador EarningsChart pattern)
 
-### New Files
-- `web/src/types/trainee-view.ts` — TypeScript types for impersonation response, trainee programs, nutrition summary, weight check-ins, and trainer impersonation state
-- `web/src/hooks/use-trainee-view.ts` — React Query hooks for trainee-facing APIs (useTraineeProfile, useTraineePrograms, useNutritionSummary, useWeightCheckIns)
-- `web/src/components/layout/trainer-impersonation-banner.tsx` — Trainer→trainee impersonation banner with sessionStorage management and end-impersonation handler
-- `web/src/app/(trainee-view)/layout.tsx` — Minimal layout with impersonation banner, no sidebar, centered content
-- `web/src/app/(trainee-view)/trainee-view/page.tsx` — Read-only trainee dashboard with 4 data cards
-- `web/src/components/trainee-view/profile-card.tsx` — Profile summary card (name, email, onboarding status)
-- `web/src/components/trainee-view/program-card.tsx` — Active program card with today's exercises
-- `web/src/components/trainee-view/nutrition-card.tsx` — Today's nutrition card with macro progress bars
-- `web/src/components/trainee-view/weight-card.tsx` — Recent weight check-ins with trend indicator
-
-### Modified Files
-- `web/src/components/trainees/impersonate-trainee-button.tsx` — Replaced no-op onSuccess with full token swap: save trainer tokens to sessionStorage, set trainee tokens, set TRAINEE role cookie, hard navigate to /trainee-view
-- `web/src/middleware.ts` — Added TRAINEE role routing to /trainee-view, added isTraineeViewPath guard, updated getDashboardPath for TRAINEE
-- `web/src/providers/auth-provider.tsx` — Allow TRAINEE role in fetchUser when trainer impersonation state exists in sessionStorage
-- `web/src/lib/constants.ts` — Added TRAINEE_PROGRAMS, TRAINEE_NUTRITION_SUMMARY, TRAINEE_WEIGHT_CHECKINS, TRAINEE_USER_PROFILE URL constants
+## Files Modified
+- `backend/trainer/views.py` — Added `RevenueAnalyticsView` (APIView, GET, IsAuthenticated+IsTrainer)
+- `backend/trainer/urls.py` — Added `path('analytics/revenue/', ...)` and import
+- `web/src/types/analytics.ts` — Added `RevenuePeriod`, `RevenueAnalytics`, `RevenueSubscriber`, `RevenuePayment`, `MonthlyRevenuePoint` types
+- `web/src/hooks/use-analytics.ts` — Added `useRevenueAnalytics(days)` hook with 5-min staleTime
+- `web/src/lib/constants.ts` — Added `ANALYTICS_REVENUE` URL constant
+- `web/src/app/(dashboard)/analytics/page.tsx` — Added `<RevenueSection />` below ProgressSection, updated description
 
 ## Key Decisions
-1. **Auth-provider modification**: The auth-provider rejects non-TRAINER/ADMIN/AMBASSADOR roles. Added a check for active trainer impersonation state in sessionStorage to allow TRAINEE role through.
-2. **Separate sessionStorage key**: Using `fitnessai_trainer_impersonation` (different from the admin `fitnessai_impersonation` key) to avoid conflicts if admin→trainer→trainee chains ever exist.
-3. **Nutrition summary endpoint**: Used the `/api/workouts/daily-logs/nutrition-summary/` endpoint instead of separate nutrition-goals + daily-logs calls. It returns goals, consumed, remaining, and meals in one response.
-4. **Hard navigation**: Both start and end impersonation use `window.location.href` (not `router.push`) to clear React Query cache and force fresh data.
-5. **No backend changes**: Backend `StartImpersonationView` and `EndImpersonationView` already return everything needed.
+1. **Service layer with dataclasses** — Following project convention: business logic in services, views handle request/response only. All return types are frozen dataclasses.
+2. **MRR computed from active subs** — MRR is the sum of all active TraineeSubscription amounts (not period-filtered). Total revenue IS period-filtered to succeeded payments.
+3. **Monthly revenue uses paid_at** — TruncMonth aggregates on `paid_at` (not `created_at`) for accurate month attribution.
+4. **12-month zero-filled chart** — Same pattern as ambassador dashboard: generates all months in range and fills gaps with "0.00".
+5. **RevenuePeriodSelector** — Custom period selector (30d/90d/1y) instead of reusing AdherencePeriod (7/14/30) since revenue needs longer periods.
+6. **Inline import** — Service uses `from subscriptions.models import ...` inside the function to avoid circular imports between trainer and subscriptions apps.
+7. **Status badge colors** — Matches standard patterns: green=succeeded, amber=pending, red=failed, blue=refunded.
+8. **Renewal color coding** — Green >14d, amber 7-14d, red <7d.
 
 ## Deviations from Ticket
-- None. All 24 acceptance criteria are addressed.
+- None. All acceptance criteria addressed.
 
 ## How to Manually Test
-1. Log in as a trainer
-2. Go to Trainees → click on a trainee
-3. Click "View as Trainee" → confirm in dialog
-4. Verify: amber banner appears, trainee view page shows 4 cards, URL is /trainee-view
-5. Verify: Profile card shows trainee's name/email
-6. Verify: Program card shows active program or "No program assigned"
-7. Verify: Nutrition card shows today's macros or "No data logged today"
-8. Verify: Weight card shows recent check-ins or "No weight data"
-9. Click "End Impersonation" in the banner
-10. Verify: redirected back to /trainees/{id}, trainer tokens restored, trainer dashboard accessible
+1. Login as a trainer on the web dashboard
+2. Navigate to Analytics page
+3. Scroll to the bottom to see the new "Revenue" section
+4. Period selector switches between 30d/90d/1y
+5. With no payment data: shows empty state with "Manage Pricing" CTA
+6. With payment data: shows 4 stat cards, monthly bar chart, subscribers table, payments table
+7. Subscriber rows are clickable (navigate to trainee detail)
+8. Payment status badges are color-coded
+
+## Test Results
+- Backend: 164 trainer tests pass (0 failures)
+- Frontend: TypeScript check clean (0 errors)

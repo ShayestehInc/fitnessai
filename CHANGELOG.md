@@ -4,6 +4,27 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-20] — Trainer Revenue & Subscription Analytics (Pipeline 28)
+
+### Added
+- **Revenue analytics API** -- `GET /api/trainer/analytics/revenue/?days=N` returns MRR, total period revenue, active subscriber count, average revenue per subscriber, 12-month revenue breakdown, subscriber list, and recent payments. Service layer with frozen dataclasses. `[IsAuthenticated, IsTrainer]` permissions with row-level security.
+- **Revenue section on analytics page** -- New `RevenueSection` component below the existing Progress section with:
+  - 4 stat cards: MRR (DollarSign), Period Revenue (TrendingUp), Active Subscribers (Users), Avg/Subscriber (UserCheck)
+  - Monthly revenue bar chart (Recharts, current month highlighted, $K/$M axis formatting)
+  - Active subscribers table (clickable rows → trainee detail, renewal countdown with green/amber/red color coding)
+  - Recent payments table (last 10, color-coded status badges: succeeded/pending/failed/refunded)
+  - Period selector (30d / 90d / 1y) with ARIA radiogroup keyboard navigation
+- **36 new backend tests** covering auth/authz, response shape, MRR calculation, period filtering, monthly aggregation, subscriber/payment fields, row-level security, and edge cases.
+- **Database indexes** on `TraineePayment.paid_at` and composite `(trainer, status, paid_at)` for query performance.
+
+### Changed
+- `useAdherenceAnalytics` and `useAdherenceTrends` hooks now use `keepPreviousData` to prevent flash-to-skeleton when switching periods (also applied to new `useRevenueAnalytics`).
+- `DataTable` component now accepts `rowAriaLabel` prop for screen reader context on clickable rows.
+- `formatCurrency` includes NaN guard for defensive rendering.
+- Revenue chart Y-axis handles $1M+ values correctly.
+
+---
+
 ## [2026-02-20] — Full Trainer→Trainee Impersonation (Pipeline 27)
 
 ### Added
