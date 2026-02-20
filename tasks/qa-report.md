@@ -1,71 +1,111 @@
-# QA Report: Message Editing and Deletion (Pipeline 23)
+# QA Report: Message Search (Pipeline 24)
 
-## QA Date: 2026-02-19
+## QA Date: 2026-02-20
 
 ## Test Results
-- Total: 72
-- Passed: 72
+- Total: 42 (new) + 394 (existing) = 436 passing
+- Passed: 436
 - Failed: 0
 - Skipped: 0
+- Pre-existing errors: 2 (mcp_server import — unrelated, no `mcp` package installed)
 
-## Failed Tests
-None.
+## Test Coverage Breakdown
+
+### Service Layer — Basic Tests (13 tests)
+| Test | Status |
+|------|--------|
+| Returns matching messages | PASS |
+| Case-insensitive search | PASS |
+| Excludes deleted messages | PASS |
+| Ordered by most recent first | PASS |
+| Includes conversation context (sender + other participant) | PASS |
+| Row-level security — trainer isolation | PASS |
+| Row-level security — trainee isolation | PASS |
+| Other trainer cannot see my messages | PASS |
+| Returns frozen dataclasses | PASS |
+| Empty query raises ValueError | PASS |
+| Whitespace-only query raises ValueError | PASS |
+| Short query (<2 chars) raises ValueError | PASS |
+| Admin role raises ValueError | PASS |
+
+### Service Layer — Edge Cases (8 tests)
+| Test | Status |
+|------|--------|
+| No conversations returns empty results | PASS |
+| Archived conversations excluded | PASS |
+| Special characters in query don't break search | PASS |
+| Image-only messages excluded from text search | PASS |
+| Multiple matches in same conversation appear separately | PASS |
+| Trainee can search their own conversations | PASS |
+| Whitespace-only query rejected | PASS |
+| Null trainee (SET_NULL) conversation still searchable | PASS |
+
+### Service Layer — Pagination (3 tests)
+| Test | Status |
+|------|--------|
+| Default page size is 20 | PASS |
+| Page 2 returns correct results | PASS |
+| Out-of-range page clamped to last valid page | PASS |
+
+### View Layer (18 tests)
+| Test | Status |
+|------|--------|
+| Returns 200 with results | PASS |
+| Empty query returns 400 | PASS |
+| Missing q param returns 400 | PASS |
+| Short query returns 400 | PASS |
+| Whitespace-only query returns 400 | PASS |
+| Excludes deleted messages | PASS |
+| Excludes archived conversations | PASS |
+| Row-level security (trainer isolation) | PASS |
+| Other trainer isolated | PASS |
+| Trainee sees own conversations | PASS |
+| No results returns empty list | PASS |
+| Pagination params work | PASS |
+| Invalid page defaults to 1 | PASS |
+| Admin returns 400 | PASS |
+| Impersonation allowed (read-only) | PASS |
+| Special characters in query | PASS |
+| Unauthenticated returns 401 | PASS |
+| Result fields complete (all required fields present) | PASS |
 
 ## Acceptance Criteria Verification
-
-### Backend AC Coverage
-
-- [x] AC-1: Message model has `edited_at` and `is_deleted` fields with migration -- **PASS** (MessageModelTest: test_edited_at_default_is_null, test_is_deleted_default_is_false; MessageSerializerTest: test_serializer_includes_edited_at_and_is_deleted)
-- [x] AC-2: PATCH `/api/messaging/conversations/<id>/messages/<message_id>/` edits message -- **PASS** (EditMessageViewTest: test_patch_returns_200_with_edited_message)
-- [x] AC-3: DELETE soft-deletes message, no time limit -- **PASS** (DeleteMessageViewTest: test_delete_returns_204; DeleteMessageServiceTest: test_delete_has_no_time_limit)
-- [x] AC-4: Edit 403 if not sender, 400 if >15 min, 400 if deleted -- **PASS** (EditMessageViewTest: test_patch_403_for_non_sender, test_patch_400_for_expired_window, test_patch_400_for_deleted_message)
-- [x] AC-5: Delete 403 if not sender, 400 if already deleted -- **PASS** (DeleteMessageViewTest: test_delete_403_for_non_sender, test_delete_400_for_already_deleted)
-- [x] AC-6: Soft-deleted has is_deleted=True, content='', image=None -- **PASS** (DeleteMessageServiceTest: test_successful_delete, test_delete_clears_content_and_image)
-- [x] AC-7: Edit updates content and sets edited_at -- **PASS** (EditMessageServiceTest: test_successful_edit_within_window; MessageSerializerTest: test_serializer_shows_edited_at_after_edit)
-- [x] AC-8: ConversationDetailView returns deleted messages correctly -- **PASS** (ConversationDetailDeletedMessageTest: test_deleted_message_in_timeline; MessageSerializerTest: test_serializer_deleted_message_shows_empty_content, test_serializer_preserves_timestamp_on_deleted_message)
-- [x] AC-9: WebSocket broadcasts chat.message_edited -- **PASS** (EditMessageViewTest: test_patch_broadcasts_websocket_event)
-- [x] AC-10: WebSocket broadcasts chat.message_deleted -- **PASS** (DeleteMessageViewTest: test_delete_broadcasts_websocket_event)
-- [x] AC-11: Conversation list preview shows "This message was deleted" -- **PASS** (ConversationListSerializerTest: test_preview_shows_deleted_text_when_last_message_deleted)
-- [x] AC-12: Row-level security (participant check) -- **PASS** (EditMessageServiceTest: test_edit_by_non_participant_raises_permission_error; DeleteMessageServiceTest: test_delete_by_non_participant_raises_permission_error; EditMessageViewTest: test_patch_403_for_non_participant; DeleteMessageViewTest: test_delete_403_for_non_participant; CrossConversationSecurityTest: all 3 tests)
-- [x] AC-13: Impersonation guard -- **PASS** (EditMessageViewTest: test_patch_403_for_impersonation; DeleteMessageViewTest: test_delete_403_for_impersonation; EdgeCaseTests: test_edge_case_11_impersonating_admin_edit_forbidden, test_edge_case_11_impersonating_admin_delete_forbidden)
-- [x] AC-14: Frozen dataclass results -- **PASS** (EditMessageServiceTest: test_edit_returns_frozen_dataclass; DeleteMessageServiceTest: test_delete_returns_frozen_dataclass)
-- [x] AC-15: Rate limiting on edit endpoint -- **PASS** (verified via code inspection: EditMessageView has `throttle_scope = 'messaging'` which maps to 30/minute in settings)
-
-## Edge Cases Verification
-
-| # | Edge Case | Status | Test |
-|---|-----------|--------|------|
-| 1 | Edit deleted message -> 400 | PASS | test_edge_case_1_edit_already_deleted |
-| 2 | Edit >15 min message -> 400 | PASS | test_edge_case_2_edit_message_older_than_15_minutes |
-| 3 | Edit/delete other's message -> 403 | PASS | test_edge_case_3_edit_other_users_message, test_edge_case_3_delete_other_users_message |
-| 4 | Concurrent edits -> last-write-wins | PASS | test_edge_case_4_concurrent_edits_last_write_wins |
-| 5 | Edit image message -> image preserved | PASS | test_edge_case_5_edit_image_message_preserves_image |
-| 6 | Delete image message -> both cleared | PASS | test_edge_case_6_delete_image_message_clears_both |
-| 7 | Edit empty content text-only -> 400 | PASS | test_edge_case_7_edit_empty_content_text_only |
-| 8 | Edit empty content image msg -> allowed | PASS | test_edge_case_8_edit_empty_content_image_message |
-| 9 | WS disconnected -> HTTP polling picks up | N/A | Not testable in unit tests (verified by code: changes persist to DB) |
-| 10 | Last message deleted -> preview updates | PASS | test_edge_case_10_last_message_deleted_updates_preview |
-| 11 | Impersonating admin -> 403 | PASS | test_edge_case_11_impersonating_admin_edit_forbidden, test_edge_case_11_impersonating_admin_delete_forbidden |
-
-## Test Categories Breakdown
-
-| Category | Count | Details |
-|----------|-------|---------|
-| Service: edit_message() | 13 | Success, permissions, deleted, expired, empty, >2000, boundary, non-existent, image, whitespace, frozen |
-| Service: delete_message() | 8 | Success, clears content/image, permissions, already deleted, non-existent, no time limit, frozen |
-| View: EditMessageView | 10 | 200, 403 (impersonation, non-sender, non-participant), 400 (expired, deleted, empty), 404, WS broadcast, 401 |
-| View: DeleteMessageView | 8 | 204, 403 (impersonation, non-sender, non-participant), 400, 404, WS broadcast, 401 |
-| Serializer: MessageSerializer | 5 | Fields presence, edited_at, deleted state, timestamp preservation |
-| Serializer: ConversationList | 2 | Deleted preview, normal preview |
-| Model: Message | 4 | Default values, __str__ |
-| Edge cases | 13 | All 11 ticket edge cases (some split into edit+delete) |
-| Boundary: edit window | 2 | At 15 min boundary, just before |
-| Cross-conversation security | 3 | Edit/delete wrong conversation, message not found |
-| Trainee edit/delete | 4 | Service and API for both edit and delete |
+- [x] AC-1: New endpoint returns paginated matching messages — PASS
+- [x] AC-2: Case-insensitive substring match — PASS
+- [x] AC-3: Deleted messages excluded — PASS
+- [x] AC-4: 20 per page, ordered by -created_at — PASS
+- [x] AC-5: Results include sender + conversation context — PASS
+- [x] AC-6: Row-level security enforced — PASS
+- [x] AC-7: Empty/missing query returns 400 — PASS
+- [x] AC-8: Query < 2 chars returns 400 — PASS
+- [x] AC-9: Rate limiting applied (ScopedRateThrottle, messaging scope) — PASS (verified in code)
+- [x] AC-10: Impersonation allowed for search — PASS
+- [x] AC-11: Service returns typed dataclasses — PASS
+- [x] AC-12: Search button in messages page header — PASS (code review)
+- [x] AC-13: 300ms debounce, min 2 chars — PASS (code review)
+- [x] AC-14: Results with highlighted match, sender, time — PASS (code review)
+- [x] AC-15: Clickable results navigate to conversation — PASS (code review)
+- [x] AC-16: Empty state component — PASS (code review)
+- [x] AC-17: Skeleton loading state — PASS (code review)
+- [x] AC-18: Error state with retry — PASS (code review)
+- [x] AC-19: Pagination with Previous/Next buttons — PASS (code review)
+- [x] AC-20: Search results replace conversation list — PASS (code review)
+- [x] AC-21: Close button returns to conversation list — PASS (code review)
+- [x] AC-22: Cmd/Ctrl+K keyboard shortcut — PASS (code review)
+- [x] AC-23: Input auto-focuses on open — PASS (code review)
+- [x] AC-24: Esc key closes search — PASS (code review)
+- [x] AC-25: React Query hook with proper cache key — PASS (code review)
 
 ## Bugs Found Outside Tests
-None. All service layer functions, views, serializers, and models are functioning correctly.
+None — all tests pass, no bugs discovered during testing.
+
+## TypeScript Compilation
+- 0 errors
 
 ## Confidence Level: HIGH
-
-All 72 tests pass. Every backend acceptance criterion (AC-1 through AC-15) is verified. All 11 edge cases from the ticket are covered (edge case 9 is not unit-testable but is inherently handled by database persistence). Row-level security, impersonation guards, WebSocket broadcasts, frozen dataclass returns, and boundary conditions are all tested.
+- All 42 new tests pass
+- All 394 existing tests pass (2 pre-existing mcp_server errors unrelated)
+- 0 TypeScript errors
+- All 25 acceptance criteria verified
+- All 10 edge cases covered
+- Row-level security thoroughly tested (trainer isolation, trainee isolation, cross-tenant isolation)
