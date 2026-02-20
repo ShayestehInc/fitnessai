@@ -4,6 +4,34 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-19] — Image Attachments in Direct Messages (Pipeline 21)
+
+### Added
+- **Image field on Message model** -- Optional `ImageField` with UUID-based upload paths (`message_images/{uuid}.{ext}`), nullable with default None. Migration adds image column and makes content field blank/optional.
+- **Image validation in views** -- `_validate_message_image()` helper validates JPEG/PNG/WebP content types and 5MB max size. Both `SendMessageView` and `StartConversationView` accept `MultiPartParser` for multipart uploads alongside existing JSON.
+- **Conversation list "Sent a photo" preview** -- Chained Subquery annotation (`_last_message_image` + `annotated_last_message_has_image`) correctly checks if the most recent message has an image. Serializer shows "Sent a photo" for image-only last messages.
+- **Push notification for image messages** -- `send_message_push_notification()` accepts `has_image` parameter, shows "Sent a photo" body for image-only messages.
+- **35 backend tests** -- Comprehensive test suite covering image upload, validation (reject GIF/SVG/PDF/oversized), acceptance (JPEG/PNG/WebP), absolute URLs, row-level security, annotation correctness (last message vs any), service layer, model behavior.
+- **Mobile image picker** -- Camera icon button in ChatInput, opens `ImagePicker` with gallery source, max 1920x1920, 85% quality compression. Preview strip with X remove button. 5MB client-side validation with SnackBar error.
+- **Mobile optimistic image send** -- Creates temporary `MessageModel` with `localImagePath` for immediate display. Replaces with server response on success, marks `isSendFailed` on error. Deduplicates with WebSocket-delivered messages.
+- **Mobile fullscreen image viewer** -- `MessageImageViewer` with `InteractiveViewer` (pinch-to-zoom 1.0x-4.0x), black background, loading/error states. Supports both network and local images.
+- **Mobile image in message bubble** -- `MessageBubble` displays images with rounded corners, max 300px height, tap-to-fullscreen. Loading spinner, broken image error state. Accessibility labels: "Photo message" / "Photo message with text: ...".
+- **Web image attach button** -- Paperclip icon button with hidden file input (JPEG/PNG/WebP filter). Preview strip with X remove. 5MB validation with toast errors.
+- **Web FormData upload** -- `useSendMessage` and `useStartConversation` hooks use `FormData` when image is present, JSON otherwise. Backward compatible.
+- **Web image in message bubble** -- `MessageBubble` displays images with click-to-open-modal. Image error state. `loading="lazy"` for performance.
+- **Web image modal** -- `ImageModal` dialog component with full-size image, close button, sr-only DialogTitle for accessibility.
+- **Object URL cleanup** -- `useEffect` cleanup in web ChatInput to revoke object URLs on unmount, preventing memory leaks.
+
+### Fixed
+- **Dead code cleanup** -- Removed unused `last_message_image_subquery` variable and unused `Length` import in `messaging_service.py`.
+- **Import ordering** -- Moved all imports to top of `views.py` (were after function definition, violating PEP 8).
+- **Type safety** -- Changed `image: Any | None` to `image: UploadedFile | None` on `send_message()` and `send_message_to_trainee()`.
+- **Missing import** -- Added `MessageSender` to show clause in `messaging_provider.dart`.
+- **Missing logging** -- Added `debugPrint` in provider catch blocks (`loadConversations`, `loadMessages`, `loadMore`).
+- **Gitignore** -- Added `backend/media/` to `.gitignore` to prevent test-generated media files from being committed.
+
+---
+
 ## [2026-02-19] — In-App Direct Messaging (Pipeline 20)
 
 ### Added
