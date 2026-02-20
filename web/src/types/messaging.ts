@@ -70,7 +70,7 @@ export interface SearchMessageResult {
   content: string;
   image_url: string | null;
   created_at: string;
-  other_participant_id: number;
+  other_participant_id: number | null;
   other_participant_first_name: string;
   other_participant_last_name: string;
 }

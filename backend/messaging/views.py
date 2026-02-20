@@ -126,17 +126,8 @@ class SearchMessagesView(views.APIView):
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
 
-        query = request.query_params.get('q', '').strip()
-        if not query:
-            return Response(
-                {'error': 'Search query is required.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if len(query) < 2:
-            return Response(
-                {'error': 'Search query must be at least 2 characters.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # Pass raw query to service — it handles stripping and validation
+        query = request.query_params.get('q', '')
 
         page_param = request.query_params.get('page', '1')
         try:

@@ -22,15 +22,19 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const debouncedQuery = useDebounce(query, 300);
 
-  const { data, isLoading, isError, refetch } = useSearchMessages(
+  const { data, isLoading, isFetching, isError, refetch } = useSearchMessages(
     debouncedQuery,
     page,
   );
 
-  // Reset page when query changes
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedQuery]);
+  // Reset page when raw query changes (not debounced) to avoid stale query + wrong page
+  const handleQueryChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setQuery(e.target.value);
+      setPage(1);
+    },
+    [],
+  );
 
   // Auto-focus input on mount
   useEffect(() => {
@@ -51,6 +55,9 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
   const showHint = query.length > 0 && query.length < 2;
   const showResults = debouncedQuery.length >= 2;
   const hasResults = data && data.results.length > 0;
+  // Show skeleton on initial load; show inline spinner on page changes / refetches
+  const showSkeleton = showResults && isLoading;
+  const showInlineLoading = showResults && !isLoading && isFetching;
 
   return (
     <div className="flex h-full flex-col" onKeyDown={handleKeyDown}>
@@ -60,17 +67,26 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
         <Input
           ref={inputRef}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={handleQueryChange}
           placeholder="Search messages..."
           className="h-8 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
           aria-label="Search messages"
         />
+        {isFetching && (
+          <Loader2
+            className="h-4 w-4 shrink-0 animate-spin text-muted-foreground"
+            aria-hidden="true"
+          />
+        )}
         {query && (
           <Button
             variant="ghost"
             size="sm"
             className="h-6 w-6 shrink-0 p-0"
-            onClick={() => setQuery("")}
+            onClick={() => {
+              setQuery("");
+              setPage(1);
+            }}
             aria-label="Clear search"
           >
             <X className="h-3.5 w-3.5" />
@@ -94,7 +110,7 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
           </p>
         )}
 
-        {showResults && isLoading && (
+        {showSkeleton && (
           <div className="space-y-1 p-3">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="flex items-start gap-3 px-1 py-2">
@@ -137,7 +153,11 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
             <p className="px-4 py-2 text-xs text-muted-foreground">
               {data.count} result{data.count !== 1 ? "s" : ""} found
             </p>
-            <div role="listbox" aria-label="Search results">
+            <div
+              className={showInlineLoading ? "opacity-60 transition-opacity" : ""}
+              role="list"
+              aria-label="Search results"
+            >
               {data.results.map((result) => (
                 <SearchResultItem
                   key={result.message_id}
@@ -153,7 +173,7 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={!data.has_previous}
+                  disabled={!data.has_previous || isFetching}
                   onClick={() => setPage((p) => p - 1)}
                   aria-label="Previous page"
                 >
@@ -165,7 +185,7 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={!data.has_next}
+                  disabled={!data.has_next || isFetching}
                   onClick={() => setPage((p) => p + 1)}
                   aria-label="Next page"
                 >

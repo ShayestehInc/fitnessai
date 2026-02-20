@@ -120,21 +120,27 @@ export default function MessagesPage() {
 
   const handleSearchResultClick = useCallback(
     (result: SearchMessageResult) => {
-      // Navigate to the conversation containing the matched message
-      router.replace(`/messages?conversation=${result.conversation_id}`);
       setIsSearchOpen(false);
 
-      // Find and select the conversation from the loaded list
+      // Find the conversation in the already-loaded list
       if (conversations) {
         const found = conversations.find(
           (c) => c.id === result.conversation_id,
         );
         if (found) {
           setSelectedConversation(found);
+          router.replace(`/messages?conversation=${result.conversation_id}`);
+          return;
         }
       }
+
+      // Conversation not in the current list (e.g. paginated beyond page 1).
+      // Refetch to ensure it appears, then navigate via URL param which
+      // the useEffect will pick up.
+      router.replace(`/messages?conversation=${result.conversation_id}`);
+      refetch();
     },
-    [conversations, router],
+    [conversations, router, refetch],
   );
 
   const handleCloseSearch = useCallback(() => {

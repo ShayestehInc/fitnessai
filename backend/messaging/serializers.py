@@ -105,7 +105,7 @@ class SearchMessageResultSerializer(serializers.Serializer):  # type: ignore[typ
     content = serializers.CharField()
     image_url = serializers.CharField(allow_null=True)
     created_at = serializers.DateTimeField()
-    other_participant_id = serializers.IntegerField()
+    other_participant_id = serializers.IntegerField(allow_null=True)
     other_participant_first_name = serializers.CharField()
     other_participant_last_name = serializers.CharField()
 

@@ -28,7 +28,7 @@ class SearchMessageItem:
     content: str
     image_url: str | None
     created_at: datetime
-    other_participant_id: int
+    other_participant_id: int | None
     other_participant_first_name: str
     other_participant_last_name: str
 
@@ -69,21 +69,20 @@ def search_messages(
     if len(stripped_query) < 2:
         raise ValueError('Search query must be at least 2 characters.')
 
-    # Determine which conversations this user participates in
+    # Determine which conversations this user participates in.
+    # Admin users can only search via impersonation (which sets request.user
+    # to the trainer). An admin hitting this endpoint directly sees nothing.
     if user.is_trainer():
         conversation_filter = Q(conversation__trainer=user)
     elif user.is_trainee():
         conversation_filter = Q(conversation__trainee=user)
     else:
-        return SearchMessagesResult(
-            results=[],
-            count=0,
-            has_next=False,
-            has_previous=False,
-            page=1,
-            num_pages=0,
-        )
+        raise ValueError('Only trainers and trainees can search messages.')
 
+    # NOTE: icontains with a leading wildcard (%query%) triggers a full
+    # sequential scan and cannot use B-tree indexes. This is acceptable at
+    # current scale (<100k messages). For future scaling, consider adding a
+    # GIN trigram index: CREATE INDEX ... USING gin(content gin_trgm_ops).
     messages = (
         Message.objects.filter(
             conversation_filter,
@@ -96,6 +95,15 @@ def search_messages(
             'conversation',
             'conversation__trainer',
             'conversation__trainee',
+        )
+        .only(
+            'id', 'content', 'image', 'created_at', 'is_deleted',
+            'sender__id', 'sender__first_name', 'sender__last_name',
+            'conversation__id', 'conversation__trainer_id', 'conversation__trainee_id',
+            'conversation__trainer__id', 'conversation__trainer__first_name',
+            'conversation__trainer__last_name',
+            'conversation__trainee__id', 'conversation__trainee__first_name',
+            'conversation__trainee__last_name',
         )
         .order_by('-created_at')
     )
@@ -115,11 +123,16 @@ def search_messages(
         else:
             other = conversation.trainer
 
-        other_id = other.id if other else 0
+        other_id: int | None = other.id if other else None
         other_first = other.first_name if other else ''
         other_last = other.last_name if other else '[removed]'
 
-        image_url: str | None = msg.image.url if msg.image else None
+        image_url: str | None = None
+        if msg.image and msg.image.name:
+            try:
+                image_url = msg.image.url
+            except ValueError:
+                pass
 
         results.append(
             SearchMessageItem(

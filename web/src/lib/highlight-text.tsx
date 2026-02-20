@@ -9,14 +9,18 @@ export function highlightText(text: string, query: string): ReactNode {
 
   // Escape regex special characters in the query
   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const regex = new RegExp(`(${escaped})`, "gi");
+  // Use 'i' flag only for split (capture group preserves matched casing).
+  // Do NOT use 'g' flag — it causes stateful lastIndex issues with test().
+  const regex = new RegExp(`(${escaped})`, "i");
   const parts = text.split(regex);
 
   if (parts.length === 1) return text;
 
+  const lowerQuery = query.toLowerCase();
+
   return parts.map((part, index) =>
-    regex.test(part) ? (
-      <mark key={index} className="bg-yellow-200 dark:bg-yellow-800 rounded-sm px-0.5">
+    part.toLowerCase() === lowerQuery ? (
+      <mark key={index} className="rounded-sm bg-primary/20 px-0.5">
         {part}
       </mark>
     ) : (
