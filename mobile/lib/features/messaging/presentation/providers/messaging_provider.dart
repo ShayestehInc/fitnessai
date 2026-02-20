@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/conversation_model.dart';
 import '../../data/models/message_model.dart'
-    show MessageModel, MessagesResponse, StartConversationResponse;
+    show MessageModel, MessageSender, MessagesResponse, StartConversationResponse;
 import '../../data/repositories/messaging_repository.dart';
 
 // ---------------------------------------------------------------------------
