@@ -44,3 +44,47 @@ export interface TraineeProgressEntry {
 export interface ProgressAnalytics {
   trainee_progress: TraineeProgressEntry[];
 }
+
+// Revenue analytics
+
+export type RevenuePeriod = 30 | 90 | 365;
+
+export interface RevenueSubscriber {
+  trainee_id: number;
+  trainee_email: string;
+  trainee_name: string;
+  amount: string;
+  currency: string;
+  current_period_end: string | null;
+  days_until_renewal: number | null;
+  subscribed_since: string;
+}
+
+export interface RevenuePayment {
+  id: number;
+  trainee_email: string;
+  trainee_name: string;
+  payment_type: string;
+  status: string;
+  amount: string;
+  currency: string;
+  description: string;
+  paid_at: string | null;
+  created_at: string;
+}
+
+export interface MonthlyRevenuePoint {
+  month: string;
+  amount: string;
+}
+
+export interface RevenueAnalytics {
+  period_days: number;
+  mrr: string;
+  total_revenue: string;
+  active_subscribers: number;
+  avg_revenue_per_subscriber: string;
+  monthly_revenue: MonthlyRevenuePoint[];
+  subscribers: RevenueSubscriber[];
+  recent_payments: RevenuePayment[];
+}

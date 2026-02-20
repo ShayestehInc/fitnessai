@@ -24,6 +24,7 @@ from django.utils import timezone
 from django.db.models import Case, Count, IntegerField, Q, Avg, Max, QuerySet, When
 
 from trainer.services.invitation_service import send_invitation_email
+from trainer.services.revenue_analytics_service import get_revenue_analytics
 from django.http import Http404
 from datetime import timedelta
 
@@ -1018,6 +1019,61 @@ class ProgressAnalyticsView(views.APIView):
 
         return Response({
             'trainee_progress': progress_data
+        })
+
+
+class RevenueAnalyticsView(views.APIView):
+    """
+    GET: Get revenue analytics for the authenticated trainer.
+    Query params: ?days=30 (default 30, range 1-365)
+
+    Returns aggregated revenue stats, monthly breakdown, active subscribers,
+    and recent payments.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request: Request) -> Response:
+        trainer = cast(User, request.user)
+        days = _parse_days_param(request)
+        result = get_revenue_analytics(trainer, days)
+        return Response({
+            'period_days': result.period_days,
+            'mrr': result.mrr,
+            'total_revenue': result.total_revenue,
+            'active_subscribers': result.active_subscribers,
+            'avg_revenue_per_subscriber': result.avg_revenue_per_subscriber,
+            'monthly_revenue': [
+                {'month': point.month, 'amount': point.amount}
+                for point in result.monthly_revenue
+            ],
+            'subscribers': [
+                {
+                    'trainee_id': sub.trainee_id,
+                    'trainee_email': sub.trainee_email,
+                    'trainee_name': sub.trainee_name,
+                    'amount': sub.amount,
+                    'currency': sub.currency,
+                    'current_period_end': sub.current_period_end,
+                    'days_until_renewal': sub.days_until_renewal,
+                    'subscribed_since': sub.subscribed_since,
+                }
+                for sub in result.subscribers
+            ],
+            'recent_payments': [
+                {
+                    'id': p.id,
+                    'trainee_email': p.trainee_email,
+                    'trainee_name': p.trainee_name,
+                    'payment_type': p.payment_type,
+                    'status': p.status,
+                    'amount': p.amount,
+                    'currency': p.currency,
+                    'description': p.description,
+                    'paid_at': p.paid_at,
+                    'created_at': p.created_at,
+                }
+                for p in result.recent_payments
+            ],
         })
 
 

@@ -8,6 +8,8 @@ import type {
   AdherencePeriod,
   AdherenceTrends,
   ProgressAnalytics,
+  RevenueAnalytics,
+  RevenuePeriod,
 } from "@/types/analytics";
 
 export function useAdherenceAnalytics(days: AdherencePeriod) {
@@ -37,6 +39,17 @@ export function useProgressAnalytics() {
     queryKey: ["analytics", "progress"],
     queryFn: () =>
       apiClient.get<ProgressAnalytics>(API_URLS.ANALYTICS_PROGRESS),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useRevenueAnalytics(days: RevenuePeriod) {
+  return useQuery<RevenueAnalytics>({
+    queryKey: ["analytics", "revenue", days],
+    queryFn: () =>
+      apiClient.get<RevenueAnalytics>(
+        `${API_URLS.ANALYTICS_REVENUE}?days=${days}`,
+      ),
     staleTime: 5 * 60 * 1000,
   });
 }
