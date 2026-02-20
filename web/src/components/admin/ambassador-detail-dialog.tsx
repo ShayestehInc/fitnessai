@@ -42,7 +42,7 @@ export function AmbassadorDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{ambassador.user_email}</DialogTitle>
+          <DialogTitle>{ambassador.user.email}</DialogTitle>
           <DialogDescription>
             Ambassador details and commission management
           </DialogDescription>
@@ -55,9 +55,9 @@ export function AmbassadorDetailDialog({
 
 function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
   const { data: detail, isLoading } = useAdminAmbassadorDetail(ambassador.id);
-  const bulkApproveMutation = useBulkApproveCommissions();
-  const bulkPayMutation = useBulkPayCommissions();
-  const payoutMutation = useTriggerPayout();
+  const bulkApproveMutation = useBulkApproveCommissions(ambassador.id);
+  const bulkPayMutation = useBulkPayCommissions(ambassador.id);
+  const payoutMutation = useTriggerPayout(ambassador.id);
 
   if (isLoading) {
     return (
@@ -98,7 +98,7 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
           variant="outline"
           size="sm"
           onClick={() =>
-            bulkApproveMutation.mutate(ambassador.id, {
+            bulkApproveMutation.mutate(undefined, {
               onSuccess: () => toast.success("All commissions approved"),
               onError: (err) => toast.error(getErrorMessage(err)),
             })
@@ -116,7 +116,7 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
           variant="outline"
           size="sm"
           onClick={() =>
-            bulkPayMutation.mutate(ambassador.id, {
+            bulkPayMutation.mutate(undefined, {
               onSuccess: () => toast.success("All commissions marked as paid"),
               onError: (err) => toast.error(getErrorMessage(err)),
             })
@@ -133,7 +133,7 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
         <Button
           size="sm"
           onClick={() =>
-            payoutMutation.mutate(ambassador.id, {
+            payoutMutation.mutate(undefined, {
               onSuccess: () => toast.success("Payout triggered"),
               onError: (err) => toast.error(getErrorMessage(err)),
             })

@@ -15,12 +15,12 @@ export function ReferralList() {
   const [search, setSearch] = useState("");
   const { data, isLoading } = useAmbassadorReferrals();
 
-  const referrals = (data ?? []) as AmbassadorSelfReferral[];
+  const referrals = data?.results ?? [];
   const filtered = search
     ? referrals.filter(
         (r) =>
-          (r.trainer_name ?? "").toLowerCase().includes(search.toLowerCase()) ||
-          r.trainer_email.toLowerCase().includes(search.toLowerCase()),
+          `${r.trainer.first_name} ${r.trainer.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
+          r.trainer.email.toLowerCase().includes(search.toLowerCase()),
       )
     : referrals;
 
@@ -66,21 +66,21 @@ export function ReferralList() {
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">
-                  {ref.trainer_name || ref.trainer_email}
+                  {`${ref.trainer.first_name} ${ref.trainer.last_name}`.trim() || ref.trainer.email}
                 </p>
                 <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>{ref.trainer_email}</span>
-                  {ref.created_at && (
+                  <span>{ref.trainer.email}</span>
+                  {ref.referred_at && (
                     <span>
-                      {format(new Date(ref.created_at), "MMM d, yyyy")}
+                      {format(new Date(ref.referred_at), "MMM d, yyyy")}
                     </span>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                {ref.commission_earned !== undefined && (
+                {ref.total_commission_earned !== undefined && (
                   <span className="text-sm font-medium text-green-600">
-                    {formatCurrency(ref.commission_earned)}
+                    {formatCurrency(ref.total_commission_earned)}
                   </span>
                 )}
                 <Badge

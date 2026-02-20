@@ -37,9 +37,8 @@ export default function MessagesPage() {
     return !conversations.some((c) => c.trainee.id === targetTraineeId);
   }, [traineeIdParam, conversations]);
 
-  const newConversationTraineeId = traineeIdParam
-    ? parseInt(traineeIdParam, 10)
-    : 0;
+  const parsedTraineeId = traineeIdParam ? parseInt(traineeIdParam, 10) : 0;
+  const newConversationTraineeId = isNaN(parsedTraineeId) ? 0 : parsedTraineeId;
 
   // Auto-select conversation from URL param or first in list
   useEffect(() => {

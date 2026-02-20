@@ -43,10 +43,11 @@ export function FeatureRequestList({
   const [createOpen, setCreateOpen] = useState(false);
   const voteMutation = useVoteFeatureRequest();
 
-  function handleVote(id: number) {
-    voteMutation.mutate(id, {
-      onError: (err) => toast.error(getErrorMessage(err)),
-    });
+  function handleVote(id: number, hasVoted: boolean) {
+    voteMutation.mutate(
+      { id, vote_type: hasVoted ? "remove" : "up" },
+      { onError: (err) => toast.error(getErrorMessage(err)) },
+    );
   }
 
   return (
@@ -97,7 +98,7 @@ export function FeatureRequestList({
                 className="flex items-start gap-4 rounded-lg border p-4 transition-all hover:shadow-sm"
               >
                 <button
-                  onClick={() => handleVote(req.id)}
+                  onClick={() => handleVote(req.id, req.has_voted)}
                   className={cn(
                     "flex flex-col items-center gap-0.5 rounded-md border px-2 py-1 text-sm transition-colors",
                     req.has_voted

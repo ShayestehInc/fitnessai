@@ -7,6 +7,7 @@ export interface Ambassador {
     first_name: string;
     last_name: string;
     is_active: boolean;
+    created_at: string;
   };
   referral_code: string;
   commission_rate: number;
@@ -16,27 +17,38 @@ export interface Ambassador {
   active_referrals: number;
   is_active: boolean;
   stripe_connect_status: string;
+  created_at: string;
 }
 
 export interface AmbassadorReferral {
   id: number;
   trainer: {
-    name: string;
+    id: number;
     email: string;
+    first_name: string;
+    last_name: string;
+    is_active: boolean;
+    created_at: string;
   };
+  referral_code_used: string;
   status: string;
-  tier: string;
-  commission_earned: string;
   referred_at: string;
+  activated_at: string | null;
+  churned_at: string | null;
+  trainer_subscription_tier: string;
+  total_commission_earned: string;
 }
 
 export interface AmbassadorCommission {
   id: number;
-  month: string;
-  trainer_name: string;
-  amount: string;
+  trainer_email: string;
+  commission_rate: number;
+  base_amount: string;
+  commission_amount: string;
   status: string;
-  rate_snapshot: number;
+  period_start: string;
+  period_end: string;
+  created_at: string;
 }
 
 export interface CreateAmbassadorPayload {
@@ -59,29 +71,36 @@ export interface AmbassadorDashboardData {
   pending_referrals: number;
   churned_referrals: number;
   monthly_earnings: { month: string; amount: string }[];
-  recent_referrals: {
-    trainer: { first_name: string; last_name: string; email: string };
-    status: string;
-    referred_at: string;
-  }[];
+  recent_referrals: AmbassadorReferral[];
 }
 
 export interface AmbassadorSelfReferral {
   id: number;
-  trainer_name: string;
-  trainer_email: string;
+  trainer: {
+    id: number;
+    email: string;
+    first_name: string;
+    last_name: string;
+    is_active: boolean;
+    created_at: string;
+  };
+  referral_code_used: string;
   status: string;
-  tier: string;
-  commission_earned: string;
   referred_at: string;
+  activated_at: string | null;
+  churned_at: string | null;
+  trainer_subscription_tier: string;
+  total_commission_earned: string;
 }
 
 export interface AmbassadorPayout {
   id: number;
   amount: string;
-  date: string;
   status: string;
-  transfer_id: string | null;
+  stripe_transfer_id: string | null;
+  error_message: string | null;
+  commission_count: number;
+  created_at: string;
 }
 
 export interface AmbassadorConnectStatus {

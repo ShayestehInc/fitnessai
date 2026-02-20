@@ -94,6 +94,13 @@ export const apiClient = {
     });
   },
 
+  put<T>(url: string, data: unknown): Promise<T> {
+    return request<T>(url, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
   patch<T>(url: string, data: unknown): Promise<T> {
     return request<T>(url, {
       method: "PATCH",

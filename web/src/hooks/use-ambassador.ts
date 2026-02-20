@@ -32,7 +32,7 @@ export function useUpdateReferralCode() {
 
   return useMutation({
     mutationFn: (referral_code: string) =>
-      apiClient.patch<{ referral_code: string }>(
+      apiClient.put<{ referral_code: string }>(
         API_URLS.AMBASSADOR_REFERRAL_CODE,
         { referral_code },
       ),

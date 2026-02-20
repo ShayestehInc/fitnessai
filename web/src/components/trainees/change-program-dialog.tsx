@@ -42,7 +42,7 @@ export function ChangeProgramDialog({
     if (!selectedId) return;
 
     assignMutation.mutate(
-      { trainee_id: traineeId },
+      { trainee_id: traineeId, start_date: new Date().toISOString().split("T")[0] },
       {
         onSuccess: () => {
           toast.success("Program assigned successfully");
@@ -96,7 +96,7 @@ export function ChangeProgramDialog({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{program.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {program.weeks?.length ?? 0} weeks
+                    {program.duration_weeks ?? 0} weeks
                   </p>
                 </div>
                 {currentProgramId === program.id && (

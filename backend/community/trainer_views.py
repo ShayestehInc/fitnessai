@@ -94,6 +94,31 @@ class TrainerAnnouncementDetailView(views.APIView):
         response_serializer = AnnouncementSerializer(announcement)
         return Response(response_serializer.data)
 
+    def patch(self, request: Request, pk: int) -> Response:
+        user = cast(User, request.user)
+
+        try:
+            announcement = Announcement.objects.get(id=pk, trainer=user)
+        except Announcement.DoesNotExist:
+            return Response(
+                {'error': 'Announcement not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = AnnouncementCreateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        update_fields: list[str] = ['updated_at']
+        for field in ('title', 'body', 'is_pinned', 'content_format'):
+            if field in serializer.validated_data:
+                setattr(announcement, field, serializer.validated_data[field])
+                update_fields.append(field)
+
+        announcement.save(update_fields=update_fields)
+
+        response_serializer = AnnouncementSerializer(announcement)
+        return Response(response_serializer.data)
+
     def delete(self, request: Request, pk: int) -> Response:
         user = cast(User, request.user)
 

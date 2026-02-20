@@ -51,14 +51,20 @@ export function useCreateFeatureRequest() {
   });
 }
 
+interface VoteInput {
+  id: number;
+  vote_type: "up" | "down" | "remove";
+}
+
 export function useVoteFeatureRequest() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) =>
-      apiClient.post(API_URLS.featureRequestVote(id)),
+    mutationFn: ({ id, vote_type }: VoteInput) =>
+      apiClient.post(API_URLS.featureRequestVote(id), { vote_type }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["feature-request"] });
     },
   });
 }

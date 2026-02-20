@@ -26,7 +26,7 @@ export function useUpdateLeaderboardSetting() {
       metric_type: string;
       time_period: string;
       is_enabled: boolean;
-    }) => apiClient.patch(API_URLS.LEADERBOARD_SETTINGS, data),
+    }) => apiClient.post(API_URLS.LEADERBOARD_SETTINGS, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leaderboard-settings"] });
     },

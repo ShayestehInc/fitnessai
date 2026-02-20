@@ -42,11 +42,11 @@ export function RecentReferralsList({ referrals }: RecentReferralsListProps) {
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">
-                {ref.trainer_name || ref.trainer_email}
+                {`${ref.trainer.first_name} ${ref.trainer.last_name}`.trim() || ref.trainer.email}
               </p>
               <p className="text-xs text-muted-foreground">
-                {ref.created_at
-                  ? format(new Date(ref.created_at), "MMM d, yyyy")
+                {ref.referred_at
+                  ? format(new Date(ref.referred_at), "MMM d, yyyy")
                   : "N/A"}
               </p>
             </div>

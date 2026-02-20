@@ -28,7 +28,7 @@ export function PayoutHistory() {
     );
   }
 
-  const payouts = (data ?? []) as AmbassadorPayout[];
+  const payouts = data?.results ?? [];
 
   return (
     <Card>
@@ -56,7 +56,7 @@ export function PayoutHistory() {
                   <p className="text-xs text-muted-foreground">
                     {payout.created_at
                       ? format(new Date(payout.created_at), "MMM d, yyyy")
-                      : "N/A"}
+                      : payout.status}
                   </p>
                 </div>
                 <Badge
