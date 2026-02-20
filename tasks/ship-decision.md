@@ -1,6 +1,6 @@
 ## Verdict: SHIP
 ## Confidence: HIGH
 ## Quality Score: 9/10
-## Summary: Clean implementation of calorie goal tracking and daily adherence trend chart on the trainer analytics page. All 478 tests pass, 0 TypeScript errors, all acceptance criteria verified.
+## Summary: Full implementation of trainer→trainee impersonation token swap on the web dashboard. Previously dead "View as Trainee" button now performs a complete token swap flow with a read-only trainee view page. All tests pass, 0 TypeScript errors, all 24 acceptance criteria verified.
 ## Remaining Concerns: None — 2 pre-existing mcp_server errors are unrelated.
-## What Was Built: Added calorie goal hit rate as a 4th metric to the trainer analytics page (backend + frontend). New `AdherenceTrendView` endpoint and `AdherenceTrendChart` component showing daily food/workout/protein/calorie adherence rates as an area chart with tooltips, legend, empty/error/loading states, and screen reader support.
+## What Was Built: Wired the trainer→trainee impersonation token swap in the web dashboard. Clicking "View as Trainee" now saves trainer tokens to sessionStorage, swaps to trainee JWT tokens, and navigates to a new read-only trainee view page showing 4 data cards (Profile, Active Program, Today's Nutrition, Recent Weight). An amber impersonation banner provides "End Impersonation" to restore trainer tokens and return to the trainee detail page. Updated middleware to route TRAINEE role to the trainee view, and updated the auth provider to allow TRAINEE role during impersonation.

@@ -863,7 +863,7 @@ Full-stack message search across all conversations with backend API, web dashboa
 - ~~Advanced analytics and reporting~~ ✅ Partially completed 2026-02-20 (Pipeline 26 — calorie goal rate + adherence trend chart)
 - Multi-language support
 - Social auth (Apple/Google) mobile integration
-- Full impersonation token swap (web dashboard)
+- ~~Full impersonation token swap (web dashboard)~~ ✅ Completed 2026-02-20 (Pipeline 27 — trainer→trainee token swap, read-only trainee view page, impersonation banner)
 - ~~Ambassador monthly earnings chart (web dashboard)~~ ✅ Completed 2026-02-20 (Pipeline 25)
 - ~~Server-side pagination on ambassador list (web dashboard)~~ ✅ Completed 2026-02-20 (Pipeline 25)
 

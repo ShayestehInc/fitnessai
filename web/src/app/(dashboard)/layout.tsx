@@ -24,12 +24,14 @@ export default function DashboardLayout({
     }
   }, [isLoading, isAuthenticated, router]);
 
-  // Redirect ADMIN users to admin dashboard, AMBASSADOR to ambassador dashboard
+  // Redirect non-trainer users to their appropriate dashboard
   useEffect(() => {
     if (!isLoading && isAuthenticated && user?.role === UserRole.ADMIN) {
       router.replace("/admin/dashboard");
     } else if (!isLoading && isAuthenticated && user?.role === UserRole.AMBASSADOR) {
       router.replace("/ambassador/dashboard");
+    } else if (!isLoading && isAuthenticated && user?.role === UserRole.TRAINEE) {
+      window.location.href = "/trainee-view";
     }
   }, [isLoading, isAuthenticated, user, router]);
 

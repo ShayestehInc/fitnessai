@@ -1,29 +1,38 @@
-# Security Audit: Advanced Trainer Analytics — Calorie Goal + Adherence Trends (Pipeline 26)
+# Security Audit: Full Trainer→Trainee Impersonation Token Swap (Pipeline 27)
 
 ## Audit Date
 2026-02-20
 
 ## Checklist
 - [x] No secrets, API keys, passwords, or tokens in source code or docs
-- [x] No secrets in git history
-- [x] All user input sanitized (days param parsed with int() + clamped)
-- [x] Authentication checked on all new endpoints (IsAuthenticated)
-- [x] Authorization — correct role/permission guards (IsTrainer)
-- [x] No IDOR vulnerabilities (data filtered by parent_trainer=user)
-- [x] File uploads validated — N/A (no file uploads)
-- [x] Rate limiting on sensitive endpoints — uses existing DRF throttle
-- [x] Error messages don't leak internals
+- [x] No secrets in git history (verified via git diff grep)
+- [x] All user input sanitized — N/A (no new user inputs)
+- [x] Authentication checked on all endpoints — uses existing IsAuthenticated + IsTrainer
+- [x] Authorization — trainer can only impersonate their own trainees (parent_trainer check)
+- [x] No IDOR vulnerabilities — trainee ID validated server-side against parent_trainer
+- [x] File uploads validated — N/A
+- [x] Rate limiting — existing DRF throttle applies
+- [x] Error messages don't leak internals — generic toast messages
 - [x] CORS policy appropriate — no changes
+
+## Token Security Analysis
+| Concern | Status | Notes |
+|---------|--------|-------|
+| Trainer tokens in sessionStorage | ACCEPTABLE | Same pattern as admin impersonation. sessionStorage is per-tab, cleared on tab close |
+| Trainee tokens in localStorage | ACCEPTABLE | Same storage as normal auth tokens |
+| Role cookie is client-writable | ACCEPTABLE | Noted in middleware. Server-side API enforces true authorization |
+| XSS could expose both token sets | ACCEPTABLE | This is inherent to any client-side token storage. CSP headers mitigate |
+| Auth-provider TRAINEE bypass | SAFE | Gated on sessionStorage state + TRAINEE role — cannot be exploited without valid JWT |
 
 ## Injection Vulnerabilities
 | # | Type | File:Line | Issue | Fix |
 |---|------|-----------|-------|-----|
-| — | — | — | None found. All queries use Django ORM. | — |
+| — | — | — | None found. No new backend code. Frontend uses existing apiClient. | — |
 
 ## Auth & Authz Issues
 | # | Severity | Endpoint | Issue | Fix |
 |---|----------|----------|-------|-----|
-| — | — | — | None found. Both views use IsAuthenticated + IsTrainer. | — |
+| — | — | — | None found. Existing endpoints have proper permissions. | — |
 
 ## Security Score: 10/10
 ## Recommendation: PASS

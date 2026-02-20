@@ -4,6 +4,21 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-20] — Full Trainer→Trainee Impersonation (Pipeline 27)
+
+### Added
+- **Trainer→trainee token swap** -- "View as Trainee" button now performs a real token swap: saves trainer tokens to sessionStorage, sets trainee JWT tokens, sets TRAINEE role cookie, and hard-navigates to a new `/trainee-view` page. Previously the button was a no-op that redirected to `/dashboard`.
+- **Trainer impersonation banner** -- Amber banner at the top of the trainee view showing "Viewing as {name}" with Read-Only badge and "End Impersonation" button. End impersonation restores trainer tokens and redirects back to the trainee detail page.
+- **Read-only trainee view page** -- New `(trainee-view)` route group with 4 data cards: Profile Summary, Active Program (with today's exercises), Today's Nutrition (macro progress bars), and Recent Weight (last 5 check-ins with trend indicator). All cards have loading skeletons, empty states, and error states with retry.
+- **TRAINEE middleware routing** -- Middleware now routes TRAINEE role cookie to `/trainee-view` and redirects TRAINEE users away from trainer/admin/ambassador paths.
+
+### Changed
+- Auth provider now allows TRAINEE role when trainer impersonation state exists in sessionStorage.
+- Dashboard layout now redirects TRAINEE role to `/trainee-view` (defense-in-depth).
+- Added 4 trainee-facing API URL constants: `TRAINEE_PROGRAMS`, `TRAINEE_NUTRITION_SUMMARY`, `TRAINEE_WEIGHT_CHECKINS`.
+
+---
+
 ## [2026-02-20] — Advanced Trainer Analytics (Pipeline 26)
 
 ### Added
