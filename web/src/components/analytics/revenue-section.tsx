@@ -9,7 +9,6 @@ import {
   Users,
   UserCheck,
   Clock,
-  CreditCard,
 } from "lucide-react";
 import {
   Card,

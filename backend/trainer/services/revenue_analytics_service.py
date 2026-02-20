@@ -84,9 +84,9 @@ def get_revenue_analytics(trainer: User, days: int) -> RevenueAnalyticsResult:
         status=TraineeSubscription.Status.ACTIVE,
     ).select_related('trainee')
 
-    mrr_result = active_subs.aggregate(total=Sum('amount'))
-    mrr = mrr_result['total'] or Decimal('0.00')
-    active_count = active_subs.count()
+    mrr_agg = active_subs.aggregate(total=Sum('amount'), count=Count('id'))
+    mrr = mrr_agg['total'] or Decimal('0.00')
+    active_count: int = mrr_agg['count']
     avg_per_sub = (
         (mrr / active_count) if active_count > 0 else Decimal('0.00')
     )
