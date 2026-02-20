@@ -106,7 +106,7 @@ function RevenuePeriodSelector({
             tabIndex={isActive ? 0 : -1}
             disabled={disabled}
             onClick={() => onChange(days)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 ${
               isActive
                 ? "bg-primary text-primary-foreground active:bg-primary/90"
                 : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent/80"
@@ -129,6 +129,7 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 function formatCurrency(value: string | number): string {
   const num = typeof value === "string" ? parseFloat(value) : value;
+  if (Number.isNaN(num)) return "$0.00";
   return currencyFormatter.format(num);
 }
 
@@ -194,11 +195,12 @@ const subscriberColumns: Column<RevenueSubscriber>[] = [
     header: "Renewal",
     cell: (row) => {
       if (row.days_until_renewal === null) {
-        return <span aria-label="No data">&mdash;</span>;
+        return <span aria-label="No renewal date">&mdash;</span>;
       }
       return (
         <span
           className={`inline-flex items-center gap-1 ${getRenewalColor(row.days_until_renewal)}`}
+          aria-label={`${row.days_until_renewal} days until renewal`}
         >
           <Clock className="h-3.5 w-3.5" aria-hidden="true" />
           {row.days_until_renewal}d
@@ -216,7 +218,7 @@ const subscriberColumns: Column<RevenueSubscriber>[] = [
 const paymentColumns: Column<RevenuePayment>[] = [
   {
     key: "trainee_name",
-    header: "Trainee",
+    header: "Name",
     cell: (row) => (
       <span
         className="block max-w-[160px] truncate font-medium"
@@ -296,6 +298,19 @@ function RevenueSkeleton() {
       <Card>
         <CardHeader>
           <Skeleton className="h-5 w-40" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-full" />
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-36" />
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -418,6 +433,9 @@ export function RevenueSection() {
                   keyExtractor={(row) => row.trainee_id}
                   onRowClick={(row) =>
                     router.push(`/trainees/${row.trainee_id}`)
+                  }
+                  rowAriaLabel={(row) =>
+                    `View ${row.trainee_name}'s profile`
                   }
                 />
               </CardContent>

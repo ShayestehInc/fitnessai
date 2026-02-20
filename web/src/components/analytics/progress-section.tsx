@@ -178,6 +178,9 @@ export function ProgressSection() {
                 data={data.trainee_progress}
                 keyExtractor={(row) => row.trainee_id}
                 onRowClick={(row) => router.push(`/trainees/${row.trainee_id}`)}
+                rowAriaLabel={(row) =>
+                  `View ${row.trainee_name}'s profile`
+                }
               />
             </CardContent>
           </Card>

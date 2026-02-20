@@ -131,9 +131,9 @@ def get_revenue_analytics(trainer: User, days: int) -> RevenueAnalyticsResult:
         else:
             cursor = cursor.replace(month=cursor.month + 1)
 
-    # ── Active subscribers list ──
+    # ── Active subscribers list (capped at 100 to prevent unbounded response) ──
     subscribers: list[RevenueSubscriberItem] = []
-    for sub in active_subs.order_by('-created_at'):
+    for sub in active_subs.order_by('-created_at')[:100]:
         trainee = sub.trainee
         name = f"{trainee.first_name} {trainee.last_name}".strip()
         subscribers.append(

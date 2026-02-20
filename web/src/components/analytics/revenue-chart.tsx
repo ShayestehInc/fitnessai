@@ -22,6 +22,13 @@ interface RevenueChartProps {
 function formatMonthLabel(monthStr: string): string {
   const [year, month] = monthStr.split("-");
   const date = new Date(parseInt(year, 10), parseInt(month, 10) - 1);
+  // Show abbreviated year on January to clarify year boundaries
+  if (month === "01") {
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      year: "2-digit",
+    });
+  }
   return date.toLocaleDateString(undefined, { month: "short" });
 }
 
