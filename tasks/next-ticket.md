@@ -1,111 +1,146 @@
-# Feature: Message Editing and Deletion
+# Feature: Message Search
 
 ## Priority
 High
 
 ## User Story
-As a trainer or trainee, I want to edit or delete messages I've sent so that I can correct typos and remove messages sent by mistake.
+As a **trainer**, I want to **search across all my conversations** for specific messages so that I can **quickly find past instructions, nutrition notes, or scheduling discussions** without manually scrolling through individual conversation histories.
 
 ## Acceptance Criteria
 
 ### Backend
-- [ ] AC-1: Message model has `edited_at` (DateTimeField, nullable) and `is_deleted` (BooleanField, default False) fields with migration
-- [ ] AC-2: PATCH `/api/messaging/conversations/<id>/messages/<message_id>/` edits message content (sender only, within 15-minute window)
-- [ ] AC-3: DELETE `/api/messaging/conversations/<id>/messages/<message_id>/` soft-deletes message (sender only, no time limit)
-- [ ] AC-4: Edit endpoint returns 403 if not the sender, 400 if message older than 15 minutes, 400 if message already deleted
-- [ ] AC-5: Delete endpoint returns 403 if not the sender, 400 if message already deleted
-- [ ] AC-6: Soft-deleted messages have `is_deleted=True` and content cleared to empty string. Image field set to None.
-- [ ] AC-7: Edit updates `content` and sets `edited_at` to current timestamp
-- [ ] AC-8: ConversationDetailView returns deleted messages as `{is_deleted: true, content: "", image: null}` (preserves message position in timeline)
-- [ ] AC-9: WebSocket broadcasts `chat.message_edited` event with message_id, new content, and edited_at to conversation group
-- [ ] AC-10: WebSocket broadcasts `chat.message_deleted` event with message_id to conversation group
-- [ ] AC-11: Conversation list "last message" preview shows "This message was deleted" if the last message is deleted
-- [ ] AC-12: Edit/delete endpoints have row-level security (user must be participant in conversation)
-- [ ] AC-13: Impersonating users cannot edit or delete messages (same guard as send)
-- [ ] AC-14: Service layer functions `edit_message()` and `delete_message()` with frozen dataclass results
-- [ ] AC-15: Rate limiting on edit endpoint (30/minute, same as send)
+- [ ] AC-1: New endpoint `GET /api/messaging/search/?q=<query>` returns paginated messages matching the search query across ALL conversations the authenticated user participates in
+- [ ] AC-2: Search is case-insensitive substring match on `message.content` field (using ORM `icontains`)
+- [ ] AC-3: Soft-deleted messages (`is_deleted=True`) are excluded from search results
+- [ ] AC-4: Results are paginated (20 per page) and ordered by most recent first (`-created_at`)
+- [ ] AC-5: Each result includes full message data PLUS conversation context: the other participant's name and ID, and the conversation ID
+- [ ] AC-6: Row-level security: only messages in conversations where the authenticated user is a participant (trainer or trainee) are searchable
+- [ ] AC-7: Empty query string `q=` or missing `q` returns 400 Bad Request with error message
+- [ ] AC-8: Query must be at least 2 characters, otherwise returns 400 with "Search query must be at least 2 characters"
+- [ ] AC-9: Rate limiting applied (same `messaging` throttle scope, 30/min)
+- [ ] AC-10: Impersonation guard — impersonating users can search (read-only operation, no data modification)
+- [ ] AC-11: Service layer function `search_messages()` returns typed dataclass results (not raw dicts)
 
-### Mobile (Flutter)
-- [ ] AC-16: Long-press on own message shows context menu with "Edit" and "Delete" options
-- [ ] AC-17: Long-press on other's message shows "Copy" option only
-- [ ] AC-18: "Edit" opens a bottom sheet with the message content pre-filled, "Save" button, and "Cancel"
-- [ ] AC-19: Edit is disabled (grayed out in menu) if message is older than 15 minutes
-- [ ] AC-20: "Delete" shows confirmation dialog: "Delete this message? This can't be undone."
-- [ ] AC-21: Deleted messages display as "[This message was deleted]" in italic gray text, no sender info, timestamp preserved
-- [ ] AC-22: Edited messages show "(edited)" text next to the timestamp
-- [ ] AC-23: WebSocket events for edit/delete update the chat state in real-time
-- [ ] AC-24: Optimistic update on delete (remove immediately, revert on error)
-
-### Web (Next.js)
-- [ ] AC-25: Hover on own message shows action icons (pencil for edit, trash for delete)
-- [ ] AC-26: Edit opens inline edit mode: message content becomes a textarea with Save/Cancel buttons
-- [ ] AC-27: Edit is disabled if message is older than 15 minutes (icon not shown or grayed out)
-- [ ] AC-28: Delete shows confirmation dialog with "Delete" (destructive) and "Cancel" buttons
-- [ ] AC-29: Deleted messages display as "[This message was deleted]" in muted italic text
-- [ ] AC-30: Edited messages show "(edited)" text next to the timestamp
-- [ ] AC-31: WebSocket events `message_edited` and `message_deleted` update React Query cache and local state in real-time
-- [ ] AC-32: `useEditMessage()` and `useDeleteMessage()` mutation hooks
+### Web Dashboard
+- [ ] AC-12: Search icon/button in the messages page header area that opens a search interface
+- [ ] AC-13: Search input with 300ms debounce (matches trainee search pattern), minimum 2 characters before firing
+- [ ] AC-14: Search results displayed as a list showing: message content snippet (with matched text highlighted in bold), sender name, conversation participant name, relative timestamp, conversation context
+- [ ] AC-15: Each search result is clickable — navigates to that conversation and scrolls to / highlights the matched message
+- [ ] AC-16: Empty state when no results: "No messages match your search" with search icon
+- [ ] AC-17: Loading state: skeleton placeholders while search is in progress
+- [ ] AC-18: Error state: "Search failed. Please try again." with retry button
+- [ ] AC-19: Search results pagination — "Load more" button or infinite scroll for additional pages
+- [ ] AC-20: When search is active, the search results replace the conversation list in the left sidebar
+- [ ] AC-21: Clear/close search button that dismisses results and returns to conversation list view
+- [ ] AC-22: Keyboard shortcut: Cmd/Ctrl+K opens search (standard search shortcut)
+- [ ] AC-23: Search input auto-focuses when opened
+- [ ] AC-24: Esc key closes search and returns to conversation list
+- [ ] AC-25: React Query hook `useSearchMessages(query)` with proper cache key including search term
 
 ## Edge Cases
-1. User tries to edit a message that was already deleted → 400 "Message has been deleted"
-2. User tries to edit a message older than 15 minutes → 400 "Edit window has expired"
-3. User tries to edit/delete someone else's message → 403 Forbidden
-4. Two users try to edit the same message simultaneously → last-write-wins
-5. User edits a message with an image → only text content changes, image preserved
-6. User deletes a message with an image → both content cleared and image set to None
-7. User tries to edit with empty content on a text-only message → 400 "Content cannot be empty"
-8. User tries to edit with empty content on an image message → allowed (image-only message)
-9. WebSocket disconnected when edit/delete happens → HTTP polling picks up changes on next fetch
-10. Message is the last in conversation and gets deleted → conversation list preview updates
-11. Impersonating admin tries to edit/delete → 403 Forbidden
+1. **Empty conversations** — User with no conversations searches: should return empty results, not error
+2. **Archived conversations** — Messages in archived conversations (trainee removed) should NOT appear in search results (conversation.is_archived = True filter)
+3. **Very long messages** — Search result snippet should truncate to ~150 chars around the matched portion, with "..." ellipsis
+4. **Special characters in query** — Quotes, ampersands, unicode emoji, HTML entities should not break the search
+5. **Concurrent message edit/delete** — If a message is edited or deleted after search results load, the result may show stale data. This is acceptable — clicking through shows the current state.
+6. **Image-only messages** — Messages with empty content but an image should not appear in text search results (they have no text to match)
+7. **Multiple matches in same conversation** — Each matching message should appear as its own result, even if many matches are in the same conversation
+8. **Query with only whitespace** — Should be treated as empty query -> 400 error
+9. **Rapid typing** — Debounce prevents excessive API calls. Results for stale queries should be discarded (React Query handles this via cache key changes)
+10. **Trainee also uses search** — Both trainers and trainees can search their own conversations. Row-level security ensures they only see their messages.
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Edit fails (network) | Toast: "Failed to edit message" | Revert optimistic update |
-| Delete fails (network) | Toast: "Failed to delete message" | Revert optimistic update |
-| Edit window expired | Grayed-out edit option / toast | 400 from backend |
-| Already deleted | "Message has been deleted" toast | 400 from backend |
-| Not sender | Edit/delete actions not shown | 403 from backend |
+| Network error during search | "Search failed. Please try again." + retry button | Toast error, ErrorState component |
+| Query too short (<2 chars) | Input hint: "Type at least 2 characters to search" | No API call fired |
+| No results | "No messages match your search" + search icon | EmptyState component |
+| Rate limited (429) | "Too many searches. Please wait a moment." | Toast error |
 
 ## UX Requirements
-- **Edit indicator:** Small "(edited)" text in muted color next to timestamp
-- **Deleted state:** "[This message was deleted]" in italic muted text. Timestamp preserved.
-- **Mobile context menu:** Bottom sheet with Edit (pencil), Delete (trash, red), Copy (clipboard). Long-press trigger.
-- **Web action menu:** Icon buttons on hover over own messages. Pencil and trash.
-- **Edit bottom sheet (mobile):** TextFormField pre-filled, character counter, Save/Cancel
-- **Inline edit (web):** Textarea replaces content, Save/Cancel below. Esc cancels. Ctrl/Cmd+Enter saves.
-- **Delete confirmation:** Dialog with destructive "Delete" button
-- **Dark mode:** All states correct in dark mode
+- **Default state:** Messages page shows normal conversation list. Search button/icon in header.
+- **Search open state:** Search input appears at top of sidebar, replaces conversation list with search results
+- **Loading state:** Skeleton cards in sidebar (3-4 skeleton items)
+- **Results state:** List of message cards with sender avatar, message snippet (highlighted match), conversation name, relative time
+- **Empty state:** EmptyState component with Search icon, "No messages match your search", muted description
+- **Error state:** ErrorState component with retry
+- **Mobile behavior:** On small screens, search results take full width (same responsive pattern as conversation list)
+- **Keyboard:** Cmd/Ctrl+K opens search, Esc closes, Enter (or just debounce) triggers search
+- **Dark mode:** All new components support dark mode via existing CSS variables
 
 ## Technical Approach
 
 ### Backend
-- `backend/messaging/models.py` — Add `edited_at`, `is_deleted` fields
-- `backend/messaging/views.py` — Add `EditMessageView`, `DeleteMessageView`
-- `backend/messaging/services/messaging_service.py` — Add `edit_message()`, `delete_message()`, broadcast helpers
-- `backend/messaging/serializers.py` — Update `MessageSerializer`, add `EditMessageSerializer`
-- `backend/messaging/urls.py` — Add edit/delete URL patterns
-- `backend/messaging/consumers.py` — Add `chat_message_edited`, `chat_message_deleted` handlers
 
-### Mobile
-- `mobile/lib/features/messaging/data/models/message_model.dart` — Add fields
-- `mobile/lib/features/messaging/data/repositories/messaging_repository.dart` — Add methods
-- `mobile/lib/features/messaging/presentation/widgets/message_bubble.dart` — Edit/delete UI
-- `mobile/lib/features/messaging/presentation/providers/messaging_provider.dart` — Mutations + WS events
-- `mobile/lib/core/constants/api_constants.dart` — New endpoints
-- New: `message_context_menu.dart`, `edit_message_sheet.dart`
+**New file: `backend/messaging/services/search_service.py`**
+- `search_messages(user: User, query: str, page: int = 1) -> SearchMessagesResult`
+- Returns frozen dataclass with `results: list[SearchMessageItem]`, `count: int`, `has_next: bool`
+- `SearchMessageItem` dataclass: `message_id`, `conversation_id`, `sender_name`, `sender_id`, `content`, `image_url`, `created_at`, `other_participant_name`, `other_participant_id`
 
-### Web
-- `web/src/components/messaging/message-bubble.tsx` — Hover actions, inline edit, deleted state
-- `web/src/components/messaging/chat-view.tsx` — WS event handlers
-- `web/src/hooks/use-messaging.ts` — `useEditMessage()`, `useDeleteMessage()`
-- `web/src/hooks/use-messaging-ws.ts` — New WS event types
-- `web/src/lib/constants.ts` — New API URLs
-- `web/src/types/messaging.ts` — Updated Message type
+**Modify: `backend/messaging/views.py`**
+- New `SearchMessagesView(APIView)` with GET handler
+- `permission_classes = [IsAuthenticated]`
+- `throttle_scope = 'messaging'`
+- Validates `q` param (required, min 2 chars, stripped of whitespace)
+- Calls service function, returns paginated response
+
+**New serializer: add to `backend/messaging/serializers.py`**
+- `SearchMessageResultSerializer` for the search result dataclass
+
+**Modify: `backend/messaging/urls.py`**
+- Add `path('search/', SearchMessagesView.as_view(), name='message-search')`
+
+**Query approach:**
+```python
+Message.objects.filter(
+    conversation__in=user_conversations,
+    content__icontains=query,
+    is_deleted=False,
+    conversation__is_archived=False,
+).select_related(
+    'sender', 'conversation', 'conversation__trainer', 'conversation__trainee'
+).order_by('-created_at')
+```
+
+### Web Dashboard
+
+**New file: `web/src/components/messaging/message-search.tsx`**
+- Search input with debounce
+- Results list
+- Highlighted text rendering
+- Empty/error/loading states
+
+**New file: `web/src/components/messaging/search-result-item.tsx`**
+- Individual search result card: avatar, snippet with highlight, timestamp, conversation name
+
+**Modify: `web/src/hooks/use-messaging.ts`**
+- Add `useSearchMessages(query: string, page: number)` hook
+- Query key: `["message-search", query, page]`
+- Disabled when query is empty or <2 chars
+
+**Modify: `web/src/lib/api-constants.ts`**
+- Add `MESSAGE_SEARCH: '/api/messaging/search/'` constant
+
+**Modify: `web/src/app/(dashboard)/messages/page.tsx`**
+- Add search state management
+- Cmd/Ctrl+K keyboard shortcut
+- Conditional rendering: search results vs conversation list
+- Navigation from search result to conversation + message
+
+**Modify: `web/src/types/messaging.ts`**
+- Add `SearchMessageResult` type
+
+### Text Highlighting Utility
+**New file: `web/src/lib/highlight-text.tsx`**
+- `highlightText(text: string, query: string): ReactNode`
+- Splits text on query match, wraps matches in `<mark>` tags
+- Case-insensitive matching
 
 ## Out of Scope
-- Edit history UI
-- Admin force-delete
-- Bulk delete
-- "Unsend" (retroactive removal)
+- Mobile (Flutter) search UI — defer to future pipeline
+- PostgreSQL full-text search (tsvector/tsquery) — icontains is sufficient at current scale
+- Advanced filters (date range, sender filter, has:image, has:attachment)
+- Search suggestions / autocomplete
+- Search history / recent searches
+- Search within a single conversation (future enhancement — could add ?search= param to existing messages endpoint)
+- Fuzzy / typo-tolerant search

@@ -8,6 +8,7 @@ import type {
   ConversationsResponse,
   MessagesResponse,
   Message,
+  SearchMessagesResponse,
   StartConversationResponse,
   UnreadMessageCount,
 } from "@/types/messaging";
@@ -213,5 +214,24 @@ export function useDeleteMessage(conversationId: number) {
         queryKey: ["messaging", "conversations"],
       });
     },
+  });
+}
+
+/**
+ * Query hook for searching messages across all conversations.
+ * Disabled when query is empty or < 2 characters.
+ */
+export function useSearchMessages(query: string, page: number = 1) {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  params.set("page", String(page));
+
+  return useQuery<SearchMessagesResponse>({
+    queryKey: ["messaging", "search", query, page],
+    queryFn: () =>
+      apiClient.get<SearchMessagesResponse>(
+        `${API_URLS.MESSAGING_SEARCH}?${params.toString()}`,
+      ),
+    enabled: query.length >= 2,
   });
 }
