@@ -215,6 +215,8 @@ export const API_URLS = {
   messagingDeleteMessage: (conversationId: number, messageId: number) =>
     `${API_BASE}/api/messaging/conversations/${conversationId}/messages/${messageId}/`,
 
+  MESSAGING_SEARCH: `${API_BASE}/api/messaging/search/`,
+
   // Ambassador (self-service)
   AMBASSADOR_DASHBOARD: `${API_BASE}/api/ambassador/dashboard/`,
   AMBASSADOR_REFERRAL_CODE: `${API_BASE}/api/ambassador/referral-code/`,

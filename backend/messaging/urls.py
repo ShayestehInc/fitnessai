@@ -8,6 +8,7 @@ from .views import (
     ConversationListView,
     MessageDetailView,
     MarkReadView,
+    SearchMessagesView,
     SendMessageView,
     StartConversationView,
     UnreadCountView,
@@ -54,6 +55,13 @@ urlpatterns = [
         'conversations/<int:conversation_id>/read/',
         MarkReadView.as_view(),
         name='messaging-mark-read',
+    ),
+
+    # Search messages across all conversations
+    path(
+        'search/',
+        SearchMessagesView.as_view(),
+        name='messaging-search',
     ),
 
     # Unread count across all conversations

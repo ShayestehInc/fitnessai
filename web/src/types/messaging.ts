@@ -60,3 +60,26 @@ export interface ConversationsResponse {
 export interface UnreadMessageCount {
   unread_count: number;
 }
+
+export interface SearchMessageResult {
+  message_id: number;
+  conversation_id: number;
+  sender_id: number;
+  sender_first_name: string;
+  sender_last_name: string;
+  content: string;
+  image_url: string | null;
+  created_at: string;
+  other_participant_id: number | null;
+  other_participant_first_name: string;
+  other_participant_last_name: string;
+}
+
+export interface SearchMessagesResponse {
+  count: number;
+  num_pages: number;
+  page: number;
+  has_next: boolean;
+  has_previous: boolean;
+  results: SearchMessageResult[];
+}

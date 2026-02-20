@@ -95,6 +95,21 @@ class MessageSerializer(serializers.ModelSerializer[Message]):
         return obj.image.url
 
 
+class SearchMessageResultSerializer(serializers.Serializer):  # type: ignore[type-arg]
+    """Serializer for a single message search result."""
+    message_id = serializers.IntegerField()
+    conversation_id = serializers.IntegerField()
+    sender_id = serializers.IntegerField()
+    sender_first_name = serializers.CharField()
+    sender_last_name = serializers.CharField()
+    content = serializers.CharField()
+    image_url = serializers.CharField(allow_null=True)
+    created_at = serializers.DateTimeField()
+    other_participant_id = serializers.IntegerField(allow_null=True)
+    other_participant_first_name = serializers.CharField()
+    other_participant_last_name = serializers.CharField()
+
+
 class ConversationParticipantSerializer(serializers.Serializer):  # type: ignore[type-arg]
     """Minimal participant info for conversation list."""
     id = serializers.IntegerField()

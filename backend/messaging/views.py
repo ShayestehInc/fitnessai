@@ -28,6 +28,7 @@ from .serializers import (
     ConversationListSerializer,
     EditMessageSerializer,
     MessageSerializer,
+    SearchMessageResultSerializer,
     SendMessageSerializer,
     StartConversationSerializer,
 )
@@ -47,6 +48,7 @@ from .services.messaging_service import (
     send_message_push_notification,
     send_message_to_trainee,
 )
+from .services.search_service import search_messages
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +111,47 @@ class ConversationListView(views.APIView):
         if paginator.page is not None:
             return paginator.get_paginated_response(serializer.data)
         return Response(serializer.data)
+
+
+class SearchMessagesView(views.APIView):
+    """
+    GET /api/messaging/search/?q=<query>&page=<page>
+    Search messages across all conversations for the authenticated user.
+    Row-level security: users only see messages in their own conversations.
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'messaging'
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+
+        # Pass raw query to service — it handles stripping and validation
+        query = request.query_params.get('q', '')
+
+        page_param = request.query_params.get('page', '1')
+        try:
+            page = max(1, int(page_param))
+        except (ValueError, TypeError):
+            page = 1
+
+        try:
+            result = search_messages(user=user, query=query, page=page)
+        except ValueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = SearchMessageResultSerializer(result.results, many=True)
+        return Response({
+            'count': result.count,
+            'num_pages': result.num_pages,
+            'page': result.page,
+            'has_next': result.has_next,
+            'has_previous': result.has_previous,
+            'results': serializer.data,
+        })
 
 
 class ConversationDetailView(views.APIView):

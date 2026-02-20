@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { ArrowLeft, MessageSquare, Search } from "lucide-react";
 import { useConversations } from "@/hooks/use-messaging";
 import { PageHeader } from "@/components/shared/page-header";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
@@ -10,8 +10,10 @@ import { ErrorState } from "@/components/shared/error-state";
 import { ConversationList } from "@/components/messaging/conversation-list";
 import { ChatView } from "@/components/messaging/chat-view";
 import { NewConversationView } from "@/components/messaging/new-conversation-view";
+import { MessageSearch } from "@/components/messaging/message-search";
 import { Button } from "@/components/ui/button";
 import type { Conversation } from "@/types/messaging";
+import type { SearchMessageResult } from "@/types/messaging";
 
 export default function MessagesPage() {
   const router = useRouter();
@@ -27,6 +29,10 @@ export default function MessagesPage() {
   } = useConversations();
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [highlightMessageId, setHighlightMessageId] = useState<number | null>(
+    null,
+  );
 
   // Determine if we need to show the new-conversation view:
   // trainee param is present but no matching conversation exists yet.
@@ -87,8 +93,22 @@ export default function MessagesPage() {
     }
   }, [conversations, conversationIdParam, traineeIdParam, showNewConversation]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cmd/Ctrl+K keyboard shortcut for search
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
+    setHighlightMessageId(null);
+    setIsSearchOpen(false);
   };
 
   const handleBackToList = () => {
@@ -101,6 +121,36 @@ export default function MessagesPage() {
       router.replace(`/messages?conversation=${conversationId}`);
     });
   };
+
+  const handleSearchResultClick = useCallback(
+    (result: SearchMessageResult) => {
+      setIsSearchOpen(false);
+      setHighlightMessageId(result.message_id);
+
+      // Find the conversation in the already-loaded list
+      if (conversations) {
+        const found = conversations.find(
+          (c) => c.id === result.conversation_id,
+        );
+        if (found) {
+          setSelectedConversation(found);
+          router.replace(`/messages?conversation=${result.conversation_id}`);
+          return;
+        }
+      }
+
+      // Conversation not in the current list (e.g. paginated beyond page 1).
+      // Refetch to ensure it appears, then navigate via URL param which
+      // the useEffect will pick up.
+      router.replace(`/messages?conversation=${result.conversation_id}`);
+      refetch();
+    },
+    [conversations, router, refetch],
+  );
+
+  const handleCloseSearch = useCallback(() => {
+    setIsSearchOpen(false);
+  }, []);
 
   if (isLoading) {
     return (
@@ -134,23 +184,49 @@ export default function MessagesPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title="Messages"
-        description="Direct messages with your trainees"
-      />
+      <div className="flex items-center justify-between">
+        <PageHeader
+          title="Messages"
+          description="Direct messages with your trainees"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsSearchOpen(true)}
+          className="gap-2"
+          aria-label="Search messages"
+        >
+          <Search className="h-4 w-4" />
+          <span className="hidden sm:inline">Search</span>
+          <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex">
+            {typeof navigator !== "undefined" &&
+            /mac/i.test(navigator.userAgent)
+              ? "\u2318"
+              : "Ctrl"}
+            K
+          </kbd>
+        </Button>
+      </div>
 
       <div className="flex flex-1 overflow-hidden rounded-lg border bg-card">
-        {/* Conversation list sidebar -- hidden on small screens when a conversation or new-conv is active */}
+        {/* Sidebar: either search results or conversation list */}
         <div
           className={`w-full shrink-0 overflow-y-auto border-r md:w-80 ${
             selectedConversation || showNewConvView ? "hidden md:block" : "block"
           }`}
         >
-          <ConversationList
-            conversations={conversations ?? []}
-            selectedId={selectedConversation?.id ?? null}
-            onSelect={handleSelectConversation}
-          />
+          {isSearchOpen ? (
+            <MessageSearch
+              onResultClick={handleSearchResultClick}
+              onClose={handleCloseSearch}
+            />
+          ) : (
+            <ConversationList
+              conversations={conversations ?? []}
+              selectedId={selectedConversation?.id ?? null}
+              onSelect={handleSelectConversation}
+            />
+          )}
         </div>
 
         {/* Chat area -- hidden on small screens when no conversation is selected */}
@@ -173,7 +249,11 @@ export default function MessagesPage() {
                   Back
                 </Button>
               </div>
-              <ChatView conversation={selectedConversation} />
+              <ChatView
+                conversation={selectedConversation}
+                highlightMessageId={highlightMessageId}
+                onHighlightShown={() => setHighlightMessageId(null)}
+              />
             </div>
           ) : showNewConvView ? (
             <div className="flex h-full flex-col">
