@@ -1,25 +1,22 @@
-# Pipeline 22 Focus: WebSocket Real-Time Messaging for Web Dashboard
+# Pipeline 23 Focus: Message Editing and Deletion
 
 ## Priority
-Replace HTTP polling with WebSocket real-time delivery on the web dashboard messaging page. Enable typing indicators and instant read receipts — completing feature parity with mobile.
+Add edit and delete capabilities to direct messages across all three stacks (Django backend, Flutter mobile, Next.js web). Users can edit their own messages within a 15-minute window and soft-delete their own messages at any time.
 
 ## Why This Feature
-1. **Backend is fully built** — DirectMessageConsumer in `messaging/consumers.py` supports JWT auth, new_message, typing, read receipts, and heartbeat. Mobile already uses it.
-2. **Web typing indicator component already exists** — `typing-indicator.tsx` is built and waiting, commented out in `chat-view.tsx` with a clear note saying "for use when web WebSocket support is added."
-3. **Polling is inefficient and laggy** — 5s message polling + 15s conversation polling + 30s unread count polling creates noticeable delay and wastes bandwidth.
-4. **Natural progression from Pipelines 20-21** — Messaging was shipped in P20, image attachments in P21. Real-time delivery completes the messaging experience.
-5. **Highest value-to-effort ratio** — Zero backend changes needed. Pure web frontend work with clear reference implementation (mobile WebSocket service).
+1. **Core messaging expectation** — Every modern messaging platform (iMessage, WhatsApp, Slack, Discord) supports edit/delete. Users expect it.
+2. **Builds on solid foundation** — Pipelines 20-22 shipped full messaging with WebSocket real-time delivery on both mobile and web. Edit/delete is the natural next step.
+3. **Backend + frontend work needed** — Full-stack feature touching models, views, services, WebSocket consumers, mobile UI, and web UI.
+4. **High user value** — Correcting typos, removing accidentally sent messages, and cleaning up conversations are daily needs.
 
 ## Scope
-- Web only — backend (DirectMessageConsumer) and mobile (messaging_ws_service.dart) are already complete
-- New: `use-messaging-ws.ts` hook for WebSocket connection lifecycle
-- Modify: `chat-view.tsx` (replace polling with WS), `chat-input.tsx` (send typing), `use-messaging.ts` (WS-driven cache updates), `constants.ts` (WS URL), `conversation-list.tsx` (real-time unread updates)
-- Wire up: existing `typing-indicator.tsx`
-- Graceful fallback: if WebSocket fails, fall back to existing HTTP polling
+- Backend: New fields on Message model, edit/delete endpoints, service functions, WebSocket broadcast events
+- Mobile: Long-press context menu on messages, edit bottom sheet, delete confirmation, optimistic updates
+- Web: Hover action menu on messages, inline edit, delete confirmation, WebSocket event handling
+- Both platforms: "(edited)" indicator, "[This message was deleted]" placeholder
 
 ## What NOT to build
-- Backend changes (consumer is complete)
-- Mobile changes (already uses WebSocket)
-- New Django Channels consumer or routing
-- WebSocket for community feed on web (separate feature)
-- Message editing/deletion (future pipeline)
+- Message history/audit trail UI (store original_content for future audit, but no UI to view edit history)
+- Admin force-delete (future feature)
+- Bulk delete (future feature)
+- Unsend (different from delete — would remove for all parties retroactively)
