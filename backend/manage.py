@@ -17,6 +17,12 @@ def main() -> None:
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
+
+    # If running 'runserver' with no port argument, use DJANGO_PORT env var
+    if len(sys.argv) == 2 and sys.argv[1] == 'runserver':
+        port = os.environ.get('DJANGO_PORT', '8000')
+        sys.argv.append(port)
+
     execute_from_command_line(sys.argv)
 
 
