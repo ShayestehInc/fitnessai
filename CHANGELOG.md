@@ -4,6 +4,26 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-20] — Ambassador Dashboard Enhancement (Pipeline 25)
+
+### Added
+- **Earnings chart** -- Recharts BarChart on the ambassador dashboard showing monthly commission earnings for the last 12 months. Zero-filled gaps, current month highlighted, tooltips with exact amounts, responsive with `preserveStartEnd` for mobile, accessible `sr-only` data list.
+- **Referral status breakdown** -- Stacked progress bar showing active/pending/churned referral distribution with color-coded legend and ARIA label.
+- **Referral list pagination** -- Server-side pagination on `/ambassador/referrals` with Previous/Next controls, page indicator, and `keepPreviousData` for smooth transitions.
+- **Referral status filter tabs** -- All/Active/Pending/Churned filter tabs on the referral list page. Server-side filtering via `?status=` query param. Page resets to 1 on filter change.
+- **19 new backend tests** -- Dashboard monthly earnings (12-month zero-fill, amount key, pending exclusion), status counts, referral pagination, status filtering, ordering, row-level isolation, auth.
+
+### Changed
+- `AmbassadorDashboardView` returns 12 months of earnings (was 6) with zero-fill for gaps and `amount` key aligned with frontend type.
+- `AmbassadorReferralsView` now has explicit `order_by('-referred_at')` for deterministic pagination.
+- Dashboard page layout: earnings chart between stat cards and referral code; status breakdown + referral code in responsive 2-column grid.
+
+### Fixed
+- StatusBadge case-sensitive comparison (API returns uppercase, component compared lowercase) — badges now correctly color-coded.
+- X-axis label overlap on mobile screens for 12-month chart.
+
+---
+
 ## [2026-02-20] — In-App Message Search (Pipeline 24)
 
 ### Added
