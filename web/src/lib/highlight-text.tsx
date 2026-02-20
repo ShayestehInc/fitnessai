@@ -20,7 +20,10 @@ export function highlightText(text: string, query: string): ReactNode {
 
   return parts.map((part, index) =>
     part.toLowerCase() === lowerQuery ? (
-      <mark key={index} className="rounded-sm bg-primary/20 px-0.5">
+      <mark
+        key={index}
+        className="rounded-sm bg-primary/20 px-0.5 text-foreground dark:bg-primary/30"
+      >
         {part}
       </mark>
     ) : (

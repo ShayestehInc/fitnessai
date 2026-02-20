@@ -28,43 +28,58 @@ export function SearchResultItem({
 
   const snippet = truncateAroundMatch(result.content, query);
 
-  return (
-    <button
-      type="button"
-      onClick={() => onClick(result)}
-      className="flex w-full items-start gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-      aria-label={`Message from ${senderName} in conversation with ${otherPartyName}`}
-    >
-      <Avatar size="default" className="mt-0.5 shrink-0">
-        <AvatarFallback>
-          {initials || <User className="h-4 w-4" aria-hidden="true" />}
-        </AvatarFallback>
-      </Avatar>
+  const timeLabel = formatSearchTime(result.created_at);
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-medium">
-            {otherPartyName || "Unknown"}
-          </span>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {formatSearchTime(result.created_at)}
-          </span>
+  return (
+    <div role="listitem">
+      <button
+        type="button"
+        onClick={() => onClick(result)}
+        className="flex w-full items-start gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        aria-label={`Message from ${senderName} in conversation with ${otherPartyName}, ${timeLabel}`}
+      >
+        <Avatar size="default" className="mt-0.5 shrink-0">
+          <AvatarFallback>
+            {initials || <User className="h-4 w-4" aria-hidden="true" />}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-sm font-medium">
+              {otherPartyName || "Unknown"}
+            </span>
+            <time className="shrink-0 text-xs text-muted-foreground" dateTime={result.created_at}>
+              {timeLabel}
+            </time>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {senderName}:
+          </p>
+          <p className="mt-0.5 line-clamp-2 text-sm" aria-label={`Message: ${snippet}`}>
+            {highlightText(snippet, query)}
+          </p>
         </div>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {senderName}:
-        </p>
-        <p className="mt-0.5 line-clamp-2 text-sm">
-          {highlightText(snippet, query)}
-        </p>
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }
 
 function formatSearchTime(dateString: string): string {
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "";
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
+
+  // Future or negative diff: show absolute date (clock skew / timezone edge case)
+  if (diffMs < 0) {
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+  }
+
   const diffDays = Math.floor(diffMs / 86_400_000);
 
   if (diffDays === 0) {

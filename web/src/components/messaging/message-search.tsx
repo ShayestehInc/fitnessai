@@ -20,6 +20,7 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const debouncedQuery = useDebounce(query, 300);
 
   const { data, isLoading, isFetching, isError, refetch } = useSearchMessages(
@@ -41,6 +42,11 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
     inputRef.current?.focus();
   }, []);
 
+  // Scroll results to top when query or page changes
+  useEffect(() => {
+    resultsRef.current?.scrollTo(0, 0);
+  }, [debouncedQuery, page]);
+
   // Handle Esc key
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -59,8 +65,10 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
   const showSkeleton = showResults && isLoading;
   const showInlineLoading = showResults && !isLoading && isFetching;
 
+  const showDefaultState = query.length === 0;
+
   return (
-    <div className="flex h-full flex-col" onKeyDown={handleKeyDown}>
+    <div className="flex h-full flex-col" onKeyDown={handleKeyDown} role="search" aria-label="Message search">
       {/* Search input */}
       <div className="flex items-center gap-2 border-b px-3 py-2">
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -71,11 +79,12 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
           placeholder="Search messages..."
           className="h-8 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
           aria-label="Search messages"
+          aria-describedby={showHint ? "search-hint" : undefined}
         />
         {isFetching && (
           <Loader2
             className="h-4 w-4 shrink-0 animate-spin text-muted-foreground"
-            aria-hidden="true"
+            aria-label="Searching..."
           />
         )}
         {query && (
@@ -86,6 +95,7 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
             onClick={() => {
               setQuery("");
               setPage(1);
+              inputRef.current?.focus();
             }}
             aria-label="Clear search"
           >
@@ -97,21 +107,33 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
           size="sm"
           className="shrink-0 text-xs text-muted-foreground"
           onClick={onClose}
+          aria-label="Close search (Escape)"
         >
           Esc
         </Button>
       </div>
 
       {/* Results area */}
-      <div className="flex-1 overflow-y-auto">
-        {showHint && (
+      <div ref={resultsRef} className="flex-1 overflow-y-auto">
+        {showDefaultState && (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+            Search across all your conversations
+          </p>
+        )}
+
+        {showHint && (
+          <p
+            id="search-hint"
+            className="px-4 py-8 text-center text-sm text-muted-foreground"
+            role="status"
+          >
             Type at least 2 characters to search
           </p>
         )}
 
         {showSkeleton && (
-          <div className="space-y-1 p-3">
+          <div className="space-y-1 p-3" role="status" aria-label="Searching messages...">
+            <span className="sr-only">Searching messages...</span>
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="flex items-start gap-3 px-1 py-2">
                 <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
@@ -126,7 +148,7 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
         )}
 
         {showResults && isError && (
-          <div className="p-4">
+          <div className="p-4" role="alert" aria-live="assertive">
             <EmptyState
               icon={Search}
               title="Search failed"
@@ -150,13 +172,18 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
 
         {showResults && !isLoading && !isError && hasResults && (
           <>
-            <p className="px-4 py-2 text-xs text-muted-foreground">
+            <p
+              className="px-4 py-2 text-xs text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
               {data.count} result{data.count !== 1 ? "s" : ""} found
             </p>
             <div
               className={showInlineLoading ? "opacity-60 transition-opacity" : ""}
               role="list"
               aria-label="Search results"
+              aria-busy={showInlineLoading}
             >
               {data.results.map((result) => (
                 <SearchResultItem
@@ -169,7 +196,10 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
             </div>
             {/* Pagination */}
             {data.num_pages > 1 && (
-              <div className="flex items-center justify-between border-t px-4 py-2">
+              <nav
+                className="flex items-center justify-between border-t px-4 py-2"
+                aria-label="Search results pagination"
+              >
                 <Button
                   variant="ghost"
                   size="sm"
@@ -179,7 +209,7 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
                 >
                   Previous
                 </Button>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground" aria-current="page">
                   Page {data.page} of {data.num_pages}
                 </span>
                 <Button
@@ -191,7 +221,7 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
                 >
                   Next
                 </Button>
-              </div>
+              </nav>
             )}
           </>
         )}

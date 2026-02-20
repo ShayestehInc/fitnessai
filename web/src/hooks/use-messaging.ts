@@ -1,6 +1,11 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import type {
@@ -233,5 +238,8 @@ export function useSearchMessages(query: string, page: number = 1) {
         `${API_URLS.MESSAGING_SEARCH}?${params.toString()}`,
       ),
     enabled: query.length >= 2,
+    // Keep previous results visible while a new query is loading.
+    // Prevents jarring flash-to-skeleton on every keystroke.
+    placeholderData: keepPreviousData,
   });
 }
