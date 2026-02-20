@@ -349,14 +349,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
         content: content,
         imagePath: imagePath,
       );
-      // Replace optimistic message with server response
+      // Remove the optimistic message and any WebSocket duplicate, then add the server response
+      final updated = state.messages
+          .where((m) => m.id != tempId && m.id != message.id)
+          .toList()
+        ..add(message);
       state = state.copyWith(
-        messages: state.messages.map((m) {
-          if (m.id == tempId) return message;
-          // Also dedup if WebSocket delivered the same message
-          if (m.id == message.id) return message;
-          return m;
-        }).toList(),
+        messages: updated,
         isSending: false,
       );
       return true;
