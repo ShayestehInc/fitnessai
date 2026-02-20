@@ -1,52 +1,87 @@
-# Dev Done: WebSocket Real-Time Messaging for Web Dashboard (Pipeline 22)
+# Dev Done: Message Editing and Deletion
 
-## Implementation Date
+## Date
 2026-02-19
-
-## Summary
-Replaced HTTP polling with WebSocket real-time delivery on the web dashboard messaging page. Enabled typing indicators and instant read receipts, completing feature parity with mobile. Graceful fallback to HTTP polling when WebSocket connection fails.
 
 ## Files Changed
 
+### Backend
+- `backend/messaging/models.py` — Added `edited_at` (DateTimeField, nullable) and `is_deleted` (BooleanField, default False) fields to Message model
+- `backend/messaging/migrations/0004_add_edited_at_is_deleted_to_message.py` — Migration for new fields (already applied)
+- `backend/messaging/services/messaging_service.py` — Added:
+  - `EDIT_WINDOW = timedelta(minutes=15)` configurable constant
+  - `EditMessageResult` and `DeleteMessageResult` frozen dataclasses
+  - `edit_message()` — validates sender, edit window, deleted state, empty content
+  - `delete_message()` — validates sender, already-deleted state, clears content + image
+  - `broadcast_message_edited()` and `broadcast_message_deleted()` WS broadcast helpers
+  - Updated `get_conversations_for_user()` with `annotated_last_message_is_deleted` subquery annotation
+- `backend/messaging/serializers.py` — Added `EditMessageSerializer`, updated `MessageSerializer` with `edited_at` and `is_deleted` fields, updated `ConversationListSerializer.get_last_message_preview()` to show "This message was deleted"
+- `backend/messaging/views.py` — Added `EditMessageView` (PATCH), `DeleteMessageView` (DELETE) with impersonation guards and row-level security
+- `backend/messaging/urls.py` — Added URL patterns for edit (PATCH) and delete (DELETE) endpoints
+- `backend/messaging/consumers.py` — Added `chat_message_edited` and `chat_message_deleted` WS event handlers
+
+### Mobile (Flutter)
+- `mobile/lib/features/messaging/data/models/message_model.dart` — Added `editedAt`, `isDeleted`, `isEdited`, `isEditWindowExpired` fields; updated `copyWith()` and `fromJson()`
+- `mobile/lib/features/messaging/data/repositories/messaging_repository.dart` — Added `editMessage()` and `deleteMessage()` API methods
+- `mobile/lib/features/messaging/data/services/messaging_ws_service.dart` — Added `message_edited` and `message_deleted` WS event handlers
+- `mobile/lib/features/messaging/presentation/providers/messaging_provider.dart` — Added `onMessageEdited()`, `onMessageDeleted()`, `editMessage()`, `deleteMessage()` to ChatNotifier with optimistic updates and rollback
+- `mobile/lib/features/messaging/presentation/widgets/message_bubble.dart` — Added deleted message placeholder, "(edited)" indicator, long-press to show context menu, `onEdit`/`onDelete` callbacks
+- `mobile/lib/features/messaging/presentation/widgets/message_context_menu.dart` — **New file**: Bottom sheet context menu with Copy, Edit (grayed when expired), Delete (with confirmation dialog)
+- `mobile/lib/features/messaging/presentation/widgets/edit_message_sheet.dart` — **New file**: Bottom sheet edit UI with pre-filled content, character counter, Save/Cancel
+- `mobile/lib/features/messaging/presentation/screens/chat_screen.dart` — Passes `onEdit`/`onDelete` callbacks to MessageBubble
+- `mobile/lib/core/constants/api_constants.dart` — Added `messagingEditMessage()` and `messagingDeleteMessage()` URLs
+
 ### Web (Next.js)
-| File | Change |
-|------|--------|
-| `web/src/lib/constants.ts` | Added `WS_BASE` URL derivation (ws/wss from API base) and `wsMessaging(conversationId)` URL builder |
-| `web/src/hooks/use-messaging-ws.ts` | **NEW** Core WebSocket hook — connection lifecycle, exponential backoff reconnection (1s-16s, 5 attempts), heartbeat (30s ping, 5s pong timeout), event parsing (new_message, typing_indicator, read_receipt), React Query cache mutation, typing debounce (3s), tab visibility reconnect |
-| `web/src/hooks/use-messaging.ts` | Added configurable `refetchIntervalMs` parameter to `useConversations()` and `useMessagingUnreadCount()` for dynamic polling control |
-| `web/src/components/messaging/chat-view.tsx` | Integrated `useMessagingWebSocket` — disables 5s polling when WS connected, displays typing indicator, shows connection state banner (reconnecting/failed), handles new messages via WS with dedup and auto-scroll, auto-marks-read on incoming messages, refetches on reconnect to catch missed messages |
-| `web/src/components/messaging/chat-input.tsx` | Added `onTyping` callback prop, fires on input change (debounced in WS hook) and stop-typing on send. Fixed pre-existing bug: replaced broken `@/hooks/use-toast` import with `sonner` toast |
-| `web/src/components/messaging/typing-indicator.tsx` | No changes — already built and ready. Now wired into chat-view.tsx |
-
-### No Backend Changes
-The Django `DirectMessageConsumer` already supports all needed WebSocket events (new_message, typing, read_receipt, ping/pong, JWT auth). No backend modifications required.
-
-### No Mobile Changes
-Flutter mobile already uses WebSocket for real-time messaging.
+- `web/src/types/messaging.ts` — Added `edited_at` and `is_deleted` to `Message` interface
+- `web/src/lib/constants.ts` — Added `messagingEditMessage()` and `messagingDeleteMessage()` URL functions
+- `web/src/hooks/use-messaging.ts` — Added `useEditMessage()` and `useDeleteMessage()` mutation hooks
+- `web/src/hooks/use-messaging-ws.ts` — Added `WsMessageEditedEvent`, `WsMessageDeletedEvent` types, `updateMessageEdited()`, `updateMessageDeleted()` cache helpers, and WS event handlers
+- `web/src/components/messaging/message-bubble.tsx` — Added deleted placeholder, "(edited)" indicator, hover action icons (pencil/trash), inline edit mode with textarea + Save/Cancel, delete confirmation inline dialog
+- `web/src/components/messaging/chat-view.tsx` — Added `handleEditMessage()` and `handleDeleteMessage()` with optimistic updates, passes callbacks to MessageBubble
 
 ## Key Decisions
-1. **One WebSocket per conversation** — Matches backend consumer model. Connect/disconnect as user switches conversations.
-2. **React Query cache as single source of truth** — WebSocket events mutate the React Query cache directly via `queryClient.setQueryData`. No separate message store.
-3. **Graceful degradation** — If WebSocket fails after 5 reconnect attempts, falls back to existing 5s HTTP polling. User sees subtle "Updates may be delayed" banner.
-4. **Debounced typing** — 3s debounce matches backend consumer expectation. Auto-sends `is_typing: false` after 3s idle. Stops typing on send.
-5. **Reconnect on tab focus** — Uses `visibilitychange` event to immediately reconnect when browser tab regains focus, resetting backoff counter.
-6. **Dedup strategy** — New messages from WS are deduped against existing messages by ID (handles concurrent WS delivery + HTTP send response).
-7. **Refetch on reconnect** — When WS reconnects after a gap, does a single HTTP refetch to catch messages missed during disconnection.
+1. **Edit uses PATCH, delete uses DELETE** — Standard REST semantics. Edit endpoint path includes message ID. Delete has a separate `/delete/` suffix to avoid conflict with the PATCH route.
+2. **PermissionError vs ValueError** — Used `PermissionError` for "not your message" (→ 403) and `ValueError` for validation failures (→ 400). Clean separation in views.
+3. **Soft-delete clears content AND image** — As per AC-6. `is_deleted=True`, `content=''`, `image=None`.
+4. **Edit window is configurable** — `EDIT_WINDOW = timedelta(minutes=15)` constant in services.
+5. **Optimistic updates with rollback** — Both mobile and web update UI immediately, revert on API failure.
+6. **Web uses inline edit** — Textarea replaces content, Esc cancels, Ctrl/Cmd+Enter saves.
+7. **Mobile uses bottom sheet** — Long-press → context menu → edit sheet or delete confirmation dialog.
+8. **WS broadcasts from views, not services** — Keeps services pure and testable.
 
-## Bug Fix
-- **Pre-existing**: `chat-input.tsx` imported `useToast` from `@/hooks/use-toast` which doesn't exist. The project uses `sonner` for toasts. Fixed by replacing with `import { toast } from "sonner"` and `toast.error(...)` calls.
+## Deviations from Ticket
+- None. All 32 acceptance criteria addressed.
 
-## Test Results
-- Django: 35 messaging tests pass
-- TypeScript: 0 new errors (all errors in `tsc --noEmit` are pre-existing in ambassador/trainee files)
-- No regressions
+## How to Manually Test
 
-## How to Test
-1. **WebSocket connection**: Open messages page → open browser DevTools Network tab → filter WS → verify WebSocket connection to `ws://localhost:8000/ws/messaging/{id}/?token=...`
-2. **Real-time messages**: Open two browser windows (trainer + trainee, or two different users on same conversation) → send message from one → appears instantly in other
-3. **Typing indicators**: Start typing in one window → other window shows "{Name} is typing..." with animated dots → stop typing for 3s → indicator disappears
-4. **Read receipts**: Send message → other party views the conversation → sender's message shows double checkmark (read) in real-time
-5. **Reconnection**: In DevTools, close the WS connection manually → "Reconnecting..." banner appears → WS reconnects → banner disappears
-6. **Fallback**: Block WebSocket connections (e.g., browser extension) → "Updates may be delayed" banner → messages still arrive via HTTP polling (5s)
-7. **Tab visibility**: Switch to another tab → wait → switch back → WS reconnects immediately
-8. **Heartbeat**: Keep connection open for >30 seconds → verify ping/pong in WS frames in DevTools
+### Backend
+1. Send a message via POST `/api/messaging/conversations/<id>/send/`
+2. Edit it via PATCH `/api/messaging/conversations/<id>/messages/<msg_id>/` with `{"content": "new text"}`
+3. Verify edited_at is set in response
+4. Wait 15+ minutes, try edit again → should get 400
+5. Delete via DELETE `/api/messaging/conversations/<id>/messages/<msg_id>/delete/`
+6. Verify is_deleted=true, content="", image=null
+7. Try editing deleted message → 400
+8. Try deleting already-deleted message → 400
+9. Try editing/deleting another user's message → 403
+10. Check conversation list → last message preview shows "This message was deleted"
+
+### Mobile
+1. Open a conversation, send a message
+2. Long-press your message → context menu appears with Edit, Delete, Copy
+3. Tap Edit → bottom sheet with pre-filled content, edit and save
+4. Verify "(edited)" appears next to timestamp
+5. Long-press again → tap Delete → confirmation dialog → confirm
+6. Verify message shows "This message was deleted" in italic gray
+7. Long-press other party's message → only "Copy" option shown
+8. Send message, wait 15 minutes → Edit option should be grayed out
+
+### Web
+1. Open a conversation, send a message
+2. Hover over your message → pencil and trash icons appear
+3. Click pencil → inline edit mode with textarea
+4. Edit text, press Ctrl+Enter to save (or click Save)
+5. Verify "(edited)" appears next to timestamp
+6. Click trash → "Delete this message?" confirmation appears
+7. Confirm → message shows "This message was deleted"
+8. Hover over other party's message → no action icons

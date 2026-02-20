@@ -6,6 +6,7 @@ from django.urls import path
 from .views import (
     ConversationDetailView,
     ConversationListView,
+    MessageDetailView,
     MarkReadView,
     SendMessageView,
     StartConversationView,
@@ -39,6 +40,13 @@ urlpatterns = [
         'conversations/<int:conversation_id>/send/',
         SendMessageView.as_view(),
         name='messaging-send-message',
+    ),
+
+    # Edit (PATCH) or delete (DELETE) a specific message — RESTful single resource endpoint
+    path(
+        'conversations/<int:conversation_id>/messages/<int:message_id>/',
+        MessageDetailView.as_view(),
+        name='messaging-message-detail',
     ),
 
     # Mark conversation as read

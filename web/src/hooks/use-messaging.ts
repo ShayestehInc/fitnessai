@@ -137,3 +137,81 @@ export function useMessagingUnreadCount(refetchIntervalMs: number = 30_000) {
     refetchIntervalInBackground: false,
   });
 }
+
+interface EditMessageInput {
+  messageId: number;
+  content: string;
+}
+
+/**
+ * Mutation hook for editing a message's content.
+ * Invalidates the messages and conversations caches on success.
+ */
+export function useEditMessage(conversationId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation<Message, Error, EditMessageInput>({
+    mutationFn: ({ messageId, content }: EditMessageInput) =>
+      apiClient.patch<Message>(
+        API_URLS.messagingEditMessage(conversationId, messageId),
+        { content },
+      ),
+    onSuccess: (updatedMessage, { messageId }) => {
+      // Update all cached pages for this conversation
+      queryClient.setQueriesData(
+        { queryKey: ["messaging", "messages", conversationId] },
+        (old: { count: number; next: string | null; previous: string | null; results: Message[] } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            results: old.results.map((m) =>
+              m.id === messageId ? updatedMessage : m,
+            ),
+          };
+        },
+      );
+      queryClient.invalidateQueries({
+        queryKey: ["messaging", "conversations"],
+      });
+    },
+  });
+}
+
+interface DeleteMessageInput {
+  messageId: number;
+}
+
+/**
+ * Mutation hook for soft-deleting a message.
+ * Invalidates the messages and conversations caches on success.
+ */
+export function useDeleteMessage(conversationId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, DeleteMessageInput>({
+    mutationFn: ({ messageId }: DeleteMessageInput) =>
+      apiClient.delete(
+        API_URLS.messagingDeleteMessage(conversationId, messageId),
+      ),
+    onSuccess: (_, { messageId }) => {
+      // Update all cached pages: mark the message as deleted
+      queryClient.setQueriesData(
+        { queryKey: ["messaging", "messages", conversationId] },
+        (old: { count: number; next: string | null; previous: string | null; results: Message[] } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            results: old.results.map((m) =>
+              m.id === messageId
+                ? { ...m, content: "", image: null, is_deleted: true }
+                : m,
+            ),
+          };
+        },
+      );
+      queryClient.invalidateQueries({
+        queryKey: ["messaging", "conversations"],
+      });
+    },
+  });
+}

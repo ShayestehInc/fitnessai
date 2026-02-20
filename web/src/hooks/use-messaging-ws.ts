@@ -37,6 +37,18 @@ interface WsReadReceiptEvent {
   read_at: string;
 }
 
+interface WsMessageEditedEvent {
+  type: "message_edited";
+  message_id: number;
+  content: string;
+  edited_at: string;
+}
+
+interface WsMessageDeletedEvent {
+  type: "message_deleted";
+  message_id: number;
+}
+
 interface WsPongEvent {
   type: "pong";
 }
@@ -45,6 +57,8 @@ type WsEvent =
   | WsNewMessageEvent
   | WsTypingIndicatorEvent
   | WsReadReceiptEvent
+  | WsMessageEditedEvent
+  | WsMessageDeletedEvent
   | WsPongEvent;
 
 // ---------------------------------------------------------------------
@@ -71,6 +85,10 @@ interface UseMessagingWebSocketOptions {
   enabled?: boolean;
   /** Called when a new message arrives. Consumer should handle scroll logic. */
   onNewMessage?: (message: Message) => void;
+  /** Called when a message is edited via WebSocket (from the other party). */
+  onMessageEdited?: (messageId: number, content: string, editedAt: string) => void;
+  /** Called when a message is deleted via WebSocket (from the other party). */
+  onMessageDeleted?: (messageId: number) => void;
 }
 
 interface UseMessagingWebSocketReturn {
@@ -83,6 +101,8 @@ export function useMessagingWebSocket({
   conversationId,
   enabled = true,
   onNewMessage,
+  onMessageEdited,
+  onMessageDeleted,
 }: UseMessagingWebSocketOptions): UseMessagingWebSocketReturn {
   const queryClient = useQueryClient();
 
@@ -108,6 +128,10 @@ export function useMessagingWebSocket({
   const cancelledRef = useRef(false);
   const onNewMessageRef = useRef(onNewMessage);
   onNewMessageRef.current = onNewMessage;
+  const onMessageEditedRef = useRef(onMessageEdited);
+  onMessageEditedRef.current = onMessageEdited;
+  const onMessageDeletedRef = useRef(onMessageDeleted);
+  onMessageDeletedRef.current = onMessageDeleted;
 
   // ------------------------------------------------------------------
   // Cleanup helpers
@@ -196,6 +220,56 @@ export function useMessagingWebSocket({
           };
         },
       );
+    },
+    [queryClient, conversationId],
+  );
+
+  const updateMessageEdited = useCallback(
+    (messageId: number, content: string, editedAt: string) => {
+      // Update all cached pages for this conversation
+      queryClient.setQueriesData(
+        { queryKey: ["messaging", "messages", conversationId] },
+        (old: { count: number; next: string | null; previous: string | null; results: Message[] } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            results: old.results.map((m) =>
+              m.id === messageId
+                ? { ...m, content, edited_at: editedAt }
+                : m,
+            ),
+          };
+        },
+      );
+      // Update conversation preview if the edited message is the latest
+      queryClient.invalidateQueries({
+        queryKey: ["messaging", "conversations"],
+      });
+    },
+    [queryClient, conversationId],
+  );
+
+  const updateMessageDeleted = useCallback(
+    (messageId: number) => {
+      // Update all cached pages for this conversation
+      queryClient.setQueriesData(
+        { queryKey: ["messaging", "messages", conversationId] },
+        (old: { count: number; next: string | null; previous: string | null; results: Message[] } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            results: old.results.map((m) =>
+              m.id === messageId
+                ? { ...m, content: "", image: null, is_deleted: true }
+                : m,
+            ),
+          };
+        },
+      );
+      // Update conversation preview if the deleted message was the latest
+      queryClient.invalidateQueries({
+        queryKey: ["messaging", "conversations"],
+      });
     },
     [queryClient, conversationId],
   );
@@ -324,6 +398,16 @@ export function useMessagingWebSocket({
           updateReadReceipts(data.read_at);
           break;
 
+        case "message_edited":
+          updateMessageEdited(data.message_id, data.content, data.edited_at);
+          onMessageEditedRef.current?.(data.message_id, data.content, data.edited_at);
+          break;
+
+        case "message_deleted":
+          updateMessageDeleted(data.message_id);
+          onMessageDeletedRef.current?.(data.message_id);
+          break;
+
         default:
           // Unknown event type — silently ignore
           break;
@@ -378,6 +462,8 @@ export function useMessagingWebSocket({
     appendMessageToCache,
     updateConversationPreview,
     updateReadReceipts,
+    updateMessageEdited,
+    updateMessageDeleted,
   ]);
 
   // ------------------------------------------------------------------

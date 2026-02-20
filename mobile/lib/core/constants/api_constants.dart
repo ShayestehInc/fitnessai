@@ -242,6 +242,15 @@ class ApiConstants {
       '$apiBaseUrl/messaging/conversations/$conversationId/send/';
   static String messagingMarkRead(int conversationId) =>
       '$apiBaseUrl/messaging/conversations/$conversationId/read/';
+  // PATCH to edit, DELETE to delete — same resource URL, different HTTP methods.
+  static String messagingMessageDetail(int conversationId, int messageId) =>
+      '$apiBaseUrl/messaging/conversations/$conversationId/messages/$messageId/';
+
+  // Convenience aliases for semantic clarity at call sites.
+  static String messagingEditMessage(int conversationId, int messageId) =>
+      messagingMessageDetail(conversationId, messageId);
+  static String messagingDeleteMessage(int conversationId, int messageId) =>
+      messagingMessageDetail(conversationId, messageId);
   static String get messagingUnreadCount => '$apiBaseUrl/messaging/unread-count/';
 
   // WebSocket

@@ -7,6 +7,8 @@ class MessageModel {
   final String? imageUrl;
   final bool isRead;
   final DateTime? readAt;
+  final DateTime? editedAt;
+  final bool isDeleted;
   final DateTime createdAt;
 
   /// Client-side only: whether this message failed to send.
@@ -23,6 +25,8 @@ class MessageModel {
     this.imageUrl,
     this.isRead = false,
     this.readAt,
+    this.editedAt,
+    this.isDeleted = false,
     required this.createdAt,
     this.isSendFailed = false,
     this.localImagePath,
@@ -30,6 +34,13 @@ class MessageModel {
 
   /// Whether this message has an image (server or local).
   bool get hasImage => imageUrl != null || localImagePath != null;
+
+  /// Whether this message was edited.
+  bool get isEdited => editedAt != null;
+
+  /// Whether the edit window (15 minutes) has expired.
+  bool get isEditWindowExpired =>
+      DateTime.now().difference(createdAt).inMinutes >= 15;
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     return MessageModel(
@@ -42,26 +53,36 @@ class MessageModel {
       readAt: json['read_at'] != null
           ? DateTime.parse(json['read_at'] as String)
           : null,
+      editedAt: json['edited_at'] != null
+          ? DateTime.parse(json['edited_at'] as String)
+          : null,
+      isDeleted: json['is_deleted'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 
   MessageModel copyWith({
+    String? content,
     bool? isRead,
     DateTime? readAt,
+    DateTime? editedAt,
+    bool? isDeleted,
     bool? isSendFailed,
     String? imageUrl,
     String? localImagePath,
     bool clearLocalImage = false,
+    bool clearImage = false,
   }) {
     return MessageModel(
       id: id,
       conversationId: conversationId,
       sender: sender,
-      content: content,
-      imageUrl: imageUrl ?? this.imageUrl,
+      content: content ?? this.content,
+      imageUrl: clearImage ? null : (imageUrl ?? this.imageUrl),
       isRead: isRead ?? this.isRead,
       readAt: readAt ?? this.readAt,
+      editedAt: editedAt ?? this.editedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
       isSendFailed: isSendFailed ?? this.isSendFailed,
       localImagePath:

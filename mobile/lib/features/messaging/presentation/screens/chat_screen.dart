@@ -96,6 +96,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           !next.isLoadingMore) {
         _scrollToBottom();
       }
+
+      // Show snackbar when an error occurs (edit/delete failures)
+      if (next.error != null &&
+          (prev == null || prev.error != next.error)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        // Clear the error so it doesn't re-display on unrelated state changes
+        ref
+            .read(chatProvider(widget.conversationId).notifier)
+            .clearError();
+      }
     });
 
     return Scaffold(
@@ -241,6 +257,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           message: message,
           isMine: isMine,
           showReadReceipt: isMine && isLastMessage,
+          onEdit: isMine && !message.isDeleted
+              ? (newContent) {
+                  ref
+                      .read(chatProvider(widget.conversationId).notifier)
+                      .editMessage(message.id, newContent);
+                }
+              : null,
+          onDelete: isMine && !message.isDeleted
+              ? () {
+                  ref
+                      .read(chatProvider(widget.conversationId).notifier)
+                      .deleteMessage(message.id);
+                }
+              : null,
         );
       },
     );

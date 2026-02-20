@@ -10,12 +10,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from channels.generic.websocket import AsyncJsonWebSocketConsumer  # type: ignore[import-untyped]
+from channels.generic.websocket import AsyncJsonWebsocketConsumer  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
 
-class DirectMessageConsumer(AsyncJsonWebSocketConsumer):
+class DirectMessageConsumer(AsyncJsonWebsocketConsumer):
     """
     WebSocket consumer for a single conversation.
 
@@ -120,6 +120,22 @@ class DirectMessageConsumer(AsyncJsonWebSocketConsumer):
             'type': 'read_receipt',
             'reader_id': event['reader_id'],
             'read_at': event['read_at'],
+        })
+
+    async def chat_message_edited(self, event: dict[str, Any]) -> None:
+        """Forward message-edited event to the client."""
+        await self.send_json({
+            'type': 'message_edited',
+            'message_id': event['message_id'],
+            'content': event['content'],
+            'edited_at': event['edited_at'],
+        })
+
+    async def chat_message_deleted(self, event: dict[str, Any]) -> None:
+        """Forward message-deleted event to the client."""
+        await self.send_json({
+            'type': 'message_deleted',
+            'message_id': event['message_id'],
         })
 
     # ------------------------------------------------------------------

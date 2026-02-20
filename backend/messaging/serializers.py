@@ -55,6 +55,19 @@ class MessageSenderSerializer(serializers.Serializer):  # type: ignore[type-arg]
         return None
 
 
+class EditMessageSerializer(serializers.Serializer):  # type: ignore[type-arg]
+    """Validates message edit request.
+
+    ``allow_blank=True`` because image messages may have their caption
+    cleared (edge case 8).  The service layer enforces that text-only
+    messages still require non-empty content.
+    """
+    content = serializers.CharField(max_length=2000, required=True, allow_blank=True)
+
+    def validate_content(self, value: str) -> str:
+        return value.strip()
+
+
 class MessageSerializer(serializers.ModelSerializer[Message]):
     """Serializer for a single message."""
     sender = MessageSenderSerializer(read_only=True)
@@ -64,11 +77,13 @@ class MessageSerializer(serializers.ModelSerializer[Message]):
         model = Message
         fields = [
             'id', 'conversation_id', 'sender', 'content',
-            'image', 'is_read', 'read_at', 'created_at',
+            'image', 'is_read', 'read_at', 'edited_at',
+            'is_deleted', 'created_at',
         ]
         read_only_fields = [
             'id', 'conversation_id', 'sender', 'content',
-            'image', 'is_read', 'read_at', 'created_at',
+            'image', 'is_read', 'read_at', 'edited_at',
+            'is_deleted', 'created_at',
         ]
 
     def get_image(self, obj: Message) -> str | None:
@@ -121,8 +136,13 @@ class ConversationListSerializer(serializers.ModelSerializer[Conversation]):
         Uses the ``annotated_last_message_preview`` annotation added by
         ``get_conversations_for_user()`` to avoid N+1 queries.
         Falls back to "Sent a photo" when the last message has an image
-        but no text content.
+        but no text content, or "This message was deleted" when the last
+        message is soft-deleted.
         """
+        is_deleted = getattr(obj, 'annotated_last_message_is_deleted', False)
+        if is_deleted:
+            return 'This message was deleted'
+
         preview = getattr(obj, 'annotated_last_message_preview', None)
         if not preview:
             has_image = getattr(obj, 'annotated_last_message_has_image', False)

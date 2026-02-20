@@ -1,6 +1,6 @@
 ## Verdict: SHIP
 ## Confidence: HIGH
 ## Quality Score: 9/10
-## Summary: Clean web-only implementation replacing HTTP polling with WebSocket real-time messaging. All 31 acceptance criteria pass. All audit scores 9/10. One race condition (C1) found and fixed in code review. No regressions.
-## Remaining Concerns: None
-## What Was Built: WebSocket real-time messaging for the web dashboard — instant message delivery, typing indicators ("Name is typing..." with animated dots), real-time read receipts, graceful fallback to HTTP polling, connection state banners, exponential backoff reconnection, tab visibility reconnect.
+## Summary: Full-stack message editing and deletion across Django backend, Flutter mobile, and Next.js web. All 32 acceptance criteria verified. 107 tests pass. All audit scores 8-9/10. Multiple critical issues found and fixed during pipeline (race conditions, test URL mismatch, serializer validation gap, WS state sync, accessibility gaps). Zero known bugs remain.
+## Remaining Concerns: Mobile conversation list preview does not update in real-time when the other party edits/deletes the last message (requires explicit refresh). Documented as future improvement — non-blocking.
+## What Was Built: Message Editing and Deletion — users can edit sent messages within a 15-minute window and soft-delete messages at any time. Backend: PATCH/DELETE on single RESTful endpoint with row-level security, impersonation guards, race condition prevention (select_for_update), image file cleanup on delete, WebSocket broadcasts. Mobile: long-press context menu with Edit/Delete/Copy, edit bottom sheet with character counter, "(edited)" indicator, "[This message was deleted]" placeholder, optimistic updates with rollback, real-time WS sync. Web: hover action icons, inline edit mode (Esc/Cmd+Enter), delete confirmation dialog, ARIA accessibility, optimistic updates, React Query cache sync across all pages.

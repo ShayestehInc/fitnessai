@@ -8,7 +8,10 @@ import {
   useMessages,
   useSendMessage,
   useMarkConversationRead,
+  useEditMessage,
+  useDeleteMessage,
 } from "@/hooks/use-messaging";
+import { toast } from "sonner";
 import {
   useMessagingWebSocket,
   type WsConnectionState,
@@ -62,6 +65,28 @@ export function ChatView({ conversation }: ChatViewProps) {
         markRead.mutate();
       }
     },
+    onMessageEdited: (messageId, content, editedAt) => {
+      // Update local allMessages state directly so the UI reflects
+      // the other party's edit immediately (RQ cache is also updated by the hook).
+      setAllMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content, edited_at: editedAt }
+            : m,
+        ),
+      );
+    },
+    onMessageDeleted: (messageId) => {
+      // Update local allMessages state directly so the UI reflects
+      // the other party's delete immediately (RQ cache is also updated by the hook).
+      setAllMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content: "", image: null, is_deleted: true }
+            : m,
+        ),
+      );
+    },
   });
 
   const wsConnected = connectionState === "connected";
@@ -77,6 +102,8 @@ export function ChatView({ conversation }: ChatViewProps) {
     page,
   );
   const sendMessage = useSendMessage(conversation.id);
+  const editMessageMutation = useEditMessage(conversation.id);
+  const deleteMessageMutation = useDeleteMessage(conversation.id);
 
   // Show the other party's info in the header
   const otherParty =
@@ -197,6 +224,54 @@ export function ChatView({ conversation }: ChatViewProps) {
     [sendMessage, refetch, scrollToBottom],
   );
 
+  const handleEditMessage = useCallback(
+    (messageId: number, content: string) => {
+      // Optimistic update in local state
+      setAllMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content, edited_at: new Date().toISOString() }
+            : m,
+        ),
+      );
+      editMessageMutation.mutate(
+        { messageId, content },
+        {
+          onError: () => {
+            toast.error("Failed to edit message");
+            // Revert local state on error by refetching
+            refetch();
+          },
+        },
+      );
+    },
+    [editMessageMutation, refetch],
+  );
+
+  const handleDeleteMessage = useCallback(
+    (messageId: number) => {
+      // Optimistic update in local state
+      setAllMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content: "", image: null, is_deleted: true }
+            : m,
+        ),
+      );
+      deleteMessageMutation.mutate(
+        { messageId },
+        {
+          onError: () => {
+            toast.error("Failed to delete message");
+            // Revert local state on error by refetching
+            refetch();
+          },
+        },
+      );
+    },
+    [deleteMessageMutation, refetch],
+  );
+
   // Group messages by date for date separators
   const groupedMessages = groupMessagesByDate(allMessages);
 
@@ -278,6 +353,19 @@ export function ChatView({ conversation }: ChatViewProps) {
                       key={message.id}
                       message={message}
                       isOwnMessage={message.sender.id === user?.id}
+                      onEdit={
+                        message.sender.id === user?.id &&
+                        !message.is_deleted
+                          ? (content) =>
+                              handleEditMessage(message.id, content)
+                          : undefined
+                      }
+                      onDelete={
+                        message.sender.id === user?.id &&
+                        !message.is_deleted
+                          ? () => handleDeleteMessage(message.id)
+                          : undefined
+                      }
                     />
                   ))}
                 </div>

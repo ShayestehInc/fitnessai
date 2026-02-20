@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/conversation_model.dart';
@@ -56,8 +55,7 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
         conversations: conversations,
         isLoading: false,
       );
-    } catch (e) {
-      debugPrint('ConversationListNotifier.loadConversations() failed: $e');
+    } catch (_) {
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to load conversations.',
@@ -278,8 +276,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         hasMore: response.next != null,
         currentPage: 1,
       );
-    } catch (e) {
-      debugPrint('ChatNotifier.loadMessages() failed: $e');
+    } catch (_) {
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to load messages.',
@@ -307,8 +304,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         hasMore: response.next != null,
         currentPage: nextPage,
       );
-    } catch (e) {
-      debugPrint('ChatNotifier.loadMore() failed: $e');
+    } catch (_) {
       state = state.copyWith(isLoadingMore: false);
     }
   }
@@ -422,5 +418,115 @@ class ChatNotifier extends StateNotifier<ChatState> {
         return m;
       }).toList(),
     );
+  }
+
+  /// Handle message-edited event from WebSocket.
+  void onMessageEdited(int messageId, String newContent, DateTime editedAt) {
+    state = state.copyWith(
+      messages: state.messages.map((m) {
+        if (m.id == messageId) {
+          return m.copyWith(content: newContent, editedAt: editedAt);
+        }
+        return m;
+      }).toList(),
+    );
+  }
+
+  /// Handle message-deleted event from WebSocket.
+  void onMessageDeleted(int messageId) {
+    state = state.copyWith(
+      messages: state.messages.map((m) {
+        if (m.id == messageId) {
+          return m.copyWith(
+            content: '',
+            isDeleted: true,
+            clearImage: true,
+          );
+        }
+        return m;
+      }).toList(),
+    );
+  }
+
+  /// Clear any transient error state (e.g. after the UI has shown it).
+  void clearError() {
+    if (state.error != null) {
+      state = state.copyWith(clearError: true);
+    }
+  }
+
+  /// Edit a message. Optimistic update, revert on error.
+  Future<bool> editMessage(int messageId, String newContent) async {
+    final idx = state.messages.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return false;
+    final original = state.messages[idx];
+
+    // Optimistic update
+    state = state.copyWith(
+      messages: state.messages.map((m) {
+        if (m.id == messageId) {
+          return m.copyWith(content: newContent, editedAt: DateTime.now());
+        }
+        return m;
+      }).toList(),
+    );
+
+    try {
+      await _repo.editMessage(
+        conversationId: conversationId,
+        messageId: messageId,
+        content: newContent,
+      );
+      return true;
+    } catch (e) {
+      // Revert optimistic update
+      state = state.copyWith(
+        messages: state.messages.map((m) {
+          if (m.id == messageId) {
+            return original;
+          }
+          return m;
+        }).toList(),
+        error: 'Failed to edit message.',
+      );
+      return false;
+    }
+  }
+
+  /// Delete a message. Optimistic update, revert on error.
+  Future<bool> deleteMessage(int messageId) async {
+    final idx = state.messages.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return false;
+    final original = state.messages[idx];
+
+    // Optimistic update
+    state = state.copyWith(
+      messages: state.messages.map((m) {
+        if (m.id == messageId) {
+          return m.copyWith(content: '', isDeleted: true, clearImage: true);
+        }
+        return m;
+      }).toList(),
+    );
+
+    try {
+      await _repo.deleteMessage(
+        conversationId: conversationId,
+        messageId: messageId,
+      );
+      return true;
+    } catch (e) {
+      // Revert optimistic update
+      state = state.copyWith(
+        messages: state.messages.map((m) {
+          if (m.id == messageId) {
+            return original;
+          }
+          return m;
+        }).toList(),
+        error: 'Failed to delete message.',
+      );
+      return false;
+    }
   }
 }
