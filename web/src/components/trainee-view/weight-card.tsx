@@ -54,8 +54,10 @@ export function WeightCard() {
     );
   }
 
-  // Take last 5, sorted by date descending (API returns newest first)
-  const recent = checkIns?.slice(0, 5) ?? [];
+  // Sort by date descending and take last 5
+  const recent = [...(checkIns ?? [])]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
 
   if (recent.length === 0) {
     return (

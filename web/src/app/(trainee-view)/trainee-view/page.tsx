@@ -42,7 +42,7 @@ export default function TraineeViewPage() {
       </div>
 
       {/* AC-13: 4 read-only sections, responsive grid */}
-      <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <ProfileCard />
         <ProgramCard />
         <NutritionCard />

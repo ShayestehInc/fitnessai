@@ -231,7 +231,6 @@ export const API_URLS = {
   TRAINEE_PROGRAMS: `${API_BASE}/api/workouts/programs/`,
   TRAINEE_NUTRITION_SUMMARY: `${API_BASE}/api/workouts/daily-logs/nutrition-summary/`,
   TRAINEE_WEIGHT_CHECKINS: `${API_BASE}/api/workouts/weight-checkins/`,
-  TRAINEE_USER_PROFILE: `${API_BASE}/api/users/me/`,
 
   // WebSocket
   wsMessaging: (conversationId: number) =>

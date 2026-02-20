@@ -25,7 +25,8 @@ function getTodayScheduleDay(
 
   const todayName = DAY_NAMES[new Date().getDay()];
 
-  // Check first week (current week) for today's schedule
+  // Use first week as a representative schedule — accurate for single-week
+  // programs or programs with the same daily structure across weeks
   const firstWeek = program.schedule.weeks[0];
   if (!firstWeek?.days) return null;
 
