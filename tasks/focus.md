@@ -1,24 +1,25 @@
-# Pipeline 21 Focus: File/Image Attachments in Direct Messages
+# Pipeline 22 Focus: WebSocket Real-Time Messaging for Web Dashboard
 
 ## Priority
-Add image attachment support to the direct messaging system across all three stacks (Django backend, Flutter mobile, Next.js web). This is the single highest-impact follow-up to the messaging system shipped in Pipeline 20.
+Replace HTTP polling with WebSocket real-time delivery on the web dashboard messaging page. Enable typing indicators and instant read receipts — completing feature parity with mobile.
 
 ## Why This Feature
-1. **Messaging without images feels incomplete** — Trainers need to share form check photos, meal plans, progress photos, and quick visual feedback with clients
-2. **Patterns already exist** — Community feed has full image upload/display pipeline (backend UUID paths, mobile ImagePicker + InteractiveViewer, validation)
-3. **Infrastructure is in place** — WebSocket broadcasts, multipart upload, image storage all proven
-4. **Direct impact on engagement** — Visual communication is higher-engagement than text-only
-5. **Natural follow-up** — Pipeline 20 shipped messaging; this completes the messaging experience
+1. **Backend is fully built** — DirectMessageConsumer in `messaging/consumers.py` supports JWT auth, new_message, typing, read receipts, and heartbeat. Mobile already uses it.
+2. **Web typing indicator component already exists** — `typing-indicator.tsx` is built and waiting, commented out in `chat-view.tsx` with a clear note saying "for use when web WebSocket support is added."
+3. **Polling is inefficient and laggy** — 5s message polling + 15s conversation polling + 30s unread count polling creates noticeable delay and wastes bandwidth.
+4. **Natural progression from Pipelines 20-21** — Messaging was shipped in P20, image attachments in P21. Real-time delivery completes the messaging experience.
+5. **Highest value-to-effort ratio** — Zero backend changes needed. Pure web frontend work with clear reference implementation (mobile WebSocket service).
 
 ## Scope
-- Backend: Add `image` field to Message model, multipart upload on send endpoint, image URL in serializer, WebSocket broadcast includes image
-- Mobile: Image picker button in chat input, image display in message bubbles, full-screen viewer, client-side compression/validation
-- Web: Image upload button in message input, image display in message bubbles, lightbox/modal viewer
-- Thumbnails: Generate thumbnail for conversation list preview
+- Web only — backend (DirectMessageConsumer) and mobile (messaging_ws_service.dart) are already complete
+- New: `use-messaging-ws.ts` hook for WebSocket connection lifecycle
+- Modify: `chat-view.tsx` (replace polling with WS), `chat-input.tsx` (send typing), `use-messaging.ts` (WS-driven cache updates), `constants.ts` (WS URL), `conversation-list.tsx` (real-time unread updates)
+- Wire up: existing `typing-indicator.tsx`
+- Graceful fallback: if WebSocket fails, fall back to existing HTTP polling
 
 ## What NOT to build
-- Video attachments (future phase)
-- Multiple images per message (one image per message for v1)
-- File attachments (PDF, docs — future phase)
-- Image editing/cropping before send
-- Image compression on backend (client-side only)
+- Backend changes (consumer is complete)
+- Mobile changes (already uses WebSocket)
+- New Django Channels consumer or routing
+- WebSocket for community feed on web (separate feature)
+- Message editing/deletion (future pipeline)

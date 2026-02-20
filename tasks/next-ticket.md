@@ -1,150 +1,140 @@
-# Feature: Image Attachments in Direct Messages
+# Feature: WebSocket Real-Time Messaging for Web Dashboard
 
 ## Priority
 High
 
 ## User Story
-As a **trainer**, I want to **send images in direct messages to my trainees** so that I can share form check photos, meal plan images, progress comparison screenshots, and visual feedback without leaving the app.
+As a **trainer using the web dashboard**, I want my **messages to arrive instantly** instead of with a 5-second polling delay, so that conversations feel natural and responsive — just like they do on mobile.
 
-As a **trainee**, I want to **send images in direct messages to my trainer** so that I can share progress photos, food photos, and questions about exercises with visual context.
+As a **trainer**, I want to **see when the other person is typing** so I know they're about to respond, reducing the urge to send follow-up messages.
 
 ## Acceptance Criteria
 
-### Backend
-- [ ] AC-1: Message model has an optional `image` ImageField with UUID-based upload path (`message_images/{uuid}.{ext}`)
-- [ ] AC-2: Database migration adds nullable `image` column to `messaging_message` table
-- [ ] AC-3: SendMessageView accepts multipart form data (image + content). Either content or image (or both) must be provided — a completely empty message (no text, no image) is rejected.
-- [ ] AC-4: Image validation: JPEG/PNG/WebP only, max 5MB, validated in view before save
-- [ ] AC-5: MessageSerializer includes `image` field as absolute URL (SerializerMethodField with request.build_absolute_uri) — returns null when no image
-- [ ] AC-6: SendMessageResult dataclass includes `image_url: str | None` field
-- [ ] AC-7: WebSocket broadcast of new_message includes image URL in message payload
-- [ ] AC-8: StartConversationView also accepts multipart (can send first message with image)
-- [ ] AC-9: Existing text-only messages continue to work identically (backward compatible)
-- [ ] AC-10: Rate limiting unchanged (30/min applies to image messages too)
-- [ ] AC-11: Row-level security unchanged — only conversation participants can see message images
-- [ ] AC-12: Impersonation guard unchanged — impersonating users cannot send images
-- [ ] AC-13: Push notification for image-only messages shows "Sent a photo" instead of empty content
+### WebSocket Connection Lifecycle
+- [ ] AC-1: A new `useMessagingWebSocket` hook manages WebSocket connection per conversation. Connects on mount, disconnects on unmount or conversation change.
+- [ ] AC-2: WebSocket URL follows existing pattern: `ws(s)://<host>/ws/messaging/<conversationId>/?token=<JWT>`. Protocol auto-detects from page location (ws:// for http, wss:// for https).
+- [ ] AC-3: Connection authenticates using the current JWT access token from `getAccessToken()`.
+- [ ] AC-4: If the access token is expired, refresh it before connecting (use existing `refreshAccessToken()`).
+- [ ] AC-5: Exponential backoff reconnection on disconnect: 1s, 2s, 4s, 8s, 16s cap. Max 5 attempts before giving up and falling back to polling.
+- [ ] AC-6: Reconnects immediately when browser tab regains focus (via `visibilitychange` event), resetting the backoff counter.
+- [ ] AC-7: Sends `ping` heartbeat every 30 seconds. If no `pong` received within 5 seconds, close and reconnect.
+- [ ] AC-8: Hook exposes connection state: `connecting`, `connected`, `disconnected`, `failed` (exhausted retries).
+- [ ] AC-9: On `failed` state, falls back to existing HTTP polling (5s messages, 15s conversations, 30s unread count).
+- [ ] AC-10: Properly cleans up WebSocket on component unmount — no leaked connections or event listeners.
 
-### Mobile (Flutter)
-- [ ] AC-14: Chat input has an image picker button (camera_alt icon) next to the text field
-- [ ] AC-15: Tapping image picker opens ImagePicker with gallery source, max 1920x1920, 85% quality compression
-- [ ] AC-16: Selected image shows as a thumbnail preview above the text input with an X button to remove
-- [ ] AC-17: User can send image-only (no text), text-only, or image+text messages
-- [ ] AC-18: Image upload uses multipart form data via ApiClient
-- [ ] AC-19: Message bubble displays image with rounded corners (12px radius), max width 75% of screen, max height 300px, BoxFit.cover
-- [ ] AC-20: Tapping an image in a message bubble opens full-screen InteractiveViewer (pinch-to-zoom 1.0x-4.0x, black background) — reuse existing pattern from community feed
-- [ ] AC-21: Image loading state: shimmer/skeleton placeholder matching image dimensions
-- [ ] AC-22: Image error state: broken image icon with "Failed to load image" text
-- [ ] AC-23: Optimistic send: image message appears immediately with local file, replaces with server URL on confirmation
-- [ ] AC-24: Send failure: message shows retry indicator (same as text message failure)
-- [ ] AC-25: Client-side file size validation (5MB max) — shows error snackbar if too large
-- [ ] AC-26: Accessibility: image messages have Semantics label "Photo message" or "Photo message with text: [content]"
-- [ ] AC-27: MessageModel updated with optional `imageUrl` field
+### Real-Time Message Delivery
+- [ ] AC-11: When a `new_message` event arrives via WebSocket, the message is appended to the chat view immediately without a full page refetch.
+- [ ] AC-12: New messages from WebSocket are deduplicated against existing messages (by message ID) to prevent duplicates when both WS and send response return the same message.
+- [ ] AC-13: When WebSocket is connected, the 5-second message polling interval is disabled. Polling resumes only on fallback.
+- [ ] AC-14: Auto-scroll to bottom when a new message arrives via WebSocket (if user was already near the bottom). Don't force-scroll if user has scrolled up to read history.
+- [ ] AC-15: New messages from WebSocket update the conversation list's `last_message_preview` and `last_message_at` without requiring a full conversation list refetch.
 
-### Web (Next.js)
-- [ ] AC-28: Message input has a paperclip/image button for attaching images
-- [ ] AC-29: File input accepts image/jpeg, image/png, image/webp only
-- [ ] AC-30: Selected image shows as a thumbnail preview above the input area with remove button
-- [ ] AC-31: Image upload uses FormData with multipart fetch
-- [ ] AC-32: Message bubble displays image with rounded corners, max-width 70%, max-height 300px, object-fit cover
-- [ ] AC-33: Clicking an image opens a modal/dialog with the full-size image and close button
-- [ ] AC-34: Image loading state: skeleton placeholder
-- [ ] AC-35: Client-side file size validation (5MB max) — shows toast if too large
-- [ ] AC-36: Message type interface updated with optional `image` field (string URL or null)
-- [ ] AC-37: Conversation list preview shows "Sent a photo" for image-only messages
+### Typing Indicators
+- [ ] AC-16: When the user types in the chat input, send a `{ type: "typing", is_typing: true }` message via WebSocket.
+- [ ] AC-17: Typing signals are debounced: send `is_typing: true` at most once every 3 seconds while actively typing.
+- [ ] AC-18: Send `is_typing: false` when the user stops typing for 3 seconds (idle timeout).
+- [ ] AC-19: Send `is_typing: false` immediately when a message is sent.
+- [ ] AC-20: When a `typing_indicator` event arrives (from the other party), display the existing `TypingIndicator` component showing "{name} is typing..." with the animated dots.
+- [ ] AC-21: Typing indicator auto-hides after 4 seconds of no typing updates from the other party (safety timeout).
+- [ ] AC-22: Typing indicator appears between the last message and the chat input area.
+- [ ] AC-23: When typing indicator appears/disappears, auto-scroll if user is near the bottom (same logic as new messages).
+
+### Read Receipts
+- [ ] AC-24: When a `read_receipt` event arrives via WebSocket, update the relevant messages' `is_read` status to `true` immediately — existing double-checkmark UI updates in real-time.
+- [ ] AC-25: Read receipts via WebSocket replace the need to refetch message data for read status changes.
+
+### Conversation List Real-Time Updates
+- [ ] AC-26: When WebSocket is connected, conversation list polling interval increases from 15s to 60s (light refresh for conversation metadata not covered by WS events).
+- [ ] AC-27: Unread count polling increases from 30s to 60s when WebSocket is connected.
+- [ ] AC-28: When the user receives a new message via WebSocket for the currently selected conversation AND the chat is visible, automatically mark it as read (send markRead API call).
+
+### Connection State UI
+- [ ] AC-29: No visible connection indicator when WebSocket is connected (default state — should be invisible).
+- [ ] AC-30: When WebSocket is disconnected and reconnecting, show a small subtle banner at the top of the chat area: "Reconnecting..." with a subtle loading spinner. Auto-hides when reconnected.
+- [ ] AC-31: When WebSocket has failed (exhausted retries), show a small banner: "Real-time updates unavailable. Messages may be delayed." with no action button (polling is automatic fallback).
 
 ## Edge Cases
-1. **Empty message with image** — Must be allowed. Content can be empty string if image is present.
-2. **Image + text** — Both displayed: image above text in the message bubble.
-3. **Large image file (>5MB)** — Client-side validation rejects with clear error message before upload. Server-side validation as backup.
-4. **Unsupported file type (GIF, SVG, BMP)** — Client-side filter on file picker + server-side validation with clear error.
-5. **Network failure during image upload** — Message shows as failed with retry option. Image data preserved locally for retry.
-6. **Very slow upload on poor connection** — Upload progress indicator on mobile (LinearProgressIndicator). Web shows loading state.
-7. **Conversation archived (trainee removed) then image URL accessed** — Image still serves from storage (no cascade delete on files), but row-level security prevents new messages.
-8. **Image URL in conversation list preview** — Shows "Sent a photo" text, not raw URL.
-9. **Multiple rapid image sends** — Rate limiter at 30/min applies equally to image messages.
-10. **WebSocket broadcast with image** — Image URL included in message payload; receiving clients fetch image via URL, no binary data over WebSocket.
-11. **Image-only message pushed as notification** — Push notification body shows "Sent a photo" instead of empty/null.
-12. **Message with both text and image where text hits 2000 char limit** — Enforce independently: image presence doesn't change text limit.
+1. **Token expires during WebSocket session** — WebSocket closes with 4001 code. Hook detects this, refreshes the token, and reconnects. If refresh fails, fall back to polling.
+2. **User switches conversation rapidly** — Previous WebSocket must be cleanly closed before opening new one. Use cleanup function in useEffect. No race conditions.
+3. **Browser goes to sleep/background** — WebSocket likely closes. On `visibilitychange` when tab becomes visible, immediately attempt reconnect.
+4. **Server restarts (Redis channel layer reset)** — WebSocket closes unexpectedly. Backoff reconnection handles this automatically.
+5. **Multiple browser tabs open on same conversation** — Each tab gets its own WebSocket connection. No cross-tab coordination needed (each connection is independent).
+6. **Concurrent send + WebSocket receive** — User sends a message (HTTP POST) and WebSocket delivers the same message. Dedup by message ID prevents duplicate display.
+7. **Network flap (brief disconnection)** — Reconnect with backoff. On reconnect, do a single message refetch to catch any messages missed during the gap.
+8. **User scrolled up reading history, new message arrives** — Don't force-scroll. Show "New messages" indicator or scroll-down FAB (existing button).
+9. **Image message arrives via WebSocket** — Image URL is included in message payload. MessageBubble renders it normally (already supports images from Pipeline 21).
+10. **Typing indicator from archived conversation** — Backend consumer already rejects connections to archived conversations (code 4003), so this can't happen.
+11. **WebSocket message arrives with unknown type** — Silently ignore. Log a debug warning.
+12. **Connection drops right after sending typing: true** — Other party's typing indicator will timeout after 4 seconds (AC-21 safety timeout).
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Image >5MB selected | Snackbar/toast: "Image must be under 5MB" | Rejects locally, no API call |
-| Invalid file type selected | Snackbar/toast: "Only JPEG, PNG, and WebP images are supported" | Rejects locally, no API call |
-| Image upload fails (network) | Message shows failed state with retry icon | Preserves image locally, retry sends same file |
-| Server rejects image (validation) | Snackbar/toast with server error message | 400 response, message not created |
-| Image URL fails to load (broken) | Broken image icon with "Failed to load" text | Error handler on Image widget |
-| Image picker permission denied | Platform permission dialog / settings redirect | No crash, graceful degradation |
+| WebSocket connection refused (server down) | "Reconnecting..." banner, then polling fallback | Exponential backoff x5, then fall back to HTTP polling |
+| JWT token expired during WS session | Nothing visible (transparent reconnect) | Refreshes token, reconnects. If refresh fails, falls back to polling |
+| WebSocket auth rejected (4001) | Nothing visible | Attempts token refresh + reconnect. If still fails, falls back to polling |
+| Access denied to conversation (4003) | Nothing visible | Falls back to polling for this conversation |
+| Malformed WebSocket message | Nothing visible | Silently ignores, logs warning to console in dev |
+| Browser doesn't support WebSocket | Nothing visible | Falls back to HTTP polling (WebSocket is supported in all modern browsers, but guard anyway) |
+| Network offline | "Reconnecting..." banner | Reconnect attempts when network returns |
 
 ## UX Requirements
-- **Image picker button:** Icon button (camera_alt on mobile, Paperclip or ImageIcon on web) positioned to the left of the text field send button
-- **Thumbnail preview:** Shows selected image above the text input area. Approx 80px tall, rounded corners, X close button in top-right corner
-- **Message bubble with image:** Image rendered above any text content. Rounded corners matching bubble shape. Images are tappable for full-screen view.
-- **Full-screen viewer (mobile):** Black background, pinch-to-zoom (InteractiveViewer), back button to close. Reuse community feed pattern.
-- **Image modal (web):** Dialog/modal with image at natural size (up to viewport), close button, click outside to dismiss.
-- **Loading state:** Shimmer skeleton matching approximate image aspect ratio (16:9 default) in message bubble
-- **Empty state:** N/A — this is an enhancement to existing messaging
-- **Error state:** Broken image icon with muted text
-- **Success feedback:** Image appears in chat instantly (optimistic on mobile, after upload on web)
-- **Upload progress (mobile):** Small LinearProgressIndicator at bottom of image preview during upload
-- **Mobile behavior:** ImagePicker with gallery source, compressed to 85% quality, max 1920x1920px
+- **Connection state:** Invisible when connected. Subtle "Reconnecting..." banner when disconnected. "Updates may be delayed" when failed.
+- **Typing indicator:** Displayed between the message list and chat input. Uses existing `TypingIndicator` component with animated bouncing dots and "{Name} is typing..." text. `aria-live="polite"` for accessibility.
+- **Message arrival:** Smooth append animation (no flash/jump). Auto-scroll if near bottom.
+- **Loading state:** No change to initial page load (still fetches via HTTP on mount).
+- **Empty state:** No change.
+- **Error state:** Graceful degradation to polling — user should barely notice.
+- **Success feedback:** Messages appear instantly instead of with 5-second delay.
+- **Mobile behavior:** Same responsive layout as before — WebSocket works on all screen sizes.
 
 ## Technical Approach
 
-### Backend Changes
-- **Files to modify:**
-  - `backend/messaging/models.py` — Add `image` ImageField to Message, add `_message_image_path` upload path function
-  - `backend/messaging/serializers.py` — Add `image` SerializerMethodField to MessageSerializer, update SendMessageSerializer to make content optional when image present
-  - `backend/messaging/views.py` — Add MultiPartParser to SendMessageView and StartConversationView, add image validation constants and logic, pass image to service
-  - `backend/messaging/services/messaging_service.py` — Update `send_message()` to accept optional `image` parameter, update SendMessageResult dataclass with `image_url` field
-  - `backend/messaging/consumers.py` — No changes needed (serialized message already includes all fields via MessageSerializer)
+### New Files
+- `web/src/hooks/use-messaging-ws.ts` — Core WebSocket hook
+  - Manages connection lifecycle (connect, disconnect, reconnect with backoff)
+  - Parses incoming events (new_message, typing_indicator, read_receipt, pong)
+  - Exposes: `connectionState`, `sendTyping()`, `lastMessage` (for consumers)
+  - Uses `useRef` for WebSocket instance (avoids re-render on internal state changes)
+  - Uses `useEffect` for lifecycle + cleanup
+  - Integrates with token-manager for JWT
 
-- **Migration:** `python manage.py makemigrations messaging` for the new nullable image field
+### Files to Modify
+- `web/src/lib/constants.ts` — Add `WS_BASE` URL and `wsMessaging(conversationId: number)` builder function
+- `web/src/hooks/use-messaging.ts` — Add parameter to control polling interval (disable when WS is connected), add helpers to update React Query cache from WS events
+- `web/src/components/messaging/chat-view.tsx` — Integrate `useMessagingWebSocket`, remove hardcoded 5s polling, add typing indicator display, add connection state banner, handle new_message events
+- `web/src/components/messaging/chat-input.tsx` — Accept `onTyping` callback prop, fire it on input change (debounced), fire stop-typing on send
+- `web/src/components/messaging/conversation-list.tsx` — No direct changes needed (conversation data flows from React Query)
+- `web/src/app/(dashboard)/messages/page.tsx` — Pass through any needed context
 
-- **Validation pattern (from community feed):**
-  ```python
-  _ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
-  _MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
-  ```
+### WebSocket Protocol (Backend Already Supports)
+```
+Client → Server:
+  { "type": "ping" }
+  { "type": "typing", "is_typing": true/false }
 
-### Mobile Changes
-- **Files to modify:**
-  - `mobile/lib/features/messaging/data/models/message_model.dart` — Add `imageUrl` field
-  - `mobile/lib/features/messaging/data/repositories/messaging_repository.dart` — Update `sendMessage` to use multipart when image present
-  - `mobile/lib/features/messaging/presentation/widgets/chat_input.dart` — Add image picker button, selected image preview with remove
-  - `mobile/lib/features/messaging/presentation/widgets/message_bubble.dart` — Add image display with tap-to-fullscreen, loading/error states
-  - `mobile/lib/features/messaging/presentation/providers/chat_provider.dart` — Handle image attachment state in notifier
-
-- **New files:**
-  - `mobile/lib/features/messaging/presentation/widgets/message_image_viewer.dart` — Full-screen image viewer widget
-
-### Web Changes
-- **Files to modify:**
-  - `web/src/types/messaging.ts` — Add `image: string | null` to Message interface
-  - `web/src/components/messaging/message-bubble.tsx` — Add image display with click-to-open-modal
-  - `web/src/components/messaging/chat-view.tsx` — Update send function for multipart FormData, add image state management
-  - `web/src/components/messaging/message-input.tsx` — Add image picker button and preview strip
-
-- **New files:**
-  - `web/src/components/messaging/image-modal.tsx` — Full-screen image viewer dialog
-
-### Dependencies
-- No new packages needed. `image_picker` already in mobile pubspec. Web uses native file input + existing Dialog component.
+Server → Client:
+  { "type": "pong" }
+  { "type": "new_message", "message": { id, conversation_id, sender, content, image, is_read, read_at, created_at } }
+  { "type": "typing_indicator", "user_id": number, "is_typing": boolean }
+  { "type": "read_receipt", "reader_id": number, "read_at": "ISO timestamp" }
+```
 
 ### Key Design Decisions
-1. **One image per message** — Simplest UX, matches iMessage/WhatsApp pattern. Multiple images = send multiple messages.
-2. **Image stored on Message model** — ImageField on Message directly, not a separate Attachment model. Simpler for v1.
-3. **No backend thumbnail generation** — Client-side compression (85% quality, 1920x1920 max) is sufficient. Full image served everywhere.
-4. **Multipart form data for send** — Same endpoint URL, just accepts both JSON and multipart. Existing text-only sends via JSON still work (backward compatible).
-5. **Image URL in WebSocket broadcast** — Receiving clients fetch image via HTTP URL, no binary data over WebSocket.
+1. **One WebSocket per conversation** — Matches the backend consumer model (one group per conversation). Connect/disconnect as user switches conversations.
+2. **React Query cache as single source of truth** — WebSocket events mutate the React Query cache directly (via `queryClient.setQueryData`). No separate message store.
+3. **Graceful degradation** — WebSocket is an enhancement. If it fails, polling kicks in. User experience degrades gracefully, never breaks.
+4. **No reconnection on purposeful close** — When user navigates away or switches conversation, close cleanly (code 1000). Only reconnect on unexpected closes.
+5. **Debounced typing** — 3-second debounce matches backend consumer's expectation. Prevents spamming WS with every keystroke.
+
+### Dependencies
+- No new packages needed. Native `WebSocket` API is available in all modern browsers. Token management uses existing `token-manager.ts`.
 
 ## Out of Scope
-- Video attachments
-- Multiple images per message
-- File attachments (PDF, documents)
-- Image editing/cropping/annotation
-- Backend image processing (thumbnails, resize)
-- Image search within messages
-- Image forwarding between conversations
-- Drag-and-drop image upload (web) — file input button only for v1
+- Backend changes (consumer is complete and tested)
+- Mobile changes (already uses WebSocket)
+- WebSocket for community feed on web
+- Cross-tab message synchronization
+- Push notifications for web (separate feature)
+- Online/offline status indicators for users
+- Message delivery confirmation ("delivered" vs "sent")
