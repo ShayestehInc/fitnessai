@@ -350,20 +350,56 @@ class StartConversationView(views.APIView):
 
 
 # ---------------------------------------------------------------------------
-# Edit & Delete message endpoints
+# Message detail endpoint — PATCH to edit, DELETE to soft-delete
 # ---------------------------------------------------------------------------
 
 
-class EditMessageView(views.APIView):
+class MessageDetailView(views.APIView):
     """
-    PATCH /api/messaging/conversations/<id>/messages/<message_id>/
-    Edit a message's content. Sender only, within 15-minute window.
+    PATCH  /api/messaging/conversations/<id>/messages/<message_id>/
+    DELETE /api/messaging/conversations/<id>/messages/<message_id>/
+
+    Single RESTful resource endpoint for a specific message.
+    PATCH edits content (sender only, within 15-minute window).
+    DELETE soft-deletes the message (sender only, no time limit).
+    Both methods block impersonating users and enforce row-level security.
     """
     permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'messaging'
 
+    def _resolve_conversation(
+        self,
+        user: User,
+        conversation_id: int,
+    ) -> tuple[Conversation, None] | tuple[None, Response]:
+        """
+        Fetch conversation and validate the user is a participant.
+
+        Returns (conversation, None) on success, or (None, error_response) on failure.
+        """
+        try:
+            conversation = Conversation.objects.select_related(
+                'trainer', 'trainee',
+            ).get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return None, Response(
+                {'error': 'Conversation not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Row-level security: verify user is a participant before exposing
+        # message-level details (mirrors ConversationDetailView / SendMessageView).
+        if user.id not in (conversation.trainer_id, conversation.trainee_id):
+            return None, Response(
+                {'error': 'You do not have access to this conversation.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return conversation, None
+
     def patch(self, request: Request, conversation_id: int, message_id: int) -> Response:
+        """Edit a message's content."""
         user = cast(User, request.user)
 
         if is_impersonating(request.auth):
@@ -375,20 +411,14 @@ class EditMessageView(views.APIView):
         serializer = EditMessageSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        try:
-            conversation = Conversation.objects.select_related(
-                'trainer', 'trainee',
-            ).get(id=conversation_id)
-        except Conversation.DoesNotExist:
-            return Response(
-                {'error': 'Conversation not found.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        conversation, error_response = self._resolve_conversation(user, conversation_id)
+        if error_response is not None:
+            return error_response
 
         try:
             result = edit_message(
                 user=user,
-                conversation=conversation,
+                conversation=conversation,  # type: ignore[arg-type]
                 message_id=message_id,
                 new_content=serializer.validated_data['content'],
             )
@@ -409,7 +439,7 @@ class EditMessageView(views.APIView):
 
         # Broadcast edit event via WebSocket
         broadcast_message_edited(
-            conversation_id=conversation.id,
+            conversation_id=conversation.id,  # type: ignore[union-attr]
             message_id=result.message_id,
             new_content=result.content,
             edited_at=result.edited_at.isoformat(),
@@ -417,17 +447,8 @@ class EditMessageView(views.APIView):
 
         return Response(response_serializer.data)
 
-
-class DeleteMessageView(views.APIView):
-    """
-    DELETE /api/messaging/conversations/<id>/messages/<message_id>/
-    Soft-delete a message. Sender only, no time limit.
-    """
-    permission_classes = [IsAuthenticated]
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = 'messaging'
-
     def delete(self, request: Request, conversation_id: int, message_id: int) -> Response:
+        """Soft-delete a message."""
         user = cast(User, request.user)
 
         if is_impersonating(request.auth):
@@ -436,20 +457,14 @@ class DeleteMessageView(views.APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        try:
-            conversation = Conversation.objects.select_related(
-                'trainer', 'trainee',
-            ).get(id=conversation_id)
-        except Conversation.DoesNotExist:
-            return Response(
-                {'error': 'Conversation not found.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        conversation, error_response = self._resolve_conversation(user, conversation_id)
+        if error_response is not None:
+            return error_response
 
         try:
             result = delete_message(
                 user=user,
-                conversation=conversation,
+                conversation=conversation,  # type: ignore[arg-type]
                 message_id=message_id,
             )
         except PermissionError as exc:
@@ -465,7 +480,7 @@ class DeleteMessageView(views.APIView):
 
         # Broadcast delete event via WebSocket
         broadcast_message_deleted(
-            conversation_id=conversation.id,
+            conversation_id=conversation.id,  # type: ignore[union-attr]
             message_id=result.message_id,
         )
 

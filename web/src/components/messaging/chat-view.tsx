@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, User, Loader2, WifiOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getInitials } from "@/lib/format-utils";
@@ -9,10 +8,10 @@ import {
   useMessages,
   useSendMessage,
   useMarkConversationRead,
+  useEditMessage,
+  useDeleteMessage,
 } from "@/hooks/use-messaging";
 import { toast } from "sonner";
-import { apiClient } from "@/lib/api-client";
-import { API_URLS } from "@/lib/constants";
 import {
   useMessagingWebSocket,
   type WsConnectionState,
@@ -81,6 +80,8 @@ export function ChatView({ conversation }: ChatViewProps) {
     page,
   );
   const sendMessage = useSendMessage(conversation.id);
+  const editMessageMutation = useEditMessage(conversation.id);
+  const deleteMessageMutation = useDeleteMessage(conversation.id);
 
   // Show the other party's info in the header
   const otherParty =
@@ -201,11 +202,9 @@ export function ChatView({ conversation }: ChatViewProps) {
     [sendMessage, refetch, scrollToBottom],
   );
 
-  const queryClient = useQueryClient();
-
   const handleEditMessage = useCallback(
-    async (messageId: number, content: string) => {
-      // Optimistic update
+    (messageId: number, content: string) => {
+      // Optimistic update in local state
       setAllMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
@@ -213,25 +212,23 @@ export function ChatView({ conversation }: ChatViewProps) {
             : m,
         ),
       );
-      try {
-        await apiClient.patch<Message>(
-          API_URLS.messagingEditMessage(conversation.id, messageId),
-          { content },
-        );
-        queryClient.invalidateQueries({
-          queryKey: ["messaging", "conversations"],
-        });
-      } catch {
-        toast.error("Failed to edit message");
-        refetch();
-      }
+      editMessageMutation.mutate(
+        { messageId, content },
+        {
+          onError: () => {
+            toast.error("Failed to edit message");
+            // Revert local state on error by refetching
+            refetch();
+          },
+        },
+      );
     },
-    [conversation.id, queryClient, refetch],
+    [editMessageMutation, refetch],
   );
 
   const handleDeleteMessage = useCallback(
-    async (messageId: number) => {
-      // Optimistic update
+    (messageId: number) => {
+      // Optimistic update in local state
       setAllMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
@@ -239,19 +236,18 @@ export function ChatView({ conversation }: ChatViewProps) {
             : m,
         ),
       );
-      try {
-        await apiClient.delete(
-          API_URLS.messagingDeleteMessage(conversation.id, messageId),
-        );
-        queryClient.invalidateQueries({
-          queryKey: ["messaging", "conversations"],
-        });
-      } catch {
-        toast.error("Failed to delete message");
-        refetch();
-      }
+      deleteMessageMutation.mutate(
+        { messageId },
+        {
+          onError: () => {
+            toast.error("Failed to delete message");
+            // Revert local state on error by refetching
+            refetch();
+          },
+        },
+      );
     },
-    [conversation.id, queryClient, refetch],
+    [deleteMessageMutation, refetch],
   );
 
   // Group messages by date for date separators

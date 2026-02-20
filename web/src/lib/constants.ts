@@ -207,10 +207,13 @@ export const API_URLS = {
     `${API_BASE}/api/messaging/conversations/${conversationId}/send/`,
   messagingMarkRead: (conversationId: number) =>
     `${API_BASE}/api/messaging/conversations/${conversationId}/read/`,
+  // PATCH to edit, DELETE to delete — same resource URL, different HTTP methods.
+  messagingMessageDetail: (conversationId: number, messageId: number) =>
+    `${API_BASE}/api/messaging/conversations/${conversationId}/messages/${messageId}/`,
   messagingEditMessage: (conversationId: number, messageId: number) =>
     `${API_BASE}/api/messaging/conversations/${conversationId}/messages/${messageId}/`,
   messagingDeleteMessage: (conversationId: number, messageId: number) =>
-    `${API_BASE}/api/messaging/conversations/${conversationId}/messages/${messageId}/delete/`,
+    `${API_BASE}/api/messaging/conversations/${conversationId}/messages/${messageId}/`,
 
   // Ambassador (self-service)
   AMBASSADOR_DASHBOARD: `${API_BASE}/api/ambassador/dashboard/`,
