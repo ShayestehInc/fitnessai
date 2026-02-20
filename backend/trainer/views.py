@@ -836,6 +836,14 @@ class ProgramUploadImageView(views.APIView):
         }, status=status.HTTP_200_OK)
 
 
+def _parse_days_param(request: Request, default: int = 30) -> int:
+    """Parse and clamp the `days` query parameter (1-365)."""
+    try:
+        return min(max(int(request.query_params.get('days', default)), 1), 365)
+    except (ValueError, TypeError):
+        return default
+
+
 class AdherenceAnalyticsView(views.APIView):
     """
     GET: Get adherence analytics across all trainees.
@@ -845,10 +853,7 @@ class AdherenceAnalyticsView(views.APIView):
 
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
-        try:
-            days = min(max(int(request.query_params.get('days', 30)), 1), 365)
-        except (ValueError, TypeError):
-            days = 30
+        days = _parse_days_param(request)
         start_date = timezone.now().date() - timedelta(days=days)
 
         trainees = User.objects.filter(
@@ -915,10 +920,7 @@ class AdherenceTrendView(views.APIView):
 
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
-        try:
-            days = min(max(int(request.query_params.get('days', 30)), 1), 365)
-        except (ValueError, TypeError):
-            days = 30
+        days = _parse_days_param(request)
         start_date = timezone.now().date() - timedelta(days=days)
 
         trainees = User.objects.filter(

@@ -143,10 +143,7 @@ export function AdherenceTrendChart({ days }: AdherenceTrendChartProps) {
     );
   }
 
-  const chartData = trends.map((point) => ({
-    ...point,
-    label: formatDateLabel(point.date, days),
-  }));
+  const chartData = trends;
 
   return (
     <Card>
@@ -159,15 +156,7 @@ export function AdherenceTrendChart({ days }: AdherenceTrendChartProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div
-          className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}
-          aria-busy={isFetching}
-        >
-          {isFetching && (
-            <div className="sr-only" role="status" aria-live="polite">
-              Refreshing trend data...
-            </div>
-          )}
+        <div aria-busy={isFetching}>
           <div
             style={{ height: 240 }}
             role="img"
