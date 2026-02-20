@@ -18,6 +18,7 @@ class MessageImageViewer extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        title: const Text('Image'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         elevation: 0,
