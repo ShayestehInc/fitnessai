@@ -4,6 +4,29 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-20] — In-App Message Search (Pipeline 24)
+
+### Added
+- **Message search API** -- `GET /api/messaging/search/?q=<query>&page=<page>` searches messages across all conversations the authenticated user participates in. Case-insensitive substring match via `icontains`. Excludes soft-deleted messages and archived conversations. Paginated (20/page) with `-created_at` ordering.
+- **`search_messages()` service function** -- Business logic in `services/search_service.py` with frozen dataclass returns (`SearchMessageItem`, `SearchMessagesResult`). Row-level security enforced at query level: trainers see trainer's conversations, trainees see theirs, admins must impersonate.
+- **`SearchMessageResultSerializer`** -- API response serializer with sender info, conversation context (other participant), image URL, timestamps. Nullable `other_participant_id` for removed trainees (SET_NULL FK).
+- **Web: Search button with Cmd/Ctrl+K** -- Keyboard shortcut opens/closes search panel in messages sidebar. Platform-detected modifier key badge on button.
+- **Web: Search panel** -- Replaces conversation list when active. Debounced input (300ms), 2-character minimum, skeleton loading, empty/error states with retry, pagination (Previous/Next).
+- **Web: Highlighted search results** -- `highlightText()` splits text on query match, wraps in `<mark>` with `bg-primary/20` (XSS-safe via React JSX, no innerHTML). `truncateAroundMatch()` centers ~150 char snippet around first match.
+- **Web: Click-to-scroll-and-highlight** -- Clicking a search result navigates to the conversation, scrolls to the matched message, and applies a 3-second yellow flash animation. Light and dark mode CSS keyframes with `prefers-reduced-motion` support.
+- **Web: Accessibility** -- `role="search"` landmark, `aria-live="polite"` results count, `aria-describedby` hint, semantic `<nav>` pagination, semantic `<time>` timestamps, `aria-busy` during refetch, dark mode highlight contrast (`dark:bg-primary/30`).
+- **Web: `useSearchMessages()` hook** -- React Query hook with `enabled: query.length >= 2`, `placeholderData: keepPreviousData` for smooth pagination, cache key `["messaging", "search", query, page]`.
+- **42 backend tests** -- Service layer basics (13), edge cases (8), pagination (3), view layer (18). Covers row-level security, cross-tenant isolation, special characters, null trainee, archived conversations, admin rejection, impersonation, field completeness.
+
+### Fixed
+- **Regex `g` flag stateful bug** -- `highlightText()` initially used `gi` regex flag. The `g` flag makes `RegExp.test()` stateful (advances `lastIndex`), causing alternating match/no-match for consecutive matches. Fixed by using `i` flag only with `part.toLowerCase() === lowerQuery` comparison.
+- **Admin role silently returned empty** -- Admin users fell through to `else` branch and got empty results with no error. Fixed by raising `ValueError('Only trainers and trainees can search messages.')`.
+- **Search results flashed to skeleton** -- Every keystroke caused jarring flash from results to skeleton placeholders. Fixed with `placeholderData: keepPreviousData` on the React Query hook.
+- **Scroll position not reset on page change** -- Paginating search results kept scroll position at bottom. Fixed with `resultsRef` scroll-to-top effect.
+- **`formatSearchTime` future date handling** -- Could display negative "d ago" values for server clock skew. Fixed with `isNaN` and negative-diff guards.
+
+---
+
 ## [2026-02-19] — Message Editing and Deletion (Pipeline 23)
 
 ### Added

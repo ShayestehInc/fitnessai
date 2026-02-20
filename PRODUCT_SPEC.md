@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-19 (Pipeline 23: Message Editing and Deletion)
+> Last updated: 2026-02-20 (Pipeline 24: In-App Message Search)
 
 ---
 
@@ -264,6 +264,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Edit/delete WebSocket broadcast | ✅ Done | Shipped 2026-02-19 (Pipeline 23): chat.message_edited and chat.message_deleted events, real-time sync across mobile and web |
 | Mobile edit/delete UI | ✅ Done | Shipped 2026-02-19 (Pipeline 23): Long-press context menu, edit bottom sheet, grayed-out expired edit, delete confirmation dialog |
 | Web edit/delete UI | ✅ Done | Shipped 2026-02-19 (Pipeline 23): Hover action icons, inline edit mode (Esc/Cmd+Enter), delete confirmation, ARIA accessibility |
+| Message search | ✅ Done | Shipped 2026-02-20 (Pipeline 24): GET /api/messaging/search/?q=&page=, case-insensitive icontains, row-level security, web search UI with Cmd/Ctrl+K, debounced input, highlighted results, scroll-to-message, 42 tests |
 
 ### 3.11 Other
 | Feature | Status | Notes |
@@ -715,6 +716,44 @@ Full-stack message editing (within 15-minute window) and soft-deletion across Dj
 - Hacker audit: Chaos Score 8/10. 4 bugs found and fixed (critical test URL mismatch, serializer validation gap, WS state sync for other party, debugPrint convention).
 - Final verdict: 9/10 SHIP.
 
+### 4.24 In-App Message Search (Pipeline 24) -- COMPLETED (2026-02-20)
+
+Full-stack message search across all conversations with backend API, web dashboard UI, 42 tests, and comprehensive accessibility. All 25 acceptance criteria met.
+
+**What was built:**
+
+**Backend (Django)**
+- `GET /api/messaging/search/?q=<query>&page=<page>` — case-insensitive substring search via `icontains`
+- Service layer: `search_messages()` in `services/search_service.py` with frozen dataclass returns (`SearchMessageItem`, `SearchMessagesResult`)
+- Row-level security: trainer sees only trainer's conversations, trainee sees only trainee's conversations, admin must impersonate
+- Excludes soft-deleted messages and archived conversations
+- Pagination via Django Paginator (20/page), page clamping for out-of-range
+- `select_related()` with `.only()` for query optimization
+- `SearchMessageResultSerializer` for API response serialization
+- Rate limiting (30/min) via ScopedRateThrottle with `messaging` scope
+- Null trainee handling (SET_NULL FK): `other_participant_id: None` with `[removed]` fallback
+
+**Web (Next.js)**
+- Search button in messages page header with Cmd/Ctrl+K keyboard shortcut (platform-detected)
+- Sidebar search panel replacing conversation list when active
+- Debounced input (300ms), 2-character minimum before firing API
+- Highlighted search results with `<mark>` tags (XSS-safe via React JSX, no innerHTML)
+- `truncateAroundMatch()` centers ~150 char window around first match
+- Click result → navigate to conversation → scroll to message → 3s highlight flash animation (light + dark mode)
+- Pagination (Previous/Next), skeleton loading, error/retry, empty state
+- Escape key closes search, clear button returns focus to input
+- Accessibility: `role="search"` landmark, `aria-live` regions, semantic `<nav>`/`<time>`, `aria-describedby`, `prefers-reduced-motion` support
+- `keepPreviousData` for smooth pagination transitions
+
+**Pipeline Results:**
+- Code review: 1 round, 3 critical + 6 major issues fixed (regex stateful bug, admin role error, page reset race, double validation, null trainee FK, search result navigation). Score: 7/10 → fixed.
+- QA: 42 tests. All pass. Confidence: HIGH.
+- Security audit: Score 9/10 PASS. No critical/high issues. Row-level security at query level, XSS-safe highlighting, rate limiting.
+- Architecture audit: Score 9/10 APPROVE. Clean layering, no new tech debt, scaling path documented.
+- UX audit: Score 9/10. 6 usability + 9 accessibility issues found and fixed (idle state, focus management, ARIA landmarks, semantic HTML, dark mode contrast).
+- Hacker audit: Chaos Score 7/10. 4 bugs found and fixed (AC-15 scroll-to-message, keepPreviousData, scroll reset, date formatting guard).
+- Final verdict: 9/10 SHIP.
+
 ### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
@@ -820,7 +859,7 @@ Full-stack message editing (within 15-minute window) and soft-deletion across Dj
 - ~~WebSocket support for web messaging (replace HTTP polling)~~ ✅ Completed 2026-02-19 (Pipeline 22)
 - ~~Web typing indicators (component exists, awaiting WebSocket)~~ ✅ Completed 2026-02-19 (Pipeline 22)
 - ~~Message editing and deletion~~ ✅ Completed 2026-02-19 (Pipeline 23)
-- Message search
+- ~~Message search~~ ✅ Completed 2026-02-20 (Pipeline 24)
 - Advanced analytics and reporting
 - Multi-language support
 - Social auth (Apple/Google) mobile integration
