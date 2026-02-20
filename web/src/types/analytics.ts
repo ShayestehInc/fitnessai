@@ -14,7 +14,22 @@ export interface AdherenceAnalytics {
   food_logged_rate: number;
   workout_logged_rate: number;
   protein_goal_rate: number;
+  calorie_goal_rate: number;
   trainee_adherence: TraineeAdherence[];
+}
+
+export interface AdherenceTrendPoint {
+  date: string;
+  food_logged_rate: number;
+  workout_logged_rate: number;
+  protein_goal_rate: number;
+  calorie_goal_rate: number;
+  trainee_count: number;
+}
+
+export interface AdherenceTrends {
+  period_days: number;
+  trends: AdherenceTrendPoint[];
 }
 
 export interface TraineeProgressEntry {

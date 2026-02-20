@@ -860,7 +860,7 @@ Full-stack message search across all conversations with backend API, web dashboa
 - ~~Web typing indicators (component exists, awaiting WebSocket)~~ ✅ Completed 2026-02-19 (Pipeline 22)
 - ~~Message editing and deletion~~ ✅ Completed 2026-02-19 (Pipeline 23)
 - ~~Message search~~ ✅ Completed 2026-02-20 (Pipeline 24)
-- Advanced analytics and reporting
+- ~~Advanced analytics and reporting~~ ✅ Partially completed 2026-02-20 (Pipeline 26 — calorie goal rate + adherence trend chart)
 - Multi-language support
 - Social auth (Apple/Google) mobile integration
 - Full impersonation token swap (web dashboard)

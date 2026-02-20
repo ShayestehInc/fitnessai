@@ -836,6 +836,14 @@ class ProgramUploadImageView(views.APIView):
         }, status=status.HTTP_200_OK)
 
 
+def _parse_days_param(request: Request, default: int = 30) -> int:
+    """Parse and clamp the `days` query parameter (1-365)."""
+    try:
+        return min(max(int(request.query_params.get('days', default)), 1), 365)
+    except (ValueError, TypeError):
+        return default
+
+
 class AdherenceAnalyticsView(views.APIView):
     """
     GET: Get adherence analytics across all trainees.
@@ -845,10 +853,7 @@ class AdherenceAnalyticsView(views.APIView):
 
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
-        try:
-            days = min(max(int(request.query_params.get('days', 30)), 1), 365)
-        except (ValueError, TypeError):
-            days = 30
+        days = _parse_days_param(request)
         start_date = timezone.now().date() - timedelta(days=days)
 
         trainees = User.objects.filter(
@@ -867,6 +872,7 @@ class AdherenceAnalyticsView(views.APIView):
         food_logged_days = summaries.filter(logged_food=True).count()
         workout_logged_days = summaries.filter(logged_workout=True).count()
         protein_hit_days = summaries.filter(hit_protein_goal=True).count()
+        calorie_hit_days = summaries.filter(hit_calorie_goal=True).count()
 
         # Per-trainee adherence — single annotated query instead of N+1
         adherence_qs = summaries.values(
@@ -899,7 +905,70 @@ class AdherenceAnalyticsView(views.APIView):
             'food_logged_rate': round(food_logged_days / total_days * 100, 1) if total_days > 0 else 0,
             'workout_logged_rate': round(workout_logged_days / total_days * 100, 1) if total_days > 0 else 0,
             'protein_goal_rate': round(protein_hit_days / total_days * 100, 1) if total_days > 0 else 0,
+            'calorie_goal_rate': round(calorie_hit_days / total_days * 100, 1) if total_days > 0 else 0,
             'trainee_adherence': sorted(trainee_adherence, key=lambda x: -x['adherence_rate'])
+        })
+
+
+class AdherenceTrendView(views.APIView):
+    """
+    GET: Get daily adherence trend data across all trainees.
+    Query params: ?days=30
+    Returns per-day rates for food, workout, protein, and calorie goals.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        days = _parse_days_param(request)
+        start_date = timezone.now().date() - timedelta(days=days)
+
+        trainees = User.objects.filter(
+            parent_trainer=user,
+            role=User.Role.TRAINEE,
+            is_active=True,
+        )
+
+        daily_qs = (
+            TraineeActivitySummary.objects.filter(
+                trainee__in=trainees,
+                date__gte=start_date,
+            )
+            .values('date')
+            .annotate(
+                trainee_count=Count('trainee', distinct=True),
+                food_logged=Count(
+                    Case(When(logged_food=True, then=1), output_field=IntegerField()),
+                ),
+                workout_logged=Count(
+                    Case(When(logged_workout=True, then=1), output_field=IntegerField()),
+                ),
+                protein_hit=Count(
+                    Case(When(hit_protein_goal=True, then=1), output_field=IntegerField()),
+                ),
+                calorie_hit=Count(
+                    Case(When(hit_calorie_goal=True, then=1), output_field=IntegerField()),
+                ),
+                total=Count('id'),
+            )
+            .order_by('date')
+        )
+
+        trends: list[dict[str, object]] = []
+        for row in daily_qs:
+            total = row['total']
+            trends.append({
+                'date': row['date'].isoformat(),
+                'food_logged_rate': round(row['food_logged'] / total * 100, 1) if total > 0 else 0,
+                'workout_logged_rate': round(row['workout_logged'] / total * 100, 1) if total > 0 else 0,
+                'protein_goal_rate': round(row['protein_hit'] / total * 100, 1) if total > 0 else 0,
+                'calorie_goal_rate': round(row['calorie_hit'] / total * 100, 1) if total > 0 else 0,
+                'trainee_count': row['trainee_count'],
+            })
+
+        return Response({
+            'period_days': days,
+            'trends': trends,
         })
 
 

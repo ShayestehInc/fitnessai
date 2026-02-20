@@ -10,7 +10,7 @@ from .views import (
     StartImpersonationView, EndImpersonationView,
     ProgramTemplateListCreateView, ProgramTemplateDetailView,
     AssignProgramTemplateView, ProgramTemplateUploadImageView, ProgramUploadImageView,
-    AdherenceAnalyticsView, ProgressAnalyticsView,
+    AdherenceAnalyticsView, AdherenceTrendView, ProgressAnalyticsView,
     GenerateMCPTokenView, AIChatView, AIChatTraineeContextView, AIProvidersView,
     MarkMissedDayView,
     TraineeLayoutConfigView,
@@ -61,6 +61,7 @@ urlpatterns = [
 
     # Analytics
     path('analytics/adherence/', AdherenceAnalyticsView.as_view(), name='analytics-adherence'),
+    path('analytics/adherence/trends/', AdherenceTrendView.as_view(), name='analytics-adherence-trends'),
     path('analytics/progress/', ProgressAnalyticsView.as_view(), name='analytics-progress'),
 
     # MCP Server Integration

@@ -1,51 +1,38 @@
-# Architecture Review: Ambassador Dashboard Enhancement (Pipeline 25)
+# Architecture Review: Advanced Trainer Analytics — Calorie Goal + Adherence Trends (Pipeline 26)
 
 ## Review Date
 2026-02-20
 
-## Files Reviewed
-- `backend/ambassador/views.py` (modified — dashboard 12-month earnings, referrals ordering)
-- `web/src/components/ambassador/earnings-chart.tsx` (new)
-- `web/src/components/ambassador/referral-list.tsx` (rewritten)
-- `web/src/components/ambassador/referral-status-breakdown.tsx` (new)
-- `web/src/app/(ambassador-dashboard)/ambassador/dashboard/page.tsx` (modified)
-- `web/src/hooks/use-ambassador.ts` (modified — keepPreviousData)
-- `backend/ambassador/tests/test_dashboard_views.py` (new)
-
 ## Architectural Alignment
-- [x] Follows existing layered architecture
-- [x] Models/schemas in correct locations
-- [x] No business logic in routers/views (aggregate queries are view-appropriate for read-only dashboards)
-- [x] Consistent with existing patterns
+- [x] Follows existing layered architecture (views handle request/response, queries use ORM)
+- [x] Models/schemas in correct locations (no new models needed)
+- [x] No business logic in routers/views (aggregation is data retrieval, not business logic)
+- [x] Consistent with existing patterns (AdherenceTrendView mirrors AdherenceAnalyticsView pattern)
 
 ## Data Model Assessment
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | N/A | No schema changes or migrations |
-| Migrations reversible | N/A | No migrations |
-| Indexes added for new queries | N/A | Uses existing indexes on `referred_at`, `ambassador + status` |
-| No N+1 query patterns | PASS | `select_related('trainer', 'trainer__subscription')` on referral queries; aggregate queries use single DB round-trip |
+| Schema changes backward-compatible | N/A | No schema changes — uses existing TraineeActivitySummary model |
+| Migrations reversible | N/A | No migrations needed |
+| Indexes added for new queries | OK | Existing (trainee, date) index covers the GROUP BY date query |
+| No N+1 query patterns | OK | Single annotated query with values('date').annotate(...) |
 
-## API Design
-- Dashboard endpoint returns 12 months with zero-fill, using `amount` key — consistent with frontend type
-- Referrals endpoint uses DRF `PageNumberPagination` format (`count`, `next`, `previous`, `results`) — standard
-- Status filter via `?status=` query param with server-side uppercasing — defensive
-
-## Frontend Patterns
-- EarningsChart follows AdherenceBarChart pattern (Recharts + ResponsiveContainer)
-- ReferralList uses React Query with `keepPreviousData` — correct v5 pattern
-- Components are well-decomposed: ReferralCard, StatusBadge, ReferralListSkeleton extracted
-- State management: `useState` for filter/page/search — correct for ephemeral UI state
+## Frontend Architecture
+- Types in `analytics.ts` — consistent with existing pattern
+- Hook in `use-analytics.ts` — same file as other analytics hooks, consistent API
+- Component follows same pattern as `adherence-chart.tsx` and `earnings-chart.tsx`
+- Shared `CHART_COLORS` constant extended (not duplicated)
+- `_parse_days_param` helper reduces duplication between views
 
 ## Scalability Concerns
 | # | Area | Issue | Recommendation |
 |---|------|-------|----------------|
-| — | — | No new scalability concerns | All queries are bounded and indexed |
+| — | — | No concerns. Response is O(days), not O(trainees×days). | — |
 
 ## Technical Debt Introduced
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| — | None introduced | — | — |
+| — | None. The implementation reduces debt by extracting _parse_days_param helper. | — | — |
 
 ## Architecture Score: 9/10
 ## Recommendation: APPROVE

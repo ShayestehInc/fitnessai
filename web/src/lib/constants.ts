@@ -53,6 +53,7 @@ export const API_URLS = {
   traineeProgress: (id: number) =>
     `${API_BASE}/api/trainer/trainees/${id}/progress/`,
   ANALYTICS_ADHERENCE: `${API_BASE}/api/trainer/analytics/adherence/`,
+  ANALYTICS_ADHERENCE_TRENDS: `${API_BASE}/api/trainer/analytics/adherence/trends/`,
   ANALYTICS_PROGRESS: `${API_BASE}/api/trainer/analytics/progress/`,
 
   // Programs & Exercises

@@ -4,6 +4,24 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-20] — Advanced Trainer Analytics (Pipeline 26)
+
+### Added
+- **Calorie goal hit rate** -- 4th stat card on the trainer analytics page showing the percentage of days trainees hit their calorie goals. Uses the existing `hit_calorie_goal` field from `TraineeActivitySummary` which was previously unused.
+- **Adherence trend chart** -- New `AdherenceTrendChart` component showing daily adherence rates (food, workout, protein, calorie) as a Recharts AreaChart over the selected period. Includes custom tooltip with all 4 rates + trainee count, legend, `sr-only` data list, and responsive layout.
+- **Adherence trends API** -- `GET /api/trainer/analytics/adherence/trends/?days=N` returns per-day adherence rates for all metrics. Single annotated query with O(days) response. Authenticated + IsTrainer.
+- **21 new backend tests** -- 5 for calorie_goal_rate in existing adherence endpoint, 16 for the new trends endpoint (calculation, sorting, auth, isolation, parameter validation, edge cases).
+
+### Changed
+- `AdherenceAnalyticsView` now returns `calorie_goal_rate` alongside existing food/workout/protein rates.
+- Analytics stat cards grid updated from 3 columns to `sm:grid-cols-2 lg:grid-cols-4` for the 4th card.
+- Skeleton state updated to show 4 card skeletons + 2 chart skeletons.
+- `CHART_COLORS` extended with `calorie` color (`--chart-3`).
+- Extracted `_parse_days_param()` helper to reduce duplication between analytics views.
+- X-axis labels: 7d shows weekday names, 14d/30d shows "Feb 15" format for clarity.
+
+---
+
 ## [2026-02-20] — Ambassador Dashboard Enhancement (Pipeline 25)
 
 ### Added
