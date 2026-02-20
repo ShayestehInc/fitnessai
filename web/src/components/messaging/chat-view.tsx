@@ -65,6 +65,28 @@ export function ChatView({ conversation }: ChatViewProps) {
         markRead.mutate();
       }
     },
+    onMessageEdited: (messageId, content, editedAt) => {
+      // Update local allMessages state directly so the UI reflects
+      // the other party's edit immediately (RQ cache is also updated by the hook).
+      setAllMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content, edited_at: editedAt }
+            : m,
+        ),
+      );
+    },
+    onMessageDeleted: (messageId) => {
+      // Update local allMessages state directly so the UI reflects
+      // the other party's delete immediately (RQ cache is also updated by the hook).
+      setAllMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content: "", image: null, is_deleted: true }
+            : m,
+        ),
+      );
+    },
   });
 
   const wsConnected = connectionState === "connected";

@@ -168,7 +168,13 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildDeletedBubble(BuildContext context, ThemeData theme) {
-    return Align(
+    final senderLabel = isMine ? 'You' : message.sender.displayName;
+    final semanticLabel =
+        '$senderLabel: This message was deleted, ${_formatTimestamp(message.createdAt)}';
+
+    return Semantics(
+      label: semanticLabel,
+      child: Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -218,6 +224,7 @@ class MessageBubble extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

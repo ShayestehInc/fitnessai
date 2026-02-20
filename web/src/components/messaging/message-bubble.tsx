@@ -51,13 +51,27 @@ export function MessageBubble({
     }
   }, [isEditing]);
 
+  // Dismiss delete confirmation on Escape key
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowDeleteConfirm(false);
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showDeleteConfirm]);
+
   const handleSaveEdit = useCallback(() => {
     const trimmed = editContent.trim();
-    if (trimmed && trimmed !== message.content) {
+    // Allow empty content for image messages (image-only); require content for text-only
+    const canSave = (trimmed || hasImage) && trimmed !== message.content;
+    if (canSave) {
       onEdit?.(trimmed);
     }
     setIsEditing(false);
-  }, [editContent, message.content, onEdit]);
+  }, [editContent, message.content, hasImage, onEdit]);
 
   const handleCancelEdit = useCallback(() => {
     setEditContent(message.content);
@@ -84,6 +98,7 @@ export function MessageBubble({
           "flex w-full",
           isOwnMessage ? "justify-end" : "justify-start",
         )}
+        aria-label={`${isOwnMessage ? "You" : "Other participant"}: This message was deleted, ${formatMessageTime(message.created_at)}`}
       >
         <div
           className={cn(
@@ -116,7 +131,7 @@ export function MessageBubble({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => {
           setIsHovered(false);
-          setShowDeleteConfirm(false);
+          // Don't dismiss delete confirmation on mouse leave — user needs time to click
         }}
       >
         {/* Action icons on hover (own messages only) */}
@@ -198,7 +213,12 @@ export function MessageBubble({
               />
               <div className="mt-1 flex items-center justify-between">
                 <span className="text-[10px] text-muted-foreground">
-                  Esc to cancel, Ctrl+Enter to save
+                  Esc to cancel,{" "}
+                  {typeof navigator !== "undefined" &&
+                  /Mac|iPhone|iPad/.test(navigator.userAgent)
+                    ? "\u2318"
+                    : "Ctrl"}
+                  +Enter to save
                 </span>
                 <div className="flex gap-1">
                   <Button
@@ -213,7 +233,7 @@ export function MessageBubble({
                     size="sm"
                     onClick={handleSaveEdit}
                     disabled={
-                      !editContent.trim() ||
+                      (!editContent.trim() && !hasImage) ||
                       editContent.trim() === message.content
                     }
                     className="h-6 px-2 text-xs"
@@ -290,9 +310,13 @@ export function MessageBubble({
             isOwnMessage ? "justify-end" : "justify-start",
           )}
         >
-          <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 shadow-sm">
+          <div
+            role="alertdialog"
+            aria-label="Confirm message deletion"
+            className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 shadow-sm"
+          >
             <span className="text-xs text-muted-foreground">
-              Delete this message?
+              Delete this message? This can&apos;t be undone.
             </span>
             <Button
               size="sm"

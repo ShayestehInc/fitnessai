@@ -85,6 +85,10 @@ interface UseMessagingWebSocketOptions {
   enabled?: boolean;
   /** Called when a new message arrives. Consumer should handle scroll logic. */
   onNewMessage?: (message: Message) => void;
+  /** Called when a message is edited via WebSocket (from the other party). */
+  onMessageEdited?: (messageId: number, content: string, editedAt: string) => void;
+  /** Called when a message is deleted via WebSocket (from the other party). */
+  onMessageDeleted?: (messageId: number) => void;
 }
 
 interface UseMessagingWebSocketReturn {
@@ -97,6 +101,8 @@ export function useMessagingWebSocket({
   conversationId,
   enabled = true,
   onNewMessage,
+  onMessageEdited,
+  onMessageDeleted,
 }: UseMessagingWebSocketOptions): UseMessagingWebSocketReturn {
   const queryClient = useQueryClient();
 
@@ -122,6 +128,10 @@ export function useMessagingWebSocket({
   const cancelledRef = useRef(false);
   const onNewMessageRef = useRef(onNewMessage);
   onNewMessageRef.current = onNewMessage;
+  const onMessageEditedRef = useRef(onMessageEdited);
+  onMessageEditedRef.current = onMessageEdited;
+  const onMessageDeletedRef = useRef(onMessageDeleted);
+  onMessageDeletedRef.current = onMessageDeleted;
 
   // ------------------------------------------------------------------
   // Cleanup helpers
@@ -390,10 +400,12 @@ export function useMessagingWebSocket({
 
         case "message_edited":
           updateMessageEdited(data.message_id, data.content, data.edited_at);
+          onMessageEditedRef.current?.(data.message_id, data.content, data.edited_at);
           break;
 
         case "message_deleted":
           updateMessageDeleted(data.message_id);
+          onMessageDeletedRef.current?.(data.message_id);
           break;
 
         default:

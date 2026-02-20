@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/conversation_model.dart';
@@ -56,8 +55,7 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
         conversations: conversations,
         isLoading: false,
       );
-    } catch (e) {
-      debugPrint('ConversationListNotifier.loadConversations() failed: $e');
+    } catch (_) {
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to load conversations.',
@@ -278,8 +276,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         hasMore: response.next != null,
         currentPage: 1,
       );
-    } catch (e) {
-      debugPrint('ChatNotifier.loadMessages() failed: $e');
+    } catch (_) {
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to load messages.',
@@ -307,8 +304,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         hasMore: response.next != null,
         currentPage: nextPage,
       );
-    } catch (e) {
-      debugPrint('ChatNotifier.loadMore() failed: $e');
+    } catch (_) {
       state = state.copyWith(isLoadingMore: false);
     }
   }
@@ -450,6 +446,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
         return m;
       }).toList(),
     );
+  }
+
+  /// Clear any transient error state (e.g. after the UI has shown it).
+  void clearError() {
+    if (state.error != null) {
+      state = state.copyWith(clearError: true);
+    }
   }
 
   /// Edit a message. Optimistic update, revert on error.

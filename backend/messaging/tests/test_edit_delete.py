@@ -540,12 +540,12 @@ class EditMessageViewTest(_MessagingTestBase):
 
 @override_settings(REST_FRAMEWORK={**_THROTTLE_OVERRIDE})
 class DeleteMessageViewTest(_MessagingTestBase):
-    """Tests for DELETE /api/messaging/conversations/<id>/messages/<message_id>/delete/."""
+    """Tests for DELETE /api/messaging/conversations/<id>/messages/<message_id>/."""
 
     def _url(self, conversation_id: int | None = None, message_id: int | None = None) -> str:
         cid = conversation_id if conversation_id is not None else self.conversation.id
         mid = message_id if message_id is not None else self.message.id
-        return f'/api/messaging/conversations/{cid}/messages/{mid}/delete/'
+        return f'/api/messaging/conversations/{cid}/messages/{mid}/'
 
     def test_delete_returns_204(self) -> None:
         """AC-3: successful delete returns 204 No Content."""
@@ -934,7 +934,7 @@ class EdgeCaseTests(_MessagingTestBase):
     def test_edge_case_11_impersonating_admin_delete_forbidden(self, mock_imp: Any) -> None:
         """Edge case 11: impersonating admin cannot delete -> 403 Forbidden."""
         self.client.force_authenticate(user=self.admin)
-        url = f'/api/messaging/conversations/{self.conversation.id}/messages/{self.message.id}/delete/'
+        url = f'/api/messaging/conversations/{self.conversation.id}/messages/{self.message.id}/'
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -1135,7 +1135,7 @@ class TraineeEditDeleteTest(_MessagingTestBase):
         self.client.force_authenticate(user=self.trainee)
         url = (
             f'/api/messaging/conversations/{self.conversation.id}'
-            f'/messages/{self.trainee_message.id}/delete/'
+            f'/messages/{self.trainee_message.id}/'
         )
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)

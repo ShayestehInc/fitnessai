@@ -56,8 +56,13 @@ class MessageSenderSerializer(serializers.Serializer):  # type: ignore[type-arg]
 
 
 class EditMessageSerializer(serializers.Serializer):  # type: ignore[type-arg]
-    """Validates message edit request."""
-    content = serializers.CharField(max_length=2000, required=True)
+    """Validates message edit request.
+
+    ``allow_blank=True`` because image messages may have their caption
+    cleared (edge case 8).  The service layer enforces that text-only
+    messages still require non-empty content.
+    """
+    content = serializers.CharField(max_length=2000, required=True, allow_blank=True)
 
     def validate_content(self, value: str) -> str:
         return value.strip()
