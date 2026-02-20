@@ -143,8 +143,6 @@ export function AdherenceTrendChart({ days }: AdherenceTrendChartProps) {
     );
   }
 
-  const chartData = trends;
-
   return (
     <Card>
       <CardHeader>
@@ -164,7 +162,7 @@ export function AdherenceTrendChart({ days }: AdherenceTrendChartProps) {
           >
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={chartData}
+                data={trends}
                 margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
               >
                 <CartesianGrid
