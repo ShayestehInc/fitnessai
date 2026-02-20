@@ -23,26 +23,6 @@ from rest_framework.throttling import ScopedRateThrottle
 
 from users.models import User
 
-logger = logging.getLogger(__name__)
-
-# Image validation constants
-_ALLOWED_IMAGE_TYPES: frozenset[str] = frozenset({
-    'image/jpeg', 'image/png', 'image/webp',
-})
-_MAX_IMAGE_SIZE: int = 5 * 1024 * 1024  # 5MB
-
-
-def _validate_message_image(image_file: UploadedFile) -> str | None:
-    """Validate an uploaded message image.
-
-    Returns an error message string if invalid, None if valid.
-    """
-    if image_file.content_type not in _ALLOWED_IMAGE_TYPES:
-        return 'Only JPEG, PNG, and WebP images are supported.'
-    if image_file.size is not None and image_file.size > _MAX_IMAGE_SIZE:
-        return 'Image must be under 5MB.'
-    return None
-
 from .models import Conversation, Message
 from .serializers import (
     ConversationListSerializer,
@@ -62,6 +42,26 @@ from .services.messaging_service import (
     send_message_push_notification,
     send_message_to_trainee,
 )
+
+logger = logging.getLogger(__name__)
+
+# Image validation constants
+_ALLOWED_IMAGE_TYPES: frozenset[str] = frozenset({
+    'image/jpeg', 'image/png', 'image/webp',
+})
+_MAX_IMAGE_SIZE: int = 5 * 1024 * 1024  # 5MB
+
+
+def _validate_message_image(image_file: UploadedFile) -> str | None:
+    """Validate an uploaded message image.
+
+    Returns an error message string if invalid, None if valid.
+    """
+    if image_file.content_type not in _ALLOWED_IMAGE_TYPES:
+        return 'Only JPEG, PNG, and WebP images are supported.'
+    if image_file.size is not None and image_file.size > _MAX_IMAGE_SIZE:
+        return 'Image must be under 5MB.'
+    return None
 
 
 class MessagePagination(PageNumberPagination):

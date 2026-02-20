@@ -10,10 +10,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.db.models import BooleanField, Count, OuterRef, Q, QuerySet, Subquery, Value
 from django.db.models.expressions import Case, When
-from django.db.models.functions import Left, Length
+from django.db.models.functions import Left
 from django.utils import timezone
 
 from messaging.models import Conversation, Message
@@ -93,7 +94,7 @@ def send_message(
     sender: User,
     conversation: Conversation,
     content: str,
-    image: Any | None = None,
+    image: UploadedFile | None = None,
 ) -> SendMessageResult:
     """
     Send a message in a conversation.
@@ -238,7 +239,7 @@ def get_conversations_for_user(user: User) -> QuerySet[Conversation]:
         .values('content')[:1]
     )
 
-    # Subquery: check if the most recent message has an image
+    # Subquery: get the image path of the most recent message per conversation
     last_message_image_subquery = (
         Message.objects.filter(conversation=OuterRef('pk'))
         .order_by('-created_at')
@@ -253,19 +254,12 @@ def get_conversations_for_user(user: User) -> QuerySet[Conversation]:
                 Subquery(last_message_subquery),
                 100,
             ),
+            _last_message_image=Subquery(last_message_image_subquery),
+        )
+        .annotate(
             annotated_last_message_has_image=Case(
                 When(
-                    condition=Q(
-                        pk__in=Subquery(
-                            Message.objects.filter(
-                                conversation=OuterRef('pk'),
-                            )
-                            .exclude(image='')
-                            .exclude(image__isnull=True)
-                            .order_by('-created_at')
-                            .values('conversation_id')[:1]
-                        )
-                    ),
+                    condition=~Q(_last_message_image='') & Q(_last_message_image__isnull=False),
                     then=Value(True),
                 ),
                 default=Value(False),
@@ -315,7 +309,7 @@ def send_message_to_trainee(
     trainer: User,
     trainee_id: int,
     content: str,
-    image: Any | None = None,
+    image: UploadedFile | None = None,
 ) -> SendMessageResult:
     """
     High-level: send a message from a trainer to a trainee.

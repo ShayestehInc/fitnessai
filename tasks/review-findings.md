@@ -1,197 +1,134 @@
-# Code Review: In-App Direct Messaging (Trainer-to-Trainee)
+# Code Review: Image Attachments in Direct Messages (Pipeline 21)
 
 ## Review Date: 2026-02-19
-## Round: 2
+## Round: 1
 
 ## Files Reviewed
 
-All 25 files changed in the Round 2 fixup commit, including:
-
 ### Backend
-- `backend/messaging/services/messaging_service.py` (C1, C2 fix verification)
-- `backend/messaging/serializers.py` (C1, C2, m3 fix verification)
-- `backend/messaging/views.py` (C3, C5, m6 fix verification)
-- `backend/messaging/models.py` (M1 fix verification)
-- `backend/messaging/consumers.py` (M9 fix verification)
-- `backend/messaging/apps.py` (m10 verification)
-- `backend/messaging/admin.py`
-- `backend/messaging/migrations/0002_alter_conversation_trainee_set_null.py` (M1 migration)
-- `backend/trainer/views.py` (C4 fix verification)
+- `backend/messaging/models.py`
+- `backend/messaging/serializers.py`
+- `backend/messaging/views.py`
+- `backend/messaging/services/messaging_service.py`
+- `backend/messaging/migrations/0003_add_image_to_message.py`
 
-### Mobile
-- `mobile/lib/shared/widgets/trainer_navigation_shell.dart` (M5 fix verification)
-- `mobile/lib/shared/widgets/main_navigation_shell.dart` (M5 fix verification)
-- `mobile/lib/features/messaging/presentation/providers/messaging_provider.dart` (M6, m8 fix verification)
-- `mobile/lib/features/messaging/presentation/screens/new_conversation_screen.dart` (M6 fix verification)
-- `mobile/lib/features/messaging/presentation/widgets/conversation_tile.dart` (m1, m2 fix verification)
-- `mobile/lib/features/messaging/presentation/widgets/message_bubble.dart` (m1 fix verification)
-- `mobile/lib/features/messaging/presentation/widgets/messaging_utils.dart` (new file)
-- `mobile/lib/features/messaging/data/services/messaging_ws_service.dart` (m5 fix verification)
+### Mobile (Flutter)
+- `mobile/lib/features/messaging/data/models/message_model.dart`
+- `mobile/lib/features/messaging/data/repositories/messaging_repository.dart`
+- `mobile/lib/features/messaging/presentation/providers/messaging_provider.dart`
+- `mobile/lib/features/messaging/presentation/widgets/chat_input.dart`
+- `mobile/lib/features/messaging/presentation/widgets/message_bubble.dart`
+- `mobile/lib/features/messaging/presentation/widgets/message_image_viewer.dart` (NEW)
+- `mobile/lib/features/messaging/presentation/screens/chat_screen.dart`
+- `mobile/lib/features/messaging/presentation/screens/new_conversation_screen.dart`
 
-### Web
-- `web/src/components/messaging/chat-view.tsx` (M2, M7, m4 fix verification)
-- `web/src/components/messaging/conversation-list.tsx` (m7 fix verification)
-- `web/src/components/layout/sidebar.tsx` (M3 fix verification)
-- `web/src/components/layout/sidebar-mobile.tsx` (M3 fix verification)
-- `web/src/app/(dashboard)/trainees/[id]/page.tsx` (M8 fix verification)
-- `web/src/app/(dashboard)/messages/page.tsx` (M4, m9 fix verification)
-- `web/src/hooks/use-messaging.ts` (M4 fix verification)
-- `web/src/types/messaging.ts` (M4 fix verification)
+### Web (Next.js)
+- `web/src/types/messaging.ts`
+- `web/src/hooks/use-messaging.ts`
+- `web/src/components/messaging/message-bubble.tsx`
+- `web/src/components/messaging/chat-input.tsx`
+- `web/src/components/messaging/image-modal.tsx` (NEW)
+- `web/src/components/messaging/chat-view.tsx`
+- `web/src/components/messaging/new-conversation-view.tsx`
 
 ---
 
-## Round 1 Critical Issue Verification
-
-| # | Issue | Status | Verification |
-|---|-------|--------|--------------|
-| C1 | N+1 query in get_last_message_preview() | **FIXED** | `get_conversations_for_user()` (line 224-245) now uses `Subquery` with `Left(Subquery(last_message_subquery), 100)` annotation. `get_last_message_preview()` in the serializer (line 109-115) reads from `annotated_last_message_preview` via `getattr()`. Zero extra queries per conversation. Verified the Subquery targets `OuterRef('pk')` correctly and orders by `-created_at` with `[:1]` slice. |
-| C2 | N+1 query in get_unread_count() | **FIXED** | Same queryset annotates with `Count('messages', filter=Q(messages__is_read=False) & ~Q(messages__sender=user))` (line 239-241). Serializer's `get_unread_count()` (line 117-123) reads from `annotated_unread_count`. Single query. |
-| C3 | Silent exception swallowing in broadcast/push helpers | **FIXED** | All three helpers (`_broadcast_new_message` line 386, `_broadcast_read_receipt` line 417, `_send_message_push_notification` line 450) now catch `(ConnectionError, TimeoutError, OSError)` only. Programming errors will propagate. |
-| C4 | archive_conversations_for_trainee() never called | **FIXED** | `RemoveTraineeView.post()` at line 312 imports and calls `archive_conversations_for_trainee(trainee)` at line 328 before clearing `parent_trainer`. Includes logging when conversations are archived. |
-| C5 | Rate limiting not applied to views | **FIXED** | `SendMessageView` has `throttle_classes = [ScopedRateThrottle]` and `throttle_scope = 'messaging'` (lines 142-143). `StartConversationView` has the same (lines 217-218). Both correctly reference the `messaging` scope defined as `30/minute` in settings. |
-
-**All 5 critical issues are verified as properly fixed.**
-
----
-
-## Round 1 Major Issue Verification
-
-| # | Issue | Status | Verification |
-|---|-------|--------|--------------|
-| M1 | CASCADE delete on trainee FK | **FIXED** | `models.py` line 23-25: `on_delete=models.SET_NULL, null=True`. Migration `0002_alter_conversation_trainee_set_null.py` correctly alters the field. `__str__()` at line 53 handles null trainee with `'[removed]'` fallback. |
-| M2 | Web typing indicator never rendered | **FIXED (documented limitation)** | `chat-view.tsx` lines 218-221 has a clear comment documenting that typing indicators are a v1 web limitation since web uses HTTP polling and not WebSocket. The component exists in `typing-indicator.tsx` for future use. Acceptable for v1. |
-| M3 | Web sidebar no unread badge | **FIXED** | `sidebar.tsx` lines 7, 13-14, 30, 45-52: uses `useMessagingUnreadCount()` hook and renders a destructive `Badge` next to the Messages link when `unreadCount > 0`. Same fix applied to `sidebar-mobile.tsx` (lines 8, 24-25, 39, 55-62). Both handle 99+ capping. |
-| M4 | ConversationListView no pagination | **FIXED** | `views.py` lines 45-47: `ConversationPagination` with `page_size = 50`. Lines 68-79: paginator is applied in `ConversationListView.get()`. `web/src/types/messaging.ts` adds `ConversationsResponse` type. `use-messaging.ts` extracts `response.results` from paginated response. |
-| M5 | addPostFrameCallback infinite loop | **FIXED** | Both `trainer_navigation_shell.dart` and `main_navigation_shell.dart` are now `ConsumerStatefulWidget` with `ref.read(unreadMessageCountProvider.notifier).refresh()` called in `initState()` (runs once on mount). No more `addPostFrameCallback` on every build. The `ref.watch(unreadMessageCountProvider)` in `build()` correctly watches for state changes without triggering new fetches. |
-| M6 | setState in new_conversation_screen | **FIXED** | `new_conversation_screen.dart` is now a `ConsumerWidget` (line 9). State is managed via `newConversationProvider` (Riverpod). `NewConversationState` and `NewConversationNotifier` added to `messaging_provider.dart` (lines 142-199). No `setState` calls remain. |
-| M7 | markRead mutation loop | **FIXED** | `chat-view.tsx` lines 61-70: `markReadCalledRef` tracks whether markRead was already called for a specific `conversation.id`. The effect only calls `markRead.mutate()` when `conversation.unread_count > 0` AND `markReadCalledRef.current !== conversation.id`. Ref is reset on conversation switch. `markRead` is in the dependency array. |
-| M8 | Auto-greeting on web | **FIXED** | `trainees/[id]/page.tsx` lines 42-47: `handleMessageTrainee` now navigates to `/messages?trainee=${traineeId}`. No more `useStartConversation` hook or auto-sent greeting. `messages/page.tsx` lines 45-55 handles the `trainee` query param to auto-select the matching conversation from the existing list. |
-| M9 | Manual query string parsing in WS consumer | **FIXED** | `consumers.py` lines 128-135: uses `from urllib.parse import parse_qs` instead of manual splitting. Handles URL encoding, edge cases, and duplicate keys correctly. |
-
-**All 9 major issues are verified as properly fixed.**
-
----
-
-## Round 1 Minor Issue Verification
-
-| # | Issue | Status | Verification |
-|---|-------|--------|--------------|
-| m1 | Duplicated _formatTimestamp | **FIXED** | New `messaging_utils.dart` with shared `formatConversationTimestamp()` and `formatMessageTimestamp()`. `conversation_tile.dart` line 128-130 and `message_bubble.dart` line 96-98 both delegate to these shared utilities. |
-| m2 | Midnight hour bug | **FIXED** | `messaging_utils.dart` line 9-13: `_to12Hour()` correctly handles `hour == 0` returning 12, `hour > 12` returning `hour - 12`, otherwise returning `hour`. |
-| m3 | Generic serializer type params | **FIXED** | All four serializers (`SendMessageSerializer`, `StartConversationSerializer`, `MessageSenderSerializer`, `ConversationParticipantSerializer`) now use plain `serializers.Serializer` with `# type: ignore[type-arg]` comment instead of non-standard generic parameters. |
-| m4 | Missing scrollToBottom in useEffect deps | **FIXED** | `chat-view.tsx` line 77: `scrollToBottom` is in the dependency array `[allMessages.length, page, scrollToBottom]`. |
-| m5 | Silent WS message catch | **FIXED** | `messaging_ws_service.dart` line 130: `debugPrint('MessagingWsService: failed to parse WS message: $e')` instead of silent `catch (_)`. |
-| m6 | Impersonation JWT re-parsing | **FIXED** | `views.py` lines 346-360: `_is_impersonating()` now reads from `request.auth` (the already-validated token) using `hasattr(token, 'get')` and `token.get('impersonating', False)`. No more header parsing or JWT decoding. |
-| m7 | Conversation list showing wrong party | **FIXED** | `conversation-list.tsx` lines 21, 46-49: uses `useAuth()` to get current user and displays the other party. `chat-view.tsx` lines 18, 31-37: same pattern for the chat header. |
-| m8 | UnreadCountNotifier silent catch | **FIXED** | `messaging_provider.dart` line 126: `debugPrint('UnreadCountNotifier.refresh() failed: $e')`. `ChatNotifier.markRead()` line 350: `debugPrint('ChatNotifier.markRead() failed: $e')`. |
-| m9 | calc-based height | **FIXED** | `messages/page.tsx` line 101: uses `flex min-h-0 flex-1 flex-col gap-4` instead of `h-[calc(100vh-8rem)]`. Layout adapts to header size changes. |
-| m10 | Missing default_auto_field | **ALREADY PRESENT** | `apps.py` line 8: `default_auto_field = 'django.db.models.BigAutoField'`. Was already there. |
-
-**All 10 minor issues are verified as fixed or confirmed not needed.**
-
----
-
-## New Issues Found in Round 2
-
-### Critical Issues (must fix before merge)
-
-None.
-
-### Major Issues (should fix)
-
-None.
-
-### Minor Issues (nice to fix)
+## Critical Issues (must fix before merge)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| m11 | `web/src/components/messaging/chat-view.tsx:73-77,88-90` | **`scrollToBottom` referenced before definition.** The `useEffect` at line 73-77 references `scrollToBottom` (which is in its deps array) but `scrollToBottom` is defined at lines 88-90 with `useCallback`. In JavaScript, `const` declarations are not hoisted, so during the initial render this will cause a `ReferenceError`. The `useCallback` should be moved above the `useEffect` that depends on it. | Move the `scrollToBottom` `useCallback` definition (lines 88-90) to before the auto-scroll `useEffect` (lines 73-77). |
-| m12 | `web/src/app/(dashboard)/messages/page.tsx:71` | **eslint-disable comment hiding missing dependency.** `selectedConversation` is used inside the effect body (line 58) but excluded from the dependency array with an eslint-disable comment. This could cause stale closures where `selectedConversation` references an outdated value. | Use a ref for `selectedConversation` or restructure the effect to avoid the stale closure. At minimum, document why the dep is excluded. |
-| m13 | `mobile/lib/features/messaging/presentation/providers/messaging_provider.dart:59-64` | **ConversationListNotifier.loadConversations() catches all exceptions and replaces with generic error string.** The project rule says "NO exception silencing." While this is a UI-facing provider (so replacing with user-friendly text is reasonable), the original exception should at least be logged. | Add `debugPrint('ConversationListNotifier.loadConversations() failed: $e');` in the catch block. Same for `ChatNotifier.loadMessages()` (line 278-282) and `ChatNotifier.loadMore()` (line 307). |
-| m14 | `web/src/app/(dashboard)/messages/page.tsx:45-55` | **No handling for when trainee param is provided but no conversation exists yet.** If a trainer clicks "Message" from trainee detail and no conversation exists yet, `conversations.find(c => c.trainee.id === targetTraineeId)` returns undefined, and the page falls through to selecting the first conversation (or none). The user has no way to start a new conversation from the web. | Add a "Start conversation" flow: if `traineeIdParam` is set but no matching conversation exists, show a prompt/form for the trainer to send their first message (calling `useStartConversation`). This is a gap in the web flow that mobile handles via the `NewConversationScreen`. |
+| C1 | `messaging_service.py:241-246` | **Dead code**: `last_message_image_subquery` variable is declared but never used. The actual `annotated_last_message_has_image` annotation on line 256 uses a completely different nested Subquery approach instead. | Remove the unused variable OR use it properly (see C3). |
+| C2 | `messaging_service.py:16` | **Unused import**: `Length` is imported from `django.db.models.functions` but never used anywhere in the file. | Remove `Length` from the import statement. |
+| C3 | `messaging_service.py:256-273` | **Fragile annotation logic**: `annotated_last_message_has_image` uses a nested `pk__in=Subquery(...)` pattern that checks whether ANY message in the conversation has an image, not whether the LAST message specifically has an image. It works accidentally because the serializer only checks it when the preview is empty (implying an image-only last message per validation constraints). This is fragile — any future change to validation could break this implicit relationship. The name is also misleading. | Use the declared `last_message_image_subquery` to get the image field of the most recent message, then check if it's non-empty/non-null using a chained `.annotate()` call. |
+| C4 | `views.py:46-64` | **Imports after function definitions**: All model/serializer/service imports appear AFTER the `_validate_message_image()` function definition. This violates PEP 8 import ordering and makes the file confusing to read. | Move all imports to the top of the file, grouped with the existing imports. |
+
+## Major Issues (should fix)
+
+| # | File:Line | Issue | Suggested Fix |
+|---|-----------|-------|---------------|
+| M1 | `messaging_provider.dart:313-338` | **AC-23 not implemented: No optimistic image send on mobile.** `ChatNotifier.sendMessage()` waits for the full API response before adding the message to the list. The `localImagePath` field exists on `MessageModel` but is never used. For image uploads on slow connections, the user stares at a spinner for seconds with no chat feedback. | Create an optimistic `MessageModel` with `localImagePath` set using a temporary negative ID, add it to messages immediately, then replace it with the server response on success or mark as `isSendFailed` on error. |
+| M2 | `chat-input.tsx:68-69` | **Object URL memory leak on web.** `URL.createObjectURL()` is called on image select, and `URL.revokeObjectURL()` on remove/submit. But if the component unmounts while an image is selected (user navigates away), the object URL leaks. | Add a `useEffect` cleanup: `useEffect(() => () => { if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl); }, [imagePreviewUrl])`. |
+| M3 | `messaging_service.py:96,318` | **Weak typing on `image` parameter**: Both `send_message()` and `send_message_to_trainee()` use `Any | None` for the `image` parameter. Per project rules ("Type hints on everything"), this should use `UploadedFile | None`. | Import `UploadedFile` from `django.core.files.uploadedfile` and use it as the type hint. |
+
+## Minor Issues (nice to fix)
+
+| # | File:Line | Issue | Suggested Fix |
+|---|-----------|-------|---------------|
+| m1 | `message_bubble.dart:156-158` | **No shimmer/skeleton for image loading (AC-21 deviation)**: Uses `CircularProgressIndicator` instead of a shimmer/skeleton matching image dimensions as specified in the ticket. | Acceptable for v1. Consider shimmer in a follow-up. |
+| m2 | `message-bubble.tsx:46-52` | **No skeleton loading state for web images (AC-34)**: Uses native `loading="lazy"` but no explicit skeleton/loading state while the image loads. Images pop in without a placeholder. | Add an `onLoad` handler to toggle a skeleton placeholder. |
+| m3 | `message_image_viewer.dart:21-25` | **AppBar has no title**: The fullscreen image viewer has an empty AppBar. Screen readers won't announce what this screen is. | Add a title like `'Image'` or make it semantically labeled. |
+| m4 | `chat_input.dart:147-149` | **`setState(() {})` on every keystroke**: Rebuilds the entire widget on each character typed to update the counter and send button state. | Consider `ValueNotifier` for the counter. Minor for this widget size. |
+| m5 | `messaging_provider.dart:59-64,280-284,307-309` | **Provider catch blocks don't log exceptions**: `loadConversations()`, `loadMessages()`, and `loadMore()` catch all exceptions and set generic error strings without logging. Per project rules ("NO exception silencing"). | Add `debugPrint` logging in each catch block. |
 
 ---
 
 ## Security Concerns
 
-All security concerns from Round 1 are now resolved:
-1. Rate limiting is applied to send endpoints (C5 fixed).
-2. No new secrets leaked.
-3. Row-level security remains solid in all views and services.
-4. WebSocket auth uses `parse_qs` correctly (M9 fixed).
-5. Impersonation guard uses `request.auth` properly (m6 fixed).
-6. The `except Exception` in WS consumer's `get_user_from_token` (line 150) is the only remaining broad catch, but this is acceptable since it's authentication code that must not leak internal errors to unauthenticated users.
+1. **content_type spoofing (Low risk)**: `_validate_message_image()` checks `content_type` from the upload header, which can be spoofed. However, Django's `ImageField` validates actual image data with Pillow on save, providing defense-in-depth. **Acceptable.**
 
-No new security issues introduced.
+2. **Direct media URL access (Informational)**: Images stored in `message_images/` are served via Django's media URL. Anyone with the UUID-based URL can access the image without authentication. Row-level security is on the API endpoints, not the media files. Standard pattern for v1, but worth noting for future hardening (signed URLs).
+
+3. **No new secrets leaked**: Reviewed all changed files, no API keys, passwords, or tokens.
 
 ## Performance Concerns
 
-All performance concerns from Round 1 are now resolved:
-1. N+1 queries eliminated via Subquery + Count annotation (C1, C2 fixed).
-2. Conversation list is paginated at 50 per page (M4 fixed).
-3. Navigation shell infinite loop eliminated (M5 fixed).
-4. Web polling intervals are reasonable (5s for messages, 15s for conversations, 30s for unread count).
+1. **No thumbnail generation**: Full-size images are served for 300px-tall bubbles. Mobile compresses client-side (85%/1920px) but web sends full resolution up to 5MB. Consider server-side thumbnails in a future iteration.
 
-No new performance issues introduced.
-
-## Acceptance Criteria Verification
-
-| AC | Status | Notes |
-|----|--------|-------|
-| AC-1 | PASS | Conversation + Message models with proper indexes and constraints |
-| AC-2 | PASS | Trainee detail "Send Message" button wired on both mobile and web |
-| AC-3 | PASS | Conversation list sorted by `-last_message_at`, paginated |
-| AC-4 | PASS | Trainer can send text messages, rate-limited at 30/min |
-| AC-5 | PASS | Trainee sees their conversation(s) |
-| AC-6 | PASS | Trainee can reply |
-| AC-7 | PASS | Mobile: WebSocket real-time. Web: 5s polling (documented deviation) |
-| AC-8 | PASS | Mobile and web (both desktop sidebar and mobile sidebar) show unread badges |
-| AC-9 | PASS | Push notification via FCM with specific exception handling |
-| AC-10 | PASS | Messages paginated at 20/page with infinite scroll |
-| AC-11 | PASS | Conversation list shows preview (annotated), timestamp, unread count, avatar |
-| AC-12 | PASS | Row-level security in all views and service functions |
-| AC-13 | PASS | Messages persisted to PostgreSQL |
-| AC-14 | PASS | Web Messages page with split-panel layout |
-| AC-15 | PASS | Web trainee detail Message button navigates to messages page (no auto-greeting) |
-| AC-16 | PASS | Multiline input with 2000 char max and counter |
-| AC-17 | PASS | Mobile typing indicators work. Web: documented v1 limitation |
-| AC-18 | PASS | Timestamps with relative/absolute formatting, shared utility |
-| AC-19 | PASS | Conversation auto-created via `get_or_create_conversation()` |
-| AC-20 | PASS | Read receipts with double checkmark on both mobile and web |
-| AC-21 | PASS | Mobile trainee detail has quick-message via new-conversation screen |
-
-## Edge Case Verification
-
-| Edge Case | Status | Notes |
-|-----------|--------|-------|
-| 1. Trainee removed | PASS | `archive_conversations_for_trainee()` called in `RemoveTraineeView` before clearing FK |
-| 2. Offline trainee | PASS | DB persistence + push notification |
-| 3. Concurrent messages | PASS | Server timestamps, optimistic UI with dedup by ID |
-| 4. WebSocket drop | PASS | Exponential backoff reconnection with max 5 attempts |
-| 5. Empty/whitespace | PASS | Client + server validation |
-| 6. Long messages | PASS | Client counter + server 2000 char limit |
-| 7. No parent_trainer | PASS | Service validates relationship |
-| 8. Rapid fire spam | PASS | Rate limit enforced at 30/minute via ScopedRateThrottle |
-| 9. Navigate away mid-typing | PASS | No draft state, send-or-discard |
-| 10. Admin impersonation | PASS | Read-only guard using request.auth |
+2. **Complex annotation subquery (C3)**: The current nested `pk__in=Subquery(...)` is more complex than needed. Using the simpler `last_message_image_subquery` approach would generate a more efficient SQL query.
 
 ---
 
-## Quality Score: 8/10
+## Acceptance Criteria Verification
 
-All 5 critical issues, 9 major issues, and 10 minor issues from Round 1 have been properly fixed. The implementation is now production-quality with:
-- Efficient database queries (Subquery + annotations, no N+1)
-- Proper rate limiting on send endpoints
-- Row-level security on all views
-- Soft-delete with conversation archival on trainee removal
-- SET_NULL FK to preserve conversation history
-- No infinite loops in navigation shells
-- Full Riverpod state management (no setState for business logic)
-- Web sidebar unread badges on both desktop and mobile layouts
-- Proper exception handling (no silent swallowing of programming errors)
+### Backend (all passing)
+- [x] AC-1: image ImageField with UUID path
+- [x] AC-2: Migration adds image column
+- [x] AC-3: Multipart form data with at-least-one validation
+- [x] AC-4: JPEG/PNG/WebP, 5MB validation
+- [x] AC-5: image SerializerMethodField with absolute URL
+- [x] AC-6: SendMessageResult has image_url
+- [x] AC-7: WebSocket broadcast includes image via serializer
+- [x] AC-8: StartConversationView accepts multipart
+- [x] AC-9: Backward compatible (JSON still works)
+- [x] AC-10: Rate limiting unchanged
+- [x] AC-11: Row-level security unchanged
+- [x] AC-12: Impersonation guard unchanged
+- [x] AC-13: Push notification "Sent a photo"
 
-The 4 new minor issues found (m11-m14) are low-severity: m11 is a hooks ordering issue that should be fixed but is unlikely to cause runtime problems in practice due to React's evaluation order; m12 is a standard React pattern; m13 is a logging improvement; m14 is a UX gap that is acceptable for v1 since the mobile flow handles it.
+### Mobile
+- [x] AC-14: Camera picker button
+- [x] AC-15: ImagePicker 1920x1920, 85% quality
+- [x] AC-16: Thumbnail preview with X remove
+- [x] AC-17: Image-only, text-only, image+text
+- [x] AC-18: Multipart FormData via Dio
+- [x] AC-19: Rounded corners, 75% width, 300px max height
+- [x] AC-20: InteractiveViewer fullscreen 1x-4x
+- [ ] AC-21: **PARTIAL** — Uses spinner, not shimmer/skeleton
+- [x] AC-22: Image error state
+- [ ] AC-23: **FAIL** — Optimistic send not implemented (see M1)
+- [ ] AC-24: **PARTIAL** — Model supports `isSendFailed` but no retry UI
+- [x] AC-25: Client-side 5MB validation
+- [x] AC-26: Accessibility semantics
+- [x] AC-27: imageUrl field on MessageModel
 
-## Recommendation: APPROVE
+### Web
+- [x] AC-28: Paperclip button
+- [x] AC-29: File input accepts JPEG/PNG/WebP
+- [x] AC-30: Thumbnail preview with remove
+- [x] AC-31: FormData with multipart
+- [x] AC-32: Rounded corners, 70% width, 300px max height
+- [x] AC-33: Click opens modal
+- [ ] AC-34: **PARTIAL** — Uses lazy loading, no skeleton
+- [x] AC-35: 5MB toast
+- [x] AC-36: Message type updated
+- [x] AC-37: "Sent a photo" in conversation list
 
-The implementation is solid, all critical and major issues from Round 1 are verified as fixed, and no new critical or major issues were introduced. The 4 remaining minor issues (m11-m14) are low-risk and can be addressed in a follow-up pass or during the audit stages.
+---
+
+## Quality Score: 6/10
+
+The implementation covers all three stacks correctly with proper API design, validation, accessibility, and consistent patterns. However, the dead code (C1-C2), fragile annotation logic (C3), import ordering (C4), missing optimistic send (M1), memory leak (M2), and weak typing (M3) bring the score below the merge threshold.
+
+## Recommendation: REQUEST CHANGES
+
+Fix C1-C4 (dead code, unused import, annotation logic, import ordering) and M1-M3 (optimistic send, URL memory leak, type hints) before merge. Minor issues can be addressed in audit stages.
