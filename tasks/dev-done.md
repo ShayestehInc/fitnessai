@@ -1,40 +1,45 @@
-# Dev Done: Advanced Trainer Analytics — Calorie Goal + Adherence Trends (Pipeline 26)
+# Dev Done: Full Trainer→Trainee Impersonation Token Swap (Web Dashboard)
 
 ## Date
 2026-02-20
 
 ## Files Changed
 
-### Backend
-- `backend/trainer/views.py` — Added `calorie_goal_rate` to `AdherenceAnalyticsView` response; new `AdherenceTrendView` class for daily trend data
-- `backend/trainer/urls.py` — Registered `analytics/adherence/trends/` endpoint; imported `AdherenceTrendView`
+### New Files
+- `web/src/types/trainee-view.ts` — TypeScript types for impersonation response, trainee programs, nutrition summary, weight check-ins, and trainer impersonation state
+- `web/src/hooks/use-trainee-view.ts` — React Query hooks for trainee-facing APIs (useTraineeProfile, useTraineePrograms, useNutritionSummary, useWeightCheckIns)
+- `web/src/components/layout/trainer-impersonation-banner.tsx` — Trainer→trainee impersonation banner with sessionStorage management and end-impersonation handler
+- `web/src/app/(trainee-view)/layout.tsx` — Minimal layout with impersonation banner, no sidebar, centered content
+- `web/src/app/(trainee-view)/trainee-view/page.tsx` — Read-only trainee dashboard with 4 data cards
+- `web/src/components/trainee-view/profile-card.tsx` — Profile summary card (name, email, onboarding status)
+- `web/src/components/trainee-view/program-card.tsx` — Active program card with today's exercises
+- `web/src/components/trainee-view/nutrition-card.tsx` — Today's nutrition card with macro progress bars
+- `web/src/components/trainee-view/weight-card.tsx` — Recent weight check-ins with trend indicator
 
-### Frontend
-- `web/src/types/analytics.ts` — Added `calorie_goal_rate` to `AdherenceAnalytics`, new `AdherenceTrendPoint` and `AdherenceTrends` types
-- `web/src/hooks/use-analytics.ts` — New `useAdherenceTrends(days)` hook
-- `web/src/lib/constants.ts` — New `ANALYTICS_ADHERENCE_TRENDS` URL constant
-- `web/src/lib/chart-utils.ts` — Added `calorie` color to `CHART_COLORS`
-- `web/src/components/analytics/adherence-trend-chart.tsx` — **NEW** — Recharts AreaChart component for daily adherence trends (4 lines: food, workout, protein, calorie)
-- `web/src/components/analytics/adherence-section.tsx` — Added 4th stat card (Calorie Goal Hit), embedded `AdherenceTrendChart`, updated grid from `sm:grid-cols-3` to `sm:grid-cols-2 lg:grid-cols-4`, updated skeleton to 4 cards + 2 chart skeletons
+### Modified Files
+- `web/src/components/trainees/impersonate-trainee-button.tsx` — Replaced no-op onSuccess with full token swap: save trainer tokens to sessionStorage, set trainee tokens, set TRAINEE role cookie, hard navigate to /trainee-view
+- `web/src/middleware.ts` — Added TRAINEE role routing to /trainee-view, added isTraineeViewPath guard, updated getDashboardPath for TRAINEE
+- `web/src/providers/auth-provider.tsx` — Allow TRAINEE role in fetchUser when trainer impersonation state exists in sessionStorage
+- `web/src/lib/constants.ts` — Added TRAINEE_PROGRAMS, TRAINEE_NUTRITION_SUMMARY, TRAINEE_WEIGHT_CHECKINS, TRAINEE_USER_PROFILE URL constants
 
 ## Key Decisions
-1. Used `AreaChart` (not `LineChart`) for the trend chart — filled areas provide better visual weight and make it easier to distinguish overlapping metrics
-2. Chart renders one Area per metric with `fillOpacity={0.1}` — keeps the fill subtle so lines remain readable
-3. `AdherenceTrendView` aggregates per-day using a single annotated query with `values('date')` — O(days) response, not O(trainees*days)
-4. Both the trend chart and existing stat cards/bar chart share the same period selector state — switching periods updates all three simultaneously
-5. Used `CartesianGrid` with `vertical={false}` for cleaner horizontal reference lines
-6. Custom `CustomTooltip` component shows all 4 rates + trainee count for the hovered day
+1. **Auth-provider modification**: The auth-provider rejects non-TRAINER/ADMIN/AMBASSADOR roles. Added a check for active trainer impersonation state in sessionStorage to allow TRAINEE role through.
+2. **Separate sessionStorage key**: Using `fitnessai_trainer_impersonation` (different from the admin `fitnessai_impersonation` key) to avoid conflicts if admin→trainer→trainee chains ever exist.
+3. **Nutrition summary endpoint**: Used the `/api/workouts/daily-logs/nutrition-summary/` endpoint instead of separate nutrition-goals + daily-logs calls. It returns goals, consumed, remaining, and meals in one response.
+4. **Hard navigation**: Both start and end impersonation use `window.location.href` (not `router.push`) to clear React Query cache and force fresh data.
+5. **No backend changes**: Backend `StartImpersonationView` and `EndImpersonationView` already return everything needed.
 
 ## Deviations from Ticket
-- None. All acceptance criteria addressed.
+- None. All 24 acceptance criteria are addressed.
 
-## How to Test
-1. Start backend: `docker-compose up -d` or `python manage.py runserver`
-2. Log in as a trainer with active trainees who have `TraineeActivitySummary` records
-3. Navigate to `/analytics`
-4. Verify: 4 stat cards (Food, Workouts, Protein, Calorie) in a responsive grid
-5. Verify: Area chart below stat cards showing 4 trend lines
-6. Use period selector (7d/14d/30d) — all sections update together
-7. Hover over chart points — tooltip shows date, all 4 rates, trainee count
-8. Check empty state: log in as a trainer with no trainees → see "No active trainees" empty state
-9. Check dark mode: colors should use CSS variables, no hardcoded colors
+## How to Manually Test
+1. Log in as a trainer
+2. Go to Trainees → click on a trainee
+3. Click "View as Trainee" → confirm in dialog
+4. Verify: amber banner appears, trainee view page shows 4 cards, URL is /trainee-view
+5. Verify: Profile card shows trainee's name/email
+6. Verify: Program card shows active program or "No program assigned"
+7. Verify: Nutrition card shows today's macros or "No data logged today"
+8. Verify: Weight card shows recent check-ins or "No weight data"
+9. Click "End Impersonation" in the banner
+10. Verify: redirected back to /trainees/{id}, trainer tokens restored, trainer dashboard accessible

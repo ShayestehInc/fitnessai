@@ -16,6 +16,16 @@ import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error-utils";
+import {
+  getAccessToken,
+  getRefreshToken,
+  setTokens,
+  setRoleCookie,
+} from "@/lib/token-manager";
+import type { ImpersonationStartResponse } from "@/types/trainee-view";
+import {
+  setTrainerImpersonationState,
+} from "@/components/layout/trainer-impersonation-banner";
 
 interface ImpersonateTraineeButtonProps {
   traineeId: number;
@@ -30,16 +40,42 @@ export function ImpersonateTraineeButton({
 
   const impersonateMutation = useMutation({
     mutationFn: () =>
-      apiClient.post<{ session_token: string }>(
+      apiClient.post<ImpersonationStartResponse>(
         API_URLS.trainerImpersonateStart(traineeId),
         {},
       ),
     onSuccess: (data) => {
+      // AC-1: Save trainer's current tokens to sessionStorage
+      const trainerAccess = getAccessToken();
+      const trainerRefresh = getRefreshToken();
+
+      if (!trainerAccess || !trainerRefresh) {
+        toast.error("Failed to save trainer session. Please try again.");
+        return;
+      }
+
+      // AC-4: Save trainee ID and name alongside trainer tokens
+      setTrainerImpersonationState({
+        trainerAccessToken: trainerAccess,
+        trainerRefreshToken: trainerRefresh,
+        traineeId: data.trainee.id,
+        traineeName:
+          `${data.trainee.first_name} ${data.trainee.last_name}`.trim() ||
+          data.trainee.email,
+      });
+
+      // AC-2: Set trainee JWT tokens
+      setTokens(data.access, data.refresh);
+
+      // AC-3: Set role cookie to TRAINEE
+      setRoleCookie("TRAINEE");
+
       toast.success(`Now viewing as ${traineeName}`);
-      // Store impersonation token and redirect to trainee view
-      // In practice, the backend sets up the session
-      window.location.href = "/dashboard";
+
+      // AC-5: Hard navigate to /trainee-view to clear React Query cache
+      window.location.href = "/trainee-view";
     },
+    // AC-6: If API call fails, trainer stays on current page
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 

@@ -19,6 +19,7 @@ import {
   setRoleCookie,
 } from "@/lib/token-manager";
 import { apiClient } from "@/lib/api-client";
+import { getTrainerImpersonationState } from "@/components/layout/trainer-impersonation-banner";
 
 interface AuthContextValue {
   user: User | null;
@@ -38,10 +39,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUser = useCallback(async (): Promise<User> => {
     try {
       const userData = await apiClient.get<User>(API_URLS.CURRENT_USER);
+
+      // Allow TRAINEE role when a trainer is impersonating
+      const isTrainerImpersonation =
+        userData.role === UserRole.TRAINEE &&
+        getTrainerImpersonationState() !== null;
+
       if (
         userData.role !== UserRole.TRAINER &&
         userData.role !== UserRole.ADMIN &&
-        userData.role !== UserRole.AMBASSADOR
+        userData.role !== UserRole.AMBASSADOR &&
+        !isTrainerImpersonation
       ) {
         clearTokens();
         setUser(null);
