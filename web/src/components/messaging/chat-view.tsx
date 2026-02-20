@@ -20,9 +20,9 @@ import { ChatInput } from "./chat-input";
 import { TypingIndicator } from "./typing-indicator";
 import type { Conversation, Message } from "@/types/messaging";
 
-// Polling intervals: fast when WS is down, slow (background) when connected
+// Polling intervals: fast when WS is down, disabled (0) when connected
 const POLLING_FAST_MS = 5_000;
-const POLLING_DISABLED = false as const;
+const POLLING_OFF = 0;
 
 interface ChatViewProps {
   conversation: Conversation;
@@ -37,6 +37,8 @@ export function ChatView({ conversation }: ChatViewProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
+
+  const markRead = useMarkConversationRead(conversation.id);
 
   // WebSocket connection
   const { connectionState, typingUser, sendTyping } = useMessagingWebSocket({
@@ -67,7 +69,7 @@ export function ChatView({ conversation }: ChatViewProps) {
   // Only poll when WebSocket is NOT connected
   const pollInterval =
     wsConnected || connectionState === "connecting"
-      ? POLLING_DISABLED
+      ? POLLING_OFF
       : POLLING_FAST_MS;
 
   const { data, isLoading, isError, refetch } = useMessages(
@@ -75,7 +77,6 @@ export function ChatView({ conversation }: ChatViewProps) {
     page,
   );
   const sendMessage = useSendMessage(conversation.id);
-  const markRead = useMarkConversationRead(conversation.id);
 
   // Show the other party's info in the header
   const otherParty =
@@ -285,9 +286,6 @@ export function ChatView({ conversation }: ChatViewProps) {
           </div>
         )}
 
-        {/* Typing indicator */}
-        {typingDisplayName && <TypingIndicator name={typingDisplayName} />}
-
         <div ref={bottomRef} />
 
         {/* Scroll to bottom button */}
@@ -303,6 +301,9 @@ export function ChatView({ conversation }: ChatViewProps) {
           </Button>
         )}
       </div>
+
+      {/* Typing indicator — outside scroll area so it's always visible */}
+      {typingDisplayName && <TypingIndicator name={typingDisplayName} />}
 
       {/* Chat input */}
       <ChatInput

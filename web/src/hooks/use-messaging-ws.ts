@@ -105,6 +105,7 @@ export function useMessagingWebSocket({
   );
   const lastTypingSentRef = useRef(false);
   const intentionalCloseRef = useRef(false);
+  const cancelledRef = useRef(false);
   const onNewMessageRef = useRef(onNewMessage);
   onNewMessageRef.current = onNewMessage;
 
@@ -204,6 +205,9 @@ export function useMessagingWebSocket({
   // ------------------------------------------------------------------
 
   const connect = useCallback(async () => {
+    // Reset cancellation flag for this connection attempt
+    cancelledRef.current = false;
+
     // Close existing connection if any
     if (wsRef.current) {
       intentionalCloseRef.current = true;
@@ -216,11 +220,16 @@ export function useMessagingWebSocket({
     // Ensure we have a valid token
     if (isAccessTokenExpired()) {
       const refreshed = await refreshAccessToken();
+      // Check if component unmounted during async token refresh
+      if (cancelledRef.current) return;
       if (!refreshed) {
         setConnectionState("failed");
         return;
       }
     }
+
+    // Recheck cancellation before creating WebSocket
+    if (cancelledRef.current) return;
 
     const token = getAccessToken();
     if (!token) {
@@ -422,6 +431,7 @@ export function useMessagingWebSocket({
     connect();
 
     return () => {
+      cancelledRef.current = true;
       intentionalCloseRef.current = true;
       clearTimers();
       if (wsRef.current) {
