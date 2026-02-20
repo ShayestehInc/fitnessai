@@ -25,10 +25,10 @@ interface AdherenceTrendChartProps {
 
 function formatDateLabel(dateStr: string, periodDays: number): string {
   const date = new Date(dateStr + "T00:00:00");
-  if (periodDays <= 14) {
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (periodDays <= 7) {
+    return date.toLocaleDateString(undefined, { weekday: "short" });
   }
-  return date.toLocaleDateString(undefined, { day: "numeric" });
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function formatFullDate(dateStr: string): string {
