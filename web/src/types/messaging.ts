@@ -32,6 +32,8 @@ export interface Message {
   image: string | null;
   is_read: boolean;
   read_at: string | null;
+  edited_at: string | null;
+  is_deleted: boolean;
   created_at: string;
 }
 

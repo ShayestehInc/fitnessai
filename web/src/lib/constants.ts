@@ -207,6 +207,10 @@ export const API_URLS = {
     `${API_BASE}/api/messaging/conversations/${conversationId}/send/`,
   messagingMarkRead: (conversationId: number) =>
     `${API_BASE}/api/messaging/conversations/${conversationId}/read/`,
+  messagingEditMessage: (conversationId: number, messageId: number) =>
+    `${API_BASE}/api/messaging/conversations/${conversationId}/messages/${messageId}/`,
+  messagingDeleteMessage: (conversationId: number, messageId: number) =>
+    `${API_BASE}/api/messaging/conversations/${conversationId}/messages/${messageId}/delete/`,
 
   // Ambassador (self-service)
   AMBASSADOR_DASHBOARD: `${API_BASE}/api/ambassador/dashboard/`,

@@ -241,6 +241,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           message: message,
           isMine: isMine,
           showReadReceipt: isMine && isLastMessage,
+          onEdit: isMine && !message.isDeleted
+              ? (newContent) {
+                  ref
+                      .read(chatProvider(widget.conversationId).notifier)
+                      .editMessage(message.id, newContent);
+                }
+              : null,
+          onDelete: isMine && !message.isDeleted
+              ? () {
+                  ref
+                      .read(chatProvider(widget.conversationId).notifier)
+                      .deleteMessage(message.id);
+                }
+              : null,
         );
       },
     );

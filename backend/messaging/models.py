@@ -93,6 +93,15 @@ class Message(models.Model):
     )
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)
+    edited_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Set when message content is edited by the sender.',
+    )
+    is_deleted = models.BooleanField(
+        default=False,
+        help_text='Soft-delete flag. Content and image cleared when set.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -37,6 +37,18 @@ interface WsReadReceiptEvent {
   read_at: string;
 }
 
+interface WsMessageEditedEvent {
+  type: "message_edited";
+  message_id: number;
+  content: string;
+  edited_at: string;
+}
+
+interface WsMessageDeletedEvent {
+  type: "message_deleted";
+  message_id: number;
+}
+
 interface WsPongEvent {
   type: "pong";
 }
@@ -45,6 +57,8 @@ type WsEvent =
   | WsNewMessageEvent
   | WsTypingIndicatorEvent
   | WsReadReceiptEvent
+  | WsMessageEditedEvent
+  | WsMessageDeletedEvent
   | WsPongEvent;
 
 // ---------------------------------------------------------------------
@@ -200,6 +214,54 @@ export function useMessagingWebSocket({
     [queryClient, conversationId],
   );
 
+  const updateMessageEdited = useCallback(
+    (messageId: number, content: string, editedAt: string) => {
+      queryClient.setQueryData(
+        ["messaging", "messages", conversationId, 1],
+        (old: { count: number; next: string | null; previous: string | null; results: Message[] } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            results: old.results.map((m) =>
+              m.id === messageId
+                ? { ...m, content, edited_at: editedAt }
+                : m,
+            ),
+          };
+        },
+      );
+      // Update conversation preview if the edited message is the latest
+      queryClient.invalidateQueries({
+        queryKey: ["messaging", "conversations"],
+      });
+    },
+    [queryClient, conversationId],
+  );
+
+  const updateMessageDeleted = useCallback(
+    (messageId: number) => {
+      queryClient.setQueryData(
+        ["messaging", "messages", conversationId, 1],
+        (old: { count: number; next: string | null; previous: string | null; results: Message[] } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            results: old.results.map((m) =>
+              m.id === messageId
+                ? { ...m, content: "", image: null, is_deleted: true }
+                : m,
+            ),
+          };
+        },
+      );
+      // Update conversation preview if the deleted message was the latest
+      queryClient.invalidateQueries({
+        queryKey: ["messaging", "conversations"],
+      });
+    },
+    [queryClient, conversationId],
+  );
+
   // ------------------------------------------------------------------
   // WebSocket connect
   // ------------------------------------------------------------------
@@ -324,6 +386,14 @@ export function useMessagingWebSocket({
           updateReadReceipts(data.read_at);
           break;
 
+        case "message_edited":
+          updateMessageEdited(data.message_id, data.content, data.edited_at);
+          break;
+
+        case "message_deleted":
+          updateMessageDeleted(data.message_id);
+          break;
+
         default:
           // Unknown event type — silently ignore
           break;
@@ -378,6 +448,8 @@ export function useMessagingWebSocket({
     appendMessageToCache,
     updateConversationPreview,
     updateReadReceipts,
+    updateMessageEdited,
+    updateMessageDeleted,
   ]);
 
   // ------------------------------------------------------------------

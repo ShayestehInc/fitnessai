@@ -242,6 +242,10 @@ class ApiConstants {
       '$apiBaseUrl/messaging/conversations/$conversationId/send/';
   static String messagingMarkRead(int conversationId) =>
       '$apiBaseUrl/messaging/conversations/$conversationId/read/';
+  static String messagingEditMessage(int conversationId, int messageId) =>
+      '$apiBaseUrl/messaging/conversations/$conversationId/messages/$messageId/';
+  static String messagingDeleteMessage(int conversationId, int messageId) =>
+      '$apiBaseUrl/messaging/conversations/$conversationId/messages/$messageId/delete/';
   static String get messagingUnreadCount => '$apiBaseUrl/messaging/unread-count/';
 
   // WebSocket

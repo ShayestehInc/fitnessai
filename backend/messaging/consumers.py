@@ -122,6 +122,22 @@ class DirectMessageConsumer(AsyncJsonWebsocketConsumer):
             'read_at': event['read_at'],
         })
 
+    async def chat_message_edited(self, event: dict[str, Any]) -> None:
+        """Forward message-edited event to the client."""
+        await self.send_json({
+            'type': 'message_edited',
+            'message_id': event['message_id'],
+            'content': event['content'],
+            'edited_at': event['edited_at'],
+        })
+
+    async def chat_message_deleted(self, event: dict[str, Any]) -> None:
+        """Forward message-deleted event to the client."""
+        await self.send_json({
+            'type': 'message_deleted',
+            'message_id': event['message_id'],
+        })
+
     # ------------------------------------------------------------------
     # Auth helpers
     # ------------------------------------------------------------------

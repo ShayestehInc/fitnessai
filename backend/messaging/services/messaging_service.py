@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from datetime import timedelta
+
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.db.models import BooleanField, Count, OuterRef, Q, QuerySet, Subquery, Value
@@ -19,6 +21,9 @@ from django.utils import timezone
 
 from messaging.models import Conversation, Message
 from users.models import User
+
+# Configurable edit window: messages can only be edited within this time.
+EDIT_WINDOW = timedelta(minutes=15)
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +56,22 @@ class MarkReadResult:
 class UnreadCountResult:
     """Unread message count for a user."""
     unread_count: int
+
+
+@dataclass(frozen=True)
+class EditMessageResult:
+    """Result of editing a message."""
+    message_id: int
+    conversation_id: int
+    content: str
+    edited_at: datetime
+
+
+@dataclass(frozen=True)
+class DeleteMessageResult:
+    """Result of soft-deleting a message."""
+    message_id: int
+    conversation_id: int
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +267,13 @@ def get_conversations_for_user(user: User) -> QuerySet[Conversation]:
         .values('image')[:1]
     )
 
+    # Subquery: check if the most recent message is soft-deleted
+    last_message_is_deleted_subquery = (
+        Message.objects.filter(conversation=OuterRef('pk'))
+        .order_by('-created_at')
+        .values('is_deleted')[:1]
+    )
+
     return (
         base_qs
         .select_related('trainer', 'trainee')
@@ -255,11 +283,20 @@ def get_conversations_for_user(user: User) -> QuerySet[Conversation]:
                 100,
             ),
             _last_message_image=Subquery(last_message_image_subquery),
+            _last_message_is_deleted=Subquery(last_message_is_deleted_subquery),
         )
         .annotate(
             annotated_last_message_has_image=Case(
                 When(
                     condition=~Q(_last_message_image='') & Q(_last_message_image__isnull=False),
+                    then=Value(True),
+                ),
+                default=Value(False),
+                output_field=BooleanField(),
+            ),
+            annotated_last_message_is_deleted=Case(
+                When(
+                    _last_message_is_deleted=True,
                     then=Value(True),
                 ),
                 default=Value(False),
@@ -330,6 +367,116 @@ def send_message_to_trainee(
     return send_message(trainer, conversation, content, image=image)
 
 
+def edit_message(
+    user: User,
+    conversation: Conversation,
+    message_id: int,
+    new_content: str,
+) -> EditMessageResult:
+    """
+    Edit a message's content.
+
+    Validates:
+    - User is a participant in the conversation
+    - User is the sender of the message
+    - Message is not soft-deleted
+    - Message is within the edit window (EDIT_WINDOW)
+    - New content is not empty for text-only messages
+    - New content is within 2000 chars
+
+    Returns EditMessageResult.
+    Raises ValueError on validation failure.
+    Raises PermissionError if user is not the sender.
+    """
+    if user.id not in (conversation.trainer_id, conversation.trainee_id):
+        raise PermissionError('You are not a participant in this conversation.')
+
+    try:
+        message = Message.objects.get(
+            id=message_id,
+            conversation=conversation,
+        )
+    except Message.DoesNotExist:
+        raise ValueError('Message not found.')
+
+    if message.sender_id != user.id:
+        raise PermissionError('You can only edit your own messages.')
+
+    if message.is_deleted:
+        raise ValueError('Message has been deleted.')
+
+    now = timezone.now()
+    if (now - message.created_at) > EDIT_WINDOW:
+        raise ValueError('Edit window has expired.')
+
+    stripped = new_content.strip()
+    if len(stripped) > 2000:
+        raise ValueError('Message content cannot exceed 2000 characters.')
+
+    # If message has no image, content cannot be empty
+    if not stripped and not message.image:
+        raise ValueError('Content cannot be empty for a text-only message.')
+
+    message.content = stripped
+    message.edited_at = now
+    message.save(update_fields=['content', 'edited_at'])
+
+    return EditMessageResult(
+        message_id=message.id,
+        conversation_id=conversation.id,
+        content=message.content,
+        edited_at=message.edited_at,
+    )
+
+
+def delete_message(
+    user: User,
+    conversation: Conversation,
+    message_id: int,
+) -> DeleteMessageResult:
+    """
+    Soft-delete a message.
+
+    Clears content and image. Sets is_deleted=True.
+    No time limit on deletion.
+
+    Validates:
+    - User is a participant in the conversation
+    - User is the sender of the message
+    - Message is not already deleted
+
+    Returns DeleteMessageResult.
+    Raises ValueError on validation failure.
+    Raises PermissionError if user is not the sender.
+    """
+    if user.id not in (conversation.trainer_id, conversation.trainee_id):
+        raise PermissionError('You are not a participant in this conversation.')
+
+    try:
+        message = Message.objects.get(
+            id=message_id,
+            conversation=conversation,
+        )
+    except Message.DoesNotExist:
+        raise ValueError('Message not found.')
+
+    if message.sender_id != user.id:
+        raise PermissionError('You can only delete your own messages.')
+
+    if message.is_deleted:
+        raise ValueError('Message has already been deleted.')
+
+    message.content = ''
+    message.image = None
+    message.is_deleted = True
+    message.save(update_fields=['content', 'image', 'is_deleted'])
+
+    return DeleteMessageResult(
+        message_id=message.id,
+        conversation_id=conversation.id,
+    )
+
+
 # ---------------------------------------------------------------------------
 # WebSocket broadcast helpers
 # ---------------------------------------------------------------------------
@@ -390,6 +537,68 @@ def broadcast_read_receipt(
     except (ConnectionError, TimeoutError, OSError) as exc:
         logger.warning(
             "Failed to broadcast read receipt for conversation %d: %s",
+            conversation_id,
+            exc,
+        )
+
+
+def broadcast_message_edited(
+    conversation_id: int,
+    message_id: int,
+    new_content: str,
+    edited_at: str,
+) -> None:
+    """Broadcast a message-edited event to the conversation's WebSocket group."""
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+
+        group_name = f'messaging_conversation_{conversation_id}'
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'chat.message_edited',
+                'message_id': message_id,
+                'content': new_content,
+                'edited_at': edited_at,
+            },
+        )
+    except (ConnectionError, TimeoutError, OSError) as exc:
+        logger.warning(
+            "Failed to broadcast message-edited for conversation %d: %s",
+            conversation_id,
+            exc,
+        )
+
+
+def broadcast_message_deleted(
+    conversation_id: int,
+    message_id: int,
+) -> None:
+    """Broadcast a message-deleted event to the conversation's WebSocket group."""
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+
+        group_name = f'messaging_conversation_{conversation_id}'
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                'type': 'chat.message_deleted',
+                'message_id': message_id,
+            },
+        )
+    except (ConnectionError, TimeoutError, OSError) as exc:
+        logger.warning(
+            "Failed to broadcast message-deleted for conversation %d: %s",
             conversation_id,
             exc,
         )

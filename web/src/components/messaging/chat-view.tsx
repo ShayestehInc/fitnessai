@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, User, Loader2, WifiOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getInitials } from "@/lib/format-utils";
@@ -9,6 +10,8 @@ import {
   useSendMessage,
   useMarkConversationRead,
 } from "@/hooks/use-messaging";
+import { apiClient } from "@/lib/api-client";
+import { API_URLS } from "@/lib/constants";
 import {
   useMessagingWebSocket,
   type WsConnectionState,
@@ -197,6 +200,59 @@ export function ChatView({ conversation }: ChatViewProps) {
     [sendMessage, refetch, scrollToBottom],
   );
 
+  const queryClient = useQueryClient();
+
+  const handleEditMessage = useCallback(
+    async (messageId: number, content: string) => {
+      // Optimistic update
+      setAllMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content, edited_at: new Date().toISOString() }
+            : m,
+        ),
+      );
+      try {
+        await apiClient.patch<Message>(
+          API_URLS.messagingEditMessage(conversation.id, messageId),
+          { content },
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["messaging", "conversations"],
+        });
+      } catch {
+        // Revert optimistic update
+        refetch();
+      }
+    },
+    [conversation.id, queryClient, refetch],
+  );
+
+  const handleDeleteMessage = useCallback(
+    async (messageId: number) => {
+      // Optimistic update
+      setAllMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content: "", image: null, is_deleted: true }
+            : m,
+        ),
+      );
+      try {
+        await apiClient.delete(
+          API_URLS.messagingDeleteMessage(conversation.id, messageId),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["messaging", "conversations"],
+        });
+      } catch {
+        // Revert optimistic update
+        refetch();
+      }
+    },
+    [conversation.id, queryClient, refetch],
+  );
+
   // Group messages by date for date separators
   const groupedMessages = groupMessagesByDate(allMessages);
 
@@ -278,6 +334,17 @@ export function ChatView({ conversation }: ChatViewProps) {
                       key={message.id}
                       message={message}
                       isOwnMessage={message.sender.id === user?.id}
+                      onEdit={
+                        message.sender.id === user?.id
+                          ? (content) =>
+                              handleEditMessage(message.id, content)
+                          : undefined
+                      }
+                      onDelete={
+                        message.sender.id === user?.id
+                          ? () => handleDeleteMessage(message.id)
+                          : undefined
+                      }
                     />
                   ))}
                 </div>

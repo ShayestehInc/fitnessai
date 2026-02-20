@@ -123,6 +123,22 @@ class MessagingWsService {
                 .read(chatProvider(conversationId).notifier)
                 .onReadReceipt(readerId, DateTime.parse(readAtStr));
           }
+        case 'message_edited':
+          final messageId = data['message_id'] as int?;
+          final content = data['content'] as String?;
+          final editedAtStr = data['edited_at'] as String?;
+          if (messageId != null && content != null && editedAtStr != null) {
+            _ref
+                .read(chatProvider(conversationId).notifier)
+                .onMessageEdited(messageId, content, DateTime.parse(editedAtStr));
+          }
+        case 'message_deleted':
+          final messageId = data['message_id'] as int?;
+          if (messageId != null) {
+            _ref
+                .read(chatProvider(conversationId).notifier)
+                .onMessageDeleted(messageId);
+          }
         case 'pong':
           break;
       }

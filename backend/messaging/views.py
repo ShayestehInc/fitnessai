@@ -26,13 +26,18 @@ from users.models import User
 from .models import Conversation, Message
 from .serializers import (
     ConversationListSerializer,
+    EditMessageSerializer,
     MessageSerializer,
     SendMessageSerializer,
     StartConversationSerializer,
 )
 from .services.messaging_service import (
+    broadcast_message_deleted,
+    broadcast_message_edited,
     broadcast_new_message,
     broadcast_read_receipt,
+    delete_message,
+    edit_message,
     get_conversations_for_user,
     get_messages_for_conversation,
     get_unread_count,
@@ -342,6 +347,127 @@ class StartConversationView(views.APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+# ---------------------------------------------------------------------------
+# Edit & Delete message endpoints
+# ---------------------------------------------------------------------------
+
+
+class EditMessageView(views.APIView):
+    """
+    PATCH /api/messaging/conversations/<id>/messages/<message_id>/
+    Edit a message's content. Sender only, within 15-minute window.
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'messaging'
+
+    def patch(self, request: Request, conversation_id: int, message_id: int) -> Response:
+        user = cast(User, request.user)
+
+        if is_impersonating(request.auth):
+            return Response(
+                {'error': 'Cannot edit messages during impersonation.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = EditMessageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            conversation = Conversation.objects.select_related(
+                'trainer', 'trainee',
+            ).get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return Response(
+                {'error': 'Conversation not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            result = edit_message(
+                user=user,
+                conversation=conversation,
+                message_id=message_id,
+                new_content=serializer.validated_data['content'],
+            )
+        except PermissionError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except ValueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get full message for serialized response
+        message = Message.objects.select_related('sender').get(id=result.message_id)
+        response_serializer = MessageSerializer(message, context={'request': request})
+
+        # Broadcast edit event via WebSocket
+        broadcast_message_edited(
+            conversation_id=conversation.id,
+            message_id=result.message_id,
+            new_content=result.content,
+            edited_at=result.edited_at.isoformat(),
+        )
+
+        return Response(response_serializer.data)
+
+
+class DeleteMessageView(views.APIView):
+    """
+    DELETE /api/messaging/conversations/<id>/messages/<message_id>/
+    Soft-delete a message. Sender only, no time limit.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request: Request, conversation_id: int, message_id: int) -> Response:
+        user = cast(User, request.user)
+
+        if is_impersonating(request.auth):
+            return Response(
+                {'error': 'Cannot delete messages during impersonation.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            conversation = Conversation.objects.select_related(
+                'trainer', 'trainee',
+            ).get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return Response(
+                {'error': 'Conversation not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            result = delete_message(
+                user=user,
+                conversation=conversation,
+                message_id=message_id,
+            )
+        except PermissionError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except ValueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Broadcast delete event via WebSocket
+        broadcast_message_deleted(
+            conversation_id=conversation.id,
+            message_id=result.message_id,
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ---------------------------------------------------------------------------

@@ -423,4 +423,111 @@ class ChatNotifier extends StateNotifier<ChatState> {
       }).toList(),
     );
   }
+
+  /// Handle message-edited event from WebSocket.
+  void onMessageEdited(int messageId, String newContent, DateTime editedAt) {
+    state = state.copyWith(
+      messages: state.messages.map((m) {
+        if (m.id == messageId) {
+          return m.copyWith(content: newContent, editedAt: editedAt);
+        }
+        return m;
+      }).toList(),
+    );
+  }
+
+  /// Handle message-deleted event from WebSocket.
+  void onMessageDeleted(int messageId) {
+    state = state.copyWith(
+      messages: state.messages.map((m) {
+        if (m.id == messageId) {
+          return m.copyWith(
+            content: '',
+            isDeleted: true,
+            clearImage: true,
+          );
+        }
+        return m;
+      }).toList(),
+    );
+  }
+
+  /// Edit a message. Optimistic update, revert on error.
+  Future<bool> editMessage(int messageId, String newContent) async {
+    final original = state.messages.firstWhere(
+      (m) => m.id == messageId,
+      orElse: () => state.messages.first,
+    );
+    if (original.id != messageId) return false;
+
+    // Optimistic update
+    state = state.copyWith(
+      messages: state.messages.map((m) {
+        if (m.id == messageId) {
+          return m.copyWith(content: newContent, editedAt: DateTime.now());
+        }
+        return m;
+      }).toList(),
+    );
+
+    try {
+      await _repo.editMessage(
+        conversationId: conversationId,
+        messageId: messageId,
+        content: newContent,
+      );
+      return true;
+    } catch (e) {
+      // Revert optimistic update
+      state = state.copyWith(
+        messages: state.messages.map((m) {
+          if (m.id == messageId) {
+            return original;
+          }
+          return m;
+        }).toList(),
+        error: 'Failed to edit message.',
+      );
+      return false;
+    }
+  }
+
+  /// Delete a message. Optimistic update, revert on error.
+  Future<bool> deleteMessage(int messageId) async {
+    final original = state.messages.firstWhere(
+      (m) => m.id == messageId,
+      orElse: () => state.messages.first,
+    );
+    if (original.id != messageId) return false;
+
+    // Optimistic update
+    state = state.copyWith(
+      messages: state.messages.map((m) {
+        if (m.id == messageId) {
+          return m.copyWith(content: '', isDeleted: true, clearImage: true);
+        }
+        return m;
+      }).toList(),
+    );
+
+    try {
+      await _repo.deleteMessage(
+        conversationId: conversationId,
+        messageId: messageId,
+      );
+      return true;
+    } catch (e) {
+      // Revert optimistic update
+      state = state.copyWith(
+        messages: state.messages.map((m) {
+          if (m.id == messageId) {
+            return original;
+          }
+          return m;
+        }).toList(),
+        error: 'Failed to delete message.',
+      );
+      return false;
+    }
+  }
 }

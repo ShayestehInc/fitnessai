@@ -104,6 +104,29 @@ class MessagingRepository {
     );
   }
 
+  /// Edit a message's content.
+  Future<MessageModel> editMessage({
+    required int conversationId,
+    required int messageId,
+    required String content,
+  }) async {
+    final response = await _apiClient.dio.patch(
+      ApiConstants.messagingEditMessage(conversationId, messageId),
+      data: {'content': content},
+    );
+    return MessageModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Soft-delete a message.
+  Future<void> deleteMessage({
+    required int conversationId,
+    required int messageId,
+  }) async {
+    await _apiClient.dio.delete(
+      ApiConstants.messagingDeleteMessage(conversationId, messageId),
+    );
+  }
+
   /// Get total unread count.
   Future<int> getUnreadCount() async {
     final response = await _apiClient.dio.get(
