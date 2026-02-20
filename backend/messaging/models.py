@@ -3,7 +3,16 @@ Messaging models: Conversation and Message for 1:1 trainer-trainee direct messag
 """
 from __future__ import annotations
 
+import os
+import uuid
+
 from django.db import models
+
+
+def _message_image_path(instance: object, filename: str) -> str:
+    """Generate a UUID-based upload path for message images."""
+    ext = os.path.splitext(filename)[1].lower()
+    return f"message_images/{uuid.uuid4().hex}{ext}"
 
 
 class Conversation(models.Model):
@@ -74,7 +83,14 @@ class Message(models.Model):
         on_delete=models.CASCADE,
         related_name='sent_messages',
     )
-    content = models.TextField(max_length=2000)
+    content = models.TextField(max_length=2000, blank=True, default='')
+    image = models.ImageField(
+        upload_to=_message_image_path,
+        null=True,
+        blank=True,
+        default=None,
+        help_text='Optional image attachment (JPEG, PNG, WebP; max 5MB).',
+    )
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -89,5 +105,10 @@ class Message(models.Model):
         ordering = ['created_at']
 
     def __str__(self) -> str:
-        preview = self.content[:50] if self.content else ''
+        if self.content:
+            preview = self.content[:50]
+        elif self.image:
+            preview = '[Photo]'
+        else:
+            preview = ''
         return f"Message({self.sender.email}: {preview})"

@@ -29,6 +29,7 @@ export interface Message {
   conversation_id: number;
   sender: MessageSender;
   content: string;
+  image: string | null;
   is_read: boolean;
   read_at: string | null;
   created_at: string;

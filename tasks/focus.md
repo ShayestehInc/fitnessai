@@ -1,26 +1,24 @@
-# Pipeline 20 Focus: In-App Direct Messaging (Trainer-to-Trainee)
+# Pipeline 21 Focus: File/Image Attachments in Direct Messages
 
 ## Priority
-Build a complete real-time direct messaging system between trainers and trainees. This is the single highest-impact feature for trainer engagement and client retention.
+Add image attachment support to the direct messaging system across all three stacks (Django backend, Flutter mobile, Next.js web). This is the single highest-impact follow-up to the messaging system shipped in Pipeline 20.
 
 ## Why This Feature
-1. **Trainers are the paying customers** — they need private communication with clients about progress, missed workouts, goal adjustments, and motivation
-2. **Dead UI already exists** — "Send Message" button on mobile trainee detail screen does nothing (line 128-129 of trainee_detail_screen.dart)
-3. **All infrastructure is in place** — Django Channels WebSocket, FCM push notifications, real-time patterns proven in community feed
-4. **Direct impact on retention** — Trainers who can message clients retain more clients and stay on the platform longer
+1. **Messaging without images feels incomplete** — Trainers need to share form check photos, meal plans, progress photos, and quick visual feedback with clients
+2. **Patterns already exist** — Community feed has full image upload/display pipeline (backend UUID paths, mobile ImagePicker + InteractiveViewer, validation)
+3. **Infrastructure is in place** — WebSocket broadcasts, multipart upload, image storage all proven
+4. **Direct impact on engagement** — Visual communication is higher-engagement than text-only
+5. **Natural follow-up** — Pipeline 20 shipped messaging; this completes the messaging experience
 
 ## Scope
-- Backend: New `messaging` Django app with Conversation + Message models, REST API + WebSocket
-- Mobile: New messaging feature module for both trainer and trainee roles
-- Web: Messages page in trainer dashboard with conversation list + chat view
-- Real-time: WebSocket for instant message delivery + typing indicators
-- Push notifications: FCM when recipient is offline
-- Read receipts + unread badges
+- Backend: Add `image` field to Message model, multipart upload on send endpoint, image URL in serializer, WebSocket broadcast includes image
+- Mobile: Image picker button in chat input, image display in message bubbles, full-screen viewer, client-side compression/validation
+- Web: Image upload button in message input, image display in message bubbles, lightbox/modal viewer
+- Thumbnails: Generate thumbnail for conversation list preview
 
 ## What NOT to build
-- Group messaging / group chats
-- Image/file/video attachments in messages
-- Message editing or deletion after send
-- Message search
-- Auto-messages / scheduled messages
-- Trainee-to-trainee messaging
+- Video attachments (future phase)
+- Multiple images per message (one image per message for v1)
+- File attachments (PDF, docs — future phase)
+- Image editing/cropping before send
+- Image compression on backend (client-side only)

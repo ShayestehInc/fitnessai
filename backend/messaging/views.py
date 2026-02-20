@@ -12,14 +12,36 @@ from __future__ import annotations
 import logging
 from typing import cast
 
+from django.core.files.uploadedfile import UploadedFile
 from rest_framework import status, views
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
 from users.models import User
+
+logger = logging.getLogger(__name__)
+
+# Image validation constants
+_ALLOWED_IMAGE_TYPES: frozenset[str] = frozenset({
+    'image/jpeg', 'image/png', 'image/webp',
+})
+_MAX_IMAGE_SIZE: int = 5 * 1024 * 1024  # 5MB
+
+
+def _validate_message_image(image_file: UploadedFile) -> str | None:
+    """Validate an uploaded message image.
+
+    Returns an error message string if invalid, None if valid.
+    """
+    if image_file.content_type not in _ALLOWED_IMAGE_TYPES:
+        return 'Only JPEG, PNG, and WebP images are supported.'
+    if image_file.size is not None and image_file.size > _MAX_IMAGE_SIZE:
+        return 'Image must be under 5MB.'
+    return None
 
 from .models import Conversation, Message
 from .serializers import (
@@ -40,8 +62,6 @@ from .services.messaging_service import (
     send_message_push_notification,
     send_message_to_trainee,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class MessagePagination(PageNumberPagination):
@@ -144,8 +164,10 @@ class SendMessageView(views.APIView):
     """
     POST /api/messaging/conversations/<id>/send/
     Send a message in an existing conversation.
+    Accepts JSON (text-only) or multipart form data (text + optional image).
     """
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'messaging'
 
@@ -161,6 +183,24 @@ class SendMessageView(views.APIView):
 
         serializer = SendMessageSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        # Handle optional image attachment
+        image_file = request.FILES.get('image')
+        if image_file is not None:
+            error = _validate_message_image(image_file)
+            if error:
+                return Response(
+                    {'error': error},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Ensure at least content or image is provided
+        content = serializer.validated_data['content']
+        if not content and not image_file:
+            return Response(
+                {'error': 'Message must contain text or an image.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             conversation = Conversation.objects.select_related(
@@ -183,7 +223,8 @@ class SendMessageView(views.APIView):
             result = send_message(
                 sender=user,
                 conversation=conversation,
-                content=serializer.validated_data['content'],
+                content=content,
+                image=image_file,
             )
         except ValueError as exc:
             return Response(
@@ -209,6 +250,7 @@ class SendMessageView(views.APIView):
             sender=user,
             content=result.content,
             conversation_id=conversation.id,
+            has_image=image_file is not None,
         )
 
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -219,8 +261,10 @@ class StartConversationView(views.APIView):
     POST /api/messaging/conversations/start/
     Start a new conversation with a trainee (trainer-only).
     Creates conversation if needed and sends the first message.
+    Accepts JSON (text-only) or multipart form data (text + optional image).
     """
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'messaging'
 
@@ -242,11 +286,30 @@ class StartConversationView(views.APIView):
         serializer = StartConversationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # Handle optional image attachment
+        image_file = request.FILES.get('image')
+        if image_file is not None:
+            error = _validate_message_image(image_file)
+            if error:
+                return Response(
+                    {'error': error},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Ensure at least content or image is provided
+        content = serializer.validated_data['content']
+        if not content and not image_file:
+            return Response(
+                {'error': 'Message must contain text or an image.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
             result = send_message_to_trainee(
                 trainer=user,
                 trainee_id=serializer.validated_data['trainee_id'],
-                content=serializer.validated_data['content'],
+                content=content,
+                image=image_file,
             )
         except ValueError as exc:
             return Response(
@@ -268,6 +331,7 @@ class StartConversationView(views.APIView):
             sender=user,
             content=result.content,
             conversation_id=result.conversation_id,
+            has_image=image_file is not None,
         )
 
         return Response(

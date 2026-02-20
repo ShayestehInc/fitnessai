@@ -37,14 +37,29 @@ export function useMessages(conversationId: number, page: number = 1) {
   });
 }
 
+interface SendMessageInput {
+  content: string;
+  image?: File;
+}
+
 export function useSendMessage(conversationId: number) {
   const queryClient = useQueryClient();
 
-  return useMutation<Message, Error, string>({
-    mutationFn: (content: string) =>
-      apiClient.post<Message>(API_URLS.messagingSend(conversationId), {
+  return useMutation<Message, Error, SendMessageInput>({
+    mutationFn: ({ content, image }: SendMessageInput) => {
+      if (image) {
+        const formData = new FormData();
+        if (content) formData.append("content", content);
+        formData.append("image", image);
+        return apiClient.postFormData<Message>(
+          API_URLS.messagingSend(conversationId),
+          formData,
+        );
+      }
+      return apiClient.post<Message>(API_URLS.messagingSend(conversationId), {
         content,
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["messaging", "messages", conversationId],
@@ -59,19 +74,32 @@ export function useSendMessage(conversationId: number) {
   });
 }
 
+interface StartConversationInput {
+  trainee_id: number;
+  content: string;
+  image?: File;
+}
+
 export function useStartConversation() {
   const queryClient = useQueryClient();
 
-  return useMutation<
-    StartConversationResponse,
-    Error,
-    { trainee_id: number; content: string }
-  >({
-    mutationFn: (data) =>
-      apiClient.post<StartConversationResponse>(
+  return useMutation<StartConversationResponse, Error, StartConversationInput>({
+    mutationFn: ({ trainee_id, content, image }: StartConversationInput) => {
+      if (image) {
+        const formData = new FormData();
+        formData.append("trainee_id", String(trainee_id));
+        if (content) formData.append("content", content);
+        formData.append("image", image);
+        return apiClient.postFormData<StartConversationResponse>(
+          API_URLS.MESSAGING_START_CONVERSATION,
+          formData,
+        );
+      }
+      return apiClient.post<StartConversationResponse>(
         API_URLS.MESSAGING_START_CONVERSATION,
-        data,
-      ),
+        { trainee_id, content },
+      );
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["messaging", "conversations"],

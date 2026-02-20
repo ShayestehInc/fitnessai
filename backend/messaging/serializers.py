@@ -15,26 +15,26 @@ from .models import Conversation, Message
 # ---------------------------------------------------------------------------
 
 class SendMessageSerializer(serializers.Serializer):  # type: ignore[type-arg]
-    """Validates message send request."""
-    content = serializers.CharField(max_length=2000)
+    """Validates message send request. Either content or image (or both) must be provided."""
+    content = serializers.CharField(max_length=2000, required=False, default='')
 
     def validate_content(self, value: str) -> str:
-        stripped = value.strip()
-        if not stripped:
-            raise serializers.ValidationError('Message content cannot be empty.')
-        return stripped
+        return value.strip()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        # Image is handled separately in the view (file upload validation).
+        # This serializer only validates the text content field.
+        # The view enforces that at least one of content/image is present.
+        return attrs
 
 
 class StartConversationSerializer(serializers.Serializer):  # type: ignore[type-arg]
     """Validates starting a new conversation (trainer -> trainee)."""
     trainee_id = serializers.IntegerField()
-    content = serializers.CharField(max_length=2000)
+    content = serializers.CharField(max_length=2000, required=False, default='')
 
     def validate_content(self, value: str) -> str:
-        stripped = value.strip()
-        if not stripped:
-            raise serializers.ValidationError('Message content cannot be empty.')
-        return stripped
+        return value.strip()
 
 
 # ---------------------------------------------------------------------------
@@ -58,17 +58,26 @@ class MessageSenderSerializer(serializers.Serializer):  # type: ignore[type-arg]
 class MessageSerializer(serializers.ModelSerializer[Message]):
     """Serializer for a single message."""
     sender = MessageSenderSerializer(read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
         fields = [
             'id', 'conversation_id', 'sender', 'content',
-            'is_read', 'read_at', 'created_at',
+            'image', 'is_read', 'read_at', 'created_at',
         ]
         read_only_fields = [
             'id', 'conversation_id', 'sender', 'content',
-            'is_read', 'read_at', 'created_at',
+            'image', 'is_read', 'read_at', 'created_at',
         ]
+
+    def get_image(self, obj: Message) -> str | None:
+        if not obj.image:
+            return None
+        request = self.context.get('request')
+        if request is not None:
+            return request.build_absolute_uri(obj.image.url)
+        return obj.image.url
 
 
 class ConversationParticipantSerializer(serializers.Serializer):  # type: ignore[type-arg]
@@ -111,8 +120,15 @@ class ConversationListSerializer(serializers.ModelSerializer[Conversation]):
 
         Uses the ``annotated_last_message_preview`` annotation added by
         ``get_conversations_for_user()`` to avoid N+1 queries.
+        Falls back to "Sent a photo" when the last message has an image
+        but no text content.
         """
-        return getattr(obj, 'annotated_last_message_preview', None)
+        preview = getattr(obj, 'annotated_last_message_preview', None)
+        if not preview:
+            has_image = getattr(obj, 'annotated_last_message_has_image', False)
+            if has_image:
+                return 'Sent a photo'
+        return preview
 
     def get_unread_count(self, obj: Conversation) -> int:
         """Return unread message count for the requesting user.

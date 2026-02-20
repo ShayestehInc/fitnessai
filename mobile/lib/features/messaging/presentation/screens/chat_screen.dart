@@ -112,10 +112,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
           // Chat input
           ChatInput(
-            onSend: (content) async {
+            onSend: (content, {String? imagePath}) async {
               final success = await ref
                   .read(chatProvider(widget.conversationId).notifier)
-                  .sendMessage(content);
+                  .sendMessage(content, imagePath: imagePath);
               if (success) _scrollToBottom();
               return success;
             },

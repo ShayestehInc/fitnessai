@@ -1,152 +1,150 @@
-# Feature: In-App Direct Messaging (Trainer-to-Trainee)
+# Feature: Image Attachments in Direct Messages
 
 ## Priority
-Critical — Fills the largest gap in trainer-trainee communication. Dead UI button already exists, causing user frustration.
+High
 
 ## User Story
-As a **Trainer**, I want to send direct messages to individual trainees so that I can privately discuss their progress, provide personalized coaching guidance, check in on missed workouts, and send motivational reminders — all within the app without needing external tools like SMS or WhatsApp.
+As a **trainer**, I want to **send images in direct messages to my trainees** so that I can share form check photos, meal plan images, progress comparison screenshots, and visual feedback without leaving the app.
 
-As a **Trainee**, I want to receive and reply to messages from my trainer so that I can ask questions, share updates, and stay connected without leaving the app.
+As a **trainee**, I want to **send images in direct messages to my trainer** so that I can share progress photos, food photos, and questions about exercises with visual context.
 
 ## Acceptance Criteria
 
-- [ ] AC-1: New `messaging` Django app with `Conversation` and `Message` models
-- [ ] AC-2: Trainer can open a message thread with any of their trainees from trainee detail screen (wiring the existing dead "Send Message" button)
-- [ ] AC-3: Trainer can see a list of all active conversations sorted by most recent message
-- [ ] AC-4: Trainer can send text messages to a trainee in a conversation
-- [ ] AC-5: Trainee can see a list of conversations (they will only have one — with their trainer)
-- [ ] AC-6: Trainee can send text messages replying to their trainer
-- [ ] AC-7: Messages appear in real-time via WebSocket (no manual refresh needed)
-- [ ] AC-8: Unread message count badge shown on the messaging nav item (both trainer and trainee)
-- [ ] AC-9: Push notification (FCM) sent to recipient when a new message arrives (if they are not in the conversation)
-- [ ] AC-10: Messages are paginated (20 per page) with infinite scroll loading older messages
-- [ ] AC-11: Conversation list shows last message preview, timestamp, unread count, and trainee avatar/name
-- [ ] AC-12: Row-level security: trainers only see conversations with THEIR trainees; trainees only see their OWN conversation
-- [ ] AC-13: Messages are persisted to the database (not ephemeral)
-- [ ] AC-14: Trainer web dashboard has a Messages page with conversation list and chat view
-- [ ] AC-15: Trainer can send messages from the web dashboard trainee detail page
-- [ ] AC-16: Message input supports multiline text (max 2000 characters) with character counter at 90%+
-- [ ] AC-17: Typing indicators shown (WebSocket) — trainee sees "Trainer is typing..." and vice versa
-- [ ] AC-18: Messages display timestamps (relative for recent, absolute for older)
-- [ ] AC-19: Conversation auto-created when trainer sends first message to a trainee who has no conversation
-- [ ] AC-20: Read receipts — sender can see if their message has been read (double checkmark pattern)
-- [ ] AC-21: Trainer can quick-message from the trainee list (action menu) without opening trainee detail first
+### Backend
+- [ ] AC-1: Message model has an optional `image` ImageField with UUID-based upload path (`message_images/{uuid}.{ext}`)
+- [ ] AC-2: Database migration adds nullable `image` column to `messaging_message` table
+- [ ] AC-3: SendMessageView accepts multipart form data (image + content). Either content or image (or both) must be provided — a completely empty message (no text, no image) is rejected.
+- [ ] AC-4: Image validation: JPEG/PNG/WebP only, max 5MB, validated in view before save
+- [ ] AC-5: MessageSerializer includes `image` field as absolute URL (SerializerMethodField with request.build_absolute_uri) — returns null when no image
+- [ ] AC-6: SendMessageResult dataclass includes `image_url: str | None` field
+- [ ] AC-7: WebSocket broadcast of new_message includes image URL in message payload
+- [ ] AC-8: StartConversationView also accepts multipart (can send first message with image)
+- [ ] AC-9: Existing text-only messages continue to work identically (backward compatible)
+- [ ] AC-10: Rate limiting unchanged (30/min applies to image messages too)
+- [ ] AC-11: Row-level security unchanged — only conversation participants can see message images
+- [ ] AC-12: Impersonation guard unchanged — impersonating users cannot send images
+- [ ] AC-13: Push notification for image-only messages shows "Sent a photo" instead of empty content
+
+### Mobile (Flutter)
+- [ ] AC-14: Chat input has an image picker button (camera_alt icon) next to the text field
+- [ ] AC-15: Tapping image picker opens ImagePicker with gallery source, max 1920x1920, 85% quality compression
+- [ ] AC-16: Selected image shows as a thumbnail preview above the text input with an X button to remove
+- [ ] AC-17: User can send image-only (no text), text-only, or image+text messages
+- [ ] AC-18: Image upload uses multipart form data via ApiClient
+- [ ] AC-19: Message bubble displays image with rounded corners (12px radius), max width 75% of screen, max height 300px, BoxFit.cover
+- [ ] AC-20: Tapping an image in a message bubble opens full-screen InteractiveViewer (pinch-to-zoom 1.0x-4.0x, black background) — reuse existing pattern from community feed
+- [ ] AC-21: Image loading state: shimmer/skeleton placeholder matching image dimensions
+- [ ] AC-22: Image error state: broken image icon with "Failed to load image" text
+- [ ] AC-23: Optimistic send: image message appears immediately with local file, replaces with server URL on confirmation
+- [ ] AC-24: Send failure: message shows retry indicator (same as text message failure)
+- [ ] AC-25: Client-side file size validation (5MB max) — shows error snackbar if too large
+- [ ] AC-26: Accessibility: image messages have Semantics label "Photo message" or "Photo message with text: [content]"
+- [ ] AC-27: MessageModel updated with optional `imageUrl` field
+
+### Web (Next.js)
+- [ ] AC-28: Message input has a paperclip/image button for attaching images
+- [ ] AC-29: File input accepts image/jpeg, image/png, image/webp only
+- [ ] AC-30: Selected image shows as a thumbnail preview above the input area with remove button
+- [ ] AC-31: Image upload uses FormData with multipart fetch
+- [ ] AC-32: Message bubble displays image with rounded corners, max-width 70%, max-height 300px, object-fit cover
+- [ ] AC-33: Clicking an image opens a modal/dialog with the full-size image and close button
+- [ ] AC-34: Image loading state: skeleton placeholder
+- [ ] AC-35: Client-side file size validation (5MB max) — shows toast if too large
+- [ ] AC-36: Message type interface updated with optional `image` field (string URL or null)
+- [ ] AC-37: Conversation list preview shows "Sent a photo" for image-only messages
 
 ## Edge Cases
-
-1. **What happens when a trainee is removed?** — Conversation is soft-deleted (archived). Messages are preserved for audit but no longer accessible to trainee. Trainer sees "[Trainee Removed]" label.
-2. **What happens when trainer sends message to offline trainee?** — Message is persisted to DB, push notification sent via FCM. Trainee sees it on next app open. Offline-first sync queue used on mobile.
-3. **What happens with concurrent messages (race condition)?** — Messages use auto-incrementing IDs and server-assigned `created_at` timestamps. Client sorts by server timestamp. Optimistic UI adds message immediately, reconciles on WebSocket confirmation.
-4. **What happens when WebSocket connection drops?** — Falls back to polling (every 10 seconds). Exponential backoff reconnection as per existing community WebSocket pattern. Messages are never lost (DB is source of truth).
-5. **What happens when message content is empty or only whitespace?** — Client-side validation prevents empty sends. Server-side `strip()` + validation returns 400 if empty after strip.
-6. **What happens with very long messages (> 2000 chars)?** — Client-side character counter shows at 90% threshold. Server rejects > 2000 chars with clear error.
-7. **What happens if trainee has no `parent_trainer`?** — Conversation list returns empty. Cannot create conversation without valid trainer-trainee relationship.
-8. **What happens with rapid fire messages (spam)?** — Rate limit: max 30 messages per minute per user. Server returns 429 with retry-after header.
-9. **What happens on web if user navigates away mid-typing?** — No unsaved changes guard for messages (they are send-or-discard, not drafts).
-10. **What happens when admin impersonates trainer?** — Impersonating trainer can VIEW messages but CANNOT send (read-only during impersonation to protect trainee trust).
+1. **Empty message with image** — Must be allowed. Content can be empty string if image is present.
+2. **Image + text** — Both displayed: image above text in the message bubble.
+3. **Large image file (>5MB)** — Client-side validation rejects with clear error message before upload. Server-side validation as backup.
+4. **Unsupported file type (GIF, SVG, BMP)** — Client-side filter on file picker + server-side validation with clear error.
+5. **Network failure during image upload** — Message shows as failed with retry option. Image data preserved locally for retry.
+6. **Very slow upload on poor connection** — Upload progress indicator on mobile (LinearProgressIndicator). Web shows loading state.
+7. **Conversation archived (trainee removed) then image URL accessed** — Image still serves from storage (no cascade delete on files), but row-level security prevents new messages.
+8. **Image URL in conversation list preview** — Shows "Sent a photo" text, not raw URL.
+9. **Multiple rapid image sends** — Rate limiter at 30/min applies equally to image messages.
+10. **WebSocket broadcast with image** — Image URL included in message payload; receiving clients fetch image via URL, no binary data over WebSocket.
+11. **Image-only message pushed as notification** — Push notification body shows "Sent a photo" instead of empty/null.
+12. **Message with both text and image where text hits 2000 char limit** — Enforce independently: image presence doesn't change text limit.
 
 ## Error States
-
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Network failure on send | Red error icon next to message + "Tap to retry" | Queues in offline sync queue (mobile), shows toast (web) |
-| WebSocket disconnected | Subtle "Reconnecting..." banner | Exponential backoff reconnect, falls back to polling |
-| Message too long (>2000) | Character counter turns red, send disabled | Server returns 400, client pre-validates |
-| Rate limited (429) | "Slow down. Try again in X seconds" snackbar | Server returns 429 with retry-after |
-| Trainee removed mid-conversation | "This trainee has been removed" banner, input disabled | Conversation archived, 403 on new sends |
-| No conversations yet (trainer) | Empty state: "No conversations yet. Message a trainee from their profile." with CTA | Returns empty list |
-| No conversations yet (trainee) | Empty state: "Your trainer hasn't messaged you yet." | Returns empty list |
-| Failed to load messages | Error state with retry button | Client shows cached messages if available (offline-first) |
+| Image >5MB selected | Snackbar/toast: "Image must be under 5MB" | Rejects locally, no API call |
+| Invalid file type selected | Snackbar/toast: "Only JPEG, PNG, and WebP images are supported" | Rejects locally, no API call |
+| Image upload fails (network) | Message shows failed state with retry icon | Preserves image locally, retry sends same file |
+| Server rejects image (validation) | Snackbar/toast with server error message | 400 response, message not created |
+| Image URL fails to load (broken) | Broken image icon with "Failed to load" text | Error handler on Image widget |
+| Image picker permission denied | Platform permission dialog / settings redirect | No crash, graceful degradation |
 
 ## UX Requirements
-
-- **Loading state:** Conversation list shows skeleton cards (5 shimmer rows). Chat view shows skeleton message bubbles.
-- **Empty state (trainer):** MessageSquare icon + "No conversations yet" + "Start a conversation from any trainee's profile" + button to go to trainee list.
-- **Empty state (trainee):** MessageSquare icon + "No messages yet" + "Your trainer will reach out here."
-- **Error state:** ErrorState component with retry button (existing pattern).
-- **Success feedback:** Message appears instantly in chat (optimistic), blue checkmark when delivered, double checkmark when read.
-- **Mobile behavior:** Full-screen chat view. Back button returns to conversation list. Keyboard avoidance. Input at bottom with safe area padding. Pull-to-load-more for older messages.
-- **Web behavior:** Two-panel layout — conversation list (left sidebar, 300px) and chat view (right, fills remaining). Responsive: single-panel on mobile web with back navigation.
-- **Typing indicator:** "..." animated dots below last message while other party is typing. Debounced to 3 seconds of inactivity to auto-dismiss.
-- **Timestamps:** "Just now" (< 1 min), "5m ago" (< 1h), "2:30 PM" (today), "Yesterday", "Feb 15" (this year), "Feb 15, 2025" (prior year).
-- **Unread badge:** Red dot with count on Messages nav item. Capped at "99+".
+- **Image picker button:** Icon button (camera_alt on mobile, Paperclip or ImageIcon on web) positioned to the left of the text field send button
+- **Thumbnail preview:** Shows selected image above the text input area. Approx 80px tall, rounded corners, X close button in top-right corner
+- **Message bubble with image:** Image rendered above any text content. Rounded corners matching bubble shape. Images are tappable for full-screen view.
+- **Full-screen viewer (mobile):** Black background, pinch-to-zoom (InteractiveViewer), back button to close. Reuse community feed pattern.
+- **Image modal (web):** Dialog/modal with image at natural size (up to viewport), close button, click outside to dismiss.
+- **Loading state:** Shimmer skeleton matching approximate image aspect ratio (16:9 default) in message bubble
+- **Empty state:** N/A — this is an enhancement to existing messaging
+- **Error state:** Broken image icon with muted text
+- **Success feedback:** Image appears in chat instantly (optimistic on mobile, after upload on web)
+- **Upload progress (mobile):** Small LinearProgressIndicator at bottom of image preview during upload
+- **Mobile behavior:** ImagePicker with gallery source, compressed to 85% quality, max 1920x1920px
 
 ## Technical Approach
 
-### Backend (new `messaging` Django app)
+### Backend Changes
+- **Files to modify:**
+  - `backend/messaging/models.py` — Add `image` ImageField to Message, add `_message_image_path` upload path function
+  - `backend/messaging/serializers.py` — Add `image` SerializerMethodField to MessageSerializer, update SendMessageSerializer to make content optional when image present
+  - `backend/messaging/views.py` — Add MultiPartParser to SendMessageView and StartConversationView, add image validation constants and logic, pass image to service
+  - `backend/messaging/services/messaging_service.py` — Update `send_message()` to accept optional `image` parameter, update SendMessageResult dataclass with `image_url` field
+  - `backend/messaging/consumers.py` — No changes needed (serialized message already includes all fields via MessageSerializer)
 
-Files to create:
-- `backend/messaging/__init__.py`
-- `backend/messaging/apps.py`
-- `backend/messaging/models.py` — `Conversation` (trainer FK, trainee FK, `last_message_at`, `is_archived`) and `Message` (conversation FK, sender FK, `content` TextField(max 2000), `is_read`, `read_at`, `created_at`)
-- `backend/messaging/serializers.py` — ConversationListSerializer, MessageSerializer, SendMessageSerializer
-- `backend/messaging/views.py` — ConversationListView, ConversationDetailView (GET messages), SendMessageView (POST), MarkReadView (POST), UnreadCountView (GET)
-- `backend/messaging/urls.py` — Wire to `/api/messaging/`
-- `backend/messaging/services/messaging_service.py` — Business logic: `send_message()`, `mark_conversation_read()`, `get_or_create_conversation()`
-- `backend/messaging/consumers.py` — WebSocket consumer for real-time messages + typing indicators
-- `backend/messaging/routing.py` — `ws/messaging/<conversation_id>/`
-- `backend/messaging/admin.py` — Django admin registration
-- `backend/messaging/migrations/0001_initial.py` — Auto-generated
+- **Migration:** `python manage.py makemigrations messaging` for the new nullable image field
 
-Files to modify:
-- `backend/config/settings.py` — Add `'messaging'` to INSTALLED_APPS
-- `backend/config/urls.py` — Add `path('api/messaging/', include('messaging.urls'))`
-- `backend/config/asgi.py` — Add messaging WebSocket routes alongside community routes
+- **Validation pattern (from community feed):**
+  ```python
+  _ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
+  _MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+  ```
 
-### Mobile (new `messaging` feature)
+### Mobile Changes
+- **Files to modify:**
+  - `mobile/lib/features/messaging/data/models/message_model.dart` — Add `imageUrl` field
+  - `mobile/lib/features/messaging/data/repositories/messaging_repository.dart` — Update `sendMessage` to use multipart when image present
+  - `mobile/lib/features/messaging/presentation/widgets/chat_input.dart` — Add image picker button, selected image preview with remove
+  - `mobile/lib/features/messaging/presentation/widgets/message_bubble.dart` — Add image display with tap-to-fullscreen, loading/error states
+  - `mobile/lib/features/messaging/presentation/providers/chat_provider.dart` — Handle image attachment state in notifier
 
-Files to create:
-- `mobile/lib/features/messaging/data/models/conversation_model.dart`
-- `mobile/lib/features/messaging/data/models/message_model.dart`
-- `mobile/lib/features/messaging/data/repositories/messaging_repository.dart`
-- `mobile/lib/features/messaging/data/services/messaging_ws_service.dart`
-- `mobile/lib/features/messaging/presentation/providers/messaging_provider.dart`
-- `mobile/lib/features/messaging/presentation/screens/conversation_list_screen.dart`
-- `mobile/lib/features/messaging/presentation/screens/chat_screen.dart`
-- `mobile/lib/features/messaging/presentation/widgets/conversation_tile.dart`
-- `mobile/lib/features/messaging/presentation/widgets/message_bubble.dart`
-- `mobile/lib/features/messaging/presentation/widgets/typing_indicator.dart`
-- `mobile/lib/features/messaging/presentation/widgets/chat_input.dart`
+- **New files:**
+  - `mobile/lib/features/messaging/presentation/widgets/message_image_viewer.dart` — Full-screen image viewer widget
 
-Files to modify:
-- `mobile/lib/core/constants/api_constants.dart` — Add messaging endpoints
-- `mobile/lib/core/router/app_router.dart` — Add messaging routes
-- `mobile/lib/shared/widgets/trainer_navigation_shell.dart` — Add Messages tab with unread badge
-- `mobile/lib/shared/widgets/main_navigation_shell.dart` — Add Messages tab for trainee nav with unread badge
-- `mobile/lib/features/trainer/presentation/screens/trainee_detail_screen.dart` — Wire dead "Send Message" button (lines 128-129)
+### Web Changes
+- **Files to modify:**
+  - `web/src/types/messaging.ts` — Add `image: string | null` to Message interface
+  - `web/src/components/messaging/message-bubble.tsx` — Add image display with click-to-open-modal
+  - `web/src/components/messaging/chat-view.tsx` — Update send function for multipart FormData, add image state management
+  - `web/src/components/messaging/message-input.tsx` — Add image picker button and preview strip
 
-### Web Dashboard
+- **New files:**
+  - `web/src/components/messaging/image-modal.tsx` — Full-screen image viewer dialog
 
-Files to create:
-- `web/src/app/(dashboard)/messages/page.tsx` — Messages page (conversation list + chat)
-- `web/src/components/messaging/conversation-list.tsx`
-- `web/src/components/messaging/chat-view.tsx`
-- `web/src/components/messaging/message-bubble.tsx`
-- `web/src/components/messaging/chat-input.tsx`
-- `web/src/components/messaging/typing-indicator.tsx`
-- `web/src/hooks/use-messaging.ts` — TanStack React Query hooks
-- `web/src/types/messaging.ts` — TypeScript types
-
-Files to modify:
-- `web/src/lib/constants.ts` — Add messaging API URLs
-- `web/src/components/layout/nav-links.tsx` — Add Messages nav item with unread badge
-- `web/src/app/(dashboard)/trainees/[id]/page.tsx` — Add "Message" button to trainee actions
+### Dependencies
+- No new packages needed. `image_picker` already in mobile pubspec. Web uses native file input + existing Dialog component.
 
 ### Key Design Decisions
-- Separate `messaging` Django app (not inside `trainer` or `community`) because messaging is a cross-cutting concern used by both roles
-- Conversations are always 1:1 (trainer-trainee). No group messaging (that is what community feed and announcements are for)
-- Messages use a separate WebSocket consumer (not the community feed consumer) for isolation and security
-- Each conversation gets its own WebSocket channel group (`messaging_conversation_{id}`)
-- Read receipts update via WebSocket broadcast (not polling)
-- Typing indicators are ephemeral (WebSocket only, not persisted)
-- Offline-first on mobile: use existing Drift tables pattern for `PendingMessages`
+1. **One image per message** — Simplest UX, matches iMessage/WhatsApp pattern. Multiple images = send multiple messages.
+2. **Image stored on Message model** — ImageField on Message directly, not a separate Attachment model. Simpler for v1.
+3. **No backend thumbnail generation** — Client-side compression (85% quality, 1920x1920 max) is sufficient. Full image served everywhere.
+4. **Multipart form data for send** — Same endpoint URL, just accepts both JSON and multipart. Existing text-only sends via JSON still work (backward compatible).
+5. **Image URL in WebSocket broadcast** — Receiving clients fetch image via HTTP URL, no binary data over WebSocket.
 
 ## Out of Scope
-- Group messaging / group chats
-- Image/file/video attachments in messages
-- Message editing or deletion after send
-- Message search
-- Canned responses / quick replies templates
-- Auto-messages / scheduled messages
-- Message encryption (E2E)
-- Trainee-to-trainee messaging (only trainer-trainee)
+- Video attachments
+- Multiple images per message
+- File attachments (PDF, documents)
+- Image editing/cropping/annotation
+- Backend image processing (thumbnails, resize)
+- Image search within messages
+- Image forwarding between conversations
+- Drag-and-drop image upload (web) — file input button only for v1

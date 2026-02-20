@@ -174,13 +174,15 @@ class NewConversationNotifier extends StateNotifier<NewConversationState> {
 
   Future<StartConversationResponse?> startConversation({
     required int traineeId,
-    required String content,
+    String content = '',
+    String? imagePath,
   }) async {
     state = const NewConversationState(isSending: true);
     try {
       final result = await _repo.startConversation(
         traineeId: traineeId,
         content: content,
+        imagePath: imagePath,
       );
       state = const NewConversationState(isSending: false);
       return result;
@@ -308,12 +310,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
-  Future<bool> sendMessage(String content) async {
+  Future<bool> sendMessage(String content, {String? imagePath}) async {
     state = state.copyWith(isSending: true);
     try {
       final message = await _repo.sendMessage(
         conversationId: conversationId,
         content: content,
+        imagePath: imagePath,
       );
       // Add to local list (avoid duplicate from WebSocket)
       if (!state.messages.any((m) => m.id == message.id)) {

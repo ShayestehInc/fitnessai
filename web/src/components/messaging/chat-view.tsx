@@ -105,15 +105,18 @@ export function ChatView({ conversation }: ChatViewProps) {
   }, [data?.next, isLoading]);
 
   const handleSend = useCallback(
-    (content: string) => {
-      sendMessage.mutate(content, {
-        onSuccess: () => {
-          // Refetch page 1 to show latest message
-          setPage(1);
-          refetch();
-          scrollToBottom();
+    (content: string, image?: File) => {
+      sendMessage.mutate(
+        { content, image },
+        {
+          onSuccess: () => {
+            // Refetch page 1 to show latest message
+            setPage(1);
+            refetch();
+            scrollToBottom();
+          },
         },
-      });
+      );
     },
     [sendMessage, refetch, scrollToBottom],
   );

@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../../../../core/api/api_client.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../models/conversation_model.dart';
@@ -42,10 +44,19 @@ class MessagingRepository {
   }
 
   /// Send a message in an existing conversation.
+  /// Supports text-only, image-only, or text+image messages.
   Future<MessageModel> sendMessage({
     required int conversationId,
-    required String content,
+    String content = '',
+    String? imagePath,
   }) async {
+    if (imagePath != null) {
+      return _sendMessageWithImage(
+        url: ApiConstants.messagingConversationSend(conversationId),
+        content: content,
+        imagePath: imagePath,
+      );
+    }
     final response = await _apiClient.dio.post(
       ApiConstants.messagingConversationSend(conversationId),
       data: {'content': content},
@@ -54,10 +65,26 @@ class MessagingRepository {
   }
 
   /// Start a new conversation with a trainee.
+  /// Supports text-only, image-only, or text+image messages.
   Future<StartConversationResponse> startConversation({
     required int traineeId,
-    required String content,
+    String content = '',
+    String? imagePath,
   }) async {
+    if (imagePath != null) {
+      final formData = FormData.fromMap({
+        'trainee_id': traineeId,
+        if (content.isNotEmpty) 'content': content,
+        'image': await MultipartFile.fromFile(imagePath),
+      });
+      final response = await _apiClient.dio.post(
+        ApiConstants.messagingStartConversation,
+        data: formData,
+      );
+      return StartConversationResponse.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+    }
     final response = await _apiClient.dio.post(
       ApiConstants.messagingStartConversation,
       data: {
@@ -84,5 +111,19 @@ class MessagingRepository {
     );
     final data = response.data as Map<String, dynamic>;
     return data['unread_count'] as int? ?? 0;
+  }
+
+  /// Send a message with an image attachment via multipart form data.
+  Future<MessageModel> _sendMessageWithImage({
+    required String url,
+    required String content,
+    required String imagePath,
+  }) async {
+    final formData = FormData.fromMap({
+      if (content.isNotEmpty) 'content': content,
+      'image': await MultipartFile.fromFile(imagePath),
+    });
+    final response = await _apiClient.dio.post(url, data: formData);
+    return MessageModel.fromJson(response.data as Map<String, dynamic>);
   }
 }

@@ -62,7 +62,8 @@ class NewConversationScreen extends ConsumerWidget {
             ),
           ),
           ChatInput(
-            onSend: (content) => _handleSend(context, ref, content),
+            onSend: (content, {String? imagePath}) =>
+                _handleSend(context, ref, content, imagePath: imagePath),
             isSending: newConvState.isSending,
           ),
         ],
@@ -73,12 +74,14 @@ class NewConversationScreen extends ConsumerWidget {
   Future<bool> _handleSend(
     BuildContext context,
     WidgetRef ref,
-    String content,
-  ) async {
+    String content, {
+    String? imagePath,
+  }) async {
     final notifier = ref.read(newConversationProvider.notifier);
     final result = await notifier.startConversation(
       traineeId: traineeId,
       content: content,
+      imagePath: imagePath,
     );
 
     if (result == null) {
