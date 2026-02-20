@@ -1,15 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import { ArrowDown, User, Loader2 } from "lucide-react";
+import { ArrowDown, User, Loader2, WifiOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getInitials } from "@/lib/format-utils";
-import { useMessages, useSendMessage, useMarkConversationRead } from "@/hooks/use-messaging";
+import {
+  useMessages,
+  useSendMessage,
+  useMarkConversationRead,
+} from "@/hooks/use-messaging";
+import {
+  useMessagingWebSocket,
+  type WsConnectionState,
+} from "@/hooks/use-messaging-ws";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MessageBubble } from "./message-bubble";
 import { ChatInput } from "./chat-input";
+import { TypingIndicator } from "./typing-indicator";
 import type { Conversation, Message } from "@/types/messaging";
+
+// Polling intervals: fast when WS is down, slow (background) when connected
+const POLLING_FAST_MS = 5_000;
+const POLLING_DISABLED = false as const;
 
 interface ChatViewProps {
   conversation: Conversation;
@@ -23,8 +36,44 @@ export function ChatView({ conversation }: ChatViewProps) {
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
 
-  const { data, isLoading, isError, refetch } = useMessages(conversation.id, page);
+  // WebSocket connection
+  const { connectionState, typingUser, sendTyping } = useMessagingWebSocket({
+    conversationId: conversation.id,
+    onNewMessage: (message) => {
+      // Append to local state (dedup handled below in the merge effect)
+      setAllMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) return prev;
+        return [...prev, message];
+      });
+
+      // Auto-scroll if near bottom
+      if (isNearBottomRef.current) {
+        requestAnimationFrame(() => {
+          bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        });
+      }
+
+      // Auto-mark as read if it's from the other party
+      if (message.sender.id !== user?.id) {
+        markRead.mutate();
+      }
+    },
+  });
+
+  const wsConnected = connectionState === "connected";
+
+  // Only poll when WebSocket is NOT connected
+  const pollInterval =
+    wsConnected || connectionState === "connecting"
+      ? POLLING_DISABLED
+      : POLLING_FAST_MS;
+
+  const { data, isLoading, isError, refetch } = useMessages(
+    conversation.id,
+    page,
+  );
   const sendMessage = useSendMessage(conversation.id);
   const markRead = useMarkConversationRead(conversation.id);
 
@@ -34,8 +83,15 @@ export function ChatView({ conversation }: ChatViewProps) {
       ? conversation.trainee
       : conversation.trainer;
   const displayName =
-    `${otherParty.first_name} ${otherParty.last_name}`.trim() || otherParty.email;
+    `${otherParty.first_name} ${otherParty.last_name}`.trim() ||
+    otherParty.email;
   const initials = getInitials(otherParty.first_name, otherParty.last_name);
+
+  // Resolve typing user name from conversation data
+  const typingDisplayName = typingUser
+    ? `${otherParty.first_name} ${otherParty.last_name}`.trim() ||
+      otherParty.email
+    : null;
 
   // Reset state when conversation changes
   useEffect(() => {
@@ -48,11 +104,16 @@ export function ChatView({ conversation }: ChatViewProps) {
     if (data?.results) {
       setAllMessages((prev) => {
         if (page === 1) {
-          return data.results;
+          // Merge: keep any WS-delivered messages not in fetched data
+          const fetchedIds = new Set(data.results.map((m) => m.id));
+          const wsOnly = prev.filter((m) => !fetchedIds.has(m.id));
+          return [...data.results, ...wsOnly];
         }
         // Prepend older messages, dedup by id
         const existingIds = new Set(prev.map((m) => m.id));
-        const newMessages = data.results.filter((m) => !existingIds.has(m.id));
+        const newMessages = data.results.filter(
+          (m) => !existingIds.has(m.id),
+        );
         return [...newMessages, ...prev];
       });
     }
@@ -81,21 +142,35 @@ export function ChatView({ conversation }: ChatViewProps) {
     }
   }, [allMessages.length, page, scrollToBottom]);
 
-  // Refetch messages every 5 seconds for near-real-time feel
+  // Polling fallback: only active when WS is not connected
   useEffect(() => {
-    if (page !== 1) return;
+    if (!pollInterval || page !== 1) return;
     const interval = setInterval(() => {
       refetch();
-    }, 5_000);
+    }, pollInterval);
     return () => clearInterval(interval);
-  }, [page, refetch]);
+  }, [page, refetch, pollInterval]);
+
+  // Refetch once on WS reconnect to catch messages missed during gap
+  const prevConnectionStateRef = useRef<WsConnectionState>(connectionState);
+  useEffect(() => {
+    if (
+      prevConnectionStateRef.current !== "connected" &&
+      connectionState === "connected"
+    ) {
+      refetch();
+    }
+    prevConnectionStateRef.current = connectionState;
+  }, [connectionState, refetch]);
 
   const handleScroll = useCallback(() => {
     const el = scrollAreaRef.current;
     if (!el) return;
 
-    // Show scroll-down button if not near bottom
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // Track if user is near bottom
+    const distanceFromBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight;
+    isNearBottomRef.current = distanceFromBottom <= 100;
     setShowScrollDown(distanceFromBottom > 100);
 
     // Load more when scrolled to top
@@ -144,6 +219,9 @@ export function ChatView({ conversation }: ChatViewProps) {
         </div>
       </div>
 
+      {/* Connection state banner */}
+      <ConnectionBanner state={connectionState} />
+
       {/* Messages area */}
       <div
         ref={scrollAreaRef}
@@ -154,7 +232,10 @@ export function ChatView({ conversation }: ChatViewProps) {
         aria-live="polite"
       >
         {isLoading && page === 1 ? (
-          <div className="flex items-center justify-center py-12" role="status">
+          <div
+            className="flex items-center justify-center py-12"
+            role="status"
+          >
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             <span className="sr-only">Loading messages...</span>
           </div>
@@ -203,6 +284,10 @@ export function ChatView({ conversation }: ChatViewProps) {
             ))}
           </div>
         )}
+
+        {/* Typing indicator */}
+        {typingDisplayName && <TypingIndicator name={typingDisplayName} />}
+
         <div ref={bottomRef} />
 
         {/* Scroll to bottom button */}
@@ -219,16 +304,50 @@ export function ChatView({ conversation }: ChatViewProps) {
         )}
       </div>
 
-      {/* Typing indicator: v1 limitation — web uses HTTP polling, not WebSocket.
-         Typing indicators require real-time bidirectional communication which is
-         only available on mobile via WebSocket. The TypingIndicator component exists
-         at ./typing-indicator.tsx for use when web WebSocket support is added. */}
-
       {/* Chat input */}
-      <ChatInput onSend={handleSend} isSending={sendMessage.isPending} />
+      <ChatInput
+        onSend={handleSend}
+        isSending={sendMessage.isPending}
+        onTyping={sendTyping}
+      />
     </div>
   );
 }
+
+// ---------------------------------------------------------------------
+// Connection state banner
+// ---------------------------------------------------------------------
+
+function ConnectionBanner({ state }: { state: WsConnectionState }) {
+  if (state === "connected" || state === "connecting") return null;
+
+  if (state === "disconnected") {
+    return (
+      <div
+        className="flex items-center justify-center gap-2 bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+        role="status"
+      >
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Reconnecting...
+      </div>
+    );
+  }
+
+  // state === "failed"
+  return (
+    <div
+      className="flex items-center justify-center gap-2 bg-muted px-3 py-1.5 text-xs text-muted-foreground"
+      role="status"
+    >
+      <WifiOff className="h-3 w-3" />
+      Real-time updates unavailable. Messages may be delayed.
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Message grouping helpers
+// ---------------------------------------------------------------------
 
 interface MessageGroup {
   date: string;

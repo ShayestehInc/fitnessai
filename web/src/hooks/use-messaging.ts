@@ -12,7 +12,7 @@ import type {
   UnreadMessageCount,
 } from "@/types/messaging";
 
-export function useConversations() {
+export function useConversations(refetchIntervalMs: number = 15_000) {
   return useQuery<Conversation[]>({
     queryKey: ["messaging", "conversations"],
     queryFn: async () => {
@@ -22,7 +22,7 @@ export function useConversations() {
       // Backend now returns paginated response; extract results array
       return response.results;
     },
-    refetchInterval: 15_000,
+    refetchInterval: refetchIntervalMs,
     refetchIntervalInBackground: false,
   });
 }
@@ -128,12 +128,12 @@ export function useMarkConversationRead(conversationId: number) {
   });
 }
 
-export function useMessagingUnreadCount() {
+export function useMessagingUnreadCount(refetchIntervalMs: number = 30_000) {
   return useQuery<UnreadMessageCount>({
     queryKey: ["messaging", "unread-count"],
     queryFn: () =>
       apiClient.get<UnreadMessageCount>(API_URLS.MESSAGING_UNREAD_COUNT),
-    refetchInterval: 30_000,
+    refetchInterval: refetchIntervalMs,
     refetchIntervalInBackground: false,
   });
 }
