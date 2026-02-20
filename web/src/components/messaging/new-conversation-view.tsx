@@ -17,10 +17,10 @@ export function NewConversationView({
   const startConversation = useStartConversation();
   const [error, setError] = useState<string | null>(null);
 
-  const handleSend = (content: string) => {
+  const handleSend = (content: string, image?: File) => {
     setError(null);
     startConversation.mutate(
-      { trainee_id: traineeId, content },
+      { trainee_id: traineeId, content, image },
       {
         onSuccess: (data) => {
           onConversationCreated(data.conversation_id);

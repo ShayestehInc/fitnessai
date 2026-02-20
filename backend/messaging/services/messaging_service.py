@@ -10,8 +10,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
-from django.db.models import Count, OuterRef, Q, QuerySet, Subquery
+from django.db.models import BooleanField, Count, OuterRef, Q, QuerySet, Subquery, Value
+from django.db.models.expressions import Case, When
 from django.db.models.functions import Left
 from django.utils import timezone
 
@@ -34,6 +36,7 @@ class SendMessageResult:
     sender_id: int
     created_at: datetime
     is_new_conversation: bool
+    image_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -91,6 +94,7 @@ def send_message(
     sender: User,
     conversation: Conversation,
     content: str,
+    image: UploadedFile | None = None,
 ) -> SendMessageResult:
     """
     Send a message in a conversation.
@@ -98,7 +102,7 @@ def send_message(
     Validates:
     - Sender is a participant
     - Conversation is not archived
-    - Content is not empty / whitespace
+    - At least one of content or image must be provided
     - Content is within 2000 chars
     - Sender is not an impersonating admin (read-only guard)
 
@@ -106,8 +110,9 @@ def send_message(
     Raises ValueError on validation failure.
     """
     stripped_content = content.strip()
-    if not stripped_content:
-        raise ValueError('Message content cannot be empty.')
+
+    if not stripped_content and not image:
+        raise ValueError('Message must contain text or an image.')
 
     if len(stripped_content) > 2000:
         raise ValueError('Message content cannot exceed 2000 characters.')
@@ -126,11 +131,14 @@ def send_message(
             conversation=conversation,
             sender=sender,
             content=stripped_content,
+            image=image,
         )
 
         # Update conversation timestamp
         conversation.last_message_at = message.created_at
         conversation.save(update_fields=['last_message_at', 'updated_at'])
+
+    image_url: str | None = message.image.url if message.image else None
 
     return SendMessageResult(
         message_id=message.id,
@@ -139,6 +147,7 @@ def send_message(
         sender_id=sender.id,
         created_at=message.created_at,
         is_new_conversation=is_new,
+        image_url=image_url,
     )
 
 
@@ -230,6 +239,13 @@ def get_conversations_for_user(user: User) -> QuerySet[Conversation]:
         .values('content')[:1]
     )
 
+    # Subquery: get the image path of the most recent message per conversation
+    last_message_image_subquery = (
+        Message.objects.filter(conversation=OuterRef('pk'))
+        .order_by('-created_at')
+        .values('image')[:1]
+    )
+
     return (
         base_qs
         .select_related('trainer', 'trainee')
@@ -237,6 +253,17 @@ def get_conversations_for_user(user: User) -> QuerySet[Conversation]:
             annotated_last_message_preview=Left(
                 Subquery(last_message_subquery),
                 100,
+            ),
+            _last_message_image=Subquery(last_message_image_subquery),
+        )
+        .annotate(
+            annotated_last_message_has_image=Case(
+                When(
+                    condition=~Q(_last_message_image='') & Q(_last_message_image__isnull=False),
+                    then=Value(True),
+                ),
+                default=Value(False),
+                output_field=BooleanField(),
             ),
             annotated_unread_count=Count(
                 'messages',
@@ -282,6 +309,7 @@ def send_message_to_trainee(
     trainer: User,
     trainee_id: int,
     content: str,
+    image: UploadedFile | None = None,
 ) -> SendMessageResult:
     """
     High-level: send a message from a trainer to a trainee.
@@ -299,7 +327,7 @@ def send_message_to_trainee(
         raise ValueError('Trainee not found or not assigned to you.')
 
     conversation, _created = get_or_create_conversation(trainer, trainee)
-    return send_message(trainer, conversation, content)
+    return send_message(trainer, conversation, content, image=image)
 
 
 # ---------------------------------------------------------------------------
@@ -372,12 +400,19 @@ def send_message_push_notification(
     sender: User,
     content: str,
     conversation_id: int,
+    has_image: bool = False,
 ) -> None:
     """Send push notification for a new message."""
     try:
         from core.services.notification_service import send_push_notification
 
-        preview = content[:100] if len(content) > 100 else content
+        if content:
+            preview = content[:100] if len(content) > 100 else content
+        elif has_image:
+            preview = 'Sent a photo'
+        else:
+            preview = 'New message'
+
         sender_name = f'{sender.first_name} {sender.last_name}'.strip()
         if not sender_name:
             sender_name = sender.email

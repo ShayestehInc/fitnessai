@@ -4,6 +4,7 @@ class MessageModel {
   final int conversationId;
   final MessageSender sender;
   final String content;
+  final String? imageUrl;
   final bool isRead;
   final DateTime? readAt;
   final DateTime createdAt;
@@ -11,23 +12,32 @@ class MessageModel {
   /// Client-side only: whether this message failed to send.
   final bool isSendFailed;
 
+  /// Client-side only: local file path for optimistic image display before upload.
+  final String? localImagePath;
+
   const MessageModel({
     required this.id,
     required this.conversationId,
     required this.sender,
     required this.content,
+    this.imageUrl,
     this.isRead = false,
     this.readAt,
     required this.createdAt,
     this.isSendFailed = false,
+    this.localImagePath,
   });
+
+  /// Whether this message has an image (server or local).
+  bool get hasImage => imageUrl != null || localImagePath != null;
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     return MessageModel(
       id: json['id'] as int,
       conversationId: json['conversation_id'] as int,
       sender: MessageSender.fromJson(json['sender'] as Map<String, dynamic>),
-      content: json['content'] as String,
+      content: json['content'] as String? ?? '',
+      imageUrl: json['image'] as String?,
       isRead: json['is_read'] as bool? ?? false,
       readAt: json['read_at'] != null
           ? DateTime.parse(json['read_at'] as String)
@@ -40,16 +50,22 @@ class MessageModel {
     bool? isRead,
     DateTime? readAt,
     bool? isSendFailed,
+    String? imageUrl,
+    String? localImagePath,
+    bool clearLocalImage = false,
   }) {
     return MessageModel(
       id: id,
       conversationId: conversationId,
       sender: sender,
       content: content,
+      imageUrl: imageUrl ?? this.imageUrl,
       isRead: isRead ?? this.isRead,
       readAt: readAt ?? this.readAt,
       createdAt: createdAt,
       isSendFailed: isSendFailed ?? this.isSendFailed,
+      localImagePath:
+          clearLocalImage ? null : (localImagePath ?? this.localImagePath),
     );
   }
 }

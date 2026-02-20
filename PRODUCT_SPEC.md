@@ -577,6 +577,44 @@ Full-stack implementation of 1:1 direct messaging between trainers and trainees 
 - Hacker audit: Chaos Score 7/10. 2 critical flow bugs fixed (web new-conversation dead end, responsive layout). 5 significant fixes total.
 - Final verdict: 9/10 SHIP.
 
+### 4.21 Image Attachments in Direct Messages (Pipeline 21) -- COMPLETED (2026-02-19)
+
+Added image attachment support to direct messages across all three stacks. Users can now send image-only, text-only, or combined text+image messages. 32 files changed, 1,949 insertions.
+
+**What was built:**
+
+**Backend (Django)**
+- `image` ImageField on Message model with UUID-based upload paths (`message_images/{uuid}.{ext}`)
+- MultiPartParser support on SendMessageView and StartConversationView (backward-compatible with JSON)
+- Image validation: JPEG/PNG/WebP only, 5MB max, in view layer + Pillow validation on save
+- `annotated_last_message_has_image` Subquery annotation for conversation list "Sent a photo" preview
+- Push notification body shows "Sent a photo" for image-only messages
+- SendMessageResult dataclass updated with `image_url: str | None`
+- 35 new tests covering upload, validation, rejection, preview, push notifications
+
+**Mobile (Flutter)**
+- Image picker button (camera icon) with ImagePicker (gallery, 1920x1920 max, 85% quality compression)
+- Image preview strip above text input with X remove button, 5MB client-side validation
+- Optimistic send: image appears immediately with local file, replaces with server URL on success
+- Message bubble with image display (rounded corners, max 300px), tap for fullscreen
+- Full-screen InteractiveViewer with pinch-to-zoom (1.0x-4.0x), black background
+- Loading/error states for images, accessibility labels ("Photo message")
+
+**Web (Next.js)**
+- Paperclip attach button with file input (JPEG/PNG/WebP filter)
+- Image preview strip with remove, 5MB validation with toast errors
+- FormData multipart upload via existing apiClient.postFormData
+- Image in message bubbles with click-to-modal full-size viewer
+- Dialog-based image modal with close button, sr-only title
+
+**Pipeline Results:**
+- Code review: 2 rounds, 4 critical + 3 major issues fixed. Score: 8/10 APPROVE.
+- QA: 324 tests passed (35 new), 0 failed. Confidence: HIGH.
+- Security audit: Score 9/10 PASS. No issues found.
+- Architecture audit: Score 9/10 APPROVE. Clean extension of existing patterns.
+- Hacker audit: Chaos Score 9/10. No dead UI or logic bugs found.
+- Final verdict: 9/10 SHIP.
+
 ### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
@@ -683,7 +721,6 @@ Full-stack implementation of 1:1 direct messaging between trainers and trainees 
 - Web typing indicators (component exists, awaiting WebSocket)
 - Message editing and deletion
 - Message search
-- File/image attachments in messages
 - Advanced analytics and reporting
 - Multi-language support
 - Social auth (Apple/Google) mobile integration

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/conversation_model.dart';
 import '../../data/models/message_model.dart'
-    show MessageModel, MessagesResponse, StartConversationResponse;
+    show MessageModel, MessageSender, MessagesResponse, StartConversationResponse;
 import '../../data/repositories/messaging_repository.dart';
 
 // ---------------------------------------------------------------------------
@@ -57,6 +57,7 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
         isLoading: false,
       );
     } catch (e) {
+      debugPrint('ConversationListNotifier.loadConversations() failed: $e');
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to load conversations.',
@@ -174,13 +175,15 @@ class NewConversationNotifier extends StateNotifier<NewConversationState> {
 
   Future<StartConversationResponse?> startConversation({
     required int traineeId,
-    required String content,
+    String content = '',
+    String? imagePath,
   }) async {
     state = const NewConversationState(isSending: true);
     try {
       final result = await _repo.startConversation(
         traineeId: traineeId,
         content: content,
+        imagePath: imagePath,
       );
       state = const NewConversationState(isSending: false);
       return result;
@@ -276,6 +279,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         currentPage: 1,
       );
     } catch (e) {
+      debugPrint('ChatNotifier.loadMessages() failed: $e');
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to load messages.',
@@ -304,29 +308,64 @@ class ChatNotifier extends StateNotifier<ChatState> {
         currentPage: nextPage,
       );
     } catch (e) {
+      debugPrint('ChatNotifier.loadMore() failed: $e');
       state = state.copyWith(isLoadingMore: false);
     }
   }
 
-  Future<bool> sendMessage(String content) async {
+  /// Counter for generating temporary negative IDs for optimistic messages.
+  int _tempIdCounter = -1;
+
+  Future<bool> sendMessage(
+    String content, {
+    String? imagePath,
+    int? senderId,
+    String? senderFirstName,
+    String? senderLastName,
+  }) async {
     state = state.copyWith(isSending: true);
+
+    // Create optimistic message for immediate display
+    final tempId = _tempIdCounter--;
+    final optimistic = MessageModel(
+      id: tempId,
+      conversationId: conversationId,
+      sender: MessageSender(
+        id: senderId ?? 0,
+        firstName: senderFirstName ?? '',
+        lastName: senderLastName ?? '',
+      ),
+      content: content,
+      localImagePath: imagePath,
+      createdAt: DateTime.now(),
+    );
+    state = state.copyWith(
+      messages: [...state.messages, optimistic],
+    );
+
     try {
       final message = await _repo.sendMessage(
         conversationId: conversationId,
         content: content,
+        imagePath: imagePath,
       );
-      // Add to local list (avoid duplicate from WebSocket)
-      if (!state.messages.any((m) => m.id == message.id)) {
-        state = state.copyWith(
-          messages: [...state.messages, message],
-          isSending: false,
-        );
-      } else {
-        state = state.copyWith(isSending: false);
-      }
+      // Remove the optimistic message and any WebSocket duplicate, then add the server response
+      final updated = state.messages
+          .where((m) => m.id != tempId && m.id != message.id)
+          .toList()
+        ..add(message);
+      state = state.copyWith(
+        messages: updated,
+        isSending: false,
+      );
       return true;
     } catch (e) {
+      // Mark optimistic message as failed
       state = state.copyWith(
+        messages: state.messages.map((m) {
+          if (m.id == tempId) return m.copyWith(isSendFailed: true);
+          return m;
+        }).toList(),
         isSending: false,
         error: 'Failed to send message.',
       );

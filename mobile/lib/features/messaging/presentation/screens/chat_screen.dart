@@ -112,10 +112,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
           // Chat input
           ChatInput(
-            onSend: (content) async {
+            onSend: (content, {String? imagePath}) async {
+              final user = ref.read(authStateProvider).user;
               final success = await ref
                   .read(chatProvider(widget.conversationId).notifier)
-                  .sendMessage(content);
+                  .sendMessage(
+                    content,
+                    imagePath: imagePath,
+                    senderId: user?.id,
+                    senderFirstName: user?.firstName,
+                    senderLastName: user?.lastName,
+                  );
               if (success) _scrollToBottom();
               return success;
             },
