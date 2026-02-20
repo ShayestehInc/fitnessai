@@ -100,6 +100,7 @@ export function EarningsChart({ data }: EarningsChartProps) {
                 }}
                 tickLine={false}
                 axisLine={false}
+                interval="preserveStartEnd"
               />
               <YAxis
                 tick={{
