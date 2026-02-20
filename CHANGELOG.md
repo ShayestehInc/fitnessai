@@ -4,6 +4,40 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-19] — WebSocket Real-Time Web Messaging (Pipeline 22)
+
+### Added
+- **`useMessagingWebSocket` hook** -- New custom React hook (`web/src/hooks/use-messaging-ws.ts`, ~468 lines) managing full WebSocket lifecycle per conversation. JWT auth via URL query parameter, exponential backoff reconnection (1s→16s cap, max 5 attempts), 30s heartbeat with 5s pong timeout, tab visibility API reconnection, React Query cache mutations with deduplication.
+- **Typing indicators on web** -- Wired existing `typing-indicator.tsx` component via WebSocket `typing_indicator` events. `sendTyping()` with 3s debounce, 4s display timeout. "Name is typing..." with animated dots (staggered 0ms/150ms/300ms delays). Positioned outside scroll area so it's always visible regardless of scroll position.
+- **Real-time read receipts on web** -- WebSocket `read_receipt` events update React Query cache in real-time, replacing poll-based receipt updates.
+- **Connection state banners** -- `ConnectionBanner` component with two states: "Reconnecting..." (amber background, Loader2 spinner) for transient disconnection, "Updates may be delayed" (muted background, WifiOff icon) for persistent failure. Dark mode support on both variants.
+- **Graceful HTTP polling fallback** -- When WebSocket is connected, HTTP polling disabled (interval set to 0). When disconnected/failed, HTTP polling resumes at 5s. Refetches once on reconnect to catch missed messages.
+- **Configurable polling intervals** -- `useConversations()` and `useMessagingUnreadCount()` hooks now accept `refetchIntervalMs` parameter for dynamic polling control.
+- **`onTyping` callback on ChatInput** -- Fires `onTyping(true)` on input, `onTyping(false)` on send. Enables typing indicator integration.
+
+### Fixed
+- **CRITICAL: Race condition in async `connect()`** -- If component unmounted while `connect()` was awaiting `refreshAccessToken()`, cleanup fired but `connect()` resumed and created a leaked WebSocket with no cleanup reference. Fixed with `cancelledRef` pattern — set to `true` in cleanup, checked after each async gap.
+- **CRITICAL: Typing indicator inside scroll area** -- Was placed inside `overflow-y-auto` div, invisible when user scrolled up. Moved outside scroll area, between message list and ChatInput.
+- **Pre-existing `@/hooks/use-toast` import** -- `chat-input.tsx` imported from non-existent `@/hooks/use-toast`. Project uses `sonner`. Replaced with `import { toast } from "sonner"` and updated all call sites.
+- **`markRead` referenced before declaration** -- `useMessagingWebSocket` on line 42 referenced `markRead` declared on line 78. Moved `useMarkConversationRead` call above `useMessagingWebSocket`.
+- **Confusing `POLLING_DISABLED` naming** -- `POLLING_DISABLED = false as const` was confusing (variable "DISABLED" = `false`). Renamed to `POLLING_OFF = 0`.
+
+### Accessibility
+- `aria-live="polite"` on typing indicator for screen reader announcements
+- `role="status"` on connection state banners
+- Connection banners use appropriate semantic colors (amber for transient, muted for persistent)
+
+### Quality Metrics
+- Code Review: 8/10 APPROVE (2 rounds -- 2 critical + 2 major all fixed)
+- QA: HIGH confidence, 31/31 AC pass, 35 backend tests pass, 0 new TS errors
+- Security Audit: 9/10 PASS (JWT in URL param is standard for WebSocket, no issues found)
+- Architecture Audit: 9/10 APPROVE (clean separation, no tech debt introduced)
+- Hacker Audit: 9/10 (no dead UI, visual bugs, or logic bugs found)
+- UX Audit: 9/10 (all states handled, accessible, dark mode correct)
+- Final Verdict: SHIP at 9/10, HIGH confidence
+
+---
+
 ## [2026-02-19] — Image Attachments in Direct Messages (Pipeline 21)
 
 ### Added

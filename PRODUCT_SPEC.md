@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-19 (Pipeline 20: In-App Direct Messaging)
+> Last updated: 2026-02-19 (Pipeline 22: WebSocket Real-Time Web Messaging)
 
 ---
 
@@ -243,13 +243,13 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Messaging Django app (models, services, views) | ✅ Done | Shipped 2026-02-19: Conversation + Message models, 6 REST endpoints, row-level security |
 | Trainer-to-trainee 1:1 messaging | ✅ Done | Shipped 2026-02-19: Send/receive messages, auto-create conversations, soft-archive on removal |
 | WebSocket real-time (mobile) | ✅ Done | Shipped 2026-02-19: DirectMessageConsumer with JWT auth, typing indicators, read receipts |
-| HTTP polling real-time (web) | ✅ Done | Shipped 2026-02-19: 5s message polling, 15s conversation polling (v1, WebSocket planned for v2) |
+| HTTP polling real-time (web) | ✅ Done | Shipped 2026-02-19: 5s message polling, 15s conversation polling (fallback when WS disconnected) |
 | Conversation list | ✅ Done | Shipped 2026-02-19: Sorted by recency, last message preview (annotated), unread count, avatar |
 | Message pagination | ✅ Done | Shipped 2026-02-19: 20 per page with infinite scroll |
 | Push notifications | ✅ Done | Shipped 2026-02-19: FCM push on new message to offline recipient |
 | Unread badge | ✅ Done | Shipped 2026-02-19: Mobile nav shells + web sidebar (desktop + mobile), 99+ cap |
 | Read receipts | ✅ Done | Shipped 2026-02-19: Double checkmark pattern on mobile + web |
-| Typing indicators | ✅ Done | Shipped 2026-02-19: Mobile only (WebSocket). Web component exists, awaiting WebSocket |
+| Typing indicators | ✅ Done | Shipped 2026-02-19: Mobile (WebSocket) + Web (WebSocket, Pipeline 22). "Name is typing..." with animated dots |
 | Character counter | ✅ Done | Shipped 2026-02-19: 2000 char max, counter at 90%, server validation |
 | Impersonation read-only guard | ✅ Done | Shipped 2026-02-19: Admin impersonating trainer cannot send messages |
 | Rate limiting | ✅ Done | Shipped 2026-02-19: 30 messages/minute via ScopedRateThrottle |
@@ -257,6 +257,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Web messages page | ✅ Done | Shipped 2026-02-19: Split-panel layout, responsive (single-panel on mobile), new conversation flow |
 | Web trainee detail "Message" button | ✅ Done | Shipped 2026-02-19: Navigates to messages page with trainee param |
 | Mobile trainee detail "Send Message" | ✅ Done | Shipped 2026-02-19: Wired existing dead button to new-conversation screen |
+| WebSocket real-time (web) | ✅ Done | Shipped 2026-02-19 (Pipeline 22): Replaces HTTP polling with WebSocket — instant message delivery, typing indicators, read receipts, graceful HTTP polling fallback, connection state banners, exponential backoff reconnection, tab visibility reconnect |
 | E2E tests | ✅ Done | Shipped 2026-02-19: 7 Playwright tests for messaging |
 
 ### 3.11 Other
@@ -615,6 +616,46 @@ Added image attachment support to direct messages across all three stacks. Users
 - Hacker audit: Chaos Score 9/10. No dead UI or logic bugs found.
 - Final verdict: 9/10 SHIP.
 
+### 4.22 WebSocket Real-Time Web Messaging (Pipeline 22) -- COMPLETED (2026-02-19)
+
+Replaced HTTP polling with WebSocket real-time messaging on the web dashboard. Zero backend changes — the existing `DirectMessageConsumer` already supported all needed events. 4 files changed, ~550 insertions.
+
+**What was built:**
+
+**WebSocket Hook (`use-messaging-ws.ts`)**
+- New `useMessagingWebSocket` custom hook managing full WebSocket lifecycle per conversation
+- JWT authentication via URL query parameter (standard for WebSocket, `encodeURIComponent` encoded)
+- Token refresh before connection if expired, with `cancelledRef` pattern to prevent leaked connections on unmount during async gaps
+- Exponential backoff reconnection (1s, 2s, 4s, 8s, 16s cap, max 5 attempts)
+- 30s heartbeat ping with 5s pong timeout for connection health monitoring
+- Tab visibility API reconnection — auto-reconnects when tab becomes visible
+- React Query cache mutations: `appendMessageToCache` (dedup by ID), `updateConversationPreview`, `updateReadReceipts`
+- Typed WebSocket events: `WsNewMessageEvent`, `WsTypingIndicatorEvent`, `WsReadReceiptEvent`, `WsPongEvent`
+
+**Typing Indicators**
+- `sendTyping()` with 3s debounce — sends `is_typing: true` at most once per 3s, auto-sends `is_typing: false` after 3s idle
+- 4s display timeout — "Name is typing..." disappears after 4s without typing event
+- Typing indicator positioned outside scroll area — always visible regardless of scroll position
+- Wired existing `typing-indicator.tsx` component (animated dots with staggered delays)
+
+**Connection State UI**
+- `ConnectionBanner` component with two states: "Reconnecting..." (amber, Loader2 spinner) and "Updates may be delayed" (muted, WifiOff icon)
+- Dark mode support on both banner variants
+- `aria-live="polite"` on typing indicator, `role="status"` on connection banners
+
+**Graceful Degradation**
+- When WebSocket connected: HTTP polling disabled (interval set to 0)
+- When WebSocket disconnected/failed: HTTP polling resumes at 5s
+- Refetches once on WS reconnect to catch messages missed during disconnection
+
+**Pipeline Results:**
+- Code review: 2 rounds, 2 critical + 2 major issues fixed (race condition, typing indicator placement, markRead ordering, polling constant naming). Score: 8/10 APPROVE.
+- QA: 31/31 AC pass, 35 backend tests pass, 0 new TS errors. Confidence: HIGH.
+- Security audit: Score 9/10 PASS. JWT in URL param is standard for WS. No issues found.
+- Architecture audit: Score 9/10 APPROVE. Clean separation of concerns, no tech debt introduced.
+- Hacker audit: Chaos Score 9/10. No dead UI, visual bugs, or logic bugs found.
+- Final verdict: 9/10 SHIP.
+
 ### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
@@ -717,8 +758,8 @@ Added image attachment support to direct messages across all three stacks. Users
 ### Phase 11: Future Enhancements
 - Video attachments on community posts
 - Trainee web access
-- WebSocket support for web messaging (replace HTTP polling)
-- Web typing indicators (component exists, awaiting WebSocket)
+- ~~WebSocket support for web messaging (replace HTTP polling)~~ ✅ Completed 2026-02-19 (Pipeline 22)
+- ~~Web typing indicators (component exists, awaiting WebSocket)~~ ✅ Completed 2026-02-19 (Pipeline 22)
 - Message editing and deletion
 - Message search
 - Advanced analytics and reporting
@@ -817,5 +858,5 @@ Added image attachment support to direct messages across all three stacks. Users
 - **Offline support for trainee workout/nutrition/weight logging** — Shipped 2026-02-15 via Drift (SQLite). Sync queue with FIFO processing, exponential backoff, conflict detection. Pending: offline data not yet merged into list views (home recent workouts, nutrition macro totals, weight trends).
 - **Single timezone assumed** — DailyLog uses `timezone.now().date()`. Multi-timezone trainees may see date boundary issues.
 - **AI parsing is OpenAI-only** — Function Calling mode. No fallback provider yet. Rate limits apply.
-- **Real-time updates on community feed and messaging** — WebSocket via Django Channels shipped for community feed (2026-02-16: new posts, deletions, comments, reactions) and direct messaging (2026-02-19: new messages, typing indicators, read receipts). Web messaging uses HTTP polling (5s) as v1 alternative. Trainer dashboard still requires manual refresh.
+- **Real-time updates on community feed and messaging** — WebSocket via Django Channels shipped for community feed (2026-02-16: new posts, deletions, comments, reactions) and direct messaging on mobile (2026-02-19) and web (2026-02-19 Pipeline 22: new messages, typing indicators, read receipts, graceful HTTP polling fallback). Trainer dashboard still requires manual refresh.
 - **Web dashboard covers trainer, admin, and ambassador roles** — Web dashboard (Next.js) shipped for trainers and admins (2026-02-15), ambassador role added (2026-02-19). Full feature parity achieved for all three roles. Trainee web access not yet built.
