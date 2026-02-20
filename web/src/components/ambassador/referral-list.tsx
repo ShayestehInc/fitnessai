@@ -57,7 +57,11 @@ function StatusBadge({ status }: { status: string }) {
       : status === "pending"
         ? "secondary"
         : "outline";
-  return <Badge variant={variant}>{status}</Badge>;
+  return (
+    <Badge variant={variant}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </Badge>
+  );
 }
 
 function ReferralListSkeleton() {
@@ -83,8 +87,8 @@ export function ReferralList() {
   const referrals = data?.results ?? [];
   const totalCount = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const hasNext = data?.next !== null;
-  const hasPrevious = data?.previous !== null;
+  const hasNext = data?.next != null;
+  const hasPrevious = data?.previous != null;
 
   // Client-side search within current page results
   const filtered = search
@@ -162,9 +166,7 @@ export function ReferralList() {
       {/* Content */}
       {!isError && (
         <>
-          {isFetching && !isLoading ? (
-            <ReferralListSkeleton />
-          ) : noReferralsAtAll ? (
+          {noReferralsAtAll ? (
             <EmptyState
               icon={Users}
               title="No referrals yet"
@@ -183,7 +185,10 @@ export function ReferralList() {
               description="Try adjusting your search query."
             />
           ) : (
-            <div className="space-y-3">
+            <div
+              className="space-y-3 transition-opacity"
+              style={{ opacity: isFetching ? 0.5 : 1 }}
+            >
               {filtered.map((ref) => (
                 <ReferralCard key={ref.id} referral={ref} />
               ))}

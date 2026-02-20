@@ -43,6 +43,11 @@ export default function AmbassadorDashboardPage() {
   }
 
   const dashboardData = data as AmbassadorDashboardData;
+  const hasReferrals =
+    dashboardData.active_referrals +
+      dashboardData.pending_referrals +
+      dashboardData.churned_referrals >
+    0;
 
   return (
     <PageTransition>
@@ -53,14 +58,18 @@ export default function AmbassadorDashboardPage() {
         />
         <DashboardEarningsCard data={dashboardData} />
         <EarningsChart data={dashboardData.monthly_earnings ?? []} />
-        <div className="grid gap-6 md:grid-cols-2">
-          <ReferralStatusBreakdown
-            active={dashboardData.active_referrals}
-            pending={dashboardData.pending_referrals}
-            churned={dashboardData.churned_referrals}
-          />
+        {hasReferrals ? (
+          <div className="grid gap-6 md:grid-cols-2">
+            <ReferralStatusBreakdown
+              active={dashboardData.active_referrals}
+              pending={dashboardData.pending_referrals}
+              churned={dashboardData.churned_referrals}
+            />
+            <ReferralCodeCard />
+          </div>
+        ) : (
           <ReferralCodeCard />
-        </div>
+        )}
         <RecentReferralsList referrals={dashboardData.recent_referrals ?? []} />
       </div>
     </PageTransition>

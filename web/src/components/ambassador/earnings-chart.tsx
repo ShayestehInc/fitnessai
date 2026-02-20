@@ -34,7 +34,6 @@ function formatFullMonth(monthStr: string): string {
 }
 
 function formatDollarAmount(value: number): string {
-  if (value >= 10_000) return `$${(value / 1000).toFixed(1)}K`;
   if (value >= 1_000) return `$${(value / 1000).toFixed(1)}K`;
   return `$${value.toFixed(0)}`;
 }

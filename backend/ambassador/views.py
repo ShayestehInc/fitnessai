@@ -180,6 +180,7 @@ class AmbassadorReferralsView(APIView):
         referrals = _annotate_referrals_with_commission(
             AmbassadorReferral.objects.filter(ambassador=user)
             .select_related('trainer', 'trainer__subscription')
+            .order_by('-referred_at')
         )
 
         # Filter by status
