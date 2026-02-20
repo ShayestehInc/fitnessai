@@ -1,19 +1,30 @@
-# UX Audit: Image Attachments in Direct Messages (Pipeline 21)
+# UX Audit: WebSocket Real-Time Messaging for Web Dashboard (Pipeline 22)
 
 ## Audit Date: 2026-02-19
 
 ## Usability Issues
 | # | Severity | Screen/Component | Issue | Recommendation |
 |---|----------|-----------------|-------|----------------|
-| 1 | Low | MessageImageViewer | No AppBar title for screen readers | **FIXED** — Added "Image" title |
+| None found | | | | |
 
 ## Accessibility Issues
-All components have proper accessibility labels. No issues found.
+| # | WCAG Level | Issue | Fix |
+|---|------------|-------|-----|
+| None found | | Typing indicator has `aria-live="polite"` | Already implemented |
+| None found | | Connection banners have `role="status"` | Already implemented |
 
 ## Missing States
-- [x] Loading — Spinner (mobile), lazy loading (web)
-- [x] Error — Broken image icon + text
-- [x] Success — Image appears in chat
-- [x] Offline/failure — isSendFailed marking with error state
+- [x] Loading / skeleton — existing, unchanged
+- [x] Empty / zero data — existing, unchanged
+- [x] Error / failure — existing, unchanged
+- [x] Success / confirmation — messages appear instantly
+- [x] Offline / degraded — "Reconnecting..." and "Updates may be delayed" banners
+- [x] Permission denied — N/A (auth handled via JWT)
 
-## Overall UX Score: 8/10
+## Notes
+- Typing indicator positioned outside scroll area — always visible regardless of scroll position
+- Connection banners use appropriate colors: amber for reconnecting (transient), muted for failed (persistent)
+- Dark mode properly handled on both banners
+- Animated dots on typing indicator use staggered animation-delay (0ms, 150ms, 300ms) — smooth visual
+
+## Overall UX Score: 9/10
