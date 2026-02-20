@@ -34,7 +34,7 @@ export default function TraineeViewPage() {
         {/* AC-20: Read-Only badge */}
         <Badge
           variant="outline"
-          className="ml-auto flex items-center gap-1 border-amber-500 text-amber-600"
+          className="ml-auto flex items-center gap-1 border-amber-500 text-amber-600 dark:border-amber-400 dark:text-amber-400"
         >
           <Eye className="h-3 w-3" aria-hidden="true" />
           Read-Only
