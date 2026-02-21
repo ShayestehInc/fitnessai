@@ -4,13 +4,30 @@ import { useState, useCallback } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getAccessToken } from "@/lib/token-manager";
+import {
+  getAccessToken,
+  isAccessTokenExpired,
+  refreshAccessToken,
+  clearTokens,
+} from "@/lib/token-manager";
 
 interface ExportButtonProps {
   url: string;
   filename: string;
   label?: string;
   "aria-label"?: string;
+}
+
+async function getValidToken(): Promise<string | null> {
+  if (isAccessTokenExpired()) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) {
+      clearTokens();
+      window.location.href = "/login";
+      return null;
+    }
+  }
+  return getAccessToken();
 }
 
 export function ExportButton({
@@ -24,34 +41,50 @@ export function ExportButton({
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
     try {
-      const token = getAccessToken();
-      if (!token) {
-        toast.error("Session expired. Please log in again.");
-        return;
-      }
+      const token = await getValidToken();
+      if (!token) return;
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) {
-        if (response.status === 403) {
-          toast.error("You don't have permission to export this data.");
-        } else {
-          toast.error("Failed to download CSV. Please try again.");
+      if (response.status === 401) {
+        // Token expired between check and request — try one refresh
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          const retryToken = getAccessToken();
+          if (!retryToken) {
+            window.location.href = "/login";
+            return;
+          }
+          const retryResponse = await fetch(url, {
+            headers: { Authorization: `Bearer ${retryToken}` },
+          });
+          if (!retryResponse.ok) {
+            toast.error("Failed to download CSV. Please try again.");
+            return;
+          }
+          const blob = await retryResponse.blob();
+          triggerDownload(blob, filename);
+          return;
         }
+        clearTokens();
+        window.location.href = "/login";
+        return;
+      }
+
+      if (response.status === 403) {
+        toast.error("You don't have permission to export this data.");
+        return;
+      }
+
+      if (!response.ok) {
+        toast.error("Failed to download CSV. Please try again.");
         return;
       }
 
       const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(objectUrl);
+      triggerDownload(blob, filename);
     } catch {
       toast.error("Failed to download CSV. Please try again.");
     } finally {
@@ -75,4 +108,16 @@ export function ExportButton({
       {label}
     </Button>
   );
+}
+
+function triggerDownload(blob: Blob, filename: string): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  // Delay revocation for Safari compatibility
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }

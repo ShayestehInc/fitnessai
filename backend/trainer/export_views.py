@@ -19,14 +19,7 @@ from .services.export_service import (
     export_subscribers_csv,
     export_trainees_csv,
 )
-
-
-def _parse_days_param(request: Request, default: int = 30) -> int:
-    """Parse and clamp the `days` query parameter (1-365)."""
-    try:
-        return min(max(int(request.query_params.get("days", default)), 1), 365)
-    except (ValueError, TypeError):
-        return default
+from .utils import parse_days_param
 
 
 def _csv_response(content: str, filename: str) -> HttpResponse:
@@ -45,7 +38,7 @@ class PaymentExportView(views.APIView):
 
     def get(self, request: Request) -> HttpResponse:
         trainer = cast(User, request.user)
-        days = _parse_days_param(request)
+        days = parse_days_param(request)
         result = export_payments_csv(trainer, days)
         return _csv_response(result.content, result.filename)
 

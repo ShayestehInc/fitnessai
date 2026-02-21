@@ -7,9 +7,10 @@ from __future__ import annotations
 import csv
 import io
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
+from django.db.models import Max, Prefetch
 from django.utils import timezone
 
 if TYPE_CHECKING:
@@ -40,18 +41,18 @@ TRAINEE_HEADERS = [
 ]
 
 
-def _format_date(dt: object) -> str:
+def _format_date(dt: datetime | None) -> str:
     """Format a datetime as YYYY-MM-DD HH:MM:SS, or return empty string for None."""
     if dt is None:
         return ""
-    return dt.strftime("%Y-%m-%d %H:%M:%S")  # type: ignore[union-attr]
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _format_date_only(dt: object) -> str:
+def _format_date_only(dt: datetime | date | None) -> str:
     """Format a datetime/date as YYYY-MM-DD, or return empty string for None."""
     if dt is None:
         return ""
-    return dt.strftime("%Y-%m-%d")  # type: ignore[union-attr]
+    return dt.strftime("%Y-%m-%d")
 
 
 def _safe_str(value: object) -> str:
@@ -59,6 +60,11 @@ def _safe_str(value: object) -> str:
     if value is None:
         return ""
     return str(value)
+
+
+def _format_amount(amount: object) -> str:
+    """Format a Decimal amount with exactly 2 decimal places."""
+    return f"{amount:.2f}"
 
 
 def export_payments_csv(trainer: User, days: int) -> CsvExportResult:
@@ -97,10 +103,10 @@ def export_payments_csv(trainer: User, days: int) -> CsvExportResult:
             _format_date(date_val),
             name or trainee.email,
             trainee.email,
-            payment.get_payment_type_display(),
-            str(payment.amount),
+            _safe_str(payment.get_payment_type_display()),
+            _format_amount(payment.amount),
             payment.currency.upper(),
-            payment.get_status_display(),
+            _safe_str(payment.get_status_display()),
             payment.description,
         ])
         row_count += 1
@@ -146,9 +152,9 @@ def export_subscribers_csv(trainer: User) -> CsvExportResult:
         writer.writerow([
             name or trainee.email,
             trainee.email,
-            str(sub.amount),
+            _format_amount(sub.amount),
             sub.currency.upper(),
-            sub.get_status_display(),
+            _safe_str(sub.get_status_display()),
             _format_date(sub.current_period_end),
             _safe_str(renewal_days),
             _format_date(sub.created_at),
@@ -167,6 +173,9 @@ def export_trainees_csv(trainer: User) -> CsvExportResult:
     """
     Export all trainees for a trainer as CSV.
 
+    Uses annotation for last_log_date instead of prefetching all daily_logs
+    to avoid unbounded memory usage.
+
     Args:
         trainer: The authenticated trainer.
 
@@ -174,6 +183,7 @@ def export_trainees_csv(trainer: User) -> CsvExportResult:
         CsvExportResult with CSV content, filename, and row count.
     """
     from users.models import User as UserModel
+    from workouts.models import Program
 
     trainees = (
         UserModel.objects.filter(
@@ -181,7 +191,14 @@ def export_trainees_csv(trainer: User) -> CsvExportResult:
             role=UserModel.Role.TRAINEE,
         )
         .select_related("profile")
-        .prefetch_related("programs", "daily_logs")
+        .prefetch_related(
+            Prefetch(
+                "programs",
+                queryset=Program.objects.filter(is_active=True),
+                to_attr="active_programs",
+            )
+        )
+        .annotate(last_log_date=Max("daily_logs__date"))
         .order_by("-created_at")
     )
 
@@ -199,16 +216,12 @@ def export_trainees_csv(trainer: User) -> CsvExportResult:
         except UserModel.profile.RelatedObjectDoesNotExist:  # type: ignore[union-attr]
             profile_complete = False
 
-        # Last activity from prefetched daily_logs
-        logs = list(trainee.daily_logs.all())
-        last_activity = str(max(log.date for log in logs)) if logs else ""
+        # Last activity from annotated Max
+        last_activity = _format_date_only(trainee.last_log_date)  # type: ignore[attr-defined]
 
-        # Current program from prefetched programs
-        active_program = next(
-            (p for p in trainee.programs.all() if p.is_active),
-            None,
-        )
-        program_name = active_program.name if active_program else ""
+        # Current program from filtered prefetch
+        active_programs: list[Program] = trainee.active_programs  # type: ignore[attr-defined]
+        program_name = active_programs[0].name if active_programs else ""
 
         writer.writerow([
             name or trainee.email,

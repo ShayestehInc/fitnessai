@@ -40,7 +40,7 @@ export default function TraineesPage() {
             {data && data.results.length > 0 && (
               <ExportButton
                 url={API_URLS.EXPORT_TRAINEES}
-                filename={`trainees_${new Date().toISOString().slice(0, 10)}.csv`}
+                filename={`trainees_${new Date().toLocaleDateString("en-CA")}.csv`}
                 label="Export CSV"
                 aria-label="Export trainees as CSV"
               />

@@ -355,13 +355,13 @@ export function RevenueSection() {
             <>
               <ExportButton
                 url={`${API_URLS.EXPORT_PAYMENTS}?days=${days}`}
-                filename={`payments_${new Date().toISOString().slice(0, 10)}.csv`}
+                filename={`payments_${new Date().toLocaleDateString("en-CA")}.csv`}
                 label="Export Payments"
                 aria-label="Export payments as CSV"
               />
               <ExportButton
                 url={API_URLS.EXPORT_SUBSCRIBERS}
-                filename={`subscribers_${new Date().toISOString().slice(0, 10)}.csv`}
+                filename={`subscribers_${new Date().toLocaleDateString("en-CA")}.csv`}
                 label="Export Subscribers"
                 aria-label="Export subscribers as CSV"
               />
