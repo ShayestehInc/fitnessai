@@ -20,7 +20,7 @@ final exercisesProvider = FutureProvider.autoDispose.family<List<ExerciseModel>,
   if (result['success']) {
     return result['data'] as List<ExerciseModel>;
   }
-  return [];
+  throw Exception(result['error'] ?? 'Failed to load exercises');
 });
 
 final selectedMuscleGroupProvider = StateProvider<String?>((ref) => null);

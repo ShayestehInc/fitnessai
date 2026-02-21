@@ -137,16 +137,18 @@ export function ExercisePickerDialog({
 
           <div className="flex flex-wrap gap-1.5">
             {Object.values(DifficultyLevel).map((level) => (
-              <Badge
+              <Button
                 key={level}
+                type="button"
                 variant={selectedDifficulty === level ? "default" : "outline"}
-                className="cursor-pointer text-xs"
+                size="sm"
+                className="h-7 text-xs"
                 onClick={() =>
                   setSelectedDifficulty(selectedDifficulty === level ? "" : level)
                 }
               >
                 {DIFFICULTY_LABELS[level]}
-              </Badge>
+              </Button>
             ))}
           </div>
 
@@ -171,8 +173,8 @@ export function ExercisePickerDialog({
               icon={Dumbbell}
               title="No exercises found"
               description={
-                search || selectedGroup
-                  ? "Try adjusting your search or filter."
+                search || selectedGroup || selectedDifficulty
+                  ? "Try adjusting your search or filters."
                   : "No exercises available yet."
               }
             />

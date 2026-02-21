@@ -84,13 +84,13 @@ def get_exercise_classification_prompt(exercises: list[dict[str, str]]) -> str:
     Generate prompt for classifying exercises by difficulty level.
 
     Args:
-        exercises: List of dicts with 'name', 'muscle_group', and optional 'category'.
+        exercises: List of dicts with 'id', 'name', 'muscle_group', and optional 'category'.
 
     Returns:
         Formatted prompt string for OpenAI.
     """
     exercise_lines = "\n".join(
-        f"- {ex['name']} (muscle_group: {ex['muscle_group']}, category: {ex.get('category', 'unknown')})"
+        f"- [id={ex.get('id', 'unknown')}] {ex['name']} (muscle_group: {ex['muscle_group']}, category: {ex.get('category', 'unknown')})"
         for ex in exercises
     )
 
@@ -106,14 +106,15 @@ Guidelines:
 Exercises to classify:
 {exercise_lines}
 
-Return ONLY valid JSON — an array of objects with "name" and "difficulty_level":
+Return ONLY valid JSON — an array of objects with "id", "name", and "difficulty_level":
 [
-  {{"name": "Exercise Name", "difficulty_level": "beginner"}},
-  {{"name": "Another Exercise", "difficulty_level": "intermediate"}}
+  {{"id": "123", "name": "Exercise Name", "difficulty_level": "beginner"}},
+  {{"id": "456", "name": "Another Exercise", "difficulty_level": "intermediate"}}
 ]
 
 Rules:
 - Classify ALL exercises in the list. Do not skip any.
+- Include the exact "id" from the input for each exercise.
 - Use the category hint (e.g., "Cable Fly" → beginner, "Squat" → intermediate, "Snatch" → advanced).
 - When in doubt between two levels, pick the lower one (safer for beginners).
 - Return ONLY the JSON array, no additional text."""

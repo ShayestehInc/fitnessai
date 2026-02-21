@@ -1162,7 +1162,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                             ...muscles.map((muscle) => Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: FilterChip(
-                                label: Text(muscle[0].toUpperCase() + muscle.substring(1)),
+                                label: Text(muscle.isNotEmpty ? muscle[0].toUpperCase() + muscle.substring(1) : ''),
                                 selected: selectedMuscle == muscle,
                                 onSelected: (_) {
                                   setModalState(() => selectedMuscle = muscle);
@@ -1198,8 +1198,12 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                         ),
                         title: Text(exercise['name'] as String),
                         subtitle: Text(
-                          (exercise['muscle'] as String)[0].toUpperCase() +
-                              (exercise['muscle'] as String).substring(1),
+                          () {
+                            final m = exercise['muscle'] as String;
+                            return m.isNotEmpty
+                                ? m[0].toUpperCase() + m.substring(1)
+                                : '';
+                          }(),
                           style: TextStyle(color: Colors.grey[600], fontSize: 12),
                         ),
                         trailing: const Icon(Icons.add_circle_outline),

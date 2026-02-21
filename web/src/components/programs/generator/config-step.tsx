@@ -9,6 +9,7 @@ import {
   type CustomDayConfig,
 } from "@/types/program";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { CustomDayConfigurator } from "./custom-day-config";
@@ -109,26 +110,24 @@ export function ConfigStep({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="duration-weeks">Duration (weeks)</Label>
-          <input
+          <Input
             id="duration-weeks"
             type="number"
             min={1}
             max={52}
             value={durationWeeks}
             onChange={(e) => onDurationChange(Math.max(1, Math.min(52, Number(e.target.value) || 1)))}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="days-per-week">Training days per week</Label>
-          <input
+          <Input
             id="days-per-week"
             type="number"
             min={2}
             max={7}
             value={trainingDaysPerWeek}
             onChange={(e) => onDaysChange(Math.max(2, Math.min(7, Number(e.target.value) || 2)))}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
       </div>

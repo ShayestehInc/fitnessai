@@ -5,6 +5,7 @@ import { DIFFICULTY_LABELS, GOAL_LABELS } from "@/types/program";
 import type { DifficultyLevel, GoalType } from "@/types/program";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dumbbell, UtensilsCrossed, Calendar, Flame } from "lucide-react";
 
@@ -12,9 +13,10 @@ interface PreviewStepProps {
   data: GeneratedProgramResponse | null;
   isLoading: boolean;
   error: string | null;
+  onRetry?: () => void;
 }
 
-export function PreviewStep({ data, isLoading, error }: PreviewStepProps) {
+export function PreviewStep({ data, isLoading, error, onRetry }: PreviewStepProps) {
   if (isLoading) {
     return <PreviewSkeleton />;
   }
@@ -24,6 +26,16 @@ export function PreviewStep({ data, isLoading, error }: PreviewStepProps) {
       <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6 text-center">
         <p className="font-medium text-destructive">Generation failed</p>
         <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+        {onRetry && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={onRetry}
+          >
+            Try Again
+          </Button>
+        )}
       </div>
     );
   }
@@ -77,8 +89,8 @@ export function PreviewStep({ data, isLoading, error }: PreviewStepProps) {
           <CardTitle className="text-base">Weekly Schedule</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {firstWeek?.days?.map((day, i) => (
-            <div key={i} className="flex items-start gap-3">
+          {firstWeek?.days?.map((day) => (
+            <div key={day.day} className="flex items-start gap-3">
               <span className="w-24 shrink-0 text-sm font-medium text-muted-foreground">
                 {day.day}
               </span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   MuscleGroup,
   MUSCLE_GROUP_LABELS,
@@ -32,22 +32,31 @@ export function CustomDayConfigurator({
   config,
   onChange,
 }: CustomDayConfiguratorProps) {
+  // Keep a ref to the latest config so the effect doesn't depend on it
+  const configRef = useRef(config);
+  configRef.current = config;
+
+  // Stable reference to onChange to avoid re-triggering the effect
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   // Keep config in sync with trainingDays count
   useEffect(() => {
-    if (config.length !== trainingDays) {
+    const currentConfig = configRef.current;
+    if (currentConfig.length !== trainingDays) {
       const updated: CustomDayConfig[] = [];
       for (let i = 0; i < trainingDays; i++) {
         updated.push(
-          config[i] ?? {
+          currentConfig[i] ?? {
             day_name: `Day ${i + 1}`,
             label: `Day ${i + 1}`,
             muscle_groups: [],
           },
         );
       }
-      onChange(updated);
+      onChangeRef.current(updated);
     }
-  }, [trainingDays]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [trainingDays]);
 
   const toggleMuscleGroup = (dayIndex: number, mg: MuscleGroup) => {
     const updated = [...config];

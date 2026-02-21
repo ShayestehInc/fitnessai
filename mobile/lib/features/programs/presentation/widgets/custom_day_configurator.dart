@@ -96,7 +96,7 @@ class CustomDayConfigurator extends StatelessWidget {
   }
 }
 
-class _CustomDayTile extends StatelessWidget {
+class _CustomDayTile extends StatefulWidget {
   final int dayNumber;
   final CustomDayConfig config;
   final ValueChanged<CustomDayConfig> onChanged;
@@ -106,6 +106,34 @@ class _CustomDayTile extends StatelessWidget {
     required this.config,
     required this.onChanged,
   });
+
+  @override
+  State<_CustomDayTile> createState() => _CustomDayTileState();
+}
+
+class _CustomDayTileState extends State<_CustomDayTile> {
+  late TextEditingController _labelController;
+
+  @override
+  void initState() {
+    super.initState();
+    _labelController = TextEditingController(text: widget.config.label);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CustomDayTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.config.label != widget.config.label &&
+        _labelController.text != widget.config.label) {
+      _labelController.text = widget.config.label;
+    }
+  }
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +161,7 @@ class _CustomDayTile extends StatelessWidget {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  '$dayNumber',
+                  '${widget.dayNumber}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.primary,
@@ -144,7 +172,7 @@ class _CustomDayTile extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
-                  controller: TextEditingController(text: config.label),
+                  controller: _labelController,
                   decoration: InputDecoration(
                     hintText: 'Day name (e.g. Push Day)',
                     isDense: true,
@@ -158,7 +186,7 @@ class _CustomDayTile extends StatelessWidget {
                   ),
                   style: theme.textTheme.bodyMedium,
                   onChanged: (value) {
-                    onChanged(config.copyWith(label: value));
+                    widget.onChanged(widget.config.copyWith(label: value));
                   },
                 ),
               ),
@@ -169,7 +197,7 @@ class _CustomDayTile extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: _allMuscleGroups.map((group) {
-              final isSelected = config.muscleGroups.contains(group);
+              final isSelected = widget.config.muscleGroups.contains(group);
               return FilterChip(
                 label: Text(
                   _muscleGroupLabels[group] ?? group,
@@ -177,20 +205,22 @@ class _CustomDayTile extends StatelessWidget {
                 ),
                 selected: isSelected,
                 onSelected: (selected) {
-                  final newGroups = List<String>.from(config.muscleGroups);
+                  final newGroups =
+                      List<String>.from(widget.config.muscleGroups);
                   if (selected) {
                     newGroups.add(group);
                   } else {
                     newGroups.remove(group);
                   }
-                  onChanged(config.copyWith(muscleGroups: newGroups));
+                  widget.onChanged(
+                      widget.config.copyWith(muscleGroups: newGroups));
                 },
                 selectedColor: colorScheme.primary.withValues(alpha: 0.2),
                 visualDensity: VisualDensity.compact,
               );
             }).toList(),
           ),
-          if (config.muscleGroups.isEmpty)
+          if (widget.config.muscleGroups.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(

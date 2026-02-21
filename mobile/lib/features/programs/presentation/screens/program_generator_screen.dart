@@ -5,6 +5,7 @@ import '../providers/program_provider.dart';
 import '../widgets/split_type_card.dart';
 import '../widgets/goal_type_card.dart';
 import '../widgets/custom_day_configurator.dart';
+import '../widgets/step_indicator.dart';
 import 'program_builder_screen.dart';
 
 /// Multi-step wizard for generating a program using the smart generator API.
@@ -114,6 +115,8 @@ class _ProgramGeneratorScreenState
   }
 
   Future<void> _generateProgram() async {
+    if (_isGenerating) return;
+
     setState(() {
       _isGenerating = true;
       _errorMessage = null;
@@ -164,7 +167,7 @@ class _ProgramGeneratorScreenState
       }
     }
 
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ProgramBuilderScreen(
@@ -193,7 +196,7 @@ class _ProgramGeneratorScreenState
       body: Column(
         children: [
           // Step indicator
-          _StepIndicator(
+          StepIndicator(
             currentStep: _currentStep,
             totalSteps: _totalSteps,
             labels: const ['Split Type', 'Configure', 'Preview'],
@@ -747,85 +750,3 @@ class _ProgramGeneratorScreenState
   }
 }
 
-// ─── Step Indicator ───
-
-class _StepIndicator extends StatelessWidget {
-  final int currentStep;
-  final int totalSteps;
-  final List<String> labels;
-
-  const _StepIndicator({
-    required this.currentStep,
-    required this.totalSteps,
-    required this.labels,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Row(
-        children: List.generate(totalSteps * 2 - 1, (index) {
-          if (index.isOdd) {
-            // Connector line
-            final stepBefore = index ~/ 2;
-            return Expanded(
-              child: Container(
-                height: 2,
-                color: stepBefore < currentStep
-                    ? colorScheme.primary
-                    : colorScheme.outlineVariant,
-              ),
-            );
-          }
-
-          final step = index ~/ 2;
-          final isActive = step == currentStep;
-          final isCompleted = step < currentStep;
-
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: isCompleted || isActive
-                      ? colorScheme.primary
-                      : colorScheme.surfaceContainerHighest,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: isCompleted
-                    ? Icon(Icons.check, size: 16, color: colorScheme.onPrimary)
-                    : Text(
-                        '${step + 1}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: isActive
-                              ? colorScheme.onPrimary
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                labels[step],
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: isActive || isCompleted
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-            ],
-          );
-        }),
-      ),
-    );
-  }
-}

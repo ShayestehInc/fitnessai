@@ -53,34 +53,25 @@ export function ProgramGeneratorWizard() {
     return false;
   }, [step, splitType, difficulty, goal, customDayConfig, trainingDaysPerWeek]);
 
-  const handleNext = useCallback(async () => {
-    if (step < 2) {
-      // If moving to preview step, trigger generation
-      if (step === 1) {
-        setStep(2);
-        setGeneratedData(null);
-        setGenerateError(null);
+  const triggerGeneration = useCallback(async () => {
+    setGeneratedData(null);
+    setGenerateError(null);
 
-        try {
-          const result = await generateMutation.mutateAsync({
-            split_type: splitType!,
-            difficulty: difficulty!,
-            goal: goal!,
-            duration_weeks: durationWeeks,
-            training_days_per_week: trainingDaysPerWeek,
-            custom_day_config:
-              splitType === "custom" ? customDayConfig : undefined,
-          });
-          setGeneratedData(result);
-        } catch (err) {
-          setGenerateError(getErrorMessage(err));
-        }
-      } else {
-        setStep(step + 1);
-      }
+    try {
+      const result = await generateMutation.mutateAsync({
+        split_type: splitType!,
+        difficulty: difficulty!,
+        goal: goal!,
+        duration_weeks: durationWeeks,
+        training_days_per_week: trainingDaysPerWeek,
+        custom_day_config:
+          splitType === "custom" ? customDayConfig : undefined,
+      });
+      setGeneratedData(result);
+    } catch (err) {
+      setGenerateError(getErrorMessage(err));
     }
   }, [
-    step,
     splitType,
     difficulty,
     goal,
@@ -90,18 +81,41 @@ export function ProgramGeneratorWizard() {
     generateMutation,
   ]);
 
+  const handleNext = useCallback(async () => {
+    if (step < 2) {
+      // If moving to preview step, trigger generation
+      if (step === 1) {
+        setStep(2);
+        await triggerGeneration();
+      } else {
+        setStep(step + 1);
+      }
+    }
+  }, [step, triggerGeneration]);
+
   const handleBack = () => {
-    if (step > 0) setStep(step - 1);
+    if (step > 0) {
+      // Reset mutation state when leaving the preview step
+      if (step === 2) {
+        generateMutation.reset();
+      }
+      setStep(step - 1);
+    }
   };
 
   const handleOpenInBuilder = () => {
     if (!generatedData) return;
 
     // Store generated data in sessionStorage for the builder to pick up
-    sessionStorage.setItem(
-      "generated-program",
-      JSON.stringify(generatedData),
-    );
+    try {
+      sessionStorage.setItem(
+        "generated-program",
+        JSON.stringify(generatedData),
+      );
+    } catch {
+      toast.error("Failed to store program data. Please try again.");
+      return;
+    }
     router.push("/programs/new?from=generator");
     toast.success("Program loaded into builder — customize and save!");
   };
@@ -126,7 +140,13 @@ export function ProgramGeneratorWizard() {
                     : "bg-muted text-muted-foreground"
               }`}
               onClick={() => {
-                if (i < step) setStep(i);
+                if (i < step) {
+                  // Reset mutation state when leaving the preview step
+                  if (step === 2) {
+                    generateMutation.reset();
+                  }
+                  setStep(i);
+                }
               }}
               disabled={i > step}
             >
@@ -162,6 +182,10 @@ export function ProgramGeneratorWizard() {
             data={generatedData}
             isLoading={generateMutation.isPending}
             error={generateError}
+            onRetry={() => {
+              generateMutation.reset();
+              triggerGeneration();
+            }}
           />
         )}
       </div>
@@ -178,7 +202,7 @@ export function ProgramGeneratorWizard() {
         </Button>
 
         {step < 2 ? (
-          <Button onClick={handleNext} disabled={!canAdvance()}>
+          <Button onClick={handleNext} disabled={!canAdvance() || generateMutation.isPending}>
             {step === 1 ? (
               <>
                 <Wand2 className="mr-2 h-4 w-4" aria-hidden="true" />

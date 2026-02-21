@@ -121,9 +121,17 @@ class ProgramRepository {
         data: data,
       );
 
+      final rawData = response.data;
+      if (rawData is! Map<String, dynamic>) {
+        return {
+          'success': false,
+          'error': 'Unexpected response format',
+        };
+      }
+
       return {
         'success': true,
-        'data': response.data as Map<String, dynamic>,
+        'data': rawData,
       };
     } on DioException catch (e) {
       return {

@@ -39,7 +39,7 @@ from .serializers import (
     StartImpersonationSerializer, TrainerDashboardStatsSerializer,
     ProgramTemplateSerializer, AssignProgramSerializer,
     WorkoutLayoutConfigSerializer, TrainerBrandingSerializer,
-    GenerateProgramRequestSerializer,
+    GenerateProgramRequestSerializer, GeneratedProgramResponseSerializer,
 )
 from .services.branding_service import upload_trainer_logo, remove_trainer_logo, LogoValidationError
 from workouts.models import ProgramTemplate, Program
@@ -640,20 +640,8 @@ class GenerateProgramView(views.APIView):
 
         from workouts.services.program_generator import generate_program
 
-        gen_request = serializer.to_dataclass()
-        # Attach trainer_id for including trainer's custom exercises
         trainer = cast(User, request.user)
-        # Reconstruct with trainer_id since dataclass is frozen
-        from workouts.services.program_generator import GenerateProgramRequest
-        gen_request = GenerateProgramRequest(
-            split_type=gen_request.split_type,
-            difficulty=gen_request.difficulty,
-            goal=gen_request.goal,
-            duration_weeks=gen_request.duration_weeks,
-            training_days_per_week=gen_request.training_days_per_week,
-            custom_day_config=gen_request.custom_day_config,
-            trainer_id=trainer.id,
-        )
+        gen_request = serializer.to_dataclass(trainer_id=trainer.id)
 
         try:
             result = generate_program(gen_request)
@@ -669,7 +657,7 @@ class GenerateProgramView(views.APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        return Response({
+        response_serializer = GeneratedProgramResponseSerializer({
             'name': result.name,
             'description': result.description,
             'schedule': result.schedule,
@@ -678,6 +666,7 @@ class GenerateProgramView(views.APIView):
             'goal_type': result.goal_type,
             'duration_weeks': result.duration_weeks,
         })
+        return Response(response_serializer.data)
 
 
 class AssignProgramTemplateView(views.APIView):

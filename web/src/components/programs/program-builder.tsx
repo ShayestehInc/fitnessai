@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Save, Copy } from "lucide-react";
 import { toast } from "sonner";
@@ -81,18 +81,25 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
   const savingRef = useRef(false);
 
   // Load generated program from sessionStorage if navigating from generator
-  const generated = useMemo<GeneratedProgramResponse | null>(() => {
-    if (typeof window === "undefined") return null;
-    if (searchParams.get("from") !== "generator") return null;
-    try {
+  const generatedRef = useRef<GeneratedProgramResponse | null>(null);
+  if (generatedRef.current === null && typeof window !== "undefined") {
+    const from = searchParams.get("from");
+    if (from === "generator") {
       const raw = sessionStorage.getItem("generated-program");
-      if (!raw) return null;
-      sessionStorage.removeItem("generated-program");
-      return JSON.parse(raw) as GeneratedProgramResponse;
-    } catch {
-      return null;
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.name && parsed.schedule) {
+            generatedRef.current = parsed as GeneratedProgramResponse;
+            sessionStorage.removeItem("generated-program");
+          }
+        } catch {
+          // Invalid JSON in sessionStorage — ignore
+        }
+      }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }
+  const generated = generatedRef.current;
 
   const initialDuration = generated?.duration_weeks ?? existingProgram?.duration_weeks ?? 4;
   const [name, setName] = useState(

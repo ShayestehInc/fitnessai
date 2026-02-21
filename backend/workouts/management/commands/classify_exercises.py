@@ -136,10 +136,15 @@ def _classify_batch_with_openai(
     parsed: list[dict[str, str]] = json.loads(content)
     result: dict[str, str] = {}
     for item in parsed:
+        exercise_id = item.get("id", "")
         name = item.get("name", "")
         level = item.get("difficulty_level", "")
-        if name and level in VALID_LEVELS:
-            result[name] = level
+        if level in VALID_LEVELS:
+            # Key by ID (preferred) and also by name (fallback)
+            if exercise_id:
+                result[str(exercise_id)] = level
+            if name:
+                result[name] = level
     return result
 
 
@@ -263,11 +268,17 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"\n  Processing {mg}: {len(mg_exercises)} exercises")
 
+            # Build an ID-keyed lookup for this muscle group
+            id_to_exercise: dict[int, dict[str, Any]] = {
+                ex['id']: ex for ex in mg_exercises
+            }
+
             # Process in batches
             for i in range(0, len(mg_exercises), BATCH_SIZE):
                 batch = mg_exercises[i:i + BATCH_SIZE]
                 batch_data = [
                     {
+                        'id': ex['id'],
                         'name': ex['name'],
                         'muscle_group': ex['muscle_group'],
                         'category': ex['category'] or '',
@@ -284,33 +295,33 @@ class Command(BaseCommand):
                             f"Falling back to heuristic for {len(batch)} exercises."
                         )
                     )
-                    # Heuristic fallback for this batch
+                    # Heuristic fallback for this batch — keyed by ID
                     classifications = {
-                        ex['name']: _classify_by_heuristic(ex['name'], ex['category'] or '')
+                        str(ex['id']): _classify_by_heuristic(ex['name'], ex['category'] or '')
                         for ex in batch
                     }
 
                 # Apply classifications
                 updates: list[Exercise] = []
                 for ex_dict in batch:
+                    ex_id = ex_dict['id']
                     name = ex_dict['name']
-                    level = classifications.get(name)
+                    # Look up by ID first (preferred), then fall back to name
+                    level = classifications.get(str(ex_id)) or classifications.get(name)
                     if not level or level not in VALID_LEVELS:
                         # Fallback to heuristic if AI missed this exercise
                         level = _classify_by_heuristic(name, ex_dict.get('category', ''))
+                        total_failed += 1
 
                     counts[level] += 1
 
                     if dry_run:
-                        self.stdout.write(f"    {name} → {level}")
+                        self.stdout.write(f"    [{ex_id}] {name} → {level}")
                     else:
-                        # Find matching exercise in batch
-                        matching = [e for e in batch if e['name'] == name]
-                        if matching:
-                            ex_obj = Exercise(id=matching[0]['id'])
-                            ex_obj.difficulty_level = level
-                            updates.append(ex_obj)
-                            total_classified += 1
+                        ex_obj = Exercise(id=ex_id)
+                        ex_obj.difficulty_level = level
+                        updates.append(ex_obj)
+                        total_classified += 1
 
                 if not dry_run and updates:
                     Exercise.objects.bulk_update(updates, ['difficulty_level'], batch_size=200)
@@ -322,6 +333,7 @@ class Command(BaseCommand):
                 f"beginner={counts['beginner']}, "
                 f"intermediate={counts['intermediate']}, "
                 f"advanced={counts['advanced']}, "
-                f"total={sum(counts.values())}"
+                f"total={sum(counts.values())}, "
+                f"fallback_to_heuristic={total_failed}"
             )
         )

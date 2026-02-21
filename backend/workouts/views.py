@@ -84,7 +84,12 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
 
         difficulty_level = self.request.query_params.get('difficulty_level')
         if difficulty_level:
-            queryset = queryset.filter(difficulty_level=difficulty_level)
+            valid_difficulties = {c[0] for c in Exercise.DifficultyLevel.choices}
+            if difficulty_level in valid_difficulties:
+                queryset = queryset.filter(difficulty_level=difficulty_level)
+            else:
+                # Invalid difficulty_level: return empty queryset rather than unfiltered
+                return queryset.none()
 
         return queryset.order_by('muscle_group', 'name')
 

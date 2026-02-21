@@ -976,7 +976,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               .toList();
         }
       } catch (e) {
-        debugPrint('Error parsing schedule template: $e');
+        // Schedule parsing failed — fall through with null existingWeeks
       }
     }
 

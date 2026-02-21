@@ -1,45 +1,68 @@
-# Dev Done: Macro Preset Management for Web Trainer Dashboard
+# Dev Done: Smart Program Generator
 
 ## Date
 2026-02-21
 
-## Summary
-Added macro preset management UI to the trainer web dashboard. Trainers can now create, edit, delete, and copy nutrition presets (e.g. Training Day, Rest Day) for their trainees directly from the trainee detail page. This is a frontend-only feature — all backend APIs already existed.
+## Files Changed
 
-## Files Created
-- `web/src/hooks/use-macro-presets.ts` — 5 hooks: `useMacroPresets` (query), `useCreateMacroPreset`, `useUpdateMacroPreset`, `useDeleteMacroPreset`, `useCopyMacroPreset` (mutations). All use React Query with proper query invalidation.
-- `web/src/components/trainees/macro-presets-section.tsx` — Main section component with preset cards grid, empty state, loading skeleton, error state with retry, and delete confirmation dialog. Sub-components: `PresetCard`, `MacroCell`, `PresetsSkeleton`.
-- `web/src/components/trainees/preset-form-dialog.tsx` — Reusable create/edit dialog with name, calories, protein, carbs, fat fields, frequency selector, and is-default checkbox. Client-side validation matching backend rules.
-- `web/src/components/trainees/copy-preset-dialog.tsx` — Copy-to-trainee dialog with trainee selector dropdown (excludes current trainee). Uses `useAllTrainees()` hook.
+### Backend — New Files
+- `backend/workouts/migrations/0008_add_exercise_difficulty_and_category.py` — Migration adding `difficulty_level` and `category` to Exercise
+- `backend/workouts/management/commands/classify_exercises.py` — AI + heuristic exercise classification command
+- `backend/workouts/management/commands/seed_kilo_exercises.py` — KILO exercise library seeder
+- `backend/workouts/fixtures/kilo_exercises.json` — 1,067 exercise fixture data
+- `backend/workouts/services/program_generator.py` — Core program generation service with dataclasses, split configs, exercise selection, sets/reps schemes, progressive overload, nutrition templates
 
-## Files Modified
-- `web/src/types/trainer.ts` — Added `MacroPreset` interface with all 14 fields matching the API response.
-- `web/src/lib/constants.ts` — Added 4 URL constants: `MACRO_PRESETS`, `macroPresetDetail(id)`, `macroPresetCopyTo(id)`, `MACRO_PRESETS_ALL`.
-- `web/src/components/trainees/trainee-overview-tab.tsx` — Imported and rendered `MacroPresetsSection` below the 2-column grid (Profile + Nutrition/Programs). Added outer `space-y-6` wrapper to accommodate full-width section.
+### Backend — Modified Files
+- `backend/workouts/models.py` — Added `DifficultyLevel` choices, `difficulty_level` and `category` fields to Exercise, composite index
+- `backend/workouts/serializers.py` — Added new fields to ExerciseSerializer
+- `backend/workouts/views.py` — Added `difficulty_level` query param filter to ExerciseViewSet
+- `backend/workouts/ai_prompts.py` — Added `get_exercise_classification_prompt()`
+- `backend/trainer/serializers.py` — Added `CustomDayConfigSerializer`, `GenerateProgramRequestSerializer`
+- `backend/trainer/views.py` — Added `GenerateProgramView` (POST endpoint)
+- `backend/trainer/urls.py` — Added URL route for generate endpoint
+
+### Web — New Files
+- `web/src/app/(dashboard)/programs/generate/page.tsx` — Route page
+- `web/src/components/programs/program-generator-wizard.tsx` — Main 3-step wizard
+- `web/src/components/programs/generator/split-type-step.tsx` — Split type selector
+- `web/src/components/programs/generator/config-step.tsx` — Configuration step
+- `web/src/components/programs/generator/custom-day-config.tsx` — Custom split day configurator
+- `web/src/components/programs/generator/preview-step.tsx` — Preview/results step
+
+### Web — Modified Files
+- `web/src/types/program.ts` — Added SplitType, GenerateProgramPayload, GeneratedProgramResponse types; `difficulty_level`/`category` on Exercise
+- `web/src/hooks/use-programs.ts` — Added `useGenerateProgram()` mutation
+- `web/src/hooks/use-exercises.ts` — Added `difficultyLevel` param
+- `web/src/lib/constants.ts` — Added `GENERATE_PROGRAM` URL constant
+- `web/src/app/(dashboard)/programs/page.tsx` — Added "Generate with AI" button
+- `web/src/components/programs/program-builder.tsx` — Loads generated data from sessionStorage
+- `web/src/components/programs/exercise-picker-dialog.tsx` — Added difficulty filter
+
+### Mobile — New Files
+- `mobile/lib/features/programs/presentation/screens/program_generator_screen.dart` — 3-step generator wizard
+- `mobile/lib/features/programs/presentation/widgets/split_type_card.dart` — Split type selection card
+- `mobile/lib/features/programs/presentation/widgets/goal_type_card.dart` — Goal type selection card
+- `mobile/lib/features/programs/presentation/widgets/custom_day_configurator.dart` — Custom day muscle group configurator
+
+### Mobile — Modified Files
+- `mobile/lib/core/constants/api_constants.dart` — Added `generateProgram` endpoint
+- `mobile/lib/features/programs/data/repositories/program_repository.dart` — Added `generateProgram()` method
+- `mobile/lib/features/exercises/data/repositories/exercise_repository.dart` — Added `difficultyLevel` param
+- `mobile/lib/features/exercises/presentation/providers/exercise_provider.dart` — Added `difficultyLevel` to ExerciseFilter
+- `mobile/lib/features/programs/presentation/screens/programs_screen.dart` — Added "Generate with AI" option
+- `mobile/lib/features/programs/presentation/screens/week_editor_screen.dart` — Added difficulty filter to exercise picker
 
 ## Key Decisions
-1. **Section in Overview tab, full-width below grid** — Macro presets need a 3-column card grid which wouldn't fit in the existing 2-column layout. Placed as a full-width section below Profile and Nutrition Goals.
-2. **Reusable PresetFormDialog** — Same dialog for create and edit, determined by `preset` prop being null or defined. Follows existing EditGoalsDialog pattern.
-3. **Native HTML select for frequency** — No shadcn Select component in the project. Used a styled native `<select>` matching the project's input styling.
-4. **No optimistic updates** — Operations are fast enough; server confirmation preferred for simplicity.
-5. **Card layout instead of table** — Trainers typically have 2-4 presets per trainee. Cards show macro values at a glance better than table rows.
-6. **Delete via Dialog, not AlertDialog** — AlertDialog component doesn't exist in the project. Used regular Dialog with destructive button styling.
+1. Program generation is deterministic (no AI API call) — uses algorithm with exercise DB queries, making it fast and predictable
+2. Generated programs are NOT saved automatically — they load into the existing program builder for trainer customization
+3. Exercise classification command supports both OpenAI GPT-4o and a heuristic fallback mode
+4. Progressive overload is built into multi-week programs (+1 set every 3 weeks, +1 rep every 2 weeks, deload every 4th week)
+5. Nutrition templates are goal-based defaults with training day/rest day variations
 
-## Deviations from Ticket
-None.
-
-## Test Results
-- Backend: 553 tests ran, 2 pre-existing mcp_server errors (unrelated). No backend changes made.
-- TypeScript `tsc --noEmit`: 0 errors.
-
-## How to Manually Test
-1. Log in as a trainer on the web dashboard
-2. Navigate to any trainee's detail page → Overview tab
-3. Scroll down to see the "Macro Presets" section below Profile and Nutrition Goals
-4. Verify empty state shows with "Add Preset" CTA when no presets exist
-5. Click "Add Preset" → fill in form → verify preset appears in card grid
-6. Click edit icon on a preset → modify values → verify card updates
-7. Click delete icon → confirm → verify preset removed
-8. Click copy icon → select another trainee → verify toast confirmation
-9. Navigate to the target trainee's page → verify copied preset appears
-10. Test "Set as default" checkbox → verify star icon and Default badge
+## How to Test
+1. Run migration: `python manage.py migrate`
+2. Seed exercises: `python manage.py seed_kilo_exercises`
+3. Classify exercises: `python manage.py classify_exercises --heuristic` (or with `OPENAI_API_KEY` for AI classification)
+4. API test: `POST /api/trainer/program-templates/generate/` with body `{"split_type": "ppl", "difficulty": "intermediate", "goal": "build_muscle", "duration_weeks": 4, "training_days_per_week": 5}`
+5. Web: Navigate to `/programs` → click "Generate with AI" → complete wizard → verify builder loads
+6. Mobile: Open Programs → tap "+" → "Generate with AI" → complete wizard → verify builder loads

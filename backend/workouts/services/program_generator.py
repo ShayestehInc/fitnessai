@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 from django.db.models import Q, QuerySet
 
@@ -106,8 +106,8 @@ class GeneratedProgram:
     """Complete generated program output."""
     name: str
     description: str
-    schedule: dict  # JSON-serializable, matches Program.schedule format
-    nutrition_template: dict  # JSON-serializable
+    schedule: dict[str, Any]  # JSON-serializable, matches Program.schedule format
+    nutrition_template: dict[str, Any]  # JSON-serializable
     difficulty_level: str
     goal_type: str
     duration_weeks: int
@@ -308,9 +308,10 @@ def _get_exercises_for_muscle_group(
     Includes trainer's custom exercises alongside public ones.
     Falls back to adjacent difficulty levels if not enough.
     """
-    base_q = Q(muscle_group=muscle_group) & (
-        Q(is_public=True) | (Q(created_by_id=trainer_id) if trainer_id else Q())
-    )
+    privacy_q = Q(is_public=True)
+    if trainer_id:
+        privacy_q |= Q(created_by_id=trainer_id)
+    base_q = Q(muscle_group=muscle_group) & privacy_q
 
     # Primary: exact difficulty match
     primary = Exercise.objects.filter(base_q & Q(difficulty_level=difficulty))
@@ -334,23 +335,20 @@ def _get_exercises_for_muscle_group(
     return Exercise.objects.filter(base_q).exclude(difficulty_level__isnull=True)
 
 
-def _pick_exercises(
-    muscle_group: str,
-    difficulty: DifficultyLevel,
+def _pick_exercises_from_pool(
+    pool: list[Exercise],
     count: int,
-    trainer_id: int | None,
     exclude_ids: set[int],
 ) -> list[Exercise]:
     """
-    Pick N exercises for a muscle group, ensuring variety by category.
+    Pick N exercises from a pre-fetched pool, ensuring variety by category.
     Prefers exercises not already used (exclude_ids).
     """
-    qs = _get_exercises_for_muscle_group(muscle_group, difficulty, trainer_id)
-    available = list(qs.exclude(id__in=exclude_ids))
+    available = [ex for ex in pool if ex.id not in exclude_ids]
 
     if not available:
-        # If all excluded, allow repeats
-        available = list(qs)
+        # If all excluded, allow repeats from the full pool
+        available = list(pool)
 
     if not available:
         # No exercises at all for this muscle group
@@ -384,6 +382,66 @@ def _pick_exercises(
     return picked[:count]
 
 
+def _prefetch_exercise_pool(
+    muscle_groups: set[str],
+    difficulty: DifficultyLevel,
+    trainer_id: int | None,
+) -> dict[str, list[Exercise]]:
+    """
+    Fetch ALL exercises needed for the split's muscle groups in a single query.
+    Returns a dict keyed by muscle_group -> list of Exercise objects.
+    Falls back to adjacent difficulty levels if not enough exercises.
+    """
+    privacy_q = Q(is_public=True)
+    if trainer_id:
+        privacy_q |= Q(created_by_id=trainer_id)
+
+    # Determine all difficulty levels to consider
+    adjacent_map: dict[DifficultyLevel, list[str]] = {
+        'beginner': ['intermediate'],
+        'intermediate': ['beginner', 'advanced'],
+        'advanced': ['intermediate'],
+    }
+    all_difficulties = [difficulty] + adjacent_map.get(difficulty, [])
+
+    # Single query: fetch all exercises for all muscle groups at relevant difficulties
+    all_exercises = list(
+        Exercise.objects.filter(
+            Q(muscle_group__in=muscle_groups) & privacy_q &
+            Q(difficulty_level__in=all_difficulties)
+        )
+    )
+
+    # Build pool keyed by muscle_group
+    pool: dict[str, list[Exercise]] = {mg: [] for mg in muscle_groups}
+    # Prefer exact difficulty match first
+    exact_match_ids: set[int] = set()
+    for ex in all_exercises:
+        if ex.difficulty_level == difficulty:
+            pool.setdefault(ex.muscle_group, []).append(ex)
+            exact_match_ids.add(ex.id)
+
+    # For muscle groups with too few exercises at exact difficulty, include adjacent
+    for mg in muscle_groups:
+        if len(pool.get(mg, [])) < 3:
+            for ex in all_exercises:
+                if ex.muscle_group == mg and ex.id not in exact_match_ids:
+                    pool.setdefault(mg, []).append(ex)
+
+    # Last resort: for muscle groups with zero exercises, fetch any difficulty
+    empty_groups = [mg for mg in muscle_groups if not pool.get(mg)]
+    if empty_groups:
+        fallback_exercises = list(
+            Exercise.objects.filter(
+                Q(muscle_group__in=empty_groups) & privacy_q
+            ).exclude(difficulty_level__isnull=True)
+        )
+        for ex in fallback_exercises:
+            pool.setdefault(ex.muscle_group, []).append(ex)
+
+    return pool
+
+
 def _get_exercise_counts_for_day(
     muscle_groups: list[str],
 ) -> dict[str, int]:
@@ -411,6 +469,10 @@ def _get_exercise_counts_for_day(
     return counts
 
 
+_MAX_EXTRA_SETS: int = 3
+_MAX_EXTRA_REPS: int = 5
+
+
 def _apply_progressive_overload(
     base_sets: int,
     base_reps: str,
@@ -420,21 +482,29 @@ def _apply_progressive_overload(
     """
     Apply progressive overload adjustments based on week number.
     +1 rep every 2 weeks, +1 set every 3 weeks on compounds.
-    Deload weeks handled separately.
+    Deload weeks reset the overload counters (effective week resets every 4-week block).
+    Extra sets capped at _MAX_EXTRA_SETS, extra reps capped at _MAX_EXTRA_REPS.
     """
-    extra_sets = (week_number - 1) // 3
-    extra_reps = (week_number - 1) // 2
+    # Reset counters after deload weeks: use position within current 4-week block
+    effective_week = ((week_number - 1) % 4) + 1
+
+    extra_sets = min((effective_week - 1) // 3, _MAX_EXTRA_SETS)
+    extra_reps = min((effective_week - 1) // 2, _MAX_EXTRA_REPS)
 
     adjusted_sets = base_sets + extra_sets
 
-    # Parse reps
-    if '-' in base_reps:
-        parts = base_reps.split('-')
-        low = int(parts[0]) + extra_reps
-        high = int(parts[1]) + extra_reps
-        adjusted_reps = f"{low}-{high}"
-    else:
-        adjusted_reps = str(int(base_reps) + extra_reps)
+    # Parse reps with error handling for unexpected formats
+    try:
+        if '-' in base_reps:
+            parts = base_reps.split('-')
+            low = int(parts[0]) + extra_reps
+            high = int(parts[1]) + extra_reps
+            adjusted_reps = f"{low}-{high}"
+        else:
+            adjusted_reps = str(int(base_reps) + extra_reps)
+    except (ValueError, IndexError):
+        logger.warning("Could not parse base_reps '%s', using as-is.", base_reps)
+        adjusted_reps = base_reps
 
     return adjusted_sets, adjusted_reps
 
@@ -479,6 +549,21 @@ def generate_program(request: GenerateProgramRequest) -> GeneratedProgram:
         _SCHEME_TABLE[('build_muscle', 'intermediate')],
     )
 
+    # Collect all muscle groups across all day templates for prefetching
+    all_muscle_groups: set[str] = set()
+    for _label, mgs in day_templates:
+        all_muscle_groups.update(mgs)
+
+    # Prefetch ALL exercises in a single query (fixes N+1)
+    exercise_pool = _prefetch_exercise_pool(
+        muscle_groups=all_muscle_groups,
+        difficulty=request.difficulty,
+        trainer_id=request.trainer_id,
+    )
+
+    # Track used exercises across ALL weeks for variety (M1 fix)
+    used_exercise_ids: set[int] = set()
+
     # Build weeks
     weeks: list[GeneratedWeek] = []
 
@@ -489,7 +574,6 @@ def generate_program(request: GenerateProgramRequest) -> GeneratedProgram:
 
         days: list[GeneratedDay] = []
         training_day_idx = 0
-        used_exercise_ids: set[int] = set()
 
         for day_idx in range(7):
             day_name = DAY_NAMES[day_idx]
@@ -503,11 +587,10 @@ def generate_program(request: GenerateProgramRequest) -> GeneratedProgram:
                 day_exercises: list[GeneratedExercise] = []
 
                 for mg, count in exercise_counts.items():
-                    picked = _pick_exercises(
-                        muscle_group=mg,
-                        difficulty=request.difficulty,
+                    mg_pool = exercise_pool.get(mg, [])
+                    picked = _pick_exercises_from_pool(
+                        pool=mg_pool,
                         count=count,
-                        trainer_id=request.trainer_id,
                         exclude_ids=used_exercise_ids,
                     )
 
@@ -622,7 +705,7 @@ def generate_program(request: GenerateProgramRequest) -> GeneratedProgram:
 # JSON Serialization Helpers
 # ──────────────────────────────────────────────────────────────────────────
 
-def _to_schedule_json(weeks: list[GeneratedWeek]) -> dict:
+def _to_schedule_json(weeks: list[GeneratedWeek]) -> dict[str, Any]:
     """Convert generated weeks to Program.schedule JSON format."""
     return {
         'weeks': [
@@ -658,7 +741,7 @@ def _to_schedule_json(weeks: list[GeneratedWeek]) -> dict:
     }
 
 
-def _to_nutrition_json(nutrition: NutritionTemplate) -> dict:
+def _to_nutrition_json(nutrition: NutritionTemplate) -> dict[str, Any]:
     """Convert nutrition template to JSON format."""
     return {
         'training_day': {

@@ -420,8 +420,12 @@ class GenerateProgramRequestSerializer(serializers.Serializer[dict[str, Any]]):
                 )
         return attrs
 
-    def to_dataclass(self) -> 'GenerateProgramRequest':
-        """Convert validated data to the service dataclass."""
+    def to_dataclass(self, trainer_id: int | None = None) -> 'GenerateProgramRequest':
+        """Convert validated data to the service dataclass.
+
+        Args:
+            trainer_id: Optional trainer ID to include their custom exercises.
+        """
         from workouts.services.program_generator import CustomDayConfig, GenerateProgramRequest
 
         data = self.validated_data
@@ -440,7 +444,19 @@ class GenerateProgramRequestSerializer(serializers.Serializer[dict[str, Any]]):
             duration_weeks=data['duration_weeks'],
             training_days_per_week=data['training_days_per_week'],
             custom_day_config=custom_days,
+            trainer_id=trainer_id,
         )
+
+
+class GeneratedProgramResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Output serializer for the smart program generator endpoint."""
+    name = serializers.CharField()
+    description = serializers.CharField()
+    schedule = serializers.JSONField()
+    nutrition_template = serializers.JSONField()
+    difficulty_level = serializers.CharField()
+    goal_type = serializers.CharField()
+    duration_weeks = serializers.IntegerField()
 
 
 class AssignProgramSerializer(serializers.Serializer[dict[str, Any]]):

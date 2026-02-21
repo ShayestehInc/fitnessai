@@ -58,6 +58,9 @@ class Command(BaseCommand):
         updated_count = 0
         skipped_count = 0
 
+        # Compute valid groups once outside the loop
+        valid_groups: set[str] = {c[0] for c in Exercise.MuscleGroup.choices}
+
         for exercise_data in exercises_data:
             name = exercise_data["name"]
             muscle_group = exercise_data["muscle_group"]
@@ -65,7 +68,6 @@ class Command(BaseCommand):
             video_url = exercise_data.get("video_url") or None
 
             # Validate muscle_group against model choices
-            valid_groups = {c[0] for c in Exercise.MuscleGroup.choices}
             if muscle_group not in valid_groups:
                 self.stderr.write(
                     self.style.WARNING(
