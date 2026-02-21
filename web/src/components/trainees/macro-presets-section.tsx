@@ -169,7 +169,7 @@ export function MacroPresetsSection({
       <Dialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open && !deleteMutation.isPending) setDeleteTarget(null);
         }}
       >
         <DialogContent className="sm:max-w-sm">
@@ -181,7 +181,11 @@ export function MacroPresetsSection({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleteMutation.isPending}
+            >
               Cancel
             </Button>
             <Button
@@ -300,10 +304,10 @@ function MacroCell({
 }) {
   return (
     <div className="rounded-md bg-muted/50 px-2 py-1.5">
-      <p className="text-[10px] text-muted-foreground">{label}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-sm font-semibold">
         {value}
-        <span className="text-[10px] font-normal text-muted-foreground">
+        <span className="text-xs font-normal text-muted-foreground">
           {" "}
           {unit}
         </span>

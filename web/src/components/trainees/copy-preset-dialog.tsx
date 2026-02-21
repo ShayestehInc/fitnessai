@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,10 @@ export function CopyPresetDialog({
   const { data: allTrainees } = useAllTrainees();
   const copyMutation = useCopyMacroPreset(traineeId);
 
-  const otherTrainees = (allTrainees ?? []).filter((t) => t.id !== traineeId);
+  const otherTrainees = useMemo(
+    () => (allTrainees ?? []).filter((t) => t.id !== traineeId),
+    [allTrainees, traineeId],
+  );
 
   useEffect(() => {
     if (open) {

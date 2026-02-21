@@ -129,10 +129,10 @@ export function PresetFormDialog({
 
       const payload = {
         name: name.trim(),
-        calories: Number(calories),
-        protein: Number(protein),
-        carbs: Number(carbs),
-        fat: Number(fat),
+        calories: Math.round(Number(calories)),
+        protein: Math.round(Number(protein)),
+        carbs: Math.round(Number(carbs)),
+        fat: Math.round(Number(fat)),
         frequency_per_week: frequency ? Number(frequency) : null,
         is_default: isDefault,
       };
@@ -313,7 +313,7 @@ export function PresetFormDialog({
                 type="checkbox"
                 checked={isDefault}
                 onChange={(e) => setIsDefault(e.target.checked)}
-                className="h-4 w-4 rounded border-input"
+                className="h-4 w-4 rounded border-input focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
               <Label htmlFor="preset-default" className="text-sm font-normal">
                 Set as default
