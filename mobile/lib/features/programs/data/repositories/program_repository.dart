@@ -95,6 +95,44 @@ class ProgramRepository {
     }
   }
 
+  /// Generate a program using the smart program generator
+  Future<Map<String, dynamic>> generateProgram({
+    required String splitType,
+    required String difficulty,
+    required String goal,
+    required int durationWeeks,
+    required int trainingDaysPerWeek,
+    List<Map<String, dynamic>>? customDayConfig,
+  }) async {
+    try {
+      final data = <String, dynamic>{
+        'split_type': splitType,
+        'difficulty': difficulty,
+        'goal': goal,
+        'duration_weeks': durationWeeks,
+        'training_days_per_week': trainingDaysPerWeek,
+      };
+      if (customDayConfig != null && customDayConfig.isNotEmpty) {
+        data['custom_day_config'] = customDayConfig;
+      }
+
+      final response = await _apiClient.dio.post(
+        ApiConstants.generateProgram,
+        data: data,
+      );
+
+      return {
+        'success': true,
+        'data': response.data as Map<String, dynamic>,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to generate program',
+      };
+    }
+  }
+
   /// Get all programs created by this trainer (for their trainees)
   Future<Map<String, dynamic>> getAllTrainerPrograms() async {
     try {

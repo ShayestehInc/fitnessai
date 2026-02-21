@@ -15,6 +15,7 @@ final exercisesProvider = FutureProvider.autoDispose.family<List<ExerciseModel>,
     muscleGroup: filter.muscleGroup,
     equipment: filter.equipment,
     search: filter.search,
+    difficultyLevel: filter.difficultyLevel,
   );
   if (result['success']) {
     return result['data'] as List<ExerciseModel>;
@@ -29,8 +30,9 @@ class ExerciseFilter {
   final String? muscleGroup;
   final String? equipment;
   final String? search;
+  final String? difficultyLevel;
 
-  const ExerciseFilter({this.muscleGroup, this.equipment, this.search});
+  const ExerciseFilter({this.muscleGroup, this.equipment, this.search, this.difficultyLevel});
 
   @override
   bool operator ==(Object other) =>
@@ -39,8 +41,9 @@ class ExerciseFilter {
           runtimeType == other.runtimeType &&
           muscleGroup == other.muscleGroup &&
           equipment == other.equipment &&
-          search == other.search;
+          search == other.search &&
+          difficultyLevel == other.difficultyLevel;
 
   @override
-  int get hashCode => muscleGroup.hashCode ^ equipment.hashCode ^ search.hashCode;
+  int get hashCode => muscleGroup.hashCode ^ equipment.hashCode ^ search.hashCode ^ difficultyLevel.hashCode;
 }

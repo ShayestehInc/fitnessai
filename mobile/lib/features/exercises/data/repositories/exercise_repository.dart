@@ -13,6 +13,7 @@ class ExerciseRepository {
     String? muscleGroup,
     String? equipment,
     String? search,
+    String? difficultyLevel,
     int page = 1,
     int pageSize = 50,
   }) async {
@@ -29,6 +30,9 @@ class ExerciseRepository {
       }
       if (search != null && search.isNotEmpty) {
         queryParams['search'] = search;
+      }
+      if (difficultyLevel != null && difficultyLevel.isNotEmpty) {
+        queryParams['difficulty_level'] = difficultyLevel;
       }
 
       final response = await _apiClient.dio.get(

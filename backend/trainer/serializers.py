@@ -359,6 +359,90 @@ class TrainerBrandingSerializer(serializers.ModelSerializer[TrainerBranding]):
         return cleaned
 
 
+class CustomDayConfigSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for a custom split day configuration."""
+    day_name = serializers.CharField(max_length=50)
+    label = serializers.CharField(max_length=100)
+    muscle_groups = serializers.ListField(
+        child=serializers.CharField(max_length=20),
+        min_length=1,
+        max_length=10,
+    )
+
+    def validate_muscle_groups(self, value: list[str]) -> list[str]:
+        valid = {'chest', 'back', 'shoulders', 'arms', 'legs', 'glutes', 'core', 'cardio', 'full_body', 'other'}
+        for mg in value:
+            if mg not in valid:
+                raise serializers.ValidationError(f"Invalid muscle group: {mg}. Valid: {', '.join(sorted(valid))}")
+        return value
+
+
+class GenerateProgramRequestSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for the smart program generator endpoint."""
+
+    SPLIT_CHOICES = [
+        ('ppl', 'Push/Pull/Legs'),
+        ('upper_lower', 'Upper/Lower'),
+        ('full_body', 'Full Body'),
+        ('bro_split', 'Bro Split'),
+        ('custom', 'Custom'),
+    ]
+    DIFFICULTY_CHOICES = [
+        ('beginner', 'Beginner'),
+        ('intermediate', 'Intermediate'),
+        ('advanced', 'Advanced'),
+    ]
+    GOAL_CHOICES = [
+        ('build_muscle', 'Build Muscle'),
+        ('fat_loss', 'Fat Loss'),
+        ('strength', 'Strength'),
+        ('endurance', 'Endurance'),
+        ('recomp', 'Body Recomposition'),
+        ('general_fitness', 'General Fitness'),
+    ]
+
+    split_type = serializers.ChoiceField(choices=SPLIT_CHOICES)
+    difficulty = serializers.ChoiceField(choices=DIFFICULTY_CHOICES)
+    goal = serializers.ChoiceField(choices=GOAL_CHOICES)
+    duration_weeks = serializers.IntegerField(min_value=1, max_value=52)
+    training_days_per_week = serializers.IntegerField(min_value=2, max_value=7)
+    custom_day_config = CustomDayConfigSerializer(many=True, required=False, default=list)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs['split_type'] == 'custom' and not attrs.get('custom_day_config'):
+            raise serializers.ValidationError(
+                {'custom_day_config': 'Required when split_type is "custom".'}
+            )
+        if attrs['split_type'] == 'custom' and attrs.get('custom_day_config'):
+            if len(attrs['custom_day_config']) != attrs['training_days_per_week']:
+                raise serializers.ValidationError(
+                    {'custom_day_config': 'Must have exactly training_days_per_week entries.'}
+                )
+        return attrs
+
+    def to_dataclass(self) -> 'GenerateProgramRequest':
+        """Convert validated data to the service dataclass."""
+        from workouts.services.program_generator import CustomDayConfig, GenerateProgramRequest
+
+        data = self.validated_data
+        custom_days = [
+            CustomDayConfig(
+                day_name=d['day_name'],
+                label=d['label'],
+                muscle_groups=d['muscle_groups'],
+            )
+            for d in data.get('custom_day_config', [])
+        ]
+        return GenerateProgramRequest(
+            split_type=data['split_type'],
+            difficulty=data['difficulty'],
+            goal=data['goal'],
+            duration_weeks=data['duration_weeks'],
+            training_days_per_week=data['training_days_per_week'],
+            custom_day_config=custom_days,
+        )
+
+
 class AssignProgramSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for assigning a program template to a trainee."""
     trainee_id = serializers.IntegerField()

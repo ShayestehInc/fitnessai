@@ -22,6 +22,8 @@ import { useExercises } from "@/hooks/use-exercises";
 import {
   MuscleGroup,
   MUSCLE_GROUP_LABELS,
+  DifficultyLevel,
+  DIFFICULTY_LABELS,
   type Exercise,
   type ScheduleExercise,
 } from "@/types/program";
@@ -40,12 +42,15 @@ export function ExercisePickerDialog({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<MuscleGroup | "">("");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel | "">("");
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
 
   const deferredSearch = useDeferredValue(search);
   const { data, isLoading, isError, refetch } = useExercises(
     deferredSearch,
     selectedGroup,
+    1,
+    selectedDifficulty,
   );
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -53,6 +58,7 @@ export function ExercisePickerDialog({
     if (nextOpen) {
       setSearch("");
       setSelectedGroup("");
+      setSelectedDifficulty("");
       setAddedIds(new Set());
     }
   };
@@ -129,6 +135,21 @@ export function ExercisePickerDialog({
             ))}
           </div>
 
+          <div className="flex flex-wrap gap-1.5">
+            {Object.values(DifficultyLevel).map((level) => (
+              <Badge
+                key={level}
+                variant={selectedDifficulty === level ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() =>
+                  setSelectedDifficulty(selectedDifficulty === level ? "" : level)
+                }
+              >
+                {DIFFICULTY_LABELS[level]}
+              </Badge>
+            ))}
+          </div>
+
           {isLoading ? (
             <div
               className="space-y-2"
@@ -186,6 +207,11 @@ export function ExercisePickerDialog({
                                 className="h-4 w-4 text-green-600 dark:text-green-400"
                                 aria-label="Added"
                               />
+                            )}
+                            {exercise.difficulty_level && (
+                              <Badge variant="outline" className="text-[10px]">
+                                {DIFFICULTY_LABELS[exercise.difficulty_level]}
+                              </Badge>
                             )}
                             <Badge variant="secondary" className="text-xs">
                               {MUSCLE_GROUP_LABELS[exercise.muscle_group]}

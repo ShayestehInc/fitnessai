@@ -108,6 +108,8 @@ export interface Exercise {
   video_url: string | null;
   image_url: string | null;
   muscle_group: MuscleGroup;
+  difficulty_level: DifficultyLevel | null;
+  category: string;
   is_public: boolean;
   created_by: number | null;
   created_by_email: string | null;
@@ -157,4 +159,57 @@ export interface UpdateProgramPayload {
 export interface AssignProgramPayload {
   trainee_id: number;
   start_date: string;
+}
+
+// --- Smart Program Generator types ---
+
+export const SplitType = {
+  PPL: "ppl",
+  UPPER_LOWER: "upper_lower",
+  FULL_BODY: "full_body",
+  BRO_SPLIT: "bro_split",
+  CUSTOM: "custom",
+} as const;
+
+export type SplitType = (typeof SplitType)[keyof typeof SplitType];
+
+export const SPLIT_LABELS: Record<SplitType, string> = {
+  ppl: "Push / Pull / Legs",
+  upper_lower: "Upper / Lower",
+  full_body: "Full Body",
+  bro_split: "Bro Split",
+  custom: "Custom Split",
+};
+
+export const SPLIT_DESCRIPTIONS: Record<SplitType, string> = {
+  ppl: "Push (chest, shoulders, triceps), Pull (back, biceps), Legs — the classic 3-day rotation.",
+  upper_lower: "Alternate upper and lower body days for balanced development.",
+  full_body: "Hit every muscle group each session — great for 2-4 days per week.",
+  bro_split: "Dedicate each day to one muscle group — chest, back, shoulders, arms, legs.",
+  custom: "Choose your own muscle groups for each training day.",
+};
+
+export interface CustomDayConfig {
+  day_name: string;
+  label: string;
+  muscle_groups: MuscleGroup[];
+}
+
+export interface GenerateProgramPayload {
+  split_type: SplitType;
+  difficulty: DifficultyLevel;
+  goal: GoalType;
+  duration_weeks: number;
+  training_days_per_week: number;
+  custom_day_config?: CustomDayConfig[];
+}
+
+export interface GeneratedProgramResponse {
+  name: string;
+  description: string;
+  schedule: Schedule;
+  nutrition_template: Record<string, unknown>;
+  difficulty_level: DifficultyLevel;
+  goal_type: GoalType;
+  duration_weeks: number;
 }

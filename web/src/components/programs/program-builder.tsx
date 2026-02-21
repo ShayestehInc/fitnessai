@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Save, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import {
   type ScheduleWeek,
   type DifficultyLevel,
   type GoalType,
+  type GeneratedProgramResponse,
 } from "@/types/program";
 
 const NAME_MAX_LENGTH = 100;
@@ -73,26 +74,43 @@ interface ProgramBuilderProps {
 
 export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isEditing = Boolean(existingProgram);
   const isDirtyRef = useRef(false);
   const hasMountedRef = useRef(false);
   const savingRef = useRef(false);
 
-  const initialDuration = existingProgram?.duration_weeks ?? 4;
-  const [name, setName] = useState(existingProgram?.name ?? "");
+  // Load generated program from sessionStorage if navigating from generator
+  const generated = useMemo<GeneratedProgramResponse | null>(() => {
+    if (typeof window === "undefined") return null;
+    if (searchParams.get("from") !== "generator") return null;
+    try {
+      const raw = sessionStorage.getItem("generated-program");
+      if (!raw) return null;
+      sessionStorage.removeItem("generated-program");
+      return JSON.parse(raw) as GeneratedProgramResponse;
+    } catch {
+      return null;
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const initialDuration = generated?.duration_weeks ?? existingProgram?.duration_weeks ?? 4;
+  const [name, setName] = useState(
+    generated?.name ?? existingProgram?.name ?? "",
+  );
   const [description, setDescription] = useState(
-    existingProgram?.description ?? "",
+    generated?.description ?? existingProgram?.description ?? "",
   );
   const [durationWeeks, setDurationWeeks] = useState(initialDuration);
   const [difficultyLevel, setDifficultyLevel] = useState<
     DifficultyLevel | ""
-  >(existingProgram?.difficulty_level ?? "");
+  >(generated?.difficulty_level ?? existingProgram?.difficulty_level ?? "");
   const [goalType, setGoalType] = useState<GoalType | "">(
-    existingProgram?.goal_type ?? "",
+    generated?.goal_type ?? existingProgram?.goal_type ?? "",
   );
   const [schedule, setSchedule] = useState<Schedule>(() =>
     reconcileSchedule(
-      existingProgram?.schedule_template ?? null,
+      generated?.schedule ?? existingProgram?.schedule_template ?? null,
       initialDuration,
     ),
   );

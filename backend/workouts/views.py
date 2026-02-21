@@ -82,6 +82,10 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
         if search:
             queryset = queryset.filter(name__icontains=search)
 
+        difficulty_level = self.request.query_params.get('difficulty_level')
+        if difficulty_level:
+            queryset = queryset.filter(difficulty_level=difficulty_level)
+
         return queryset.order_by('muscle_group', 'name')
 
     def perform_create(self, serializer: BaseSerializer[Exercise]) -> None:

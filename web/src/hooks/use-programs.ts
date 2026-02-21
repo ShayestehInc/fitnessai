@@ -9,6 +9,8 @@ import type {
   CreateProgramPayload,
   UpdateProgramPayload,
   AssignProgramPayload,
+  GenerateProgramPayload,
+  GeneratedProgramResponse,
 } from "@/types/program";
 
 export function usePrograms(page: number = 1, search: string = "") {
@@ -71,6 +73,16 @@ export function useDeleteProgram() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programs"] });
     },
+  });
+}
+
+export function useGenerateProgram() {
+  return useMutation({
+    mutationFn: (data: GenerateProgramPayload) =>
+      apiClient.post<GeneratedProgramResponse>(
+        API_URLS.GENERATE_PROGRAM,
+        data,
+      ),
   });
 }
 

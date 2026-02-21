@@ -6,6 +6,7 @@ import '../../data/models/program_model.dart';
 import '../../data/models/program_week_model.dart';
 import '../providers/program_provider.dart';
 import 'program_builder_screen.dart';
+import 'program_generator_screen.dart';
 import '../../../workout_log/presentation/screens/workout_calendar_screen.dart';
 import '../../../trainer/presentation/providers/trainer_provider.dart';
 
@@ -2050,6 +2051,27 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               ),
             ),
             const SizedBox(height: 24),
+
+            // Generate with AI option
+            _buildCreateOption(
+              context: parentContext,
+              icon: Icons.auto_awesome,
+              title: 'Generate with AI',
+              subtitle: 'Auto-create a full program based on split, goal & difficulty',
+              color: Colors.purple,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                if (parentContext.mounted) {
+                  Navigator.push(
+                    parentContext,
+                    MaterialPageRoute(
+                      builder: (context) => const ProgramGeneratorScreen(),
+                    ),
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 12),
 
             // Use Template option
             _buildCreateOption(

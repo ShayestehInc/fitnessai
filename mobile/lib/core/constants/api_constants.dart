@@ -74,6 +74,7 @@ class ApiConstants {
   static String get startImpersonation => '$apiBaseUrl/trainer/impersonate/';
   static String get endImpersonation => '$apiBaseUrl/trainer/impersonate/end/';
   static String get programTemplates => '$apiBaseUrl/trainer/program-templates/';
+  static String get generateProgram => '$apiBaseUrl/trainer/program-templates/generate/';
   static String assignProgramTemplate(int templateId) =>
       '$apiBaseUrl/trainer/program-templates/$templateId/assign/';
   static String get trainerAnalyticsAdherence => '$apiBaseUrl/trainer/analytics/adherence/';

@@ -79,6 +79,46 @@ Return ONLY the JSON, no additional text."""
     return prompt
 
 
+def get_exercise_classification_prompt(exercises: list[dict[str, str]]) -> str:
+    """
+    Generate prompt for classifying exercises by difficulty level.
+
+    Args:
+        exercises: List of dicts with 'name', 'muscle_group', and optional 'category'.
+
+    Returns:
+        Formatted prompt string for OpenAI.
+    """
+    exercise_lines = "\n".join(
+        f"- {ex['name']} (muscle_group: {ex['muscle_group']}, category: {ex.get('category', 'unknown')})"
+        for ex in exercises
+    )
+
+    return f"""You are a certified strength & conditioning specialist classifying exercises by difficulty level.
+
+Classify each exercise as exactly one of: "beginner", "intermediate", or "advanced".
+
+Guidelines:
+- **beginner**: Machine-based exercises, cable exercises, bodyweight basics, guided movements. Low injury risk, minimal technique required. Examples: Leg Press, Cable Fly, Lat Pulldown, Smith Machine Squat.
+- **intermediate**: Free weight compound and isolation exercises with moderate technique requirements. Examples: Barbell Bench Press, Dumbbell Row, Romanian Deadlift, Barbell Curl.
+- **advanced**: Complex multi-joint movements requiring significant technique, Olympic lifts, plyometrics, specialty exercises. Examples: Snatch, Clean & Jerk, Pistol Squat, Muscle-Up, Deficit Deadlift.
+
+Exercises to classify:
+{exercise_lines}
+
+Return ONLY valid JSON — an array of objects with "name" and "difficulty_level":
+[
+  {{"name": "Exercise Name", "difficulty_level": "beginner"}},
+  {{"name": "Another Exercise", "difficulty_level": "intermediate"}}
+]
+
+Rules:
+- Classify ALL exercises in the list. Do not skip any.
+- Use the category hint (e.g., "Cable Fly" → beginner, "Squat" → intermediate, "Snatch" → advanced).
+- When in doubt between two levels, pick the lower one (safer for beginners).
+- Return ONLY the JSON array, no additional text."""
+
+
 def get_program_generation_prompt(
     trainer_request: str,
     trainee_context: dict[str, Any],

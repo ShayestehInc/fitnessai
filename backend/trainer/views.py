@@ -39,6 +39,7 @@ from .serializers import (
     StartImpersonationSerializer, TrainerDashboardStatsSerializer,
     ProgramTemplateSerializer, AssignProgramSerializer,
     WorkoutLayoutConfigSerializer, TrainerBrandingSerializer,
+    GenerateProgramRequestSerializer,
 )
 from .services.branding_service import upload_trainer_logo, remove_trainer_logo, LogoValidationError
 from workouts.models import ProgramTemplate, Program
@@ -620,6 +621,63 @@ class ProgramTemplateDetailView(generics.RetrieveUpdateDestroyAPIView[ProgramTem
         return ProgramTemplate.objects.filter(
             created_by=user
         )
+
+
+class GenerateProgramView(views.APIView):
+    """
+    POST: Generate a complete training program using the smart program generator.
+
+    Accepts split type, difficulty, goal, duration, and training days per week.
+    Returns a generated schedule + nutrition template without saving.
+    The trainer reviews and saves via the existing program template endpoints.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def post(self, request: Request) -> Response:
+        serializer = GenerateProgramRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        from workouts.services.program_generator import generate_program
+
+        gen_request = serializer.to_dataclass()
+        # Attach trainer_id for including trainer's custom exercises
+        trainer = cast(User, request.user)
+        # Reconstruct with trainer_id since dataclass is frozen
+        from workouts.services.program_generator import GenerateProgramRequest
+        gen_request = GenerateProgramRequest(
+            split_type=gen_request.split_type,
+            difficulty=gen_request.difficulty,
+            goal=gen_request.goal,
+            duration_weeks=gen_request.duration_weeks,
+            training_days_per_week=gen_request.training_days_per_week,
+            custom_day_config=gen_request.custom_day_config,
+            trainer_id=trainer.id,
+        )
+
+        try:
+            result = generate_program(gen_request)
+        except ValueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception:
+            logger.exception("Program generation failed")
+            return Response(
+                {'error': 'Program generation failed. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({
+            'name': result.name,
+            'description': result.description,
+            'schedule': result.schedule,
+            'nutrition_template': result.nutrition_template,
+            'difficulty_level': result.difficulty_level,
+            'goal_type': result.goal_type,
+            'duration_weeks': result.duration_weeks,
+        })
 
 
 class AssignProgramTemplateView(views.APIView):

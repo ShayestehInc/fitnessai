@@ -2,7 +2,7 @@
 
 import { useState, useDeferredValue } from "react";
 import Link from "next/link";
-import { Dumbbell, Plus, Search } from "lucide-react";
+import { Dumbbell, Plus, Search, Sparkles } from "lucide-react";
 import { usePrograms } from "@/hooks/use-programs";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorState } from "@/components/shared/error-state";
@@ -30,12 +30,20 @@ export default function ProgramsPage() {
         title="Programs"
         description="Create and manage workout program templates"
         actions={
-          <Button asChild>
-            <Link href="/programs/new">
-              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-              Create Program
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/programs/generate">
+                <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />
+                Generate with AI
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/programs/new">
+                <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                Create Program
+              </Link>
+            </Button>
+          </div>
         }
       />
 

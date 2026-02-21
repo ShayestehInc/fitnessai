@@ -68,6 +68,7 @@ export const API_URLS = {
     `${API_BASE}/api/trainer/program-templates/${id}/`,
   programTemplateAssign: (id: number) =>
     `${API_BASE}/api/trainer/program-templates/${id}/assign/`,
+  GENERATE_PROGRAM: `${API_BASE}/api/trainer/program-templates/generate/`,
   EXERCISES: `${API_BASE}/api/workouts/exercises/`,
 
   // Admin Dashboard

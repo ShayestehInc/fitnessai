@@ -46,6 +46,26 @@ class Exercise(models.Model):
         help_text="True for system defaults, False for trainer custom exercises"
     )
     
+    class DifficultyLevel(models.TextChoices):
+        BEGINNER = 'beginner', 'Beginner'
+        INTERMEDIATE = 'intermediate', 'Intermediate'
+        ADVANCED = 'advanced', 'Advanced'
+
+    difficulty_level = models.CharField(
+        max_length=20,
+        choices=DifficultyLevel.choices,
+        null=True,
+        blank=True,
+        help_text="Exercise difficulty: beginner (machines/cables), intermediate (free weights), advanced (complex/specialty)"
+    )
+
+    category = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="KILO category or custom classification (e.g., 'Squat', 'Press', 'Cable Fly')"
+    )
+
     created_by = models.ForeignKey(
         'users.User',
         on_delete=models.SET_NULL,
@@ -55,16 +75,17 @@ class Exercise(models.Model):
         limit_choices_to={'role': 'TRAINER'},
         help_text="Trainer who created this exercise (null for public/system exercises)"
     )
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'exercises'
         indexes = [
             models.Index(fields=['muscle_group']),
             models.Index(fields=['is_public']),
             models.Index(fields=['created_by']),
+            models.Index(fields=['muscle_group', 'difficulty_level']),
         ]
     
     def __str__(self) -> str:

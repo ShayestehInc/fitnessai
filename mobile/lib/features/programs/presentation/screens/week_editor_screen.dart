@@ -1324,6 +1324,14 @@ class _ExercisePickerSheet extends ConsumerStatefulWidget {
 class _ExercisePickerSheetState extends ConsumerState<_ExercisePickerSheet> {
   final _searchController = TextEditingController();
   String? _selectedMuscleGroup;
+  String? _selectedDifficulty;
+
+  static const _difficultyOptions = ['beginner', 'intermediate', 'advanced'];
+  static const _difficultyLabels = {
+    'beginner': 'Beginner',
+    'intermediate': 'Intermediate',
+    'advanced': 'Advanced',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -1331,6 +1339,7 @@ class _ExercisePickerSheetState extends ConsumerState<_ExercisePickerSheet> {
     final filter = ExerciseFilter(
       muscleGroup: _selectedMuscleGroup,
       search: _searchController.text.isNotEmpty ? _searchController.text : null,
+      difficultyLevel: _selectedDifficulty,
     );
     final exercisesAsync = ref.watch(exercisesProvider(filter));
 
@@ -1404,6 +1413,31 @@ class _ExercisePickerSheetState extends ConsumerState<_ExercisePickerSheet> {
                 ),
               )),
             ],
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        // Difficulty filter
+        SizedBox(
+          height: 36,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: _difficultyOptions.map((level) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: Text(
+                  _difficultyLabels[level] ?? level,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                selected: _selectedDifficulty == level,
+                onSelected: (selected) {
+                  setState(() => _selectedDifficulty = selected ? level : null);
+                },
+                visualDensity: VisualDensity.compact,
+              ),
+            )).toList(),
           ),
         ),
 
