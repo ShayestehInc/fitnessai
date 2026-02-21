@@ -66,3 +66,23 @@
 4. API test: `POST /api/trainer/program-templates/generate/` with body `{"split_type": "ppl", "difficulty": "intermediate", "goal": "build_muscle", "duration_weeks": 4, "training_days_per_week": 5}`
 5. Web: Navigate to `/programs` → click "Generate with AI" → complete wizard → verify builder loads
 6. Mobile: Open Programs → tap "+" → "Generate with AI" → complete wizard → verify builder loads
+
+## Review Fixes Applied (Round 1)
+
+### Critical Fixes
+- **C1 (IDOR):** Fixed `_get_exercises_for_muscle_group` and `_prefetch_exercise_pool` — when `trainer_id=None`, only `is_public=True` exercises are returned. Previously `Q()` (empty) was OR'd, which matched all rows.
+- **C2 (N+1 queries):** Added `_prefetch_exercise_pool()` that fetches ALL exercises needed for the split's muscle groups in 1-2 queries (with fallback). `_pick_exercises_from_pool()` now operates on in-memory lists instead of per-day DB queries.
+- **C3 (Unbounded progressive overload):** Capped `extra_sets` at 3, `extra_reps` at 5. Overload counters reset every 4-week block (deload resets the effective week counter).
+
+### Major Fixes
+- **M1:** Moved `used_exercise_ids` outside the week loop so exercises don't repeat across weeks.
+- **M3:** Added exercise IDs to AI classification prompt and lookup dict. `classify_exercises` now keys results by ID (string) first, falls back to name.
+- **M4:** Added try/except around `int()` conversions in `_apply_progressive_overload` for malformed reps formats.
+- **M5:** Added `GeneratedProgramResponseSerializer` to `trainer/serializers.py` and wired it in `GenerateProgramView`.
+- **M6:** Added `trainer_id` parameter to `to_dataclass()` on `GenerateProgramRequestSerializer`, eliminating the manual dataclass reconstruction in the view.
+
+### Minor Fixes
+- **m1:** Changed bare `dict` type hints to `dict[str, Any]` in `GeneratedProgram` dataclass and JSON helper functions.
+- **m2:** Moved `valid_groups` computation outside the loop in `seed_kilo_exercises.py`.
+- **m4:** Added `total_failed` (fallback-to-heuristic count) to `classify_exercises` summary output.
+- **m5:** Added validation of `difficulty_level` query param in `ExerciseViewSet.get_queryset()` — returns empty queryset for invalid values.
