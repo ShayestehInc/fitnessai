@@ -727,7 +727,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
         exerciseName: exercise.name,
         muscleGroup: exercise.muscleGroup,
         sets: 3,
-        reps: 10,
+        reps: '10',
       );
 
       final updatedDays = List<WorkoutDay>.from(_week.days);

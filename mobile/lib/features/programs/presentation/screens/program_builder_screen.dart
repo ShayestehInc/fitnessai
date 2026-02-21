@@ -113,56 +113,56 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     switch (dayName.toLowerCase()) {
       case 'push':
         return [
-          WorkoutExercise(exerciseId: 1, exerciseName: 'Barbell Bench Press', muscleGroup: 'chest', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 2, exerciseName: 'Incline Dumbbell Press', muscleGroup: 'chest', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 15, exerciseName: 'Overhead Press', muscleGroup: 'shoulders', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 16, exerciseName: 'Lateral Raises', muscleGroup: 'shoulders', sets: baseSets, reps: 12 + weekModifier),
-          WorkoutExercise(exerciseId: 25, exerciseName: 'Tricep Pushdown', muscleGroup: 'arms', sets: baseSets, reps: 12 + weekModifier),
+          WorkoutExercise(exerciseId: 1, exerciseName: 'Barbell Bench Press', muscleGroup: 'chest', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 2, exerciseName: 'Incline Dumbbell Press', muscleGroup: 'chest', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 15, exerciseName: 'Overhead Press', muscleGroup: 'shoulders', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 16, exerciseName: 'Lateral Raises', muscleGroup: 'shoulders', sets: baseSets, reps: '${12 + weekModifier}'),
+          WorkoutExercise(exerciseId: 25, exerciseName: 'Tricep Pushdown', muscleGroup: 'arms', sets: baseSets, reps: '${12 + weekModifier}'),
         ];
       case 'pull':
         return [
-          WorkoutExercise(exerciseId: 30, exerciseName: 'Barbell Deadlift', muscleGroup: 'back', sets: baseSets, reps: baseReps - 2),
-          WorkoutExercise(exerciseId: 31, exerciseName: 'Barbell Bent-Over Row', muscleGroup: 'back', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 32, exerciseName: 'Lat Pulldown', muscleGroup: 'back', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 40, exerciseName: 'Face Pulls', muscleGroup: 'shoulders', sets: baseSets, reps: 15 + weekModifier),
-          WorkoutExercise(exerciseId: 45, exerciseName: 'Barbell Bicep Curl', muscleGroup: 'arms', sets: baseSets, reps: 12 + weekModifier),
+          WorkoutExercise(exerciseId: 30, exerciseName: 'Barbell Deadlift', muscleGroup: 'back', sets: baseSets, reps: '${baseReps - 2}'),
+          WorkoutExercise(exerciseId: 31, exerciseName: 'Barbell Bent-Over Row', muscleGroup: 'back', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 32, exerciseName: 'Lat Pulldown', muscleGroup: 'back', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 40, exerciseName: 'Face Pulls', muscleGroup: 'shoulders', sets: baseSets, reps: '${15 + weekModifier}'),
+          WorkoutExercise(exerciseId: 45, exerciseName: 'Barbell Bicep Curl', muscleGroup: 'arms', sets: baseSets, reps: '${12 + weekModifier}'),
         ];
       case 'legs':
         return [
-          WorkoutExercise(exerciseId: 50, exerciseName: 'Barbell Back Squat', muscleGroup: 'legs', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 51, exerciseName: 'Romanian Deadlift', muscleGroup: 'legs', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 52, exerciseName: 'Leg Press', muscleGroup: 'legs', sets: baseSets, reps: 12 + weekModifier),
-          WorkoutExercise(exerciseId: 53, exerciseName: 'Leg Curl', muscleGroup: 'legs', sets: baseSets, reps: 12 + weekModifier),
-          WorkoutExercise(exerciseId: 54, exerciseName: 'Calf Raises', muscleGroup: 'legs', sets: 4, reps: 15 + weekModifier),
+          WorkoutExercise(exerciseId: 50, exerciseName: 'Barbell Back Squat', muscleGroup: 'legs', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 51, exerciseName: 'Romanian Deadlift', muscleGroup: 'legs', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 52, exerciseName: 'Leg Press', muscleGroup: 'legs', sets: baseSets, reps: '${12 + weekModifier}'),
+          WorkoutExercise(exerciseId: 53, exerciseName: 'Leg Curl', muscleGroup: 'legs', sets: baseSets, reps: '${12 + weekModifier}'),
+          WorkoutExercise(exerciseId: 54, exerciseName: 'Calf Raises', muscleGroup: 'legs', sets: 4, reps: '${15 + weekModifier}'),
         ];
       case 'upper':
         return [
-          WorkoutExercise(exerciseId: 1, exerciseName: 'Barbell Bench Press', muscleGroup: 'chest', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 31, exerciseName: 'Barbell Bent-Over Row', muscleGroup: 'back', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 15, exerciseName: 'Overhead Press', muscleGroup: 'shoulders', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 32, exerciseName: 'Lat Pulldown', muscleGroup: 'back', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 45, exerciseName: 'Barbell Bicep Curl', muscleGroup: 'arms', sets: baseSets, reps: 12),
-          WorkoutExercise(exerciseId: 25, exerciseName: 'Tricep Pushdown', muscleGroup: 'arms', sets: baseSets, reps: 12),
+          WorkoutExercise(exerciseId: 1, exerciseName: 'Barbell Bench Press', muscleGroup: 'chest', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 31, exerciseName: 'Barbell Bent-Over Row', muscleGroup: 'back', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 15, exerciseName: 'Overhead Press', muscleGroup: 'shoulders', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 32, exerciseName: 'Lat Pulldown', muscleGroup: 'back', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 45, exerciseName: 'Barbell Bicep Curl', muscleGroup: 'arms', sets: baseSets, reps: '12'),
+          WorkoutExercise(exerciseId: 25, exerciseName: 'Tricep Pushdown', muscleGroup: 'arms', sets: baseSets, reps: '12'),
         ];
       case 'lower':
         return [
-          WorkoutExercise(exerciseId: 50, exerciseName: 'Barbell Back Squat', muscleGroup: 'legs', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 51, exerciseName: 'Romanian Deadlift', muscleGroup: 'legs', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 52, exerciseName: 'Leg Press', muscleGroup: 'legs', sets: baseSets, reps: 12 + weekModifier),
-          WorkoutExercise(exerciseId: 55, exerciseName: 'Walking Lunges', muscleGroup: 'legs', sets: baseSets, reps: 12),
-          WorkoutExercise(exerciseId: 53, exerciseName: 'Leg Curl', muscleGroup: 'legs', sets: baseSets, reps: 12 + weekModifier),
-          WorkoutExercise(exerciseId: 54, exerciseName: 'Calf Raises', muscleGroup: 'legs', sets: 4, reps: 15),
+          WorkoutExercise(exerciseId: 50, exerciseName: 'Barbell Back Squat', muscleGroup: 'legs', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 51, exerciseName: 'Romanian Deadlift', muscleGroup: 'legs', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 52, exerciseName: 'Leg Press', muscleGroup: 'legs', sets: baseSets, reps: '${12 + weekModifier}'),
+          WorkoutExercise(exerciseId: 55, exerciseName: 'Walking Lunges', muscleGroup: 'legs', sets: baseSets, reps: '12'),
+          WorkoutExercise(exerciseId: 53, exerciseName: 'Leg Curl', muscleGroup: 'legs', sets: baseSets, reps: '${12 + weekModifier}'),
+          WorkoutExercise(exerciseId: 54, exerciseName: 'Calf Raises', muscleGroup: 'legs', sets: 4, reps: '15'),
         ];
       case 'full body':
       case 'workout a':
       case 'workout b':
       default:
         return [
-          WorkoutExercise(exerciseId: 50, exerciseName: 'Barbell Back Squat', muscleGroup: 'legs', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 1, exerciseName: 'Barbell Bench Press', muscleGroup: 'chest', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 31, exerciseName: 'Barbell Bent-Over Row', muscleGroup: 'back', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 15, exerciseName: 'Overhead Press', muscleGroup: 'shoulders', sets: baseSets, reps: baseReps),
-          WorkoutExercise(exerciseId: 51, exerciseName: 'Romanian Deadlift', muscleGroup: 'legs', sets: baseSets, reps: baseReps),
+          WorkoutExercise(exerciseId: 50, exerciseName: 'Barbell Back Squat', muscleGroup: 'legs', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 1, exerciseName: 'Barbell Bench Press', muscleGroup: 'chest', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 31, exerciseName: 'Barbell Bent-Over Row', muscleGroup: 'back', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 15, exerciseName: 'Overhead Press', muscleGroup: 'shoulders', sets: baseSets, reps: '$baseReps'),
+          WorkoutExercise(exerciseId: 51, exerciseName: 'Romanian Deadlift', muscleGroup: 'legs', sets: baseSets, reps: '$baseReps'),
         ];
     }
   }
@@ -1270,7 +1270,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
         exerciseName: exerciseData['name'] as String,
         muscleGroup: exerciseData['muscle'] as String,
         sets: 3,
-        reps: 10,
+        reps: '10',
       );
 
       final updatedDays = List<WorkoutDay>.from(week.days);

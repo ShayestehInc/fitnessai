@@ -860,7 +860,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     // Mutable state for the dialog
     WorkoutExercise currentExercise = exercise;
     int sets = exercise.sets;
-    int reps = exercise.reps;
+    int reps = _parseRepsToInt(exercise.reps);
     bool applyToAllWeeks = true; // Default to all weeks
     final theme = Theme.of(context);
 
@@ -918,7 +918,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                                       exerciseName: e['name'] as String,
                                       muscleGroup: e['muscle'] as String,
                                       sets: sets,
-                                      reps: reps,
+                                      reps: reps.toString(),
                                     );
                                   });
                                 },
@@ -1033,7 +1033,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
 
                       if (wasReplaced) {
                         // Replace the exercise with the current slider values
-                        final updatedExercise = currentExercise.copyWith(sets: sets, reps: reps);
+                        final updatedExercise = currentExercise.copyWith(sets: sets, reps: reps.toString());
                         if (applyToAllWeeks) {
                           _replaceExerciseAllWeeks(exercise, updatedExercise, dayIndex);
                         } else {
@@ -1482,11 +1482,21 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     );
   }
 
+  /// Parse a reps string (e.g. "8-10" or "12") into an integer for slider UI.
+  /// For ranges, returns the upper bound.
+  int _parseRepsToInt(String reps) {
+    if (reps.contains('-')) {
+      final parts = reps.split('-');
+      return int.tryParse(parts.last.trim()) ?? 10;
+    }
+    return int.tryParse(reps) ?? 10;
+  }
+
   void _updateExercise(WorkoutExercise exercise, int dayIndex, int sets, int reps) {
     setState(() {
       final week = _weeks[_selectedWeekIndex];
       final day = week.days[dayIndex];
-      final updated = day.exercises.map((e) => e.exerciseId == exercise.exerciseId ? e.copyWith(sets: sets, reps: reps) : e).toList();
+      final updated = day.exercises.map((e) => e.exerciseId == exercise.exerciseId ? e.copyWith(sets: sets, reps: reps.toString()) : e).toList();
       final days = List<WorkoutDay>.from(week.days);
       days[dayIndex] = day.copyWith(exercises: updated);
       _weeks[_selectedWeekIndex] = week.copyWith(days: days);
@@ -1506,7 +1516,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
 
         final day = week.days[dayIndex];
         final updated = day.exercises.map((e) =>
-          e.exerciseName == exercise.exerciseName ? e.copyWith(sets: sets, reps: reps) : e
+          e.exerciseName == exercise.exerciseName ? e.copyWith(sets: sets, reps: reps.toString()) : e
         ).toList();
         final days = List<WorkoutDay>.from(week.days);
         days[dayIndex] = day.copyWith(exercises: updated);
@@ -1565,7 +1575,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
         exerciseName: data['name'] as String,
         muscleGroup: data['muscle'] as String,
         sets: sets,
-        reps: reps,
+        reps: reps.toString(),
       );
       final days = List<WorkoutDay>.from(week.days);
       days[dayIndex] = day.copyWith(exercises: [...day.exercises, newEx]);
@@ -1588,7 +1598,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
           exerciseName: data['name'] as String,
           muscleGroup: data['muscle'] as String,
           sets: sets,
-          reps: reps,
+          reps: reps.toString(),
         );
         final days = List<WorkoutDay>.from(week.days);
         days[dayIndex] = day.copyWith(exercises: [...day.exercises, newEx]);

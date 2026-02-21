@@ -278,3 +278,145 @@ The CSV export feature had solid bones -- correct auth handling, proper error st
 ## Overall UX Score: 9/10
 
 The Macro Preset Management feature is well-built with strong fundamentals: clear empty states, proper loading skeletons, error handling with retry, toast feedback for all mutations, and delete confirmation. The primary gaps were accessibility-related (missing ARIA attributes for screen readers, missing focus indicators for keyboard users, dialog dismissal during mutations). All issues have been fixed. The calorie mismatch warning is a thoughtful UX addition that helps trainers catch data entry mistakes before saving. The feature is consistent with the existing dashboard patterns (same dialog structure, button styles, card layout as other trainee components like Edit Goals and Remove Trainee).
+
+---
+---
+
+# UX Audit: Smart Program Generator
+
+## Audit Date: 2026-02-21
+
+## Files Reviewed
+
+### Web
+- `web/src/components/programs/program-generator-wizard.tsx`
+- `web/src/components/programs/generator/split-type-step.tsx`
+- `web/src/components/programs/generator/config-step.tsx`
+- `web/src/components/programs/generator/custom-day-config.tsx`
+- `web/src/components/programs/generator/preview-step.tsx`
+- `web/src/components/programs/exercise-picker-dialog.tsx`
+- `web/src/app/(dashboard)/programs/page.tsx`
+- `web/src/app/(dashboard)/programs/generate/page.tsx`
+
+### Mobile
+- `mobile/lib/features/programs/presentation/screens/program_generator_screen.dart`
+- `mobile/lib/features/programs/presentation/widgets/split_type_card.dart`
+- `mobile/lib/features/programs/presentation/widgets/goal_type_card.dart`
+- `mobile/lib/features/programs/presentation/widgets/custom_day_configurator.dart`
+- `mobile/lib/features/programs/presentation/widgets/step_indicator.dart`
+- `mobile/lib/features/programs/presentation/widgets/exercise_picker_sheet.dart`
+
+---
+
+## Usability Issues
+
+| # | Severity | Screen/Component | Issue | Recommendation | Status |
+|---|----------|-----------------|-------|----------------|--------|
+| 1 | High | Web: config-step.tsx | Difficulty and Goal badge groups had no `radiogroup` wrapper role. Screen readers could not understand these are grouped selections. | Wrapped in `<fieldset>` with `<legend>` and `role="radiogroup"`. | FIXED |
+| 2 | High | Web: config-step.tsx | Radio badges lacked arrow key navigation per WAI-ARIA radio group pattern. Users stuck tabbing through every option instead of using arrow keys. | Added ArrowRight/ArrowDown/ArrowLeft/ArrowUp key handlers that cycle through options. | FIXED |
+| 3 | High | Web: custom-day-config.tsx | Muscle group badges completely missing keyboard support -- no `tabIndex`, no `onKeyDown`, no `role`. Keyboard-only users could not interact. | Added `role="checkbox"`, `aria-checked`, `tabIndex={0}`, `onKeyDown` handlers, and `focus-visible` ring styles. | FIXED |
+| 4 | High | Mobile: exercise_picker_sheet.dart | Error state was plain `Text('Error: $error')` with no retry button and no guidance. Users hit a dead end with no way to recover. | Replaced with proper error UI: icon, title, description, and Retry button that invalidates the provider. | FIXED |
+| 5 | Medium | Mobile: exercise_picker_sheet.dart | Empty state was plain `Text('No exercises found')` with no guidance or icon. Inconsistent with the polished web counterpart. | Added proper empty state with icon, title, and contextual description that adapts to whether filters are active. | FIXED |
+| 6 | Medium | Web: preview-step.tsx | Loading skeleton had no `role="status"` or screen reader announcement. Users relying on assistive tech had no idea generation was in progress. | Added `role="status"`, `aria-label`, descriptive subtitle text, and `sr-only` live announcement. | FIXED |
+| 7 | Medium | Web: preview-step.tsx | Error state container had no `role="alert"` for assistive tech to announce the failure automatically. | Added `role="alert"` and `aria-live="assertive"` to the error container. | FIXED |
+| 8 | Medium | Web: preview-step.tsx | When `data` was null (no error, not loading), component returned `null` -- a blank page with no explanation. | Replaced with explanatory text: "No program data available. Go back and configure your program." with retry button. | FIXED |
+| 9 | Medium | Mobile: program_generator_screen.dart | Null `_generatedData` state showed plain `CircularProgressIndicator` with no text. User saw a spinner forever. | Replaced with proper empty state: hourglass icon, explanatory text, and Generate button. | FIXED |
+| 10 | Medium | Web: split-type-step.tsx | No descriptive subtitle below the heading. Users had to infer what "split type" means from the cards alone. | Added subtitle: "This determines how muscle groups are distributed across training days." | FIXED |
+
+---
+
+## Accessibility Issues
+
+| # | WCAG Level | Issue | Fix | Status |
+|---|------------|-------|-----|--------|
+| 1 | A (2.1.1 Keyboard) | Web: custom-day-config badges had no keyboard support at all. Failed keyboard operability. | Added `tabIndex`, `onKeyDown`, `role="checkbox"`, `aria-checked`. | FIXED |
+| 2 | A (1.3.1 Info) | Web: program-generator-wizard step indicator used `role="tablist"` but steps are not tabs -- they represent sequential progress. | Changed to `<nav><ol>` with `aria-label="Program generator progress"` and `aria-current="step"`. | FIXED |
+| 3 | A (4.1.2 Name/Role) | Web: step buttons lacked descriptive `aria-label`. Screen reader just reads "1" or "2". | Added `aria-label="Step 1: Split Type (current)"` with state suffix. | FIXED |
+| 4 | A (1.3.1 Info) | Web: Difficulty and Goal badge groups missing `role="radiogroup"` container. | Wrapped in `<fieldset>` with `<legend>` and `role="radiogroup"`. | FIXED |
+| 5 | A (2.4.7 Focus) | Web: split type cards, config badges, and custom day badges missing `focus-visible` ring styles. Focus not visible when tabbing. | Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` to all interactive elements. | FIXED |
+| 6 | A (1.3.1 Info) | Web: split type cards used `role="button"` inside `role="listbox"` -- semantically invalid. | Changed to `role="radiogroup"` container with `role="radio"` + `aria-checked` children. | FIXED |
+| 7 | A (4.1.2 Name/Role) | Mobile: step_indicator.dart circles had no semantic labels. TalkBack/VoiceOver users hear nothing meaningful. | Wrapped each step in `Semantics` widget with label like "Step 1 of 3: Split Type, current step". | FIXED |
+| 8 | A (4.1.2 Name/Role) | Mobile: split_type_card.dart and goal_type_card.dart had no Semantics widget. Screen readers miss the description and selected state. | Added `Semantics(button: true, selected: selected, label: ...)` wrapper. | FIXED |
+| 9 | A (4.1.2 Name/Role) | Mobile: IconButtons for duration/days had no tooltip. Screen readers read "button" with no description. | Added `tooltip` property: "Decrease duration", "Increase duration", etc. | FIXED |
+| 10 | A (4.1.2 Name/Role) | Mobile: Duration and days display text had no Semantics label. Screen reader reads "4 weeks" with no context. | Wrapped in `Semantics(label: 'Program duration: 4 weeks')`. | FIXED |
+| 11 | AA (1.1.1 Non-text) | Web: nutrition macro abbreviations (P, C, F) unclear to screen readers. | Added `aria-label` with full text: "Protein: 150 grams", "Carbs: 200 grams", "Fat: 60 grams". | FIXED |
+
+---
+
+## Missing States
+
+- [x] Loading / skeleton -- Web: skeleton with `role="status"`. Mobile: CircularProgressIndicator with text.
+- [x] Empty / zero data -- Web: fallback message when data is null. Mobile: proper empty state with icon.
+- [x] Error / failure -- Web: destructive border + message + retry. Mobile: error icon + message + back + retry.
+- [x] Success / confirmation -- Web: toast on "Open in Builder". Mobile: navigates to builder.
+- [x] Disabled -- Both web and mobile disable Next button when selections incomplete.
+- [ ] Offline / degraded -- Neither platform handles offline state specifically (not in scope for this feature).
+- [x] Permission denied -- Handled at the API level, not directly relevant to this wizard.
+
+---
+
+## Consistency Assessment
+
+| Area | Web | Mobile | Consistent? |
+|------|-----|--------|-------------|
+| Step indicator | Nav with `aria-current` | Custom circles with Semantics | Yes (platform-appropriate) |
+| Split type selection | Card grid with focus rings | Card list with AnimatedContainer | Yes |
+| Difficulty selection | Badge radio group | ChoiceChip row | Yes (platform-idiomatic) |
+| Goal selection | Badge radio group | Card list | Yes |
+| Duration input | Number input with helper text | Slider + stepper buttons | Yes (platform-appropriate) |
+| Custom day config | Badge checkboxes with keyboard | FilterChip with labels | Yes |
+| Error state | Destructive border + retry | Error icon + back + retry | Yes |
+| Loading state | Skeleton shimmer | Centered spinner + text | Yes (platform-idiomatic) |
+| Empty state | Message + retry button | Icon + message + action | Yes |
+
+---
+
+## Product Improvements (Not Implemented -- Require Design Decisions)
+
+| # | Impact | Area | Suggestion | Rationale |
+|---|--------|------|------------|-----------|
+| 1 | Medium | Web: preview-step | Add exercise expansion -- clicking a day could show the full exercise list with sets/reps/rest | Currently only shows first 3 exercise names. User might want to see the full workout before opening in builder. |
+| 2 | Medium | Mobile: preview step | Show nutrition template in mobile preview (present in web but missing in mobile) | Web shows training day / rest day macros but mobile only shows the weekly schedule. Parity gap. |
+| 3 | Low | Both platforms | Add estimated workout duration per day in the preview | Trainers commonly need to know session length before assigning to clients. |
+| 4 | Low | Web: exercise-picker-dialog | Add pagination for exercise results beyond page 1 | Currently only shows "Showing X of Y exercises. Refine your search to see more." No way to load more. |
+
+---
+
+## Changes Made in This Audit
+
+### Web Files Modified
+1. **`program-generator-wizard.tsx`** -- Replaced `role="tablist"` step indicator with semantic `<nav><ol>` pattern; added `aria-current`, `aria-label`, and `focus-visible` styles to step buttons. Cleaned up generation state reset on back navigation.
+2. **`split-type-step.tsx`** -- Added descriptive subtitle; changed to `role="radiogroup"` with `role="radio"` + `aria-checked` children; added `focus-visible` ring styles.
+3. **`config-step.tsx`** -- Wrapped Difficulty and Goal in `<fieldset>` with `<legend>` and `role="radiogroup"`; added arrow key navigation between radio options; added `focus-visible` ring; added `step={1}` and helper text to number inputs.
+4. **`custom-day-config.tsx`** -- Added `role="group"`, `role="checkbox"`, `aria-checked`, `aria-label`, `tabIndex`, `onKeyDown`, and `focus-visible` styles to muscle group badges.
+5. **`preview-step.tsx`** -- Added `role="status"` and `aria-label` to skeleton; added subtitle and `sr-only` announcement to loading state; added `role="alert"` and `aria-live="assertive"` to error state; added `aria-label` to nutrition cards and macro abbreviations; improved null data fallback with explanatory text and retry button.
+
+### Mobile Files Modified
+1. **`step_indicator.dart`** -- Wrapped each step in `Semantics` widget with descriptive labels including step number, name, and status.
+2. **`split_type_card.dart`** -- Added `Semantics` wrapper with `button: true`, `selected`, and combined label.
+3. **`goal_type_card.dart`** -- Added `Semantics` wrapper with `button: true`, `selected`, and combined label.
+4. **`exercise_picker_sheet.dart`** -- Replaced plain text error state with rich error UI (icon + title + description + retry button); replaced plain text empty state with rich empty UI (icon + contextual guidance).
+5. **`program_generator_screen.dart`** -- Added `tooltip` to all stepper IconButtons; wrapped duration and days display in `Semantics` with descriptive labels; improved null data state with icon, text, and Generate button.
+
+---
+
+## Overall UX Score: 8/10
+
+### Strengths
+- Wizard flow is clear and linear with proper back/forward navigation
+- Both platforms handle loading, error, and success states
+- Copy is jargon-free and actionable
+- Visual design is consistent with the design system
+- Smooth transitions on mobile (PageView animation)
+- Exercise picker dialog is well-designed with search, filters, and multi-select
+
+### Areas Improved
+- Keyboard accessibility now fully functional across all interactive elements
+- Screen reader support dramatically improved with proper ARIA roles and Semantics
+- Error and empty states on mobile exercise picker match the polish level of the web
+- Step indicators are now semantically correct on both platforms
+
+### Remaining Concerns
+- Mobile preview step does not show nutrition template (parity gap with web)
+- No offline handling on either platform
+- Exercise picker lacks pagination beyond page 1 on web

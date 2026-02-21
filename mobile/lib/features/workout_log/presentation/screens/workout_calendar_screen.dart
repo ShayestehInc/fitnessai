@@ -1138,7 +1138,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
   void _showEditExerciseDialog(WorkoutExercise exercise, int weekIndex, int dayIndex) {
     WorkoutExercise currentExercise = exercise;
     int sets = exercise.sets;
-    int reps = exercise.reps;
+    int reps = _parseRepsToInt(exercise.reps);
     bool applyToAllWeeks = true;
     final theme = Theme.of(context);
 
@@ -1193,7 +1193,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                                       exerciseName: e['name'] as String,
                                       muscleGroup: e['muscle'] as String,
                                       sets: sets,
-                                      reps: reps,
+                                      reps: reps.toString(),
                                     );
                                   });
                                 },
@@ -1308,7 +1308,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                   child: ElevatedButton(
                     onPressed: () {
                       final wasReplaced = currentExercise.exerciseId != exercise.exerciseId;
-                      final updatedExercise = currentExercise.copyWith(sets: sets, reps: reps);
+                      final updatedExercise = currentExercise.copyWith(sets: sets, reps: reps.toString());
 
                       if (wasReplaced) {
                         if (applyToAllWeeks) {
@@ -1717,7 +1717,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
     setState(() {
       final week = _weeks[weekIndex];
       final day = week.days[dayIndex];
-      final updated = day.exercises.map((e) => e.exerciseName == exercise.exerciseName ? e.copyWith(sets: sets, reps: reps) : e).toList();
+      final updated = day.exercises.map((e) => e.exerciseName == exercise.exerciseName ? e.copyWith(sets: sets, reps: reps.toString()) : e).toList();
       final days = List<WorkoutDay>.from(week.days);
       days[dayIndex] = day.copyWith(exercises: updated);
       _weeks[weekIndex] = week.copyWith(days: days);
@@ -1733,7 +1733,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
         if (dayIndex >= week.days.length) continue;
 
         final day = week.days[dayIndex];
-        final updated = day.exercises.map((e) => e.exerciseName == exercise.exerciseName ? e.copyWith(sets: sets, reps: reps) : e).toList();
+        final updated = day.exercises.map((e) => e.exerciseName == exercise.exerciseName ? e.copyWith(sets: sets, reps: reps.toString()) : e).toList();
         final days = List<WorkoutDay>.from(week.days);
         days[dayIndex] = day.copyWith(exercises: updated);
         _weeks[weekIndex] = week.copyWith(days: days);
@@ -1785,7 +1785,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
         exerciseName: data['name'] as String,
         muscleGroup: data['muscle'] as String,
         sets: sets,
-        reps: reps,
+        reps: reps.toString(),
       );
       final days = List<WorkoutDay>.from(week.days);
       days[dayIndex] = day.copyWith(exercises: [...day.exercises, newEx]);
@@ -1807,7 +1807,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
           exerciseName: data['name'] as String,
           muscleGroup: data['muscle'] as String,
           sets: sets,
-          reps: reps,
+          reps: reps.toString(),
         );
         final days = List<WorkoutDay>.from(week.days);
         days[dayIndex] = day.copyWith(exercises: [...day.exercises, newEx]);
@@ -1817,6 +1817,16 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
     });
     _buildCalendarDays();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${data['name']} to all weeks')));
+  }
+
+  /// Parse a reps string (e.g. "8-10" or "12") into an integer for slider UI.
+  /// For ranges, returns the upper bound.
+  int _parseRepsToInt(String reps) {
+    if (reps.contains('-')) {
+      final parts = reps.split('-');
+      return int.tryParse(parts.last.trim()) ?? 10;
+    }
+    return int.tryParse(reps) ?? 10;
   }
 
   void _removeExercise(WorkoutExercise exercise, int weekIndex, int dayIndex) {
