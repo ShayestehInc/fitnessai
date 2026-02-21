@@ -95,9 +95,11 @@ export function ProgramGeneratorWizard() {
 
   const handleBack = () => {
     if (step > 0) {
-      // Reset mutation state when leaving the preview step
+      // Reset all generation state when leaving the preview step
       if (step === 2) {
         generateMutation.reset();
+        setGeneratedData(null);
+        setGenerateError(null);
       }
       setStep(step - 1);
     }
@@ -123,39 +125,43 @@ export function ProgramGeneratorWizard() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       {/* Step indicator */}
-      <div className="flex items-center gap-2" role="tablist">
-        {STEPS.map((label, i) => (
-          <div key={label} className="flex items-center gap-2">
-            {i > 0 && (
-              <div className="h-px w-8 bg-border" aria-hidden="true" />
-            )}
-            <button
-              role="tab"
-              aria-selected={step === i}
-              className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors ${
-                step === i
-                  ? "bg-primary text-primary-foreground"
-                  : step > i
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground"
-              }`}
-              onClick={() => {
-                if (i < step) {
-                  // Reset mutation state when leaving the preview step
-                  if (step === 2) {
-                    generateMutation.reset();
+      <nav aria-label="Program generator progress">
+        <ol className="flex items-center gap-2">
+          {STEPS.map((label, i) => (
+            <li key={label} className="flex items-center gap-2">
+              {i > 0 && (
+                <div className="h-px w-8 bg-border" aria-hidden="true" />
+              )}
+              <button
+                aria-current={step === i ? "step" : undefined}
+                aria-label={`Step ${i + 1}: ${label}${step > i ? " (completed)" : step === i ? " (current)" : ""}`}
+                className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  step === i
+                    ? "bg-primary text-primary-foreground"
+                    : step > i
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
+                }`}
+                onClick={() => {
+                  if (i < step) {
+                    // Reset all generation state when leaving the preview step
+                    if (step === 2) {
+                      generateMutation.reset();
+                      setGeneratedData(null);
+                      setGenerateError(null);
+                    }
+                    setStep(i);
                   }
-                  setStep(i);
-                }
-              }}
-              disabled={i > step}
-            >
-              <span>{i + 1}</span>
-              <span className="hidden sm:inline">{label}</span>
-            </button>
-          </div>
-        ))}
-      </div>
+                }}
+                disabled={i > step}
+              >
+                <span aria-hidden="true">{i + 1}</span>
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      </nav>
 
       {/* Step content */}
       <div className="min-h-[300px]">

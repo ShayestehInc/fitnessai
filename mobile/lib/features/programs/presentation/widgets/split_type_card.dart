@@ -64,7 +64,11 @@ class SplitTypeCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Material(
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${option.label}. ${option.description}',
+      child: Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -121,6 +125,7 @@ class SplitTypeCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

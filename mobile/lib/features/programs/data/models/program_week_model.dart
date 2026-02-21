@@ -4,7 +4,9 @@ class WorkoutExercise {
   final String exerciseName;
   final String muscleGroup;
   final int sets;
-  final int reps;
+  /// Reps stored as a string to support ranges like "8-10" from the
+  /// smart program generator as well as fixed values like "12".
+  final String reps;
   final int? restSeconds;
   final String? notes;
   final String? supersetGroupId; // Exercises with same ID are in a superset
@@ -25,7 +27,7 @@ class WorkoutExercise {
     String? exerciseName,
     String? muscleGroup,
     int? sets,
-    int? reps,
+    String? reps,
     int? restSeconds,
     String? notes,
     String? supersetGroupId,
@@ -57,12 +59,23 @@ class WorkoutExercise {
   }
 
   factory WorkoutExercise.fromJson(Map<String, dynamic> json) {
+    // reps can be an int (legacy / manual) or a String range ("8-10")
+    final rawReps = json['reps'];
+    final String parsedReps;
+    if (rawReps is int) {
+      parsedReps = rawReps.toString();
+    } else if (rawReps is String) {
+      parsedReps = rawReps;
+    } else {
+      parsedReps = '10';
+    }
+
     return WorkoutExercise(
       exerciseId: (json['exercise_id'] as int?) ?? 0,
       exerciseName: (json['exercise_name'] as String?) ?? 'Unknown Exercise',
       muscleGroup: (json['muscle_group'] as String?) ?? 'other',
       sets: (json['sets'] as int?) ?? 3,
-      reps: (json['reps'] as int?) ?? 10,
+      reps: parsedReps,
       restSeconds: json['rest_seconds'] as int?,
       notes: json['notes'] as String?,
       supersetGroupId: json['superset_group_id'] as String?,

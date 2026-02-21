@@ -49,25 +49,35 @@ export function ConfigStep({
       <h3 className="text-lg font-semibold">Configure your program</h3>
 
       {/* Difficulty */}
-      <div className="space-y-2">
-        <Label>Difficulty Level</Label>
-        <div className="flex flex-wrap gap-2">
-          {difficulties.map((d) => (
+      <fieldset className="space-y-2">
+        <Label asChild>
+          <legend>Difficulty Level</legend>
+        </Label>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Difficulty Level">
+          {difficulties.map((d, i) => (
             <Badge
               key={d}
               variant={difficulty === d ? "default" : "outline"}
               className={cn(
-                "cursor-pointer px-3 py-1.5 text-sm",
+                "cursor-pointer px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 difficulty === d && "ring-2 ring-primary/20",
               )}
               role="radio"
               aria-checked={difficulty === d}
-              tabIndex={0}
+              tabIndex={difficulty === d ? 0 : (difficulty === null && i === 0) ? 0 : -1}
               onClick={() => onDifficultyChange(d)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   onDifficultyChange(d);
+                } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                  const next = difficulties[(i + 1) % difficulties.length];
+                  onDifficultyChange(next);
+                } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  const prev = difficulties[(i - 1 + difficulties.length) % difficulties.length];
+                  onDifficultyChange(prev);
                 }
               }}
             >
@@ -75,28 +85,38 @@ export function ConfigStep({
             </Badge>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {/* Goal */}
-      <div className="space-y-2">
-        <Label>Training Goal</Label>
-        <div className="flex flex-wrap gap-2">
-          {goals.map((g) => (
+      <fieldset className="space-y-2">
+        <Label asChild>
+          <legend>Training Goal</legend>
+        </Label>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Training Goal">
+          {goals.map((g, i) => (
             <Badge
               key={g}
               variant={goal === g ? "default" : "outline"}
               className={cn(
-                "cursor-pointer px-3 py-1.5 text-sm",
+                "cursor-pointer px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 goal === g && "ring-2 ring-primary/20",
               )}
               role="radio"
               aria-checked={goal === g}
-              tabIndex={0}
+              tabIndex={goal === g ? 0 : (goal === null && i === 0) ? 0 : -1}
               onClick={() => onGoalChange(g)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   onGoalChange(g);
+                } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                  const next = goals[(i + 1) % goals.length];
+                  onGoalChange(next);
+                } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  const prev = goals[(i - 1 + goals.length) % goals.length];
+                  onGoalChange(prev);
                 }
               }}
             >
@@ -104,7 +124,7 @@ export function ConfigStep({
             </Badge>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {/* Duration + Days Per Week */}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -115,9 +135,11 @@ export function ConfigStep({
             type="number"
             min={1}
             max={52}
+            step={1}
             value={durationWeeks}
-            onChange={(e) => onDurationChange(Math.max(1, Math.min(52, Number(e.target.value) || 1)))}
+            onChange={(e) => onDurationChange(Math.max(1, Math.min(52, Math.round(Number(e.target.value)) || 1)))}
           />
+          <p className="text-xs text-muted-foreground">Between 1 and 52 weeks</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="days-per-week">Training days per week</Label>
@@ -126,9 +148,11 @@ export function ConfigStep({
             type="number"
             min={2}
             max={7}
+            step={1}
             value={trainingDaysPerWeek}
-            onChange={(e) => onDaysChange(Math.max(2, Math.min(7, Number(e.target.value) || 2)))}
+            onChange={(e) => onDaysChange(Math.max(2, Math.min(7, Math.round(Number(e.target.value)) || 2)))}
           />
+          <p className="text-xs text-muted-foreground">Between 2 and 7 days</p>
         </div>
       </div>
 

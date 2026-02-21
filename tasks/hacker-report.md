@@ -1,4 +1,4 @@
-# Hacker Report: Macro Preset Management
+# Hacker Report: Smart Program Generator
 
 ## Date: 2026-02-21
 
@@ -7,72 +7,88 @@
 |---|----------|-----------------|---------|----------|--------|
 | -- | -- | -- | -- | -- | -- |
 
-No dead buttons found. All buttons (Add Preset, Edit, Delete, Copy, Cancel, Submit) in the Macro Presets section are correctly wired to their handlers. The empty-state "Add Preset" button correctly opens the create dialog. All three action icons on PresetCard (Copy, Edit, Delete) invoke the correct parent callbacks.
+No dead buttons found. All interactive elements in the Smart Program Generator wizard are wired and functional: split type cards, difficulty/goal badges, Generate button, Back/Next navigation, step indicator clickable navigation, retry button on error, and "Open in Builder" on preview. Mobile equivalents are similarly functional.
 
 ## Visual Misalignments & Layout Bugs
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | Low | preset-form-dialog.tsx | Native `<select>` element for Frequency looks inconsistent with shadcn/ui `<Input>` components. Browser-default styling, poor dark mode support on some browsers. | **Cannot fix now** -- project has no `@/components/ui/select` component installed. Would require adding shadcn Select. Noted for future. |
-| 2 | Low | preset-form-dialog.tsx | Native `<input type="checkbox">` for "Set as default" looks inconsistent with design system. | **Cannot fix now** -- project has no `@/components/ui/checkbox` or `@/components/ui/switch` component installed. Prior audit pass added `accent-primary` and `cursor-pointer` on label to improve appearance. |
-| 3 | Low | preset-form-dialog.tsx | Number inputs accepted decimal values (e.g., 150.5) via typing, creating confusion since the payload rounds to integers. | **Fixed** -- Added `step="1"` to all four number inputs (calories, protein, carbs, fat) to hint integer input and enable proper step behavior in browser spinners. |
+| 1 | Low | preview-step.tsx | Day name column (`w-24` / 96px) could truncate "Wednesday" on narrow mobile viewports since the text does not wrap. | **Fixed** -- Changed to `w-[5.5rem] sm:w-24` so smaller screens get a slightly wider column that prevents truncation of longer day names. |
+| 2 | Low | config-step.tsx | Duration and days-per-week number inputs had no `step` attribute, allowing decimal values (e.g., 4.5 weeks) to be typed. Browser spinners also incremented by float amounts. | **Fixed** -- Added `step={1}` to both inputs and wrapped the parsed value in `Math.round()` to guarantee integers. Added helper text ("Between 1 and 52 weeks" / "Between 2 and 7 days") for clarity. |
+| 3 | Low | exercise-picker-dialog.tsx | Difficulty filter row had no "All Levels" reset button, unlike the muscle group filter which has an "All" button. Users who selected a difficulty level had to re-click the active level to toggle it off -- not discoverable. | **Fixed** -- Added an "All Levels" button at the start of the difficulty filter row, matching the "All" button pattern in the muscle group filter. |
 
 ## Broken Flows & Logic Bugs
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 4 | Medium | Form dialog closes during pending mutation | 1. Open Create Preset dialog. 2. Fill in valid data. 3. Click "Create Preset". 4. While spinner is showing (pending), click Cancel. | Dialog should stay open until mutation completes. | **Fixed** -- Cancel button now calls `handleOpenChange(false)` (which guards against closing during pending) instead of directly calling `onOpenChange(false)`. All form inputs are disabled during pending. Cancel button is disabled during pending. |
-| 5 | Medium | Calorie-macro mismatch goes unnoticed | 1. Open Create Preset. 2. Enter protein=200, carbs=200, fat=200 (= 3400 kcal from macros). 3. Enter calories=500. 4. Submit succeeds silently. | User should be warned that calories don't match macros. | **Fixed** -- Added calorie sanity check warning that appears when entered calories differ from macro-computed calories (P*4 + C*4 + F*9) by more than 10%. Shows a non-blocking amber warning banner below the macro inputs. |
-| 6 | Low | Decimal edge case in validation | 1. Open Create Preset. 2. Enter calories=499.6. 3. Submit. | Should pass validation since Math.round(499.6) = 500, which is within range [500, 10000]. | Previously failed because validation checked `cal < 500` on the raw 499.6 value, but submit handler would round to 500. **Fixed** -- Validation now rounds before checking bounds, matching the submit handler behavior. |
-| 7 | Medium | Misleading empty state in copy dialog | 1. Click Copy on a preset. 2. Dialog opens while `useAllTrainees` is still fetching. 3. User sees "No other trainees to copy to." | Should show loading indicator while trainees load. | **Fixed** -- Added loading state with Skeleton placeholder and "Loading trainees..." text. Added Users icon for the genuine empty state. Previously showed misleading "No other trainees to copy to" while data was still loading. |
-| 8 | Low | Copy dialog select editable during mutation | 1. Open Copy dialog. 2. Select a trainee. 3. Click Copy Preset. 4. While pending, the trainee select dropdown remained editable. | Dropdown should be disabled during pending mutation. | **Fixed** -- Added `disabled={copyMutation.isPending}` to the select element with appropriate `disabled:` CSS classes. |
-| 9 | Low | Form inputs remain editable during mutation | 1. Open Create/Edit Preset dialog. 2. Fill data and submit. 3. While pending, all inputs remain editable. | Form inputs should be locked during save. | **Fixed** -- Added `disabled={isPending}` to all form inputs: name, calories, protein, carbs, fat, frequency select, and is_default checkbox. |
+| 4 | High | Stale preview data after navigating back and re-generating | 1. Go to Generate. 2. Configure and generate a program (reaches preview). 3. Click Back to go to step 1. 4. Change difficulty. 5. Click Generate again. | Old preview data should be cleared. Fresh generation should start clean. | **Before fix:** `generatedData` and `generateError` were NOT reset when navigating back from the preview step. The old preview could briefly flash before the new generation started. The step indicator's click handler had the same issue. **Fixed** -- Both `handleBack` and the step indicator's `onClick` now reset `generatedData` and `generateError` to `null` alongside `generateMutation.reset()`. |
+| 5 | Medium | Mobile: Infinite spinner when generatedData is null | 1. Navigate to preview step. 2. If the API returns an unexpected response that doesn't set `_generatedData` or `_errorMessage` (e.g., network timeout that doesn't throw a DioException). | Should show a retry option or helpful message. | **Before fix:** The preview step showed `const Center(child: CircularProgressIndicator())` forever when `_generatedData == null`, `_isGenerating == false`, and `_errorMessage == null`. **Fixed** -- Replaced with a meaningful "Waiting for program data..." message with an hourglass icon and a "Generate" retry button. |
+| 6 | Medium | Mobile: Generated program description lost during handoff to builder | 1. Generate a program. 2. Click "Open in Builder". 3. Check the builder screen. | Description from the generated program should pre-fill the builder's description field. | **Before fix:** `ProgramBuilderScreen` did not have a `templateDescription` parameter. The `_openInBuilder()` method did not pass `data['description']`. The builder always initialized `description: null`. **Fixed** -- Added `templateDescription` parameter to `ProgramBuilderScreen`. Updated `_initializeProgram()` to use `widget.templateDescription`. Updated `_openInBuilder()` in the generator to pass `templateDescription: data['description']`. |
+| 7 | Low | Web: PreviewStep returns null when data is absent | 1. Reach the preview step somehow without triggering generation (edge case). | Should show a helpful message instead of blank space. | **Before fix:** `if (!data) return null;` rendered nothing in the min-h-[300px] container. **Fixed** -- Now shows "No program data available. Go back and configure your program." with a retry button if `onRetry` is provided. |
+
+## Edge Case Analysis
+| # | Category | Scenario | Status |
+|---|----------|----------|--------|
+| 8 | Boundary | 52-week program (max duration) | **OK** -- Backend validates `max_value=52`. Web clamps to 52. Mobile slider max is 52. Backend generates all 52 weeks with progressive overload and deload cycles every 4 weeks. |
+| 9 | Boundary | 1-week program (min duration) | **OK** -- Backend validates `min_value=1`. Web clamps to 1. Mobile min is 1. No deload for programs < 4 weeks. |
+| 10 | Boundary | Custom split with 7 days (all training, no rest) | **OK** -- Backend allows `training_days_per_week=7`. The generator assigns all 7 days as training days with no rest days. However, there's no warning to the user that this means zero rest days -- noted as product suggestion. |
+| 11 | Boundary | Custom split with 0 muscle groups on a day | **OK** -- Frontend validation prevents advancement: `customDayConfig.every((d) => d.muscle_groups.length > 0)`. Error text "Select at least one muscle group" is shown. Backend also validates `min_length=1` on `muscle_groups`. |
+| 12 | Boundary | 0 exercises in database for a muscle group | **OK** -- Backend handles gracefully: `_pick_exercises_from_pool` returns `[]` when pool is empty. The generated day will have 0 exercises for that group. Preview shows "0 exercises" text. |
+| 13 | Race condition | Double-clicking the Generate button | **Mostly OK** -- The button is disabled when `generateMutation.isPending` is true. However, there's a tiny window between the click and `isPending` becoming true (React state batching). The `triggerGeneration` function uses `mutateAsync`, which returns the first call's result. The second call would queue. In practice, React 18 batching means the button disables before a second click can register in typical use. |
+| 14 | Race condition | Navigating back mid-generation | **OK** -- Web: `handleBack` resets the mutation and steps back. The pending API call will resolve but `setGeneratedData` will update state harmlessly (component is unmounted or step changed). Mobile: `mounted` check prevents setState after navigation. |
+| 15 | Data integrity | sessionStorage full when storing generated program | **OK** -- Wrapped in try/catch with `toast.error("Failed to store program data. Please try again.")`. |
+| 16 | Data integrity | Invalid JSON in sessionStorage | **OK** -- Builder's `generatedRef` parsing is wrapped in try/catch with fallback to ignore. |
+| 17 | Input | HTML/XSS in custom day label | **OK** -- Web: Input has `maxLength={50}`. Backend: `CustomDayConfigSerializer.day_name` has `max_length=50`. React renders text content safely (no `dangerouslySetInnerHTML`). |
+| 18 | Input | Extremely long program name from AI generation | **OK** -- Builder's name input has `maxLength={100}`. The generated name from backend is typically ~40 chars (e.g., "Push/Pull/Legs -- Muscle Building"). |
 
 ## Product Improvement Suggestions
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 10 | Medium | preset-form-dialog.tsx | Add calorie sanity check warning when macros don't match entered calories. | **Implemented** -- Trainers often miscalculate. The amber warning (non-blocking) surfaces the discrepancy immediately without preventing submission. Shows when the difference exceeds 10%. |
-| 11 | Medium | copy-preset-dialog.tsx | For trainers with 200+ trainees, the dropdown won't show all trainees (hard `page_size=200` limit in `useAllTrainees`). Should use a searchable combobox with server-side filtering. | **Cannot fix now** -- Requires adding a combobox/command component and potentially backend search support. The current approach works for the vast majority of trainers. |
-| 12 | Low | macro-presets-section.tsx | The `sort_order` field exists on the `MacroPreset` type but there's no drag-to-reorder UI. Presets display in whatever order the API returns. | **Cannot fix now** -- Requires a drag-and-drop library (e.g., dnd-kit) and a backend endpoint to update sort order. Future enhancement. |
-| 13 | Low | preset-form-dialog.tsx | No keyboard shortcut to quickly create a preset (e.g., Cmd+N when the presets section is focused). | **Won't fix** -- Low priority. The "Add Preset" button is easily accessible. |
-| 14 | Low | copy-preset-dialog.tsx | Copy dialog should show a summary of the preset being copied (macros, calories) as a visual confirmation before the user selects a target. | **Won't fix now** -- Nice to have but not critical. The dialog header already shows the preset name. |
-| 15 | Low | macro-presets-section.tsx | Consider adding a "Duplicate" action to quickly clone a preset for the same trainee (e.g., duplicate Training Day as "Training Day (High Carb)" and edit). Currently the only clone action is copy-to-another-trainee. | **Won't fix now** -- Would need a new backend endpoint or client-side pre-fill of the create form with existing preset data. |
+| 19 | High | Generator wizard (web + mobile) | Add a warning when user selects 7 training days per week (no rest days). Something like "No rest days scheduled. Consider reducing to 6 days for recovery." | Even advanced lifters need rest. The generator will create a valid 7-day program but trainers may not realize they're removing all rest days. |
+| 20 | Medium | Preview step (web) | Show a per-day exercise breakdown expandable accordion instead of just "3 exercises -- Bench Press, Squat, +1 more". Let the trainer see all exercises with sets/reps before opening the builder. | Currently, the trainer must open the builder to see full exercise details. Expanding the preview would reduce back-and-forth. |
+| 21 | Medium | Generator wizard (web) | Add keyboard shortcuts: Enter to advance to next step, Escape to go back. | Power users and keyboard-centric trainers would appreciate faster navigation through the wizard. |
+| 22 | Low | Mobile preview step | Show nutrition template data in the preview (currently only shown on web). The mobile preview only shows the weekly schedule. | Parity between web and mobile. Trainers on mobile miss the nutrition preview. |
+| 23 | Low | Exercise picker dialog (web) | Add pagination or infinite scroll for the exercise list. Currently capped at `page_size=100`, with a message "Showing 100 of X exercises. Refine your search to see more." | Trainers with large custom exercise libraries may not find what they need in the first 100 results. |
+| 24 | Low | Programs page (mobile) | The "Generate with AI" option is buried inside the create program dialog. Consider adding a prominent card or FAB action on the main programs screen like the web version has. | Web has a clear "Generate with AI" button in the page header. Mobile requires tapping "+" then finding the option. |
 
-## Accessibility Fixes Applied (by this audit + prior audit pass)
-- All form error messages have `id` attributes and are linked to their inputs via `aria-describedby`.
-- Error messages use `role="alert"` for screen reader announcement.
-- Select element has `aria-label="Preset frequency per week"`.
-- Copy dialog select has `aria-label="Select target trainee for preset copy"`.
-- Delete dialog uses `role="alertdialog"` with `aria-describedby`.
-- Checkbox label has `cursor-pointer` for visual affordance.
+## Accessibility Fixes Applied
+- Config step: `step={1}` added to number inputs for proper keyboard step behavior.
+- Custom day config: Muscle group badges already had `role="checkbox"`, `aria-checked`, `tabIndex={0}`, and `onKeyDown` (applied by prior audit).
+- Config step: Difficulty and goal badges already had `role="radio"`, `aria-checked`, `tabIndex`, and arrow key navigation (applied by prior audit).
+- Preview step: Skeleton loading state already had `role="status"`, `aria-label`, and `sr-only` text (applied by prior audit).
+- Exercise picker dialog: Loading skeletons already had `role="status"` and `aria-label` (applied by prior audit).
 
 ## Summary
 - Dead UI elements found: 0
-- Visual bugs found: 3 (1 fixed, 2 require missing UI components)
-- Logic bugs found: 6 (all 6 fixed)
-- Improvements suggested: 6 (1 implemented, 5 deferred)
+- Visual bugs found: 3 (all 3 fixed)
+- Logic bugs found: 4 (all 4 fixed)
+- Edge cases verified: 11 (all pass or noted)
+- Improvements suggested: 6 (all deferred -- require design decisions or significant changes)
 - Items fixed by hacker: 7
 
 ### Files Changed
-1. **`web/src/components/trainees/preset-form-dialog.tsx`**
-   - Added `useMemo` import and `AlertTriangle` icon import
-   - Added `computedCalories()` helper function for macro-to-calorie calculation
-   - Added `calorieMismatchWarning` memo for calorie sanity check (>10% difference triggers amber warning)
-   - Fixed validation to round before checking bounds (decimal edge case: 499.6 rounds to 500)
-   - Added `step="1"` to all four number inputs (calories, protein, carbs, fat)
-   - Added `disabled={isPending}` to all form inputs (name, calories, protein, carbs, fat, frequency select, is_default checkbox)
-   - Added `disabled:cursor-not-allowed disabled:opacity-50` classes to select and checkbox
-   - Changed Cancel button to use `handleOpenChange(false)` instead of direct `onOpenChange(false)`
-   - Added `disabled={isPending}` to Cancel button
-   - Added calorie mismatch warning banner (amber, non-blocking, dark-mode aware)
+1. **`web/src/components/programs/program-generator-wizard.tsx`**
+   - `handleBack`: Added `setGeneratedData(null)` and `setGenerateError(null)` when leaving preview step.
+   - Step indicator `onClick`: Added same generation state reset.
 
-2. **`web/src/components/trainees/copy-preset-dialog.tsx`**
-   - Added `Users` icon and `Skeleton` component imports
-   - Extracted `isLoading: isLoadingTrainees` from `useAllTrainees()`
-   - Added loading state (Skeleton + "Loading trainees..." text) shown while trainees are fetching
-   - Improved empty state with `Users` icon and centered layout
-   - Added `disabled={copyMutation.isPending}` to trainee select dropdown
-   - Added `disabled:cursor-not-allowed disabled:opacity-50` classes to select
-   - Added `isLoadingTrainees` to submit button disabled condition
+2. **`web/src/components/programs/generator/config-step.tsx`**
+   - Added `step={1}` to both duration and days-per-week number inputs.
+   - Added `Math.round()` to onChange handlers for both inputs.
+   - Added helper text below each input ("Between 1 and 52 weeks" / "Between 2 and 7 days").
+
+3. **`web/src/components/programs/generator/preview-step.tsx`**
+   - Changed `if (!data) return null` to show a meaningful fallback message with retry button.
+   - Adjusted day name column width from fixed `w-24` to responsive `w-[5.5rem] sm:w-24`.
+
+4. **`web/src/components/programs/exercise-picker-dialog.tsx`**
+   - Added "All Levels" reset button at the start of the difficulty filter row.
+
+5. **`mobile/lib/features/programs/presentation/screens/program_generator_screen.dart`**
+   - Replaced infinite `CircularProgressIndicator` fallback with informative "Waiting for program data..." message and retry button.
+   - Added `templateDescription` parameter to `_openInBuilder()` call.
+
+6. **`mobile/lib/features/programs/presentation/screens/program_builder_screen.dart`**
+   - Added `templateDescription` parameter to `ProgramBuilderScreen`.
+   - Updated both `_initializeProgram()` paths to use `widget.templateDescription` instead of hardcoded `null`.
 
 ## Chaos Score: 8/10
 
-The Macro Preset Management feature is well-built overall. The main issues were around mutation lifecycle handling (dialog closing during pending, form input mutability during saves) and a missing loading state in the copy dialog that caused a misleading empty state. The calorie sanity check is a significant product improvement that will save trainers from common data entry mistakes. The remaining issues (native select/checkbox styling, drag-to-reorder, 200-trainee pagination limit) are real but low-severity and require infrastructure changes (installing new UI components or libraries) to fix properly.
+The Smart Program Generator is solidly built across web, mobile, and backend. The most significant issues were: (1) stale preview data persisting when navigating back and re-generating (users could see a flash of old data), (2) the mobile preview showing an infinite spinner in a null-data edge case, and (3) the generated program description being silently dropped during the mobile generator-to-builder handoff. All critical and medium issues have been fixed. The backend program generator service is well-architected with single-query prefetching, progressive overload logic, deload week scheduling, and proper dataclass returns. The remaining suggestions (7-day warning, mobile nutrition preview, exercise pagination) are product-level enhancements that don't block shipping.

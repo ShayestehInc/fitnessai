@@ -136,6 +136,15 @@ export function ExercisePickerDialog({
           </div>
 
           <div className="flex flex-wrap gap-1.5">
+            <Button
+              type="button"
+              variant={selectedDifficulty === "" ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setSelectedDifficulty("")}
+            >
+              All Levels
+            </Button>
             {Object.values(DifficultyLevel).map((level) => (
               <Button
                 key={level}

@@ -23,7 +23,7 @@ export function PreviewStep({ data, isLoading, error, onRetry }: PreviewStepProp
 
   if (error) {
     return (
-      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6 text-center">
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6 text-center" role="alert" aria-live="assertive">
         <p className="font-medium text-destructive">Generation failed</p>
         <p className="mt-1 text-sm text-muted-foreground">{error}</p>
         {onRetry && (
@@ -40,7 +40,22 @@ export function PreviewStep({ data, isLoading, error, onRetry }: PreviewStepProp
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="flex min-h-[200px] items-center justify-center text-center">
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            No program data available. Go back and configure your program.
+          </p>
+          {onRetry && (
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              Try Again
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const weeks = data.schedule?.weeks ?? [];
   const firstWeek = weeks[0];
@@ -91,7 +106,7 @@ export function PreviewStep({ data, isLoading, error, onRetry }: PreviewStepProp
         <CardContent className="space-y-3">
           {firstWeek?.days?.map((day) => (
             <div key={day.day} className="flex items-start gap-3">
-              <span className="w-24 shrink-0 text-sm font-medium text-muted-foreground">
+              <span className="w-[5.5rem] shrink-0 text-sm font-medium text-muted-foreground sm:w-24">
                 {day.day}
               </span>
               {day.is_rest_day ? (
@@ -163,16 +178,16 @@ function NutritionDayCard({
   data: { calories: number; protein: number; carbs: number; fat: number };
 }) {
   return (
-    <div className="rounded-md border p-3 space-y-1">
+    <div className="rounded-md border p-3 space-y-1" aria-label={`${label} nutrition`}>
       <span className="text-sm font-medium">{label}</span>
       <div className="flex items-center gap-1 text-sm">
         <Flame className="h-3 w-3 text-orange-500" aria-hidden="true" />
         <span>{data.calories} cal</span>
       </div>
       <div className="flex gap-3 text-xs text-muted-foreground">
-        <span>P: {data.protein}g</span>
-        <span>C: {data.carbs}g</span>
-        <span>F: {data.fat}g</span>
+        <span aria-label={`Protein: ${data.protein} grams`}>P: {data.protein}g</span>
+        <span aria-label={`Carbs: ${data.carbs} grams`}>C: {data.carbs}g</span>
+        <span aria-label={`Fat: ${data.fat} grams`}>F: {data.fat}g</span>
       </div>
     </div>
   );
@@ -180,8 +195,11 @@ function NutritionDayCard({
 
 function PreviewSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="status" aria-label="Generating program">
       <h3 className="text-lg font-semibold">Generating your program...</h3>
+      <p className="text-sm text-muted-foreground">
+        Selecting exercises and building your schedule. This may take a few seconds.
+      </p>
       <Card>
         <CardContent className="space-y-3 p-6">
           <Skeleton className="h-5 w-3/4" />
@@ -203,6 +221,7 @@ function PreviewSkeleton() {
           ))}
         </CardContent>
       </Card>
+      <span className="sr-only">Generating your program, please wait...</span>
     </div>
   );
 }

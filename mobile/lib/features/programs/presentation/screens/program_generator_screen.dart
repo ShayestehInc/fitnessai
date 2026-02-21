@@ -172,6 +172,7 @@ class _ProgramGeneratorScreenState
       MaterialPageRoute(
         builder: (context) => ProgramBuilderScreen(
           templateName: data['name'] as String? ?? 'Generated Program',
+          templateDescription: data['description'] as String?,
           durationWeeks: data['duration_weeks'] as int? ?? _durationWeeks,
           difficulty: data['difficulty_level'] as String? ?? _difficulty,
           goal: data['goal_type'] as String? ?? _goal,
@@ -348,13 +349,17 @@ class _ProgramGeneratorScreenState
                   ? () => setState(() => _durationWeeks--)
                   : null,
               icon: const Icon(Icons.remove_circle_outline),
+              tooltip: 'Decrease duration',
             ),
             Expanded(
               child: Center(
-                child: Text(
-                  '$_durationWeeks weeks',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                child: Semantics(
+                  label: 'Program duration: $_durationWeeks weeks',
+                  child: Text(
+                    '$_durationWeeks weeks',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -364,6 +369,7 @@ class _ProgramGeneratorScreenState
                   ? () => setState(() => _durationWeeks++)
                   : null,
               icon: const Icon(Icons.add_circle_outline),
+              tooltip: 'Increase duration',
             ),
           ],
         ),
@@ -398,13 +404,17 @@ class _ProgramGeneratorScreenState
                     }
                   : null,
               icon: const Icon(Icons.remove_circle_outline),
+              tooltip: 'Decrease training days',
             ),
             Expanded(
               child: Center(
-                child: Text(
-                  '$_trainingDaysPerWeek days',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                child: Semantics(
+                  label: 'Training days per week: $_trainingDaysPerWeek',
+                  child: Text(
+                    '$_trainingDaysPerWeek days',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -417,6 +427,7 @@ class _ProgramGeneratorScreenState
                     }
                   : null,
               icon: const Icon(Icons.add_circle_outline),
+              tooltip: 'Increase training days',
             ),
           ],
         ),
@@ -523,7 +534,38 @@ class _ProgramGeneratorScreenState
     }
 
     if (_generatedData == null) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.hourglass_empty,
+                size: 48,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Waiting for program data...',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Go back and try generating again.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _generateProgram,
+                child: const Text('Generate'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     final data = _generatedData!;

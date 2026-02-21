@@ -766,10 +766,20 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     });
   }
 
+  /// Parse a reps string (e.g. "8-10" or "12") to an int for the editor.
+  /// For range strings, uses the high end of the range.
+  int _parseRepsToInt(String reps) {
+    if (reps.contains('-')) {
+      final parts = reps.split('-');
+      return int.tryParse(parts.last.trim()) ?? 10;
+    }
+    return int.tryParse(reps) ?? 10;
+  }
+
   void _showEditExerciseDialog(BuildContext context, WorkoutExercise exercise, int index) {
     final theme = Theme.of(context);
     int sets = exercise.sets;
-    int reps = exercise.reps;
+    int reps = _parseRepsToInt(exercise.reps);
     int restSeconds = exercise.restSeconds ?? 60;
 
     showModalBottomSheet(
@@ -952,12 +962,13 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
   }
 
   void _updateExercise(int index, int sets, int reps, int restSeconds) {
+    final repsStr = reps.toString();
     setState(() {
       final day = _week.days[_selectedDayIndex];
       final updatedExercises = List<WorkoutExercise>.from(day.exercises);
       updatedExercises[index] = updatedExercises[index].copyWith(
         sets: sets,
-        reps: reps,
+        reps: repsStr,
         restSeconds: restSeconds,
       );
 

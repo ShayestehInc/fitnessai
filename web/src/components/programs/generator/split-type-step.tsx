@@ -33,19 +33,24 @@ export function SplitTypeStep({ value, onChange }: SplitTypeStepProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Choose a split type</h3>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div>
+        <h3 className="text-lg font-semibold">Choose a split type</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          This determines how muscle groups are distributed across training days.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup" aria-label="Split type options">
         {splits.map((split) => {
           const Icon = SPLIT_ICONS[split];
           const selected = value === split;
           return (
             <Card
               key={split}
-              role="button"
+              role="radio"
               tabIndex={0}
-              aria-pressed={selected}
+              aria-checked={selected}
               className={cn(
-                "cursor-pointer transition-all hover:border-primary/50",
+                "cursor-pointer transition-all hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 selected && "border-primary ring-2 ring-primary/20",
               )}
               onClick={() => onChange(split)}

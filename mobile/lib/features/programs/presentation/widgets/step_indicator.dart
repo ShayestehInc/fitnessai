@@ -39,43 +39,52 @@ class StepIndicator extends StatelessWidget {
           final isActive = step == currentStep;
           final isCompleted = step < currentStep;
 
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: isCompleted || isActive
-                      ? colorScheme.primary
-                      : colorScheme.surfaceContainerHighest,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: isCompleted
-                    ? Icon(Icons.check, size: 16, color: colorScheme.onPrimary)
-                    : Text(
-                        '${step + 1}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: isActive
-                              ? colorScheme.onPrimary
-                              : colorScheme.onSurfaceVariant,
+          final statusLabel = isCompleted
+              ? '${labels[step]}, completed'
+              : isActive
+                  ? '${labels[step]}, current step'
+                  : '${labels[step]}, upcoming';
+
+          return Semantics(
+            label: 'Step ${step + 1} of $totalSteps: $statusLabel',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: isCompleted || isActive
+                        ? colorScheme.primary
+                        : colorScheme.surfaceContainerHighest,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: isCompleted
+                      ? Icon(Icons.check, size: 16, color: colorScheme.onPrimary)
+                      : Text(
+                          '${step + 1}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isActive
+                                ? colorScheme.onPrimary
+                                : colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                labels[step],
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: isActive || isCompleted
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  labels[step],
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: isActive || isCompleted
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
           );
         }),
       ),

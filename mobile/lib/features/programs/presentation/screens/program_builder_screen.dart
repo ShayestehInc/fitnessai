@@ -10,6 +10,7 @@ import 'week_editor_screen.dart';
 class ProgramBuilderScreen extends ConsumerStatefulWidget {
   final int? traineeId;
   final String? templateName;
+  final String? templateDescription;
   final int? durationWeeks;
   final String? difficulty;
   final String? goal;
@@ -26,6 +27,7 @@ class ProgramBuilderScreen extends ConsumerStatefulWidget {
     super.key,
     this.traineeId,
     this.templateName,
+    this.templateDescription,
     this.durationWeeks,
     this.difficulty,
     this.goal,
@@ -57,7 +59,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     if (widget.existingWeeks != null && widget.existingWeeks!.isNotEmpty) {
       _programState = ProgramBuilderState(
         name: widget.templateName ?? 'Custom Program',
-        description: null,
+        description: widget.templateDescription,
         difficulty: widget.difficulty ?? 'intermediate',
         goal: widget.goal ?? 'build_muscle',
         durationWeeks: widget.existingWeeks!.length,
@@ -94,7 +96,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
 
     _programState = ProgramBuilderState(
       name: widget.templateName ?? 'Custom Program',
-      description: null,
+      description: widget.templateDescription,
       difficulty: widget.difficulty ?? 'intermediate',
       goal: widget.goal ?? 'build_muscle',
       durationWeeks: weekCount,
@@ -660,7 +662,8 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     final theme = Theme.of(context);
     // Apply modifiers for deload weeks
     final adjustedSets = (exercise.sets * week.volumeModifier).round();
-    final adjustedReps = (exercise.reps * week.intensityModifier).round();
+    // Reps can be a range string ("8-10") — display as-is for deload, scale otherwise
+    final adjustedReps = _adjustRepsDisplay(exercise.reps, week.intensityModifier);
     final isInSuperset = exercise.isInSuperset;
 
     return Container(
@@ -789,7 +792,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   void _showEditExerciseDialog(WorkoutExercise exercise, int dayIndex) {
     final theme = Theme.of(context);
     int sets = exercise.sets;
-    int reps = exercise.reps;
+    int reps = _parseRepsToInt(exercise.reps);
     int restSeconds = exercise.restSeconds ?? 60;
 
     showModalBottomSheet(
@@ -1012,6 +1015,38 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       return '${mins}m ${secs}s';
     }
     return '${seconds}s';
+  }
+
+  /// Parse a reps string (e.g. "8-10" or "12") to an int for the slider.
+  /// For range strings, uses the high end of the range.
+  int _parseRepsToInt(String reps) {
+    if (reps.contains('-')) {
+      final parts = reps.split('-');
+      return int.tryParse(parts.last.trim()) ?? 10;
+    }
+    return int.tryParse(reps) ?? 10;
+  }
+
+  /// Format reps for display, preserving range strings from the generator.
+  /// When intensity modifier is not 1.0 (e.g. deload), displays the modified value.
+  String _adjustRepsDisplay(String reps, double intensityModifier) {
+    if (intensityModifier == 1.0) return reps;
+    // For deload or modified intensity, scale numeric values
+    if (reps.contains('-')) {
+      final parts = reps.split('-');
+      final low = int.tryParse(parts.first.trim());
+      final high = int.tryParse(parts.last.trim());
+      if (low != null && high != null) {
+        final adjLow = (low * intensityModifier).round();
+        final adjHigh = (high * intensityModifier).round();
+        return '$adjLow-$adjHigh';
+      }
+    }
+    final numericReps = int.tryParse(reps);
+    if (numericReps != null) {
+      return (numericReps * intensityModifier).round().toString();
+    }
+    return reps;
   }
 
   // Exercise library for selection
@@ -1331,6 +1366,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   }
 
   void _applyToThisWeek(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
+    final repsStr = reps.toString();
     setState(() {
       final weekIndex = _selectedWeekIndex;
       final updatedWeeks = List<ProgramWeek>.from(_programState.weeks);
@@ -1339,7 +1375,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       final updatedDays = week.days.map((day) {
         final updatedExercises = day.exercises.map((e) {
           if (e.exerciseId == exercise.exerciseId) {
-            return e.copyWith(sets: sets, reps: reps, restSeconds: restSeconds);
+            return e.copyWith(sets: sets, reps: repsStr, restSeconds: restSeconds);
           }
           return e;
         }).toList();
@@ -1356,12 +1392,13 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   }
 
   void _applyToAllWeeks(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
+    final repsStr = reps.toString();
     setState(() {
       final updatedWeeks = _programState.weeks.map((week) {
         final updatedDays = week.days.map((day) {
           final updatedExercises = day.exercises.map((e) {
             if (e.exerciseId == exercise.exerciseId) {
-              return e.copyWith(sets: sets, reps: reps, restSeconds: restSeconds);
+              return e.copyWith(sets: sets, reps: repsStr, restSeconds: restSeconds);
             }
             return e;
           }).toList();
@@ -1399,10 +1436,11 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           weekSets = (weekSets * 0.6).round();
         }
 
+        final weekRepsStr = weekReps.toString();
         final updatedDays = week.days.map((day) {
           final updatedExercises = day.exercises.map((e) {
             if (e.exerciseId == exercise.exerciseId) {
-              return e.copyWith(sets: weekSets, reps: weekReps, restSeconds: restSeconds);
+              return e.copyWith(sets: weekSets, reps: weekRepsStr, restSeconds: restSeconds);
             }
             return e;
           }).toList();

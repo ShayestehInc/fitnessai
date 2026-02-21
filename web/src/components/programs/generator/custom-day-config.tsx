@@ -91,7 +91,7 @@ export function CustomDayConfigurator({
             maxLength={50}
             aria-label={`Day ${i + 1} name`}
           />
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Muscle groups for ${day.label || `Day ${i + 1}`}`}>
             {SELECTABLE_GROUPS.map((mg) => {
               const selected = day.muscle_groups.includes(mg);
               return (
@@ -99,10 +99,20 @@ export function CustomDayConfigurator({
                   key={mg}
                   variant={selected ? "default" : "outline"}
                   className={cn(
-                    "cursor-pointer text-xs",
+                    "cursor-pointer text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                     selected && "ring-1 ring-primary/20",
                   )}
+                  role="checkbox"
+                  aria-checked={selected}
+                  aria-label={`${MUSCLE_GROUP_LABELS[mg]}${selected ? " (selected)" : ""}`}
+                  tabIndex={0}
                   onClick={() => toggleMuscleGroup(i, mg)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleMuscleGroup(i, mg);
+                    }
+                  }}
                 >
                   {MUSCLE_GROUP_LABELS[mg]}
                 </Badge>
