@@ -14,7 +14,7 @@ final programTemplatesProvider = FutureProvider.autoDispose<List<ProgramTemplate
   if (result['success']) {
     return result['data'] as List<ProgramTemplateModel>;
   }
-  return [];
+  throw Exception(result['error'] ?? 'Failed to load program templates');
 });
 
 final traineeProgramsProvider = FutureProvider.autoDispose.family<List<TraineeProgramModel>, int>((ref, traineeId) async {
@@ -23,7 +23,7 @@ final traineeProgramsProvider = FutureProvider.autoDispose.family<List<TraineePr
   if (result['success']) {
     return result['data'] as List<TraineeProgramModel>;
   }
-  return [];
+  throw Exception(result['error'] ?? 'Failed to load trainee programs');
 });
 
 /// All programs created by the trainer (assigned to their trainees)
@@ -33,7 +33,7 @@ final trainerProgramsProvider = FutureProvider.autoDispose<List<TraineeProgramMo
   if (result['success']) {
     return result['data'] as List<TraineeProgramModel>;
   }
-  return [];
+  throw Exception(result['error'] ?? 'Failed to load trainer programs');
 });
 
 /// Trainer's custom templates (non-public)
@@ -43,5 +43,5 @@ final myTemplatesProvider = FutureProvider.autoDispose<List<ProgramTemplateModel
   if (result['success']) {
     return result['data'] as List<ProgramTemplateModel>;
   }
-  return [];
+  throw Exception(result['error'] ?? 'Failed to load templates');
 });

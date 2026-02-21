@@ -45,5 +45,5 @@ class ExerciseFilter {
           difficultyLevel == other.difficultyLevel;
 
   @override
-  int get hashCode => muscleGroup.hashCode ^ equipment.hashCode ^ search.hashCode ^ difficultyLevel.hashCode;
+  int get hashCode => Object.hash(muscleGroup, equipment, search, difficultyLevel);
 }

@@ -12,7 +12,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 
 from workouts.models import Exercise
 
@@ -297,42 +297,6 @@ def _is_compound(exercise: Exercise) -> bool:
             return True
     return False
 
-
-def _get_exercises_for_muscle_group(
-    muscle_group: str,
-    difficulty: DifficultyLevel,
-    trainer_id: int | None,
-) -> QuerySet[Exercise]:
-    """
-    Fetch exercises matching muscle_group and difficulty.
-    Includes trainer's custom exercises alongside public ones.
-    Falls back to adjacent difficulty levels if not enough.
-    """
-    privacy_q = Q(is_public=True)
-    if trainer_id:
-        privacy_q |= Q(created_by_id=trainer_id)
-    base_q = Q(muscle_group=muscle_group) & privacy_q
-
-    # Primary: exact difficulty match
-    primary = Exercise.objects.filter(base_q & Q(difficulty_level=difficulty))
-    if primary.count() >= 3:
-        return primary
-
-    # Fallback: expand to adjacent difficulty
-    adjacent_map: dict[DifficultyLevel, list[str]] = {
-        'beginner': ['intermediate'],
-        'intermediate': ['beginner', 'advanced'],
-        'advanced': ['intermediate'],
-    }
-
-    expanded = Exercise.objects.filter(
-        base_q & Q(difficulty_level__in=[difficulty] + adjacent_map.get(difficulty, []))
-    )
-    if expanded.exists():
-        return expanded
-
-    # Last resort: any difficulty
-    return Exercise.objects.filter(base_q).exclude(difficulty_level__isnull=True)
 
 
 def _pick_exercises_from_pool(
