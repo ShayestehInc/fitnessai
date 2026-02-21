@@ -57,6 +57,11 @@ export const API_URLS = {
   ANALYTICS_PROGRESS: `${API_BASE}/api/trainer/analytics/progress/`,
   ANALYTICS_REVENUE: `${API_BASE}/api/trainer/analytics/revenue/`,
 
+  // CSV Exports
+  EXPORT_PAYMENTS: `${API_BASE}/api/trainer/export/payments/`,
+  EXPORT_SUBSCRIBERS: `${API_BASE}/api/trainer/export/subscribers/`,
+  EXPORT_TRAINEES: `${API_BASE}/api/trainer/export/trainees/`,
+
   // Programs & Exercises
   PROGRAM_TEMPLATES: `${API_BASE}/api/trainer/program-templates/`,
   programTemplateDetail: (id: number) =>
