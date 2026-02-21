@@ -238,6 +238,14 @@ export const API_URLS = {
   TRAINEE_NUTRITION_SUMMARY: `${API_BASE}/api/workouts/daily-logs/nutrition-summary/`,
   TRAINEE_WEIGHT_CHECKINS: `${API_BASE}/api/workouts/weight-checkins/`,
 
+  // Macro Presets
+  MACRO_PRESETS: `${API_BASE}/api/workouts/macro-presets/`,
+  macroPresetDetail: (id: number) =>
+    `${API_BASE}/api/workouts/macro-presets/${id}/`,
+  macroPresetCopyTo: (id: number) =>
+    `${API_BASE}/api/workouts/macro-presets/${id}/copy_to/`,
+  MACRO_PRESETS_ALL: `${API_BASE}/api/workouts/macro-presets/all_presets/`,
+
   // WebSocket
   wsMessaging: (conversationId: number) =>
     `${WS_BASE}/ws/messaging/${conversationId}/`,

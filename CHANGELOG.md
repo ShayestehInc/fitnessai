@@ -4,6 +4,24 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-21] — Macro Preset Management for Web Trainer Dashboard (Pipeline 30)
+
+### Added
+- **Macro presets section** on trainee detail Overview tab — trainers can create, edit, delete, and copy nutrition presets (e.g. Training Day, Rest Day) per trainee. Responsive card grid with name, 4 macro values, frequency badge, default star icon.
+- **React Query hooks** (`web/src/hooks/use-macro-presets.ts`) — 5 hooks: `useMacroPresets` (query with 5min staleTime), `useCreateMacroPreset`, `useUpdateMacroPreset`, `useDeleteMacroPreset`, `useCopyMacroPreset` (all with proper cache invalidation).
+- **Preset form dialog** (`web/src/components/trainees/preset-form-dialog.tsx`) — Reusable create/edit dialog with name, calories, protein, carbs, fat fields. Frequency selector (1-7x/week). Default checkbox. Client-side validation matching backend rules. `Math.round()` on all numeric values. Calorie mismatch warning when macros don't add up.
+- **Copy preset dialog** (`web/src/components/trainees/copy-preset-dialog.tsx`) — Copy preset to another trainee with trainee selector dropdown. Memoized trainee filter, loading skeleton, empty state.
+- **Delete confirmation** with `role="alertdialog"`, pointer/escape dismissal prevention during pending mutation.
+- **Full accessibility** — `aria-describedby` on all validation errors, `role="alert"` on error messages, `aria-label` on all action buttons, `sr-only` text for default preset star icon, `aria-busy` on loading skeleton.
+- **4 URL constants** — `MACRO_PRESETS`, `macroPresetDetail(id)`, `macroPresetCopyTo(id)`, `MACRO_PRESETS_ALL`.
+- **`MacroPreset` TypeScript interface** with all 16 fields matching the API response.
+
+### Changed
+- Trainee Overview tab layout wrapped in outer `space-y-6` container to accommodate full-width Macro Presets section below the 2-column grid.
+- `PresetCard` extracted to separate file for component separation (architecture audit).
+
+---
+
 ## [2026-02-21] — CSV Data Export for Trainer Dashboard (Pipeline 29)
 
 ### Added

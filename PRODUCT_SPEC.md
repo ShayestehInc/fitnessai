@@ -217,6 +217,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Dashboard trend indicators | ✅ Done | Shipped 2026-02-19: StatCard with TrendingUp/TrendingDown icons |
 | Error/empty states (web) | ✅ Done | Shipped 2026-02-19: ErrorState with retry, EmptyState with contextual icons and action CTAs |
 | E2E test suite (Playwright) | ✅ Done | Shipped 2026-02-19: 19 test files, 5 browser targets, auth/trainer/admin/ambassador/responsive/dark mode coverage |
+| Macro preset management (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 30): CRUD presets per trainee, copy-to-trainee, default toggle, calorie mismatch warning, full a11y |
 
 ### 3.10 Social & Community
 | Feature | Status | Notes |
@@ -864,6 +865,7 @@ Full-stack message search across all conversations with backend API, web dashboa
 - ~~Message search~~ ✅ Completed 2026-02-20 (Pipeline 24)
 - ~~Advanced analytics and reporting~~ ✅ Completed 2026-02-20 (Pipeline 26 — calorie goal + trend chart; Pipeline 28 — trainer revenue analytics)
 - ~~CSV data export~~ ✅ Completed 2026-02-21 (Pipeline 29 — trainer payments, subscribers, trainees as CSV)
+- ~~Macro preset management (web dashboard)~~ ✅ Completed 2026-02-21 (Pipeline 30 — CRUD presets per trainee, copy-to-trainee, default toggle)
 - Multi-language support
 - Social auth (Apple/Google) mobile integration
 - ~~Full impersonation token swap (web dashboard)~~ ✅ Completed 2026-02-20 (Pipeline 27 — trainer→trainee token swap, read-only trainee view page, impersonation banner)

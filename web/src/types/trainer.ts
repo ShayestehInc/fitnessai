@@ -77,3 +77,21 @@ export interface DashboardOverview {
   inactive_trainees: TraineeListItem[];
   today: string;
 }
+
+export interface MacroPreset {
+  id: number;
+  trainee: number;
+  trainee_email: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  frequency_per_week: number | null;
+  is_default: boolean;
+  sort_order: number;
+  created_by: number | null;
+  created_by_email: string | null;
+  created_at: string;
+  updated_at: string;
+}

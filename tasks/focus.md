@@ -1,25 +1,27 @@
-# Pipeline 29 Focus: CSV Data Export for Trainer Dashboard
+# Pipeline 30 Focus: Macro Preset Management for Web Trainer Dashboard
 
 ## Priority
-Add CSV export capabilities to the trainer web dashboard so trainers can download their payment history, subscriber list, and trainee roster for bookkeeping, tax filing, and business planning.
+Add macro preset management to the web trainer dashboard so trainers can create, edit, delete, and copy nutrition presets for their trainees directly from the trainee detail page.
 
 ## Why This Feature
-1. **Trainers need to export financial data** — For tax filing, accountant handoff, and business records, trainers need downloadable CSV files of their payment and subscriber data.
-2. **Data is visible but not extractable** — Pipeline 28 added the Revenue Analytics section showing payments and subscribers, but there's no way to download that data.
-3. **Zero export functionality exists** — The entire platform has no CSV/file export capability anywhere. This is a first.
-4. **Commonly requested in business SaaS** — Every financial dashboard needs an export button. This is table-stakes for a business tool.
-5. **Moderate complexity** — Backend CSV generation + 3 export endpoints + frontend download buttons following established patterns.
+1. **Backend is fully built, web has zero UI** — The MacroPreset model, ViewSet with full CRUD, copy-to-trainee, and all-presets endpoints are fully implemented and tested. Mobile has a complete UI. The web dashboard has nothing.
+2. **Trainers manage trainees on the web** — The web dashboard is the primary tool for trainee management. Trainers can already edit nutrition goals per-trainee, but cannot create or manage macro presets (Training Day, Rest Day, etc.).
+3. **High workflow impact** — Trainers with 20+ trainees need presets to avoid manually entering macros for every trainee. Copy-to-trainee saves even more time.
+4. **Completes the nutrition management gap** — The gap analysis identified this as the #1 missing feature on the web dashboard.
+5. **Frontend-only work** — All API endpoints exist. This is purely a web frontend feature, following established patterns.
 
 ## Scope
-- Backend: New CSV export service with Django's csv module
-- Backend: 3 export endpoints: payments, subscribers, trainees
-- Web: Reusable ExportButton component with download handler
-- Web: Export buttons on Revenue section (payments + subscribers) and Trainee list page
-- Tests: Comprehensive backend tests for export endpoints
+- Web: Macro presets section in trainee detail Overview tab
+- Web: Create/edit preset dialog with validation
+- Web: Delete preset with confirmation
+- Web: Copy preset to another trainee dialog
+- Web: Set-as-default toggle
+- Web: React Query hooks for all CRUD operations
+- Web: URL constants for macro preset endpoints
 
 ## What NOT to build
-- Ambassador export (future pipeline)
-- Admin-level bulk export
-- PDF reports or formatted reports
-- Mobile export
-- Email delivery of reports
+- Backend changes (API is complete)
+- Dedicated /macro-presets/ page (future enhancement)
+- Bulk preset management across all trainees
+- Mobile changes
+- Preset templates library (global presets)

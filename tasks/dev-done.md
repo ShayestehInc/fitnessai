@@ -1,47 +1,45 @@
-# Dev Done: CSV Data Export for Trainer Dashboard
+# Dev Done: Macro Preset Management for Web Trainer Dashboard
 
 ## Date
 2026-02-21
 
 ## Summary
-Implemented CSV export functionality for the trainer web dashboard with three export endpoints (payments, subscribers, trainees), a reusable frontend ExportButton component, and comprehensive tests.
+Added macro preset management UI to the trainer web dashboard. Trainers can now create, edit, delete, and copy nutrition presets (e.g. Training Day, Rest Day) for their trainees directly from the trainee detail page. This is a frontend-only feature — all backend APIs already existed.
 
 ## Files Created
-- `backend/trainer/services/export_service.py` — Export service with three functions returning frozen CsvExportResult dataclasses. Uses Python csv module with StringIO buffer.
-- `backend/trainer/export_views.py` — Three API views (PaymentExportView, SubscriberExportView, TraineeExportView) returning HttpResponse with CSV content-type and Content-Disposition headers.
-- `backend/trainer/tests/test_export.py` — 39 comprehensive tests covering auth, response format, data correctness, row-level security, period filtering, edge cases, and special characters.
-- `web/src/components/shared/export-button.tsx` — Reusable ExportButton component with blob download, loading state, error toast, and accessibility.
+- `web/src/hooks/use-macro-presets.ts` — 5 hooks: `useMacroPresets` (query), `useCreateMacroPreset`, `useUpdateMacroPreset`, `useDeleteMacroPreset`, `useCopyMacroPreset` (mutations). All use React Query with proper query invalidation.
+- `web/src/components/trainees/macro-presets-section.tsx` — Main section component with preset cards grid, empty state, loading skeleton, error state with retry, and delete confirmation dialog. Sub-components: `PresetCard`, `MacroCell`, `PresetsSkeleton`.
+- `web/src/components/trainees/preset-form-dialog.tsx` — Reusable create/edit dialog with name, calories, protein, carbs, fat fields, frequency selector, and is-default checkbox. Client-side validation matching backend rules.
+- `web/src/components/trainees/copy-preset-dialog.tsx` — Copy-to-trainee dialog with trainee selector dropdown (excludes current trainee). Uses `useAllTrainees()` hook.
 
 ## Files Modified
-- `backend/trainer/urls.py` — Added three URL patterns under `export/` prefix.
-- `web/src/lib/constants.ts` — Added EXPORT_PAYMENTS, EXPORT_SUBSCRIBERS, EXPORT_TRAINEES URL constants.
-- `web/src/components/analytics/revenue-section.tsx` — Added Export Payments and Export Subscribers buttons in header, respecting period selector.
-- `web/src/app/(dashboard)/trainees/page.tsx` — Added Export CSV button in page header next to Invite Trainee button.
+- `web/src/types/trainer.ts` — Added `MacroPreset` interface with all 14 fields matching the API response.
+- `web/src/lib/constants.ts` — Added 4 URL constants: `MACRO_PRESETS`, `macroPresetDetail(id)`, `macroPresetCopyTo(id)`, `MACRO_PRESETS_ALL`.
+- `web/src/components/trainees/trainee-overview-tab.tsx` — Imported and rendered `MacroPresetsSection` below the 2-column grid (Profile + Nutrition/Programs). Added outer `space-y-6` wrapper to accommodate full-width section.
 
 ## Key Decisions
-1. **Separate `export_views.py`** — views.py is 1000+ lines; new file keeps it manageable.
-2. **Service returns frozen dataclass** — `CsvExportResult(content, filename, row_count)` follows project conventions.
-3. **Python csv module** — Standard library, RFC 4180 compliant, handles quoting automatically.
-4. **All statuses in exports** — Unlike analytics (which filters to succeeded/active), exports include all statuses for bookkeeping.
-5. **HttpResponse not StreamingHttpResponse** — Simpler for reasonable trainer datasets.
-6. **Frontend blob download** — `fetch()` → `response.blob()` → `URL.createObjectURL()` → hidden `<a>` click. Standard SPA pattern for authenticated downloads.
-7. **Sonner toast for errors** — Uses existing toast system.
+1. **Section in Overview tab, full-width below grid** — Macro presets need a 3-column card grid which wouldn't fit in the existing 2-column layout. Placed as a full-width section below Profile and Nutrition Goals.
+2. **Reusable PresetFormDialog** — Same dialog for create and edit, determined by `preset` prop being null or defined. Follows existing EditGoalsDialog pattern.
+3. **Native HTML select for frequency** — No shadcn Select component in the project. Used a styled native `<select>` matching the project's input styling.
+4. **No optimistic updates** — Operations are fast enough; server confirmation preferred for simplicity.
+5. **Card layout instead of table** — Trainers typically have 2-4 presets per trainee. Cards show macro values at a glance better than table rows.
+6. **Delete via Dialog, not AlertDialog** — AlertDialog component doesn't exist in the project. Used regular Dialog with destructive button styling.
 
 ## Deviations from Ticket
 None.
 
 ## Test Results
-- 39 new export tests: all PASS
-- 553 total backend tests: 551 PASS, 2 pre-existing mcp_server errors (unrelated)
-- TypeScript `tsc --noEmit`: 0 errors
+- Backend: 553 tests ran, 2 pre-existing mcp_server errors (unrelated). No backend changes made.
+- TypeScript `tsc --noEmit`: 0 errors.
 
 ## How to Manually Test
 1. Log in as a trainer on the web dashboard
-2. Navigate to Analytics page → Revenue section
-3. Verify "Export Payments" and "Export Subscribers" buttons appear when data exists
-4. Click each button — browser should download a CSV file
-5. Change period selector → verify payment export uses the selected period
-6. Navigate to Trainees page
-7. Verify "Export CSV" button appears when trainees exist
-8. Click button → browser should download a CSV file
-9. Open each CSV in a spreadsheet app — verify headers and data are correct
+2. Navigate to any trainee's detail page → Overview tab
+3. Scroll down to see the "Macro Presets" section below Profile and Nutrition Goals
+4. Verify empty state shows with "Add Preset" CTA when no presets exist
+5. Click "Add Preset" → fill in form → verify preset appears in card grid
+6. Click edit icon on a preset → modify values → verify card updates
+7. Click delete icon → confirm → verify preset removed
+8. Click copy icon → select another trainee → verify toast confirmation
+9. Navigate to the target trainee's page → verify copied preset appears
+10. Test "Set as default" checkbox → verify star icon and Default badge
