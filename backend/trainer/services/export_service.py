@@ -8,6 +8,7 @@ import csv
 import io
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from django.db.models import Max, Prefetch
@@ -62,7 +63,7 @@ def _safe_str(value: object) -> str:
     return str(value)
 
 
-def _format_amount(amount: object) -> str:
+def _format_amount(amount: Decimal) -> str:
     """Format a Decimal amount with exactly 2 decimal places."""
     return f"{amount:.2f}"
 
