@@ -43,6 +43,8 @@
 - `mobile/lib/features/programs/presentation/widgets/split_type_card.dart` — Split type selection card
 - `mobile/lib/features/programs/presentation/widgets/goal_type_card.dart` — Goal type selection card
 - `mobile/lib/features/programs/presentation/widgets/custom_day_configurator.dart` — Custom day muscle group configurator
+- `mobile/lib/features/programs/presentation/widgets/step_indicator.dart` — Extracted step indicator widget
+- `mobile/lib/features/programs/presentation/widgets/exercise_picker_sheet.dart` — Extracted exercise picker bottom sheet
 
 ### Mobile — Modified Files
 - `mobile/lib/core/constants/api_constants.dart` — Added `generateProgram` endpoint
@@ -86,3 +88,13 @@
 - **m2:** Moved `valid_groups` computation outside the loop in `seed_kilo_exercises.py`.
 - **m4:** Added `total_failed` (fallback-to-heuristic count) to `classify_exercises` summary output.
 - **m5:** Added validation of `difficulty_level` query param in `ExerciseViewSet.get_queryset()` — returns empty queryset for invalid values.
+
+## Review Fixes Applied (Round 2)
+
+### Backend
+- Removed dead code: `_get_exercises_for_muscle_group` function (replaced by `_prefetch_exercise_pool`). Cleaned up unused `QuerySet` import.
+
+### Mobile
+- **M1 (Silent error swallowing):** All 4 providers in `program_provider.dart` now throw `Exception` on API failure instead of returning empty lists, matching the fix applied to `exercise_provider.dart`.
+- **M2 (File size — ExercisePickerSheet extraction):** Extracted `_ExercisePickerSheet` (170+ lines) from `week_editor_screen.dart` into `widgets/exercise_picker_sheet.dart`. Also fixed hardcoded `Colors.grey[300]` → `theme.colorScheme.outlineVariant` in the drag handle.
+- **m4 (hashCode XOR collisions):** Changed `ExerciseFilter.hashCode` from XOR-based to `Object.hash()` for better collision resistance.
