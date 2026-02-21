@@ -22,7 +22,9 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
+import { ExportButton } from "@/components/shared/export-button";
 import { useRevenueAnalytics } from "@/hooks/use-analytics";
+import { API_URLS } from "@/lib/constants";
 import { RevenueChart } from "./revenue-chart";
 import type {
   RevenuePeriod,
@@ -348,11 +350,31 @@ export function RevenueSection() {
         <h2 id="revenue-heading" className="text-lg font-semibold">
           Revenue
         </h2>
-        <RevenuePeriodSelector
-          value={days}
-          onChange={setDays}
-          disabled={isLoading}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          {hasData && (
+            <>
+              <ExportButton
+                url={`${API_URLS.EXPORT_PAYMENTS}?days=${days}`}
+                filename={`payments_${new Date().toLocaleDateString("en-CA")}.csv`}
+                label="Export Payments"
+                aria-label="Export payments as CSV"
+                disabled={isFetching}
+              />
+              <ExportButton
+                url={API_URLS.EXPORT_SUBSCRIBERS}
+                filename={`subscribers_${new Date().toLocaleDateString("en-CA")}.csv`}
+                label="Export Subscribers"
+                aria-label="Export subscribers as CSV"
+                disabled={isFetching}
+              />
+            </>
+          )}
+          <RevenuePeriodSelector
+            value={days}
+            onChange={setDays}
+            disabled={isLoading}
+          />
+        </div>
       </div>
 
       {isLoading ? (

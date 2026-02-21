@@ -25,6 +25,7 @@ from django.db.models import Case, Count, IntegerField, Q, Avg, Max, QuerySet, W
 
 from trainer.services.invitation_service import send_invitation_email
 from trainer.services.revenue_analytics_service import get_revenue_analytics
+from trainer.utils import parse_days_param as _parse_days_param
 from django.http import Http404
 from datetime import timedelta
 
@@ -835,14 +836,6 @@ class ProgramUploadImageView(views.APIView):
             'image_url': image_url,
             'message': 'Image uploaded successfully'
         }, status=status.HTTP_200_OK)
-
-
-def _parse_days_param(request: Request, default: int = 30) -> int:
-    """Parse and clamp the `days` query parameter (1-365)."""
-    try:
-        return min(max(int(request.query_params.get('days', default)), 1), 365)
-    except (ValueError, TypeError):
-        return default
 
 
 class AdherenceAnalyticsView(views.APIView):

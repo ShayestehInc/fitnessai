@@ -9,6 +9,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
+import { ExportButton } from "@/components/shared/export-button";
+import { API_URLS } from "@/lib/constants";
 import { TraineeSearch } from "@/components/trainees/trainee-search";
 import { TraineeTable } from "@/components/trainees/trainee-table";
 import { TraineeTableSkeleton } from "@/components/trainees/trainee-table-skeleton";
@@ -34,9 +36,19 @@ export default function TraineesPage() {
         title="Trainees"
         description="Manage your training clients"
         actions={
-          <Button asChild>
-            <Link href="/invitations">Invite Trainee</Link>
-          </Button>
+          <>
+            {data && data.count > 0 && (
+              <ExportButton
+                url={API_URLS.EXPORT_TRAINEES}
+                filename={`trainees_${new Date().toLocaleDateString("en-CA")}.csv`}
+                label="Export CSV"
+                aria-label="Export trainees as CSV"
+              />
+            )}
+            <Button asChild>
+              <Link href="/invitations">Invite Trainee</Link>
+            </Button>
+          </>
         }
       />
       <TraineeSearch value={search} onChange={handleSearchChange} />

@@ -20,6 +20,9 @@ from .notification_views import (
     NotificationListView, UnreadCountView,
     MarkNotificationReadView, MarkAllReadView, DeleteNotificationView,
 )
+from .export_views import (
+    PaymentExportView, SubscriberExportView, TraineeExportView,
+)
 from community.trainer_views import (
     TrainerAnnouncementListCreateView,
     TrainerAnnouncementDetailView,
@@ -64,6 +67,11 @@ urlpatterns = [
     path('analytics/adherence/trends/', AdherenceTrendView.as_view(), name='analytics-adherence-trends'),
     path('analytics/progress/', ProgressAnalyticsView.as_view(), name='analytics-progress'),
     path('analytics/revenue/', RevenueAnalyticsView.as_view(), name='analytics-revenue'),
+
+    # CSV Exports
+    path('export/payments/', PaymentExportView.as_view(), name='export-payments'),
+    path('export/subscribers/', SubscriberExportView.as_view(), name='export-subscribers'),
+    path('export/trainees/', TraineeExportView.as_view(), name='export-trainees'),
 
     # MCP Server Integration
     path('mcp/token/', GenerateMCPTokenView.as_view(), name='mcp-token'),

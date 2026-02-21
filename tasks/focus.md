@@ -1,25 +1,25 @@
-# Pipeline 28 Focus: Trainer Revenue & Subscription Analytics (Web Dashboard)
+# Pipeline 29 Focus: CSV Data Export for Trainer Dashboard
 
 ## Priority
-Add a Revenue section to the trainer analytics page so trainers can track their income, active subscribers, and payment history. The backend already stores all payment data (TraineePayment, TraineeSubscription), but there is zero trainer-facing UI for it on the web dashboard.
+Add CSV export capabilities to the trainer web dashboard so trainers can download their payment history, subscriber list, and trainee roster for bookkeeping, tax filing, and business planning.
 
 ## Why This Feature
-1. **Trainers are the paying customers** — They need to understand their business metrics (MRR, subscriber count, revenue trends).
-2. **Data exists but is invisible** — `TraineePayment` and `TraineeSubscription` models are populated by Stripe webhooks, and endpoints `/api/payments/trainer/payments/` and `/api/payments/trainer/subscribers/` exist, but NO web UI consumes them.
-3. **Pattern is established** — The analytics page already has Adherence + Progress sections with StatCards, recharts, DataTable, and period selectors. Revenue is a natural third section.
-4. **Extends Phase 11** — "Advanced analytics and reporting" is listed as partially completed.
-5. **Moderate complexity** — New backend analytics endpoint + 3-4 frontend components following proven patterns.
+1. **Trainers need to export financial data** — For tax filing, accountant handoff, and business records, trainers need downloadable CSV files of their payment and subscriber data.
+2. **Data is visible but not extractable** — Pipeline 28 added the Revenue Analytics section showing payments and subscribers, but there's no way to download that data.
+3. **Zero export functionality exists** — The entire platform has no CSV/file export capability anywhere. This is a first.
+4. **Commonly requested in business SaaS** — Every financial dashboard needs an export button. This is table-stakes for a business tool.
+5. **Moderate complexity** — Backend CSV generation + 3 export endpoints + frontend download buttons following established patterns.
 
 ## Scope
-- Backend: New `GET /api/trainer/analytics/revenue/` endpoint with aggregated revenue data (MRR, total revenue, monthly breakdown, subscriber stats)
-- Web: New `RevenueSection` component on the analytics page
-- Web: Revenue stat cards (MRR, Total Revenue, Active Subscribers, Avg Revenue/Subscriber)
-- Web: Monthly revenue bar chart (recharts)
-- Web: Active subscribers table and recent payments table
-- Web: Period selector for revenue trends (7/14/30/90 days)
+- Backend: New CSV export service with Django's csv module
+- Backend: 3 export endpoints: payments, subscribers, trainees
+- Web: Reusable ExportButton component with download handler
+- Web: Export buttons on Revenue section (payments + subscribers) and Trainee list page
+- Tests: Comprehensive backend tests for export endpoints
 
 ## What NOT to build
-- Admin-level platform revenue analytics (already exists on admin dashboard)
-- Payment processing changes or new checkout flows
-- Mobile revenue dashboard (mobile is trainer-facing, not a priority here)
-- Payout/withdrawal features
+- Ambassador export (future pipeline)
+- Admin-level bulk export
+- PDF reports or formatted reports
+- Mobile export
+- Email delivery of reports

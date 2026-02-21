@@ -1,111 +1,132 @@
-# Feature: Trainer Revenue & Subscription Analytics (Web Dashboard)
+# Feature: CSV Data Export for Trainer Dashboard
 
 ## Priority
 High
 
 ## User Story
-As a **trainer**, I want to **see my revenue metrics, subscriber status, and payment history on the web dashboard** so that I can **track my business health, identify trends, and make informed decisions about pricing and retention**.
+As a **trainer**, I want to **download CSV exports of my payment history, subscriber list, and trainee roster** so that I can **share data with my accountant, file taxes, and track my business performance in spreadsheets**.
+
+## Background
+Pipeline 28 added Trainer Revenue & Subscription Analytics with rich data tables (payments, subscribers). The entire platform currently has zero export/download functionality. Trainers can see their data but cannot extract it. CSV export is table-stakes for any business dashboard.
 
 ## Acceptance Criteria
 
-### Backend — Revenue Analytics Endpoint
-- [ ] AC-1: New `GET /api/trainer/analytics/revenue/` endpoint with `[IsAuthenticated, IsTrainer]` permissions
-- [ ] AC-2: Accepts `?days=30` query param (30, 90, 365; default 30; clamped 1-365) for time filtering
-- [ ] AC-3: Returns aggregated stats: `mrr` (sum of active subscription amounts), `total_revenue` (sum of succeeded payments in period), `active_subscribers` (count of active TraineeSubscriptions), `avg_revenue_per_subscriber` (mrr / active_subscribers or 0)
-- [ ] AC-4: Returns `monthly_revenue` — array of `{ month: "YYYY-MM", amount: "decimal_string" }` for last 12 months, zero-filled for gaps (same pattern as ambassador dashboard)
-- [ ] AC-5: Returns `subscribers` — array of active subscribers: `{ trainee_id, trainee_email, trainee_name, amount, currency, current_period_end, days_until_renewal, subscribed_since }`
-- [ ] AC-6: Returns `recent_payments` — last 10 payments: `{ id, trainee_email, trainee_name, payment_type, status, amount, currency, description, paid_at, created_at }`
-- [ ] AC-7: Row-level security: only returns data for the authenticated trainer's payments and subscriptions
-- [ ] AC-8: Uses `select_related('trainee')` on all querysets to avoid N+1
-- [ ] AC-9: Revenue analytics service in a service function (not inline in view), returning dataclasses
+### Backend — Export Service
+- [ ] AC-1: New service file `backend/trainer/services/export_service.py` with three export functions
+- [ ] AC-2: `export_payments_csv(trainer, days)` → returns CSV string with columns: Date, Trainee, Email, Type, Amount, Currency, Status, Description
+- [ ] AC-3: `export_subscribers_csv(trainer)` → returns CSV string with columns: Trainee, Email, Amount (monthly), Currency, Status, Renewal Date, Days Until Renewal, Subscribed Since
+- [ ] AC-4: `export_trainees_csv(trainer)` → returns CSV string with columns: Name, Email, Active, Profile Complete, Last Activity, Current Program, Joined
+- [ ] AC-5: All export functions use `select_related('trainee')` or `select_related('profile')` — no N+1 queries
+- [ ] AC-6: All export functions return frozen dataclasses wrapping the CSV content and metadata (filename, row_count)
+- [ ] AC-7: Monetary amounts formatted as plain numbers (e.g., `29.99`), not currency strings — spreadsheet-friendly
+- [ ] AC-8: Dates formatted as ISO 8601 (`YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS`) — spreadsheet-friendly
+- [ ] AC-9: `export_payments_csv` respects `days` parameter (same clamping as revenue analytics: min=1, max=365, default=30)
+- [ ] AC-10: Empty data returns CSV with header row only (no error)
 
-### Frontend — Types & Hooks
-- [ ] AC-10: New `RevenueAnalytics` type in `types/analytics.ts` matching the API response shape
-- [ ] AC-11: New `useRevenueAnalytics(days)` hook in `hooks/use-analytics.ts` with 5-minute staleTime
-- [ ] AC-12: New API URL constant `ANALYTICS_REVENUE` in `lib/constants.ts`
+### Backend — Export Views
+- [ ] AC-11: `PaymentExportView` at `GET /api/trainer/export/payments/` with `?days=` query param
+- [ ] AC-12: `SubscriberExportView` at `GET /api/trainer/export/subscribers/`
+- [ ] AC-13: `TraineeExportView` at `GET /api/trainer/export/trainees/`
+- [ ] AC-14: All three views require `[IsAuthenticated, IsTrainer]`
+- [ ] AC-15: All three return `HttpResponse(content_type='text/csv')` with `Content-Disposition: attachment; filename="<name>_YYYY-MM-DD.csv"`
+- [ ] AC-16: Filename includes export type and date: `payments_2026-02-21.csv`, `subscribers_2026-02-21.csv`, `trainees_2026-02-21.csv`
+- [ ] AC-17: Row-level security — each export only includes the authenticated trainer's data
 
-### Frontend — Revenue Section
-- [ ] AC-13: New `RevenueSection` component added to the analytics page below the existing Progress section
-- [ ] AC-14: Period selector with 30d / 90d / 1y options (reuse `PeriodSelector` pattern or build inline tabs)
-- [ ] AC-15: Four stat cards in a responsive grid: **MRR** (DollarSign icon), **Period Revenue** (TrendingUp icon), **Active Subscribers** (Users icon), **Avg/Subscriber** (UserCheck icon)
-- [ ] AC-16: MRR stat card shows the `mrr` value formatted as currency ($X,XXX.XX)
-- [ ] AC-17: Period Revenue stat card shows `total_revenue` for the selected period
-- [ ] AC-18: Active Subscribers stat card shows count
-- [ ] AC-19: Avg/Subscriber stat card shows `avg_revenue_per_subscriber` formatted as currency
+### Backend — URL Wiring
+- [ ] AC-18: Three new URL patterns under `/api/trainer/export/` in `trainer/urls.py`
+- [ ] AC-19: URL names: `export-payments`, `export-subscribers`, `export-trainees`
 
-### Frontend — Monthly Revenue Chart
-- [ ] AC-20: Recharts `BarChart` showing monthly revenue for last 12 months (same pattern as ambassador `EarningsChart`)
-- [ ] AC-21: Current month bar highlighted with `chart-1` color, other months with `chart-2`
-- [ ] AC-22: Y-axis formatted as currency ($1K, $5K, etc.)
-- [ ] AC-23: Tooltip shows full month name and exact dollar amount
-- [ ] AC-24: Screen-reader accessible data list (sr-only `<ul>`)
+### Backend — Tests
+- [ ] AC-20: Auth tests — unauthenticated returns 401, non-trainer returns 403 (for each endpoint)
+- [ ] AC-21: Response tests — content type is `text/csv`, content-disposition header has correct filename
+- [ ] AC-22: Content tests — CSV header row matches expected columns (for each endpoint)
+- [ ] AC-23: Data tests — CSV rows contain correct data from fixtures (for each endpoint)
+- [ ] AC-24: Row-level security tests — trainer A cannot see trainer B's data in any export
+- [ ] AC-25: Empty data tests — returns header-only CSV, not an error (for each endpoint)
+- [ ] AC-26: Payment period filter tests — `?days=30` and `?days=365` return different results
+- [ ] AC-27: Payment status tests — all payment statuses appear in export (not filtered to succeeded-only)
 
-### Frontend — Subscribers Table
-- [ ] AC-25: DataTable showing active subscribers with columns: Name, Amount, Renewal, Subscribed Since
-- [ ] AC-26: Amount column formatted as monthly currency ($XX.XX/mo)
-- [ ] AC-27: Renewal column shows days until renewal with color coding (green >14d, amber 7-14d, red <7d)
-- [ ] AC-28: Clickable rows navigate to trainee detail page (`/trainees/{id}`)
+### Frontend — ExportButton Component
+- [ ] AC-28: Reusable `ExportButton` component at `web/src/components/shared/export-button.tsx`
+- [ ] AC-29: Props: `url: string`, `filename: string`, `label?: string` (default "Export CSV")
+- [ ] AC-30: Uses `Download` icon from lucide-react
+- [ ] AC-31: On click: fetches URL with auth token, creates blob, triggers browser download with `filename`
+- [ ] AC-32: Shows loading spinner during download (replaces icon with Loader2 spin animation)
+- [ ] AC-33: Shows error toast on failure (uses existing toast system if available, otherwise console.error)
+- [ ] AC-34: Disabled state while download is in progress (prevents double-click)
+- [ ] AC-35: Uses `variant="outline"` and `size="sm"` — unobtrusive secondary action styling
+- [ ] AC-36: Accessible: `aria-label` describes the action (e.g., "Export payments as CSV")
 
-### Frontend — Recent Payments Table
-- [ ] AC-29: DataTable showing recent 10 payments with columns: Trainee, Type, Amount, Status, Date
-- [ ] AC-30: Status column with color-coded badges: succeeded (green), pending (amber), failed (red), refunded (blue)
-- [ ] AC-31: Type column shows "Subscription" or "One-time"
+### Frontend — Integration Points
+- [ ] AC-37: RevenueSection header gets two ExportButtons: "Export Payments" and "Export Subscribers"
+- [ ] AC-38: Payment export button passes current period (`?days=` param) to match the active period selector
+- [ ] AC-39: TraineesPage header gets one ExportButton: "Export Trainees"
+- [ ] AC-40: Export buttons only render when data is loaded (not during loading/error/empty states)
 
-### Frontend — States
-- [ ] AC-32: Loading state with skeleton cards + skeleton chart + skeleton tables
-- [ ] AC-33: Empty state when trainer has no payment data ("No revenue data yet. Set up pricing to start accepting payments.")
-- [ ] AC-34: Error state with retry button
-- [ ] AC-35: Refreshing state with opacity transition and sr-only aria-live message
+### Frontend — Constants & Types
+- [ ] AC-41: Three new URL constants in `constants.ts`: `EXPORT_PAYMENTS`, `EXPORT_SUBSCRIBERS`, `EXPORT_TRAINEES`
 
 ## Edge Cases
-1. **Trainer has no Stripe account connected** — Revenue section shows empty state with "Set up Stripe" CTA linking to subscription management page
-2. **Trainer has subscribers but zero payments in selected period** — Stat cards show $0.00 for period revenue, MRR still calculated from active subs, charts show empty bars
-3. **Trainer has one subscriber** — Avg/Subscriber equals MRR, tables show single row
-4. **Subscriber with null period_end** — Renewal column shows "—" instead of days
-5. **Payment with null paid_at** — Date column falls back to `created_at`
-6. **All payments are failed/refunded** — Total revenue is $0.00 (only counts succeeded)
-7. **Rapid period switching** — React Query caches each period independently; `isFetching` opacity handles transition
-8. **Very large payment amounts** — Currency formatting handles $100,000+ with proper comma separation
+1. **No data at all** — Trainer with zero trainees/payments/subscribers downloads a CSV with just the header row. No error. File is still valid CSV.
+2. **Special characters in names** — Trainee name contains commas, quotes, or unicode (e.g., `O'Brien, "DJ" Martinez`). CSV must properly escape these with RFC 4180 quoting.
+3. **Null/missing fields** — `paid_at` is null, `current_period_end` is null, trainee has no profile. Export shows empty string, not "None" or "null".
+4. **Very large dataset** — Trainer with 500+ trainees and 10,000+ payments. Export should stream efficiently. No pagination needed (all data in one file), but use Django's `StreamingHttpResponse` only if needed for memory — standard `HttpResponse` is fine for reasonable sizes.
+5. **Concurrent downloads** — User clicks Export Payments then immediately clicks Export Subscribers. Both downloads should work independently.
+6. **Network failure mid-download** — Frontend shows error toast, re-enables the button so user can retry.
+7. **Payment days parameter invalid** — `?days=abc` or `?days=-5` falls back to default (30 days), matching existing `_parse_days_param` behavior.
+8. **Trainee with no program** — Current Program column shows empty string.
+9. **Canceled/paused subscriptions** — Subscriber export includes ALL subscriptions (active, paused, canceled) with their status column. Unlike MRR which only counts active, the export shows everything for bookkeeping.
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| API request fails | ErrorState with retry inside Revenue section | Section-level error, other analytics sections unaffected |
-| No payment data | EmptyState with "Set up pricing" CTA | Check `total_revenue === 0 && active_subscribers === 0` |
-| Network timeout | ErrorState with retry | React Query default error handling |
+| Download fails (network) | Error toast: "Failed to download CSV. Please try again." | Button re-enables, icon returns to Download |
+| Download fails (401) | Redirect to login | Auth token expired, normal auth flow |
+| Download fails (403) | Error toast: "You don't have permission to export this data." | Non-trainer tried to access |
+| Download in progress | Button disabled, spinner icon | Prevents duplicate requests |
+| No data | Valid CSV downloads with header row only | Normal flow, file is 1 line |
 
 ## UX Requirements
-- **Loading state:** 4 skeleton cards + skeleton chart + 2 skeleton tables (matching adherence section pattern)
-- **Empty state:** DollarSign icon, "No revenue data yet", "Set up pricing to start accepting payments" description, "Manage Pricing" button
-- **Error state:** ErrorState with `onRetry` per section
-- **Period transition:** `isFetching` opacity 50% + sr-only "Refreshing revenue data..." live region
-- **Mobile behavior:** Stat cards 2-column on mobile (sm:grid-cols-2), tables horizontal-scroll on narrow screens
-- **Chart height:** 240px (matching adherence trend chart)
-- **Currency formatting:** Use `Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })`
-- **Section heading:** "Revenue" with DollarSign icon, below Progress section
+- **Button placement — Revenue**: Export buttons appear in the Revenue section header, aligned right, next to the period selector. Small outline buttons with Download icon.
+- **Button placement — Trainees**: Export button appears in the page header next to "Invite Trainee" button.
+- **Loading state**: Download icon → spinning Loader2 while fetching. Button text stays the same.
+- **Success feedback**: Browser's native download dialog handles this. No additional toast needed.
+- **Error feedback**: Red error toast appears for 5 seconds.
+- **Mobile behavior**: N/A — web dashboard only.
 
 ## Technical Approach
 
-### Backend
-- **New file:** `backend/trainer/services/revenue_analytics_service.py` — Service function `get_revenue_analytics(trainer: User, days: int)` returning a frozen dataclass `RevenueAnalyticsResult`
-- **Modify:** `backend/trainer/views.py` — Add `RevenueAnalyticsView` (APIView, GET)
-- **Modify:** `backend/trainer/urls.py` — Add `path('analytics/revenue/', RevenueAnalyticsView.as_view())`
-- **Pattern:** Follow `AdherenceAnalyticsView` — same permission_classes, same `_parse_days_param()` helper, `select_related('trainee')` on queries
-- **Monthly aggregation:** Use `TruncMonth` + `Sum` on `TraineePayment.objects.filter(trainer=user, status='succeeded', paid_at__gte=start)` with zero-fill for gaps (same pattern as ambassador dashboard)
-- **MRR calculation:** `TraineeSubscription.objects.filter(trainer=user, status='active').aggregate(Sum('amount'))`
+### Backend Files to Create
+- `backend/trainer/services/export_service.py` — Three export functions, each returning a frozen dataclass with `content: str`, `filename: str`, `row_count: int`
+- `backend/trainer/export_views.py` — Three views: PaymentExportView, SubscriberExportView, TraineeExportView (separate file to keep views.py from growing further)
+- `backend/trainer/tests/test_export.py` — Comprehensive export tests
 
-### Frontend
-- **Modify:** `web/src/types/analytics.ts` — Add `RevenueAnalytics`, `RevenueSubscriber`, `RevenuePayment`, `RevenuePeriod` types
-- **Modify:** `web/src/hooks/use-analytics.ts` — Add `useRevenueAnalytics(days: RevenuePeriod)` hook
-- **Modify:** `web/src/lib/constants.ts` — Add `ANALYTICS_REVENUE` URL
-- **New file:** `web/src/components/analytics/revenue-section.tsx` — Main section with stat cards, chart, tables
-- **New file:** `web/src/components/analytics/revenue-chart.tsx` — Recharts BarChart (monthly revenue)
-- **Modify:** `web/src/app/(dashboard)/analytics/page.tsx` — Add `<RevenueSection />` below `<ProgressSection />`
+### Backend Files to Modify
+- `backend/trainer/urls.py` — Add three new URL patterns under `export/` prefix
+
+### Frontend Files to Create
+- `web/src/components/shared/export-button.tsx` — Reusable ExportButton component
+
+### Frontend Files to Modify
+- `web/src/lib/constants.ts` — Add EXPORT_PAYMENTS, EXPORT_SUBSCRIBERS, EXPORT_TRAINEES URL constants
+- `web/src/components/analytics/revenue-section.tsx` — Add export buttons to header
+- `web/src/app/(dashboard)/trainees/page.tsx` — Add export button to header
+
+### Key Design Decisions
+1. **Separate `export_views.py`** — Trainer views.py is already 1000+ lines. New file keeps it manageable.
+2. **Service returns dataclass** — Follows project convention (never return raw dicts). Dataclass wraps CSV content + metadata.
+3. **Python `csv` module with `io.StringIO`** — Standard library, no dependencies. Write to StringIO buffer, return as string.
+4. **`HttpResponse` not `StreamingHttpResponse`** — For reasonable trainer datasets (< 10K rows), standard response is simpler and sufficient.
+5. **Frontend blob download** — `fetch()` with auth headers → `response.blob()` → `URL.createObjectURL()` → click hidden `<a>` → `URL.revokeObjectURL()`. This is the standard pattern for authenticated file downloads in SPAs.
+6. **All statuses included in payment/subscriber exports** — Unlike the analytics views which filter to succeeded/active only, exports include everything for complete bookkeeping records.
 
 ## Out of Scope
-- Admin platform revenue analytics (already on admin dashboard)
-- Stripe payout tracking or balance display
-- Revenue forecasting or predictions
-- CSV/PDF export of revenue data
-- Mobile revenue dashboard
-- Revenue notifications or alerts
+- Ambassador export (future pipeline)
+- Admin-level bulk export
+- PDF reports or formatted reports
+- Mobile export
+- Email delivery of reports
+- Excel (.xlsx) format
+- Custom column selection
+- Date range picker (uses same period selector as revenue analytics)
+- Scheduled/automated exports

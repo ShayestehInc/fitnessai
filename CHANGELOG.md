@@ -4,6 +4,24 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-21] — CSV Data Export for Trainer Dashboard (Pipeline 29)
+
+### Added
+- **3 CSV export endpoints** — `GET /api/trainer/export/payments/?days=N`, `/export/subscribers/`, `/export/trainees/` returning downloadable CSV files with `Content-Disposition: attachment` headers and `Cache-Control: no-store`.
+- **Export service** (`backend/trainer/services/export_service.py`) — Frozen `CsvExportResult` dataclass. Uses `csv.writer` with `StringIO`. Amounts always 2 decimal places. Dates ISO 8601 formatted. Empty data returns valid header-only CSV.
+- **CSV injection protection** — `_sanitize_csv_value()` prefixes cells starting with `=`, `+`, `-`, `@`, `\t`, `\r` with single-quote per OWASP recommendation.
+- **Reusable ExportButton component** (`web/src/components/shared/export-button.tsx`) — Blob download with auth token refresh, AbortController for race conditions, `idle` → `downloading` → `success` state machine, Sonner toast on error/success, `aria-live` region for screen readers.
+- **Export buttons in Revenue section** — "Export Payments" and "Export Subscribers" buttons in the Revenue header, disabled during data refetch, payment export respects the active period selector.
+- **Export button on Trainees page** — "Export CSV" in the page header next to "Invite Trainee" button. Shows when trainer has trainees (uses `data.count` not page results).
+- **39 new backend tests** covering auth (401/403), response format (content-type, filename), data correctness, row-level security (trainer isolation), period filtering, all payment/subscription statuses, edge cases (empty data, null fields, special characters).
+- **Shared utility** (`backend/trainer/utils.py`) — Extracted `parse_days_param` function used by both `views.py` and `export_views.py`.
+
+### Changed
+- Trainee export query uses `annotate(last_log_date=Max("daily_logs__date"))` and filtered `Prefetch` for active programs instead of unbounded prefetch.
+- Revenue section header wraps (`flex-wrap`) on narrow viewports to prevent horizontal overflow.
+
+---
+
 ## [2026-02-20] — Trainer Revenue & Subscription Analytics (Pipeline 28)
 
 ### Added

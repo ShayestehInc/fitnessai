@@ -93,3 +93,78 @@
 ## Overall UX Score: 9/10
 
 The Revenue section is well-implemented, following established patterns from the Adherence and Progress sections with high fidelity. All five critical states (loading, empty, error, success, refreshing) are properly handled with appropriate ARIA semantics. The skeleton matches the populated content structure, period selection supports keyboard navigation via radiogroup pattern, and the chart includes screen-reader accessible data. The fixes applied were minor refinements (skeleton completeness, label consistency, focus ring correctness, screen reader labels) rather than structural issues. The implementation would pass review at a design-forward company like Stripe or Linear.
+
+---
+---
+
+# UX Audit: CSV Data Export
+
+## Audit Date: 2026-02-21
+
+## Components Reviewed
+- `web/src/components/shared/export-button.tsx` (reusable ExportButton)
+- `web/src/components/analytics/revenue-section.tsx` (export buttons in Revenue header)
+- `web/src/app/(dashboard)/trainees/page.tsx` (export button on trainees page)
+
+---
+
+## Issues Found & Fixed
+
+| # | Severity | Component | Issue | Fix Applied |
+|---|----------|-----------|-------|-------------|
+| 1 | Major | `export-button.tsx` | **No success feedback after download.** Every other action in the codebase (invitation send, goal update, layout change, etc.) shows `toast.success()`. The export button only showed errors, leaving users uncertain whether the download worked. | Added `toast.success()` with the filename after successful download. Added a brief `CheckCircle` icon state (green, 2 seconds) so the button itself visually confirms completion. |
+| 2 | Major | `export-button.tsx` | **No screen reader announcement during download.** The codebase uses `aria-live="polite"` regions in adherence-section, progress-section, revenue-section, messaging, and elsewhere -- but the export button had no live region. Screen reader users received zero feedback that a download was in progress or completed. | Added an `aria-live="polite"` region with `role="status"` that announces "Downloading CSV file..." when active and "[filename] downloaded successfully" on completion. |
+| 3 | Medium | `export-button.tsx` | **Button label unchanged during download.** The icon switched to a spinner but the text still read "Export CSV" / "Export Payments". Users on slow connections might wonder if the button registered their click. Other apps (Linear, Notion) change the label to "Downloading..." during the action. | Button now shows "Downloading..." as label text while the download is in progress. |
+| 4 | Medium | `export-button.tsx` | **Empty blob downloaded without warning.** If the server returned a 200 with an empty body (edge case: no records matching the filter, server-side bug), the user would download a 0-byte file and see no error. | Added `blob.size === 0` check before `triggerDownload()`. Shows `toast.error("No data available to export.")` if the response body is empty. Applied in both the normal path and the 401-retry path. |
+| 5 | Medium | `export-button.tsx` | **No `disabled` prop.** Parent components had no way to disable the export button externally (e.g., during data refetch). The button component only disabled itself during its own download state. | Added optional `disabled` prop (default `false`). Button disables when `disabled \|\| isDownloading`. |
+| 6 | Medium | `revenue-section.tsx` | **Export buttons clickable during data refetch.** When the user switches the revenue period (30d/90d/1y), the section enters a `isFetching` state with `opacity-50`, but the export buttons remained enabled. Clicking "Export Payments" during refetch would export data for the previous period's filter, which is confusing. | Passed `disabled={isFetching}` to both ExportButton instances so they are disabled while revenue data is refetching. |
+| 7 | Medium | `trainees/page.tsx` | **Export button visibility tied to current page results instead of total count.** The condition `data.results.length > 0` hid the export button when a search filter returned 0 results on the current page, even though the trainer has trainees. The CSV export endpoint exports all trainees regardless of search/pagination. The button should be visible whenever the trainer has any trainees at all. | Changed condition from `data.results.length > 0` to `data.count > 0` so the button stays visible as long as the trainer has trainees, regardless of current search filter. |
+| 8 | Minor | `export-button.tsx` | **Missing `type="button"` on the Button element.** While the Button component doesn't set a default type, best practice (and an accessibility requirement) is to always specify `type="button"` for non-submit buttons to prevent accidental form submission if the component is ever placed inside a form. | Added `type="button"` to the Button element. |
+
+## Issues Found (not fixed)
+
+| # | Severity | Component | Issue | Recommendation |
+|---|----------|-----------|-------|----------------|
+| 1 | Low | `export-button.tsx` | **No download progress indication for large files.** For very large CSV exports (thousands of trainees/payments), the spinner gives no indication of progress percentage. The `fetch` API does not natively expose download progress without using `ReadableStream`. | Consider using `response.body.getReader()` with `Content-Length` header to show a progress bar for exports exceeding ~500KB. Low priority since current datasets are unlikely to be that large. |
+| 2 | Low | `revenue-section.tsx` | **Export buttons disappear entirely when no data, then appear after data loads.** This causes a layout shift in the header row. On slow connections, the header first renders without export buttons, then re-renders with them. | Consider rendering the export buttons always but in a disabled state when there is no data, to avoid layout shift. This is a minor polish item. |
+| 3 | Low | `trainees/page.tsx` | **No tooltip explaining what the export includes.** Users might wonder: does it export the filtered list or all trainees? Does it include email addresses? | Consider adding a `title` attribute or a small info icon with tooltip: "Exports all trainees as a CSV file including name, email, and program details." |
+
+---
+
+## States Checklist
+
+- [x] **Default / ready** -- Button shows Download icon + label text, correct outline variant, correct size. Consistent across all three usage sites.
+- [x] **Loading / downloading** -- Spinner icon replaces download icon, label changes to "Downloading...", button is disabled, screen reader announces "Downloading CSV file..."
+- [x] **Success** -- Green CheckCircle icon shown for 2 seconds, toast.success() with filename, screen reader announces completion, then returns to default state.
+- [x] **Error / failure** -- Specific error messages for 403 ("You don't have permission"), empty blob ("No data available"), and generic errors ("Failed to download CSV. Please try again."). All use toast.error().
+- [x] **Disabled** -- Parent can pass `disabled` prop. Revenue section disables during refetch. Visual: opacity-50 + pointer-events-none (from Button component's disabled styles).
+
+---
+
+## Accessibility Summary
+
+| Area | Status | Notes |
+|------|--------|-------|
+| ARIA labels | Pass | All three usage sites provide explicit `aria-label` props (e.g., "Export trainees as CSV") |
+| Keyboard navigation | Pass | Button is focusable, disabled state removes from tab order via `disabled` attribute, focus ring provided by Button component's `focus-visible:ring-[3px]` styles |
+| Screen reader feedback | Pass (fixed) | Added `aria-live="polite"` region announcing download start and completion |
+| Focus indicators | Pass | Inherited from Button component: `focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]` |
+| Color contrast | Pass | Outline variant uses standard theme colors. Success green (`text-green-600`) meets WCAG AA on white backgrounds |
+
+---
+
+## Consistency Check
+
+| Criterion | Status | Notes |
+|-----------|--------|-------|
+| Follows existing Button patterns | Pass | Uses `variant="outline"` and `size="sm"` consistently |
+| Toast usage matches codebase | Pass (fixed) | Now uses `toast.success()` like every other action in the app |
+| ARIA patterns match codebase | Pass (fixed) | Now uses `aria-live="polite"` + `role="status"` pattern matching revenue-section, adherence-section, progress-section |
+| Error message tone | Pass | Clear, actionable, no internal jargon leaked |
+| Responsive behavior | Pass | Buttons are in flex containers that wrap on small screens (`flex-col` on mobile, `flex-row` on sm+ in revenue-section) |
+
+---
+
+## Overall UX Score: 8/10
+
+The CSV export feature had solid bones -- correct auth handling, proper error status codes, good ARIA labels, consistent button styling. The main gaps were around user feedback (no success confirmation, no label change during download, no screen reader announcements) and a few edge cases (empty blob, export button visibility logic, stale-data export during refetch). All major and medium issues have been fixed. The remaining low-severity items are polish improvements that can be addressed in a future pass.

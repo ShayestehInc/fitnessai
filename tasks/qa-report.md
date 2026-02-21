@@ -1,8 +1,8 @@
-# QA Report: Trainer Revenue & Subscription Analytics
+# QA Report: CSV Data Export for Trainer Dashboard
 
 ## Test Results
-- Total: 36 (new) + 478 (existing, excl. 2 pre-existing mcp_server import errors)
-- Passed: 36 new + 478 existing = 514 total
+- Total: 39 (new) + 514 (existing, excl. 2 pre-existing mcp_server import errors)
+- Passed: 39 new + 514 existing = 553 total
 - Failed: 0 (our changes)
 - Skipped: 0
 - Pre-existing errors: 2 (mcp_server ModuleNotFoundError — unrelated to this feature)
@@ -12,67 +12,74 @@ None.
 
 ## Acceptance Criteria Verification
 
-### Backend — Revenue Analytics Endpoint
-- [x] AC-1: `GET /api/trainer/analytics/revenue/` with `[IsAuthenticated, IsTrainer]` — PASS (tests: `test_requires_authentication`, `test_requires_trainer_role`, `test_returns_200_for_trainer`)
-- [x] AC-2: `?days=` query param with clamping — PASS (tests: `test_days_defaults_to_30`, `test_days_param_accepted`, `test_days_clamped_min`, `test_days_clamped_max`, `test_days_invalid_string_defaults_to_30`)
-- [x] AC-3: Aggregated stats (mrr, total_revenue, active_subscribers, avg) — PASS (tests: `test_mrr_*`, `test_active_subscribers_*`, `test_avg_*`, `test_total_revenue_*`)
-- [x] AC-4: monthly_revenue 12-month zero-filled — PASS (tests: `test_monthly_revenue_has_12_months`, `test_monthly_revenue_point_shape`, `test_monthly_revenue_aggregation`)
-- [x] AC-5: subscribers array with expected fields — PASS (tests: `test_subscriber_fields`, `test_subscriber_trainee_name`)
-- [x] AC-6: recent_payments last 10 — PASS (tests: `test_recent_payments_max_10`, `test_recent_payment_fields`, `test_recent_payments_includes_all_statuses`)
-- [x] AC-7: Row-level security — PASS (tests: `test_trainer_isolation_subscriptions`, `test_trainer_isolation_payments`)
-- [x] AC-8: select_related('trainee') — PASS (verified in service code, line 85 and 157)
-- [x] AC-9: Service function returning dataclasses — PASS (verified in `revenue_analytics_service.py`)
+### Backend — Export Service
+- [x] AC-1: New service file `export_service.py` with three functions — PASS
+- [x] AC-2: `export_payments_csv` with correct columns — PASS (tests: `test_csv_header_row`, `test_payment_appears_in_csv`)
+- [x] AC-3: `export_subscribers_csv` with correct columns — PASS (tests: `test_csv_header_row`, `test_subscriber_appears_in_csv`)
+- [x] AC-4: `export_trainees_csv` with correct columns — PASS (tests: `test_csv_header_row`, `test_trainee_appears_in_csv`)
+- [x] AC-5: `select_related` used, no N+1 — PASS (annotate + Prefetch used for trainees, select_related for payments/subscribers)
+- [x] AC-6: Frozen `CsvExportResult` dataclass — PASS (verified in code)
+- [x] AC-7: Amounts as plain numbers with 2 decimals — PASS (`_format_amount` uses `f"{amount:.2f}"`)
+- [x] AC-8: Dates as ISO 8601 — PASS (`_format_date` and `_format_date_only`)
+- [x] AC-9: Days parameter with clamping — PASS (tests: `test_days_30_filters_recent`, `test_days_365_includes_old`, `test_invalid_days_defaults_to_30`)
+- [x] AC-10: Empty data returns header-only CSV — PASS (tests: 3x `test_empty_data_returns_header_only`)
 
-### Frontend — Types & Hooks
-- [x] AC-10: RevenueAnalytics type — PASS (verified in `types/analytics.ts`)
-- [x] AC-11: useRevenueAnalytics(days) hook with staleTime — PASS (verified in `hooks/use-analytics.ts`)
-- [x] AC-12: ANALYTICS_REVENUE constant — PASS (verified in `lib/constants.ts`)
+### Backend — Export Views
+- [x] AC-11: PaymentExportView at correct path — PASS
+- [x] AC-12: SubscriberExportView at correct path — PASS
+- [x] AC-13: TraineeExportView at correct path — PASS
+- [x] AC-14: `[IsAuthenticated, IsTrainer]` — PASS (tests: 3x auth tests)
+- [x] AC-15: HttpResponse with text/csv and Content-Disposition — PASS (tests: `test_content_type_is_csv`, `test_content_disposition_has_filename`)
+- [x] AC-16: Filename includes type and date — PASS
+- [x] AC-17: Row-level security — PASS (tests: 3x isolation tests)
 
-### Frontend — Revenue Section
-- [x] AC-13: RevenueSection below Progress — PASS (verified in analytics `page.tsx`)
-- [x] AC-14: Period selector 30d/90d/1y — PASS (RevenuePeriodSelector with ARIA radiogroup)
-- [x] AC-15: Four stat cards with correct icons — PASS (DollarSign, TrendingUp, Users, UserCheck)
-- [x] AC-16: MRR formatted as currency — PASS (`formatCurrency(data.mrr)`)
-- [x] AC-17: Period Revenue for selected period — PASS (`formatCurrency(data.total_revenue)`)
-- [x] AC-18: Active Subscribers count — PASS (`data.active_subscribers`)
-- [x] AC-19: Avg/Subscriber formatted — PASS (`formatCurrency(data.avg_revenue_per_subscriber)`)
+### Backend — URL Wiring
+- [x] AC-18: Three URL patterns under `export/` — PASS
+- [x] AC-19: URL names: `export-payments`, `export-subscribers`, `export-trainees` — PASS
 
-### Frontend — Monthly Revenue Chart
-- [x] AC-20: Recharts BarChart — PASS (verified in `revenue-chart.tsx`)
-- [x] AC-21: Current month highlighted chart-1 — PASS (color function in chart)
-- [x] AC-22: Y-axis currency formatting — PASS (`$1K` etc. formatter)
-- [x] AC-23: Tooltip with full month and amount — PASS (custom tooltip)
-- [x] AC-24: Screen-reader accessible data list — PASS (sr-only `<ul>`)
+### Backend — Tests
+- [x] AC-20: Auth tests for all endpoints — PASS (6 tests)
+- [x] AC-21: Response format tests — PASS (6 tests)
+- [x] AC-22: CSV header row tests — PASS (3 tests)
+- [x] AC-23: Data correctness tests — PASS (3+ tests)
+- [x] AC-24: Row-level security tests — PASS (3 tests)
+- [x] AC-25: Empty data tests — PASS (3 tests)
+- [x] AC-26: Period filter tests — PASS (`test_days_30_filters_recent`, `test_days_365_includes_old`)
+- [x] AC-27: All payment statuses appear — PASS (`test_all_payment_statuses_appear`)
 
-### Frontend — Subscribers Table
-- [x] AC-25: DataTable with correct columns — PASS (Name, Amount, Renewal, Since)
-- [x] AC-26: Amount as monthly currency — PASS (`$XX.XX/mo`)
-- [x] AC-27: Renewal color coding — PASS (`getRenewalColor` with green/amber/red thresholds)
-- [x] AC-28: Clickable rows to trainee detail — PASS (`onRowClick` → `/trainees/{id}`)
+### Frontend — ExportButton Component
+- [x] AC-28: Component at `shared/export-button.tsx` — PASS
+- [x] AC-29: Correct props (url, filename, label, aria-label) — PASS
+- [x] AC-30: Download icon from lucide-react — PASS
+- [x] AC-31: Blob download with auth token — PASS (includes token refresh)
+- [x] AC-32: Loading spinner during download — PASS (Loader2 with animate-spin)
+- [x] AC-33: Error toast on failure — PASS (Sonner toast)
+- [x] AC-34: Disabled state during download — PASS
+- [x] AC-35: `variant="outline"` and `size="sm"` — PASS
+- [x] AC-36: `aria-label` on button — PASS
 
-### Frontend — Recent Payments Table
-- [x] AC-29: DataTable with correct columns — PASS (Trainee, Type, Amount, Status, Date)
-- [x] AC-30: Color-coded status badges — PASS (STATUS_STYLES map)
-- [x] AC-31: Type shows "Subscription"/"One-time" — PASS (PAYMENT_TYPE_LABELS map)
+### Frontend — Integration Points
+- [x] AC-37: Two ExportButtons in RevenueSection header — PASS
+- [x] AC-38: Payment export passes `?days=` param — PASS
+- [x] AC-39: Export button in TraineesPage header — PASS
+- [x] AC-40: Buttons only render when data is loaded — PASS (conditional on `hasData` / `data.results.length > 0`)
 
-### Frontend — States
-- [x] AC-32: Loading skeleton — PASS (RevenueSkeleton component)
-- [x] AC-33: Empty state — PASS (EmptyState with DollarSign, CTA to /subscription)
-- [x] AC-34: Error state with retry — PASS (ErrorState with onRetry)
-- [x] AC-35: Refreshing state with opacity + sr-only — PASS (opacity transition + aria-live)
+### Frontend — Constants & Types
+- [x] AC-41: Three URL constants added — PASS
 
 ## Bugs Found Outside Tests
 None.
 
 ## Edge Cases Verified
-1. No subscribers / no payments → zeros — PASS (`test_no_data_returns_zeros`)
-2. One subscriber → avg = MRR — PASS (`test_one_subscriber`)
-3. Canceled/paused subs excluded from MRR — PASS (`test_mrr_excludes_canceled_subs`, `test_mrr_excludes_paused_subs`)
-4. Failed/refunded payments excluded from total — PASS (`test_total_revenue_excludes_failed_payments`, `test_total_revenue_excludes_refunded_payments`)
-5. Payments outside period excluded — PASS (`test_total_revenue_excludes_outside_period`)
-6. Null period_end shows dash — PASS (frontend code verified)
-7. Null paid_at falls back to created_at — PASS (frontend code verified)
-8. Recent payments include all statuses — PASS (`test_recent_payments_includes_all_statuses`)
+1. No data → header-only CSV — PASS (3 tests)
+2. Special characters in names → properly escaped — PASS (`test_comma_in_name_is_escaped`)
+3. Commas in description → properly quoted — PASS (`test_description_with_commas`)
+4. Null paid_at → falls back to created_at — PASS (`test_null_paid_at_uses_created_at`)
+5. Null period_end → empty string in CSV — PASS (`test_null_period_end_shows_empty`)
+6. All payment statuses included — PASS (`test_all_payment_statuses_appear`)
+7. All subscription statuses included — PASS (`test_all_subscription_statuses_appear`)
+8. Invalid days param → defaults to 30 — PASS (`test_invalid_days_defaults_to_30`)
+9. Trainer isolation on all endpoints — PASS (3 isolation tests)
 
 ## Confidence Level: HIGH
-All 35 acceptance criteria verified PASS. All 8 edge cases handled. 36 new tests pass. 478 existing tests pass. TypeScript compiles clean. No bugs found.
+All 41 acceptance criteria verified PASS. All 9 edge cases handled. 39 new tests pass. 514 existing tests pass. TypeScript compiles clean. No bugs found.
