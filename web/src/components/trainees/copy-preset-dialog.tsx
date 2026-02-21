@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +33,7 @@ export function CopyPresetDialog({
   onOpenChange,
 }: CopyPresetDialogProps) {
   const [targetTraineeId, setTargetTraineeId] = useState("");
-  const { data: allTrainees } = useAllTrainees();
+  const { data: allTrainees, isLoading: isLoadingTrainees } = useAllTrainees();
   const copyMutation = useCopyMacroPreset(traineeId);
 
   const otherTrainees = useMemo(
@@ -72,11 +73,27 @@ export function CopyPresetDialog({
     [preset, targetTraineeId, otherTrainees, copyMutation, onOpenChange],
   );
 
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen && copyMutation.isPending) return;
+      onOpenChange(nextOpen);
+    },
+    [copyMutation.isPending, onOpenChange],
+  );
+
   if (!preset) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => {
+          if (copyMutation.isPending) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (copyMutation.isPending) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Copy Preset</DialogTitle>
           <DialogDescription>
@@ -86,16 +103,26 @@ export function CopyPresetDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="copy-target-trainee">Select Trainee</Label>
-            {otherTrainees.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No other trainees to copy to.
-              </p>
+            {isLoadingTrainees ? (
+              <div className="space-y-2">
+                <Skeleton className="h-9 w-full rounded-md" />
+                <p className="text-xs text-muted-foreground">Loading trainees...</p>
+              </div>
+            ) : otherTrainees.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-4 text-center">
+                <Users className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">
+                  No other trainees to copy to.
+                </p>
+              </div>
             ) : (
               <select
                 id="copy-target-trainee"
                 value={targetTraineeId}
                 onChange={(e) => setTargetTraineeId(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                disabled={copyMutation.isPending}
+                aria-label="Select target trainee for preset copy"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">Choose a trainee...</option>
                 {otherTrainees.map((t) => {
@@ -115,7 +142,8 @@ export function CopyPresetDialog({
             <Button
               variant="outline"
               type="button"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
+              disabled={copyMutation.isPending}
             >
               Cancel
             </Button>
@@ -123,6 +151,7 @@ export function CopyPresetDialog({
               type="submit"
               disabled={
                 !targetTraineeId ||
+                isLoadingTrainees ||
                 otherTrainees.length === 0 ||
                 copyMutation.isPending
               }

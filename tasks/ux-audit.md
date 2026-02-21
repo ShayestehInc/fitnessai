@@ -168,3 +168,113 @@ The Revenue section is well-implemented, following established patterns from the
 ## Overall UX Score: 8/10
 
 The CSV export feature had solid bones -- correct auth handling, proper error status codes, good ARIA labels, consistent button styling. The main gaps were around user feedback (no success confirmation, no label change during download, no screen reader announcements) and a few edge cases (empty blob, export button visibility logic, stale-data export during refetch). All major and medium issues have been fixed. The remaining low-severity items are polish improvements that can be addressed in a future pass.
+
+---
+---
+
+# UX Audit: Macro Preset Management
+
+## Audit Date
+2026-02-21
+
+## Components Reviewed
+- `web/src/components/trainees/macro-presets-section.tsx`
+- `web/src/components/trainees/preset-card.tsx` (extracted from macro-presets-section)
+- `web/src/components/trainees/preset-form-dialog.tsx`
+- `web/src/components/trainees/copy-preset-dialog.tsx`
+- `web/src/components/trainees/trainee-overview-tab.tsx`
+- `web/src/hooks/use-macro-presets.ts`
+
+---
+
+## Usability Issues Found & Fixed
+
+| # | Severity | Screen/Component | Issue | Recommendation | Status |
+|---|----------|-----------------|-------|----------------|--------|
+| 1 | Critical | preset-form-dialog.tsx | Form validation errors had no `aria-describedby` linking error text to inputs. Screen readers could not associate error messages with their corresponding fields. | Added `aria-describedby` on all 5 form inputs (name, calories, protein, carbs, fat) pointing to error `<p>` IDs. | FIXED |
+| 2 | Critical | preset-form-dialog.tsx | Validation error messages lacked `role="alert"`, so screen readers were not notified when errors appeared dynamically. | Added `role="alert"` to all 5 error message `<p>` elements. | FIXED |
+| 3 | Major | macro-presets-section.tsx | Delete confirmation dialog used generic `Dialog` without `role="alertdialog"`. Destructive actions should signal urgency to assistive technology. | Added `role="alertdialog"` and explicit `aria-describedby` to the delete dialog's `DialogContent`. | FIXED |
+| 4 | Major | preset-form-dialog.tsx | Dialog could be dismissed (via overlay click, Escape key, or X button) during a pending create/edit mutation. User could close the dialog while their data was still being saved, causing confusion if the mutation succeeded after dismissal. | Added `handleOpenChange` guard that prevents closing while `isPending`. Added `onPointerDownOutside` and `onEscapeKeyDown` handlers that call `e.preventDefault()` during pending state. Disabled Cancel button during pending. | FIXED |
+| 5 | Major | copy-preset-dialog.tsx | Same dismissal-during-pending issue as the form dialog. | Applied identical pattern: `handleOpenChange` guard, `onPointerDownOutside`/`onEscapeKeyDown` prevention, Cancel button disabled during pending. | FIXED |
+| 6 | Major | macro-presets-section.tsx | Delete dialog could be dismissed via overlay click or Escape while deletion was in progress. The `onOpenChange` handler was guarded, but overlay/Escape interactions were not. | Added `onPointerDownOutside` and `onEscapeKeyDown` prevention on the delete dialog's `DialogContent`. | FIXED |
+| 7 | Minor | preset-card.tsx | Icon action buttons (Copy, Edit, Delete) had hover styles but no visible `focus-visible` ring for keyboard navigation. Users tabbing through the card had no visual indicator of focus. | Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1` to all three action buttons. Delete button uses `focus-visible:ring-destructive` for visual consistency with its destructive intent. | FIXED |
+| 8 | Minor | preset-card.tsx | Star icon for default presets used `aria-label` on an SVG, which has inconsistent screen reader support across browsers. | Changed to `aria-hidden="true"` on the Star SVG and added a `<span className="sr-only">` with "(Default preset)" text, which is the more reliable pattern. | FIXED |
+| 9 | Minor | macro-presets-section.tsx | Error state retry button lacked descriptive `aria-label`. | Added `aria-label="Retry loading macro presets"` to the retry button. | FIXED |
+| 10 | Minor | macro-presets-section.tsx | Loading skeleton had no `aria-busy` or loading announcement for screen readers. | Wrapped `PresetsSkeleton` in a `<div aria-busy="true" aria-label="Loading macro presets">`. | FIXED |
+| 11 | Minor | macro-presets-section.tsx | Error state container lacked `role="alert"` so screen readers would not announce the failure. | Added `role="alert"` to the error state wrapper div. | FIXED |
+| 12 | Minor | preset-form-dialog.tsx | Native `<select>` for frequency and native `<input type="checkbox">` for "Set as default" had inconsistent focus ring styling (ring-1 vs ring-2 used elsewhere). | Upgraded to `focus-visible:ring-2` and `focus-visible:ring-offset-1` for consistency. Added `accent-primary` to checkbox for design system color alignment. Added `disabled:cursor-not-allowed disabled:opacity-50` for disabled states. | FIXED |
+| 13 | Minor | preset-form-dialog.tsx, copy-preset-dialog.tsx | Native `<select>` elements lacked `aria-label` attributes. | Added `aria-label="Preset frequency per week"` and `aria-label="Select target trainee for preset copy"`. | FIXED |
+
+## Additional Enhancements Applied
+
+| # | Component | Enhancement |
+|---|-----------|-------------|
+| 1 | preset-form-dialog.tsx | Calorie mismatch warning: computed `P*4 + C*4 + F*9` comparison with entered calories. Displays amber warning banner when difference exceeds 10%. Uses `AlertTriangle` icon. |
+| 2 | preset-form-dialog.tsx | All form inputs (`name`, `calories`, `protein`, `carbs`, `fat`, frequency `select`, default `checkbox`) are now `disabled={isPending}` during mutation. |
+| 3 | preset-form-dialog.tsx | Number inputs now include `step="1"` to prevent fractional input in the stepper UI. |
+| 4 | preset-form-dialog.tsx | Validation logic rounds before range-checking (`Math.round(Number(calories))`) so edge cases like 499.6 correctly round to 500 and pass. |
+| 5 | copy-preset-dialog.tsx | Loading state for trainee list: shows skeleton + "Loading trainees..." text while `useAllTrainees()` is fetching. |
+| 6 | copy-preset-dialog.tsx | Empty state improved: uses `Users` icon centered above the "No other trainees" message for visual consistency with other empty states. |
+| 7 | copy-preset-dialog.tsx | Select is disabled during copy mutation. Submit button also disabled while trainees are loading. |
+| 8 | macro-presets-section.tsx / preset-card.tsx | `PresetCard` and `MacroCell` extracted into separate `preset-card.tsx` file for better code organization (max 150 lines per widget convention). |
+
+---
+
+## Accessibility Issues
+
+| # | WCAG Level | Issue | Fix |
+|---|------------|-------|-----|
+| 1 | A (1.3.1) | Error messages not programmatically associated with form controls | Added `aria-describedby` linking errors to inputs |
+| 2 | A (4.1.3) | Dynamic validation errors not announced | Added `role="alert"` on error messages |
+| 3 | A (1.3.1) | Delete dialog not identified as alert dialog | Added `role="alertdialog"` |
+| 4 | AA (2.4.7) | Action buttons lacked visible focus indicators | Added `focus-visible:ring-2` classes |
+| 5 | A (1.1.1) | Star icon used `aria-label` on SVG (inconsistent support) | Switched to `aria-hidden` + `sr-only` span pattern |
+| 6 | A (4.1.3) | Loading state not announced to assistive technology | Added `aria-busy="true"` with `aria-label` |
+| 7 | A (4.1.3) | Error state not announced | Added `role="alert"` to error container |
+
+---
+
+## Missing States Checklist
+
+- [x] Loading / skeleton -- Preset cards show 3 skeleton cards; copy dialog shows skeleton while trainees load
+- [x] Empty / zero data -- Centered Utensils icon + descriptive message + "Add Preset" CTA
+- [x] Error / failure -- Inline error with retry button, `role="alert"` for screen readers
+- [x] Success / confirmation -- Toast notifications for create/update/delete/copy
+- [x] Offline / degraded -- Handled by React Query retry + error state
+- [x] Permission denied -- Not applicable (trainer always has access to their own trainees' presets)
+
+---
+
+## Consistency Check (vs. Edit Goals Dialog and Remove Trainee Dialog)
+
+| Aspect | Edit Goals Dialog | Remove Trainee Dialog | Preset Form Dialog | Consistent? |
+|--------|------------------|----------------------|-------------------|-------------|
+| Dialog max-width | sm:max-w-md | sm:max-w-md | sm:max-w-md | Yes |
+| Cancel button | variant="outline" | variant="outline" + disabled during pending | variant="outline" + disabled during pending | Yes |
+| Loading spinner | Loader2 with aria-hidden | Loader2 with aria-hidden | Loader2 with aria-hidden | Yes |
+| Error toast | getErrorMessage(err) | getErrorMessage(err) | getErrorMessage(err) | Yes |
+| Success toast | toast.success() | toast.success() | toast.success() | Yes |
+| Form validation | Same pattern (Record<string, string> errors) | N/A (uses typed confirmation) | Same pattern + aria-describedby (improvement) | Yes (improved) |
+| Label/Input pairing | htmlFor + id | htmlFor + id | htmlFor + id | Yes |
+
+---
+
+## Files Changed
+
+| File | Changes |
+|------|---------|
+| `web/src/components/trainees/macro-presets-section.tsx` | Added `aria-busy`, `aria-label` on loading wrapper; `role="alert"` on error state; `aria-label` on retry button; `role="alertdialog"`, `aria-describedby`, pointer/escape prevention on delete dialog |
+| `web/src/components/trainees/preset-card.tsx` | Fixed Star icon accessibility (`aria-hidden` + `sr-only`); added `focus-visible:ring-2` to all action buttons |
+| `web/src/components/trainees/preset-form-dialog.tsx` | Added `aria-describedby` and `role="alert"` to all 5 form field errors; added `handleOpenChange` guard; added `onPointerDownOutside`/`onEscapeKeyDown` prevention; improved focus ring consistency on select/checkbox; added `cursor-pointer` to checkbox label; calorie mismatch warning; all inputs disabled during pending |
+| `web/src/components/trainees/copy-preset-dialog.tsx` | Added `handleOpenChange` guard; added `onPointerDownOutside`/`onEscapeKeyDown` prevention; improved select `aria-label` and focus ring; disabled cancel during pending; cancel uses `handleOpenChange`; loading state for trainee list; enhanced empty state |
+
+---
+
+## TypeScript Check
+`npx tsc --noEmit` passed with exit code 0. No type errors.
+
+---
+
+## Overall UX Score: 9/10
+
+The Macro Preset Management feature is well-built with strong fundamentals: clear empty states, proper loading skeletons, error handling with retry, toast feedback for all mutations, and delete confirmation. The primary gaps were accessibility-related (missing ARIA attributes for screen readers, missing focus indicators for keyboard users, dialog dismissal during mutations). All issues have been fixed. The calorie mismatch warning is a thoughtful UX addition that helps trainers catch data entry mistakes before saving. The feature is consistent with the existing dashboard patterns (same dialog structure, button styles, card layout as other trainee components like Edit Goals and Remove Trainee).

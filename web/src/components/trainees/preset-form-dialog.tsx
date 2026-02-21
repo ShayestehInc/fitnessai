@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,17 @@ const FREQUENCY_OPTIONS = [
   { value: "7", label: "Daily" },
 ] as const;
 
+/** Compute expected calories from macros: protein*4 + carbs*4 + fat*9 */
+function computedCalories(proteinStr: string, carbsStr: string, fatStr: string): number | null {
+  const p = Number(proteinStr);
+  const c = Number(carbsStr);
+  const f = Number(fatStr);
+  if ([proteinStr, carbsStr, fatStr].some((v) => v === "") || isNaN(p) || isNaN(c) || isNaN(f)) {
+    return null;
+  }
+  return Math.round(p * 4 + c * 4 + f * 9);
+}
+
 interface PresetFormDialogProps {
   traineeId: number;
   traineeName: string;
@@ -61,6 +72,20 @@ export function PresetFormDialog({
   const createMutation = useCreateMacroPreset(traineeId);
   const updateMutation = useUpdateMacroPreset(traineeId);
   const isPending = createMutation.isPending || updateMutation.isPending;
+
+  // Calorie sanity check: warn if entered calories differ from macro-computed calories by >10%
+  const calorieMismatchWarning = useMemo(() => {
+    const entered = Number(calories);
+    if (!calories || isNaN(entered)) return null;
+    const computed = computedCalories(protein, carbs, fat);
+    if (computed === null || computed === 0) return null;
+    const diff = Math.abs(entered - computed);
+    const pct = diff / computed;
+    if (pct > 0.1) {
+      return `Macros add up to ~${computed} kcal (P\u00d74 + C\u00d74 + F\u00d79). You entered ${Math.round(entered)} kcal.`;
+    }
+    return null;
+  }, [calories, protein, carbs, fat]);
 
   useEffect(() => {
     if (open) {
@@ -98,23 +123,28 @@ export function PresetFormDialog({
       newErrors.name = "Name must be 100 characters or less";
     }
 
-    const cal = Number(calories);
-    if (!calories || isNaN(cal) || cal < 500 || cal > 10000) {
+    // Round before validating so decimal edge cases (e.g. 499.6 -> 500) pass correctly
+    const calRaw = Number(calories);
+    const cal = Math.round(calRaw);
+    if (!calories || isNaN(calRaw) || cal < 500 || cal > 10000) {
       newErrors.calories = "Enter a value between 500 and 10,000";
     }
 
-    const pro = Number(protein);
-    if (protein === "" || isNaN(pro) || pro < 0 || pro > 500) {
+    const proRaw = Number(protein);
+    const pro = Math.round(proRaw);
+    if (protein === "" || isNaN(proRaw) || pro < 0 || pro > 500) {
       newErrors.protein = "Enter a value between 0 and 500";
     }
 
-    const crb = Number(carbs);
-    if (carbs === "" || isNaN(crb) || crb < 0 || crb > 1000) {
+    const crbRaw = Number(carbs);
+    const crb = Math.round(crbRaw);
+    if (carbs === "" || isNaN(crbRaw) || crb < 0 || crb > 1000) {
       newErrors.carbs = "Enter a value between 0 and 1,000";
     }
 
-    const ft = Number(fat);
-    if (fat === "" || isNaN(ft) || ft < 0 || ft > 500) {
+    const ftRaw = Number(fat);
+    const ft = Math.round(ftRaw);
+    if (fat === "" || isNaN(ftRaw) || ft < 0 || ft > 500) {
       newErrors.fat = "Enter a value between 0 and 500";
     }
 
@@ -175,9 +205,25 @@ export function PresetFormDialog({
     ],
   );
 
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen && isPending) return;
+      onOpenChange(nextOpen);
+    },
+    [isPending, onOpenChange],
+  );
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => {
+          if (isPending) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isPending) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Edit Macro Preset" : "Create Macro Preset"}
@@ -201,10 +247,18 @@ export function PresetFormDialog({
               }}
               placeholder="e.g. Training Day"
               maxLength={100}
+              disabled={isPending}
               aria-invalid={Boolean(errors.name)}
+              aria-describedby={errors.name ? "preset-name-error" : undefined}
             />
             {errors.name && (
-              <p className="text-sm text-destructive">{errors.name}</p>
+              <p
+                id="preset-name-error"
+                className="text-sm text-destructive"
+                role="alert"
+              >
+                {errors.name}
+              </p>
             )}
           </div>
 
@@ -213,6 +267,7 @@ export function PresetFormDialog({
             <Input
               id="preset-calories"
               type="number"
+              step="1"
               value={calories}
               onChange={(e) => {
                 setCalories(e.target.value);
@@ -221,10 +276,20 @@ export function PresetFormDialog({
               placeholder="2000"
               min={500}
               max={10000}
+              disabled={isPending}
               aria-invalid={Boolean(errors.calories)}
+              aria-describedby={
+                errors.calories ? "preset-calories-error" : undefined
+              }
             />
             {errors.calories && (
-              <p className="text-sm text-destructive">{errors.calories}</p>
+              <p
+                id="preset-calories-error"
+                className="text-sm text-destructive"
+                role="alert"
+              >
+                {errors.calories}
+              </p>
             )}
           </div>
 
@@ -234,6 +299,7 @@ export function PresetFormDialog({
               <Input
                 id="preset-protein"
                 type="number"
+                step="1"
                 value={protein}
                 onChange={(e) => {
                   setProtein(e.target.value);
@@ -242,10 +308,20 @@ export function PresetFormDialog({
                 placeholder="150"
                 min={0}
                 max={500}
+                disabled={isPending}
                 aria-invalid={Boolean(errors.protein)}
+                aria-describedby={
+                  errors.protein ? "preset-protein-error" : undefined
+                }
               />
               {errors.protein && (
-                <p className="text-sm text-destructive">{errors.protein}</p>
+                <p
+                  id="preset-protein-error"
+                  className="text-sm text-destructive"
+                  role="alert"
+                >
+                  {errors.protein}
+                </p>
               )}
             </div>
 
@@ -254,6 +330,7 @@ export function PresetFormDialog({
               <Input
                 id="preset-carbs"
                 type="number"
+                step="1"
                 value={carbs}
                 onChange={(e) => {
                   setCarbs(e.target.value);
@@ -262,10 +339,20 @@ export function PresetFormDialog({
                 placeholder="200"
                 min={0}
                 max={1000}
+                disabled={isPending}
                 aria-invalid={Boolean(errors.carbs)}
+                aria-describedby={
+                  errors.carbs ? "preset-carbs-error" : undefined
+                }
               />
               {errors.carbs && (
-                <p className="text-sm text-destructive">{errors.carbs}</p>
+                <p
+                  id="preset-carbs-error"
+                  className="text-sm text-destructive"
+                  role="alert"
+                >
+                  {errors.carbs}
+                </p>
               )}
             </div>
 
@@ -274,6 +361,7 @@ export function PresetFormDialog({
               <Input
                 id="preset-fat"
                 type="number"
+                step="1"
                 value={fat}
                 onChange={(e) => {
                   setFat(e.target.value);
@@ -282,10 +370,20 @@ export function PresetFormDialog({
                 placeholder="70"
                 min={0}
                 max={500}
+                disabled={isPending}
                 aria-invalid={Boolean(errors.fat)}
+                aria-describedby={
+                  errors.fat ? "preset-fat-error" : undefined
+                }
               />
               {errors.fat && (
-                <p className="text-sm text-destructive">{errors.fat}</p>
+                <p
+                  id="preset-fat-error"
+                  className="text-sm text-destructive"
+                  role="alert"
+                >
+                  {errors.fat}
+                </p>
               )}
             </div>
           </div>
@@ -297,7 +395,9 @@ export function PresetFormDialog({
                 id="preset-frequency"
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                disabled={isPending}
+                aria-label="Preset frequency per week"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {FREQUENCY_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -313,19 +413,28 @@ export function PresetFormDialog({
                 type="checkbox"
                 checked={isDefault}
                 onChange={(e) => setIsDefault(e.target.checked)}
-                className="h-4 w-4 rounded border-input focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                disabled={isPending}
+                className="h-4 w-4 shrink-0 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
               />
-              <Label htmlFor="preset-default" className="text-sm font-normal">
+              <Label htmlFor="preset-default" className="text-sm font-normal cursor-pointer">
                 Set as default
               </Label>
             </div>
           </div>
 
+          {calorieMismatchWarning && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <p>{calorieMismatchWarning}</p>
+            </div>
+          )}
+
           <DialogFooter>
             <Button
               variant="outline"
               type="button"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
+              disabled={isPending}
             >
               Cancel
             </Button>

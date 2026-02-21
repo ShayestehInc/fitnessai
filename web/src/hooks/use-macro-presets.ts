@@ -7,12 +7,13 @@ import type { MacroPreset } from "@/types/trainer";
 
 export function useMacroPresets(traineeId: number) {
   return useQuery<MacroPreset[]>({
-    queryKey: ["macroPresets", traineeId],
+    queryKey: ["macro-presets", traineeId],
     queryFn: () =>
       apiClient.get<MacroPreset[]>(
         `${API_URLS.MACRO_PRESETS}?trainee_id=${traineeId}`,
       ),
     enabled: traineeId > 0,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -34,7 +35,7 @@ export function useCreateMacroPreset(traineeId: number) {
     mutationFn: (data: CreateMacroPresetPayload) =>
       apiClient.post<MacroPreset>(API_URLS.MACRO_PRESETS, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["macroPresets", traineeId] });
+      queryClient.invalidateQueries({ queryKey: ["macro-presets", traineeId] });
     },
   });
 }
@@ -61,7 +62,7 @@ export function useUpdateMacroPreset(traineeId: number) {
       data: UpdateMacroPresetPayload;
     }) => apiClient.put<MacroPreset>(API_URLS.macroPresetDetail(presetId), data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["macroPresets", traineeId] });
+      queryClient.invalidateQueries({ queryKey: ["macro-presets", traineeId] });
     },
   });
 }
@@ -73,7 +74,7 @@ export function useDeleteMacroPreset(traineeId: number) {
     mutationFn: (presetId: number) =>
       apiClient.delete(API_URLS.macroPresetDetail(presetId)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["macroPresets", traineeId] });
+      queryClient.invalidateQueries({ queryKey: ["macro-presets", traineeId] });
     },
   });
 }
@@ -93,10 +94,10 @@ export function useCopyMacroPreset(sourceTraineeId: number) {
       }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ["macroPresets", sourceTraineeId],
+        queryKey: ["macro-presets", sourceTraineeId],
       });
       queryClient.invalidateQueries({
-        queryKey: ["macroPresets", variables.targetTraineeId],
+        queryKey: ["macro-presets", variables.targetTraineeId],
       });
     },
   });

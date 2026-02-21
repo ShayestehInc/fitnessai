@@ -3,11 +3,7 @@
 import { useState } from "react";
 import {
   Plus,
-  Pencil,
-  Trash2,
-  Copy,
   Utensils,
-  Star,
   RefreshCw,
   Loader2,
 } from "lucide-react";
@@ -20,7 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -34,6 +29,7 @@ import { useMacroPresets, useDeleteMacroPreset } from "@/hooks/use-macro-presets
 import { getErrorMessage } from "@/lib/error-utils";
 import { PresetFormDialog } from "./preset-form-dialog";
 import { CopyPresetDialog } from "./copy-preset-dialog";
+import { PresetCard } from "./preset-card";
 import type { MacroPreset } from "@/types/trainer";
 
 interface MacroPresetsSectionProps {
@@ -97,14 +93,26 @@ export function MacroPresetsSection({
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading && <PresetsSkeleton />}
+          {isLoading && (
+            <div aria-busy="true" aria-label="Loading macro presets">
+              <PresetsSkeleton />
+            </div>
+          )}
 
           {isError && (
-            <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <div
+              className="flex flex-col items-center gap-2 py-6 text-center"
+              role="alert"
+            >
               <p className="text-sm text-muted-foreground">
                 Failed to load macro presets.
               </p>
-              <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                aria-label="Retry loading macro presets"
+              >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Retry
               </Button>
@@ -172,10 +180,20 @@ export function MacroPresetsSection({
           if (!open && !deleteMutation.isPending) setDeleteTarget(null);
         }}
       >
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent
+          className="sm:max-w-sm"
+          role="alertdialog"
+          aria-describedby="delete-preset-description"
+          onPointerDownOutside={(e) => {
+            if (deleteMutation.isPending) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (deleteMutation.isPending) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Delete Preset</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="delete-preset-description">
               Are you sure you want to delete the preset &ldquo;
               {deleteTarget?.name}&rdquo;? This cannot be undone.
             </DialogDescription>
@@ -205,114 +223,6 @@ export function MacroPresetsSection({
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function PresetCard({
-  preset,
-  onEdit,
-  onDelete,
-  onCopy,
-}: {
-  preset: MacroPreset;
-  onEdit: (preset: MacroPreset) => void;
-  onDelete: (preset: MacroPreset) => void;
-  onCopy: (preset: MacroPreset) => void;
-}) {
-  const frequencyLabel =
-    preset.frequency_per_week !== null
-      ? preset.frequency_per_week === 7
-        ? "Daily"
-        : `${preset.frequency_per_week}x/wk`
-      : null;
-
-  return (
-    <div className="rounded-lg border p-4 space-y-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex items-center gap-2">
-          <p
-            className="truncate text-sm font-semibold"
-            title={preset.name}
-          >
-            {preset.name}
-          </p>
-          {preset.is_default && (
-            <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" aria-label="Default preset" />
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onCopy(preset)}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            aria-label={`Copy ${preset.name} preset to another trainee`}
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onEdit(preset)}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            aria-label={`Edit ${preset.name} preset`}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(preset)}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-destructive transition-colors"
-            aria-label={`Delete ${preset.name} preset`}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 text-center">
-        <MacroCell label="Calories" value={preset.calories} unit="kcal" />
-        <MacroCell label="Protein" value={preset.protein} unit="g" />
-        <MacroCell label="Carbs" value={preset.carbs} unit="g" />
-        <MacroCell label="Fat" value={preset.fat} unit="g" />
-      </div>
-
-      {(frequencyLabel || preset.is_default) && (
-        <div className="flex flex-wrap gap-1.5">
-          {preset.is_default && (
-            <Badge variant="secondary" className="text-xs">
-              Default
-            </Badge>
-          )}
-          {frequencyLabel && (
-            <Badge variant="outline" className="text-xs">
-              {frequencyLabel}
-            </Badge>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MacroCell({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: number;
-  unit: string;
-}) {
-  return (
-    <div className="rounded-md bg-muted/50 px-2 py-1.5">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-semibold">
-        {value}
-        <span className="text-xs font-normal text-muted-foreground">
-          {" "}
-          {unit}
-        </span>
-      </p>
-    </div>
   );
 }
 

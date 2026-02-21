@@ -1,116 +1,124 @@
-# Architecture Review: CSV Data Export
+# Architecture Review: Macro Preset Management (Web Dashboard)
 
 ## Review Date
 2026-02-21
 
 ## Files Reviewed
-- `backend/trainer/services/export_service.py` -- Export business logic (CSV generation)
-- `backend/trainer/export_views.py` -- HTTP request/response layer
-- `backend/trainer/utils.py` -- Shared `parse_days_param` utility
-- `backend/trainer/urls.py` -- URL wiring (`export/payments/`, `export/subscribers/`, `export/trainees/`)
-- `web/src/components/shared/export-button.tsx` -- Frontend download component
-- `web/src/lib/constants.ts` -- URL constants (`EXPORT_PAYMENTS`, `EXPORT_SUBSCRIBERS`, `EXPORT_TRAINEES`)
-- `backend/trainer/services/revenue_analytics_service.py` -- Existing service (pattern reference)
-- `backend/subscriptions/models.py` -- Underlying data models and indexes (`TraineePayment`, `TraineeSubscription`)
-- `backend/trainer/views.py` -- Existing views (pattern reference, import conventions)
+- `web/src/types/trainer.ts` -- `MacroPreset` type definition
+- `web/src/lib/constants.ts` -- API URL constants for macro preset endpoints
+- `web/src/hooks/use-macro-presets.ts` -- React Query hooks (CRUD + copy)
+- `web/src/components/trainees/macro-presets-section.tsx` -- Section-level container (state orchestration, dialogs)
+- `web/src/components/trainees/preset-card.tsx` -- Individual preset card display (extracted during this review)
+- `web/src/components/trainees/preset-form-dialog.tsx` -- Create/Edit form dialog
+- `web/src/components/trainees/copy-preset-dialog.tsx` -- Copy-to-trainee dialog
+- `web/src/components/trainees/trainee-overview-tab.tsx` -- Integration point (renders `MacroPresetsSection`)
+
+**Reference files (pattern comparison):**
+- `web/src/hooks/use-trainee-goals.ts` -- Existing mutation hook pattern
+- `web/src/hooks/use-trainees.ts` -- Existing query hook pattern
+- `web/src/components/trainees/edit-goals-dialog.tsx` -- Existing dialog pattern
+- `web/src/lib/api-client.ts` -- HTTP client with auth refresh
 
 ## Architectural Alignment
 - [x] Follows existing layered architecture
-- [x] Service handles business logic
-- [x] Views handle request/response only
-- [x] Consistent with existing patterns
-- [x] Models/schemas in correct locations
-- [x] No business logic in views
-- [x] Return types use dataclass (not dict)
-- [x] Type hints on all functions
+- [x] Hooks encapsulate data fetching / mutations (no API calls in components)
+- [x] Components handle presentation only
+- [x] Types centralized in `types/trainer.ts`
+- [x] API URLs centralized in `lib/constants.ts`
+- [x] Consistent with existing patterns (dialog structure, toast notifications, error handling)
 
 **Details:**
 
-1. **Service layer separation**: All CSV generation logic (queries, formatting, buffer writing) lives in `export_service.py`. The views in `export_views.py` are 3-4 lines each: cast user, parse params, call service, return `HttpResponse`. This mirrors the `RevenueAnalyticsView` + `revenue_analytics_service.py` pattern exactly.
+1. **Hook layer separation**: All five operations (query, create, update, delete, copy) live in `use-macro-presets.ts`. Components import hooks and call `mutate()` with success/error callbacks. No `apiClient` calls exist in any component file. This matches the pattern in `use-trainee-goals.ts` and `use-trainees.ts` exactly.
 
-2. **Dataclass return type**: `CsvExportResult` is a `frozen=True` dataclass with `content`, `filename`, and `row_count` fields. This follows the project rule: "for services and utils, return dataclass or pydantic models, never ever return dict." Immutability prevents accidental mutation between service and view layers.
+2. **Type centralization**: `MacroPreset` interface is defined in `types/trainer.ts` alongside `NutritionGoal`, `TraineeDetail`, and other trainee-related types. Correct placement -- all trainer-dashboard types colocated.
 
-3. **Dedicated views file**: Export views are in `export_views.py`, keeping `views.py` from growing further. This is a good organizational decision -- `views.py` already has 1000+ lines.
+3. **URL constants**: `MACRO_PRESETS`, `macroPresetDetail()`, `macroPresetCopyTo()`, `MACRO_PRESETS_ALL` follow the established constant patterns (static strings for list endpoints, functions for detail endpoints). Consistent with `traineeDetail()`, `traineeGoals()`, etc.
 
-4. **Shared utility reuse**: `parse_days_param` in `utils.py` is shared between `export_views.py` and `views.py` (used by `RevenueAnalyticsView`). Good DRY practice.
+4. **Dialog pattern**: `PresetFormDialog` and `CopyPresetDialog` follow the exact same structure as `EditGoalsDialog`: controlled `open`/`onOpenChange` props, `useEffect` reset on open, `useCallback` for validation/submit, toast on success/error. Nearly identical boilerplate, which is good for maintainability.
 
-5. **Permission classes**: All three views use `[IsAuthenticated, IsTrainer]` from `core.permissions`, identical to all other trainer endpoints.
+5. **Error handling**: All mutations use `getErrorMessage()` from `lib/error-utils.ts` to parse `ApiError` bodies into user-friendly messages. No silent error swallowing.
 
-6. **Row-level security**: All queries filter by `trainer=trainer` (the authenticated user). No IDOR possible -- a trainer cannot export another trainer's data.
+6. **Component composition in `trainee-overview-tab.tsx`**: `MacroPresetsSection` is placed below the two-column profile/goals grid as a full-width section. It manages its own data fetching (via `useMacroPresets`), so it is self-contained. The parent only passes `traineeId` and `traineeName`. Clean composition boundary.
 
-## Data Model Assessment
+## Data Flow Assessment
 | Concern | Status | Notes |
 |---------|--------|-------|
-| No schema changes needed | PASS | Reads existing models only; no migrations required |
-| `select_related` used correctly | PASS | `export_payments_csv` and `export_subscribers_csv` both use `.select_related("trainee")` to avoid N+1 |
-| `prefetch_related` used correctly | PASS | `export_trainees_csv` uses `Prefetch` with `queryset` filter and `to_attr` for active programs |
-| Annotation for aggregates | PASS | `export_trainees_csv` uses `annotate(last_log_date=Max("daily_logs__date"))` instead of prefetching all daily logs -- avoids unbounded memory |
-| Existing indexes cover queries | PASS | `TraineePayment` has index on `trainer`; `TraineeSubscription` has index on `trainer`; `User.parent_trainer` FK has implicit index |
-| No N+1 query patterns | PASS | All related data loaded via `select_related`/`prefetch_related`/`annotate` |
+| React Query cache keys consistent | PASS (after fix) | Changed `"macroPresets"` to `"macro-presets"` to match codebase kebab-case convention |
+| Mutations invalidate correct queries | PASS | Create/update/delete invalidate `["macro-presets", traineeId]`. Copy invalidates both source and target trainee caches |
+| `enabled` guard on query | PASS | `enabled: traineeId > 0` prevents firing with invalid IDs |
+| `staleTime` set | PASS (after fix) | Added `staleTime: 5 * 60 * 1000` to match all other hooks in the codebase |
+| No stale closure bugs | PASS | `useCallback` dependency arrays are complete. `useEffect` resets form state when dialog opens |
 
-**Query analysis per export function:**
+## Issues Found and Fixed
 
-1. **`export_payments_csv`**: 1 query -- `TraineePayment.filter(trainer=, created_at__gte=).select_related("trainee")`. Uses `trainer` index. Filters by `created_at__gte` with `days` param (max 365), bounding the result set.
+### Issue 1: Query key naming convention (Minor -- Fixed)
+**Problem:** The hook used `"macroPresets"` (camelCase) as the query key prefix. Every other hook in the codebase uses kebab-case: `"feature-requests"`, `"admin-ambassador"`, `"stripe-connect-status"`, `"trainee-view"`, `"leaderboard-settings"`, etc. Inconsistency makes cache invalidation patterns harder to reason about.
 
-2. **`export_subscribers_csv`**: 1 query -- `TraineeSubscription.filter(trainer=).select_related("trainee")`. Uses `trainer` index. Returns all statuses for complete bookkeeping.
+**Fix:** Changed all occurrences in `use-macro-presets.ts` from `"macroPresets"` to `"macro-presets"`.
 
-3. **`export_trainees_csv`**: 1 query -- `User.filter(parent_trainer=, role=TRAINEE).select_related("profile").prefetch_related(Prefetch("programs", ...)).annotate(...)`. The `Prefetch` adds a second query for active programs. Total: 2 queries. Efficient.
+**Files changed:** `web/src/hooks/use-macro-presets.ts` (6 occurrences)
+
+### Issue 2: Missing staleTime (Minor -- Fixed)
+**Problem:** The `useMacroPresets` query had no `staleTime` configured. The codebase convention is `staleTime: 5 * 60 * 1000` (5 minutes) on all data-fetching queries (`use-trainees.ts`, `use-analytics.ts`, `use-admin-dashboard.ts`, `use-exercises.ts`, `use-progress.ts`, etc.). Without it, presets refetch on every component mount/focus, causing unnecessary network requests.
+
+**Fix:** Added `staleTime: 5 * 60 * 1000` to the `useMacroPresets` query options.
+
+**Files changed:** `web/src/hooks/use-macro-presets.ts`
+
+### Issue 3: Oversized component file (Minor -- Fixed)
+**Problem:** `macro-presets-section.tsx` was 343 lines (369 after UX audit additions). It contained `MacroPresetsSection`, `PresetCard`, `MacroCell`, and `PresetsSkeleton` -- four distinct visual concerns in one file. While the 150-line rule is a mobile convention, the web codebase also benefits from component isolation for reusability and readability. `PresetCard` is a self-contained presentational component with its own subcomponent (`MacroCell`) and could be reused in other contexts (e.g., a preset search/browser view).
+
+**Fix:** Extracted `PresetCard` and `MacroCell` into `web/src/components/trainees/preset-card.tsx` (118 lines). Updated `macro-presets-section.tsx` to import `PresetCard` from the new file. Removed unused icon imports (`Pencil`, `Trash2`, `Copy`, `Star`) and `Badge` import from the section file.
+
+**Result:** `macro-presets-section.tsx` dropped to 253 lines. The section file now focuses on orchestration (state management, data fetching, dialog coordination) while `preset-card.tsx` handles individual preset display.
+
+**Files changed:** `web/src/components/trainees/macro-presets-section.tsx`, new file `web/src/components/trainees/preset-card.tsx`
 
 ## Scalability Concerns
 | # | Area | Severity | Assessment |
 |---|------|----------|------------|
-| 1 | Payment export date filter | Low | Filters `created_at__gte` but the compound index is `(trainer, status, paid_at)`. The single-column `trainer` index still covers the filter adequately. For typical trainer volumes (tens to hundreds of payments per year), this is not a bottleneck. A compound `(trainer, created_at)` index would help at very high volume but is premature optimization. |
-| 2 | Subscriber/trainee exports have no LIMIT | Low | Intentional -- exports should include all data for bookkeeping. Bounded in practice by tier trainee limits (3 for Free, 10 for Starter, 50 for Pro). Enterprise trainers with thousands of trainees could produce large CSVs, but CSV is lightweight and this is an infrequent user-initiated action. Acceptable. |
-| 3 | In-memory CSV buffer | Low | Uses `io.StringIO` to build CSV before returning. For expected volumes (hundreds to low-thousands of rows), memory usage is trivial. If exports grew to millions of rows, `StreamingHttpResponse` would be needed, but that is premature optimization. |
+| 1 | Preset list not paginated | Low | The API returns all presets for a trainee as a flat array. For typical use (3-7 presets per trainee like "Training Day", "Rest Day", "High Carb Day"), this is fine. If the domain were to support hundreds of presets, pagination would be needed. However, that is not a realistic use case for macro presets. |
+| 2 | `useAllTrainees` in copy dialog | Low | `CopyPresetDialog` calls `useAllTrainees()` which fetches up to 200 trainees. This is cached with a 5-minute staleTime so it does not re-fetch on every dialog open. For trainers with very large rosters, a search/autocomplete would be better, but the current tier limits cap at 50 trainees (Pro tier). Acceptable for now. |
+| 3 | No optimistic updates on mutations | Low | Create/update/delete mutations wait for server confirmation then invalidate the cache. This causes a brief delay before the UI updates. Optimistic updates would improve perceived performance but add complexity. Given the infrequent nature of preset CRUD (trainers set these up once), the current approach is pragmatic. |
 
 ## API Design Assessment
 | Concern | Status | Notes |
 |---------|--------|-------|
-| RESTful URL structure | PASS | `GET /api/trainer/export/payments/`, `/subscribers/`, `/trainees/` -- clean noun-based paths under `export/` namespace |
-| Consistent with existing endpoints | PASS | Same `GET` + query param pattern as `RevenueAnalyticsView` |
-| Query params validated | PASS | `parse_days_param` clamps to 1-365, defaults to 30, handles `ValueError`/`TypeError` |
-| Auth + permissions | PASS | `[IsAuthenticated, IsTrainer]` on all views |
-| Response format | PASS | `HttpResponse` with `text/csv` content type and `Content-Disposition: attachment` header |
-| Frontend URL constants | PASS | `EXPORT_PAYMENTS`, `EXPORT_SUBSCRIBERS`, `EXPORT_TRAINEES` registered in `constants.ts` |
+| URL structure consistent | PASS | `/api/workouts/macro-presets/` with `{id}/` detail and `{id}/copy_to/` action follow Django REST Framework conventions |
+| Query param for filtering | PASS | `?trainee_id=X` on the list endpoint -- standard DRF filter pattern |
+| HTTP methods correct | PASS | GET (list), POST (create), PUT (update), DELETE (delete), POST for copy action |
+| Frontend constants registered | PASS | All 4 URL patterns registered in `constants.ts` |
 
-## Frontend Component Assessment
+## Component Design Assessment
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Auth token handling | PASS | Refreshes expired token before request; retries once on 401 race condition |
-| Error states | PASS | Distinct messages for 403 (permission denied) vs generic failure vs network error |
-| Loading state | PASS | `isDownloading` boolean with `Loader2` spinner, button disabled during download |
-| Download mechanism | PASS | `URL.createObjectURL` + programmatic `<a>` click + delayed `revokeObjectURL` for Safari |
-| Accessibility | PASS | `aria-label` prop support, button disabled during download |
-| Reusability | PASS | Generic props (`url`, `filename`, `label`) -- works for any CSV export endpoint |
-| Component size | PASS | 124 lines including the `triggerDownload` helper -- well within 150-line convention |
-
-## Concerns
-| # | Area | Issue | Recommendation |
-|---|------|-------|----------------|
-| -- | -- | No critical or major issues found | -- |
-
-## Minor Observations (not requiring changes)
-
-1. **Payment date filter is correct for its use case**: `export_payments_csv` filters on `created_at__gte` while the revenue analytics service filters on `paid_at__gte` for succeeded payments. The export is correct -- it includes all payment statuses (pending, failed, etc.) which may not have `paid_at` set, so `created_at` is the right filter field.
-
-2. **No cap on export rows vs. analytics cap**: The revenue analytics service caps subscribers at 100 (`[:100]`), but export functions return all rows. This is the correct design decision -- analytics shows a summary while exports provide complete data.
-
-3. **Helper functions are module-private**: `_format_date`, `_format_date_only`, `_safe_str`, `_format_amount` are prefixed with underscore, signaling they are internal to the service module. Clean encapsulation.
-
-4. **Frozen dataclass immutability**: `CsvExportResult(frozen=True)` matches the pattern in `revenue_analytics_service.py` (`RevenueAnalyticsResult(frozen=True)`). Consistent and prevents accidental mutation.
+| Prop interfaces defined | PASS | `MacroPresetsSectionProps`, `PresetCardProps`, `PresetFormDialogProps`, `CopyPresetDialogProps` all have explicit interfaces |
+| Controlled dialog pattern | PASS | All three dialogs use `open`/`onOpenChange` controlled pattern matching Radix/shadcn conventions |
+| Form validation | PASS | Client-side validation in `PresetFormDialog` matches backend constraints (name required, calories 500-10000, protein 0-500, etc.) |
+| Skeleton matches content layout | PASS | `PresetsSkeleton` mirrors the exact grid/card structure of the populated state |
+| Error boundary needed? | N/A | React Query handles error states at the data level; the section component renders an error state with retry button |
 
 ## Technical Debt Introduced
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| -- | None introduced | -- | The implementation follows established patterns exactly and does not introduce new patterns or deviations |
+| 1 | Native `<select>` elements in `PresetFormDialog` and `CopyPresetDialog` | Low | The rest of the codebase may eventually adopt a shadcn Select component for visual consistency. Using native `<select>` is functionally correct and accessible, but looks different from shadcn form controls. When a Select component is adopted codebase-wide, these should be updated. Not urgent. |
+| 2 | Duplicate macro validation logic between `PresetFormDialog` and `EditGoalsDialog` | Low | Both dialogs validate calories (500-10000), protein (0-500), carbs (0-1000), fat (0-500) with identical logic. A shared `validateMacros()` utility could DRY this up. However, the validation ranges may diverge over time (presets vs goals may have different valid ranges), so keeping them separate is defensible. |
 
 ## Technical Debt Reduced
-- Export views are in a dedicated file (`export_views.py`), preventing further growth of the 1000+ line `views.py`.
-- `parse_days_param` extraction into `utils.py` is reused across multiple view files, reducing duplication.
+- The extraction of `PresetCard` into its own file prevents the section file from growing unbounded as features are added (e.g., drag-to-reorder, preset comparison view).
+- Query key naming alignment reduces future confusion when debugging cache invalidation issues.
+- Adding `staleTime` prevents unnecessary API calls and aligns with the codebase's performance conventions.
 
 ## Summary
 
-The CSV Data Export feature is architecturally clean. It follows the established service-layer pattern precisely: thin views in a dedicated file, all business logic in a service, shared utilities extracted, frozen dataclass return types, proper query optimization with `select_related`/`prefetch_related`/`annotate`, and correct auth/row-level security enforcement. The frontend component is reusable, accessible, handles all error states, and stays well within file size conventions. No new models, migrations, or schema changes are needed. No architectural issues found.
+The Macro Preset Management feature is architecturally sound. It follows the established patterns of the web dashboard exactly: hooks for data access, components for presentation, types centralized, URLs centralized, dialog pattern matching existing implementations. Three minor issues were found and fixed:
+
+1. Query key naming changed from camelCase to kebab-case to match codebase convention.
+2. Added missing `staleTime` to prevent unnecessary refetches.
+3. Extracted `PresetCard` into its own file to improve component separation (253 + 118 lines vs. 369 lines in one file).
+
+All fixes pass TypeScript compilation with zero errors (`npx tsc --noEmit`). No architectural concerns that would block shipping. The data flow is correct, cache invalidation is thorough (including cross-trainee invalidation on copy), and the component boundaries are clean.
 
 ## Architecture Score: 9/10
 ## Recommendation: APPROVE
