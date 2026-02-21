@@ -4,6 +4,31 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-21] — Smart Program Generator (Pipeline 31)
+
+### Added
+- **Exercise difficulty classification** — `difficulty_level` (beginner/intermediate/advanced) and `category` fields on Exercise model with composite index on `(muscle_group, difficulty_level)`. Management command `classify_exercises` supports OpenAI GPT-4o batch classification and heuristic fallback mode.
+- **KILO exercise library** — 1,067 exercises seeded via `seed_kilo_exercises` management command with fixture data in `kilo_exercises.json`.
+- **Program generation service** (`backend/workouts/services/program_generator.py`) — Deterministic algorithm supporting 5 split types (PPL, Upper/Lower, Full Body, Bro Split, Custom), 3 difficulty levels, 6 training goals. Features exercise selection with difficulty fallback, sets/reps/rest schemes per goal×difficulty matrix, progressive overload (+1 set/3 weeks, +1 rep/2 weeks, capped at +3 sets/+5 reps), deload every 4th week, and goal-based nutrition templates.
+- **Generate API endpoint** — `POST /api/trainer/program-templates/generate/` with `GenerateProgramRequestSerializer` (validates split type, difficulty, goal, duration 1-52 weeks, training days 2-7, custom day configs) and `GeneratedProgramResponseSerializer`. Protected by `[IsAuthenticated, IsTrainer]`.
+- **Web generator wizard** — 3-step wizard at `/programs/generate`: split type selection (radio cards), configuration (difficulty/goal radio groups with keyboard navigation, duration/days inputs), preview with loading skeleton and retry. Generated data passed to existing program builder via sessionStorage.
+- **Mobile generator wizard** — 3-step Flutter wizard with split type cards, goal cards, custom day configurator, accessibility Semantics labels, and navigation to existing ProgramBuilderScreen with generated data.
+- **Exercise picker difficulty filter** — Added difficulty level filter chips to exercise pickers on both web and mobile (week editor).
+- **"Generate with AI" button** — Added to Programs page on both web and mobile to launch the generator wizard.
+- **123 new backend tests** — Unit tests for compound detection, progressive overload, exercise pool, deload weeks. Integration tests for all 5 split types, nutrition templates, schedule format. API endpoint tests for auth, validation, IDOR security. All 18 goal/difficulty combinations smoke-tested.
+
+### Changed
+- `WorkoutExercise.reps` changed from `int` to `String` in Flutter to support rep ranges (e.g., "8-10") from the generator. Backward-compatible `fromJson` handles both formats. Updated across 5 mobile files.
+- All 4 program providers in `program_provider.dart` now throw `Exception` on API failure instead of silently returning empty lists (consistency with exercise provider fix).
+- `ExerciseFilter.hashCode` changed from XOR-based to `Object.hash()` for better collision resistance.
+- Extracted `ExercisePickerSheet` and `StepIndicator` into separate widget files from larger screens.
+
+### Security
+- Fixed IDOR vulnerability where `_get_exercises_for_muscle_group` exposed all exercises when `trainer_id=None`. Now correctly scopes to `is_public=True` only.
+- `trainer_id` sourced from `request.user.id`, not request body, preventing exercise pool manipulation.
+
+---
+
 ## [2026-02-21] — Macro Preset Management for Web Trainer Dashboard (Pipeline 30)
 
 ### Added

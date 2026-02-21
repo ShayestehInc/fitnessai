@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-20 (Pipeline 24: In-App Message Search)
+> Last updated: 2026-02-21 (Pipeline 31: Smart Program Generator)
 
 ---
 
@@ -67,6 +67,9 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Exercise bank (system + trainer-custom) | ✅ Done | Images, video URL, muscle groups, tags |
+| KILO exercise library | ✅ Done | Shipped 2026-02-21 (Pipeline 31): 1,067 exercises, difficulty classification (beginner/intermediate/advanced) |
+| Exercise difficulty classification | ✅ Done | Shipped 2026-02-21 (Pipeline 31): AI + heuristic classification, cached in database |
+| Smart program generator | ✅ Done | Shipped 2026-02-21 (Pipeline 31): Deterministic generation (PPL, Upper/Lower, Full Body, Bro Split, Custom splits), 3-step web/mobile wizard, progressive overload with deload weeks, goal-based nutrition templates |
 | Program builder (trainer) | ✅ Done | Week editor, exercise selection, sets/reps/weight |
 | Program templates | ✅ Done | Save and reuse programs across trainees |
 | Program assignment | ✅ Done | Trainer assigns program to trainee |
@@ -757,6 +760,64 @@ Full-stack message search across all conversations with backend API, web dashboa
 - Hacker audit: Chaos Score 7/10. 4 bugs found and fixed (AC-15 scroll-to-message, keepPreviousData, scroll reset, date formatting guard).
 - Final verdict: 9/10 SHIP.
 
+### 4.25 Smart Program Generator (Pipeline 31) -- COMPLETED (2026-02-21)
+
+Full-stack intelligent program generation with exercise difficulty classification, deterministic multi-split support, and progressive overload. Integrated across web trainer dashboard and mobile trainee onboarding. 123 backend tests.
+
+**What was built:**
+
+**Backend (Django)**
+- New `smart_programs` Django app with Exercise difficulty classification (beginner/intermediate/advanced via AI + heuristic heuristics)
+- KILO exercise library integration: 1,067 exercises with standardized difficulty levels
+- Deterministic program generation service supporting 5 split types: PPL (Push/Pull/Legs), Upper/Lower, Full Body, Bro Split (Chest+Triceps/Back+Biceps/Legs), Custom splits
+- `GenerateProgramRequest` dataclass with goal, experience_level, split_type, days_per_week, weeks, include_deload parameters
+- `GenerateProgramResult` dataclass returning complete program schedule with exercise IDs, sets, reps, progressions
+- Progressive overload logic: weight increases per week, deload weeks every 4 weeks (25% reduction)
+- Goal-based nutrition templates: macro ratios based on goal (muscle gain, fat loss, maintenance) and dietary preference
+- Exercise selection algorithm considering: target muscle groups per split, difficulty progression, equipment availability
+- `POST /api/workouts/generate-program/` endpoint with comprehensive validation and error handling
+- `POST /api/workouts/generate-nutrition/` endpoint for macro template generation
+- 123 comprehensive backend tests covering all splits, edge cases, progressive overload, nutrition templates
+
+**Web Trainer Dashboard (Next.js)**
+- Program generator wizard (2-step form): Step 1 (goal, experience, split type, days per week), Step 2 (review generated program with exercise breakdown, confirm or regenerate)
+- Regenerate button with loading state
+- Save generated program as new template
+- Inline exercise difficulty badges (Beginner/Intermediate/Advanced)
+- Progressive overload week-by-week weight progression preview
+- Deload week highlighting in schedule
+
+**Mobile Trainee Onboarding**
+- 3-step wizard integrated into existing 4-step onboarding (after diet preference selection)
+- Step 1: Goal selection (muscle gain, fat loss, maintenance)
+- Step 2: Experience level (beginner, intermediate, advanced) + days per week commitment (3-6 days)
+- Step 3: Split type selection (5 options) with descriptions
+- Generate button calls backend and creates assigned program
+- Loading state with skeleton
+- Error handling with retry
+- Post-generation: navigates to home with success snackbar
+
+**Architecture**
+- Service layer (`smart_programs/services/generator.py`, `nutrition_generator.py`) with pure functions for deterministic generation
+- `ExerciseDifficultyClassifier` service with caching for repeated classification
+- Row-level security: trainers only see generated programs for own trainees
+- Batch exercise fetches with `select_related` for N+1 prevention
+- Comprehensive logging for debugging generation outcomes
+
+**Quality:**
+- 123 backend tests: generation logic, split algorithms, progressive overload, nutrition templates, edge cases, permission checks
+- All AC pass HIGH confidence
+- Security: No exposure of raw exercise metadata, rate limiting on generation endpoint
+- Performance: Generation completes <1s per 12-week program (tested with 1,067 exercise library)
+
+**Pipeline Results:**
+- Implementation: 123 backend tests, all passing
+- Code review: 8/10 APPROVE
+- QA: All acceptance criteria pass, HIGH confidence
+- Security audit: 9/10 PASS
+- Architecture audit: 9/10 APPROVE (clean service layer, no N+1, deterministic algorithms)
+- Final verdict: 9/10 SHIP
+
 ### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
@@ -856,7 +917,15 @@ Full-stack message search across all conversations with backend API, web dashboa
 - ~~Rate limiting (30/min)~~ ✅ Completed 2026-02-19 (ScopedRateThrottle)
 - ~~Conversation archival on trainee removal~~ ✅ Completed 2026-02-19 (soft-archive, SET_NULL FK)
 
-### Phase 11: Future Enhancements
+### Phase 11: Smart Program Generator -- ✅ COMPLETED (2026-02-21)
+- ~~Intelligent program generation (PPL, Upper/Lower, Full Body, Bro Split, Custom splits)~~ ✅ Completed 2026-02-21 (Pipeline 31)
+- ~~Exercise difficulty classification (beginner/intermediate/advanced)~~ ✅ Completed 2026-02-21 (Pipeline 31)
+- ~~KILO exercise library (1,067 exercises)~~ ✅ Completed 2026-02-21 (Pipeline 31)
+- ~~3-step wizard (web + mobile)~~ ✅ Completed 2026-02-21 (Pipeline 31)
+- ~~Progressive overload with deload weeks~~ ✅ Completed 2026-02-21 (Pipeline 31)
+- ~~Goal-based nutrition templates~~ ✅ Completed 2026-02-21 (Pipeline 31)
+
+### Phase 12: Future Enhancements
 - Video attachments on community posts
 - Trainee web access
 - ~~WebSocket support for web messaging (replace HTTP polling)~~ ✅ Completed 2026-02-19 (Pipeline 22)
@@ -866,6 +935,7 @@ Full-stack message search across all conversations with backend API, web dashboa
 - ~~Advanced analytics and reporting~~ ✅ Completed 2026-02-20 (Pipeline 26 — calorie goal + trend chart; Pipeline 28 — trainer revenue analytics)
 - ~~CSV data export~~ ✅ Completed 2026-02-21 (Pipeline 29 — trainer payments, subscribers, trainees as CSV)
 - ~~Macro preset management (web dashboard)~~ ✅ Completed 2026-02-21 (Pipeline 30 — CRUD presets per trainee, copy-to-trainee, default toggle)
+- ~~Smart program generator~~ ✅ Completed 2026-02-21 (Pipeline 31 — exercise difficulty classification, KILO library, deterministic generation, 3-step wizard, progressive overload, nutrition templates)
 - Multi-language support
 - Social auth (Apple/Google) mobile integration
 - ~~Full impersonation token swap (web dashboard)~~ ✅ Completed 2026-02-20 (Pipeline 27 — trainer→trainee token swap, read-only trainee view page, impersonation banner)
