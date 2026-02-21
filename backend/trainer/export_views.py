@@ -26,6 +26,7 @@ def _csv_response(content: str, filename: str) -> HttpResponse:
     """Build an HttpResponse for a CSV file download."""
     response = HttpResponse(content, content_type="text/csv")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["Cache-Control"] = "no-store"
     return response
 
 

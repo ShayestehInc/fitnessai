@@ -36,8 +36,8 @@ export default function TraineesPage() {
         title="Trainees"
         description="Manage your training clients"
         actions={
-          <div className="flex items-center gap-2">
-            {data && data.results.length > 0 && (
+          <>
+            {data && data.count > 0 && (
               <ExportButton
                 url={API_URLS.EXPORT_TRAINEES}
                 filename={`trainees_${new Date().toLocaleDateString("en-CA")}.csv`}
@@ -48,7 +48,7 @@ export default function TraineesPage() {
             <Button asChild>
               <Link href="/invitations">Invite Trainee</Link>
             </Button>
-          </div>
+          </>
         }
       />
       <TraineeSearch value={search} onChange={handleSearchChange} />

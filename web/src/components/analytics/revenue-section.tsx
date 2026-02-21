@@ -350,7 +350,7 @@ export function RevenueSection() {
         <h2 id="revenue-heading" className="text-lg font-semibold">
           Revenue
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {hasData && (
             <>
               <ExportButton
@@ -358,12 +358,14 @@ export function RevenueSection() {
                 filename={`payments_${new Date().toLocaleDateString("en-CA")}.csv`}
                 label="Export Payments"
                 aria-label="Export payments as CSV"
+                disabled={isFetching}
               />
               <ExportButton
                 url={API_URLS.EXPORT_SUBSCRIBERS}
                 filename={`subscribers_${new Date().toLocaleDateString("en-CA")}.csv`}
                 label="Export Subscribers"
                 aria-label="Export subscribers as CSV"
+                disabled={isFetching}
               />
             </>
           )}

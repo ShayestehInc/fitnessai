@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Download, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,7 @@ interface ExportButtonProps {
   filename: string;
   label?: string;
   "aria-label"?: string;
+  disabled?: boolean;
 }
 
 async function getValidToken(): Promise<string | null> {
@@ -30,22 +31,42 @@ async function getValidToken(): Promise<string | null> {
   return getAccessToken();
 }
 
+type ButtonStatus = "idle" | "downloading" | "success";
+
 export function ExportButton({
   url,
   filename,
   label = "Export CSV",
   "aria-label": ariaLabel,
+  disabled = false,
 }: ExportButtonProps) {
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [status, setStatus] = useState<ButtonStatus>("idle");
+  const abortRef = useRef<AbortController | null>(null);
 
   const handleDownload = useCallback(async () => {
-    setIsDownloading(true);
+    // Abort any in-flight download before starting a new one
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setStatus("downloading");
+
+    function onSuccess(): void {
+      if (controller.signal.aborted) return;
+      toast.success(`${filename} downloaded`);
+      setStatus("success");
+      setTimeout(() => {
+        if (!controller.signal.aborted) setStatus("idle");
+      }, 2000);
+    }
+
     try {
       const token = await getValidToken();
       if (!token) return;
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       });
 
       if (response.status === 401) {
@@ -59,6 +80,7 @@ export function ExportButton({
           }
           const retryResponse = await fetch(url, {
             headers: { Authorization: `Bearer ${retryToken}` },
+            signal: controller.signal,
           });
           if (!retryResponse.ok) {
             toast.error("Failed to download CSV. Please try again.");
@@ -66,6 +88,7 @@ export function ExportButton({
           }
           const blob = await retryResponse.blob();
           triggerDownload(blob, filename);
+          onSuccess();
           return;
         }
         clearTokens();
@@ -85,28 +108,42 @@ export function ExportButton({
 
       const blob = await response.blob();
       triggerDownload(blob, filename);
-    } catch {
+      onSuccess();
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       toast.error("Failed to download CSV. Please try again.");
     } finally {
-      setIsDownloading(false);
+      setStatus((prev) => (prev === "success" ? "success" : "idle"));
     }
   }, [url, filename]);
 
+  const isDownloading = status === "downloading";
+  const isSuccess = status === "success";
+
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handleDownload}
-      disabled={isDownloading}
-      aria-label={ariaLabel ?? label}
-    >
-      {isDownloading ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      ) : (
-        <Download className="mr-2 h-4 w-4" />
-      )}
-      {label}
-    </Button>
+    <>
+      <div className="sr-only" role="status" aria-live="polite">
+        {isDownloading ? "Downloading CSV file..." : ""}
+        {isSuccess ? `${filename} downloaded successfully` : ""}
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleDownload}
+        disabled={disabled || isDownloading}
+        aria-label={ariaLabel ?? label}
+      >
+        {isDownloading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : isSuccess ? (
+          <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+        ) : (
+          <Download className="mr-2 h-4 w-4" />
+        )}
+        {isDownloading ? "Downloading..." : label}
+      </Button>
+    </>
   );
 }
 

@@ -56,11 +56,33 @@ def _format_date_only(dt: datetime | date | None) -> str:
     return dt.strftime("%Y-%m-%d")
 
 
+_CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_csv_value(value: str) -> str:
+    """
+    Sanitize a string for safe CSV output by neutralizing formula injection.
+
+    Spreadsheet applications (Excel, Google Sheets, LibreOffice Calc) interpret
+    cells starting with =, +, -, @, \\t, or \\r as formulas. A malicious user
+    could set their name or description to something like '=HYPERLINK(...)' to
+    trigger code execution when a trainer opens the CSV.
+
+    Mitigation: prefix dangerous values with a single-quote (') which forces
+    the cell to be treated as a text literal in all major spreadsheet apps.
+
+    See OWASP CSV Injection: https://owasp.org/www-community/attacks/CSV_Injection
+    """
+    if value and value[0] in _CSV_FORMULA_PREFIXES:
+        return f"'{value}"
+    return value
+
+
 def _safe_str(value: object) -> str:
-    """Convert value to string, returning empty string for None."""
+    """Convert value to string, returning empty string for None. Sanitizes against CSV injection."""
     if value is None:
         return ""
-    return str(value)
+    return _sanitize_csv_value(str(value))
 
 
 def _format_amount(amount: Decimal) -> str:
@@ -102,13 +124,13 @@ def export_payments_csv(trainer: User, days: int) -> CsvExportResult:
         date_val = payment.paid_at if payment.paid_at else payment.created_at
         writer.writerow([
             _format_date(date_val),
-            name or trainee.email,
-            trainee.email,
+            _sanitize_csv_value(name or trainee.email),
+            _sanitize_csv_value(trainee.email),
             _safe_str(payment.get_payment_type_display()),
             _format_amount(payment.amount),
             payment.currency.upper(),
             _safe_str(payment.get_status_display()),
-            payment.description,
+            _sanitize_csv_value(payment.description),
         ])
         row_count += 1
 
@@ -151,8 +173,8 @@ def export_subscribers_csv(trainer: User) -> CsvExportResult:
         name = f"{trainee.first_name} {trainee.last_name}".strip()
         renewal_days = sub.days_until_renewal()
         writer.writerow([
-            name or trainee.email,
-            trainee.email,
+            _sanitize_csv_value(name or trainee.email),
+            _sanitize_csv_value(trainee.email),
             _format_amount(sub.amount),
             sub.currency.upper(),
             _safe_str(sub.get_status_display()),
@@ -225,12 +247,12 @@ def export_trainees_csv(trainer: User) -> CsvExportResult:
         program_name = active_programs[0].name if active_programs else ""
 
         writer.writerow([
-            name or trainee.email,
-            trainee.email,
+            _sanitize_csv_value(name or trainee.email),
+            _sanitize_csv_value(trainee.email),
             "Yes" if trainee.is_active else "No",
             "Yes" if profile_complete else "No",
             last_activity,
-            program_name,
+            _sanitize_csv_value(program_name),
             _format_date_only(trainee.created_at),
         ])
         row_count += 1

