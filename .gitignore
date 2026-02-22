@@ -37,6 +37,10 @@ backend/media/
 # Environment variables
 .env
 .env.local
+.env.production
+
+# Backups
+backups/
 
 # IDE
 .vscode/

@@ -1,0 +1,68 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script_stop: true
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            cd /opt/fitnessai
+
+            echo "=== Pulling latest code ==="
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== Writing .env.production from secrets ==="
+            cat > .env.production << 'ENVEOF'
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            DEBUG=False
+            ALLOWED_HOSTS=${{ secrets.DROPLET_IP }},localhost
+            DB_NAME=fitnessai
+            DB_USER=fitnessai_user
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            FRONTEND_URL=http://${{ secrets.DROPLET_IP }}
+            NEXT_PUBLIC_API_URL=http://${{ secrets.DROPLET_IP }}
+            CORS_ALLOWED_ORIGINS=http://${{ secrets.DROPLET_IP }}
+            CSRF_TRUSTED_ORIGINS=http://${{ secrets.DROPLET_IP }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+            STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+            ENVEOF
+
+            echo "=== Building and deploying ==="
+            docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build --remove-orphans
+
+            echo "=== Waiting for services to be healthy ==="
+            sleep 10
+
+            echo "=== Running migrations ==="
+            docker exec fitnessai_backend python manage.py migrate --noinput
+
+            echo "=== Service status ==="
+            docker compose -f docker-compose.prod.yml ps
+
+            echo "=== Cleaning up old images ==="
+            docker image prune -f
+
+            echo "=== Deploy complete ==="
