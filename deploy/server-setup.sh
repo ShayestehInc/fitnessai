@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
 # One-time DigitalOcean Droplet setup for FitnessAI.
-# Run as root on a fresh Ubuntu 22.04 droplet:
-#   curl -sSL https://raw.githubusercontent.com/ShayestehInc/fitnessai/main/deploy/server-setup.sh | bash
+# Run as root on a fresh Ubuntu 22.04/24.04 droplet.
 #
 set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
 
 echo "=== FitnessAI Droplet Setup ==="
 
@@ -36,34 +36,21 @@ fi
 
 # --- 3. Create deploy user ---
 echo "[3/7] Creating deploy user..."
-if ! id "deploy" &> /dev/null; then
+if ! id -u "deploy" &> /dev/null; then
     adduser --disabled-password --gecos "Deploy User" deploy
-    usermod -aG docker deploy
-
-    # Copy root SSH keys to deploy user
-    mkdir -p /home/deploy/.ssh
-    cp /root/.ssh/authorized_keys /home/deploy/.ssh/authorized_keys
-    chown -R deploy:deploy /home/deploy/.ssh
-    chmod 700 /home/deploy/.ssh
-    chmod 600 /home/deploy/.ssh/authorized_keys
-    echo "deploy user created."
-else
-    echo "deploy user already exists, ensuring docker group membership."
-    usermod -aG docker deploy
 fi
+usermod -aG docker deploy
 
-# --- 4. SSH hardening ---
-echo "[4/7] Hardening SSH..."
-SSHD_CONFIG="/etc/ssh/sshd_config"
-sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' "$SSHD_CONFIG"
-sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' "$SSHD_CONFIG"
-sed -i 's/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' "$SSHD_CONFIG"
-sed -i 's/^#\?UsePAM.*/UsePAM no/' "$SSHD_CONFIG"
-systemctl restart sshd
-echo "SSH hardened: root login disabled, password auth disabled."
+# Copy root SSH keys to deploy user
+mkdir -p /home/deploy/.ssh
+cp /root/.ssh/authorized_keys /home/deploy/.ssh/authorized_keys
+chown -R deploy:deploy /home/deploy/.ssh
+chmod 700 /home/deploy/.ssh
+chmod 600 /home/deploy/.ssh/authorized_keys
+echo "deploy user ready."
 
-# --- 5. UFW firewall ---
-echo "[5/7] Configuring firewall..."
+# --- 4. UFW firewall (before SSH hardening so we don't lock ourselves out) ---
+echo "[4/7] Configuring firewall..."
 apt-get install -y ufw
 ufw default deny incoming
 ufw default allow outgoing
@@ -72,15 +59,14 @@ ufw allow 80/tcp   # HTTP
 ufw --force enable
 echo "Firewall enabled: ports 22, 80 open."
 
-# --- 6. Create 2GB swap ---
-echo "[6/7] Setting up swap..."
+# --- 5. Create 2GB swap ---
+echo "[5/7] Setting up swap..."
 if [ ! -f /swapfile ]; then
     fallocate -l 2G /swapfile
     chmod 600 /swapfile
     mkswap /swapfile
     swapon /swapfile
     echo '/swapfile none swap sw 0 0' >> /etc/fstab
-    # Tune swappiness for a server
     sysctl vm.swappiness=10
     echo 'vm.swappiness=10' >> /etc/sysctl.conf
     echo "2GB swap created."
@@ -88,15 +74,29 @@ else
     echo "Swap already exists, skipping."
 fi
 
-# --- 7. Create app directory and backup cron ---
-echo "[7/7] Setting up app directory and backups..."
+# --- 6. Create app directory and backup cron ---
+echo "[6/7] Setting up app directory and backups..."
 mkdir -p /opt/fitnessai/backups
 chown -R deploy:deploy /opt/fitnessai
 
-# Install backup cron (runs daily at 3 AM UTC as deploy user)
 CRON_LINE="0 3 * * * /opt/fitnessai/deploy/backup.sh >> /opt/fitnessai/backups/backup.log 2>&1"
 (crontab -u deploy -l 2>/dev/null | grep -v "backup.sh"; echo "$CRON_LINE") | crontab -u deploy -
 echo "Backup cron installed for deploy user."
+
+# --- 7. SSH hardening (LAST — so we don't lose access mid-setup) ---
+echo "[7/7] Hardening SSH..."
+echo "NOTE: Root login will be disabled. Use 'ssh deploy@<ip>' after this."
+SSHD_CONFIG="/etc/ssh/sshd_config"
+sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' "$SSHD_CONFIG"
+sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' "$SSHD_CONFIG"
+
+# Detect SSH service name (sshd on older Ubuntu, ssh on 24.04+)
+if systemctl list-units --type=service | grep -q "sshd.service"; then
+    systemctl restart sshd
+elif systemctl list-units --type=service | grep -q "ssh.service"; then
+    systemctl restart ssh
+fi
+echo "SSH hardened: root login disabled, password auth disabled."
 
 echo ""
 echo "=== Setup Complete ==="
