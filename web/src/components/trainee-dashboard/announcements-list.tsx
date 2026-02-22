@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { Pin, Megaphone } from "lucide-react";
+import { useMemo, useState, useCallback } from "react";
+import { Pin, Circle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,13 +9,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { Announcement } from "@/types/trainee-dashboard";
 
 interface AnnouncementsListProps {
   announcements: Announcement[];
+  onAnnouncementOpen?: (id: number) => void;
 }
 
-export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
+export function AnnouncementsList({ announcements, onAnnouncementOpen }: AnnouncementsListProps) {
   const sorted = useMemo(() => {
     return [...announcements].sort((a, b) => {
       // Pinned first
@@ -33,31 +35,86 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
   return (
     <div className="space-y-3">
       {sorted.map((announcement) => (
-        <Card key={announcement.id}>
-          <CardHeader className="pb-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {announcement.is_pinned && (
-                  <Pin className="h-4 w-4 shrink-0 text-primary" aria-label="Pinned" />
-                )}
-                <CardTitle className="text-base">{announcement.title}</CardTitle>
-              </div>
-              <Badge variant="outline" className="shrink-0 text-xs">
-                {new Date(announcement.created_at).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-              {announcement.content}
-            </p>
-          </CardContent>
-        </Card>
+        <AnnouncementCard
+          key={announcement.id}
+          announcement={announcement}
+          onOpen={onAnnouncementOpen}
+        />
       ))}
     </div>
+  );
+}
+
+function AnnouncementCard({
+  announcement,
+  onOpen,
+}: {
+  announcement: Announcement;
+  onOpen?: (id: number) => void;
+}) {
+  const [expanded, setExpanded] = useState(announcement.is_read);
+
+  const handleToggle = useCallback(() => {
+    if (!expanded && !announcement.is_read && onOpen) {
+      onOpen(announcement.id);
+    }
+    setExpanded((prev) => !prev);
+  }, [expanded, announcement.is_read, announcement.id, onOpen]);
+
+  return (
+    <Card
+      className={cn(
+        "cursor-pointer transition-colors hover:bg-accent/50",
+        !announcement.is_read && "border-primary/30 bg-primary/5",
+      )}
+      onClick={handleToggle}
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleToggle();
+        }
+      }}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {!announcement.is_read && (
+              <Circle
+                className="h-2.5 w-2.5 shrink-0 fill-primary text-primary"
+                aria-label="Unread"
+              />
+            )}
+            {announcement.is_pinned && (
+              <Pin className="h-4 w-4 shrink-0 text-primary" aria-label="Pinned" />
+            )}
+            <CardTitle
+              className={cn(
+                "text-base",
+                !announcement.is_read && "font-bold",
+              )}
+            >
+              {announcement.title}
+            </CardTitle>
+          </div>
+          <Badge variant="outline" className="shrink-0 text-xs">
+            {new Date(announcement.created_at).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </Badge>
+        </div>
+      </CardHeader>
+      {expanded && (
+        <CardContent>
+          <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+            {announcement.content}
+          </p>
+        </CardContent>
+      )}
+    </Card>
   );
 }

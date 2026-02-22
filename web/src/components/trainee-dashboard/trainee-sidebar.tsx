@@ -4,24 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMessagingUnreadCount } from "@/hooks/use-messaging";
-import { useAnnouncementUnreadCount } from "@/hooks/use-trainee-announcements";
+import { useTraineeBadgeCounts, getBadgeCount } from "@/hooks/use-trainee-badge-counts";
 import { Badge } from "@/components/ui/badge";
 import { traineeNavLinks } from "./trainee-nav-links";
 
 export function TraineeSidebar() {
   const pathname = usePathname();
-  const { data: unreadMessages } = useMessagingUnreadCount();
-  const { data: unreadAnnouncements } = useAnnouncementUnreadCount();
-
-  const messageCount = unreadMessages?.unread_count ?? 0;
-  const announcementCount = unreadAnnouncements?.unread_count ?? 0;
-
-  function getBadgeCount(badgeKey?: string): number {
-    if (badgeKey === "messages") return messageCount;
-    if (badgeKey === "announcements") return announcementCount;
-    return 0;
-  }
+  const counts = useTraineeBadgeCounts();
 
   return (
     <aside className="hidden w-64 shrink-0 border-r bg-sidebar lg:block">
@@ -38,7 +27,7 @@ export function TraineeSidebar() {
               pathname === link.href ||
               (link.href !== "/trainee/dashboard" &&
                 pathname.startsWith(link.href));
-            const badgeCount = getBadgeCount(link.badgeKey);
+            const badgeCount = getBadgeCount(counts, link.badgeKey);
             return (
               <Link
                 key={link.href}

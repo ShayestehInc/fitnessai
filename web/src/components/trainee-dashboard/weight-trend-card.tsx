@@ -84,15 +84,12 @@ export function WeightTrendCard() {
       : change > 0
         ? TrendingUp
         : TrendingDown;
+
+  // Use neutral colors — we don't know the user's goal (gain vs lose)
   const trendColor =
     change === null || change === 0
       ? "text-muted-foreground"
-      : change > 0
-        ? "text-amber-500"
-        : "text-green-500";
-
-  // Convert kg to lbs for display (show both)
-  const weightLbs = Number((latest.weight_kg * 2.20462).toFixed(1));
+      : "text-foreground";
 
   return (
     <Card>
@@ -106,9 +103,6 @@ export function WeightTrendCard() {
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-bold">
             {Number(latest.weight_kg).toFixed(1)} kg
-          </span>
-          <span className="text-sm text-muted-foreground">
-            ({weightLbs} lbs)
           </span>
         </div>
         <div className="mt-1 flex items-center gap-1.5">
@@ -128,6 +122,7 @@ export function WeightTrendCard() {
             {new Date(latest.date).toLocaleDateString(undefined, {
               month: "short",
               day: "numeric",
+              year: "numeric",
             })}
           </span>
         </div>

@@ -21,6 +21,7 @@ export interface Announcement {
   title: string;
   content: string;
   is_pinned: boolean;
+  is_read: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -41,22 +42,3 @@ export interface Achievement {
   progress: number;
 }
 
-export interface WorkoutSummary {
-  date: string;
-  program_context: {
-    program_name: string;
-    day_name: string;
-    day_number: number;
-  } | null;
-  exercises: WorkoutSummaryExercise[];
-}
-
-export interface WorkoutSummaryExercise {
-  exercise_id: number;
-  exercise_name: string;
-  sets: number;
-  reps: number | string;
-  weight: number;
-  unit: string;
-  rest_seconds: number;
-}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Dumbbell, BedDouble } from "lucide-react";
+import { Dumbbell, BedDouble, CalendarOff } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -11,7 +11,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useTraineeDashboardPrograms } from "@/hooks/use-trainee-dashboard";
-import type { TraineeViewScheduleDay } from "@/types/trainee-view";
+import type {
+  TraineeViewSchedule,
+  TraineeViewScheduleDay,
+} from "@/types/trainee-view";
 
 function getTodaysDayNumber(): number {
   // JavaScript: Sunday = 0, Monday = 1 ... Saturday = 6
@@ -20,35 +23,31 @@ function getTodaysDayNumber(): number {
   return jsDay === 0 ? 7 : jsDay;
 }
 
+const DAY_NAMES: Record<number, string> = {
+  1: "Monday",
+  2: "Tuesday",
+  3: "Wednesday",
+  4: "Thursday",
+  5: "Friday",
+  6: "Saturday",
+  7: "Sunday",
+};
+
 function findTodaysWorkout(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schedule: any,
+  schedule: TraineeViewSchedule | null,
 ): TraineeViewScheduleDay | null {
   if (!schedule?.weeks?.length) return null;
   // Use the first week as the current template
   const week = schedule.weeks[0];
   if (!week?.days?.length) return null;
   const todayNum = getTodaysDayNumber();
+  const todayName = DAY_NAMES[todayNum] ?? "";
+  // Match by day string (could be "1" or "Monday")
   return (
     week.days.find(
-      (d: TraineeViewScheduleDay) =>
-        d.day === String(todayNum) || d.day === getDayName(todayNum),
-    ) ?? week.days[todayNum - 1] ?? null
+      (d) => d.day === String(todayNum) || d.day === todayName,
+    ) ?? null
   );
-}
-
-function getDayName(dayNum: number): string {
-  const days = [
-    "",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-  ];
-  return days[dayNum] ?? "";
 }
 
 function CardSkeleton() {
@@ -115,9 +114,8 @@ export function TodaysWorkoutCard() {
   }
 
   const todaysDay = findTodaysWorkout(activeProgram.schedule);
-  const isRestDay =
-    todaysDay?.is_rest_day ||
-    (!todaysDay?.exercises?.length && todaysDay !== null);
+  const isRestDay = todaysDay?.is_rest_day === true;
+  const hasExercises = (todaysDay?.exercises?.length ?? 0) > 0;
 
   return (
     <Card>
@@ -129,7 +127,20 @@ export function TodaysWorkoutCard() {
         <p className="text-sm text-muted-foreground">{activeProgram.name}</p>
       </CardHeader>
       <CardContent>
-        {!todaysDay || isRestDay ? (
+        {!todaysDay ? (
+          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
+            <CalendarOff
+              className="h-8 w-8 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <div>
+              <p className="font-medium">No workout scheduled</p>
+              <p className="text-sm text-muted-foreground">
+                No matching day found in your program for today.
+              </p>
+            </div>
+          </div>
+        ) : isRestDay ? (
           <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
             <BedDouble
               className="h-8 w-8 text-muted-foreground"
@@ -139,6 +150,19 @@ export function TodaysWorkoutCard() {
               <p className="font-medium">Rest Day</p>
               <p className="text-sm text-muted-foreground">
                 Take it easy — recovery is part of the process.
+              </p>
+            </div>
+          </div>
+        ) : !hasExercises ? (
+          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
+            <Dumbbell
+              className="h-8 w-8 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <div>
+              <p className="font-medium">No exercises scheduled</p>
+              <p className="text-sm text-muted-foreground">
+                This day has no exercises assigned yet.
               </p>
             </div>
           </div>

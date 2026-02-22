@@ -6,6 +6,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import type { Achievement } from "@/types/trainee-dashboard";
 
 interface AchievementsGridProps {
@@ -35,11 +36,12 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
     <Card className={!achievement.earned ? "opacity-60" : undefined}>
       <CardContent className="flex items-start gap-4 pt-6">
         <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
+          className={cn(
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-full",
             achievement.earned
               ? "bg-primary/10 text-primary"
-              : "bg-muted text-muted-foreground"
-          }`}
+              : "bg-muted text-muted-foreground",
+          )}
         >
           {achievement.earned ? (
             <Trophy className="h-6 w-6" aria-hidden="true" />

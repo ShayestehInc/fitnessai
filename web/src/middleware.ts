@@ -43,8 +43,7 @@ export function middleware(request: NextRequest) {
   const hasSession = request.cookies.get(SESSION_COOKIE)?.value === "1";
   const userRole = request.cookies.get(ROLE_COOKIE)?.value;
 
-  // Authenticated users visiting login -> redirect to appropriate dashboard
-  // AC-22: TRAINEE role users accessing /login are redirected to /trainee-view
+  // Authenticated users visiting login -> redirect to their role-appropriate dashboard
   if (PUBLIC_PATHS.includes(pathname) && hasSession) {
     return NextResponse.redirect(
       new URL(getDashboardPath(userRole), request.url),

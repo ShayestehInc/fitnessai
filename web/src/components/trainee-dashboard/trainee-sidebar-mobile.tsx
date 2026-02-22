@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMessagingUnreadCount } from "@/hooks/use-messaging";
-import { useAnnouncementUnreadCount } from "@/hooks/use-trainee-announcements";
+import { useTraineeBadgeCounts, getBadgeCount } from "@/hooks/use-trainee-badge-counts";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -25,17 +24,7 @@ export function TraineeSidebarMobile({
   onOpenChange,
 }: TraineeSidebarMobileProps) {
   const pathname = usePathname();
-  const { data: unreadMessages } = useMessagingUnreadCount();
-  const { data: unreadAnnouncements } = useAnnouncementUnreadCount();
-
-  const messageCount = unreadMessages?.unread_count ?? 0;
-  const announcementCount = unreadAnnouncements?.unread_count ?? 0;
-
-  function getBadgeCount(badgeKey?: string): number {
-    if (badgeKey === "messages") return messageCount;
-    if (badgeKey === "announcements") return announcementCount;
-    return 0;
-  }
+  const counts = useTraineeBadgeCounts();
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -50,7 +39,7 @@ export function TraineeSidebarMobile({
               pathname === link.href ||
               (link.href !== "/trainee/dashboard" &&
                 pathname.startsWith(link.href));
-            const badgeCount = getBadgeCount(link.badgeKey);
+            const badgeCount = getBadgeCount(counts, link.badgeKey);
             return (
               <Link
                 key={link.href}

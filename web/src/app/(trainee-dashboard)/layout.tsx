@@ -37,7 +37,7 @@ export default function TraineeDashboardLayout({
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading || !isAuthenticated) {
+  if (isLoading || !isAuthenticated || (user && user.role !== UserRole.TRAINEE)) {
     return (
       <div
         className="flex min-h-screen items-center justify-center"

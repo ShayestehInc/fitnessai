@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { TraineeViewProgram, TraineeViewScheduleDay } from "@/types/trainee-view";
 
 const DAY_NAMES = [
@@ -43,7 +44,19 @@ export function ProgramViewer({ programs }: ProgramViewerProps) {
   );
   const [selectedWeek, setSelectedWeek] = useState(0);
 
-  if (!selectedProgram) return null;
+  if (!selectedProgram) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Dumbbell className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+          <p className="text-lg font-medium">No program selected</p>
+          <p className="text-sm text-muted-foreground">
+            Select a program to view its schedule.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const weeks = selectedProgram.schedule?.weeks ?? [];
   const currentWeek = weeks[selectedWeek];
@@ -134,11 +147,12 @@ export function ProgramViewer({ programs }: ProgramViewerProps) {
                 aria-selected={selectedWeek === idx}
                 aria-controls={`week-panel-${idx}`}
                 onClick={() => setSelectedWeek(idx)}
-                className={`shrink-0 rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={cn(
+                  "shrink-0 rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   selectedWeek === idx
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                }`}
+                    : "bg-muted text-muted-foreground hover:bg-muted/80",
+                )}
               >
                 Week {week.week_number}
               </button>
@@ -184,7 +198,7 @@ function DayCard({
   dayIndex: number;
 }) {
   const dayName = day.name || DAY_NAMES[dayIndex] || `Day ${dayIndex + 1}`;
-  const isRestDay = day.is_rest_day || day.exercises.length === 0;
+  const isRestDay = day.is_rest_day === true;
 
   return (
     <Card className={isRestDay ? "opacity-60" : undefined}>
@@ -208,6 +222,10 @@ function DayCard({
         {isRestDay ? (
           <p className="py-2 text-center text-sm text-muted-foreground">
             Recovery day
+          </p>
+        ) : day.exercises.length === 0 ? (
+          <p className="py-2 text-center text-sm text-muted-foreground">
+            No exercises scheduled
           </p>
         ) : (
           <div className="space-y-1.5">

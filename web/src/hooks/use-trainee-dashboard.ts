@@ -6,11 +6,19 @@ import { API_URLS } from "@/lib/constants";
 import type {
   WeeklyProgress,
   LatestWeightCheckIn,
-  WorkoutSummary,
 } from "@/types/trainee-dashboard";
 import type { NutritionSummary, TraineeViewProgram } from "@/types/trainee-view";
 
 const STALE_TIME = 5 * 60 * 1000; // 5 minutes
+
+function isApiErrorWithStatus(error: unknown, status: number): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    (error as { status: number }).status === status
+  );
+}
 
 export function useTraineeDashboardPrograms() {
   return useQuery<TraineeViewProgram[]>({
@@ -49,7 +57,7 @@ export function useTraineeLatestWeight() {
     staleTime: STALE_TIME,
     retry: (failureCount, error) => {
       // Don't retry 404 (no check-ins exist)
-      if (error && "status" in error && (error as { status: number }).status === 404) {
+      if (isApiErrorWithStatus(error, 404)) {
         return false;
       }
       return failureCount < 3;
@@ -66,13 +74,3 @@ export function useTraineeWeightHistory() {
   });
 }
 
-export function useTraineeWorkoutSummary(date: string) {
-  return useQuery<WorkoutSummary>({
-    queryKey: ["trainee-dashboard", "workout-summary", date],
-    queryFn: () =>
-      apiClient.get<WorkoutSummary>(
-        `${API_URLS.TRAINEE_WORKOUT_SUMMARY}?date=${date}`,
-      ),
-    staleTime: STALE_TIME,
-  });
-}

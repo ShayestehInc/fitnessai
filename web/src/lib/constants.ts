@@ -246,6 +246,8 @@ export const API_URLS = {
   TRAINEE_ANNOUNCEMENTS: `${API_BASE}/api/community/announcements/`,
   TRAINEE_ANNOUNCEMENTS_UNREAD: `${API_BASE}/api/community/announcements/unread-count/`,
   TRAINEE_ANNOUNCEMENTS_MARK_READ: `${API_BASE}/api/community/announcements/mark-read/`,
+  traineeAnnouncementMarkRead: (id: number) =>
+    `${API_BASE}/api/community/announcements/${id}/mark-read/`,
   TRAINEE_ACHIEVEMENTS: `${API_BASE}/api/community/achievements/`,
 
   // Trainee branding

@@ -25,7 +25,7 @@ const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
         {...props}
       >
         <div
-          className="h-full rounded-full bg-primary transition-all duration-300"
+          className="h-full rounded-full bg-[var(--progress-color,hsl(var(--primary)))] transition-all duration-300"
           style={{ width: `${clampedValue}%` }}
         />
       </div>

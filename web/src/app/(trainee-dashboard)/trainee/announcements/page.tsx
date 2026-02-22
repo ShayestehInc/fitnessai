@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { Megaphone, CheckCheck } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageTransition } from "@/components/shared/page-transition";
@@ -12,6 +13,7 @@ import {
   useAnnouncements,
   useAnnouncementUnreadCount,
   useMarkAnnouncementsRead,
+  useMarkAnnouncementRead,
 } from "@/hooks/use-trainee-announcements";
 import { toast } from "sonner";
 
@@ -19,12 +21,13 @@ export default function AnnouncementsPage() {
   const { data: announcements, isLoading, isError, refetch } =
     useAnnouncements();
   const { data: unreadData } = useAnnouncementUnreadCount();
-  const markRead = useMarkAnnouncementsRead();
+  const markAllRead = useMarkAnnouncementsRead();
+  const markOneRead = useMarkAnnouncementRead();
 
   const unreadCount = unreadData?.unread_count ?? 0;
 
   const handleMarkAllRead = () => {
-    markRead.mutate(undefined, {
+    markAllRead.mutate(undefined, {
       onSuccess: () => {
         toast.success("All announcements marked as read");
       },
@@ -33,6 +36,13 @@ export default function AnnouncementsPage() {
       },
     });
   };
+
+  const handleAnnouncementOpen = useCallback(
+    (id: number) => {
+      markOneRead.mutate(id);
+    },
+    [markOneRead],
+  );
 
   if (isLoading) {
     return (
@@ -74,16 +84,14 @@ export default function AnnouncementsPage() {
               variant="outline"
               size="sm"
               onClick={handleMarkAllRead}
-              disabled={markRead.isPending}
+              disabled={markAllRead.isPending}
               className="gap-2"
             >
               <CheckCheck className="h-4 w-4" />
               Mark all read
-              {unreadCount > 0 && (
-                <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">
-                  {unreadCount}
-                </span>
-              )}
+              <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">
+                {unreadCount}
+              </span>
             </Button>
           )}
         </div>
@@ -95,7 +103,10 @@ export default function AnnouncementsPage() {
             description="Your trainer hasn't posted any announcements yet. Check back later!"
           />
         ) : (
-          <AnnouncementsList announcements={announcements} />
+          <AnnouncementsList
+            announcements={announcements}
+            onAnnouncementOpen={handleAnnouncementOpen}
+          />
         )}
       </div>
     </PageTransition>

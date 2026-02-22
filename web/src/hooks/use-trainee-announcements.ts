@@ -46,3 +46,20 @@ export function useMarkAnnouncementsRead() {
     },
   });
 }
+
+export function useMarkAnnouncementRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (announcementId: number) =>
+      apiClient.post(API_URLS.traineeAnnouncementMarkRead(announcementId), {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "announcements-unread"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "announcements"],
+      });
+    },
+  });
+}

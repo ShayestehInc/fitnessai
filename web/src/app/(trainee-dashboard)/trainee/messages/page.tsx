@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft, MessageSquare, Search } from "lucide-react";
 import { useConversations } from "@/hooks/use-messaging";
@@ -26,10 +26,16 @@ export default function TraineeMessagesPage() {
   } = useConversations();
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
+  const selectedIdRef = useRef<number | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [highlightMessageId, setHighlightMessageId] = useState<number | null>(
     null,
   );
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedIdRef.current = selectedConversation?.id ?? null;
+  }, [selectedConversation]);
 
   // Auto-select conversation (trainee typically has only one)
   useEffect(() => {
@@ -48,19 +54,18 @@ export default function TraineeMessagesPage() {
     }
 
     // Auto-select first (and usually only) conversation
-    if (!selectedConversation) {
+    const currentId = selectedIdRef.current;
+    if (currentId === null) {
       setSelectedConversation(conversations[0]);
     } else {
-      const updated = conversations.find(
-        (c) => c.id === selectedConversation.id,
-      );
+      const updated = conversations.find((c) => c.id === currentId);
       if (updated) {
         setSelectedConversation(updated);
       } else {
         setSelectedConversation(conversations[0]);
       }
     }
-  }, [conversations, conversationIdParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [conversations, conversationIdParam]);
 
   // Cmd/Ctrl+K keyboard shortcut for search
   useEffect(() => {
@@ -116,6 +121,12 @@ export default function TraineeMessagesPage() {
     [conversations],
   );
 
+  const isMac = useMemo(
+    () =>
+      typeof navigator !== "undefined" && /mac/i.test(navigator.userAgent),
+    [],
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -161,11 +172,7 @@ export default function TraineeMessagesPage() {
             <Search className="h-4 w-4" />
             <span className="hidden sm:inline">Search</span>
             <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex">
-              {typeof navigator !== "undefined" &&
-              /mac/i.test(navigator.userAgent)
-                ? "\u2318"
-                : "Ctrl"}
-              K
+              {isMac ? "\u2318" : "Ctrl"}K
             </kbd>
           </Button>
         )}
