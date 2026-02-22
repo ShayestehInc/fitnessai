@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { parseISO, format, isValid } from "date-fns";
 import {
@@ -33,9 +33,14 @@ export function WorkoutHistoryList() {
 
   const { data, isLoading, isError, refetch } = useTraineeWorkoutHistory(page);
 
+  const changePage = useCallback((newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   if (isLoading) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-3" aria-busy="true" aria-label="Loading workout history">
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} className="h-20 w-full" />
         ))}
@@ -70,9 +75,13 @@ export function WorkoutHistoryList() {
     );
   }
 
+  const totalCount = data.count ?? 0;
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
   return (
     <>
-      <div className="space-y-3">
+      <div className="space-y-3" aria-live="polite">
         {data.results.map((item) => (
           <Card key={item.id} className="transition-colors hover:bg-muted/30">
             <CardHeader className="pb-2">
@@ -86,7 +95,7 @@ export function WorkoutHistoryList() {
                   onClick={() => setDetailId(item.id)}
                   aria-label={`View details for ${item.workout_name} on ${item.date}`}
                 >
-                  <Eye className="mr-1.5 h-4 w-4" />
+                  <Eye className="mr-1.5 h-4 w-4" aria-hidden="true" />
                   Details
                 </Button>
               </div>
@@ -117,29 +126,34 @@ export function WorkoutHistoryList() {
 
         {/* Pagination */}
         {(data.previous || data.next) && (
-          <div className="flex items-center justify-between pt-2">
+          <nav
+            className="flex items-center justify-between pt-2"
+            aria-label="Workout history pagination"
+          >
             <Button
               variant="outline"
               size="sm"
               disabled={!data.previous}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => changePage(Math.max(1, page - 1))}
+              aria-label="Go to previous page"
             >
-              <ChevronLeft className="mr-1 h-4 w-4" />
+              <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
               Previous
             </Button>
             <span className="text-sm text-muted-foreground">
-              Page {page}
+              Page {page} of {totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
               disabled={!data.next}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => changePage(page + 1)}
+              aria-label="Go to next page"
             >
               Next
-              <ChevronRight className="ml-1 h-4 w-4" />
+              <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
             </Button>
-          </div>
+          </nav>
         )}
       </div>
 

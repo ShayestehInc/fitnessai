@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import { Check, X, Clock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,16 @@ function getWorkoutName(workoutData: WorkoutData | undefined): string {
   return "Workout";
 }
 
+function getDuration(workoutData: WorkoutData | undefined): string | null {
+  if (!workoutData) return null;
+  if (workoutData.duration) return workoutData.duration;
+  if (workoutData.sessions?.length) {
+    const first = workoutData.sessions[0];
+    if (first?.duration) return first.duration;
+  }
+  return null;
+}
+
 export function WorkoutDetailDialog({
   open,
   onOpenChange,
@@ -54,6 +64,7 @@ export function WorkoutDetailDialog({
   const workoutData = data?.workout_data;
   const exercises = getExercises(workoutData);
   const workoutName = getWorkoutName(workoutData);
+  const duration = getDuration(workoutData);
   const dateFormatted = data?.date
     ? new Date(data.date).toLocaleDateString(undefined, {
         weekday: "long",
@@ -68,11 +79,19 @@ export function WorkoutDetailDialog({
       <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{workoutName}</DialogTitle>
-          <DialogDescription>{dateFormatted}</DialogDescription>
+          <DialogDescription>
+            {dateFormatted}
+            {duration && duration !== "00:00" && (
+              <span className="ml-2 inline-flex items-center gap-1">
+                <Clock className="inline h-3 w-3" aria-hidden="true" />
+                {duration}
+              </span>
+            )}
+          </DialogDescription>
         </DialogHeader>
 
         {isLoading && (
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4" aria-busy="true" aria-label="Loading workout details">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-24 w-full" />
             ))}
@@ -89,7 +108,7 @@ export function WorkoutDetailDialog({
         )}
 
         {data && exercises.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-8 text-center text-sm text-muted-foreground" role="status">
             No exercise data recorded for this workout.
           </p>
         )}
@@ -100,8 +119,10 @@ export function WorkoutDetailDialog({
               <div
                 key={`${ex.exercise_id}-${i}`}
                 className="rounded-lg border p-4"
+                role="region"
+                aria-label={ex.exercise_name}
               >
-                <h4 className="mb-2 font-medium">{ex.exercise_name}</h4>
+                <p className="mb-2 font-medium">{ex.exercise_name}</p>
                 <div className="space-y-1.5">
                   {ex.sets.map((set) => (
                     <div
@@ -124,9 +145,9 @@ export function WorkoutDetailDialog({
                         className="h-5 gap-1 px-1.5"
                       >
                         {set.completed ? (
-                          <Check className="h-3 w-3" />
+                          <Check className="h-3 w-3" aria-hidden="true" />
                         ) : (
-                          <X className="h-3 w-3" />
+                          <X className="h-3 w-3" aria-hidden="true" />
                         )}
                         <span className="sr-only">
                           {set.completed ? "Completed" : "Skipped"}

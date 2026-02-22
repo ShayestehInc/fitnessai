@@ -21,7 +21,7 @@ import { findTodaysWorkout, getTodayString } from "@/lib/schedule-utils";
 
 function CardSkeleton() {
   return (
-    <Card>
+    <Card aria-busy="true">
       <CardHeader className="pb-3">
         <Skeleton className="h-5 w-32" />
       </CardHeader>
@@ -163,7 +163,7 @@ export function TodaysWorkoutCard() {
                 exercises
               </span>
             </p>
-            <ul className="space-y-1.5">
+            <ul className="space-y-1.5" aria-label="Today's exercises">
               {todaysDay.exercises.slice(0, 5).map((ex, i) => (
                 <li
                   key={`${ex.exercise_id}-${i}`}
@@ -188,21 +188,22 @@ export function TodaysWorkoutCard() {
         {canStartWorkout && hasLoggedToday ? (
           <Button size="sm" variant="outline" asChild>
             <Link href="/trainee/history">
-              <CheckCircle2 className="mr-1.5 h-4 w-4" />
+              <CheckCircle2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
               View Today&apos;s Workout
             </Link>
           </Button>
         ) : canStartWorkout ? (
           <Button size="sm" asChild>
             <Link href="/trainee/workout">
-              <Play className="mr-1.5 h-4 w-4" />
+              <Play className="mr-1.5 h-4 w-4" aria-hidden="true" />
               Start Workout
             </Link>
           </Button>
         ) : null}
         <Link
           href="/trainee/program"
-          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+          aria-label={`View full program: ${activeProgram.name}`}
         >
           View full program
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />

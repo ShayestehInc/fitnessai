@@ -38,7 +38,7 @@ export function useTraineeDashboardNutrition(date: string) {
     queryKey: ["trainee-dashboard", "nutrition-summary", date],
     queryFn: () =>
       apiClient.get<NutritionSummary>(
-        `${API_URLS.TRAINEE_NUTRITION_SUMMARY}?date=${date}`,
+        `${API_URLS.TRAINEE_NUTRITION_SUMMARY}?date=${encodeURIComponent(date)}`,
       ),
     staleTime: STALE_TIME,
   });
@@ -135,7 +135,7 @@ export function useTraineeTodayLog(date: string) {
     queryKey: ["trainee-dashboard", "today-log", date],
     queryFn: async () => {
       const response = await apiClient.get<PaginatedDailyLogs>(
-        `${API_URLS.TRAINEE_DAILY_LOGS}?date=${date}`,
+        `${API_URLS.TRAINEE_DAILY_LOGS}?date=${encodeURIComponent(date)}`,
       );
       return response.results;
     },
@@ -149,7 +149,7 @@ export function useSaveWorkout() {
     mutationFn: async (payload: SaveWorkoutPayload) => {
       // Check if a daily log already exists for this date
       const response = await apiClient.get<PaginatedDailyLogs>(
-        `${API_URLS.TRAINEE_DAILY_LOGS}?date=${payload.date}`,
+        `${API_URLS.TRAINEE_DAILY_LOGS}?date=${encodeURIComponent(payload.date)}`,
       );
       const existing = response.results;
       if (existing.length > 0 && existing[0].id) {

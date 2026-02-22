@@ -18,7 +18,7 @@ import { WeightCheckInDialog } from "./weight-checkin-dialog";
 
 function CardSkeleton() {
   return (
-    <Card>
+    <Card aria-busy="true">
       <CardHeader className="pb-3">
         <Skeleton className="h-5 w-28" />
       </CardHeader>
@@ -73,7 +73,7 @@ export function WeightTrendCard() {
               description="Log your first weight check-in to start tracking."
               action={
                 <Button size="sm" onClick={() => setDialogOpen(true)}>
-                  <Plus className="mr-1.5 h-4 w-4" />
+                  <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
                   Log Weight
                 </Button>
               }
@@ -128,19 +128,22 @@ export function WeightTrendCard() {
               year: "numeric",
             })}
           </p>
-          {change !== null && (
-            <div className="mt-1.5 flex items-center gap-1.5">
+          {change !== null && previous && (
+            <div
+              className="mt-1.5 flex items-center gap-1.5"
+              aria-label={`Weight ${change > 0 ? "increased" : change < 0 ? "decreased" : "unchanged"} by ${Math.abs(change)} kg since ${new Date(previous.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+            >
               <TrendIcon
                 className={`h-4 w-4 ${trendColor}`}
                 aria-hidden="true"
               />
-              <span className={`text-sm font-medium ${trendColor}`}>
+              <span className={`text-sm font-medium ${trendColor}`} aria-hidden="true">
                 {change > 0 ? "+" : ""}
                 {change} kg
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground" aria-hidden="true">
                 since{" "}
-                {new Date(previous!.date).toLocaleDateString(undefined, {
+                {new Date(previous.date).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
                 })}
@@ -154,7 +157,7 @@ export function WeightTrendCard() {
             variant="outline"
             onClick={() => setDialogOpen(true)}
           >
-            <Plus className="mr-1.5 h-4 w-4" />
+            <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
             Log Weight
           </Button>
         </CardFooter>

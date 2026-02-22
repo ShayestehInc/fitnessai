@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Trophy } from "lucide-react";
+import { Loader2, Trophy, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,6 +39,7 @@ export function WorkoutFinishDialog({
     (sum, ex) => sum + ex.sets.filter((s) => s.completed).length,
     0,
   );
+  const incompleteSets = totalSets - completedSets;
   const totalVolume = exercises.reduce((sum, ex) => {
     return (
       sum +
@@ -51,7 +52,14 @@ export function WorkoutFinishDialog({
   const primaryUnit = exercises[0]?.sets[0]?.unit ?? "lbs";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        // Prevent closing while save is in progress
+        if (isPending) return;
+        onOpenChange(v);
+      }}
+    >
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -70,7 +78,23 @@ export function WorkoutFinishDialog({
           }}
         >
           <div className="space-y-4 py-2">
-            <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+            {incompleteSets > 0 && (
+              <div
+                className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+                role="alert"
+              >
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>
+                  {incompleteSets} {incompleteSets === 1 ? "set" : "sets"} not
+                  marked as completed. You can still save.
+                </span>
+              </div>
+            )}
+            <div
+              className="rounded-lg bg-muted/50 p-4 space-y-2"
+              aria-label="Workout summary"
+              role="region"
+            >
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Workout</span>
                 <span className="font-medium">{workoutName}</span>
@@ -109,7 +133,9 @@ export function WorkoutFinishDialog({
               Back to Workout
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+              )}
               Save Workout
             </Button>
           </DialogFooter>

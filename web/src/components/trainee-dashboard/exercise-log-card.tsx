@@ -60,12 +60,15 @@ export function ExerciseLogCard({
       </CardHeader>
       <CardContent className="space-y-2">
         {/* Header row */}
-        <div className="grid grid-cols-[2.5rem_1fr_1fr_2.5rem_2.5rem] items-center gap-2 text-xs font-medium text-muted-foreground">
+        <div
+          className="grid grid-cols-[2.5rem_1fr_1fr_2.5rem_2.5rem] items-center gap-2 text-xs font-medium text-muted-foreground"
+          aria-hidden="true"
+        >
           <span>Set</span>
           <span>Reps</span>
           <span>Weight ({unit})</span>
-          <span className="sr-only">Done</span>
-          <span className="sr-only">Remove</span>
+          <span />
+          <span />
         </div>
 
         {sets.map((set, setIndex) => (
@@ -82,15 +85,16 @@ export function ExerciseLogCard({
               type="number"
               min={0}
               max={999}
-              value={set.reps || ""}
-              onChange={(e) =>
+              value={set.reps}
+              onChange={(e) => {
+                const raw = e.target.value;
                 onSetChange(
                   exerciseIndex,
                   setIndex,
                   "reps",
-                  Math.max(0, parseInt(e.target.value) || 0),
-                )
-              }
+                  raw === "" ? 0 : Math.max(0, parseInt(raw) || 0),
+                );
+              }}
               className="h-9"
               aria-label={`Set ${set.set_number} reps`}
             />
@@ -99,15 +103,16 @@ export function ExerciseLogCard({
               min={0}
               max={9999}
               step="0.5"
-              value={set.weight || ""}
-              onChange={(e) =>
+              value={set.weight}
+              onChange={(e) => {
+                const raw = e.target.value;
                 onSetChange(
                   exerciseIndex,
                   setIndex,
                   "weight",
-                  Math.max(0, parseFloat(e.target.value) || 0),
-                )
-              }
+                  raw === "" ? 0 : Math.max(0, parseFloat(raw) || 0),
+                );
+              }}
               className="h-9"
               aria-label={`Set ${set.set_number} weight`}
             />
@@ -125,7 +130,7 @@ export function ExerciseLogCard({
                     : "border-input bg-background hover:border-primary/50",
                 )}
               >
-                {set.completed && <Check className="h-3 w-3" />}
+                {set.completed && <Check className="h-3 w-3" aria-hidden="true" />}
               </button>
             </div>
             <div className="flex items-center justify-center">
@@ -137,7 +142,7 @@ export function ExerciseLogCard({
                   onClick={() => onRemoveSet(exerciseIndex, setIndex)}
                   aria-label={`Remove set ${set.set_number}`}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                 </Button>
               ) : (
                 <span className="h-8 w-8" />
@@ -151,8 +156,9 @@ export function ExerciseLogCard({
           size="sm"
           className="mt-1 w-full text-muted-foreground"
           onClick={() => onAddSet(exerciseIndex)}
+          aria-label={`Add set to ${exerciseName}`}
         >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
           Add Set
         </Button>
       </CardContent>

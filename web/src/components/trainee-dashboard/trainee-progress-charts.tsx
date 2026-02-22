@@ -42,7 +42,7 @@ function formatNumber(value: number): string {
 
 function ChartSkeleton() {
   return (
-    <Card>
+    <Card aria-busy="true">
       <CardHeader>
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-4 w-48" />
@@ -94,7 +94,7 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
             description="Log your first weight check-in to see your trend."
             action={
               <Button size="sm" onClick={onOpenLogWeight}>
-                <Plus className="mr-1.5 h-4 w-4" />
+                <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
                 Log Weight
               </Button>
             }
@@ -106,9 +106,10 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
 
   // Limit to 30 most recent entries, then reverse for chronological display
   const recentCheckIns = checkIns.slice(0, 30);
-  const chartData = [...recentCheckIns].reverse().map((entry) => ({
+  const chartData = [...recentCheckIns].reverse().map((entry, idx) => ({
     date: formatDate(entry.date),
     weight: Number(entry.weight_kg),
+    _key: `${entry.date}-${idx}`,
   }));
 
   return (
@@ -150,7 +151,7 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
         {/* Screen reader fallback */}
         <ul className="sr-only">
           {chartData.map((d) => (
-            <li key={d.date}>
+            <li key={d._key}>
               {d.date}: {d.weight} kg
             </li>
           ))}
@@ -201,9 +202,10 @@ export function WorkoutVolumeChart() {
   }
 
   // Reverse for chronological order (API returns newest first)
-  const chartData = [...results].reverse().map((entry) => ({
+  const chartData = [...results].reverse().map((entry, idx) => ({
     date: formatDate(entry.date),
     volume: Math.round(entry.total_volume_lbs),
+    _key: `${entry.date}-${idx}`,
   }));
 
   return (
@@ -230,8 +232,10 @@ export function WorkoutVolumeChart() {
               />
               <Tooltip
                 contentStyle={tooltipContentStyle}
-                formatter={(value: number | undefined) => [
-                  value !== undefined ? formatNumber(value) : "0",
+                formatter={(value) => [
+                  typeof value === "number"
+                    ? formatNumber(value)
+                    : String(value ?? "0"),
                   "Volume (lbs)",
                 ]}
               />
@@ -246,7 +250,7 @@ export function WorkoutVolumeChart() {
         </div>
         <ul className="sr-only">
           {chartData.map((d) => (
-            <li key={d.date}>
+            <li key={d._key}>
               {d.date}: {formatNumber(d.volume)} lbs
             </li>
           ))}

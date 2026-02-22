@@ -2,9 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Timer, Dumbbell } from "lucide-react";
+import { Timer, Dumbbell, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -73,6 +81,7 @@ export function ActiveWorkout() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [exerciseStates, setExerciseStates] = useState<ExerciseState[]>([]);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const hasUnsavedRef = useRef(false);
   // Snapshot of workout name at initialization, decoupled from live query
@@ -238,9 +247,14 @@ export function ActiveWorkout() {
     );
   }, [exerciseStates, elapsedSeconds, saveMutation, router]);
 
+  const handleDiscard = useCallback(() => {
+    hasUnsavedRef.current = false;
+    router.push("/trainee/dashboard");
+  }, [router]);
+
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" aria-busy="true" aria-label="Loading workout data">
         <Skeleton className="h-8 w-48" />
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -292,17 +306,33 @@ export function ActiveWorkout() {
         title={workoutName}
         description={activeProgram.name}
         actions={
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 rounded-md bg-muted px-3 py-1.5">
+          <div className="flex items-center gap-2">
+            <div
+              className="flex items-center gap-1.5 rounded-md bg-muted px-3 py-1.5"
+              role="timer"
+              aria-live="off"
+              aria-label={`Elapsed time: ${formatDuration(elapsedSeconds)}`}
+            >
               <Timer className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              <span
-                className="font-mono text-sm font-medium tabular-nums"
-                aria-label={`Elapsed time: ${formatDuration(elapsedSeconds)}`}
-              >
+              <span className="font-mono text-sm font-medium tabular-nums">
                 {formatDuration(elapsedSeconds)}
               </span>
             </div>
-            <Button onClick={() => setShowFinishDialog(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDiscardConfirm(true)}
+              disabled={saveMutation.isPending}
+              aria-label="Discard workout"
+            >
+              <X className="mr-1.5 h-4 w-4" />
+              Discard
+            </Button>
+            <Button
+              onClick={() => setShowFinishDialog(true)}
+              disabled={saveMutation.isPending}
+              aria-label="Finish workout and review summary"
+            >
               Finish Workout
             </Button>
           </div>
@@ -337,6 +367,33 @@ export function ActiveWorkout() {
         onConfirm={handleFinish}
         isPending={saveMutation.isPending}
       />
+
+      <Dialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Discard workout?</DialogTitle>
+            <DialogDescription>
+              Your workout progress will be lost. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowDiscardConfirm(false)}
+            >
+              Keep Training
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDiscard}
+            >
+              Discard Workout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
