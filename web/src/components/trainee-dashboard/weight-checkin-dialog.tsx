@@ -206,9 +206,9 @@ export function WeightCheckInDialog({
             </Button>
             <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
               )}
-              Save
+              {createMutation.isPending ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </form>

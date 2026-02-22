@@ -66,7 +66,7 @@ export function WorkoutHistoryList() {
         action={
           <Button size="sm" asChild>
             <Link href="/trainee/workout">
-              <Play className="mr-1.5 h-4 w-4" />
+              <Play className="mr-1.5 h-4 w-4" aria-hidden="true" />
               Start Workout
             </Link>
           </Button>
