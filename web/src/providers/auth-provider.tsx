@@ -76,6 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function initAuth() {
       if (!hasValidSession()) {
+        // Clear stale session cookie to prevent redirect loop with middleware
+        clearTokens();
         if (!cancelled) setIsLoading(false);
         return;
       }
