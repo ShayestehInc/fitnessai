@@ -118,17 +118,59 @@ export function useTraineeWorkoutDetail(id: number) {
   });
 }
 
+interface TodayLogEntry {
+  id: number;
+  workout_data: Record<string, unknown> | null;
+}
+
+interface PaginatedDailyLogs {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: TodayLogEntry[];
+}
+
+export function useTraineeTodayLog(date: string) {
+  return useQuery<TodayLogEntry[]>({
+    queryKey: ["trainee-dashboard", "today-log", date],
+    queryFn: async () => {
+      const response = await apiClient.get<PaginatedDailyLogs>(
+        `${API_URLS.TRAINEE_DAILY_LOGS}?date=${date}`,
+      );
+      return response.results;
+    },
+    staleTime: STALE_TIME,
+  });
+}
+
 export function useSaveWorkout() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: SaveWorkoutPayload) =>
-      apiClient.post(API_URLS.TRAINEE_DAILY_LOGS, payload),
+    mutationFn: async (payload: SaveWorkoutPayload) => {
+      // Check if a daily log already exists for this date
+      const response = await apiClient.get<PaginatedDailyLogs>(
+        `${API_URLS.TRAINEE_DAILY_LOGS}?date=${payload.date}`,
+      );
+      const existing = response.results;
+      if (existing.length > 0 && existing[0].id) {
+        // PATCH existing log with new workout_data
+        return apiClient.patch(
+          `${API_URLS.TRAINEE_DAILY_LOGS}${existing[0].id}/`,
+          { workout_data: payload.workout_data },
+        );
+      }
+      // Create new log
+      return apiClient.post(API_URLS.TRAINEE_DAILY_LOGS, payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["trainee-dashboard", "weekly-progress"],
       });
       queryClient.invalidateQueries({
         queryKey: ["trainee-dashboard", "workout-history"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "today-log"],
       });
     },
   });

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Dumbbell, BedDouble, CalendarOff, ArrowRight, Play } from "lucide-react";
+import { Dumbbell, BedDouble, CalendarOff, ArrowRight, Play, CheckCircle2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -13,8 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useTraineeDashboardPrograms } from "@/hooks/use-trainee-dashboard";
-import { findTodaysWorkout } from "@/lib/schedule-utils";
+import {
+  useTraineeDashboardPrograms,
+  useTraineeTodayLog,
+} from "@/hooks/use-trainee-dashboard";
+import { findTodaysWorkout, getTodayString } from "@/lib/schedule-utils";
 
 function CardSkeleton() {
   return (
@@ -35,6 +38,20 @@ function CardSkeleton() {
 export function TodaysWorkoutCard() {
   const { data: programs, isLoading, isError, refetch } =
     useTraineeDashboardPrograms();
+  const todayStr = getTodayString();
+  const { data: todayLogData } = useTraineeTodayLog(todayStr);
+
+  // Check if a workout has already been logged today
+  const todayLogs = todayLogData ?? [];
+  const hasLoggedToday = todayLogs.some((log) => {
+    const wd = log.workout_data;
+    if (!wd || typeof wd !== "object") return false;
+    const exercises = wd.exercises;
+    if (Array.isArray(exercises) && exercises.length > 0) return true;
+    const sessions = wd.sessions;
+    if (Array.isArray(sessions) && sessions.length > 0) return true;
+    return false;
+  });
 
   if (isLoading) return <CardSkeleton />;
 
@@ -168,14 +185,21 @@ export function TodaysWorkoutCard() {
         )}
       </CardContent>
       <CardFooter className="flex items-center gap-3 pt-0">
-        {canStartWorkout && (
+        {canStartWorkout && hasLoggedToday ? (
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/trainee/history">
+              <CheckCircle2 className="mr-1.5 h-4 w-4" />
+              View Today&apos;s Workout
+            </Link>
+          </Button>
+        ) : canStartWorkout ? (
           <Button size="sm" asChild>
             <Link href="/trainee/workout">
               <Play className="mr-1.5 h-4 w-4" />
               Start Workout
             </Link>
           </Button>
-        )}
+        ) : null}
         <Link
           href="/trainee/program"
           className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"

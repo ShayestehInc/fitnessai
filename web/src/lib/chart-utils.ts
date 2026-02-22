@@ -15,4 +15,5 @@ export const CHART_COLORS = {
   workout: "hsl(var(--chart-1))",
   protein: "hsl(var(--chart-4))",
   calorie: "hsl(var(--chart-3))",
+  weight: "hsl(var(--chart-5))",
 } as const;

@@ -47,6 +47,8 @@ export function WorkoutFinishDialog({
         .reduce((setSum, s) => setSum + s.weight * s.reps, 0)
     );
   }, 0);
+  // Determine primary unit from the first exercise's sets
+  const primaryUnit = exercises[0]?.sets[0]?.unit ?? "lbs";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -61,49 +63,57 @@ export function WorkoutFinishDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Workout</span>
-              <span className="font-medium">{workoutName}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Duration</span>
-              <span className="font-medium">{duration}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Exercises</span>
-              <span className="font-medium">{exercises.length}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Sets Completed</span>
-              <span className="font-medium">
-                {completedSets} / {totalSets}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Total Volume</span>
-              <span className="font-medium">
-                {new Intl.NumberFormat("en-US").format(Math.round(totalVolume))}{" "}
-                lbs
-              </span>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onConfirm();
+          }}
+        >
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Workout</span>
+                <span className="font-medium">{workoutName}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Duration</span>
+                <span className="font-medium">{duration}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Exercises</span>
+                <span className="font-medium">{exercises.length}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Sets Completed</span>
+                <span className="font-medium">
+                  {completedSets} / {totalSets}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total Volume</span>
+                <span className="font-medium">
+                  {new Intl.NumberFormat("en-US").format(Math.round(totalVolume))}{" "}
+                  {primaryUnit}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
-            Back to Workout
-          </Button>
-          <Button onClick={onConfirm} disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Workout
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isPending}
+            >
+              Back to Workout
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Workout
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

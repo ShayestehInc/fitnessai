@@ -1,193 +1,127 @@
-# QA Report: Trainee Web Portal (Pipeline 32)
+# QA Report: Trainee Web — Workout Logging & Progress Tracking (Pipeline 33)
 
 ## Test Results
-- **TypeScript (`npx tsc --noEmit`):** PASS (exit code 0, zero errors)
-- **Static Analysis Issues:** 1 bug found (login page TRAINEE redirect missing)
+- Total: 31
+- Passed: 26
+- Failed: 5
 
 ## Acceptance Criteria Verification
 
-### Auth & Routing
+### Weight Check-In (AC-1 through AC-6)
 
-- [x] **AC-1** -- PASS -- Trainee can log in at `/login` with email + password. The auth-provider (`web/src/providers/auth-provider.tsx` line 44-48) now allows TRAINEE role for standalone login. Middleware (`web/src/middleware.ts` line 10) routes TRAINEE to `/trainee/dashboard`. **Minor issue:** Login page (`web/src/app/(auth)/login/page.tsx` lines 49-54) does NOT explicitly route TRAINEE users to `/trainee/dashboard` after login -- it falls through to the default `/dashboard`. The middleware then redirects, causing a double-hop. Functionally works but suboptimal.
+- [x] AC-1 — PASS — `weight-trend-card.tsx` shows a "Log Weight" button in the `CardFooter` (lines 152-159) when weight data exists, and inside an `EmptyState` action (lines 75-78) when no weight data exists. Both use a `Plus` icon with "Log Weight" text. Button opens the `WeightCheckInDialog`.
 
-- [x] **AC-2** -- PASS -- Middleware (`web/src/middleware.ts` lines 26-28) has `isTraineeDashboardPath()` that correctly identifies `/trainee/*` paths as separate from `/trainee-view` impersonation paths. Line 22-24 defines `isTraineeViewPath` for the old impersonation route.
+- [x] AC-2 — PASS — `weight-checkin-dialog.tsx` renders a `Dialog` with three fields: weight number input (`type="number"`, step 0.1, min 20, max 500, lines 127-145), date input (`type="date"`, defaults to `getTodayString()`, line 32 and 155-175), and optional notes `Textarea` (lines 178-186). All fields are labeled via `Label` components.
 
-- [x] **AC-3** -- PASS -- Middleware lines 76-80 redirect non-TRAINEE users away from `/trainee/*` paths to their appropriate dashboard. Layout (`web/src/app/(trainee-dashboard)/layout.tsx` lines 29-38) also redirects ADMIN/AMBASSADOR/TRAINER users via client-side useEffect.
+- [x] AC-3 — PASS — `handleSubmit` in `weight-checkin-dialog.tsx` (line 70-106) calls `createMutation.mutate({ date, weight_kg: parseFloat(weight), notes })`. The `useCreateWeightCheckIn()` hook (use-trainee-dashboard.ts lines 81-98) calls `apiClient.post<LatestWeightCheckIn>(API_URLS.TRAINEE_WEIGHT_CHECKINS, payload)` which maps to `POST /api/workouts/weight-checkins/`.
 
-- [x] **AC-4** -- PASS -- Middleware lines 83-89 redirect TRAINEE users attempting to access trainer dashboard paths to `/trainee/dashboard`. Lines 62-66 and 69-73 block TRAINEE from admin and ambassador paths respectively (via role checks that send non-matching roles to their dashboard).
+- [x] AC-4 — PASS — On success (dialog lines 81-84): `toast.success("Weight check-in saved")` fires, form resets via `resetForm()`, dialog closes via `onOpenChange(false)`. The mutation `onSuccess` callback (hook lines 89-95) invalidates both `["trainee-dashboard", "weight-checkins"]` and `["trainee-dashboard", "latest-weight"]` query keys, refreshing both the weight trend card and weight history data.
 
-- [x] **AC-5** -- PASS -- Auth provider (`web/src/providers/auth-provider.tsx` lines 44-48) includes `userData.role === UserRole.TRAINEE` in the `isAllowedRole` check, allowing standalone TRAINEE login.
+- [x] AC-5 — PASS — On error (dialog lines 86-103): if the error is an `ApiError` with a body, field-level errors are parsed from the DRF response (handles both `string[]` and `string` format values) and set into `fieldErrors` state. Each field renders a conditional error `<p>` with `role="alert"` and proper `aria-describedby` linkage. Non-field errors display at line 189-193. Network errors fall through to `toast.error("Failed to save weight check-in")`.
 
-### Layout & Navigation
+- [x] AC-6 — PASS — Client-side validation in `validate()` (lines 46-68): weight must be 20-500 kg (checked with `weightNum < 20 || weightNum > 500`), date cannot be in the future (compares selected date to today at 23:59:59). HTML attributes also enforce `min="20" max="500"` on the weight input and `max={getTodayString()}` on the date input for native browser validation.
 
-- [x] **AC-6** -- PASS -- Trainee nav links (`web/src/components/trainee-dashboard/trainee-nav-links.tsx` lines 18-25) define exactly 6 items: Dashboard, My Program, Messages, Announcements, Achievements, Settings. All with correct paths and icons.
+### Active Workout Logging (AC-7 through AC-18)
 
-- [x] **AC-7** -- PASS -- Desktop sidebar (`web/src/components/trainee-dashboard/trainee-sidebar.tsx` line 16) uses `hidden lg:block` and `w-64` (256px). Mobile sidebar (`web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx`) uses a Sheet (drawer) component with `w-64`.
+- [x] AC-7 — PASS — `todays-workout-card.tsx` computes `canStartWorkout = todaysDay && !isRestDay && hasExercises` (line 85). "Start Workout" button renders only when `canStartWorkout` is true (lines 171-177). Rest day renders "Rest Day" message with `BedDouble` icon (lines 110-121). No program shows "No program assigned" empty state (lines 62-79). No exercises shows "No exercises scheduled" (lines 122-136).
 
-- [x] **AC-8** -- PASS -- Header (`web/src/components/trainee-dashboard/trainee-header.tsx` lines 14-16) shows trainee name (first + last, fallback to email). Uses `UserNav` component which shows profile avatar/fallback and has a logout dropdown menu item (line 70 of `user-nav.tsx`).
+- [x] AC-8 — PASS — "Start Workout" is a `Link` to `/trainee/workout` (line 173). The page at `web/src/app/(trainee-dashboard)/trainee/workout/page.tsx` renders `<ActiveWorkout />` which loads today's exercises from the active program via `useTraineeDashboardPrograms()`.
 
-- [x] **AC-9** -- PASS -- Badge counts hook (`web/src/hooks/use-trainee-badge-counts.ts`) fetches unread message count via `useMessagingUnreadCount()`. Sidebar renders Badge with destructive variant when badgeCount > 0. Messages nav link has `badgeKey: "messages"`.
+- [x] AC-9 — PASS — `active-workout.tsx` renders `PageHeader` with `title={workoutName}` (day name captured at initialization, line 114: `workoutNameRef.current = todaysDay.name || "Workout"`) and `description={activeProgram.name}` (line 293). Timer displays `formatDuration(elapsedSeconds)` in MM:SS format (lines 296-303) with `font-mono tabular-nums` styling and ARIA label. "Finish Workout" button present (lines 305-306). Timer starts via `setInterval` after exercises are initialized (lines 82-88).
 
-- [x] **AC-10** -- PASS -- Same badge system. Announcements nav link has `badgeKey: "announcements"`. Hook fetches `useAnnouncementUnreadCount()`. Badge appears in both desktop and mobile sidebar.
+- [x] AC-10 — PASS — Each exercise rendered as an `ExerciseLogCard` component (active-workout.tsx lines 313-327). Card shows exercise name as `CardTitle` (exercise-log-card.tsx line 51), target info as "Target: {targetSets} x {targetReps} @ {targetWeight} {unit}" (lines 56-59), and an editable log table below.
 
-- [x] **AC-11** -- PASS -- Layout (`web/src/app/(trainee-dashboard)/layout.tsx`) renders `TraineeSidebar` (hidden on mobile, shown on lg) and `TraineeSidebarMobile` (Sheet triggered by hamburger menu). Header has hamburger button with `lg:hidden` class (line 23 of trainee-header.tsx).
+- [x] AC-11 — PASS — `exercise-log-card.tsx` log table has a 5-column grid (line 63): Set number (line 78-80), Reps number input (lines 81-93 with `min={0}` and `max={999}`), Weight number input (lines 97-113 with `min={0}` and `step="0.5"`), completed checkbox (`role="checkbox"`, `aria-checked`, lines 114-130), and unit label in column header "Weight ({unit})" (line 66). Sets pre-populated from program targets via `buildInitialSets()` (active-workout.tsx lines 36-53), which copies target reps and weight into each set.
 
-### Home Dashboard
+- [x] AC-12 — PASS — "Add Set" button at exercise-log-card.tsx lines 149-157 triggers `onAddSet(exerciseIndex)`. In `handleAddSet` (active-workout.tsx lines 161-184), a new set is created with `isExtra: true`, copying `reps` and `weight` from the last existing set, numbered sequentially.
 
-- [x] **AC-12** -- PASS -- Dashboard page (`web/src/app/(trainee-dashboard)/trainee/dashboard/page.tsx`) renders 4 cards: `TodaysWorkoutCard`, `NutritionSummaryCard`, `WeightTrendCard`, `WeeklyProgressCard` in a 2-column grid.
+- [x] AC-13 — PASS — Remove button only appears for extra sets (`set.isExtra` check at exercise-log-card.tsx line 132). Original target sets render an empty `<span>` placeholder instead (line 143). `handleRemoveSet` (active-workout.tsx lines 187-203) filters out the set and renumbers all remaining sets sequentially.
 
-- [x] **AC-13** -- PASS -- `TodaysWorkoutCard` (`web/src/components/trainee-dashboard/todays-workout-card.tsx`): Shows active program name + exercise list with sets/reps (lines 170-199). Shows "Rest Day" when `is_rest_day` is true (lines 143-155). Shows "No program assigned" empty state when no active program (lines 96-113). Shows "No exercises scheduled" when day has 0 exercises (lines 156-168). Shows exercise count as a large number.
+- [x] AC-14 — PASS — `WorkoutFinishDialog` (workout-finish-dialog.tsx) shows a confirmation summary with: workout name (line 68), duration (line 72), exercises count (line 76), completed sets / total sets (lines 80-81), and total volume calculated from completed sets only (lines 42-49, formula: `sum of (weight * reps)` for completed sets). Volume formatted with `Intl.NumberFormat`.
 
-- [x] **AC-14** -- PASS -- `NutritionSummaryCard` (`web/src/components/trainee-dashboard/nutrition-summary-card.tsx`): Shows 4 MacroBar progress bars for calories, protein, carbs, fat (lines 113-137). Each shows consumed/goal. Defaults to 0 consumed when no data (lines 95-101).
+- [x] AC-15 — PASS — `handleFinish` (active-workout.tsx lines 206-238) calls `saveMutation.mutate()` which uses `apiClient.post(API_URLS.TRAINEE_DAILY_LOGS, payload)` via `useSaveWorkout()`. Payload format is `{date: getTodayString(), workout_data: {workout_name, duration, exercises: [{exercise_id, exercise_name, sets: [{set_number, reps, weight, unit, completed}]}]}}` matching the required schema. **Note:** Only POST is used; PUT for existing logs is not implemented (see Bug #1).
 
-- [x] **AC-15** -- PASS -- `WeightTrendCard` (`web/src/components/trainee-dashboard/weight-trend-card.tsx`): Shows latest weight value + date (lines 104-128). Shows trend indicator (TrendingUp/TrendingDown/Minus icons) with change value (lines 81-119). Shows "No weight data yet" empty state when no check-ins (lines 54-71).
+- [x] AC-16 — PASS — On success (active-workout.tsx lines 229-232): `hasUnsavedRef.current = false` (disables beforeunload), `toast.success("Workout saved!")` fires, `router.push("/trainee/dashboard")` redirects. The mutation's `onSuccess` (hook lines 127-133) invalidates `["trainee-dashboard", "weekly-progress"]` and `["trainee-dashboard", "workout-history"]` queries.
 
-- [x] **AC-16** -- PASS -- `WeeklyProgressCard` (`web/src/components/trainee-dashboard/weekly-progress-card.tsx`): Shows percentage + "X of Y days" label (lines 67-72). Renders Progress bar (line 73).
+- [x] AC-17 — PASS — Loading skeleton in active-workout.tsx (lines 241-251): renders a `Skeleton` h-8 w-48 for the header and 3 `Skeleton` h-48 w-full cards for exercises.
 
-- [x] **AC-17** -- PASS -- All 4 cards have `CardSkeleton` loading states (skeleton placeholders) rendered when `isLoading` is true.
+- [x] AC-18 — PASS — `beforeunload` event listener registered in `useEffect` (lines 96-104). Uses `hasUnsavedRef.current` which is set to `true` when `exerciseStates.length > 0` (lines 91-93). Calls `e.preventDefault()` to trigger browser confirmation dialog on navigation/close.
 
-- [x] **AC-18** -- PASS -- All 4 cards have error states with `ErrorState` component including retry buttons via `onRetry={() => refetch()}`.
+### Workout History (AC-19 through AC-24)
 
-- [ ] **AC-19** -- FAIL -- Dashboard does NOT show trainer branding colors. The `TRAINEE_BRANDING` API URL is defined in constants (`web/src/lib/constants.ts` line 254) but is never fetched or applied anywhere in the trainee dashboard code. No branding hook, no CSS variable injection, no branding-related code in any trainee component.
+- [x] AC-19 — PASS — `trainee-nav-links.tsx` line 23 adds `{ label: "History", href: "/trainee/history", icon: History }` at array index 2, between "My Program" (index 1) and "Progress" (index 3), which is before "Messages" (index 4). Matches the required sidebar ordering.
 
-### Program Viewer
+- [x] AC-20 — PASS — `useTraineeWorkoutHistory(page)` (hook lines 100-108) fetches `GET ${API_URLS.TRAINEE_WORKOUT_HISTORY}?page=${page}&page_size=20` which resolves to `/api/workouts/daily-logs/workout-history/?page=1&page_size=20`. `WorkoutHistoryList` uses this hook at line 34.
 
-- [x] **AC-20** -- PASS -- Program viewer (`web/src/components/trainee-dashboard/program-viewer.tsx` lines 68-133) shows program name, description, difficulty badge, goal badge, and duration weeks badge. Active status badge is also shown.
+- [x] AC-21 — PASS — Each history item card (workout-history-list.tsx lines 76-116) renders: `workout_name` as CardTitle (line 81), date formatted via `date-fns` `format(d, "EEE, MMM d, yyyy")` (lines 94-97), `exercise_count` with singular/plural label (lines 102-105), `total_sets` (line 106), `total_volume_lbs` formatted (lines 107-109), `duration_display` (lines 110-112), and a "Details" button with `Eye` icon (lines 83-91).
 
-- [x] **AC-21** -- PASS -- Week tabs rendered (lines 136-160) with `role="tablist"` and `role="tab"` attributes. Each week shown as "Week {week_number}". Tab panels use `role="tabpanel"`. Days rendered in grid layout.
+- [x] AC-22 — PASS — Clicking "Details" sets `detailId` (line 86) which opens `WorkoutDetailDialog` (lines 146-154). The dialog fetches full workout detail via `useTraineeWorkoutDetail(workoutId)`. It displays each exercise name (line 104) and its logged sets with: set_number (line 112), reps (line 115), weight with "BW" fallback for 0 (lines 118-120), and completed status via Badge (lines 122-134). Handles both `exercises` array and `sessions` format (mobile app data, lines 23-33 of workout-detail-dialog.tsx).
 
-- [x] **AC-22** -- PASS -- `DayCard` component (lines 193-261) shows day name from `DAY_NAMES` array (Monday-Sunday), custom label if set (line 217-219: `day.name` shown as subtitle when different from day name), and exercise list.
+- [x] AC-23 — PASS — Pagination implemented at workout-history-list.tsx lines 119-143. Previous/Next buttons with `ChevronLeft`/`ChevronRight` icons, disabled based on `data.previous`/`data.next` API response fields. Page counter displayed as "Page {page}". Page state managed via `useState`.
 
-- [x] **AC-23** -- PASS -- Exercises show: name (line 241), sets + reps (line 243), weight + unit when > 0 (lines 244-248), rest seconds when > 0 (lines 249-251). Rows numbered with index (lines 237-239: `{i + 1}.`).
+- [x] AC-24 — PASS — Empty state (lines 55-70) shows `EmptyState` with icon `Dumbbell`, title "No workouts logged yet", description "Start your first workout to see it here.", and CTA `Link` to `/trainee/workout` with "Start Workout" text and `Play` icon.
 
-- [x] **AC-24** -- PASS -- Rest days clearly marked with "Rest" badge (BedDouble icon, lines 210-215), dimmed styling via `opacity-60` on the Card (line 204), and "Recovery day" text (lines 222-225).
+### Progress Page (AC-25 through AC-31)
 
-- [x] **AC-25** -- PASS -- Program page (`web/src/app/(trainee-dashboard)/trainee/program/page.tsx` lines 43-58) shows EmptyState with "No program assigned" when no programs exist.
+- [x] AC-25 — PASS — `trainee-nav-links.tsx` line 24 adds `{ label: "Progress", href: "/trainee/progress", icon: TrendingUp }` at array index 3, directly after "History" (index 2). The route exists at `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx`.
 
-- [x] **AC-26** -- PASS -- Program switcher (dropdown menu) shown when `programs.length > 1` (line 63, lines 86-113). Uses DropdownMenu with "Switch Program" trigger. Selecting resets week to 0.
+- [x] AC-26 — PASS — `trainee/progress/page.tsx` renders three chart sections: `WeightTrendChart` (weight trend line chart), `WorkoutVolumeChart` (volume bar chart), and `WeeklyAdherenceCard` (adherence). The weight and volume charts are in a 2-column grid (`lg:grid-cols-2`), adherence below as full width.
 
-- [x] **AC-27** -- PASS -- Program viewer is read-only. No edit buttons, no input fields, no mutation hooks. Purely display components.
+- [x] AC-27 — PASS — `WeightTrendChart` in `trainee-progress-charts.tsx` (lines 61-161) renders a Recharts `LineChart` of weight check-ins. Uses `useTraineeWeightHistory()` hook. Limits to 30 most recent entries, reverses for chronological display. X-axis shows dates, Y-axis shows weight in kg with domain padding. Screen reader fallback `<ul>` provided (lines 151-157).
 
-### Messaging
+- [x] AC-28 — PASS — `WorkoutVolumeChart` (lines 163-257) renders a Recharts `BarChart`. Uses `useTraineeWorkoutHistory(1)` calling `GET /api/workouts/daily-logs/workout-history/`. Maps `total_volume_lbs` from each entry to chart bars. Reversed for chronological order. Screen reader fallback `<ul>` provided.
 
-- [x] **AC-28** -- PASS -- Messages page (`web/src/app/(trainee-dashboard)/trainee/messages/page.tsx`) reuses `ConversationList`, `ChatView`, and `MessageSearch` from `@/components/messaging/`. Split-panel layout with sidebar (w-80 on md+) and chat area.
+- [ ] AC-29 — FAIL — The ticket requires "weekly completion rate over the past 4 weeks." The `WeeklyAdherenceCard` (lines 259-344) calls `useTraineeWeeklyProgress()` which fetches `GET /api/workouts/daily-logs/weekly-progress/`. However, the `WeeklyProgress` type (`trainee-dashboard.ts` lines 3-7) only contains `total_days`, `completed_days`, and `percentage` for a single period. The component renders a single-week progress bar (lines 321-332), not a chart of 4 weeks of historical adherence data. There is no multi-week data structure, no multi-week API parameter, and no chart — just a progress bar for the current week.
 
-- [x] **AC-29** -- PASS -- Trainee sees conversations from `useConversations()` hook which hits the messaging API. Auto-selects first conversation (lines 56-67). Trainee typically has one conversation (with their trainer).
+- [x] AC-30 — PASS — All three chart components implement: skeleton loading via `ChartSkeleton` (lines 43-55), empty states with contextual messages and CTAs (weight: "No weight data yet" + Log Weight button; volume: "No workout data yet" + "Complete your first workout" message; adherence: "No training schedule" message), and error states using `ErrorState` component with `onRetry` callbacks.
 
-- [x] **AC-30** -- PASS -- `ChatView` uses `ChatInput` which supports text messages and image attachments (`Paperclip` button, file input accepting JPEG/PNG/WebP, max 5MB). `handleSend` passes content + image to `useSendMessage`.
+- [ ] AC-31 — FAIL (Minor) — Charts are responsive (wrapped in `ResponsiveContainer` 100% width/height) and theme-aware (axes use `hsl(var(--muted-foreground))`, grid uses `stroke-border` CSS class, tooltip uses `tooltipContentStyle` from `chart-utils.ts` which references CSS variables). However, the ticket says to use "existing `CHART_COLORS`" from `chart-utils.ts`. The charts use `hsl(var(--primary))` directly for line/bar colors instead of `CHART_COLORS.workout` or similar constants. The named color constants are defined in `chart-utils.ts` (`CHART_COLORS = { food, workout, protein, calorie }`) but are not referenced. Functionally the charts work in both light and dark mode since `hsl(var(--primary))` is theme-aware, but this deviates from the specified approach.
 
-- [x] **AC-31** -- PASS -- `ChatView` uses `useMessagingWebSocket` hook (line 62) providing real-time: `onNewMessage`, `onMessageEdited`, `onMessageDeleted` callbacks. `TypingIndicator` shown when `typingDisplayName` is set. `sendTyping` passed to ChatInput's `onTyping`.
+## Bugs Found Outside Tests
 
-- [x] **AC-32** -- PASS -- Cmd/Ctrl+K keyboard shortcut implemented (lines 72-80 of messages page). Search button shown in header with keyboard shortcut badge. `MessageSearch` component reused from shared messaging components.
-
-### Announcements
-
-- [x] **AC-33** -- PASS -- `AnnouncementsList` (`web/src/components/trainee-dashboard/announcements-list.tsx`) renders each announcement as a Card with title (line 99), content (lines 112-115 when expanded), date badge (lines 102-108), and pinned indicator (Pin icon, line 91).
-
-- [x] **AC-34** -- PASS -- Sorting logic (lines 22-28): Pinned first (`a.is_pinned && !b.is_pinned` returns -1), then by `created_at` descending.
-
-- [x] **AC-35** -- PASS -- Unread announcements have visual distinction: bold title (`!announcement.is_read && "font-bold"` on line 96), unread dot (Circle icon with `fill-primary`, lines 84-88), and highlighted card background (`border-primary/30 bg-primary/5` on line 68).
-
-- [x] **AC-36** -- PASS -- Opening an announcement (clicking the card) calls `onAnnouncementOpen` (line 58-61) which triggers `markOneRead.mutate(id)` in the parent page (lines 40-44 of announcements/page.tsx).
-
-- [x] **AC-37** -- PASS -- "Mark all read" button in page header (lines 83-96 of announcements/page.tsx). Shows unread count badge. Calls `markAllRead.mutate()` with success/error toasts. Disabled when `markAllRead.isPending`.
-
-### Achievements
-
-- [x] **AC-38** -- PASS -- `AchievementsGrid` (`web/src/components/trainee-dashboard/achievements-grid.tsx`) renders a responsive grid (sm:grid-cols-2, lg:grid-cols-3). Each achievement has earned/locked visual state: earned = `bg-primary/10 text-primary` with Trophy icon, locked = `bg-muted text-muted-foreground` with Lock icon + `opacity-60` on card.
-
-- [x] **AC-39** -- PASS -- Earned achievements show: Trophy icon (line 47), name (line 53), earned date formatted (lines 57-65), and description (lines 54-55).
-
-- [x] **AC-40** -- PASS -- Locked achievements show: Lock icon (line 49), grayed-out styling (opacity-60), progress toward unlocking with "X / Y" label and Progress bar (lines 67-74).
-
-- [x] **AC-41** -- PASS -- Summary shown in PageHeader description: `${stats.earned} of ${stats.total} achievements earned` (line 72 of achievements/page.tsx). Stats computed via `useMemo` filtering earned achievements.
-
-### Settings
-
-- [x] **AC-42** -- PASS -- Settings page (`web/src/app/(trainee-dashboard)/trainee/settings/page.tsx`) renders `ProfileSection` which includes: first/last name inputs (lines 163-184 of profile-section.tsx), profile image upload via file input (lines 56-89), remove button when image exists (lines 141-149).
-
-- [x] **AC-43** -- PASS -- `AppearanceSection` (`web/src/components/settings/appearance-section.tsx`) renders Light/Dark/System theme toggle using `next-themes` with Sun/Moon/Monitor icons and radio group semantics.
-
-- [x] **AC-44** -- PASS -- `SecuritySection` (`web/src/components/settings/security-section.tsx`) has current password, new password, and confirm password fields (lines 103-168).
-
-- [x] **AC-45** -- PASS -- Profile changes call `updateProfile.mutate()` with `onSuccess: () => toast.success("Profile updated")` (line 50 of profile-section.tsx). Image upload also shows success toast.
-
-- [x] **AC-46** -- PASS -- Password validation (lines 27-46 of security-section.tsx): current password required, new password min 8 chars, confirm must match. Error messages displayed with `role="alert"`.
-
-## Acceptance Criteria Summary
-
-| Status | Count |
-|--------|-------|
-| PASS   | 45    |
-| FAIL   | 1     |
-| Total  | 46    |
-
-**Failed:** AC-19 (trainer branding colors not implemented)
-
----
-
-## Edge Cases Verified
-
-1. **Trainee with no trainer** -- PARTIALLY HANDLED -- The dashboard will render but no explicit "Contact support" message exists. The `user.trainer` field exists on the User type but is not checked for null in the dashboard. The EmptyState for no program says "Your trainer hasn't assigned a program yet" which implicitly assumes a trainer exists. **Verdict:** Low risk (FK constraint prevents this scenario in practice).
-
-2. **Trainee with expired subscription** -- NOT IMPLEMENTED -- No subscription check or expired banner exists in the trainee dashboard layout or any page. **Verdict:** Out of scope for Phase 1 per ticket ("Stripe subscription management UI" is out of scope), but the banner would be a nice-to-have.
-
-3. **Trainee not onboarded** -- NOT IMPLEMENTED -- No check for `onboarding_completed` in the layout or dashboard. User type has the field (`onboarding_completed: boolean`) but it is never read. **Verdict:** Ticket explicitly lists "Onboarding wizard on web" as out of scope, so this is acceptable.
-
-4. **Multiple active programs** -- PASS -- `ProgramViewer` shows a program switcher (DropdownMenu) when `programs.length > 1` (line 63). Defaults to first active program or first program overall (line 41).
-
-5. **Program with 0 exercises on a day** -- PASS -- `DayCard` explicitly handles this: `day.exercises.length === 0` shows "No exercises scheduled" (lines 226-229). Distinguished from rest day.
-
-6. **Program with 52+ weeks** -- PASS -- Week tabs container has `overflow-x-auto` (line 139 of program-viewer.tsx), enabling horizontal scrolling.
-
-7. **Weight in kg vs lbs** -- PARTIALLY HANDLED -- Weight card always displays `kg` (line 105 of weight-trend-card.tsx: `{Number(latest.weight_kg).toFixed(1)} kg`). The `LatestWeightCheckIn` type only has `weight_kg`. No lbs conversion. **Verdict:** Acceptable given backend stores kg. The ticket says "Display weight in the unit recorded" and backend field is `weight_kg`.
-
-8. **Network failure mid-page** -- PASS -- Each card independently fetches data via separate `useQuery` hooks. Each has its own loading/error/success states. One card failing does not affect others. Confirmed by reading all 4 card components.
-
-9. **Concurrent sessions (mobile + web)** -- PASS -- JWT-based auth. Tokens are independent. No session locking mechanism. Both sessions can be active simultaneously.
-
-10. **Concurrent impersonation** -- PASS -- Different JWTs, independent sessions. Layout checks `user.role` via auth context, not cookie.
-
----
-
-## Bugs Found
-
-| # | Severity | Description | File:Line |
-|---|----------|-------------|-----------|
-| 1 | Medium | **Login page does not redirect TRAINEE to `/trainee/dashboard`** -- After successful login, the TRAINEE role falls through to default `destination = "/dashboard"`. Middleware then redirects to `/trainee/dashboard`, causing a double-hop (flash of redirect). ADMIN and AMBASSADOR are handled but TRAINEE is not. | `web/src/app/(auth)/login/page.tsx:49-54` |
-| 2 | Medium | **Trainer branding not applied (AC-19)** -- The `TRAINEE_BRANDING` API URL is defined in `constants.ts` but never fetched or applied. No branding hook exists. No CSS variable injection for trainer colors. Dashboard renders with default theme only. | `web/src/lib/constants.ts:254` (defined but unused) |
-| 3 | Low | **ProfileSection includes "Business name" field** -- The reused `ProfileSection` component includes a "Business name" input field (lines 186-195 of profile-section.tsx) which is trainer-specific and irrelevant for trainees. Should be hidden for TRAINEE role. | `web/src/components/settings/profile-section.tsx:186-195` |
-
----
+| # | Severity | Description | Steps to Reproduce |
+|---|----------|-------------|-------------------|
+| 1 | Major | **No PUT handling for existing daily log.** AC-15 says "POST /api/workouts/daily-logs/ (or PUT if a log already exists for today)." The `useSaveWorkout` hook (use-trainee-dashboard.ts lines 121-135) only calls `apiClient.post()`. There is no logic to check if a daily log already exists for today and use PUT to merge. If the backend returns 400 on duplicate `date` entries, saving a second workout on the same day will fail with no graceful recovery. The error handler in `handleFinish` only shows a generic toast — no retry mechanism is presented. | 1. Complete and save a workout on a given day. 2. Navigate back to `/trainee/workout` on the same day. 3. Complete exercises and click "Finish Workout." 4. POST may fail with 400 if backend enforces unique date constraint, showing only "Failed to save workout" toast with no way to recover. |
+| 2 | Major | **"Already logged workout today" edge case not handled.** Ticket edge case #3 says: "If a daily log with workout_data already exists for today, show 'View Today's Workout' instead of 'Start Workout', linking to the history detail." The `TodaysWorkoutCard` component has zero awareness of whether today's workout has already been logged. It always shows "Start Workout" when exercises are scheduled. The `TRAINEE_WORKOUT_SUMMARY` endpoint exists in constants (constants.ts line 243) and there is a `useTraineeWorkoutSummary` (if it existed) — but no such check is performed in `todays-workout-card.tsx`. | 1. Log in as trainee, complete and save a workout. 2. Navigate back to dashboard. 3. Today's Workout card still shows "Start Workout" instead of "View Today's Workout." 4. Clicking it would begin a new workout session despite one already being saved. |
+| 3 | Minor | **Volume unit hardcoded as "lbs" in finish dialog.** In `workout-finish-dialog.tsx` line 88, the total volume label is always "lbs" regardless of the unit system in the user's program. If a trainee's program uses "kg" units, the volume display would still say "lbs." The volume calculation itself also sums raw numbers without unit conversion, so if exercises use mixed units, the total is meaningless. | 1. Have a program with exercises using "kg" unit. 2. Start and complete a workout. 3. Click "Finish Workout." 4. Volume summary shows "X lbs" despite program being in kg. |
+| 4 | Minor | **History empty state CTA always links to `/trainee/workout`.** Ticket edge case #1 says the CTA should only show if a workout is scheduled. The current `WorkoutHistoryList` empty state (workout-history-list.tsx lines 57-69) always renders a "Start Workout" `Link` to `/trainee/workout` regardless of whether today is a rest day or the trainee has no program. Following the link on a rest day leads to an "No exercises scheduled" empty state. | 1. Be a trainee on a rest day with no workout logged. 2. Navigate to History. 3. Empty state shows "Start Workout" CTA. 4. Clicking it leads to another empty state page. |
+| 5 | Minor | **Workout finish dialog not submittable via Enter key.** The ticket UX requirements state "Enter submits dialog." The weight check-in dialog uses a `<form>` with `onSubmit` so Enter works. The `WorkoutFinishDialog` uses plain `<Button onClick>` handlers without a form wrapper (workout-finish-dialog.tsx lines 94-107), so pressing Enter does nothing. User must click "Save Workout" with mouse. | 1. Start and complete a workout. 2. Click "Finish Workout" to open the confirmation dialog. 3. Press Enter. 4. Nothing happens. Must click the "Save Workout" button. |
+| 6 | Low | **`reps` and `weight` values of 0 display as blank inputs.** In `exercise-log-card.tsx` lines 85 and 102, `value={set.reps || ""}` and `value={set.weight || ""}` use the `||` operator, which coerces `0` to `""` (empty string). For bodyweight exercises where target weight is 0, the weight field appears empty rather than showing "0." While arguably acceptable UX, it makes it impossible to distinguish "intentionally 0" from "not yet entered." | 1. Have an exercise with `weight: 0` (bodyweight exercise). 2. Start a workout. 3. The weight input for that exercise appears blank instead of showing "0." |
+| 7 | Low | **Workout volume chart limited to page 1 (20 entries) without indication.** `WorkoutVolumeChart` (trainee-progress-charts.tsx line 164) calls `useTraineeWorkoutHistory(1)` which fetches only page 1 (up to 20 entries). The chart description says "last {results.length} workouts" which could be misleading — there is no indication that older workouts exist beyond the visible 20. Not a functional bug, but the chart silently caps at 20 entries. | 1. Log 25+ workouts over time. 2. Navigate to Progress page. 3. Volume chart shows "last 20 workouts" without indicating 5+ more exist. |
+| 8 | Low | **Timer continues during navigation transition after save.** In `active-workout.tsx`, the timer `useEffect` (lines 82-88) starts an interval when `initialized` is true. On save success, `router.push("/trainee/dashboard")` triggers navigation but `initialized` remains `true` and the interval keeps firing `setElapsedSeconds` during the transition. React cleanup will eventually clear it on unmount, but state updates on a transitioning component may cause warnings in React Strict Mode. | 1. Start a workout, let timer run. 2. Click "Finish Workout" and confirm save. 3. Timer continues incrementing during the redirect to dashboard. |
 
 ## Additional Observations
 
 ### Positive Findings
 
-1. **Excellent TypeScript typing** -- All types properly defined in `trainee-dashboard.ts` and reusing `trainee-view.ts`. No `any` types found. TypeScript compiles cleanly.
+1. **Solid type safety** — All new types (`WorkoutHistoryItem`, `WorkoutDetailData`, `WorkoutExerciseLog`, `WorkoutSetLog`, `CreateWeightCheckInPayload`, `SaveWorkoutPayload`) are cleanly defined in `trainee-dashboard.ts`. No `any` types found. Generic types on `useQuery` and `useMutation` properly constrain payloads and responses.
 
-2. **Consistent architecture** -- All pages follow the same pattern: loading state, error state with retry, empty state, success state. Matches existing codebase conventions.
+2. **Consistent architecture** — All new components follow the established pattern: loading skeleton, error state with retry, empty state with contextual message and CTA, success state. Matches existing codebase conventions perfectly.
 
-3. **Accessibility is thorough** -- ARIA labels on nav links, `aria-current="page"` on active links, `role="tablist"/"tab"/"tabpanel"` on program weeks, skip-to-content link in layout, `sr-only` loading text, keyboard support on announcement cards (`onKeyDown` for Enter/Space), focus-visible rings via Tailwind.
+3. **Excellent accessibility** — ARIA labels on all inputs (`aria-label="Set N reps"`, `aria-label="Set N weight"`), checkbox role with `aria-checked` for set completion, `role="alert"` on error messages, `aria-describedby` linking inputs to errors, `role="img"` with labels on charts, `sr-only` screen reader text for chart data, `role="progressbar"` with `aria-valuenow/min/max` on adherence bar, `role="group"` on set rows.
 
-4. **Component reuse is extensive** -- Settings reuses `ProfileSection`, `AppearanceSection`, `SecuritySection`. Messages reuses `ConversationList`, `ChatView`, `MessageSearch`, `ChatInput`. Shared components (`ErrorState`, `EmptyState`, `Skeleton`, `Badge`, `Card`, `Progress`) used throughout.
+4. **Proper query invalidation** — Both mutations (weight check-in and workout save) correctly invalidate all relevant query keys, ensuring the dashboard cards refresh after data changes.
 
-5. **Smart badge count system** -- `useTraineeBadgeCounts` hook cleanly aggregates message and announcement unread counts. Used by both desktop and mobile sidebars.
+5. **Mobile-first responsive design** — Workout exercise grid uses `md:grid-cols-2`, charts use `lg:grid-cols-2`, all dialogs use `sm:max-w-[425px]` / `sm:max-w-[600px]`, pagination and history items work at any width.
 
-6. **UserNav properly routes TRAINEE** -- The `UserNav` component (line 59 of `user-nav.tsx`) correctly routes TRAINEE users to `/trainee/settings` from the dropdown menu.
+6. **Smart data snapshot for workout** — The `initialized` flag and `workoutNameRef` ensure that program data is captured once at workout start. Subsequent program refetches (due to React Query cache invalidation) do not mutate the in-progress workout. This correctly handles ticket edge case #10.
 
-7. **WebSocket messaging fully functional** -- Real-time updates, typing indicators, read receipts, and image attachments all supported through the reused messaging infrastructure.
+7. **Graceful handling of mobile app data format** — `WorkoutDetailDialog` handles both `exercises` array format (web) and `sessions` array format (mobile app) via `getExercises()` and `getWorkoutName()` helper functions.
 
-8. **Proper data fetching** -- `staleTime: 5 * 60 * 1000` (5 min) for dashboard data. Weight check-in 404s handled gracefully (`retry` returning false for 404).
+8. **Consistent error handling pattern** — `ApiError` from `api-client.ts` is properly used to distinguish between field validation errors (parsed from body) and network/server errors (shown as toast).
 
 ### Risk Assessment
 
-- **Bug #1 (login redirect):** Users will experience a brief flash/redirect when logging in as TRAINEE. Not a blocker but a UX regression. Easy fix: add `else if (loggedInUser.role === UserRole.TRAINEE) destination = "/trainee/dashboard"` in login page.
-- **Bug #2 (branding):** This is the only FAIL among 46 ACs. The API URL is defined but the feature was never wired up. Requires creating a branding hook and applying CSS variables.
-- **Bug #3 (business name):** Minor UX issue. Trainee sees an irrelevant "Business name" field in settings. Low priority.
+- **Bug #1 (no PUT for existing log):** HIGH RISK — If the backend has a unique constraint on `trainee + date` for daily logs, re-logging on the same day will fail silently (only a toast, no retry). This is the most likely scenario to cause user frustration in production.
+- **Bug #2 (already logged today not detected):** MEDIUM RISK — Users can accidentally start a duplicate workout. Combined with Bug #1, this could lead to data loss (user completes a second workout but cannot save it).
+- **Bugs #3-5:** LOW RISK — UX polish issues that do not prevent core functionality from working. Should be addressed in a follow-up.
 
----
+## Confidence Level: MEDIUM
 
-## Confidence Level: HIGH
+**Rationale:** 26 of 31 acceptance criteria pass. The core flows (weight check-in, workout logging, history browsing, progress charts) are solidly implemented with proper state management, error handling, accessibility, and responsive design. However, three gaps reduce confidence:
 
-**Rationale:** 45 of 46 acceptance criteria pass. TypeScript compiles cleanly with zero errors. The single failing AC (branding) is a feature gap rather than a regression. The login redirect bug is medium severity but the middleware catches it, so trainees still land on the correct page. All edge cases are handled or have acceptable justification. The implementation is architecturally sound, well-typed, accessible, and consistent with the existing codebase patterns.
+1. **AC-29 (adherence section):** Shows a single-week progress bar instead of a 4-week trend chart. This is constrained by the backend API returning only single-week data, but the implementation does not match the AC specification.
+2. **Bug #1 + Bug #2 (duplicate daily log handling):** The combination of no PUT logic and no "already logged today" detection means the most common re-logging scenario is unhandled. A trainee who saves a workout and then navigates back could be led into a second workout that cannot be saved.
+3. **AC-31 (CHART_COLORS):** Minor deviation from the specified technical approach, but functionally correct.
+
+The implementation quality is high where it exists — the issues are primarily omissions of specified edge cases rather than broken functionality.

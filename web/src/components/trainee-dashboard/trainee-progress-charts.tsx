@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { tooltipContentStyle } from "@/lib/chart-utils";
+import { tooltipContentStyle, CHART_COLORS } from "@/lib/chart-utils";
 import {
   useTraineeWeightHistory,
   useTraineeWorkoutHistory,
@@ -139,9 +139,9 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
               <Line
                 type="monotone"
                 dataKey="weight"
-                stroke="hsl(var(--primary))"
+                stroke={CHART_COLORS.weight}
                 strokeWidth={2}
-                dot={{ r: 3, fill: "hsl(var(--primary))" }}
+                dot={{ r: 3, fill: CHART_COLORS.weight }}
                 name="Weight (kg)"
               />
             </LineChart>
@@ -237,7 +237,7 @@ export function WorkoutVolumeChart() {
               />
               <Bar
                 dataKey="volume"
-                fill="hsl(var(--primary))"
+                fill={CHART_COLORS.workout}
                 radius={[4, 4, 0, 0]}
                 name="Volume"
               />
