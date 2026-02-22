@@ -4,6 +4,47 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-21] — Trainee Web Workout Logging & Progress Tracking (Pipeline 33)
+
+### Added
+- **Weight check-in dialog** — Trainees can log weight from the dashboard card. Validates 20-500 kg range, no future dates, optional notes (500 char max). POST via React Query mutation with toast feedback and automatic cache invalidation of weight trend + latest weight queries.
+- **Active workout page** (`/trainee/workout`) — Full workout logging with real-time timer, exercise cards with editable sets/reps/weight, add/remove sets, native checkbox completion, `beforeunload` guard for unsaved work. ExerciseTarget snapshot pattern decouples from live program query. Discard button with confirmation dialog.
+- **Workout finish dialog** — Review summary before saving: workout name, duration, exercise count, sets completed/total, total volume with dynamic unit. Incomplete sets warning banner. Enter-key submission via `<form>`. Prevents dialog close during save.
+- **Workout history page** (`/trainee/history`) — Paginated list (20 per page) with exercise count, total sets, volume, duration. Detail dialog shows per-exercise set breakdown with completed/skipped badges. "Page X of Y" pagination with scroll-to-top.
+- **Progress page** (`/trainee/progress`) — Three chart components: Weight Trend (LineChart, last 30 entries), Workout Volume (BarChart), Weekly Adherence (progress bar with color-coded percentage). Theme-aware `CHART_COLORS` from `chart-utils.ts`. Screen reader `<ul>` fallbacks for all charts.
+- **"Already logged today" detection** — Dashboard Today's Workout card checks for existing daily log. Shows "View Today's Workout" (outline button, links to history) when logged, "Start Workout" when not.
+- **Save workout mutation** (`useSaveWorkout`) — Checks for existing daily log via GET, PATCHes if exists, POSTs if new. Handles DailyLog unique constraint on (trainee, date). Invalidates weekly-progress, workout-history, and today-log queries on success.
+- **Shared schedule utilities** (`lib/schedule-utils.ts`) — Extracted `getTodaysDayNumber()`, `findTodaysWorkout()`, `getTodayString()`, `formatDuration()` to eliminate duplication across components.
+- **3 new page routes** — `/trainee/workout`, `/trainee/history`, `/trainee/progress` with proper auth guards.
+- **8 new trainee dashboard hooks** — `useTraineeTodayLog`, `useSaveWorkout`, `useTraineeWorkoutHistory`, `useTraineeWorkoutDetail`, plus existing hooks extended.
+
+### Changed
+- `trainee-nav-links.tsx` — Added History and Progress navigation links (8 total nav items).
+- `weight-trend-card.tsx` — Added "Log Weight" button with `WeightCheckInDialog` integration.
+- `nutrition-summary-card.tsx` — Replaced duplicate `getToday()` with import from `schedule-utils`.
+- `trainee-progress-charts.tsx` — Charts use `CHART_COLORS.weight` and `CHART_COLORS.workout` instead of inline `hsl(var(--primary))`. Weight chart limited to 30 entries.
+- `chart-utils.ts` — Added `weight: "hsl(var(--chart-5))"` to `CHART_COLORS`.
+- `constants.ts` — Added `TRAINEE_DAILY_LOGS`, `TRAINEE_WORKOUT_HISTORY`, `traineeWorkoutDetail(id)` URL constants.
+- `trainee-dashboard.ts` (types) — Added `WorkoutHistoryItem`, `WorkoutHistoryResponse`, `WorkoutDetailData`, `SaveWorkoutPayload`, and related interfaces.
+
+### Security
+- Added `encodeURIComponent()` for all date query parameters in hooks (XSS/injection prevention).
+- Input validation: reps 0-999, weight 0-9999, weight check-in 20-500 kg, notes 500 char max.
+- No `dangerouslySetInnerHTML`, no `localStorage` for sensitive data, generic error messages.
+
+### Accessibility
+- 33 accessibility improvements across 9 files: `aria-busy` on skeletons, `aria-live="polite"` on dynamic content, `aria-label` on all interactive elements, `role="timer"` on workout timer, `role="region"` on summary sections, `role="alert"` on incomplete sets warning, `aria-hidden` on decorative icons, focus-visible styles on links.
+- Pagination changed from `<div>` to `<nav>` with proper `aria-label`.
+- Screen reader fallback lists for all chart data.
+
+### Fixed
+- Bodyweight/isometric exercise inputs (weight=0, reps=0) now display "0" instead of blank.
+- Timezone-safe date parsing using `parseISO` from date-fns instead of `new Date()`.
+- Duplicate React keys in chart screen reader lists resolved with unique `_key` field.
+- Recharts Tooltip formatter TypeScript type mismatch fixed.
+
+---
+
 ## [2026-02-21] — Trainee Web Portal — Home Dashboard & Program Viewer (Pipeline 32)
 
 ### Added

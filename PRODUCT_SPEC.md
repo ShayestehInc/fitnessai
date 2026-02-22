@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-21 (Pipeline 32: Trainee Web Portal)
+> Last updated: 2026-02-21 (Pipeline 33: Trainee Web Workout Logging & Progress Tracking)
 
 ---
 
@@ -234,6 +234,11 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Trainee settings (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 32): Reuses ProfileSection (hides business name for trainees), AppearanceSection, SecuritySection |
 | Trainee sidebar + responsive | ✅ Done | Shipped 2026-02-21 (Pipeline 32): 6 nav links, unread badges, desktop sidebar + mobile drawer, "Hi, Name" header greeting |
 | Trainee route guards | ✅ Done | Shipped 2026-02-21 (Pipeline 32): Middleware + layout double-guard, non-trainee redirect, trainee-on-trainer redirect |
+| Trainee weight check-in (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 33): Log weight with date, notes, validation (20-500 kg, no future dates), toast feedback, cache invalidation |
+| Trainee workout logging (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 33): Active workout page with timer, exercise cards (editable sets/reps/weight), add/remove sets, finish dialog with summary, POST-or-PATCH save, beforeunload guard, discard with confirmation |
+| Trainee workout history (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 33): Paginated list with detail dialog, exercise/set breakdown, volume/duration stats, "Page X of Y" pagination |
+| Trainee progress charts (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 33): Weight trend (LineChart), workout volume (BarChart), weekly adherence (progress bar), theme-aware CHART_COLORS, screen reader fallbacks |
+| Trainee "already logged" detection (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 33): Dashboard card shows "View Today's Workout" when already logged, "Start Workout" when not |
 | Trainer branding (trainee web) | 🟡 Deferred | API URL defined, not yet wired. Branding colors/logo from trainer not applied to trainee web portal |
 
 ### 3.10 Social & Community
