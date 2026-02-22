@@ -38,6 +38,10 @@ const nextConfig: NextConfig = {
         hostname: "backend",
         port: "8000",
       },
+      {
+        protocol: "http",
+        hostname: "**",
+      },
     ],
   },
   async headers() {

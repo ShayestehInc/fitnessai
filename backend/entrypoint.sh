@@ -9,8 +9,10 @@ done
 echo "Database is ready!"
 
 echo "Running migrations..."
-python manage.py makemigrations --noinput || true
 python manage.py migrate --noinput
+
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
 
 echo "Starting server..."
 exec "$@"

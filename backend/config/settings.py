@@ -183,12 +183,12 @@ else:
     ]
 CORS_ALLOW_CREDENTIALS = True
 
-# CSRF trusted origins for ngrok
+# CSRF trusted origins — configurable via env var (comma-separated)
+_default_csrf_origins = "https://*.ngrok-free.app,https://*.ngrok.io,http://localhost:8000,http://127.0.0.1:8000"
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.ngrok-free.app",
-    "https://*.ngrok.io",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
+    origin.strip()
+    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', _default_csrf_origins).split(',')
+    if origin.strip()
 ]
 
 # JWT Settings
