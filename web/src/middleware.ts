@@ -7,7 +7,7 @@ const PUBLIC_PATHS = ["/login"];
 function getDashboardPath(role: string | undefined): string {
   if (role === "ADMIN") return "/admin/dashboard";
   if (role === "AMBASSADOR") return "/ambassador/dashboard";
-  if (role === "TRAINEE") return "/trainee-view";
+  if (role === "TRAINEE") return "/trainee/dashboard";
   return "/dashboard";
 }
 
@@ -23,11 +23,16 @@ function isTraineeViewPath(pathname: string): boolean {
   return pathname.startsWith("/trainee-view");
 }
 
+function isTraineeDashboardPath(pathname: string): boolean {
+  return pathname.startsWith("/trainee/") || pathname === "/trainee";
+}
+
 function isTrainerDashboardPath(pathname: string): boolean {
   return (
     !isAdminPath(pathname) &&
     !isAmbassadorPath(pathname) &&
     !isTraineeViewPath(pathname) &&
+    !isTraineeDashboardPath(pathname) &&
     !PUBLIC_PATHS.includes(pathname) &&
     pathname !== "/"
   );
@@ -68,13 +73,20 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  // AC-21: TRAINEE role users trying to access trainer/admin/ambassador paths -> redirect to /trainee-view
+  // Non-trainee users attempting to access trainee dashboard routes -> redirect to their dashboard
+  if (isTraineeDashboardPath(pathname) && hasSession && userRole !== "TRAINEE") {
+    return NextResponse.redirect(
+      new URL(getDashboardPath(userRole), request.url),
+    );
+  }
+
+  // TRAINEE role users trying to access trainer/admin/ambassador paths -> redirect to trainee dashboard
   if (
     isTrainerDashboardPath(pathname) &&
     hasSession &&
     userRole === "TRAINEE"
   ) {
-    return NextResponse.redirect(new URL("/trainee-view", request.url));
+    return NextResponse.redirect(new URL("/trainee/dashboard", request.url));
   }
 
   // Ambassador users attempting to access trainer dashboard routes -> redirect to ambassador dashboard

@@ -56,7 +56,9 @@ export function UserNav() {
                 ? "/admin/settings"
                 : user?.role === UserRole.AMBASSADOR
                   ? "/ambassador/settings"
-                  : "/settings"
+                  : user?.role === UserRole.TRAINEE
+                    ? "/trainee/settings"
+                    : "/settings"
             }
             className="cursor-pointer"
           >

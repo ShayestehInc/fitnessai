@@ -234,10 +234,22 @@ export const API_URLS = {
   AMBASSADOR_CONNECT_ONBOARD: `${API_BASE}/api/ambassador/connect/onboard/`,
   AMBASSADOR_CONNECT_RETURN: `${API_BASE}/api/ambassador/connect/return/`,
 
-  // Trainee-facing APIs (used during trainer→trainee impersonation)
+  // Trainee-facing APIs (used by trainee dashboard and trainer impersonation)
   TRAINEE_PROGRAMS: `${API_BASE}/api/workouts/programs/`,
   TRAINEE_NUTRITION_SUMMARY: `${API_BASE}/api/workouts/daily-logs/nutrition-summary/`,
   TRAINEE_WEIGHT_CHECKINS: `${API_BASE}/api/workouts/weight-checkins/`,
+  TRAINEE_WEIGHT_CHECKINS_LATEST: `${API_BASE}/api/workouts/weight-checkins/latest/`,
+  TRAINEE_WEEKLY_PROGRESS: `${API_BASE}/api/workouts/daily-logs/weekly-progress/`,
+  TRAINEE_WORKOUT_SUMMARY: `${API_BASE}/api/workouts/daily-logs/workout-summary/`,
+
+  // Trainee community APIs
+  TRAINEE_ANNOUNCEMENTS: `${API_BASE}/api/community/announcements/`,
+  TRAINEE_ANNOUNCEMENTS_UNREAD: `${API_BASE}/api/community/announcements/unread-count/`,
+  TRAINEE_ANNOUNCEMENTS_MARK_READ: `${API_BASE}/api/community/announcements/mark-read/`,
+  TRAINEE_ACHIEVEMENTS: `${API_BASE}/api/community/achievements/`,
+
+  // Trainee branding
+  TRAINEE_BRANDING: `${API_BASE}/api/users/my-branding/`,
 
   // Macro Presets
   MACRO_PRESETS: `${API_BASE}/api/workouts/macro-presets/`,

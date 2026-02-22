@@ -31,7 +31,7 @@ export default function DashboardLayout({
     } else if (!isLoading && isAuthenticated && user?.role === UserRole.AMBASSADOR) {
       router.replace("/ambassador/dashboard");
     } else if (!isLoading && isAuthenticated && user?.role === UserRole.TRAINEE) {
-      window.location.href = "/trainee-view";
+      window.location.href = "/trainee/dashboard";
     }
   }, [isLoading, isAuthenticated, user, router]);
 
