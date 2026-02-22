@@ -51,6 +51,8 @@ export default function LoginPage() {
         destination = "/admin/dashboard";
       } else if (loggedInUser.role === UserRole.AMBASSADOR) {
         destination = "/ambassador/dashboard";
+      } else if (loggedInUser.role === UserRole.TRAINEE) {
+        destination = "/trainee/dashboard";
       }
       router.push(destination);
     } catch (err) {

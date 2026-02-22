@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Trash2, Upload } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { UserRole } from "@/types/user";
 import {
   useUpdateProfile,
   useUploadProfileImage,
@@ -183,16 +184,18 @@ export function ProfileSection() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="businessName">Business name</Label>
-          <Input
-            id="businessName"
-            value={form.businessName}
-            onChange={(e) => setForm((f) => ({ ...f, businessName: e.target.value }))}
-            maxLength={200}
-            placeholder="Your business or gym name"
-          />
-        </div>
+        {user?.role !== UserRole.TRAINEE && (
+          <div className="space-y-2">
+            <Label htmlFor="businessName">Business name</Label>
+            <Input
+              id="businessName"
+              value={form.businessName}
+              onChange={(e) => setForm((f) => ({ ...f, businessName: e.target.value }))}
+              maxLength={200}
+              placeholder="Your business or gym name"
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
