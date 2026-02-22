@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { parseISO, format, isValid } from "date-fns";
 import {
   Dumbbell,
   ChevronLeft,
@@ -90,12 +91,10 @@ export function WorkoutHistoryList() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                {new Date(item.date).toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+                {(() => {
+                  const d = parseISO(item.date);
+                  return isValid(d) ? format(d, "EEE, MMM d, yyyy") : item.date;
+                })()}
               </p>
             </CardHeader>
             <CardContent className="pt-0">

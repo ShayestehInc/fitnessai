@@ -17,18 +17,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateWeightCheckIn } from "@/hooks/use-trainee-dashboard";
 import { ApiError } from "@/lib/api-client";
+import { getTodayString } from "@/lib/schedule-utils";
 
 interface WeightCheckInDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-function getTodayString(): string {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 export function WeightCheckInDialog({

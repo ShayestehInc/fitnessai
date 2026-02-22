@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { useTraineeWorkoutDetail } from "@/hooks/use-trainee-dashboard";
-import type { WorkoutExerciseLog } from "@/types/trainee-dashboard";
+import type { WorkoutData, WorkoutExerciseLog } from "@/types/trainee-dashboard";
 
 interface WorkoutDetailDialogProps {
   open: boolean;
@@ -20,35 +20,25 @@ interface WorkoutDetailDialogProps {
   workoutId: number;
 }
 
-function getExercises(
-  workoutData: Record<string, unknown> | undefined,
-): WorkoutExerciseLog[] {
+function getExercises(workoutData: WorkoutData | undefined): WorkoutExerciseLog[] {
   if (!workoutData) return [];
   // Direct exercises array
-  const exercises = workoutData.exercises;
-  if (Array.isArray(exercises)) return exercises as WorkoutExerciseLog[];
+  if (workoutData.exercises?.length) return workoutData.exercises;
   // Sessions format (from mobile app)
-  const sessions = workoutData.sessions;
-  if (Array.isArray(sessions) && sessions.length > 0) {
-    const first = sessions[0] as Record<string, unknown>;
-    if (Array.isArray(first?.exercises)) {
-      return first.exercises as WorkoutExerciseLog[];
-    }
+  if (workoutData.sessions?.length) {
+    const first = workoutData.sessions[0];
+    if (first?.exercises?.length) return first.exercises;
   }
   return [];
 }
 
-function getWorkoutName(workoutData: Record<string, unknown> | undefined): string {
+function getWorkoutName(workoutData: WorkoutData | undefined): string {
   if (!workoutData) return "Workout";
-  if (typeof workoutData.workout_name === "string" && workoutData.workout_name) {
-    return workoutData.workout_name;
-  }
-  const sessions = workoutData.sessions;
-  if (Array.isArray(sessions) && sessions.length > 0) {
-    const first = sessions[0] as Record<string, unknown>;
-    if (typeof first?.workout_name === "string" && first.workout_name) {
-      return first.workout_name;
-    }
+  if (workoutData.workout_name) return workoutData.workout_name;
+  // Sessions format (from mobile app)
+  if (workoutData.sessions?.length) {
+    const first = workoutData.sessions[0];
+    if (first?.workout_name) return first.workout_name;
   }
   return "Workout";
 }
@@ -61,7 +51,7 @@ export function WorkoutDetailDialog({
   const { data, isLoading, isError, refetch } =
     useTraineeWorkoutDetail(workoutId);
 
-  const workoutData = data?.workout_data as Record<string, unknown> | undefined;
+  const workoutData = data?.workout_data;
   const exercises = getExercises(workoutData);
   const workoutName = getWorkoutName(workoutData);
   const dateFormatted = data?.date

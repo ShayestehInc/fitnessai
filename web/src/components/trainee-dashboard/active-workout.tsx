@@ -15,57 +15,22 @@ import {
 } from "@/hooks/use-trainee-dashboard";
 import { ExerciseLogCard, type SetEntry } from "./exercise-log-card";
 import { WorkoutFinishDialog } from "./workout-finish-dialog";
-import type {
-  TraineeViewSchedule,
-  TraineeViewScheduleDay,
-  TraineeViewScheduleExercise,
-} from "@/types/trainee-view";
+import { findTodaysWorkout, getTodayString, formatDuration } from "@/lib/schedule-utils";
+import type { TraineeViewScheduleExercise } from "@/types/trainee-view";
 
-function getTodaysDayNumber(): number {
-  const jsDay = new Date().getDay();
-  return jsDay === 0 ? 7 : jsDay;
-}
-
-const DAY_NAMES: Record<number, string> = {
-  1: "Monday",
-  2: "Tuesday",
-  3: "Wednesday",
-  4: "Thursday",
-  5: "Friday",
-  6: "Saturday",
-  7: "Sunday",
-};
-
-function findTodaysWorkout(
-  schedule: TraineeViewSchedule | null,
-): TraineeViewScheduleDay | null {
-  if (!schedule?.weeks?.length) return null;
-  const week = schedule.weeks[0];
-  if (!week?.days?.length) return null;
-  const todayNum = getTodaysDayNumber();
-  const todayName = DAY_NAMES[todayNum] ?? "";
-  return (
-    week.days.find(
-      (d) => d.day === String(todayNum) || d.day === todayName,
-    ) ?? null
-  );
-}
-
-function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-}
-
-function getTodayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** Snapshot of program target data, captured once at workout start */
+interface ExerciseTarget {
+  targetSets: number;
+  targetReps: number | string;
+  targetWeight: number;
+  unit: string;
 }
 
 interface ExerciseState {
   exercise_id: number;
   exercise_name: string;
   sets: SetEntry[];
+  target: ExerciseTarget;
 }
 
 function buildInitialSets(exercise: TraineeViewScheduleExercise): SetEntry[] {
@@ -88,6 +53,17 @@ function buildInitialSets(exercise: TraineeViewScheduleExercise): SetEntry[] {
   }));
 }
 
+function parseTarget(exercise: TraineeViewScheduleExercise): ExerciseTarget {
+  return {
+    targetSets:
+      typeof exercise.sets === "number" ? exercise.sets : parseInt(String(exercise.sets)) || 3,
+    targetReps: exercise.reps ?? 0,
+    targetWeight:
+      typeof exercise.weight === "number" ? exercise.weight : 0,
+    unit: exercise.unit || "lbs",
+  };
+}
+
 export function ActiveWorkout() {
   const router = useRouter();
   const { data: programs, isLoading, isError, refetch } =
@@ -99,14 +75,17 @@ export function ActiveWorkout() {
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const hasUnsavedRef = useRef(false);
+  // Snapshot of workout name at initialization, decoupled from live query
+  const workoutNameRef = useRef("Workout");
 
-  // Timer
+  // Timer — only starts after exercises are initialized
   useEffect(() => {
+    if (!initialized) return;
     const interval = setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [initialized]);
 
   // Track unsaved state for beforeunload
   useEffect(() => {
@@ -124,7 +103,7 @@ export function ActiveWorkout() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
 
-  // Initialize exercise states from program data
+  // Initialize exercise states from program data (one-time snapshot)
   const activeProgram = programs?.find((p) => p.is_active);
   const todaysDay = activeProgram
     ? findTodaysWorkout(activeProgram.schedule)
@@ -132,10 +111,12 @@ export function ActiveWorkout() {
 
   useEffect(() => {
     if (initialized || !todaysDay?.exercises?.length) return;
+    workoutNameRef.current = todaysDay.name || "Workout";
     const states: ExerciseState[] = todaysDay.exercises.map((ex) => ({
       exercise_id: ex.exercise_id,
       exercise_name: ex.exercise_name,
       sets: buildInitialSets(ex),
+      target: parseTarget(ex),
     }));
     setExerciseStates(states);
     setInitialized(true);
@@ -223,14 +204,13 @@ export function ActiveWorkout() {
   );
 
   const handleFinish = useCallback(() => {
-    const workoutName = todaysDay?.name || "Workout";
     const duration = formatDuration(elapsedSeconds);
 
     saveMutation.mutate(
       {
         date: getTodayString(),
         workout_data: {
-          workout_name: workoutName,
+          workout_name: workoutNameRef.current,
           duration,
           exercises: exerciseStates.map((ex) => ({
             exercise_id: ex.exercise_id,
@@ -256,7 +236,7 @@ export function ActiveWorkout() {
         },
       },
     );
-  }, [exerciseStates, elapsedSeconds, todaysDay, saveMutation, router]);
+  }, [exerciseStates, elapsedSeconds, saveMutation, router]);
 
   if (isLoading) {
     return (
@@ -304,7 +284,7 @@ export function ActiveWorkout() {
     );
   }
 
-  const workoutName = todaysDay.name || "Workout";
+  const workoutName = workoutNameRef.current;
 
   return (
     <div className="space-y-6">
@@ -330,25 +310,22 @@ export function ActiveWorkout() {
       />
 
       <div className="grid gap-4 md:grid-cols-2">
-        {exerciseStates.map((ex, i) => {
-          const targetExercise = todaysDay.exercises[i];
-          return (
-            <ExerciseLogCard
-              key={ex.exercise_id}
-              exerciseIndex={i}
-              exerciseName={ex.exercise_name}
-              targetSets={targetExercise?.sets ?? ex.sets.length}
-              targetReps={targetExercise?.reps ?? 0}
-              targetWeight={targetExercise?.weight ?? 0}
-              unit={ex.sets[0]?.unit ?? "lbs"}
-              sets={ex.sets}
-              onSetChange={handleSetChange}
-              onSetToggle={handleSetToggle}
-              onAddSet={handleAddSet}
-              onRemoveSet={handleRemoveSet}
-            />
-          );
-        })}
+        {exerciseStates.map((ex, i) => (
+          <ExerciseLogCard
+            key={ex.exercise_id}
+            exerciseIndex={i}
+            exerciseName={ex.exercise_name}
+            targetSets={ex.target.targetSets}
+            targetReps={ex.target.targetReps}
+            targetWeight={ex.target.targetWeight}
+            unit={ex.target.unit}
+            sets={ex.sets}
+            onSetChange={handleSetChange}
+            onSetToggle={handleSetToggle}
+            onAddSet={handleAddSet}
+            onRemoveSet={handleRemoveSet}
+          />
+        ))}
       </div>
 
       <WorkoutFinishDialog

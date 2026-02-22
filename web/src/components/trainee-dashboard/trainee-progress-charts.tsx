@@ -104,8 +104,9 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
     );
   }
 
-  // Reverse so chart goes left (oldest) to right (newest)
-  const chartData = [...checkIns].reverse().map((entry) => ({
+  // Limit to 30 most recent entries, then reverse for chronological display
+  const recentCheckIns = checkIns.slice(0, 30);
+  const chartData = [...recentCheckIns].reverse().map((entry) => ({
     date: formatDate(entry.date),
     weight: Number(entry.weight_kg),
   }));
@@ -115,7 +116,7 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
       <CardHeader>
         <CardTitle className="text-base">Weight Trend</CardTitle>
         <CardDescription>
-          Last {checkIns.length} check-in{checkIns.length !== 1 ? "s" : ""}
+          Last {recentCheckIns.length} check-in{recentCheckIns.length !== 1 ? "s" : ""}
         </CardDescription>
       </CardHeader>
       <CardContent>
