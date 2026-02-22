@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { Megaphone, CheckCheck } from "lucide-react";
+import { Megaphone, CheckCheck, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageTransition } from "@/components/shared/page-transition";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
@@ -41,7 +41,9 @@ export default function AnnouncementsPage() {
     (id: number) => {
       markOneRead.mutate(id);
     },
-    [markOneRead],
+    // markOneRead.mutate is stable across renders (from useMutation)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [markOneRead.mutate],
   );
 
   if (isLoading) {
@@ -87,11 +89,17 @@ export default function AnnouncementsPage() {
               disabled={markAllRead.isPending}
               className="gap-2"
             >
-              <CheckCheck className="h-4 w-4" />
-              Mark all read
-              <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">
-                {unreadCount}
-              </span>
+              {markAllRead.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCheck className="h-4 w-4" />
+              )}
+              {markAllRead.isPending ? "Marking..." : "Mark all read"}
+              {!markAllRead.isPending && (
+                <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">
+                  {unreadCount}
+                </span>
+              )}
             </Button>
           )}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Dumbbell, BedDouble, ChevronDown } from "lucide-react";
 import {
   Card,
@@ -44,6 +44,37 @@ export function ProgramViewer({ programs }: ProgramViewerProps) {
   );
   const [selectedWeek, setSelectedWeek] = useState(0);
 
+  const weeks = selectedProgram?.schedule?.weeks ?? [];
+  const currentWeek = weeks[selectedWeek];
+  const showProgramSwitcher = programs.length > 1;
+
+  const handleWeekKeyDown = useCallback(
+    (e: React.KeyboardEvent, idx: number) => {
+      let nextIdx = idx;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        nextIdx = Math.min(idx + 1, weeks.length - 1);
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        nextIdx = Math.max(idx - 1, 0);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        nextIdx = 0;
+      } else if (e.key === "End") {
+        e.preventDefault();
+        nextIdx = weeks.length - 1;
+      } else {
+        return;
+      }
+      setSelectedWeek(nextIdx);
+      // Focus the new tab
+      const tablist = e.currentTarget.parentElement;
+      const tabs = tablist?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+      tabs?.[nextIdx]?.focus();
+    },
+    [weeks.length],
+  );
+
   if (!selectedProgram) {
     return (
       <Card>
@@ -57,10 +88,6 @@ export function ProgramViewer({ programs }: ProgramViewerProps) {
       </Card>
     );
   }
-
-  const weeks = selectedProgram.schedule?.weeks ?? [];
-  const currentWeek = weeks[selectedWeek];
-  const showProgramSwitcher = programs.length > 1;
 
   return (
     <div className="space-y-6">
@@ -146,7 +173,9 @@ export function ProgramViewer({ programs }: ProgramViewerProps) {
                 role="tab"
                 aria-selected={selectedWeek === idx}
                 aria-controls={`week-panel-${idx}`}
+                tabIndex={selectedWeek === idx ? 0 : -1}
                 onClick={() => setSelectedWeek(idx)}
+                onKeyDown={(e) => handleWeekKeyDown(e, idx)}
                 className={cn(
                   "shrink-0 rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   selectedWeek === idx
@@ -190,6 +219,20 @@ export function ProgramViewer({ programs }: ProgramViewerProps) {
   );
 }
 
+function resolveDayLabel(day: TraineeViewScheduleDay, dayIndex: number): string {
+  // If the day field is a number string (e.g. "1"..."7"), map to day name
+  const dayNum = parseInt(day.day, 10);
+  if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 7) {
+    return DAY_NAMES[dayNum - 1] ?? `Day ${dayIndex + 1}`;
+  }
+  // If the day field is already a name like "Monday", use it directly
+  if (DAY_NAMES.includes(day.day)) {
+    return day.day;
+  }
+  // Fallback to index-based naming
+  return DAY_NAMES[dayIndex] ?? `Day ${dayIndex + 1}`;
+}
+
 function DayCard({
   day,
   dayIndex,
@@ -197,7 +240,7 @@ function DayCard({
   day: TraineeViewScheduleDay;
   dayIndex: number;
 }) {
-  const dayName = day.name || DAY_NAMES[dayIndex] || `Day ${dayIndex + 1}`;
+  const dayLabel = resolveDayLabel(day, dayIndex);
   const isRestDay = day.is_rest_day === true;
 
   return (
@@ -205,7 +248,7 @@ function DayCard({
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">
-            {DAY_NAMES[dayIndex] || `Day ${dayIndex + 1}`}
+            {dayLabel}
           </CardTitle>
           {isRestDay && (
             <Badge variant="secondary" className="text-xs">
@@ -214,7 +257,7 @@ function DayCard({
             </Badge>
           )}
         </div>
-        {day.name && DAY_NAMES[dayIndex] !== day.name && (
+        {day.name && dayLabel !== day.name && (
           <p className="text-xs text-muted-foreground">{day.name}</p>
         )}
       </CardHeader>

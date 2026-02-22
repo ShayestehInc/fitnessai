@@ -33,7 +33,11 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
       : 0;
 
   return (
-    <Card className={!achievement.earned ? "opacity-60" : undefined}>
+    <Card
+      className={!achievement.earned ? "opacity-60" : undefined}
+      role="article"
+      aria-label={`${achievement.name} — ${achievement.earned ? "Earned" : "Locked"}`}
+    >
       <CardContent className="flex items-start gap-4 pt-6">
         <div
           className={cn(
@@ -71,7 +75,11 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
                   {achievement.progress} / {achievement.criteria_value}
                 </span>
               </div>
-              <Progress value={progressPercentage} className="h-1.5" />
+              <Progress
+                value={progressPercentage}
+                className="h-1.5"
+                aria-label={`${achievement.name} progress: ${achievement.progress} of ${achievement.criteria_value}`}
+              />
             </div>
           )}
         </div>

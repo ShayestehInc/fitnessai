@@ -11,9 +11,11 @@ interface TraineeHeaderProps {
 
 export function TraineeHeader({ onMenuClick }: TraineeHeaderProps) {
   const { user } = useAuth();
+  const firstName = user?.first_name || null;
   const displayName = user
     ? [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email
     : "";
+  const greeting = firstName ? `Hi, ${firstName}` : displayName;
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-background px-4 lg:px-6">
@@ -23,13 +25,13 @@ export function TraineeHeader({ onMenuClick }: TraineeHeaderProps) {
           size="icon"
           className="lg:hidden"
           onClick={onMenuClick}
-          aria-label="Toggle menu"
+          aria-label="Open navigation menu"
         >
           <Menu className="h-5 w-5" />
         </Button>
-        {displayName && (
+        {greeting && (
           <span className="text-sm font-medium text-foreground">
-            {displayName}
+            {greeting}
           </span>
         )}
       </div>

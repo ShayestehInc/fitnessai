@@ -52,7 +52,7 @@ function AnnouncementCard({
   announcement: Announcement;
   onOpen?: (id: number) => void;
 }) {
-  const [expanded, setExpanded] = useState(announcement.is_read);
+  const [expanded, setExpanded] = useState(false);
 
   const handleToggle = useCallback(() => {
     if (!expanded && !announcement.is_read && onOpen) {
@@ -64,13 +64,14 @@ function AnnouncementCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-colors hover:bg-accent/50",
+        "cursor-pointer transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         !announcement.is_read && "border-primary/30 bg-primary/5",
       )}
       onClick={handleToggle}
       role="button"
       tabIndex={0}
       aria-expanded={expanded}
+      aria-label={`${announcement.is_read ? "" : "Unread: "}${announcement.title}${announcement.is_pinned ? " (pinned)" : ""}`}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();

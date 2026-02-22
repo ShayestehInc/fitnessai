@@ -105,27 +105,33 @@ export function WeightTrendCard() {
             {Number(latest.weight_kg).toFixed(1)} kg
           </span>
         </div>
-        <div className="mt-1 flex items-center gap-1.5">
-          {change !== null && (
-            <>
-              <TrendIcon
-                className={`h-4 w-4 ${trendColor}`}
-                aria-hidden="true"
-              />
-              <span className={`text-sm font-medium ${trendColor}`}>
-                {change > 0 ? "+" : ""}
-                {change} kg
-              </span>
-            </>
-          )}
-          <span className="text-sm text-muted-foreground">
-            {new Date(latest.date).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </span>
-        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Last weigh-in:{" "}
+          {new Date(latest.date).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </p>
+        {change !== null && (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <TrendIcon
+              className={`h-4 w-4 ${trendColor}`}
+              aria-hidden="true"
+            />
+            <span className={`text-sm font-medium ${trendColor}`}>
+              {change > 0 ? "+" : ""}
+              {change} kg
+            </span>
+            <span className="text-xs text-muted-foreground">
+              since{" "}
+              {new Date(previous!.date).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

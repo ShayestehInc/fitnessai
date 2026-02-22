@@ -27,16 +27,18 @@ export default function ProgramPage() {
 
   if (isError) {
     return (
-      <div className="space-y-6">
-        <PageHeader
-          title="My Program"
-          description="Your assigned workout program"
-        />
-        <ErrorState
-          message="Failed to load your program. Please try again."
-          onRetry={() => refetch()}
-        />
-      </div>
+      <PageTransition>
+        <div className="space-y-6">
+          <PageHeader
+            title="My Program"
+            description="Your assigned workout program"
+          />
+          <ErrorState
+            message="Failed to load your program. Please try again."
+            onRetry={() => refetch()}
+          />
+        </div>
+      </PageTransition>
     );
   }
 

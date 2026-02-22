@@ -54,6 +54,33 @@ export function WeeklyProgressCard() {
   const completed = data?.completed_days ?? 0;
   const percentage = data?.percentage ?? 0;
 
+  if (total === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Target className="h-4 w-4" aria-hidden="true" />
+            Weekly Progress
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
+            <Target
+              className="h-8 w-8 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <div>
+              <p className="font-medium">No workout days this week</p>
+              <p className="text-sm text-muted-foreground">
+                Progress will appear once you have scheduled workouts.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -70,7 +97,11 @@ export function WeeklyProgressCard() {
             {completed} of {total} days
           </span>
         </div>
-        <Progress value={percentage} className="h-3" />
+        <Progress
+          value={percentage}
+          className="h-3"
+          aria-label={`Weekly progress: ${completed} of ${total} days completed`}
+        />
       </CardContent>
     </Card>
   );

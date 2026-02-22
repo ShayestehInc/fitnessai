@@ -1,9 +1,11 @@
 "use client";
 
-import { Dumbbell, BedDouble, CalendarOff } from "lucide-react";
+import Link from "next/link";
+import { Dumbbell, BedDouble, CalendarOff, ArrowRight } from "lucide-react";
 import {
   Card,
   CardContent,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -200,6 +202,15 @@ export function TodaysWorkoutCard() {
           </div>
         )}
       </CardContent>
+      <CardFooter className="pt-0">
+        <Link
+          href="/trainee/program"
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+        >
+          View full program
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </Link>
+      </CardFooter>
     </Card>
   );
 }

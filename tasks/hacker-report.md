@@ -1,94 +1,106 @@
-# Hacker Report: Smart Program Generator
+# Hacker Report: Trainee Web Portal
 
 ## Date: 2026-02-21
 
 ## Dead Buttons & Non-Functional UI
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| -- | -- | -- | -- | -- | -- |
+| 1 | Medium | todays-workout-card.tsx | Exercise list and card itself | Card should link/navigate to the full program view for more detail | **Before fix:** Card displayed today's exercises as a dead-end -- no link or CTA to navigate to the full program. Users see a preview but have no way to drill deeper. **Fixed** -- Added a "View full program" link with arrow icon in a CardFooter that links to `/trainee/program`. |
 
-No dead buttons found. All interactive elements in the Smart Program Generator wizard are wired and functional: split type cards, difficulty/goal badges, Generate button, Back/Next navigation, step indicator clickable navigation, retry button on error, and "Open in Builder" on preview. Mobile equivalents are similarly functional.
+No other dead buttons found. All sidebar nav links work, all error retry buttons fire refetch, all user-nav menu items are functional, mobile hamburger opens sheet, sheet nav links close sheet on click, mark-all-read button is wired.
 
 ## Visual Misalignments & Layout Bugs
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | Low | preview-step.tsx | Day name column (`w-24` / 96px) could truncate "Wednesday" on narrow mobile viewports since the text does not wrap. | **Fixed** -- Changed to `w-[5.5rem] sm:w-24` so smaller screens get a slightly wider column that prevents truncation of longer day names. |
-| 2 | Low | config-step.tsx | Duration and days-per-week number inputs had no `step` attribute, allowing decimal values (e.g., 4.5 weeks) to be typed. Browser spinners also incremented by float amounts. | **Fixed** -- Added `step={1}` to both inputs and wrapped the parsed value in `Math.round()` to guarantee integers. Added helper text ("Between 1 and 52 weeks" / "Between 2 and 7 days") for clarity. |
-| 3 | Low | exercise-picker-dialog.tsx | Difficulty filter row had no "All Levels" reset button, unlike the muscle group filter which has an "All" button. Users who selected a difficulty level had to re-click the active level to toggle it off -- not discoverable. | **Fixed** -- Added an "All Levels" button at the start of the difficulty filter row, matching the "All" button pattern in the muscle group filter. |
+| 2 | Medium | program-viewer.tsx DayCard | Day cards use array index for day names instead of the `day` field from schedule data. If a week has only Mon/Wed/Fri training days (indices 0,1,2), they show as Monday/Tuesday/Wednesday instead of Monday/Wednesday/Friday. | **Fixed** -- Added `resolveDayLabel()` helper that parses the `day` field (could be "1"-"7" numeric string or "Monday"-"Sunday" name) and falls back to index-based naming only when the day field is ambiguous. Updated CardTitle and subtitle conditional. |
+| 3 | Low | weekly-progress-card.tsx | When `total_days` is 0 (no program or no scheduled days), the card shows "0% -- 0 of 0 days" with an empty progress bar -- confusing for new trainees. | **Fixed** -- Added an empty state card with helpful message "No workout days this week" + "Progress will appear once you have scheduled workouts." |
+| 4 | Low | messages/page.tsx | Messages page is the only page not wrapped in `<PageTransition>` animation, causing inconsistent page entrance behavior compared to Dashboard, Program, Announcements, Achievements, and Settings pages. | **Fixed** -- Wrapped the main content return in `<PageTransition>`. |
 
 ## Broken Flows & Logic Bugs
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 4 | High | Stale preview data after navigating back and re-generating | 1. Go to Generate. 2. Configure and generate a program (reaches preview). 3. Click Back to go to step 1. 4. Change difficulty. 5. Click Generate again. | Old preview data should be cleared. Fresh generation should start clean. | **Before fix:** `generatedData` and `generateError` were NOT reset when navigating back from the preview step. The old preview could briefly flash before the new generation started. The step indicator's click handler had the same issue. **Fixed** -- Both `handleBack` and the step indicator's `onClick` now reset `generatedData` and `generateError` to `null` alongside `generateMutation.reset()`. |
-| 5 | Medium | Mobile: Infinite spinner when generatedData is null | 1. Navigate to preview step. 2. If the API returns an unexpected response that doesn't set `_generatedData` or `_errorMessage` (e.g., network timeout that doesn't throw a DioException). | Should show a retry option or helpful message. | **Before fix:** The preview step showed `const Center(child: CircularProgressIndicator())` forever when `_generatedData == null`, `_isGenerating == false`, and `_errorMessage == null`. **Fixed** -- Replaced with a meaningful "Waiting for program data..." message with an hourglass icon and a "Generate" retry button. |
-| 6 | Medium | Mobile: Generated program description lost during handoff to builder | 1. Generate a program. 2. Click "Open in Builder". 3. Check the builder screen. | Description from the generated program should pre-fill the builder's description field. | **Before fix:** `ProgramBuilderScreen` did not have a `templateDescription` parameter. The `_openInBuilder()` method did not pass `data['description']`. The builder always initialized `description: null`. **Fixed** -- Added `templateDescription` parameter to `ProgramBuilderScreen`. Updated `_initializeProgram()` to use `widget.templateDescription`. Updated `_openInBuilder()` in the generator to pass `templateDescription: data['description']`. |
-| 7 | Low | Web: PreviewStep returns null when data is absent | 1. Reach the preview step somehow without triggering generation (edge case). | Should show a helpful message instead of blank space. | **Before fix:** `if (!data) return null;` rendered nothing in the min-h-[300px] container. **Fixed** -- Now shows "No program data available. Go back and configure your program." with a retry button if `onRetry` is provided. |
+| 5 | High | Stale nutrition date across midnight | 1. Open trainee dashboard before midnight. 2. Leave tab open. 3. Check after midnight. | Nutrition card should show data for the new day. | **Before fix:** `useMemo(() => getDate(), [])` computed the date ONCE at component mount. If user kept the tab open past midnight, the nutrition card would forever fetch the previous day's data until full page refresh. **Fixed** -- Replaced `useMemo` with `useState` + `useEffect` that checks the date every 60 seconds and updates when it changes. |
+| 6 | Medium | Announcements: stale UI after marking single announcement as read | 1. Open announcements page. 2. Click an unread announcement to expand it. 3. Observe the unread dot and bold styling. | Unread dot and bold should disappear immediately upon expand. | **Before fix:** Marking one announcement as read used `onSuccess` to `invalidateQueries` -- requiring a full network round-trip before the UI updated. User sees the stale "unread" styling for 200-500ms. **Fixed** -- Added optimistic `onMutate` handler that immediately (1) updates the announcement's `is_read` flag in the query cache, (2) decrements the unread count, and (3) rolls back on error. Same treatment applied to "Mark all read" mutation. |
+| 7 | Medium | Announcements: unstable useCallback for single-read handler | 1. Any render cycle on announcements page. | `handleAnnouncementOpen` should be referentially stable to prevent unnecessary re-renders of AnnouncementsList. | **Before fix:** `useCallback` depended on `[markOneRead]` -- the entire mutation object, which is a new reference each render. This made the `useCallback` effectively useless; the callback recreated every render, causing `AnnouncementsList` to re-render every time. **Fixed** -- Changed dependency to `[markOneRead.mutate]` which is a stable reference from `useMutation`. |
+| 8 | Medium | Messages: useSearchParams without Suspense boundary | 1. Navigate to messages page. 2. Check browser console during SSR/hydration. | No hydration warnings should appear. | **Before fix:** `useSearchParams()` was called directly in the page component without a Suspense boundary. In Next.js App Router, this can cause the entire page to opt out of static rendering and may trigger hydration mismatches. **Fixed** -- Extracted content into `TraineeMessagesContent` component and wrapped with `<Suspense>` in the default export. |
+| 9 | Medium | Messages: setState in useEffect causes cascading renders | 1. Open messages page. 2. Conversations load. 3. ESLint reports `react-hooks/set-state-in-effect`. | Conversation selection should be derived state, not synced state. | **Before fix:** Auto-select logic used `useEffect` calling `setSelectedConversation()` synchronously, which the linter correctly flagged as causing cascading renders. **Fixed** -- Refactored to use a `selectedId` state (number or "auto") with the actual `selectedConversation` object derived via `useMemo` from `conversations` + `selectedId` + URL params. Eliminated the sync effect entirely. |
+| 10 | High | ProgramViewer: useCallback after early return (Rules of Hooks violation) | 1. ProgramViewer receives programs where no program is selected (`selectedProgram === null`). 2. Early return executes on line 47. 3. `useCallback` on line 65 is skipped. | Hooks must be called unconditionally in every render. | **Before fix:** `useCallback(handleWeekKeyDown, ...)` was called after the `if (!selectedProgram) return` guard, violating React's Rules of Hooks. If `selectedProgram` toggled between null and non-null, hook call count would change, potentially corrupting React's internal state. **Fixed** -- Moved `weeks`, `currentWeek`, `showProgramSwitcher`, and `handleWeekKeyDown` ABOVE the early return. Used optional chaining (`selectedProgram?.schedule?.weeks ?? []`) to handle null safely. |
 
 ## Edge Case Analysis
 | # | Category | Scenario | Status |
 |---|----------|----------|--------|
-| 8 | Boundary | 52-week program (max duration) | **OK** -- Backend validates `max_value=52`. Web clamps to 52. Mobile slider max is 52. Backend generates all 52 weeks with progressive overload and deload cycles every 4 weeks. |
-| 9 | Boundary | 1-week program (min duration) | **OK** -- Backend validates `min_value=1`. Web clamps to 1. Mobile min is 1. No deload for programs < 4 weeks. |
-| 10 | Boundary | Custom split with 7 days (all training, no rest) | **OK** -- Backend allows `training_days_per_week=7`. The generator assigns all 7 days as training days with no rest days. However, there's no warning to the user that this means zero rest days -- noted as product suggestion. |
-| 11 | Boundary | Custom split with 0 muscle groups on a day | **OK** -- Frontend validation prevents advancement: `customDayConfig.every((d) => d.muscle_groups.length > 0)`. Error text "Select at least one muscle group" is shown. Backend also validates `min_length=1` on `muscle_groups`. |
-| 12 | Boundary | 0 exercises in database for a muscle group | **OK** -- Backend handles gracefully: `_pick_exercises_from_pool` returns `[]` when pool is empty. The generated day will have 0 exercises for that group. Preview shows "0 exercises" text. |
-| 13 | Race condition | Double-clicking the Generate button | **Mostly OK** -- The button is disabled when `generateMutation.isPending` is true. However, there's a tiny window between the click and `isPending` becoming true (React state batching). The `triggerGeneration` function uses `mutateAsync`, which returns the first call's result. The second call would queue. In practice, React 18 batching means the button disables before a second click can register in typical use. |
-| 14 | Race condition | Navigating back mid-generation | **OK** -- Web: `handleBack` resets the mutation and steps back. The pending API call will resolve but `setGeneratedData` will update state harmlessly (component is unmounted or step changed). Mobile: `mounted` check prevents setState after navigation. |
-| 15 | Data integrity | sessionStorage full when storing generated program | **OK** -- Wrapped in try/catch with `toast.error("Failed to store program data. Please try again.")`. |
-| 16 | Data integrity | Invalid JSON in sessionStorage | **OK** -- Builder's `generatedRef` parsing is wrapped in try/catch with fallback to ignore. |
-| 17 | Input | HTML/XSS in custom day label | **OK** -- Web: Input has `maxLength={50}`. Backend: `CustomDayConfigSerializer.day_name` has `max_length=50`. React renders text content safely (no `dangerouslySetInnerHTML`). |
-| 18 | Input | Extremely long program name from AI generation | **OK** -- Builder's name input has `maxLength={100}`. The generated name from backend is typically ~40 chars (e.g., "Push/Pull/Legs -- Muscle Building"). |
+| 11 | Boundary | No conversations (new trainee) | **OK** -- Shows "No messages yet" + "Your trainer will start a conversation with you." empty state in the chat area. Search button is hidden. |
+| 12 | Boundary | 0 announcements | **OK** -- Shows EmptyState with megaphone icon and helpful text. "Mark all read" button is hidden. |
+| 13 | Boundary | 0 achievements | **OK** -- Shows EmptyState with trophy icon and helpful text. |
+| 14 | Boundary | No active program | **OK** -- Today's Workout card shows EmptyState "No program assigned". Program page shows EmptyState. |
+| 15 | Boundary | No weight check-ins | **OK** -- Weight card shows EmptyState "No weight data yet" + "Log your weight to start tracking trends." |
+| 16 | Boundary | 99+ unread messages/announcements | **OK** -- Badge displays "99+" for counts over 99 (line 49-51 in sidebar). |
+| 17 | Boundary | Long exercise names | **OK** -- Exercise names use `truncate` CSS class throughout (todays-workout-card and program-viewer). |
+| 18 | Boundary | Long announcement title | **OK** -- Title wraps naturally. Date badge is `shrink-0`. |
+| 19 | Auth | Non-trainee accessing trainee routes | **OK** -- Middleware redirects non-TRAINEE roles to their dashboards. Layout double-checks role and shows loader while redirecting. |
+| 20 | Auth | Unauthenticated access to trainee routes | **OK** -- Middleware redirects to `/login`. Layout redirects to `/login` if not authenticated. |
+| 21 | Race condition | Multiple rapid clicks on different announcements | **OK** -- Each click fires an independent mutation. Optimistic updates apply per-announcement. No shared mutable state. |
+| 22 | Data integrity | Achievement with criteria_value = 0 | **OK** -- `progressPercentage` calculation guards against division by zero: `criteria_value > 0 ? ... : 0`. |
 
 ## Product Improvement Suggestions
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 19 | High | Generator wizard (web + mobile) | Add a warning when user selects 7 training days per week (no rest days). Something like "No rest days scheduled. Consider reducing to 6 days for recovery." | Even advanced lifters need rest. The generator will create a valid 7-day program but trainers may not realize they're removing all rest days. |
-| 20 | Medium | Preview step (web) | Show a per-day exercise breakdown expandable accordion instead of just "3 exercises -- Bench Press, Squat, +1 more". Let the trainer see all exercises with sets/reps before opening the builder. | Currently, the trainer must open the builder to see full exercise details. Expanding the preview would reduce back-and-forth. |
-| 21 | Medium | Generator wizard (web) | Add keyboard shortcuts: Enter to advance to next step, Escape to go back. | Power users and keyboard-centric trainers would appreciate faster navigation through the wizard. |
-| 22 | Low | Mobile preview step | Show nutrition template data in the preview (currently only shown on web). The mobile preview only shows the weekly schedule. | Parity between web and mobile. Trainers on mobile miss the nutrition preview. |
-| 23 | Low | Exercise picker dialog (web) | Add pagination or infinite scroll for the exercise list. Currently capped at `page_size=100`, with a message "Showing 100 of X exercises. Refine your search to see more." | Trainers with large custom exercise libraries may not find what they need in the first 100 results. |
-| 24 | Low | Programs page (mobile) | The "Generate with AI" option is buried inside the create program dialog. Consider adding a prominent card or FAB action on the main programs screen like the web version has. | Web has a clear "Generate with AI" button in the page header. Mobile requires tapping "+" then finding the option. |
+| 23 | High | Dashboard | Add a quick "Log Weight" button/modal to the Weight card. Currently, the trainee sees their weight data but has no way to log a new check-in from the web portal. | The mobile app has weight logging, but the web portal is read-only for weight. Trainers managing their own fitness would benefit. |
+| 24 | High | Dashboard | Add a "View Nutrition Details" link on the Nutrition card (similar to the "View full program" link just added to Workout card). | Currently a dead-end card. User sees macro progress but has no way to drill into meal details or log food from the web. |
+| 25 | Medium | Program Viewer | Display the `day.day` field value (e.g., "Day 1" or "Monday") in the DayCard header when it differs from the computed day name. Currently only shows `day.name` as subtitle. | Helps trainees understand which specific day of the week is mapped to which training day. |
+| 26 | Medium | Achievements | Use the `achievement.icon` field from the API to display achievement-specific icons instead of hardcoded Trophy/Lock icons. | Every achievement shows the same generic trophy. The API returns an `icon` field (likely an icon name) that is completely unused. |
+| 27 | Medium | Settings | Add a "Notifications" section to settings for managing email/push notification preferences. | The nav has Settings but notification preferences are missing. Other dashboards (trainer, admin) may have this. |
+| 28 | Low | Weight card | Allow toggling between kg and lbs units in the WeightTrendCard. | Currently hardcoded to "kg". Users in the US would prefer lbs. |
+| 29 | Low | Header | Add a greeting or time-of-day context (e.g., "Good morning") to the header instead of just the user's name. | The dashboard page has "Welcome back, {name}" but the header shows just the name. Small polish item. |
 
-## Accessibility Fixes Applied
-- Config step: `step={1}` added to number inputs for proper keyboard step behavior.
-- Custom day config: Muscle group badges already had `role="checkbox"`, `aria-checked`, `tabIndex={0}`, and `onKeyDown` (applied by prior audit).
-- Config step: Difficulty and goal badges already had `role="radio"`, `aria-checked`, `tabIndex`, and arrow key navigation (applied by prior audit).
-- Preview step: Skeleton loading state already had `role="status"`, `aria-label`, and `sr-only` text (applied by prior audit).
-- Exercise picker dialog: Loading skeletons already had `role="status"` and `aria-label` (applied by prior audit).
+## Accessibility Observations
+- Skip-to-content link is present in the layout (line 58-63). Good.
+- All nav links use `aria-current="page"` for active state. Good.
+- Sidebar `nav` has `aria-label="Main navigation"`. Good.
+- Week tabs have proper `role="tablist"`, `role="tab"`, `aria-selected`, `aria-controls`, `tabIndex` roving focus, and arrow key navigation. Good.
+- Announcement cards have `role="button"`, `tabIndex={0}`, `aria-expanded`, and keyboard Enter/Space handlers. Good.
+- Progress bars have `role="progressbar"`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`. Good.
+- Loading states use `role="status"` and `aria-label`. Good.
+- Error states use `role="alert"` and `aria-live="assertive"`. Good.
 
 ## Summary
-- Dead UI elements found: 0
+- Dead UI elements found: 1 (fixed: added "View full program" link)
 - Visual bugs found: 3 (all 3 fixed)
-- Logic bugs found: 4 (all 4 fixed)
-- Edge cases verified: 11 (all pass or noted)
-- Improvements suggested: 6 (all deferred -- require design decisions or significant changes)
-- Items fixed by hacker: 7
+- Logic bugs found: 6 (all 6 fixed)
+- Edge cases verified: 12 (all pass)
+- Improvements suggested: 7 (all deferred -- require design decisions or backend endpoints)
+- Items fixed by hacker: 10
 
 ### Files Changed
-1. **`web/src/components/programs/program-generator-wizard.tsx`**
-   - `handleBack`: Added `setGeneratedData(null)` and `setGenerateError(null)` when leaving preview step.
-   - Step indicator `onClick`: Added same generation state reset.
+1. **`web/src/components/trainee-dashboard/todays-workout-card.tsx`**
+   - Added `Link` import and `CardFooter` import.
+   - Added "View full program" link with ArrowRight icon in a CardFooter.
 
-2. **`web/src/components/programs/generator/config-step.tsx`**
-   - Added `step={1}` to both duration and days-per-week number inputs.
-   - Added `Math.round()` to onChange handlers for both inputs.
-   - Added helper text below each input ("Between 1 and 52 weeks" / "Between 2 and 7 days").
+2. **`web/src/components/trainee-dashboard/nutrition-summary-card.tsx`**
+   - Replaced stale `useMemo(() => date, [])` with `useState` + `useEffect` that checks the date every 60 seconds.
+   - Removed unused `useMemo` import.
 
-3. **`web/src/components/programs/generator/preview-step.tsx`**
-   - Changed `if (!data) return null` to show a meaningful fallback message with retry button.
-   - Adjusted day name column width from fixed `w-24` to responsive `w-[5.5rem] sm:w-24`.
+3. **`web/src/components/trainee-dashboard/program-viewer.tsx`**
+   - Added `resolveDayLabel()` helper function that correctly maps day field values to day names.
+   - Moved hooks above early return to fix Rules of Hooks violation.
+   - Updated DayCard to use `dayLabel` instead of hardcoded `DAY_NAMES[dayIndex]`.
 
-4. **`web/src/components/programs/exercise-picker-dialog.tsx`**
-   - Added "All Levels" reset button at the start of the difficulty filter row.
+4. **`web/src/components/trainee-dashboard/weekly-progress-card.tsx`**
+   - Added empty state when `total_days === 0` instead of showing "0% 0 of 0 days".
 
-5. **`mobile/lib/features/programs/presentation/screens/program_generator_screen.dart`**
-   - Replaced infinite `CircularProgressIndicator` fallback with informative "Waiting for program data..." message and retry button.
-   - Added `templateDescription` parameter to `_openInBuilder()` call.
+5. **`web/src/app/(trainee-dashboard)/trainee/messages/page.tsx`**
+   - Wrapped with `<Suspense>` boundary for `useSearchParams()`.
+   - Wrapped main content return in `<PageTransition>` for consistency.
+   - Refactored auto-select from sync-via-effect to derived-via-useMemo (eliminated lint warning).
+   - Wrapped `handleSelectConversation` and `handleBackToList` in `useCallback`.
 
-6. **`mobile/lib/features/programs/presentation/screens/program_builder_screen.dart`**
-   - Added `templateDescription` parameter to `ProgramBuilderScreen`.
-   - Updated both `_initializeProgram()` paths to use `widget.templateDescription` instead of hardcoded `null`.
+6. **`web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx`**
+   - Fixed `handleAnnouncementOpen` `useCallback` dependency from `[markOneRead]` to `[markOneRead.mutate]`.
 
-## Chaos Score: 8/10
+7. **`web/src/hooks/use-trainee-announcements.ts`**
+   - Added optimistic update with rollback to `useMarkAnnouncementRead()` (onMutate/onError/onSettled).
+   - Added optimistic update with rollback to `useMarkAnnouncementsRead()` (onMutate/onError/onSettled).
 
-The Smart Program Generator is solidly built across web, mobile, and backend. The most significant issues were: (1) stale preview data persisting when navigating back and re-generating (users could see a flash of old data), (2) the mobile preview showing an infinite spinner in a null-data edge case, and (3) the generated program description being silently dropped during the mobile generator-to-builder handoff. All critical and medium issues have been fixed. The backend program generator service is well-architected with single-query prefetching, progressive overload logic, deload week scheduling, and proper dataclass returns. The remaining suggestions (7-day warning, mobile nutrition preview, exercise pagination) are product-level enhancements that don't block shipping.
+## Chaos Score: 7/10
+
+The Trainee Web Portal is well-structured with consistent patterns: every page handles loading/error/empty states, accessibility is above average with proper ARIA attributes throughout, and the mobile responsive design works via the Sheet component. However, the Rules of Hooks violation in ProgramViewer was a serious correctness bug that could corrupt React's hook state. The stale midnight date in NutritionSummaryCard would silently show wrong-day data. The lack of Suspense around `useSearchParams` is a Next.js best-practice violation. And the `setState-in-effect` pattern for conversation selection caused unnecessary cascading renders. All issues have been fixed, but the number and severity of logic bugs (6, including 2 High) pulls the score down from what would otherwise be an 8.

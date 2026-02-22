@@ -1,47 +1,230 @@
-# Security Audit: Smart Program Generator
+# Security Audit: Trainee Web Portal (Pipeline 32)
 
 ## Audit Date
 2026-02-21
 
+## Scope
+Frontend-only feature: new Next.js route group `(trainee-dashboard)` with pages, components, hooks, and types. No backend changes. All API endpoints already exist with server-side auth.
+
 ## Files Audited
 
-### Backend (New)
-- `backend/workouts/services/program_generator.py` -- Core generator service (725 lines)
-- `backend/trainer/views.py` -- `GenerateProgramView` (lines 626-669)
-- `backend/trainer/serializers.py` -- `GenerateProgramRequestSerializer`, `GeneratedProgramResponseSerializer`, `CustomDayConfigSerializer` (lines 362-459)
-- `backend/trainer/urls.py` -- Route registration (line 58)
-- `backend/workouts/views.py` -- `ExerciseViewSet` difficulty filter addition (lines 85-92)
-- `backend/workouts/management/commands/classify_exercises.py` -- Exercise difficulty classifier (340 lines)
-- `backend/workouts/management/commands/seed_kilo_exercises.py` -- KILO exercise seeder (127 lines)
-- `backend/workouts/ai_prompts.py` -- `get_exercise_classification_prompt()` (lines 82-121)
-- `backend/workouts/fixtures/kilo_exercises.json` -- 6391-line exercise database fixture
-- `backend/workouts/tests/test_program_generator.py` -- 1595-line test suite
+### Pages (New)
+- `web/src/app/(trainee-dashboard)/layout.tsx` -- Layout with auth guard + role redirect
+- `web/src/app/(trainee-dashboard)/trainee/dashboard/page.tsx` -- Dashboard home
+- `web/src/app/(trainee-dashboard)/trainee/program/page.tsx` -- Program viewer
+- `web/src/app/(trainee-dashboard)/trainee/achievements/page.tsx` -- Achievements grid
+- `web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx` -- Announcements list
+- `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx` -- Messaging page (reuses shared messaging components)
+- `web/src/app/(trainee-dashboard)/trainee/settings/page.tsx` -- Settings (reuses shared profile/security/appearance components)
 
-### Web Frontend (New)
-- `web/src/components/programs/program-generator-wizard.tsx` -- Main wizard component
-- `web/src/components/programs/generator/split-type-step.tsx` -- Step 1 UI
-- `web/src/components/programs/generator/config-step.tsx` -- Step 2 UI
-- `web/src/components/programs/generator/preview-step.tsx` -- Step 3 UI
-- `web/src/components/programs/generator/custom-day-config.tsx` -- Custom day configurator
-- `web/src/hooks/use-programs.ts` -- `useGenerateProgram()` mutation hook
-- `web/src/types/program.ts` -- TypeScript type definitions
+### Components (New)
+- `web/src/components/trainee-dashboard/trainee-sidebar.tsx` -- Desktop sidebar navigation
+- `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx` -- Mobile sidebar (Sheet)
+- `web/src/components/trainee-dashboard/trainee-header.tsx` -- Header with user nav
+- `web/src/components/trainee-dashboard/trainee-nav-links.tsx` -- Navigation link definitions
+- `web/src/components/trainee-dashboard/todays-workout-card.tsx` -- Today's workout card
+- `web/src/components/trainee-dashboard/nutrition-summary-card.tsx` -- Nutrition macro bars
+- `web/src/components/trainee-dashboard/weight-trend-card.tsx` -- Weight trend card
+- `web/src/components/trainee-dashboard/weekly-progress-card.tsx` -- Weekly progress card
+- `web/src/components/trainee-dashboard/program-viewer.tsx` -- Full program viewer with week tabs
+- `web/src/components/trainee-dashboard/achievements-grid.tsx` -- Achievement card grid
+- `web/src/components/trainee-dashboard/announcements-list.tsx` -- Expandable announcement cards
 
-### Mobile (New)
-- `mobile/lib/features/programs/presentation/screens/program_generator_screen.dart` -- Flutter wizard screen
-- `mobile/lib/features/programs/data/repositories/program_repository.dart` -- `generateProgram()` method
-- `mobile/lib/core/constants/api_constants.dart` -- `generateProgram` endpoint constant
+### Hooks (New)
+- `web/src/hooks/use-trainee-dashboard.ts` -- Dashboard data fetching hooks
+- `web/src/hooks/use-trainee-achievements.ts` -- Achievements fetching hook
+- `web/src/hooks/use-trainee-announcements.ts` -- Announcements + mark-read mutations
+- `web/src/hooks/use-trainee-badge-counts.ts` -- Unread badge count aggregation
+
+### Types (New)
+- `web/src/types/trainee-dashboard.ts` -- WeeklyProgress, LatestWeightCheckIn, Announcement, Achievement
+
+### Modified (Existing)
+- `web/src/middleware.ts` -- Added trainee dashboard route guards
+- `web/src/lib/constants.ts` -- Added trainee-facing API URL constants
+- `web/src/providers/auth-provider.tsx` -- Added TRAINEE to allowed roles
 
 ## Checklist
 - [x] No secrets, API keys, passwords, or tokens in source code or docs
 - [x] No secrets in git history (no new secrets introduced)
-- [x] All user input sanitized (DRF serializers + React auto-escaping + Flutter text rendering)
-- [x] Authentication checked on all new endpoints (`IsAuthenticated` + `IsTrainer`)
-- [x] Authorization -- correct role/permission guards (only trainers can generate programs; trainer_id is derived from authenticated user, not request body)
-- [x] No IDOR vulnerabilities (trainer_id sourced from `request.user`, not user input; exercise pool scoped by `is_public` OR `created_by=trainer_id`)
-- [x] No file uploads in this feature
-- [x] Rate limiting -- relies on global DRF throttling (`user: 120/minute`)
-- [x] Error messages don't leak internals (generic 500 message; `ValueError` messages are from our own code)
-- [x] CORS policy appropriate (handled globally by Django corsheaders middleware)
+- [x] All user input sanitized (React auto-escaping; no `dangerouslySetInnerHTML`)
+- [x] Authentication checked on all new routes (layout-level auth guard + middleware cookie guard)
+- [x] Authorization -- correct role/permission guards (TRAINEE role enforced in layout + middleware; non-TRAINEE users redirected)
+- [x] No IDOR vulnerabilities (all API endpoints are trainee-scoped server-side; no trainee ID in URLs)
+- [x] No file uploads in new components (settings page reuses existing profile-section with proper file type/size validation)
+- [x] Rate limiting -- relies on existing backend DRF throttling
+- [x] Error messages don't leak internals (generic user-facing error messages throughout)
+- [x] CORS policy appropriate (handled globally; no changes in this feature)
+
+## 1. SECRETS Analysis
+
+**Methodology:** Searched all new and modified files for patterns matching `password`, `secret`, `api_key`, `apikey`, `token`, `credential`, `hardcoded`, `.env`, and `process.env`.
+
+**Result: CLEAN**
+
+- Zero hardcoded secrets, API keys, passwords, or tokens found in any new file.
+- No `.env` files introduced. Existing `.env.local` is properly gitignored via `.env*.local` pattern.
+- `NEXT_PUBLIC_API_URL` is the only environment variable indirectly used (via `web/src/lib/constants.ts`), and it contains only a URL, not a secret.
+- JWT tokens are stored in `localStorage` (existing pattern, not introduced by this feature). The `SESSION_COOKIE` and `ROLE_COOKIE` contain only `"1"` and the role string respectively -- no tokens in cookies.
+
+## 2. INJECTION Analysis
+
+### XSS
+**Result: CLEAN**
+
+- **No `dangerouslySetInnerHTML`** in any new file. Verified via grep across all 18 new files.
+- All user-supplied content (announcement titles/content, exercise names, program names/descriptions, user names, weight values) is rendered through JSX text interpolation (`{variable}`), which React auto-escapes.
+- The `announcements-list.tsx` component renders `announcement.content` inside a `<p>` tag with `whitespace-pre-wrap` -- this preserves whitespace formatting without interpreting HTML. Safe.
+- The `program-viewer.tsx` renders `selectedProgram.description` and `selectedProgram.goal_type.replace(/_/g, " ")` -- string replacement with a literal pattern, then rendered as JSX text. Safe.
+
+### URL Injection / Open Redirect
+**Result: CLEAN**
+
+- `messages/page.tsx` line 48: `parseInt(conversationIdParam, 10)` safely converts the `?conversation=` search parameter to a number. The result is used only to `.find()` against a locally-fetched array. `NaN` will simply not match any conversation. No URL injection vector.
+- All `router.replace()` calls use hardcoded internal paths (`/login`, `/admin/dashboard`, `/ambassador/dashboard`, `/dashboard`, `/trainee/messages?conversation=${numericId}`). No user-controlled redirect targets.
+- All sidebar links are hardcoded in `trainee-nav-links.tsx` with fixed `/trainee/*` paths. No dynamic href construction from user input.
+
+### Template Injection
+**Result: CLEAN**
+
+- No template strings used for HTML rendering. All UI is built via React JSX components.
+
+### SQL Injection
+**Result: N/A**
+
+- This is a frontend-only feature. No database queries. All data access goes through existing server-side API endpoints that use Django ORM.
+
+## 3. AUTH/AUTHZ Analysis
+
+### Middleware Guard (`web/src/middleware.ts`)
+**Result: CORRECTLY IMPLEMENTED**
+
+The middleware implements a three-layer defense:
+
+1. **Unauthenticated redirect** (line 54): Users without `has_session` cookie are redirected to `/login`. This prevents unauthenticated access to trainee routes.
+
+2. **Non-trainee redirect** (lines 76-80): Users with `has_session` cookie but `user_role !== "TRAINEE"` are redirected away from `/trainee/*` paths. This prevents trainers/admins/ambassadors from accidentally accessing trainee routes.
+
+3. **Trainee containment** (lines 83-89): Users with `user_role === "TRAINEE"` trying to access trainer/admin/ambassador paths are redirected to `/trainee/dashboard`. This prevents trainees from reaching privileged routes.
+
+**Important (correctly documented):** Line 59 contains the comment: `"NOTE: The role cookie is client-writable, so this is a convenience guard only."` This is accurate. The middleware cookie-based guard is a UX convenience, NOT a security boundary. True authorization is enforced by:
+- The layout component (server-verified user object)
+- The backend API (HTTP 403 on unauthorized requests)
+
+### Layout Guard (`web/src/app/(trainee-dashboard)/layout.tsx`)
+**Result: CORRECTLY IMPLEMENTED**
+
+1. **Authentication check** (lines 21-25): Redirects to `/login` when not authenticated.
+2. **Role verification** (lines 29-37): Redirects ADMIN, AMBASSADOR, and TRAINER users to their respective dashboards.
+3. **Guard render** (line 40): Shows a loading spinner when `isLoading`, not authenticated, or user role is not TRAINEE. This prevents any flash of trainee content for non-trainee users.
+4. The `user` object comes from `useAuth()` which fetches from the server (`/api/auth/users/me/`), so the role check is based on server-verified data, not the client-writable cookie.
+
+### Auth Provider (`web/src/providers/auth-provider.tsx`)
+**Result: CORRECTLY IMPLEMENTED**
+
+- Line 48: `userData.role === UserRole.TRAINEE` is in the `isAllowedRole` check, allowing trainees to use the web dashboard.
+- Line 51: Users with unsupported roles have their tokens cleared and are rejected.
+- The role verification uses server-returned data from the JWT-authenticated `/api/auth/users/me/` endpoint.
+
+### API Endpoint Scope
+**Result: ALL ENDPOINTS ARE TRAINEE-SAFE**
+
+Every API URL used by the trainee dashboard hooks hits trainee-accessible endpoints:
+
+| Hook | API Endpoint | Backend Auth |
+|------|-------------|--------------|
+| `useTraineeDashboardPrograms` | `/api/workouts/programs/` | `IsAuthenticated`, queryset filtered by `trainee=user` |
+| `useTraineeDashboardNutrition` | `/api/workouts/daily-logs/nutrition-summary/` | `IsAuthenticated`, scoped to requesting user |
+| `useTraineeWeeklyProgress` | `/api/workouts/daily-logs/weekly-progress/` | `IsAuthenticated`, scoped to requesting user |
+| `useTraineeLatestWeight` | `/api/workouts/weight-checkins/latest/` | `IsAuthenticated`, scoped to requesting user |
+| `useTraineeWeightHistory` | `/api/workouts/weight-checkins/` | `IsAuthenticated`, scoped to requesting user |
+| `useAnnouncements` | `/api/community/announcements/` | `IsAuthenticated`, scoped to trainee's trainer |
+| `useAnnouncementUnreadCount` | `/api/community/announcements/unread-count/` | `IsAuthenticated`, scoped |
+| `useMarkAnnouncementsRead` | `/api/community/announcements/mark-read/` | `IsAuthenticated`, scoped |
+| `useMarkAnnouncementRead` | `/api/community/announcements/{id}/mark-read/` | `IsAuthenticated`, scoped |
+| `useAchievements` | `/api/community/achievements/` | `IsAuthenticated`, scoped |
+| `useConversations` | `/api/messaging/conversations/` | `IsAuthenticated`, participant-scoped |
+| `useMessagingUnreadCount` | `/api/messaging/unread-count/` | `IsAuthenticated`, scoped |
+
+No trainee dashboard hook calls trainer-only (`/api/trainer/`) or admin-only (`/api/admin/`) endpoints. The `use-trainee-goals.ts` hook does call `/api/trainer/trainees/{id}/goals/`, but this hook is NOT imported or used anywhere in the trainee dashboard -- it's a pre-existing hook used only in the trainer's trainee-detail view.
+
+## 4. DATA EXPOSURE Analysis
+
+### Type Definitions
+**Result: CLEAN**
+
+The `trainee-dashboard.ts` types expose only appropriate fields:
+- `WeeklyProgress`: `total_days`, `completed_days`, `percentage` -- numeric stats only.
+- `LatestWeightCheckIn`: `id`, `trainee` (own ID), `date`, `weight_kg`, `notes`, `created_at` -- trainee's own data.
+- `Announcement`: `id`, `trainer` (trainer ID), `title`, `content`, `is_pinned`, `is_read`, timestamps -- announcement content only.
+- `Achievement`: `id`, `name`, `description`, `icon`, `criteria_type`, `criteria_value`, `earned`, `earned_at`, `progress` -- achievement metadata only.
+
+No sensitive fields (passwords, payment info, emails of other users, internal IDs of unrelated resources) are present.
+
+### Shared Types
+The `TraineeViewProgram` type (from `trainee-view.ts`, pre-existing) includes:
+- `trainee_email`: The trainee's own email (from their own program).
+- `created_by_email`: The trainer's email (the trainee already knows their trainer).
+- `created_by`: Trainer's user ID.
+
+These are acceptable: the trainee has a direct relationship with their trainer, so this is not cross-user data leakage.
+
+### Error Messages
+**Result: CLEAN**
+
+All error messages shown to users are generic:
+- "Failed to load workout" / "Failed to load nutrition" / "Failed to load weight data" / "Failed to load progress"
+- "Failed to load your program. Please try again."
+- "Failed to load achievements. Please try again."
+- "Failed to load announcements. Please try again."
+- "Failed to load conversations. Please try again."
+- "Failed to load settings"
+
+No API error details, stack traces, or internal structure information is exposed to the user.
+
+### API Error Handling
+The `ApiError` class (in `api-client.ts`, pre-existing) stores `status`, `statusText`, and `body`. The error body from DRF may contain field-level validation errors. In the trainee dashboard, API errors are caught by React Query's `isError` state and displayed with generic messages. The `SecuritySection` (shared, pre-existing) does display server-side validation messages for password changes, but these are standard DRF field validation messages (e.g., "This password is too common") -- not internal system details.
+
+## 5. CORS/CSRF Analysis
+
+**Result: NO ISSUES**
+
+- **CORS**: Handled globally in Django's `settings.py` via `django-cors-headers`. No CORS changes in this feature.
+- **CSRF**: Not applicable -- the web frontend uses JWT Bearer token authentication via `Authorization` header, not session cookies. DRF's `SessionAuthentication` is not in `DEFAULT_AUTHENTICATION_CLASSES`, so CSRF middleware is not engaged for API requests.
+- **Next.js security headers** (in `next.config.ts`, pre-existing): X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy: strict-origin-when-cross-origin, Permissions-Policy restricts camera/microphone/geolocation, poweredByHeader: false. All correctly configured.
+
+## 6. CLIENT-SIDE SECURITY Analysis
+
+### Cookie-Based Middleware Guard
+**Result: CORRECTLY DOCUMENTED**
+
+- The middleware guard at line 59 of `middleware.ts` explicitly documents: `"NOTE: The role cookie is client-writable, so this is a convenience guard only. True authorization is enforced server-side by the API (HTTP 403) and by the layout component which verifies the role from the authenticated user object."`
+- This is the correct approach for Next.js middleware. Cookie manipulation cannot bypass actual authorization because:
+  1. API calls require a valid JWT token (not the cookie).
+  2. The layout component verifies the role from the server-authenticated user object (fetched via JWT).
+  3. Backend endpoints enforce their own auth/authz regardless of frontend routing.
+
+### Cookie Manipulation Scenarios
+**Scenario 1: Non-trainee sets `user_role=TRAINEE` cookie:**
+- Middleware allows access to `/trainee/*` routes.
+- Layout fetches user from API using JWT, gets actual role (e.g., TRAINER).
+- Layout redirects to `/dashboard` (line 35). No trainee content rendered.
+
+**Scenario 2: Trainee sets `user_role=ADMIN` cookie:**
+- Middleware allows access to `/admin/*` routes.
+- Admin layout (not part of this feature) fetches user from API, gets TRAINEE role.
+- Admin layout redirects to trainee dashboard. No admin content rendered.
+
+**Scenario 3: Unauthenticated user sets `has_session=1` cookie:**
+- Middleware allows access to protected routes.
+- Layout calls `useAuth()`, which calls API with no valid JWT token.
+- API returns 401. Auth provider clears tokens, sets `user=null`.
+- Layout redirects to `/login`. No protected content rendered.
+
+All cookie manipulation scenarios are safely handled.
+
+### Token Storage
+JWT tokens are stored in `localStorage` (pre-existing pattern). While `localStorage` is vulnerable to XSS attacks (if XSS were present), this feature introduces no XSS vectors (see Section 2). Moving to `httpOnly` cookies would be a stronger pattern, but this is a pre-existing architectural decision outside the scope of this feature.
 
 ## Injection Vulnerabilities
 
@@ -49,187 +232,57 @@
 |---|------|-----------|-------|-----|
 | -- | -- | -- | None found | -- |
 
-**SQL Injection Analysis:**
-All database queries use Django ORM exclusively. No raw SQL anywhere in the changed files.
-- `_prefetch_exercise_pool()` uses `Exercise.objects.filter()` with `Q` objects -- safe.
-- `ExerciseViewSet.get_queryset()` uses ORM `filter()` with `icontains` for search -- safe.
-- `seed_kilo_exercises.py` uses `get_or_create()` -- safe.
-- `classify_exercises.py` uses `bulk_update()` and `values_list()` -- safe.
-
-**XSS Analysis:**
-- Web: No `dangerouslySetInnerHTML` in any new component. All user-supplied strings (program name, description, exercise names, error messages) rendered via JSX text interpolation, which React auto-escapes.
-- Web: `sessionStorage.setItem("generated-program", JSON.stringify(generatedData))` stores API response data -- not user-controlled text directly. When read back by the builder, it's parsed as JSON and rendered through React components. No XSS vector.
-- Mobile: Flutter's `Text()` widget auto-escapes. No HTML rendering anywhere.
-- Backend: The `exercise_name` field returned in the schedule JSON comes from the `Exercise.name` database column, not from raw user input. Trainer-created exercise names are saved via the existing serializer-validated exercise creation flow.
-
-**Command Injection Analysis:**
-- `classify_exercises.py` calls `openai.OpenAI()` API -- no shell commands executed.
-- `seed_kilo_exercises.py` reads a JSON file via `Path.resolve()` and `json.load()` -- no shell commands.
-- No `subprocess`, `os.system`, or `eval` calls in any changed file.
-
-**Path Traversal Analysis:**
-- `seed_kilo_exercises.py` line 28: `Path(__file__).resolve().parent.parent.parent / "fixtures" / "kilo_exercises.json"` -- hardcoded relative path from the command file. No user input in the path construction. Safe.
-
 ## Auth & Authz Issues
 
 | # | Severity | Endpoint | Issue | Fix |
 |---|----------|----------|-------|-----|
 | -- | -- | -- | None found | -- |
 
-**Detailed Auth Analysis:**
-
-1. **GenerateProgramView (POST `/api/trainer/program-templates/generate/`)**
-   - Permission classes: `[IsAuthenticated, IsTrainer]` -- correctly restricts to authenticated trainers only.
-   - `trainer_id` is sourced from `cast(User, request.user).id` at line 643-644, NOT from request body. This prevents IDOR where a trainer could inject another trainer's ID.
-   - Test coverage: `test_unauthenticated_returns_401`, `test_trainee_returns_403`, `test_trainer_returns_200` (lines 1201-1213).
-
-2. **Exercise Pool Privacy (IDOR Prevention)**
-   - `_prefetch_exercise_pool()` at line 359: `privacy_q = Q(is_public=True)` with `if trainer_id: privacy_q |= Q(created_by_id=trainer_id)`.
-   - This correctly scopes the exercise pool to public exercises + only the authenticated trainer's custom exercises.
-   - Other trainers' private exercises are excluded. Verified by tests: `test_privacy_other_trainer_private_exercises_excluded` (line 462-480), `test_other_trainer_does_not_see_private_exercises` (line 1397-1416).
-
-3. **ExerciseViewSet difficulty_level Filter**
-   - The new difficulty filter (lines 85-92) validates against `Exercise.DifficultyLevel.choices` before applying the filter. Invalid values return an empty queryset, preventing unfiltered data exposure.
-   - Existing permission classes (`IsAuthenticated`) and role-based `get_queryset()` remain intact.
-
-4. **Management Commands** (`classify_exercises.py`, `seed_kilo_exercises.py`)
-   - These are CLI-only commands invoked via `python manage.py`. They have no HTTP endpoints and are not accessible via the API. Secure by design.
-
-## Data Exposure Analysis
-
-**API Response Shape (GeneratedProgramResponseSerializer):**
-The response includes:
-- `name`, `description`: Auto-generated strings from our code, not user input.
-- `schedule`: Contains `exercise_id`, `exercise_name`, `muscle_group`, `sets`, `reps`, `rest_seconds`, `weight`, `unit`. These are all exercise metadata -- no sensitive user data.
-- `nutrition_template`: Static template data based on goal type. No user-specific data.
-- `difficulty_level`, `goal_type`, `duration_weeks`: Echo of request parameters.
-
-No sensitive data (emails, passwords, payment info, personal health data) is exposed in the generated program response.
-
-**Error Message Safety:**
-- `ValueError` exceptions (line 648-652): These are raised by our own `generate_program()` for invalid input (e.g., missing `custom_day_config`). The message text is controlled by us -- safe.
-- Generic `Exception` handler (line 653-658): Returns `"Program generation failed. Please try again."` -- no stack trace or internal details leaked. Exception is logged server-side via `logger.exception()` -- correct practice.
-- Serializer validation errors (line 638-639): DRF field-level errors (e.g., `"split_type: \"invalid\" is not a valid choice."`) -- standard DRF behavior, no internal leaks.
-
-## Input Validation Analysis
-
-**Backend Validation (GenerateProgramRequestSerializer):**
-| Field | Validation | Notes |
-|-------|-----------|-------|
-| `split_type` | ChoiceField: `ppl`, `upper_lower`, `full_body`, `bro_split`, `custom` | Closed set -- safe |
-| `difficulty` | ChoiceField: `beginner`, `intermediate`, `advanced` | Closed set -- safe |
-| `goal` | ChoiceField: 6 valid values | Closed set -- safe |
-| `duration_weeks` | IntegerField, min=1, max=52 | Bounded -- safe |
-| `training_days_per_week` | IntegerField, min=2, max=7 | Bounded -- safe |
-| `custom_day_config[].day_name` | CharField, max_length=50 | Length-bounded -- safe |
-| `custom_day_config[].label` | CharField, max_length=100 | Length-bounded -- safe |
-| `custom_day_config[].muscle_groups` | ListField, child=CharField(max=20), min_length=1, max_length=10 | Bounded list with per-item validation against fixed set |
-
-**Cross-field Validation:**
-- `custom_day_config` required when `split_type == 'custom'` (line 412).
-- `custom_day_config` count must equal `training_days_per_week` (line 417).
-- `muscle_groups` validated against a fixed set of 10 valid values (line 373-376).
-
-**Frontend Validation (Web):**
-- Duration: `Math.max(1, Math.min(52, Number(e.target.value) || 1))` -- clamped to valid range.
-- Training days: `Math.max(2, Math.min(7, Number(e.target.value) || 2))` -- clamped to valid range.
-- Custom day label: `maxLength={50}` on input field.
-- `canAdvance()` function prevents submission without required fields.
-
-**Frontend Validation (Mobile):**
-- Duration: slider `min: 1, max: 52` with `IconButton` bounds checking.
-- Training days: slider `min: 2, max: 7` with `IconButton` bounds checking.
-- `_canProceed` getter prevents progression without required selections.
-
-**Bounded Loops/Queries:**
-- `_prefetch_exercise_pool()`: Executes at most 2 queries (primary + fallback for empty groups). All queries are bounded by the finite set of muscle groups (max 10).
-- `generate_program()`: Outer loop is `duration_weeks` (max 52) * 7 days = 364 iterations max. Inner loop is exercises per day (max ~10). Total work is O(52 * 7 * 10) = ~3640 iterations. Well-bounded.
-- `_pick_exercises_from_pool()`: The while loop (line 333) is bounded by `count` (max ~5) and terminates when `categories` is empty. Cannot loop infinitely.
-
-## OpenAI API Key Handling
-
-**`classify_exercises.py` lines 112-116:**
-```python
-api_key = getattr(settings, 'OPENAI_API_KEY', None)
-if not api_key:
-    raise RuntimeError("OPENAI_API_KEY is not configured in settings.")
-client = openai.OpenAI(api_key=api_key)
-```
-- The API key is sourced from Django settings (`os.getenv('OPENAI_API_KEY', '')` at `settings.py:204`), not hardcoded.
-- The key is never logged, returned in responses, or included in error messages.
-- The `RuntimeError` message says "not configured" without revealing the actual key value. Safe.
-
-## Fixture File Security
-
-**`kilo_exercises.json` (6391 lines):**
-- Contains only exercise data: `name`, `muscle_group`, `category`, `video_url`.
-- All `video_url` values are public YouTube links (`https://youtu.be/...`).
-- No API keys, secrets, credentials, or internal URLs found (verified via grep).
-- No personally identifiable information (PII).
-
-## Test File Security
-
-**`test_program_generator.py` (1595 lines):**
-- Test passwords are dummy values (`pass123`, `testpass123`) -- standard practice for Django test fixtures.
-- Exercise names like "Secret Trainer Exercise" and "My Secret Move" are descriptive labels, not actual secrets.
-- No real API keys, tokens, or credentials in test data.
-
-## CORS/CSRF Analysis
-
-- **CORS**: Handled globally in `settings.py`. In production, `CORS_ALLOW_ALL_ORIGINS = False` with explicit allowlist from `CORS_ALLOWED_ORIGINS` env var. In development, `CORS_ALLOW_ALL_ORIGINS = True` (acceptable for local dev).
-- **CSRF**: Not applicable -- API uses JWT Bearer token authentication (not session cookies). DRF's `SessionAuthentication` is not in `DEFAULT_AUTHENTICATION_CLASSES`, so CSRF middleware is not engaged for API requests.
-- **The new endpoint** does not introduce any CORS or CSRF changes.
-
-## Rate Limiting Consideration
-
-The `GenerateProgramView` endpoint uses the global DRF throttle of `120/minute` for authenticated users. While program generation is computationally lightweight (no AI/OpenAI calls -- it's pure Python logic selecting exercises from the DB), a sustained burst of 120 requests/minute would execute up to 120 * 2 = 240 DB queries per minute per user. This is acceptable -- not a DoS vector.
-
-The `classify_exercises` management command does call OpenAI, but it's a CLI-only command, not an API endpoint. No rate limiting concern.
-
 ## Security Issues Found
 
-| # | Severity | Type | File:Line | Issue | Fix |
-|---|----------|------|-----------|-------|-----|
-| -- | -- | -- | -- | No Critical or High issues found | -- |
+### Critical Issues
+None.
+
+### High Issues
+None.
 
 ### Medium Issues
-
-| # | Severity | Type | File:Line | Issue | Recommendation |
-|---|----------|------|-----------|-------|----------------|
-| 1 | **Medium** | Information Disclosure | `backend/workouts/views.py:329-357` | The `ProgramViewSet.debug` action exposes user details (email, role, parent_trainer_email) and program data to any authenticated user. While not introduced by this feature, it was noticed during the audit. This debug endpoint should not exist in production. | Remove the `debug` action or restrict it to admin-only with `IsAdmin` permission class. |
+None.
 
 ### Low Issues
 
 | # | Severity | Type | File:Line | Issue | Recommendation |
 |---|----------|------|-----------|-------|----------------|
-| 2 | **Low** | Predictable randomness | `backend/workouts/services/program_generator.py:337` | `random.choice()` and `random.shuffle()` use Python's default PRNG, which is deterministic if seeded. This is not a security concern because exercise selection randomness is a UX feature, not a security mechanism. The deterministic behavior is actually tested and desired (see `DeterministicOutputTests`). | No action needed. |
-| 3 | **Low** | Unbounded AI response parsing | `backend/workouts/management/commands/classify_exercises.py:136` | `json.loads(content)` parses the OpenAI API response without explicit size limits. A maliciously crafted or unexpectedly large response could consume memory. However, this is a CLI management command (not an API endpoint), and OpenAI's `max_tokens=4096` limits the response size. | No action needed -- bounded by `max_tokens`. |
+| 1 | **Low** | URL parameter encoding | `web/src/hooks/use-trainee-dashboard.ts:37` | The `date` parameter is interpolated directly into the URL without `encodeURIComponent()`: `` `${API_URLS.TRAINEE_NUTRITION_SUMMARY}?date=${date}` ``. While the `date` value is generated internally from `new Date()` (not user input) and always produces a safe `YYYY-MM-DD` string, using `encodeURIComponent()` or `URLSearchParams` would be a defensive coding practice. | Consider using `new URLSearchParams({ date }).toString()` for consistency with other hooks (e.g., `use-messaging.ts` uses `URLSearchParams`). No security impact in current code. |
+| 2 | **Low** | Pre-existing debug endpoint | `backend/workouts/views.py:329-357` | The `ProgramViewSet.debug` action at `/api/workouts/programs/debug/` is accessible to any authenticated user and exposes user details (email, role, parent_trainer_email). Not introduced by this feature, but the trainee dashboard user could hit this endpoint. | Remove the `debug` action or restrict it to admin-only. (Carried over from prior audit.) |
 
 ### Info Issues
 
 | # | Severity | Type | File:Line | Issue | Recommendation |
 |---|----------|------|-----------|-------|----------------|
-| 4 | **Info** | Debug logging with f-string | `backend/workouts/views.py:304,320` | Uses `logger.debug(f"...")` and `logger.warning(f"...")` with f-string interpolation. The strings are evaluated even when log level is above DEBUG/WARNING. Prefer `logger.debug("...", user.id)` lazy formatting for minor performance gain. | Minor style issue, no security impact. |
-| 5 | **Info** | sessionStorage usage | `web/src/components/programs/program-generator-wizard.tsx:111-114` | Generated program data is stored in `sessionStorage` to pass to the builder page. `sessionStorage` is tab-scoped and cleared on tab close. No XSS vector since the data is JSON-serialized API response data, not raw user input, and React auto-escapes on render. | No action needed. |
+| 3 | **Info** | localStorage for JWTs | `web/src/lib/token-manager.ts:44` | JWT tokens stored in `localStorage` are accessible to any JavaScript running on the same origin. If an XSS vulnerability were introduced in the future, tokens could be exfiltrated. This is a pre-existing architectural pattern, not introduced by this feature. | Consider migrating to `httpOnly` cookies for token storage in a future security hardening pass. |
+| 4 | **Info** | Profile image upload reuse | `web/src/components/settings/profile-section.tsx:60-88` | The trainee settings page reuses the shared `ProfileSection` component which includes profile image upload. File type validation (JPEG/PNG/GIF/WebP) and size validation (5MB max) are implemented client-side. Server-side validation is also present in the existing backend endpoint. The `business_name` field is correctly hidden for TRAINEE role users (line 187). | No action needed -- properly implemented. |
 
 ## Summary
 
-The Smart Program Generator feature has a **clean security posture**:
+The Trainee Web Portal (Pipeline 32) has an **excellent security posture**:
 
-1. **No secrets leaked** -- all API keys sourced from environment variables via Django settings. Fixture file contains only public exercise data and YouTube URLs.
+1. **No secrets leaked** -- zero hardcoded credentials, API keys, or tokens in any new file.
 
-2. **Strong auth/authz** -- `[IsAuthenticated, IsTrainer]` on the endpoint, `trainer_id` sourced from `request.user` (not user input), exercise pool properly scoped with IDOR-proof privacy filter, comprehensive test coverage for auth scenarios.
+2. **No injection vectors** -- no `dangerouslySetInnerHTML`, no raw HTML rendering, no template injection. All user content is rendered through React's auto-escaping JSX. URL parameters are either hardcoded or safely parsed.
 
-3. **Thorough input validation** -- all inputs validated via DRF `ChoiceField`, `IntegerField(min/max)`, and custom cross-field validation. Custom day config muscle groups validated against a closed set. Frontend enforces matching constraints.
+3. **Strong auth/authz** -- three-layer defense: (1) middleware cookie guard (convenience), (2) layout-level server-verified role check (security), (3) backend API auth enforcement (authoritative). The cookie guard is correctly documented as convenience-only. Cookie manipulation cannot bypass authorization.
 
-4. **No injection vectors** -- all database access via Django ORM, no raw SQL. No shell commands. No `eval()`. No HTML injection (React/Flutter auto-escaping).
+4. **No data exposure** -- type definitions contain only trainee-appropriate fields. Error messages are generic. No internal system details leaked.
 
-5. **Safe error handling** -- generic 500 message for unexpected errors, `ValueError` messages from our own code, exceptions logged server-side only.
+5. **Correct API scoping** -- all hooks call trainee-accessible endpoints (`/api/workouts/`, `/api/community/`, `/api/messaging/`). No hooks call trainer-only or admin-only endpoints. Backend queryset filtering ensures trainees see only their own data.
 
-6. **Bounded computation** -- all loops have known upper bounds. Maximum iteration count is ~3640 per request. No unbounded queries or recursive calls.
+6. **Good security headers** -- X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, Permissions-Policy all correctly configured via Next.js config.
+
+7. **No CORS/CSRF concerns** -- JWT Bearer auth is used (not session cookies). CORS handled globally.
 
 ## Security Score: 9/10
 
-The 1-point deduction is for the pre-existing `ProgramViewSet.debug` endpoint (Medium severity, not introduced by this feature) which exposes user details without admin-only restriction.
+The 1-point deduction is for the pre-existing `ProgramViewSet.debug` endpoint (Low severity, not introduced by this feature) and the pre-existing `localStorage` JWT storage pattern. Neither was introduced by Pipeline 32.
 
 ## Recommendation: PASS
