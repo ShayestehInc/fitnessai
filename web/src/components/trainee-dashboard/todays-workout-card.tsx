@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Dumbbell, BedDouble, CalendarOff, ArrowRight } from "lucide-react";
+import { Dumbbell, BedDouble, CalendarOff, ArrowRight, Play } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -118,6 +119,7 @@ export function TodaysWorkoutCard() {
   const todaysDay = findTodaysWorkout(activeProgram.schedule);
   const isRestDay = todaysDay?.is_rest_day === true;
   const hasExercises = (todaysDay?.exercises?.length ?? 0) > 0;
+  const canStartWorkout = todaysDay && !isRestDay && hasExercises;
 
   return (
     <Card>
@@ -202,7 +204,15 @@ export function TodaysWorkoutCard() {
           </div>
         )}
       </CardContent>
-      <CardFooter className="pt-0">
+      <CardFooter className="flex items-center gap-3 pt-0">
+        {canStartWorkout && (
+          <Button size="sm" asChild>
+            <Link href="/trainee/workout">
+              <Play className="mr-1.5 h-4 w-4" />
+              Start Workout
+            </Link>
+          </Button>
+        )}
         <Link
           href="/trainee/program"
           className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"

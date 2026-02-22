@@ -1,11 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import type {
   WeeklyProgress,
   LatestWeightCheckIn,
+  CreateWeightCheckInPayload,
+  WorkoutHistoryResponse,
+  WorkoutDetailData,
+  SaveWorkoutPayload,
 } from "@/types/trainee-dashboard";
 import type { NutritionSummary, TraineeViewProgram } from "@/types/trainee-view";
 
@@ -74,3 +78,58 @@ export function useTraineeWeightHistory() {
   });
 }
 
+export function useCreateWeightCheckIn() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateWeightCheckInPayload) =>
+      apiClient.post<LatestWeightCheckIn>(
+        API_URLS.TRAINEE_WEIGHT_CHECKINS,
+        payload,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "weight-checkins"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "latest-weight"],
+      });
+    },
+  });
+}
+
+export function useTraineeWorkoutHistory(page: number = 1) {
+  return useQuery<WorkoutHistoryResponse>({
+    queryKey: ["trainee-dashboard", "workout-history", page],
+    queryFn: () =>
+      apiClient.get<WorkoutHistoryResponse>(
+        `${API_URLS.TRAINEE_WORKOUT_HISTORY}?page=${page}&page_size=20`,
+      ),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useTraineeWorkoutDetail(id: number) {
+  return useQuery<WorkoutDetailData>({
+    queryKey: ["trainee-dashboard", "workout-detail", id],
+    queryFn: () =>
+      apiClient.get<WorkoutDetailData>(API_URLS.traineeWorkoutDetail(id)),
+    staleTime: STALE_TIME,
+    enabled: id > 0,
+  });
+}
+
+export function useSaveWorkout() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SaveWorkoutPayload) =>
+      apiClient.post(API_URLS.TRAINEE_DAILY_LOGS, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "weekly-progress"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "workout-history"],
+      });
+    },
+  });
+}
