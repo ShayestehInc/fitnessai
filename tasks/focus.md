@@ -1,23 +1,19 @@
-# Pipeline 32 Focus: Trainee Web Portal
+# Pipeline 33 Focus: Trainee Web — Workout Logging & Progress Tracking
 
 ## Priority
-Build a full self-service web portal for trainees, enabling workout logging, nutrition tracking, program viewing, messaging, and progress charts from a browser. This is the single biggest gap: trainer, admin, and ambassador dashboards all exist on web — trainee has zero web access beyond a read-only impersonation view.
+Make the trainee web portal interactive. Currently it's entirely read-only — trainees can view their assigned program, see nutrition macros, and read announcements, but cannot log workouts, record weight, or view historical progress. This pipeline adds the core interactive features that make the web portal actually useful for daily training.
 
 ## Key Changes
-- Web: New `(trainee-dashboard)` route group with trainee-facing layout, auth, and navigation
-- Web: Home dashboard (today's workout, nutrition summary, weight trend, recent activity)
-- Web: Program viewer (assigned program schedule, active workout logging with sets/reps tracking)
-- Web: Nutrition logging (macro tracker, food search, AI parsing, weight check-in)
-- Web: Progress page (weight trend chart, workout history, adherence stats)
-- Web: Messaging (reuse existing messaging infrastructure from trainer side)
-- Web: Settings (profile, password change, theme toggle)
-- Backend: Ensure all trainee-facing API endpoints are compatible with web (CORS, cookie-based or JWT auth)
+- Web: Weight check-in dialog (record weight from dashboard)
+- Web: Active workout logging (start workout → log sets/reps/weight → complete → save to DailyLog)
+- Web: Workout history page with completed workout details
+- Web: Progress page with weight trend chart, workout volume chart, and adherence stats
+- Backend: No new endpoints needed — all trainee APIs already exist
 
 ## Scope
-- Trainee can log in to web with existing credentials and see a trainee-specific dashboard
-- Trainee can view their assigned program and log workouts from browser
-- Trainee can track nutrition (food logging, macro tracking) from browser
-- Trainee can view progress charts (weight, volume, adherence)
-- Trainee can send/receive messages with their trainer
-- Trainee can view announcements and community feed
-- Reuse existing API endpoints — no new backend work needed beyond any CORS/auth adjustments
+- Trainee can record a weight check-in from the web dashboard
+- Trainee can start a workout from their program schedule, log sets/reps/weight for each exercise, and save the completed workout
+- Trainee can view their workout history with exercise details
+- Trainee can view progress charts (weight trend, workout volume, weekly adherence)
+- All backend APIs already exist — this is purely frontend work
+- Reuse existing trainee API endpoints and hooks where possible

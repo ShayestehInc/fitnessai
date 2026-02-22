@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { useTraineeDashboardNutrition } from "@/hooks/use-trainee-dashboard";
+import { getTodayString } from "@/lib/schedule-utils";
 
 function CardSkeleton() {
   return (
@@ -63,18 +64,13 @@ function MacroBar({ label, consumed, goal, color, unit = " g" }: MacroBarProps) 
   );
 }
 
-function getToday(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 export function NutritionSummaryCard() {
-  const [today, setToday] = useState(getToday);
+  const [today, setToday] = useState(getTodayString);
 
   // Update the date if the user keeps the tab open past midnight
   useEffect(() => {
     const checkDate = () => {
-      const current = getToday();
+      const current = getTodayString();
       setToday((prev) => (prev !== current ? current : prev));
     };
     const interval = setInterval(checkDate, 60_000); // check every minute

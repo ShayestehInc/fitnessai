@@ -42,3 +42,74 @@ export interface Achievement {
   progress: number;
 }
 
+// Workout history types (from GET /api/workouts/daily-logs/workout-history/)
+export interface WorkoutHistoryItem {
+  id: number;
+  date: string;
+  workout_name: string;
+  exercise_count: number;
+  total_sets: number;
+  total_volume_lbs: number;
+  duration_display: string;
+}
+
+export interface WorkoutHistoryResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: WorkoutHistoryItem[];
+}
+
+// Workout detail (from GET /api/workouts/daily-logs/{id}/workout-detail/)
+export interface WorkoutDetailData {
+  id: number;
+  date: string;
+  workout_data: WorkoutData;
+  notes: string;
+}
+
+export interface WorkoutData {
+  workout_name?: string;
+  duration?: string;
+  exercises?: WorkoutExerciseLog[];
+  sessions?: WorkoutSession[];
+}
+
+export interface WorkoutSession {
+  workout_name?: string;
+  duration?: string;
+  exercises?: WorkoutExerciseLog[];
+}
+
+export interface WorkoutExerciseLog {
+  exercise_id: number;
+  exercise_name: string;
+  sets: WorkoutSetLog[];
+  timestamp?: string;
+}
+
+export interface WorkoutSetLog {
+  set_number: number;
+  reps: number;
+  weight: number;
+  unit: string;
+  completed: boolean;
+}
+
+// Weight check-in creation payload
+export interface CreateWeightCheckInPayload {
+  date: string;
+  weight_kg: number;
+  notes?: string;
+}
+
+// Daily log creation payload (for saving workouts)
+export interface SaveWorkoutPayload {
+  date: string;
+  workout_data: {
+    workout_name: string;
+    duration: string;
+    exercises: WorkoutExerciseLog[];
+  };
+}
+

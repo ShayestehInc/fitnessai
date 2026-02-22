@@ -1,11 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import type {
   WeeklyProgress,
   LatestWeightCheckIn,
+  CreateWeightCheckInPayload,
+  WorkoutHistoryResponse,
+  WorkoutDetailData,
+  SaveWorkoutPayload,
 } from "@/types/trainee-dashboard";
 import type { NutritionSummary, TraineeViewProgram } from "@/types/trainee-view";
 
@@ -34,7 +38,7 @@ export function useTraineeDashboardNutrition(date: string) {
     queryKey: ["trainee-dashboard", "nutrition-summary", date],
     queryFn: () =>
       apiClient.get<NutritionSummary>(
-        `${API_URLS.TRAINEE_NUTRITION_SUMMARY}?date=${date}`,
+        `${API_URLS.TRAINEE_NUTRITION_SUMMARY}?date=${encodeURIComponent(date)}`,
       ),
     staleTime: STALE_TIME,
   });
@@ -74,3 +78,100 @@ export function useTraineeWeightHistory() {
   });
 }
 
+export function useCreateWeightCheckIn() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateWeightCheckInPayload) =>
+      apiClient.post<LatestWeightCheckIn>(
+        API_URLS.TRAINEE_WEIGHT_CHECKINS,
+        payload,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "weight-checkins"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "latest-weight"],
+      });
+    },
+  });
+}
+
+export function useTraineeWorkoutHistory(page: number = 1) {
+  return useQuery<WorkoutHistoryResponse>({
+    queryKey: ["trainee-dashboard", "workout-history", page],
+    queryFn: () =>
+      apiClient.get<WorkoutHistoryResponse>(
+        `${API_URLS.TRAINEE_WORKOUT_HISTORY}?page=${page}&page_size=20`,
+      ),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useTraineeWorkoutDetail(id: number) {
+  return useQuery<WorkoutDetailData>({
+    queryKey: ["trainee-dashboard", "workout-detail", id],
+    queryFn: () =>
+      apiClient.get<WorkoutDetailData>(API_URLS.traineeWorkoutDetail(id)),
+    staleTime: STALE_TIME,
+    enabled: id > 0,
+  });
+}
+
+interface TodayLogEntry {
+  id: number;
+  workout_data: Record<string, unknown> | null;
+}
+
+interface PaginatedDailyLogs {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: TodayLogEntry[];
+}
+
+export function useTraineeTodayLog(date: string) {
+  return useQuery<TodayLogEntry[]>({
+    queryKey: ["trainee-dashboard", "today-log", date],
+    queryFn: async () => {
+      const response = await apiClient.get<PaginatedDailyLogs>(
+        `${API_URLS.TRAINEE_DAILY_LOGS}?date=${encodeURIComponent(date)}`,
+      );
+      return response.results;
+    },
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useSaveWorkout() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: SaveWorkoutPayload) => {
+      // Check if a daily log already exists for this date
+      const response = await apiClient.get<PaginatedDailyLogs>(
+        `${API_URLS.TRAINEE_DAILY_LOGS}?date=${encodeURIComponent(payload.date)}`,
+      );
+      const existing = response.results;
+      if (existing.length > 0 && existing[0].id) {
+        // PATCH existing log with new workout_data
+        return apiClient.patch(
+          `${API_URLS.TRAINEE_DAILY_LOGS}${existing[0].id}/`,
+          { workout_data: payload.workout_data },
+        );
+      }
+      // Create new log
+      return apiClient.post(API_URLS.TRAINEE_DAILY_LOGS, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "weekly-progress"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "workout-history"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "today-log"],
+      });
+    },
+  });
+}

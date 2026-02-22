@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Dumbbell, BedDouble, CalendarOff, ArrowRight } from "lucide-react";
+import { Dumbbell, BedDouble, CalendarOff, ArrowRight, Play, CheckCircle2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,52 +9,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useTraineeDashboardPrograms } from "@/hooks/use-trainee-dashboard";
-import type {
-  TraineeViewSchedule,
-  TraineeViewScheduleDay,
-} from "@/types/trainee-view";
-
-function getTodaysDayNumber(): number {
-  // JavaScript: Sunday = 0, Monday = 1 ... Saturday = 6
-  // Schedule: day_number 1 = Monday ... 7 = Sunday
-  const jsDay = new Date().getDay();
-  return jsDay === 0 ? 7 : jsDay;
-}
-
-const DAY_NAMES: Record<number, string> = {
-  1: "Monday",
-  2: "Tuesday",
-  3: "Wednesday",
-  4: "Thursday",
-  5: "Friday",
-  6: "Saturday",
-  7: "Sunday",
-};
-
-function findTodaysWorkout(
-  schedule: TraineeViewSchedule | null,
-): TraineeViewScheduleDay | null {
-  if (!schedule?.weeks?.length) return null;
-  // Use the first week as the current template
-  const week = schedule.weeks[0];
-  if (!week?.days?.length) return null;
-  const todayNum = getTodaysDayNumber();
-  const todayName = DAY_NAMES[todayNum] ?? "";
-  // Match by day string (could be "1" or "Monday")
-  return (
-    week.days.find(
-      (d) => d.day === String(todayNum) || d.day === todayName,
-    ) ?? null
-  );
-}
+import {
+  useTraineeDashboardPrograms,
+  useTraineeTodayLog,
+} from "@/hooks/use-trainee-dashboard";
+import { findTodaysWorkout, getTodayString } from "@/lib/schedule-utils";
 
 function CardSkeleton() {
   return (
-    <Card>
+    <Card aria-busy="true">
       <CardHeader className="pb-3">
         <Skeleton className="h-5 w-32" />
       </CardHeader>
@@ -71,6 +38,20 @@ function CardSkeleton() {
 export function TodaysWorkoutCard() {
   const { data: programs, isLoading, isError, refetch } =
     useTraineeDashboardPrograms();
+  const todayStr = getTodayString();
+  const { data: todayLogData } = useTraineeTodayLog(todayStr);
+
+  // Check if a workout has already been logged today
+  const todayLogs = todayLogData ?? [];
+  const hasLoggedToday = todayLogs.some((log) => {
+    const wd = log.workout_data;
+    if (!wd || typeof wd !== "object") return false;
+    const exercises = wd.exercises;
+    if (Array.isArray(exercises) && exercises.length > 0) return true;
+    const sessions = wd.sessions;
+    if (Array.isArray(sessions) && sessions.length > 0) return true;
+    return false;
+  });
 
   if (isLoading) return <CardSkeleton />;
 
@@ -118,6 +99,7 @@ export function TodaysWorkoutCard() {
   const todaysDay = findTodaysWorkout(activeProgram.schedule);
   const isRestDay = todaysDay?.is_rest_day === true;
   const hasExercises = (todaysDay?.exercises?.length ?? 0) > 0;
+  const canStartWorkout = todaysDay && !isRestDay && hasExercises;
 
   return (
     <Card>
@@ -181,7 +163,7 @@ export function TodaysWorkoutCard() {
                 exercises
               </span>
             </p>
-            <ul className="space-y-1.5">
+            <ul className="space-y-1.5" aria-label="Today's exercises">
               {todaysDay.exercises.slice(0, 5).map((ex, i) => (
                 <li
                   key={`${ex.exercise_id}-${i}`}
@@ -202,10 +184,26 @@ export function TodaysWorkoutCard() {
           </div>
         )}
       </CardContent>
-      <CardFooter className="pt-0">
+      <CardFooter className="flex items-center gap-3 pt-0">
+        {canStartWorkout && hasLoggedToday ? (
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/trainee/history">
+              <CheckCircle2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              View Today&apos;s Workout
+            </Link>
+          </Button>
+        ) : canStartWorkout ? (
+          <Button size="sm" asChild>
+            <Link href="/trainee/workout">
+              <Play className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              Start Workout
+            </Link>
+          </Button>
+        ) : null}
         <Link
           href="/trainee/program"
-          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+          aria-label={`View full program: ${activeProgram.name}`}
         >
           View full program
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />

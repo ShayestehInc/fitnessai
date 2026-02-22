@@ -1,62 +1,49 @@
-# Dev Done: Trainee Web Portal — Home Dashboard & Program Viewer
+# Dev Done: Trainee Web — Workout Logging & Progress Tracking
 
-## Date
-2026-02-21
+## Date: 2026-02-21
 
-## Files Changed
+## Summary
+Added interactive workout logging, weight check-in, workout history, and progress charts to the trainee web portal. The portal was previously read-only (Pipeline 32); this pipeline makes it fully interactive for workout tracking.
 
-### Web — New Files (Components)
-- `web/src/components/trainee-dashboard/trainee-nav-links.tsx` — Nav link definitions for trainee sidebar (6 links with badge keys)
-- `web/src/components/trainee-dashboard/trainee-sidebar.tsx` — Sidebar navigation with unread badges for messages and announcements
-- `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx` — Mobile sheet drawer sidebar (matching trainer pattern)
-- `web/src/components/trainee-dashboard/trainee-header.tsx` — Header with hamburger menu and user nav
-- `web/src/components/trainee-dashboard/todays-workout-card.tsx` — Today's workout card with rest day handling, exercise list
-- `web/src/components/trainee-dashboard/nutrition-summary-card.tsx` — Macro progress bars (calories, protein, carbs, fat)
-- `web/src/components/trainee-dashboard/weight-trend-card.tsx` — Latest weight with trend indicator (up/down arrow, kg/lbs)
-- `web/src/components/trainee-dashboard/weekly-progress-card.tsx` — Weekly progress bar with percentage
-- `web/src/components/trainee-dashboard/program-viewer.tsx` — Full program schedule viewer with tabbed week view, day cards, exercise details, program switcher
-- `web/src/components/trainee-dashboard/announcements-list.tsx` — Announcements list with pinned sorting, date badges
-- `web/src/components/trainee-dashboard/achievements-grid.tsx` — Achievement badge grid with earned/locked states, progress bars
-- `web/src/components/ui/progress.tsx` — Shared Progress bar component (was missing from UI library)
+## Files Created (11)
 
-### Web — New Files (Pages)
-- `web/src/app/(trainee-dashboard)/layout.tsx` — Trainee dashboard layout with role guard, sidebar, header
-- `web/src/app/(trainee-dashboard)/trainee/dashboard/page.tsx` — Home dashboard with 4 stat cards
-- `web/src/app/(trainee-dashboard)/trainee/program/page.tsx` — Program viewer page
-- `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx` — Messages page (reusing existing messaging components)
-- `web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx` — Announcements page with mark-all-read
-- `web/src/app/(trainee-dashboard)/trainee/achievements/page.tsx` — Achievements page with summary stats
-- `web/src/app/(trainee-dashboard)/trainee/settings/page.tsx` — Settings page (reusing ProfileSection, AppearanceSection, SecuritySection)
+### Components
+1. `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx` — Weight check-in form dialog with kg input, date picker, notes, client-side validation (20-500 kg, no future dates), backend error display
+2. `web/src/components/trainee-dashboard/active-workout.tsx` — Full active workout component with timer, exercise state management, beforeunload guard, save mutation
+3. `web/src/components/trainee-dashboard/exercise-log-card.tsx` — Individual exercise logging card with set table (reps, weight, completed checkbox), add/remove sets, target display
+4. `web/src/components/trainee-dashboard/workout-finish-dialog.tsx` — Workout completion confirmation dialog showing summary (exercises, sets, volume, duration)
+5. `web/src/components/trainee-dashboard/workout-history-list.tsx` — Paginated workout history list with detail dialog integration
+6. `web/src/components/trainee-dashboard/workout-detail-dialog.tsx` — Workout detail view dialog showing all exercises with logged sets
+7. `web/src/components/trainee-dashboard/trainee-progress-charts.tsx` — Three progress components: WeightTrendChart (line), WorkoutVolumeChart (bar), WeeklyAdherenceCard (progress bar)
+8. `web/src/components/ui/textarea.tsx` — Standard shadcn/ui textarea component
 
-### Web — New Files (Hooks & Types)
-- `web/src/hooks/use-trainee-dashboard.ts` — React Query hooks for dashboard data (programs, nutrition, weight, weekly progress)
-- `web/src/hooks/use-trainee-announcements.ts` — Hooks for announcements (list, unread count, mark read mutation)
-- `web/src/hooks/use-trainee-achievements.ts` — Hook for achievements list
-- `web/src/types/trainee-dashboard.ts` — TypeScript types (WeeklyProgress, LatestWeightCheckIn, Announcement, Achievement, WorkoutSummary)
+### Pages
+9. `web/src/app/(trainee-dashboard)/trainee/workout/page.tsx` — Active workout page
+10. `web/src/app/(trainee-dashboard)/trainee/history/page.tsx` — Workout history page
+11. `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx` — Progress charts page
 
-### Web — Modified Files
-- `web/src/middleware.ts` — Added `isTraineeDashboardPath()` for `/trainee/*` routing; TRAINEE role now routes to `/trainee/dashboard` instead of `/trainee-view`; added non-trainee guard for `/trainee/*` paths
-- `web/src/providers/auth-provider.tsx` — Removed TRAINEE role rejection; now allows standalone TRAINEE login (not just impersonation)
-- `web/src/lib/constants.ts` — Added 8 trainee API URL constants (weight latest, weekly progress, workout summary, announcements, achievements, branding)
-- `web/src/components/layout/user-nav.tsx` — Settings link now routes to `/trainee/settings` for TRAINEE role
-- `web/src/app/(dashboard)/layout.tsx` — TRAINEE redirect updated from `/trainee-view` to `/trainee/dashboard`
+## Files Modified (6)
+1. `web/src/types/trainee-dashboard.ts` — Added 9 new types: WorkoutHistoryItem, WorkoutHistoryResponse, WorkoutDetailData, WorkoutData, WorkoutSession, WorkoutExerciseLog, WorkoutSetLog, CreateWeightCheckInPayload, SaveWorkoutPayload
+2. `web/src/lib/constants.ts` — Added 3 API URL constants: TRAINEE_DAILY_LOGS, TRAINEE_WORKOUT_HISTORY, traineeWorkoutDetail(id)
+3. `web/src/hooks/use-trainee-dashboard.ts` — Added 4 hooks: useCreateWeightCheckIn (mutation), useTraineeWorkoutHistory (query), useTraineeWorkoutDetail (query), useSaveWorkout (mutation)
+4. `web/src/components/trainee-dashboard/trainee-nav-links.tsx` — Added History and Progress nav links (8 total, was 6)
+5. `web/src/components/trainee-dashboard/weight-trend-card.tsx` — Added "Log Weight" button and WeightCheckInDialog integration
+6. `web/src/components/trainee-dashboard/todays-workout-card.tsx` — Added "Start Workout" button linking to /trainee/workout
 
 ## Key Decisions
-1. **Separate route group `(trainee-dashboard)`** — Keeps trainee concerns isolated from trainer/admin/ambassador dashboards
-2. **No backend changes** — All trainee-facing API endpoints already exist with proper permissions
-3. **Reuse existing components** — Messaging (ConversationList, ChatView, MessageSearch), Settings (ProfileSection, AppearanceSection, SecuritySection), Layout (UserNav, shared UI components)
-4. **New Progress UI component** — Created `web/src/components/ui/progress.tsx` since it was missing from the shadcn/ui setup
-5. **Impersonation preserved** — `/trainee-view` route still works for trainer impersonation; the new `/trainee/*` routes are for standalone trainee login
-6. **Program viewer is read-only** — Trainee can view schedule but cannot edit
+1. Used native HTML button with role="checkbox" instead of Radix Checkbox to avoid adding new dependency
+2. Timer is client-side only (useState + setInterval), not persisted to backend
+3. Workout data format matches existing backend `workout_data` JSONField schema
+4. No readiness/post-workout surveys — deferred to keep scope manageable (mobile-only for now)
+5. Progress charts reuse the same recharts + chart-utils patterns as the trainer analytics page
+6. Weight chart reverses API data (newest-first) to display chronologically (left=old, right=new)
 
 ## How to Test
-1. Log in as a trainee user at `/login` — should redirect to `/trainee/dashboard`
-2. Dashboard: verify 4 cards load (Today's Workout, Nutrition, Weight, Weekly Progress)
-3. My Program: verify program schedule displays with week tabs and exercise details
-4. Messages: verify messaging works (send/receive, WebSocket, search)
-5. Announcements: verify list loads, mark-all-read works
-6. Achievements: verify grid shows earned/locked states
-7. Settings: verify profile edit, theme toggle, password change work
-8. Navigation: verify sidebar links, unread badges, responsive hamburger menu
-9. Auth: verify non-trainee users can't access `/trainee/*` paths
-10. TypeScript: `npx tsc --noEmit` passes with zero errors
+1. Log in as TRAINEE user
+2. Dashboard: Weight card shows "Log Weight" button -> opens dialog -> submit -> toast + card refresh
+3. Dashboard: Today's Workout card shows "Start Workout" button -> navigates to /trainee/workout
+4. /trainee/workout: Timer runs, edit reps/weight, toggle completed checkboxes, add/remove sets, "Finish Workout" -> summary dialog -> save -> redirect to dashboard
+5. /trainee/history: Shows paginated workout history, click "Details" -> full workout view in dialog
+6. /trainee/progress: Weight trend line chart, workout volume bar chart, weekly adherence with color-coded progress bar
+7. All pages have loading, empty, and error states
+8. beforeunload fires if navigating away during active workout

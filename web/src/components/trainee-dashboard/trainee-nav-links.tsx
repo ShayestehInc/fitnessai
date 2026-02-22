@@ -1,6 +1,8 @@
 import {
   LayoutDashboard,
   Dumbbell,
+  History,
+  TrendingUp,
   MessageSquare,
   Megaphone,
   Trophy,
@@ -18,6 +20,8 @@ export interface TraineeNavLink {
 export const traineeNavLinks: TraineeNavLink[] = [
   { label: "Dashboard", href: "/trainee/dashboard", icon: LayoutDashboard },
   { label: "My Program", href: "/trainee/program", icon: Dumbbell },
+  { label: "History", href: "/trainee/history", icon: History },
+  { label: "Progress", href: "/trainee/progress", icon: TrendingUp },
   { label: "Messages", href: "/trainee/messages", icon: MessageSquare, badgeKey: "messages" },
   { label: "Announcements", href: "/trainee/announcements", icon: Megaphone, badgeKey: "announcements" },
   { label: "Achievements", href: "/trainee/achievements", icon: Trophy },

@@ -261,6 +261,12 @@ export const API_URLS = {
     `${API_BASE}/api/workouts/macro-presets/${id}/copy_to/`,
   MACRO_PRESETS_ALL: `${API_BASE}/api/workouts/macro-presets/all_presets/`,
 
+  // Trainee workout/daily-log APIs
+  TRAINEE_DAILY_LOGS: `${API_BASE}/api/workouts/daily-logs/`,
+  TRAINEE_WORKOUT_HISTORY: `${API_BASE}/api/workouts/daily-logs/workout-history/`,
+  traineeWorkoutDetail: (id: number) =>
+    `${API_BASE}/api/workouts/daily-logs/${id}/workout-detail/`,
+
   // WebSocket
   wsMessaging: (conversationId: number) =>
     `${WS_BASE}/ws/messaging/${conversationId}/`,
