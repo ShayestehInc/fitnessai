@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-21 (Pipeline 31: Smart Program Generator)
+> Last updated: 2026-02-21 (Pipeline 32: Trainee Web Portal)
 
 ---
 
@@ -221,6 +221,20 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Error/empty states (web) | ✅ Done | Shipped 2026-02-19: ErrorState with retry, EmptyState with contextual icons and action CTAs |
 | E2E test suite (Playwright) | ✅ Done | Shipped 2026-02-19: 19 test files, 5 browser targets, auth/trainer/admin/ambassador/responsive/dark mode coverage |
 | Macro preset management (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 30): CRUD presets per trainee, copy-to-trainee, default toggle, calorie mismatch warning, full a11y |
+
+### 3.9a Trainee Web Portal
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Trainee web login | ✅ Done | Shipped 2026-02-21 (Pipeline 32): Standalone TRAINEE login, role-based routing to /trainee/dashboard |
+| Trainee dashboard (home) | ✅ Done | Shipped 2026-02-21 (Pipeline 32): 4 stat cards (Today's Workout, Nutrition Macros, Weight Trend, Weekly Progress), per-card loading/error/empty states |
+| Trainee program viewer | ✅ Done | Shipped 2026-02-21 (Pipeline 32): Tabbed week view, day cards, exercise details, program switcher, read-only, WAI-ARIA keyboard navigation |
+| Trainee messages (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 32): Reuses existing ConversationList/ChatView/MessageSearch, auto-select first conversation, Cmd/Ctrl+K search |
+| Trainee announcements (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 32): Click-to-expand cards, unread visual distinction (dot+bold+bg), per-announcement mark-read, mark-all-read, optimistic updates |
+| Trainee achievements (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 32): Earned/locked grid with progress bars, summary stats |
+| Trainee settings (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 32): Reuses ProfileSection (hides business name for trainees), AppearanceSection, SecuritySection |
+| Trainee sidebar + responsive | ✅ Done | Shipped 2026-02-21 (Pipeline 32): 6 nav links, unread badges, desktop sidebar + mobile drawer, "Hi, Name" header greeting |
+| Trainee route guards | ✅ Done | Shipped 2026-02-21 (Pipeline 32): Middleware + layout double-guard, non-trainee redirect, trainee-on-trainer redirect |
+| Trainer branding (trainee web) | 🟡 Deferred | API URL defined, not yet wired. Branding colors/logo from trainer not applied to trainee web portal |
 
 ### 3.10 Social & Community
 | Feature | Status | Notes |
@@ -927,7 +941,7 @@ Full-stack intelligent program generation with exercise difficulty classificatio
 
 ### Phase 12: Future Enhancements
 - Video attachments on community posts
-- Trainee web access
+- ~~Trainee web access~~ ✅ Completed 2026-02-21 (Pipeline 32 — full trainee web portal: dashboard, program viewer, messages, announcements, achievements, settings; branding deferred)
 - ~~WebSocket support for web messaging (replace HTTP polling)~~ ✅ Completed 2026-02-19 (Pipeline 22)
 - ~~Web typing indicators (component exists, awaiting WebSocket)~~ ✅ Completed 2026-02-19 (Pipeline 22)
 - ~~Message editing and deletion~~ ✅ Completed 2026-02-19 (Pipeline 23)

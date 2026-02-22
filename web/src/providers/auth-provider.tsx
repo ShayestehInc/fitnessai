@@ -40,21 +40,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userData = await apiClient.get<User>(API_URLS.CURRENT_USER);
 
-      // Allow TRAINEE role when a trainer is impersonating
-      const isTrainerImpersonation =
-        userData.role === UserRole.TRAINEE &&
-        getTrainerImpersonationState() !== null;
+      // Allow TRAINEE role: standalone login or trainer impersonation
+      const isAllowedRole =
+        userData.role === UserRole.TRAINER ||
+        userData.role === UserRole.ADMIN ||
+        userData.role === UserRole.AMBASSADOR ||
+        userData.role === UserRole.TRAINEE;
 
-      if (
-        userData.role !== UserRole.TRAINER &&
-        userData.role !== UserRole.ADMIN &&
-        userData.role !== UserRole.AMBASSADOR &&
-        !isTrainerImpersonation
-      ) {
+      if (!isAllowedRole) {
         clearTokens();
         setUser(null);
         throw new Error(
-          "Only trainer, admin, and ambassador accounts can access this dashboard",
+          "Your account role is not supported on the web dashboard",
         );
       }
       setUser(userData);

@@ -1,155 +1,302 @@
-# Architecture Review: Smart Program Generator
+# Architecture Review: Trainee Web Portal (Pipeline 32)
 
 ## Review Date
 2026-02-21
 
 ## Files Reviewed
 
-**Backend (Service Layer):**
-- `backend/workouts/services/program_generator.py` -- Core algorithmic program generation service (725 lines)
-- `backend/workouts/models.py` -- Exercise model with new `difficulty_level` and `category` fields
-- `backend/workouts/migrations/0008_add_exercise_difficulty_and_category.py` -- Schema migration
+**New Route Group & Pages:**
+- `web/src/app/(trainee-dashboard)/layout.tsx` -- trainee layout with role guard
+- `web/src/app/(trainee-dashboard)/trainee/dashboard/page.tsx` -- dashboard page
+- `web/src/app/(trainee-dashboard)/trainee/program/page.tsx` -- program page
+- `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx` -- messages page
+- `web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx` -- announcements page
+- `web/src/app/(trainee-dashboard)/trainee/achievements/page.tsx` -- achievements page
+- `web/src/app/(trainee-dashboard)/trainee/settings/page.tsx` -- settings page
 
-**Backend (API Layer):**
-- `backend/trainer/views.py` -- `GenerateProgramView` (lines 626-669)
-- `backend/trainer/serializers.py` -- Request/response serializers (lines 380-448)
-- `backend/trainer/urls.py` -- URL routing for generate endpoint
+**New Hooks:**
+- `web/src/hooks/use-trainee-dashboard.ts` -- data fetching (programs, nutrition, weight, progress)
+- `web/src/hooks/use-trainee-announcements.ts` -- announcements queries and mutations
+- `web/src/hooks/use-trainee-achievements.ts` -- achievements query
+- `web/src/hooks/use-trainee-badge-counts.ts` -- badge count composition hook
 
-**Backend (Exercise Filtering):**
-- `backend/workouts/views.py` -- `ExerciseViewSet` with `difficulty_level` filter
-- `backend/workouts/serializers.py` -- `ExerciseSerializer` with new fields
+**New Components:**
+- `web/src/components/trainee-dashboard/trainee-sidebar.tsx` -- desktop sidebar
+- `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx` -- mobile sidebar
+- `web/src/components/trainee-dashboard/trainee-header.tsx` -- header bar
+- `web/src/components/trainee-dashboard/trainee-nav-links.tsx` -- navigation configuration
+- `web/src/components/trainee-dashboard/program-viewer.tsx` -- program schedule viewer
+- `web/src/components/trainee-dashboard/todays-workout-card.tsx` -- today's workout card
+- `web/src/components/trainee-dashboard/nutrition-summary-card.tsx` -- macro tracking card
+- `web/src/components/trainee-dashboard/weight-trend-card.tsx` -- weight trend card
+- `web/src/components/trainee-dashboard/weekly-progress-card.tsx` -- weekly progress card
+- `web/src/components/trainee-dashboard/achievements-grid.tsx` -- achievements grid
+- `web/src/components/trainee-dashboard/announcements-list.tsx` -- announcements list
 
-**Web Frontend:**
-- `web/src/components/programs/program-generator-wizard.tsx` -- 3-step wizard UI
-- `web/src/components/programs/program-builder.tsx` -- SessionStorage integration for generated data
-- `web/src/hooks/use-programs.ts` -- `useGenerateProgram` React Query mutation hook
-- `web/src/types/program.ts` -- TypeScript types including `ScheduleExercise`
-- `web/src/lib/constants.ts` -- `GENERATE_PROGRAM` URL constant
+**New Types:**
+- `web/src/types/trainee-dashboard.ts` -- WeeklyProgress, LatestWeightCheckIn, Announcement, Achievement
 
-**Mobile (Flutter):**
-- `mobile/lib/features/programs/presentation/screens/program_generator_screen.dart` -- Flutter wizard
-- `mobile/lib/features/programs/data/repositories/program_repository.dart` -- Repository with `generateProgram`
-- `mobile/lib/features/programs/presentation/providers/program_provider.dart` -- Riverpod providers
-- `mobile/lib/features/programs/data/models/program_week_model.dart` -- `WorkoutExercise` model
-- `mobile/lib/features/programs/presentation/screens/program_builder_screen.dart` -- Builder screen
-- `mobile/lib/features/programs/presentation/screens/week_editor_screen.dart` -- Week editor
-- `mobile/lib/features/workout_log/presentation/screens/workout_calendar_screen.dart` -- Calendar (uses WorkoutExercise)
-- `mobile/lib/features/trainer/presentation/screens/program_options_screen.dart` -- Program options (uses WorkoutExercise)
-- `mobile/lib/core/constants/api_constants.dart` -- `generateProgram` endpoint constant
+**Modified Files:**
+- `web/src/middleware.ts` -- routing for trainee paths
+- `web/src/providers/auth-provider.tsx` -- TRAINEE role allowed
+- `web/src/lib/constants.ts` -- trainee API URLs
+- `web/src/components/layout/user-nav.tsx` -- trainee settings link
+- `web/src/components/settings/profile-section.tsx` -- hide business name for trainees
+
+**Comparison Files Reviewed:**
+- `web/src/app/(dashboard)/layout.tsx` -- trainer layout pattern
+- `web/src/app/(admin-dashboard)/layout.tsx` -- admin layout pattern
+- `web/src/app/(ambassador-dashboard)/layout.tsx` -- ambassador layout pattern
+- `web/src/components/layout/sidebar.tsx` -- trainer sidebar
+- `web/src/components/layout/sidebar-mobile.tsx` -- trainer mobile sidebar
+- `web/src/components/layout/admin-sidebar.tsx` -- admin sidebar
+- `web/src/components/layout/admin-sidebar-mobile.tsx` -- admin mobile sidebar
+- `web/src/components/layout/ambassador-sidebar.tsx` -- ambassador sidebar
+- `web/src/components/layout/ambassador-sidebar-mobile.tsx` -- ambassador mobile sidebar
+- `web/src/components/layout/header.tsx` -- shared trainer/admin header
+- `web/src/components/layout/nav-links.tsx` -- trainer nav links
+
+---
 
 ## Architectural Alignment
-- [x] Follows existing layered architecture
-- [x] Business logic in `services/` -- Views handle request/response only
-- [x] Serializers handle validation only (with `to_dataclass()` bridge)
-- [x] Models/schemas in correct locations
-- [x] API URLs centralized in both web (`lib/constants.ts`) and mobile (`api_constants.dart`)
-- [x] Consistent with existing patterns across all three layers
 
-**Details:**
+- [x] Follows existing layered architecture (route group -> layout -> pages -> components -> hooks)
+- [x] Types in correct location (`types/trainee-dashboard.ts`)
+- [x] No business logic in route pages -- data fetching in hooks, presentation in components
+- [x] Consistent with existing route group naming conventions
+- [ ] **Layout components placed in `components/trainee-dashboard/` instead of `components/layout/`** (minor inconsistency)
 
-1. **Service layer separation (Backend):** The `program_generator.py` service is a pure function module. `generate_program()` takes a `ProgramGenerationRequest` dataclass and returns a `GeneratedProgram` dataclass. No Django request/response objects leak into the service. The view (`GenerateProgramView`) handles HTTP request parsing via the serializer and delegates entirely to the service. This is textbook layered architecture.
+---
 
-2. **Serializer bridge pattern:** `GenerateProgramRequestSerializer.to_dataclass()` bridges validated DRF data to the service-layer `ProgramGenerationRequest` dataclass. This keeps the service decoupled from DRF serializer internals. Clean boundary.
+## 1. LAYERING Assessment
 
-3. **Database access isolation:** All database queries happen in a single method `_prefetch_exercise_pool()`, which runs one query with `select_related` and `prefetch_related` considerations. The generator then works entirely in-memory against the pre-fetched exercise pool. No N+1 queries, no scattered DB calls.
+**Verdict: Strong (8/10)**
 
-4. **Frontend patterns (Web):** The wizard uses React Query mutation via `useGenerateProgram()` hook. SessionStorage bridges generated data to the program builder. Components handle presentation only. Matches established patterns from `use-macro-presets.ts`, `use-trainee-goals.ts`, etc.
+The implementation follows the established layering pattern precisely:
 
-5. **Frontend patterns (Mobile):** Follows Repository -> Provider -> Screen pattern. Riverpod `generateProgramProvider` wraps the repository call. The generator screen uses `ref.read()` for the mutation and `ref.watch()` for loading states.
+- **Route pages** are thin orchestrators that compose components and handle the loading/error/empty state trifecta. Every page follows the same pattern: `useHook()` -> loading state -> error state -> empty state -> populated render. This is consistent with the trainer and admin dashboard pages.
 
-## Data Model Assessment
+- **Hooks** encapsulate all data fetching with React Query. The `use-trainee-dashboard.ts` hook properly uses a 5-minute `staleTime` for caching, hierarchical query keys (`["trainee-dashboard", "programs"]`) for scoped invalidation, and intelligent retry logic (not retrying 404s for weight check-ins via `isApiErrorWithStatus`). The `use-trainee-announcements.ts` hook correctly uses mutations with bidirectional cache invalidation (announcements list + unread count).
+
+- **Components** are properly categorized as either smart (self-fetching dashboard cards) or presentational (ProgramViewer, AchievementsGrid, AnnouncementsList taking data via props). The dashboard cards (`TodaysWorkoutCard`, `NutritionSummaryCard`, `WeightTrendCard`, `WeeklyProgressCard`) co-locate their queries, which is valid since each card is an independent data consumer with its own loading/error states.
+
+- **Types** correctly reuse existing types from `types/trainee-view.ts` (e.g., `TraineeViewProgram`, `NutritionSummary`) and only define new types for genuinely novel API responses (`WeeklyProgress`, `LatestWeightCheckIn`, `Announcement`, `Achievement`).
+
+- **Badge count composition hook** (`use-trainee-badge-counts.ts`) cleanly composes `useMessagingUnreadCount` and `useAnnouncementUnreadCount` without introducing a new data fetching layer. The `getBadgeCount` helper uses a string-keyed lookup (`"messages" | "announcements"`) which is slightly fragile but acceptable for 2 keys.
+
+---
+
+## 2. ROUTE STRUCTURE Assessment
+
+**Verdict: Excellent (9/10)**
+
+The `(trainee-dashboard)` route group follows the exact pattern established by all other role-specific dashboards:
+
+| Route Group | URL Prefix | Role |
+|-------------|-----------|------|
+| `(dashboard)` | `/dashboard`, `/trainees`, etc. | TRAINER |
+| `(admin-dashboard)` | `/admin/*` | ADMIN |
+| `(ambassador-dashboard)` | `/ambassador/*` | AMBASSADOR |
+| `(trainee-dashboard)` | `/trainee/*` | TRAINEE |
+
+The nesting `(trainee-dashboard)/trainee/[page]` correctly produces URL paths like `/trainee/dashboard`, `/trainee/program`, etc. -- mirroring how `(admin-dashboard)/admin/[page]` produces `/admin/dashboard`.
+
+The middleware routing in `middleware.ts` is well-designed:
+- `isTraineeDashboardPath()` correctly matches both `/trainee/` and `/trainee` paths
+- Mutual exclusion between all role paths is properly enforced (lines 62-99)
+- The `getDashboardPath()` function maps all roles correctly
+- The security comment on line 59 correctly acknowledges that cookie-based routing is a convenience guard, not an authorization boundary -- true authorization is enforced server-side
+
+---
+
+## 3. DATA MODEL Assessment
+
+**Verdict: Good (8/10)**
+
+No backend changes were made. All types correctly map to existing API responses.
+
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | PASS | `difficulty_level` and `category` are nullable (`null=True, blank=True`), so existing exercises are unaffected |
-| Migration reversible | PASS | Standard `AddField` operations -- Django can auto-reverse these |
-| Indexes added for new queries | PASS | Composite index on `(muscle_group, difficulty_level)` added, which matches the primary query pattern in `_prefetch_exercise_pool()` |
-| No N+1 query patterns | PASS | Single DB query in `_prefetch_exercise_pool()` with filter on `is_public=True`, `muscle_group__in`, and optional `difficulty_level` |
-| JSONField schedule format compatible | PASS | Generated schedule matches existing `Program.schedule` JSONField format |
+| Schema changes backward-compatible | N/A | No backend changes |
+| Migrations reversible | N/A | No migrations |
+| Indexes added for new queries | N/A | No new queries |
+| No N+1 query patterns | PASS | All data fetched via existing API endpoints |
+| Types match API responses | PASS | Reuses `TraineeViewProgram`, `NutritionSummary` from existing `trainee-view.ts`; new types look correct |
 
-## Issues Found and Fixed
+**Observation:** The `LatestWeightCheckIn` type in `trainee-dashboard.ts` has a `trainee: number` field, while the existing `TraineeWeightCheckIn` type in `trainee-view.ts` has both `trainee: number` and `trainee_email: string`. These represent different API response shapes (trainee-facing vs. trainer-facing), so two separate types is correct. A comment distinguishing them would aid future maintainers.
 
-### Issue 1: CRITICAL -- Mobile `WorkoutExercise.reps` type mismatch (Fixed)
+---
 
-**Problem:** The backend program generator produces `reps` as strings to support rep ranges (e.g., `"8-10"`, `"10-12"`). The web TypeScript types correctly define `reps: number | string`. However, the mobile Flutter `WorkoutExercise` model had `reps` typed as `int`. This would cause a runtime `TypeError` when the mobile app attempts to parse generated program JSON via `WorkoutExercise.fromJson()`, because `json['reps']` would be a string like `"8-10"` being assigned to an `int` field.
+## 4. API DESIGN Assessment
 
-This is a **data model incompatibility** that would break the entire program generation flow on mobile.
+**Verdict: Good (8/10)**
 
-**Root cause:** The `WorkoutExercise` model was originally written for manual program building where trainers enter fixed integer reps (e.g., 10, 12). The smart generator introduced rep ranges as strings, but the model was not updated.
+All trainee API URLs are well-organized in `constants.ts`:
+- Trainee-facing workout APIs grouped under `// Trainee-facing APIs` comment (lines 237-243)
+- Community APIs grouped under `// Trainee community APIs` comment (lines 246-251)
+- Branding at line 254
 
-**Fix:** Changed `WorkoutExercise.reps` from `int` to `String` across the entire mobile codebase:
+URL naming conventions are consistent:
+- Static URLs are UPPER_SNAKE_CASE constants (`TRAINEE_PROGRAMS`, `TRAINEE_ANNOUNCEMENTS`, etc.)
+- Dynamic URLs are camelCase functions (`traineeAnnouncementMarkRead(id)`)
+- All use the same `API_BASE` prefix
 
-1. **`program_week_model.dart`** -- Changed field type from `int` to `String`, updated `copyWith` signature, updated `fromJson` to handle both `int` and `String` inputs gracefully (backward-compatible).
+**One unused forward declaration:** `TRAINEE_BRANDING` (`/api/users/my-branding/`) is defined but not consumed anywhere in the codebase. This is likely intended for the upcoming white-label branding feature. Acceptable as a forward declaration if it ships within 1-2 pipelines.
 
-2. **`program_builder_screen.dart`** -- Converted all 30+ `WorkoutExercise` constructor calls from `reps: <int>` to `reps: '<string>'`. Added `_parseRepsToInt()` and `_adjustRepsDisplay()` helper methods. Updated `_showEditExerciseDialog`, `_applyToThisWeek`, `_applyToAllWeeks`, `_applyProgressiveOverload`, `_addExerciseToDay`, and `_getDefaultExercisesForDay`.
+---
 
-3. **`week_editor_screen.dart`** -- Added `_parseRepsToInt()` helper. Updated `_showEditExerciseDialog`, `_updateExercise`, and `_addExercise`.
+## 5. FRONTEND PATTERNS Assessment
 
-4. **`workout_calendar_screen.dart`** -- Added `_parseRepsToInt()` helper. Updated `_showEditExerciseDialog`, `_updateExerciseInWeek`, `_updateExerciseAllWeeks`, `_addExercise`, `_addExerciseAllWeeks`, and the exercise picker constructor.
+**Verdict: Strong with one minor inconsistency (7.5/10)**
 
-5. **`program_options_screen.dart`** -- Added `_parseRepsToInt()` helper. Updated `_showEditExerciseDialog`, `_updateExercise`, `_updateExerciseAllWeeks`, `_addExercise`, `_addExerciseAllWeeks`, and the exercise picker constructor.
+### Strengths
 
-**Design decision:** UI sliders continue to use `int` for the user-facing rep value. The conversion from `String -> int` happens at the read boundary (`_parseRepsToInt`, which returns the upper bound for ranges like "8-10" -> 10). The conversion from `int -> String` happens at the write boundary (`reps.toString()` when constructing `WorkoutExercise` or calling `copyWith`). This preserves the slider UX while supporting the richer `String` data format.
+**Component decomposition is clean:**
+- Dashboard cards are self-contained units with their own loading/error/empty states
+- `ProgramViewer` is a rich presentational component with proper ARIA tab semantics
+- `AnnouncementsList` is a controlled component that delegates mark-read to a callback
+- `AchievementsGrid` is a pure presentational grid
 
-**Files changed:** 5 files, approximately 60 individual edits.
+**Excellent shared component reuse:**
+- `PageHeader`, `PageTransition`, `LoadingSpinner`, `ErrorState`, `EmptyState` reused from `components/shared/`
+- `ProfileSection`, `AppearanceSection`, `SecuritySection` reused from `components/settings/`
+- `ConversationList`, `ChatView`, `MessageSearch` reused from `components/messaging/`
+- `UserNav` reused from `components/layout/`
 
-### Issue 2: `GeneratedProgram` uses `dict[str, Any]` for schedule/nutrition (Acknowledged, No Fix)
+**Accessibility is consistently implemented:**
+- `aria-label`, `aria-current`, `aria-hidden` on all interactive and decorative elements
+- `role="tablist"`, `role="tab"`, `role="tabpanel"` with `aria-selected` and `aria-controls` on program week tabs
+- Skip-to-content link in the layout
+- `sr-only` text for loading states
+- Keyboard handlers (`onKeyDown` for Enter/Space) on the `AnnouncementCard` which uses `role="button"`
 
-**Problem:** The project rule in `.claude/rules/datatypes.md` states: "for services and utils, return dataclass or pydantic models, never ever return dict." The `GeneratedProgram` dataclass has `schedule: dict[str, Any]` and `nutrition_template: dict[str, Any]` fields.
+**File sizes are within guidelines:**
+- Most files are well under 150 lines
+- `program-viewer.tsx` (262 lines) is the largest, but includes a small `DayCard` sub-component. The main `ProgramViewer` component is ~190 lines of JSX. Borderline but acceptable given the complexity.
+- `messages/page.tsx` (251 lines) is the largest page, but this is a complex split-pane messaging UI that justifies the size.
 
-**Assessment:** This is a pragmatic deviation. These fields are deeply nested JSON structures (weeks -> days -> exercises with 8+ fields each) that map directly to Django's `Program.schedule` JSONField. Creating a full dataclass hierarchy for `ScheduleWeek`, `ScheduleDay`, `ScheduleExercise` would add ~80 lines of dataclass definitions with no real type safety gain -- the JSON structure must match what the mobile and web clients expect, and both clients already define their own typed models for deserialization. The `dict[str, Any]` type is the output format, not a business logic type.
+### Issue #1: Layout Component Placement (MINOR)
 
-**Recommendation:** Leave as-is. If this pattern recurs in other services, consider a shared typed schedule model. For now, the pragmatic approach is justified.
+**Finding:** All other role-specific layout components live in `components/layout/`:
 
-## API Design Assessment
-| Concern | Status | Notes |
-|---------|--------|-------|
-| URL structure consistent | PASS | `POST /api/trainer/program-templates/generate/` follows Django REST action pattern. Correctly placed before `<int:pk>/` to avoid URL conflict. |
-| HTTP method correct | PASS | POST for a generation action (creates a resource representation without persisting). |
-| Request validation | PASS | Serializer validates: `split_type` against allowed choices, `sessions_per_week` (1-7), `difficulty_level` against model choices, `custom_day_configs` muscle groups against allowed list. |
-| Response format | PASS | Returns `{schedule, nutrition_template, metadata}` matching `Program` JSONField format. |
-| Error responses | PASS | 400 for `ValueError` (invalid input), 500 for unexpected errors. Both return `{error: "message"}`. |
-| Authentication | PASS | `IsAuthenticated` + `IsTrainerPermission` on the view. Only trainers can generate programs. |
-| Idempotent | N/A | Generation is not idempotent by design (randomized exercise selection produces varied results). |
+| Component | Location |
+|-----------|----------|
+| Trainer sidebar | `components/layout/sidebar.tsx` |
+| Trainer mobile sidebar | `components/layout/sidebar-mobile.tsx` |
+| Trainer nav links | `components/layout/nav-links.tsx` |
+| Admin sidebar | `components/layout/admin-sidebar.tsx` |
+| Admin mobile sidebar | `components/layout/admin-sidebar-mobile.tsx` |
+| Ambassador sidebar | `components/layout/ambassador-sidebar.tsx` |
+| Ambassador mobile sidebar | `components/layout/ambassador-sidebar-mobile.tsx` |
+| Shared header | `components/layout/header.tsx` |
+| **Trainee sidebar** | **`components/trainee-dashboard/trainee-sidebar.tsx`** |
+| **Trainee mobile sidebar** | **`components/trainee-dashboard/trainee-sidebar-mobile.tsx`** |
+| **Trainee header** | **`components/trainee-dashboard/trainee-header.tsx`** |
+| **Trainee nav links** | **`components/trainee-dashboard/trainee-nav-links.tsx`** |
 
-## Frontend Patterns Assessment
-| Concern | Status | Notes |
-|---------|--------|-------|
-| Web: Wizard state management | PASS | Local `useState` for wizard step progression. React Query mutation for API call. Clean separation. |
-| Web: Data handoff to builder | PASS | SessionStorage with cleanup on read. `?from=generator` query param guards the builder's auto-load behavior. |
-| Web: Type definitions | PASS | `ScheduleExercise.reps: number | string` correctly handles both formats. |
-| Mobile: Riverpod provider | PASS | `generateProgramProvider` uses `FutureProvider.family` with auto-dispose. |
-| Mobile: Repository pattern | PASS | `ProgramRepository.generateProgram()` maps API response to domain types. |
-| Mobile: Model backward compatibility | PASS (after fix) | `WorkoutExercise.fromJson()` handles both `int` and `String` reps values. |
+The trainee layout infrastructure (sidebar, mobile sidebar, header, nav-links) is co-located with domain-specific components (program-viewer, nutrition-summary-card, etc.) in `components/trainee-dashboard/`. Every other role follows the convention of placing layout shell components in `components/layout/`.
 
-## Scalability Concerns
-| # | Area | Severity | Assessment |
-|---|------|----------|------------|
-| 1 | Exercise pool query | Low | `_prefetch_exercise_pool()` filters by `muscle_group__in` (typically 5-8 groups) and `is_public=True`. With the composite index on `(muscle_group, difficulty_level)`, this is efficient. Even with 10,000 exercises, the query returns a bounded subset. |
-| 2 | In-memory generation | None | After the single DB query, all logic is CPU-bound (dict building, list shuffling). For typical programs (4-12 weeks, 3-6 days/week, 4-6 exercises/day), this is negligible. |
-| 3 | No caching of generated programs | Low | Each generation call runs the full algorithm. Caching is not appropriate here because: (a) generation includes randomization, (b) the trainer modifies the result immediately in the builder, (c) generation is a rare action (once per client onboarding). |
-| 4 | Exercise difficulty fallback | None | When exercises with the requested difficulty are unavailable, the generator falls back to adjacent difficulties. This prevents empty programs without additional DB queries. Good design. |
+**Impact:** This is a file organization inconsistency, not a functional issue. It makes it harder for developers to find all layout components in one place and breaks the mental model that `components/layout/` is the canonical home for all shell layout components.
 
-## Technical Debt Introduced
+**Decision:** I am NOT relocating these files in this pipeline. Reason:
+1. The relocation would create a large diff touching all imports, making the feature PR harder to review
+2. No functional impact -- the code works identically regardless of location
+3. Risk of introducing import path errors in a file-move refactor
+
+**Recommendation:** Track as a follow-up task: move `trainee-sidebar.tsx`, `trainee-sidebar-mobile.tsx`, `trainee-header.tsx`, and `trainee-nav-links.tsx` to `components/layout/` in a dedicated cleanup commit.
+
+---
+
+## 6. SCALABILITY Assessment
+
+**Verdict: Good (8/10)**
+
+### React Query Caching Strategy
+
+| Data Type | Stale Time | Rationale |
+|-----------|-----------|-----------|
+| Programs, nutrition, weight, progress | 5 min | Fitness data changes infrequently during a session |
+| Announcement unread count | 30 sec | More aggressive for real-time feel |
+| Message unread count (shared hook) | 30 sec refetch interval | Inherited from existing messaging system |
+
+All query keys are namespaced under `["trainee-dashboard", ...]` to avoid collisions with trainer-facing query keys (which use `["messaging", ...]`, `["trainees", ...]`, etc.).
+
+Mutations properly invalidate related queries: `useMarkAnnouncementsRead` and `useMarkAnnouncementRead` both invalidate both the announcements list and unread count queries.
+
+### Re-render Analysis
+
+- `useMemo` is applied correctly: sort in `AnnouncementsList`, stats calculation in `AchievementsPage`, date string in `NutritionSummaryCard`, active program filter in `ProgramViewer`
+- `useCallback` wraps mutation handlers and event handlers passed as props
+- Dashboard cards are independent React Query consumers -- a refetch in one card does not trigger re-renders in siblings
+- The `useTraineeBadgeCounts` hook composes two independent queries; each query's state change only triggers re-renders in components consuming that specific hook
+
+### Potential Scaling Concern
+
+The `TodaysWorkoutCard` fetches ALL programs via `useTraineeDashboardPrograms()` to find the active one and extract today's workout day. If a trainee has many programs (unlikely in practice -- typically 1-3), this transfers unnecessary data. A dedicated endpoint like `/api/workouts/programs/active/today/` would be more efficient. However, given the typical trainee has 1-3 programs, this is acceptable for now.
+
+---
+
+## 7. TECHNICAL DEBT Assessment
+
+**Verdict: Minimal new debt (8/10)**
+
+### Debt Introduced
+
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| 1 | `_parseRepsToInt()` duplicated across 4 mobile files | Low | Extract to a shared utility (e.g., `mobile/lib/shared/utils/reps_utils.dart`). Each copy is 5 lines and identical. Not urgent but would be cleaner. |
-| 2 | Hardcoded exercise library in mobile screens | Low | `_exerciseLibrary` is a static list of ~20 exercises in `workout_calendar_screen.dart` and `program_options_screen.dart`. These should ideally come from the API exercise endpoint, but this is pre-existing debt, not introduced by this feature. |
-| 3 | SessionStorage for web data handoff | Low | Viable for single-tab use. Would break with multiple tabs generating programs simultaneously. A proper state management solution (e.g., Zustand store or React context) would be more robust, but the current approach works for the single-tab workflow. Pre-existing pattern in the codebase. |
+| 1 | Trainee layout components in `components/trainee-dashboard/` instead of `components/layout/` | Low | Move 4 files in a dedicated cleanup commit |
+| 2 | `TRAINEE_BRANDING` API URL defined but unused | Low | Wire up in branding pipeline or remove if deferred past 2 pipelines |
 
-## Technical Debt Reduced
-- The `WorkoutExercise.reps` type change from `int` to `String` eliminates a class of potential runtime errors across the entire mobile app. Any future feature that produces rep ranges (periodization, auto-regulation, RPE-based programming) will work correctly without additional model changes.
-- The `fromJson` backward compatibility (accepting both `int` and `String`) means existing saved programs with integer reps continue to parse correctly.
-- The composite index on `(muscle_group, difficulty_level)` improves query performance for exercise filtering across the entire app, not just program generation.
+### Pre-existing Debt (Not Introduced by This PR)
 
-## Summary
+| # | Description | Severity | Notes |
+|---|-------------|----------|-------|
+| 1 | Layout guard boilerplate duplicated across 4 role layouts | Medium | All four role layouts have near-identical auth guard + role redirect + loading state code. A shared `RoleGuardLayout` HOC could eliminate ~60 lines per layout. |
+| 2 | Sidebar component boilerplate duplicated across 4 roles | Medium | All sidebars share the same structure: aside > nav > links. Only the nav links config and branding differ. A generic `SidebarShell` component accepting a links array and branding config would reduce duplication. |
 
-The Smart Program Generator feature is architecturally well-designed. The backend follows clean layered architecture with a single DB query, pure algorithmic generation in the service layer, and proper request/response handling in the view. The web frontend correctly uses React Query with SessionStorage handoff. The API design is RESTful and properly authenticated.
+### Debt Reduced
 
-**One critical issue was found and fixed:** The mobile `WorkoutExercise.reps` field was typed as `int` but the generator produces `String` reps (for ranges like "8-10"). This type mismatch would have caused a runtime crash when mobile users tried to view generated programs. The fix was propagated across 5 files affecting the model, program builder, week editor, workout calendar, and program options screens. All changes pass `flutter analyze` with zero new errors.
+1. **Shared component reuse** -- `PageHeader`, `LoadingSpinner`, `ErrorState`, `EmptyState`, `ProfileSection`, `AppearanceSection`, `SecuritySection`, `UserNav`, `ConversationList`, `ChatView`, `MessageSearch` are all reused rather than duplicated.
+2. **Type reuse** -- `TraineeViewProgram` and `NutritionSummary` imported from existing `trainee-view.ts` rather than redefined.
+3. **Hook reuse** -- Messaging hooks (`useConversations`, `useMessagingUnreadCount`) reused directly from the existing trainer messaging system.
+4. **Settings page** correctly reuses all three settings sections and the profile section properly hides the business name field for TRAINEE users via a role check.
 
-The `_parseRepsToInt` helper is duplicated across 4 files and should be extracted to a shared utility in a future cleanup pass, but this is low-severity debt.
+---
+
+## Detailed Scoring Matrix
+
+| Area | Score | Notes |
+|------|-------|-------|
+| Route structure | 9/10 | Perfect alignment with existing 4-dashboard pattern |
+| Middleware routing | 9/10 | Clean mutual-exclusion guards, correct security comments |
+| Layout architecture | 7/10 | Correct structure, but layout components misplaced |
+| Data fetching layer | 9/10 | Clean hooks, proper caching and stale times, correct invalidation |
+| Component decomposition | 8/10 | Good smart/dumb split, excellent shared component reuse |
+| Type safety | 8/10 | Proper typing, correct reuse of existing types |
+| State management | 9/10 | React Query used correctly, minimal useState |
+| Accessibility | 9/10 | Consistent ARIA, keyboard nav, skip links, screen reader text |
+| API URL organization | 8/10 | Clean grouping with one unused forward declaration |
+| Code conventions | 8/10 | Follows existing patterns, consistent naming |
+| Technical debt | 8/10 | Minimal new debt, significant existing debt *reduced* via reuse |
+
+---
+
+## Scalability Concerns
+
+| # | Area | Issue | Recommendation |
+|---|------|-------|----------------|
+| 1 | Layout boilerplate | 4 near-identical role-guard layouts (~70 lines each) | Extract shared `RoleGuardLayout` wrapper (future PR) |
+| 2 | Sidebar boilerplate | 4 near-identical sidebar + mobile sidebar pairs | Extract generic `SidebarShell` with config-driven nav (future PR) |
+| 3 | Today's workout fetch | Fetches all programs to find one day | Add dedicated endpoint if program count grows beyond 5 |
+
+---
 
 ## Architecture Score: 8/10
+
+The Trainee Web Portal demonstrates strong architectural discipline. The implementation correctly mirrors the established patterns for route groups, role-guarded layouts, data fetching hooks, and component decomposition that are used by the trainer, admin, and ambassador dashboards. Data fetching is properly layered through React Query hooks with appropriate caching strategies. Shared components are aggressively reused rather than duplicated, which is an architectural positive. Type definitions correctly leverage existing types while adding only genuinely new ones. The middleware routing handles all role-based mutual exclusion correctly and includes appropriate security commentary.
+
+The main architectural concern is a minor file organization inconsistency where trainee layout shell components (sidebar, header, nav-links) are co-located with domain components instead of in the established `components/layout/` directory. This does not affect functionality but deviates from the convention set by every other role.
+
 ## Recommendation: APPROVE
 
-**Score justification:** Deducted 1 point for the critical data model incompatibility that would have shipped without this review (now fixed). Deducted 1 point for the `_parseRepsToInt` duplication across 4 files and the `dict[str, Any]` service return type deviation. The overall architecture is solid, the fix is comprehensive, and the feature aligns with established patterns across all three layers.
+The architecture is sound, consistent with existing patterns, and introduces minimal technical debt while actively reducing debt through shared component reuse. The one file-placement inconsistency is tracked above for follow-up and does not warrant blocking. The implementation will scale well and integrates cleanly with the existing codebase.

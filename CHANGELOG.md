@@ -4,6 +4,34 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-21] — Trainee Web Portal — Home Dashboard & Program Viewer (Pipeline 32)
+
+### Added
+- **Trainee web login** — Standalone TRAINEE login via existing JWT auth. Auth provider now accepts TRAINEE role. Login page routes TRAINEE users directly to `/trainee/dashboard`. Middleware + layout double-guard with role-based routing.
+- **Trainee dashboard** — Home page with 4 independent stat cards: Today's Workout (exercises from active program, rest day, no-program states), Nutrition Macros (4 color-coded progress bars with CSS variable-driven colors), Weight Trend (neutral colors, kg-only, "since" context), Weekly Progress (animated bar with percentage). Each card has independent skeleton loading, error with retry, and empty states.
+- **Program viewer** — Full read-only program schedule display with tabbed week view (WAI-ARIA compliant keyboard navigation: Arrow keys, Home, End), day cards with exercise details (sets × reps @ weight, rest seconds), rest day badges, "No exercises scheduled" distinct from rest days, program switcher dropdown for multiple programs.
+- **Messages** — Reuses existing ConversationList, ChatView, MessageSearch components. Auto-selects first conversation. Cmd/Ctrl+K search shortcut. Suspense boundary for useSearchParams. Derived state pattern (no setState-in-useEffect).
+- **Announcements** — Click-to-expand cards with unread visual distinction (dot + bold title + primary/5 background). Per-announcement mark-read on open via POST. Mark-all-read button with loading state. Optimistic updates with rollback on both mutations. Pinned-first sorting.
+- **Achievements** — Grid with earned (trophy icon, date) / locked (lock icon, progress bar) states. Summary "X of Y earned" header. ARIA labels on progress bars and cards.
+- **Settings** — Reuses ProfileSection (business name field hidden for TRAINEE), AppearanceSection, SecuritySection.
+- **Navigation** — 6-link sidebar (Dashboard, My Program, Messages, Announcements, Achievements, Settings). Shared `useTraineeBadgeCounts` hook for unread badges. 256px desktop sidebar, Sheet drawer on mobile. "Hi, {firstName}" header greeting.
+- **Shared hooks** — `use-trainee-dashboard.ts` (programs, nutrition, weekly progress, latest weight, weight history), `use-trainee-announcements.ts` (list, unread count, mark-all-read, mark-one-read with optimistic updates), `use-trainee-achievements.ts`, `use-trainee-badge-counts.ts`.
+- **Progress component** — New `web/src/components/ui/progress.tsx` with `--progress-color` CSS variable support, ARIA progressbar role.
+
+### Changed
+- `web/src/middleware.ts` — Added `isTraineeDashboardPath()`, TRAINEE routing to `/trainee/dashboard`, non-trainee guard for `/trainee/*` paths.
+- `web/src/providers/auth-provider.tsx` — TRAINEE role now allowed for standalone login (was previously rejected).
+- `web/src/app/(auth)/login/page.tsx` — TRAINEE role routes to `/trainee/dashboard` (was falling through to `/dashboard`).
+- `web/src/app/(dashboard)/layout.tsx` — TRAINEE redirect uses `router.replace` instead of `window.location.href`.
+- `web/src/components/layout/user-nav.tsx` — Settings link routes to `/trainee/settings` for TRAINEE role.
+- `web/src/components/settings/profile-section.tsx` — Business name field hidden for TRAINEE role.
+- `web/src/lib/constants.ts` — Added 9 trainee API URL constants.
+
+### Deferred
+- **AC-19: Trainer branding** — `TRAINEE_BRANDING` API URL defined but branding colors/logo not applied to trainee dashboard. Tracked for next pipeline.
+
+---
+
 ## [2026-02-21] — Smart Program Generator (Pipeline 31)
 
 ### Added

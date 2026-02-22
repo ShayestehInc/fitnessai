@@ -1,167 +1,218 @@
-# Feature: Macro Preset Management for Web Trainer Dashboard
+# Feature: Trainee Web Portal — Home Dashboard & Program Viewer
 
 ## Priority
-High
+Critical
 
 ## User Story
-As a **trainer**, I want to **create, edit, delete, and copy macro presets for my trainees on the web dashboard** so that I can **efficiently manage nutrition templates (Training Day, Rest Day, etc.) without having to set individual macros from scratch for every trainee**.
+As a **trainee**, I want to access my fitness dashboard from a web browser so that I can view my assigned program, check today's workout, track my nutrition and weight, and message my trainer — without needing the mobile app.
 
-## Background
-The MacroPreset backend is fully built: model, ViewSet with full CRUD, copy-to-trainee, and all-presets endpoints. The mobile app has a complete UI where trainees can see and apply their presets. However, the web trainer dashboard has zero macro preset UI — trainers can only edit raw nutrition goals (calories, protein, carbs, fat) per trainee via a simple dialog. There is no way to create named presets, set defaults, or copy presets between trainees from the web.
+## Context
+All four user roles (Admin, Trainer, Ambassador, Trainee) have web dashboards EXCEPT trainees. Trainees currently have zero standalone web access — only a read-only impersonation view exists at `/trainee-view` (used when trainers impersonate trainees). This is the single biggest product gap. Building a trainee web portal:
+- Enables desktop-first users (people who work at computers all day)
+- Provides accessibility for users who can't install mobile apps
+- Increases engagement by reducing friction (log from anywhere)
+- Completes the platform (every role has web access)
 
-## Backend API (Already Built — No Changes Needed)
+## Scope (Pipeline 32 — Phase 1 of Trainee Web Portal)
+This ticket covers the **foundation + home dashboard + program viewer**. Active workout logging, nutrition logging, and community features will follow in subsequent pipelines.
 
-### Endpoints
-- `GET /api/workouts/macro-presets/?trainee_id={id}` — List presets for a trainee
-- `POST /api/workouts/macro-presets/` — Create preset (body: `trainee_id`, `name`, `calories`, `protein`, `carbs`, `fat`, `frequency_per_week?`, `is_default?`, `sort_order?`)
-- `GET /api/workouts/macro-presets/{id}/` — Get single preset
-- `PUT /api/workouts/macro-presets/{id}/` — Update preset
-- `DELETE /api/workouts/macro-presets/{id}/` — Delete preset
-- `GET /api/workouts/macro-presets/all_presets/` — All presets grouped by trainee
-- `POST /api/workouts/macro-presets/{id}/copy_to/` — Copy preset to another trainee (body: `trainee_id`)
+### What's IN scope:
+1. Auth system updates (allow TRAINEE login on web)
+2. Trainee dashboard layout (sidebar, header, responsive)
+3. Home page (today's workout, nutrition summary, weight, weekly progress)
+4. Program viewer (assigned programs, weekly schedule, exercise details)
+5. Messaging (reuse existing messaging infrastructure)
+6. Settings (profile, password change, theme toggle)
+7. Announcements viewer (read-only)
+8. Achievements viewer (badge grid)
 
-### Response Shape (MacroPreset)
-```json
-{
-  "id": 1,
-  "trainee": 5,
-  "trainee_email": "jane@example.com",
-  "name": "Training Day",
-  "calories": 2500,
-  "protein": 180,
-  "carbs": 280,
-  "fat": 75,
-  "frequency_per_week": 4,
-  "is_default": true,
-  "sort_order": 0,
-  "created_by": 2,
-  "created_by_email": "trainer@example.com",
-  "created_at": "2026-02-21T10:00:00Z",
-  "updated_at": "2026-02-21T10:00:00Z"
-}
-```
-
-### Validation Rules (enforced by backend)
-- `calories`: 500–10,000
-- `protein`: 0–500g
-- `carbs`: 0–1,000g
-- `fat`: 0–500g
-- `frequency_per_week`: 1–7 (optional, nullable)
-- `name`: max 100 chars, required
-- Only one `is_default=true` per trainee (model enforces uniqueness)
+### What's OUT of scope (future pipelines):
+- Active workout logging (sets/reps tracking during workout)
+- Nutrition food logging (food search + AI parsing)
+- Community feed (posts, reactions, comments)
+- Feature requests
+- Leaderboard
+- Calendar integration
+- Weight check-in form (view-only for now)
 
 ## Acceptance Criteria
 
-### Frontend — Types
-- [ ] AC-1: New `MacroPreset` TypeScript interface in `web/src/types/trainer.ts` matching the API response shape
-- [ ] AC-2: Interface includes all fields: `id`, `trainee`, `trainee_email`, `name`, `calories`, `protein`, `carbs`, `fat`, `frequency_per_week`, `is_default`, `sort_order`, `created_by`, `created_by_email`, `created_at`, `updated_at`
+### Auth & Routing
+- [ ] AC-1: Trainee can log in at `/login` with email + password and is routed to `/trainee/dashboard`
+- [ ] AC-2: Middleware routes TRAINEE role to `/trainee/*` paths (separate from `/trainee-view` impersonation)
+- [ ] AC-3: Non-trainee users cannot access `/trainee/*` paths (redirect to their appropriate dashboard)
+- [ ] AC-4: Trainee cannot access `/dashboard/*`, `/admin/*`, `/ambassador/*` paths
+- [ ] AC-5: Auth provider allows TRAINEE role for standalone login (not just impersonation)
 
-### Frontend — Constants
-- [ ] AC-3: URL constants added to `constants.ts`: `MACRO_PRESETS` (base), `macroPresetDetail(id)`, `macroPresetCopyTo(id)`, `MACRO_PRESETS_ALL`
-- [ ] AC-4: URLs match backend: `/api/workouts/macro-presets/`, `/api/workouts/macro-presets/{id}/`, `/api/workouts/macro-presets/{id}/copy_to/`, `/api/workouts/macro-presets/all_presets/`
+### Layout & Navigation
+- [ ] AC-6: Trainee dashboard has a sidebar with navigation: Dashboard, My Program, Messages, Announcements, Achievements, Settings
+- [ ] AC-7: Sidebar is fixed 256px on desktop, sheet drawer on mobile (matching trainer dashboard pattern)
+- [ ] AC-8: Header shows trainee name, profile image placeholder, and logout button
+- [ ] AC-9: Unread message count badge appears on Messages nav link
+- [ ] AC-10: Unread announcement count badge appears on Announcements nav link
+- [ ] AC-11: Layout is fully responsive (sidebar collapses to hamburger on < lg breakpoint)
 
-### Frontend — Hooks (`web/src/hooks/use-macro-presets.ts`)
-- [ ] AC-5: `useMacroPresets(traineeId)` query hook — fetches `GET /api/workouts/macro-presets/?trainee_id={traineeId}`, returns `MacroPreset[]`, enabled when `traineeId > 0`
-- [ ] AC-6: `useCreateMacroPreset()` mutation hook — posts to macro presets endpoint, invalidates `["macroPresets", traineeId]` on success
-- [ ] AC-7: `useUpdateMacroPreset()` mutation hook — puts to preset detail endpoint, invalidates preset query on success
-- [ ] AC-8: `useDeleteMacroPreset()` mutation hook — deletes preset, invalidates preset query on success
-- [ ] AC-9: `useCopyMacroPreset()` mutation hook — posts to copy_to endpoint, invalidates target trainee's preset query on success
+### Home Dashboard
+- [ ] AC-12: Dashboard shows 4 stat cards: Today's Workout (exercise count), Nutrition (calories consumed/goal), Weight (latest check-in), Weekly Progress (X/Y days completed)
+- [ ] AC-13: "Today's Workout" card shows the program name + list of exercises for today (day name, exercise names with sets/reps). If no workout today, show "Rest Day" message. If no program assigned, show "No program assigned" empty state.
+- [ ] AC-14: "Nutrition Summary" card shows 4 macro progress bars (calories, protein, carbs, fat) with consumed/goal values. If no nutrition data for today, shows goal with 0 consumed.
+- [ ] AC-15: "Weight Trend" card shows latest weight check-in value + date, and a small trend indicator (up/down arrow + change from previous). If no check-ins, show "No weight data yet" empty state.
+- [ ] AC-16: "Weekly Progress" card shows animated progress bar (X of Y training days completed this week). Percentage + fraction label.
+- [ ] AC-17: All 4 cards have skeleton loading states while data fetches
+- [ ] AC-18: All 4 cards have error states with retry buttons
+- [ ] AC-19: Dashboard shows trainer branding (colors) if configured
 
-### Frontend — Macro Presets Section (`web/src/components/trainees/macro-presets-section.tsx`)
-- [ ] AC-10: New component renders in trainee detail Overview tab, below the existing Nutrition Goals card
-- [ ] AC-11: Section header: "Macro Presets" with an "Add Preset" button (Plus icon, `variant="outline"`, `size="sm"`)
-- [ ] AC-12: When presets exist: renders a responsive grid of preset cards (1 col mobile, 2 cols sm, 3 cols lg)
-- [ ] AC-13: Each preset card shows: name (bold), calories/protein/carbs/fat in a 2×2 grid, frequency badge (if set), "Default" badge (if is_default), edit and delete action icons
-- [ ] AC-14: When no presets exist: shows an empty state with Utensils icon, "No macro presets" title, "Create presets like Training Day, Rest Day to quickly manage nutrition for this trainee." description, and "Add Preset" CTA button
-- [ ] AC-15: Each card has a "Copy to..." action (Copy icon) that opens the copy dialog
-- [ ] AC-16: Loading state: 3 skeleton cards matching the preset card layout
-- [ ] AC-17: Error state: inline error with retry button
+### Program Viewer
+- [ ] AC-20: "My Program" page shows the trainee's active program with name, description, difficulty badge, goal badge, and duration
+- [ ] AC-21: Program schedule renders as a tabbed week view (Week 1, Week 2, etc.) with 7 days per week
+- [ ] AC-22: Each day shows day name (Monday, Tuesday, etc.), a custom label if set (e.g., "Push Day"), and a list of exercises
+- [ ] AC-23: Each exercise shows: name, sets, reps, weight + unit, rest seconds. Rows are numbered.
+- [ ] AC-24: Rest days are clearly marked with a "Rest Day" badge and dimmed/muted styling
+- [ ] AC-25: If trainee has no active program, show "No program assigned" empty state with helpful message
+- [ ] AC-26: If trainee has multiple programs, show the active one with a program switcher (dropdown or tabs)
+- [ ] AC-27: Program viewer is read-only (no editing capability)
 
-### Frontend — Create/Edit Preset Dialog (`web/src/components/trainees/preset-form-dialog.tsx`)
-- [ ] AC-18: Single reusable dialog for both CREATE and EDIT modes (determined by `preset` prop being null or defined)
-- [ ] AC-19: Title: "Create Macro Preset" or "Edit Macro Preset" based on mode
-- [ ] AC-20: Form fields: Name (text input, max 100, required), Calories (number, 500–10000), Protein (number, 0–500, suffix "g"), Carbs (number, 0–1000, suffix "g"), Fat (number, 0–500, suffix "g"), Frequency (optional select: None, 1x/week through 7x/week or Daily), Is Default (checkbox)
-- [ ] AC-21: Client-side validation matching backend rules. Inline error messages below each field.
-- [ ] AC-22: In edit mode, form populates with existing preset values when dialog opens
-- [ ] AC-23: Submit button shows loading spinner during mutation, disabled while pending
-- [ ] AC-24: On success: toast "Preset created" / "Preset updated", dialog closes
-- [ ] AC-25: On error: toast with error message from API
+### Messaging
+- [ ] AC-28: Messages page reuses the existing split-panel messaging UI from the trainer dashboard
+- [ ] AC-29: Trainee sees only their conversation with their trainer
+- [ ] AC-30: Trainee can send text messages and image attachments
+- [ ] AC-31: Real-time updates via WebSocket (typing indicators, read receipts, new messages)
+- [ ] AC-32: Message search works (Cmd/Ctrl+K)
 
-### Frontend — Delete Preset Confirmation
-- [ ] AC-26: Delete uses an AlertDialog with preset name in the description: "Are you sure you want to delete the preset "{name}"? This cannot be undone."
-- [ ] AC-27: Delete button shows loading spinner during deletion
-- [ ] AC-28: On success: toast "Preset deleted", dialog closes
-- [ ] AC-29: On error: toast with error message
+### Announcements
+- [ ] AC-33: Announcements page shows a list of trainer announcements with title, content, date, pinned indicator
+- [ ] AC-34: Pinned announcements appear first, then sorted by date descending
+- [ ] AC-35: Unread announcements have visual distinction (bold title or unread dot)
+- [ ] AC-36: Opening an announcement marks it as read (POST mark-read)
+- [ ] AC-37: "Mark all as read" button in page header
 
-### Frontend — Copy Preset Dialog (`web/src/components/trainees/copy-preset-dialog.tsx`)
-- [ ] AC-30: Dialog shows: preset name being copied, trainee selector dropdown
-- [ ] AC-31: Trainee selector uses `useAllTrainees()` hook, excludes the current trainee (the one who already has this preset)
-- [ ] AC-32: Submit copies preset to selected trainee
-- [ ] AC-33: On success: toast "Preset copied to {trainee name}", dialog closes
-- [ ] AC-34: On error: toast with error message
-- [ ] AC-35: Submit button disabled when no trainee selected, shows spinner during mutation
+### Achievements
+- [ ] AC-38: Achievements page shows a grid of all achievements with earned/locked visual states
+- [ ] AC-39: Earned achievements show the badge icon, name, earned date, and description
+- [ ] AC-40: Locked achievements show a grayed-out/muted version with progress toward unlocking (e.g., "3/5 workouts")
+- [ ] AC-41: Summary at top: "X of Y achievements earned"
 
-### Frontend — Integration
-- [ ] AC-36: Macro presets section appears in trainee detail Overview tab between the Nutrition Goals card and the Programs card
-- [ ] AC-37: Section only appears for trainee detail pages (not in list view)
-- [ ] AC-38: Creating/editing/deleting a preset refetches the presets list automatically
+### Settings
+- [ ] AC-42: Settings page with Profile section (name edit, profile image upload/remove)
+- [ ] AC-43: Settings page with Appearance section (Light/Dark/System theme toggle)
+- [ ] AC-44: Settings page with Security section (password change with current + new + confirm fields)
+- [ ] AC-45: Profile changes save immediately with success toast
+- [ ] AC-46: Password change validates: current password required, new password min 8 chars, confirm must match
 
 ## Edge Cases
-1. **No presets** — Shows empty state with CTA button. Not an error.
-2. **Setting new default** — When a preset is marked as default, the backend automatically unmarks any previous default. UI should refetch and reflect the change.
-3. **Deleting the default preset** — Backend allows this. After deletion, no preset is default. UI should handle gracefully.
-4. **Copy to trainee with existing presets** — Backend creates a new preset (copy doesn't override). Copy sets `is_default=false` on the new preset.
-5. **Copy to trainee who is the same trainee** — Frontend excludes current trainee from the selector dropdown. Backend would also reject this.
-6. **Trainer with no other trainees** — Copy dialog shows empty trainee dropdown with message "No other trainees to copy to."
-7. **Very long preset name** — Truncated in card display with ellipsis. Full name visible in edit dialog.
-8. **Backend validation error** — e.g., calories=50 (below 500 minimum). Frontend validates first, but if backend rejects, show error toast.
-9. **Rapid create/delete** — React Query invalidation handles stale data. Optimistic updates not needed (simple enough).
-10. **Frequency null** — No frequency badge shown on the card. Frequency select shows "None" option.
+1. **Trainee with no trainer**: Should never happen (FK constraint), but if somehow orphaned, show "Contact support" message instead of empty data
+2. **Trainee with expired subscription**: Still allow login and viewing, but show a banner "Your subscription has expired. Contact your trainer."
+3. **Trainee not onboarded**: If `onboarding_completed` is false, redirect to a simple onboarding prompt or show partial dashboard with "Complete your profile" CTA
+4. **Multiple active programs**: Show program switcher. Default to the most recently assigned active program.
+5. **Program with 0 exercises on a day**: Show the day with "No exercises" message (not a rest day — rest days are explicitly marked)
+6. **Program with 52 weeks**: Week tabs should be horizontally scrollable (don't overflow)
+7. **Weight in kg vs lbs**: Display weight in the unit recorded. Show conversion only if both exist.
+8. **Network failure mid-page**: Each card independently handles errors — one card failing doesn't crash the others
+9. **Concurrent sessions (mobile + web)**: JWT tokens work independently — both sessions can be active
+10. **Trainer impersonation while trainee is logged in**: Both sessions are independent (different JWTs)
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Failed to load presets | Inline error with "Retry" button | Query retries, shows error after 3 fails |
-| Create/edit fails (validation) | Error toast with message | Mutation onError, dialog stays open |
-| Delete fails | Error toast with message | Mutation onError, confirm dialog closes |
-| Copy fails | Error toast with message | Mutation onError, dialog stays open |
-| No trainee selected in copy | Submit button disabled | Prevents empty POST |
-| Network error | Error toast: "Something went wrong" | Standard apiClient error handling |
+| API call fails (network) | Card shows error icon + "Failed to load" + Retry button | Logs error, shows toast |
+| 401 Unauthorized | Redirect to login page | Clear tokens, redirect |
+| No program assigned | "No program assigned yet" empty state with trainer icon | Show empty state |
+| No nutrition data today | Macro bars at 0, goal values shown | Normal render with zeros |
+| No weight check-ins | "No weight data yet" with scale icon | Show empty state |
+| No announcements | "No announcements yet" with megaphone icon | Show empty state |
+| No achievements earned | All badges shown as locked | Show full grid, all locked |
+| Message send fails | Toast "Failed to send message" + message stays in input | Error toast, preserve draft |
 
 ## UX Requirements
-- **Loading state**: 3 skeleton cards in grid layout while presets load
-- **Empty state**: Centered Utensils icon + message + "Add Preset" CTA
-- **Populated state**: Responsive card grid with all actions accessible
-- **Error state**: Inline error with retry
-- **Success feedback**: Toast for create/edit/delete/copy operations
-- **Delete confirmation**: AlertDialog, not instant delete
-- **Accessibility**: aria-labels on all action buttons ("Edit Training Day preset", "Delete Training Day preset", "Copy Training Day preset to another trainee")
+- **Loading state:** Skeleton placeholders matching content shape for every card/section (per existing pattern)
+- **Empty state:** Contextual icon + title + description for each empty state (per existing EmptyState component)
+- **Error state:** Error icon + message + Retry button (per existing ErrorState component)
+- **Success feedback:** Toast notifications for profile save, password change, mark-all-read
+- **Mobile behavior:** Sidebar collapses to hamburger menu. Cards stack vertically. Program tabs scroll horizontally.
+- **Dark mode:** Full dark mode support via existing CSS variables + next-themes
+- **Accessibility:** ARIA labels on all nav links, skip-to-content link, keyboard navigation for program tabs, semantic HTML (nav, main, article, section), focus-visible rings on all interactive elements
+- **Branding:** Trainee sees their trainer's branding colors (primary/secondary) if configured
 
 ## Technical Approach
 
-### Files to Create
-- `web/src/hooks/use-macro-presets.ts` — Query + 4 mutation hooks
-- `web/src/components/trainees/macro-presets-section.tsx` — Section component with preset cards, empty state, loading state
-- `web/src/components/trainees/preset-form-dialog.tsx` — Create/edit dialog (reusable)
-- `web/src/components/trainees/copy-preset-dialog.tsx` — Copy-to-trainee dialog
+### New Files to Create
+| File | Purpose |
+|------|---------|
+| `web/src/app/(trainee-dashboard)/layout.tsx` | Trainee dashboard layout with sidebar + header |
+| `web/src/app/(trainee-dashboard)/dashboard/page.tsx` | Home dashboard page |
+| `web/src/app/(trainee-dashboard)/program/page.tsx` | Program viewer page |
+| `web/src/app/(trainee-dashboard)/messages/page.tsx` | Messages page (wraps existing messaging components) |
+| `web/src/app/(trainee-dashboard)/announcements/page.tsx` | Announcements page |
+| `web/src/app/(trainee-dashboard)/achievements/page.tsx` | Achievements page |
+| `web/src/app/(trainee-dashboard)/settings/page.tsx` | Settings page |
+| `web/src/components/trainee-dashboard/trainee-sidebar.tsx` | Sidebar navigation |
+| `web/src/components/trainee-dashboard/trainee-nav-links.tsx` | Nav link definitions |
+| `web/src/components/trainee-dashboard/dashboard-stats.tsx` | 4-stat cards component |
+| `web/src/components/trainee-dashboard/todays-workout-card.tsx` | Today's workout card |
+| `web/src/components/trainee-dashboard/nutrition-summary-card.tsx` | Nutrition card with macro bars |
+| `web/src/components/trainee-dashboard/weight-trend-card.tsx` | Weight trend card |
+| `web/src/components/trainee-dashboard/weekly-progress-card.tsx` | Weekly progress card |
+| `web/src/components/trainee-dashboard/program-viewer.tsx` | Full program schedule viewer |
+| `web/src/components/trainee-dashboard/announcements-list.tsx` | Announcements list component |
+| `web/src/components/trainee-dashboard/achievements-grid.tsx` | Achievement badge grid |
+| `web/src/hooks/use-trainee-dashboard.ts` | Hooks for trainee dashboard data |
+| `web/src/hooks/use-trainee-announcements.ts` | Hooks for announcements |
+| `web/src/hooks/use-trainee-achievements.ts` | Hooks for achievements |
+| `web/src/types/trainee-dashboard.ts` | TypeScript types for trainee dashboard |
 
 ### Files to Modify
-- `web/src/types/trainer.ts` — Add `MacroPreset` interface
-- `web/src/lib/constants.ts` — Add 4 macro preset URL constants
-- `web/src/components/trainees/trainee-overview-tab.tsx` — Import and render `MacroPresetsSection` between Nutrition Goals and Programs
+| File | Change |
+|------|--------|
+| `web/src/middleware.ts` | Add `/trainee/*` routing for TRAINEE role |
+| `web/src/providers/auth-provider.tsx` | Allow standalone TRAINEE login (not just impersonation) |
+| `web/src/lib/constants.ts` | Add trainee dashboard API URL constants |
+
+### Existing Components to Reuse
+| Component | From | Usage |
+|-----------|------|-------|
+| `Sidebar` pattern | `components/layout/sidebar.tsx` | Clone for trainee sidebar |
+| `Header` pattern | `components/layout/header.tsx` | Clone for trainee header |
+| Messages components | `app/(dashboard)/messages/` | Reuse messaging components |
+| `ErrorState` | `components/shared/error-state.tsx` | All error states |
+| `EmptyState` | `components/shared/empty-state.tsx` | All empty states |
+| `Skeleton` | `components/ui/skeleton.tsx` | All loading states |
+| `Badge` | `components/ui/badge.tsx` | Difficulty, goal badges |
+| `Card` | `components/ui/card.tsx` | Dashboard cards |
+| `Progress` | `components/ui/progress.tsx` | Macro bars, weekly progress |
+| Settings components | `app/(dashboard)/settings/page.tsx` | Reuse profile/appearance/security sections |
+
+### API Endpoints Used (all existing, no backend changes)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/workouts/programs/` | List trainee's programs |
+| `GET /api/workouts/daily-logs/nutrition-summary/?date=` | Today's nutrition |
+| `GET /api/workouts/daily-logs/weekly-progress/` | Weekly completion |
+| `GET /api/workouts/weight-checkins/` | Weight history |
+| `GET /api/workouts/weight-checkins/latest/` | Latest weight |
+| `GET /api/community/announcements/` | Trainer announcements |
+| `GET /api/community/announcements/unread-count/` | Unread count |
+| `POST /api/community/announcements/mark-read/` | Mark read |
+| `GET /api/community/achievements/` | All achievements |
+| `GET /api/messaging/conversations/` | Conversations |
+| `GET /api/messaging/unread-count/` | Unread messages |
+| `GET /api/auth/users/me/` | Current user |
+| `PATCH /api/auth/users/me/` | Update profile |
+| `POST /api/auth/users/set_password/` | Change password |
 
 ### Key Design Decisions
-1. **Section in Overview tab, not separate tab** — Macro presets are closely related to nutrition goals. Keeping them together in Overview reduces navigation friction.
-2. **Reusable PresetFormDialog** — Same dialog for create and edit avoids duplication. Mode determined by `preset` prop.
-3. **No optimistic updates** — CRUD operations are fast enough that waiting for server confirmation is fine. Simplifies implementation.
-4. **Card layout not table** — Presets are few per trainee (typically 2–4). Cards show macro values at a glance better than a table row.
-5. **Copy dialog with trainee selector** — Uses existing `useAllTrainees()` hook. Filters out current trainee client-side.
-6. **Frontend validation mirrors backend** — Same min/max ranges. Backend is the authority, but frontend catches errors early.
+1. **Separate route group** `(trainee-dashboard)` — not sharing with `(dashboard)` to keep trainer/trainee concerns separated
+2. **No backend changes** — all endpoints already exist and have proper trainee permissions
+3. **Reuse messaging infrastructure** — same WebSocket, same components, just different layout wrapper
+4. **Program viewer is read-only** — trainee sees schedule but can't edit (editing is trainer-only)
+5. **Settings reuse** — clone the trainer settings page structure, remove trainer-specific sections (business name, subscription)
 
 ## Out of Scope
-- Dedicated /macro-presets/ page for bulk management across all trainees
-- Drag-and-drop reordering (sort_order can be set but no UI for reordering)
-- Preset templates library (global/shared presets)
-- "Apply preset" button (that's trainee-facing, on mobile)
-- Backend changes (API is complete)
-- Mobile changes
+- Active workout logging (tracking sets/reps during a workout session)
+- Nutrition food logging (adding meals, AI parsing)
+- Community feed (posts, reactions, comments)
+- Feature request board
+- Leaderboard
+- Calendar integration
+- Weight check-in entry form
+- Onboarding wizard on web
+- Stripe subscription management UI

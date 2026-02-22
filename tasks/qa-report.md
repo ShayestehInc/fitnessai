@@ -1,269 +1,193 @@
-# QA Report: Macro Preset Management for Web Trainer Dashboard
+# QA Report: Trainee Web Portal (Pipeline 32)
 
 ## Test Results
-- Total acceptance criteria: 38
-- Passed: 35
-- Failed: 3
-- Skipped: 0
-
----
+- **TypeScript (`npx tsc --noEmit`):** PASS (exit code 0, zero errors)
+- **Static Analysis Issues:** 1 bug found (login page TRAINEE redirect missing)
 
 ## Acceptance Criteria Verification
 
-### Frontend -- Types
+### Auth & Routing
 
-- [x] **AC-1**: New `MacroPreset` TypeScript interface in `web/src/types/trainer.ts` matching the API response shape -- **PASS**
-  - Interface defined at lines 81-97, correctly typed for all fields.
+- [x] **AC-1** -- PASS -- Trainee can log in at `/login` with email + password. The auth-provider (`web/src/providers/auth-provider.tsx` line 44-48) now allows TRAINEE role for standalone login. Middleware (`web/src/middleware.ts` line 10) routes TRAINEE to `/trainee/dashboard`. **Minor issue:** Login page (`web/src/app/(auth)/login/page.tsx` lines 49-54) does NOT explicitly route TRAINEE users to `/trainee/dashboard` after login -- it falls through to the default `/dashboard`. The middleware then redirects, causing a double-hop. Functionally works but suboptimal.
 
-- [x] **AC-2**: Interface includes all fields: `id`, `trainee`, `trainee_email`, `name`, `calories`, `protein`, `carbs`, `fat`, `frequency_per_week`, `is_default`, `sort_order`, `created_by`, `created_by_email`, `created_at`, `updated_at` -- **PASS**
-  - All 16 fields present. `frequency_per_week: number | null`, `created_by: number | null`, `created_by_email: string | null` correctly nullable. All others match API response shape.
+- [x] **AC-2** -- PASS -- Middleware (`web/src/middleware.ts` lines 26-28) has `isTraineeDashboardPath()` that correctly identifies `/trainee/*` paths as separate from `/trainee-view` impersonation paths. Line 22-24 defines `isTraineeViewPath` for the old impersonation route.
 
-### Frontend -- Constants
+- [x] **AC-3** -- PASS -- Middleware lines 76-80 redirect non-TRAINEE users away from `/trainee/*` paths to their appropriate dashboard. Layout (`web/src/app/(trainee-dashboard)/layout.tsx` lines 29-38) also redirects ADMIN/AMBASSADOR/TRAINER users via client-side useEffect.
 
-- [x] **AC-3**: URL constants added to `constants.ts`: `MACRO_PRESETS` (base), `macroPresetDetail(id)`, `macroPresetCopyTo(id)`, `MACRO_PRESETS_ALL` -- **PASS**
-  - Lines 242-247: All four constants present.
+- [x] **AC-4** -- PASS -- Middleware lines 83-89 redirect TRAINEE users attempting to access trainer dashboard paths to `/trainee/dashboard`. Lines 62-66 and 69-73 block TRAINEE from admin and ambassador paths respectively (via role checks that send non-matching roles to their dashboard).
 
-- [x] **AC-4**: URLs match backend: `/api/workouts/macro-presets/`, `/api/workouts/macro-presets/{id}/`, `/api/workouts/macro-presets/{id}/copy_to/`, `/api/workouts/macro-presets/all_presets/` -- **PASS**
-  - `MACRO_PRESETS`: `${API_BASE}/api/workouts/macro-presets/` -- correct
-  - `macroPresetDetail(id)`: `${API_BASE}/api/workouts/macro-presets/${id}/` -- correct
-  - `macroPresetCopyTo(id)`: `${API_BASE}/api/workouts/macro-presets/${id}/copy_to/` -- correct
-  - `MACRO_PRESETS_ALL`: `${API_BASE}/api/workouts/macro-presets/all_presets/` -- correct
+- [x] **AC-5** -- PASS -- Auth provider (`web/src/providers/auth-provider.tsx` lines 44-48) includes `userData.role === UserRole.TRAINEE` in the `isAllowedRole` check, allowing standalone TRAINEE login.
 
-### Frontend -- Hooks (`web/src/hooks/use-macro-presets.ts`)
+### Layout & Navigation
 
-- [x] **AC-5**: `useMacroPresets(traineeId)` query hook -- fetches `GET /api/workouts/macro-presets/?trainee_id={traineeId}`, returns `MacroPreset[]`, enabled when `traineeId > 0` -- **PASS**
-  - Lines 8-17: Query uses `queryKey: ["macroPresets", traineeId]`, fetches correct URL with `trainee_id` param, returns `MacroPreset[]`, `enabled: traineeId > 0`.
+- [x] **AC-6** -- PASS -- Trainee nav links (`web/src/components/trainee-dashboard/trainee-nav-links.tsx` lines 18-25) define exactly 6 items: Dashboard, My Program, Messages, Announcements, Achievements, Settings. All with correct paths and icons.
 
-- [x] **AC-6**: `useCreateMacroPreset()` mutation hook -- posts to macro presets endpoint, invalidates `["macroPresets", traineeId]` on success -- **PASS**
-  - Lines 30-40: Posts to `API_URLS.MACRO_PRESETS`, invalidates `["macroPresets", traineeId]` on success.
+- [x] **AC-7** -- PASS -- Desktop sidebar (`web/src/components/trainee-dashboard/trainee-sidebar.tsx` line 16) uses `hidden lg:block` and `w-64` (256px). Mobile sidebar (`web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx`) uses a Sheet (drawer) component with `w-64`.
 
-- [x] **AC-7**: `useUpdateMacroPreset()` mutation hook -- puts to preset detail endpoint, invalidates preset query on success -- **PASS**
-  - Lines 52-67: Puts to `API_URLS.macroPresetDetail(presetId)`, invalidates `["macroPresets", traineeId]` on success.
+- [x] **AC-8** -- PASS -- Header (`web/src/components/trainee-dashboard/trainee-header.tsx` lines 14-16) shows trainee name (first + last, fallback to email). Uses `UserNav` component which shows profile avatar/fallback and has a logout dropdown menu item (line 70 of `user-nav.tsx`).
 
-- [x] **AC-8**: `useDeleteMacroPreset()` mutation hook -- deletes preset, invalidates preset query on success -- **PASS**
-  - Lines 69-79: Deletes via `API_URLS.macroPresetDetail(presetId)`, invalidates `["macroPresets", traineeId]` on success.
+- [x] **AC-9** -- PASS -- Badge counts hook (`web/src/hooks/use-trainee-badge-counts.ts`) fetches unread message count via `useMessagingUnreadCount()`. Sidebar renders Badge with destructive variant when badgeCount > 0. Messages nav link has `badgeKey: "messages"`.
 
-- [x] **AC-9**: `useCopyMacroPreset()` mutation hook -- posts to copy_to endpoint, invalidates target trainee's preset query on success -- **PASS**
-  - Lines 86-103: Posts to `API_URLS.macroPresetCopyTo(presetId)` with `{ trainee_id: targetTraineeId }`. Invalidates BOTH source trainee (`sourceTraineeId`) and target trainee (`variables.targetTraineeId`) preset queries on success.
+- [x] **AC-10** -- PASS -- Same badge system. Announcements nav link has `badgeKey: "announcements"`. Hook fetches `useAnnouncementUnreadCount()`. Badge appears in both desktop and mobile sidebar.
 
-### Frontend -- Macro Presets Section (`web/src/components/trainees/macro-presets-section.tsx`)
+- [x] **AC-11** -- PASS -- Layout (`web/src/app/(trainee-dashboard)/layout.tsx`) renders `TraineeSidebar` (hidden on mobile, shown on lg) and `TraineeSidebarMobile` (Sheet triggered by hamburger menu). Header has hamburger button with `lg:hidden` class (line 23 of trainee-header.tsx).
 
-- [x] **AC-10**: New component renders in trainee detail Overview tab, below the existing Nutrition Goals card -- **PASS**
-  - `trainee-overview-tab.tsx` line 158 renders `<MacroPresetsSection>` after the 2-column grid which contains Nutrition Goals.
+### Home Dashboard
 
-- [x] **AC-11**: Section header: "Macro Presets" with an "Add Preset" button (Plus icon, `variant="outline"`, `size="sm"`) -- **PASS**
-  - Lines 83-96: `<CardTitle>Macro Presets</CardTitle>`, Button has `variant="outline"`, `size="sm"`, Plus icon with `<Plus className="mr-2 h-4 w-4" />`.
+- [x] **AC-12** -- PASS -- Dashboard page (`web/src/app/(trainee-dashboard)/trainee/dashboard/page.tsx`) renders 4 cards: `TodaysWorkoutCard`, `NutritionSummaryCard`, `WeightTrendCard`, `WeeklyProgressCard` in a 2-column grid.
 
-- [x] **AC-12**: When presets exist: renders a responsive grid of preset cards (1 col mobile, 2 cols sm, 3 cols lg) -- **PASS**
-  - Line 134: `className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"`. Default is 1 column (mobile), 2 at `sm`, 3 at `lg`.
+- [x] **AC-13** -- PASS -- `TodaysWorkoutCard` (`web/src/components/trainee-dashboard/todays-workout-card.tsx`): Shows active program name + exercise list with sets/reps (lines 170-199). Shows "Rest Day" when `is_rest_day` is true (lines 143-155). Shows "No program assigned" empty state when no active program (lines 96-113). Shows "No exercises scheduled" when day has 0 exercises (lines 156-168). Shows exercise count as a large number.
 
-- [x] **AC-13**: Each preset card shows: name (bold), calories/protein/carbs/fat in a 2x2 grid, frequency badge (if set), "Default" badge (if is_default), edit and delete action icons -- **PASS**
-  - Lines 211-293: `PresetCard` component renders:
-    - Name: `<p className="truncate text-sm font-semibold">` (line 234)
-    - 2x2 grid with Calories/Protein/Carbs/Fat: `<div className="grid grid-cols-2 gap-2 text-center">` (line 271)
-    - Frequency badge when set (line 286-288): `<Badge variant="outline">{frequencyLabel}</Badge>`
-    - Default badge when `is_default` (line 281-283): `<Badge variant="secondary">Default</Badge>`
-    - Edit (Pencil) and Delete (Trash2) action icons (lines 252-267)
+- [x] **AC-14** -- PASS -- `NutritionSummaryCard` (`web/src/components/trainee-dashboard/nutrition-summary-card.tsx`): Shows 4 MacroBar progress bars for calories, protein, carbs, fat (lines 113-137). Each shows consumed/goal. Defaults to 0 consumed when no data (lines 95-101).
 
-- [x] **AC-14**: When no presets exist: shows empty state with Utensils icon, "No macro presets" title, description text, and "Add Preset" CTA button -- **PASS**
-  - Lines 114-131: Empty state renders Utensils icon, "No macro presets" text, description "Create presets like Training Day, Rest Day to quickly manage nutrition for this trainee.", and "Add Preset" button.
+- [x] **AC-15** -- PASS -- `WeightTrendCard` (`web/src/components/trainee-dashboard/weight-trend-card.tsx`): Shows latest weight value + date (lines 104-128). Shows trend indicator (TrendingUp/TrendingDown/Minus icons) with change value (lines 81-119). Shows "No weight data yet" empty state when no check-ins (lines 54-71).
 
-- [x] **AC-15**: Each card has a "Copy to..." action (Copy icon) that opens the copy dialog -- **PASS**
-  - Lines 244-251: Copy button with `<Copy>` icon triggers `onCopy(preset)`, which sets `copyTarget` state opening the `CopyPresetDialog`.
+- [x] **AC-16** -- PASS -- `WeeklyProgressCard` (`web/src/components/trainee-dashboard/weekly-progress-card.tsx`): Shows percentage + "X of Y days" label (lines 67-72). Renders Progress bar (line 73).
 
-- [x] **AC-16**: Loading state: 3 skeleton cards matching the preset card layout -- **PASS**
-  - Lines 319-342: `PresetsSkeleton` renders 3 skeleton cards in the same grid layout, each with skeleton elements for name, action icons, 2x2 macro grid, and a badge.
+- [x] **AC-17** -- PASS -- All 4 cards have `CardSkeleton` loading states (skeleton placeholders) rendered when `isLoading` is true.
 
-- [x] **AC-17**: Error state: inline error with retry button -- **PASS**
-  - Lines 102-112: Error state shows "Failed to load macro presets." text with a "Retry" button using `RefreshCw` icon that calls `refetch()`.
+- [x] **AC-18** -- PASS -- All 4 cards have error states with `ErrorState` component including retry buttons via `onRetry={() => refetch()}`.
 
-### Frontend -- Create/Edit Preset Dialog (`web/src/components/trainees/preset-form-dialog.tsx`)
+- [ ] **AC-19** -- FAIL -- Dashboard does NOT show trainer branding colors. The `TRAINEE_BRANDING` API URL is defined in constants (`web/src/lib/constants.ts` line 254) but is never fetched or applied anywhere in the trainee dashboard code. No branding hook, no CSS variable injection, no branding-related code in any trainee component.
 
-- [x] **AC-18**: Single reusable dialog for both CREATE and EDIT modes (determined by `preset` prop being null or defined) -- **PASS**
-  - Line 50: `const isEdit = preset !== null;`. Same `PresetFormDialog` component handles both modes.
+### Program Viewer
 
-- [x] **AC-19**: Title: "Create Macro Preset" or "Edit Macro Preset" based on mode -- **PASS**
-  - Line 183: `{isEdit ? "Edit Macro Preset" : "Create Macro Preset"}`.
+- [x] **AC-20** -- PASS -- Program viewer (`web/src/components/trainee-dashboard/program-viewer.tsx` lines 68-133) shows program name, description, difficulty badge, goal badge, and duration weeks badge. Active status badge is also shown.
 
-- [x] **AC-20**: Form fields: Name (text, max 100, required), Calories (number, 500-10000), Protein (number, 0-500, suffix "g"), Carbs (number, 0-1000, suffix "g"), Fat (number, 0-500, suffix "g"), Frequency (optional select: None through Daily), Is Default (checkbox) -- **PASS**
-  - Name input: `type="text"`, `maxLength={100}` (line 203)
-  - Calories input: `type="number"`, `min={500}`, `max={10000}` (lines 215-216)
-  - Protein: `type="number"`, `min={0}`, `max={500}`, label "Protein (g)" (lines 234-235)
-  - Carbs: `type="number"`, `min={0}`, `max={1000}`, label "Carbs (g)" (lines 253-254)
-  - Fat: `type="number"`, `min={0}`, `max={500}`, label "Fat (g)" (lines 272-273)
-  - Frequency: `<select>` with options: None, 1x/week through 6x/week, Daily (lines 24-33, 296-307)
-  - Is Default: `<input type="checkbox">` (lines 311-316)
+- [x] **AC-21** -- PASS -- Week tabs rendered (lines 136-160) with `role="tablist"` and `role="tab"` attributes. Each week shown as "Week {week_number}". Tab panels use `role="tabpanel"`. Days rendered in grid layout.
 
-- [x] **AC-21**: Client-side validation matching backend rules. Inline error messages below each field. -- **PASS**
-  - `validate()` function (lines 92-123):
-    - Name: required, max 100 chars
-    - Calories: 500-10000
-    - Protein: 0-500
-    - Carbs: 0-1000
-    - Fat: 0-500
-  - Each field shows `<p className="text-sm text-destructive">{errors.fieldname}</p>` below when invalid.
+- [x] **AC-22** -- PASS -- `DayCard` component (lines 193-261) shows day name from `DAY_NAMES` array (Monday-Sunday), custom label if set (line 217-219: `day.name` shown as subtitle when different from day name), and exercise list.
 
-- [x] **AC-22**: In edit mode, form populates with existing preset values when dialog opens -- **PASS**
-  - `useEffect` on `[open, preset]` (lines 65-90): When `open` is true and `preset` exists, all fields populated from preset values.
+- [x] **AC-23** -- PASS -- Exercises show: name (line 241), sets + reps (line 243), weight + unit when > 0 (lines 244-248), rest seconds when > 0 (lines 249-251). Rows numbered with index (lines 237-239: `{i + 1}.`).
 
-- [x] **AC-23**: Submit button shows loading spinner during mutation, disabled while pending -- **PASS**
-  - Line 332: `<Button type="submit" disabled={isPending}>` where `isPending = createMutation.isPending || updateMutation.isPending` (line 63).
-  - Lines 333-338: `Loader2` spinner shown when `isPending`.
+- [x] **AC-24** -- PASS -- Rest days clearly marked with "Rest" badge (BedDouble icon, lines 210-215), dimmed styling via `opacity-60` on the Card (line 204), and "Recovery day" text (lines 222-225).
 
-- [x] **AC-24**: On success: toast "Preset created" / "Preset updated", dialog closes -- **PASS**
-  - Lines 141-143: `toast.success(isEdit ? "Preset updated" : "Preset created"); onOpenChange(false);`
+- [x] **AC-25** -- PASS -- Program page (`web/src/app/(trainee-dashboard)/trainee/program/page.tsx` lines 43-58) shows EmptyState with "No program assigned" when no programs exist.
 
-- [x] **AC-25**: On error: toast with error message from API -- **PASS**
-  - Line 145: `onError: (err: unknown) => toast.error(getErrorMessage(err))`. `getErrorMessage` in `error-utils.ts` extracts field-level errors from DRF responses.
+- [x] **AC-26** -- PASS -- Program switcher (dropdown menu) shown when `programs.length > 1` (line 63, lines 86-113). Uses DropdownMenu with "Switch Program" trigger. Selecting resets week to 0.
 
-### Frontend -- Delete Preset Confirmation
+- [x] **AC-27** -- PASS -- Program viewer is read-only. No edit buttons, no input fields, no mutation hooks. Purely display components.
 
-- [ ] **AC-26**: Delete uses an AlertDialog with preset name in the description -- **FAIL**
-  - The implementation uses a standard `Dialog` component (lines 169-206 in `macro-presets-section.tsx`), NOT an `AlertDialog`. While functionally similar, the ticket explicitly specifies `AlertDialog`. The description text IS correct: `Are you sure you want to delete the preset "{name}"? This cannot be undone.` (lines 178-181 using `&ldquo;` and `&rdquo;` for quotes).
-  - **Impact**: Low. `Dialog` and `AlertDialog` from shadcn/ui are nearly identical in appearance. The Dialog version includes a Cancel button and prevents closing during pending deletion, which provides equivalent UX. However, `AlertDialog` has better accessibility semantics for destructive actions (uses `role="alertdialog"` per WAI-ARIA).
+### Messaging
 
-- [x] **AC-27**: Delete button shows loading spinner during deletion -- **PASS**
-  - Lines 196-201: `Loader2` spinner shown when `deleteMutation.isPending`. Delete button also `disabled={deleteMutation.isPending}` (line 194).
+- [x] **AC-28** -- PASS -- Messages page (`web/src/app/(trainee-dashboard)/trainee/messages/page.tsx`) reuses `ConversationList`, `ChatView`, and `MessageSearch` from `@/components/messaging/`. Split-panel layout with sidebar (w-80 on md+) and chat area.
 
-- [x] **AC-28**: On success: toast "Preset deleted", dialog closes -- **PASS**
-  - Lines 69-71: `toast.success("Preset deleted"); setDeleteTarget(null);` (setting `deleteTarget` to null closes the dialog since `open={deleteTarget !== null}`).
+- [x] **AC-29** -- PASS -- Trainee sees conversations from `useConversations()` hook which hits the messaging API. Auto-selects first conversation (lines 56-67). Trainee typically has one conversation (with their trainer).
 
-- [x] **AC-29**: On error: toast with error message -- **PASS**
-  - Line 73: `onError: (err) => toast.error(getErrorMessage(err))`.
+- [x] **AC-30** -- PASS -- `ChatView` uses `ChatInput` which supports text messages and image attachments (`Paperclip` button, file input accepting JPEG/PNG/WebP, max 5MB). `handleSend` passes content + image to `useSendMessage`.
 
-### Frontend -- Copy Preset Dialog (`web/src/components/trainees/copy-preset-dialog.tsx`)
+- [x] **AC-31** -- PASS -- `ChatView` uses `useMessagingWebSocket` hook (line 62) providing real-time: `onNewMessage`, `onMessageEdited`, `onMessageDeleted` callbacks. `TypingIndicator` shown when `typingDisplayName` is set. `sendTyping` passed to ChatInput's `onTyping`.
 
-- [x] **AC-30**: Dialog shows: preset name being copied, trainee selector dropdown -- **PASS**
-  - Lines 82-83: `Copy "{preset.name}" to another trainee` in DialogDescription.
-  - Lines 94-111: `<select>` dropdown with trainees.
+- [x] **AC-32** -- PASS -- Cmd/Ctrl+K keyboard shortcut implemented (lines 72-80 of messages page). Search button shown in header with keyboard shortcut badge. `MessageSearch` component reused from shared messaging components.
 
-- [x] **AC-31**: Trainee selector uses `useAllTrainees()` hook, excludes the current trainee -- **PASS**
-  - Line 35: `const { data: allTrainees } = useAllTrainees();`
-  - Lines 38-41: `otherTrainees = (allTrainees ?? []).filter((t) => t.id !== traineeId)` -- correctly excludes current trainee.
+### Announcements
 
-- [x] **AC-32**: Submit copies preset to selected trainee -- **PASS**
-  - Lines 61-62: `copyMutation.mutate({ presetId: preset.id, targetTraineeId: targetId })`.
+- [x] **AC-33** -- PASS -- `AnnouncementsList` (`web/src/components/trainee-dashboard/announcements-list.tsx`) renders each announcement as a Card with title (line 99), content (lines 112-115 when expanded), date badge (lines 102-108), and pinned indicator (Pin icon, line 91).
 
-- [x] **AC-33**: On success: toast "Preset copied to {trainee name}", dialog closes -- **PASS**
-  - Lines 64-65: `toast.success(\`Preset copied to ${targetName}\`); onOpenChange(false);`. `targetName` resolves to trainee's full name or email (lines 56-59).
+- [x] **AC-34** -- PASS -- Sorting logic (lines 22-28): Pinned first (`a.is_pinned && !b.is_pinned` returns -1), then by `created_at` descending.
 
-- [x] **AC-34**: On error: toast with error message -- **PASS**
-  - Line 68: `onError: (err) => toast.error(getErrorMessage(err))`.
+- [x] **AC-35** -- PASS -- Unread announcements have visual distinction: bold title (`!announcement.is_read && "font-bold"` on line 96), unread dot (Circle icon with `fill-primary`, lines 84-88), and highlighted card background (`border-primary/30 bg-primary/5` on line 68).
 
-- [x] **AC-35**: Submit button disabled when no trainee selected, shows spinner during mutation -- **PASS**
-  - Lines 124-128: `disabled={!targetTraineeId || otherTrainees.length === 0 || copyMutation.isPending}`. Also disabled when no trainees exist.
-  - Lines 130-134: `Loader2` spinner when `copyMutation.isPending`.
+- [x] **AC-36** -- PASS -- Opening an announcement (clicking the card) calls `onAnnouncementOpen` (line 58-61) which triggers `markOneRead.mutate(id)` in the parent page (lines 40-44 of announcements/page.tsx).
 
-### Frontend -- Integration
+- [x] **AC-37** -- PASS -- "Mark all read" button in page header (lines 83-96 of announcements/page.tsx). Shows unread count badge. Calls `markAllRead.mutate()` with success/error toasts. Disabled when `markAllRead.isPending`.
 
-- [ ] **AC-36**: Macro presets section appears in trainee detail Overview tab between the Nutrition Goals card and the Programs card -- **FAIL**
-  - In `trainee-overview-tab.tsx`, `MacroPresetsSection` is rendered at line 158, AFTER the entire 2-column grid (which contains Profile on the left and Nutrition Goals + Programs on the right). The section is placed as a full-width element BELOW everything, not BETWEEN Nutrition Goals and Programs.
-  - **Impact**: Medium. The feature is functional and visible, but the placement deviates from the ticket specification. The comment on line 157 says "Macro Presets -- full-width below the 2-column grid", suggesting this was an intentional design decision for better layout, but it does not match the ticket's "between Nutrition Goals and Programs" requirement.
+### Achievements
 
-- [x] **AC-37**: Section only appears for trainee detail pages (not in list view) -- **PASS**
-  - The `MacroPresetsSection` is rendered inside `TraineeOverviewTab` which is only shown on trainee detail pages. It is not imported or used anywhere in trainee list views.
+- [x] **AC-38** -- PASS -- `AchievementsGrid` (`web/src/components/trainee-dashboard/achievements-grid.tsx`) renders a responsive grid (sm:grid-cols-2, lg:grid-cols-3). Each achievement has earned/locked visual state: earned = `bg-primary/10 text-primary` with Trophy icon, locked = `bg-muted text-muted-foreground` with Lock icon + `opacity-60` on card.
 
-- [x] **AC-38**: Creating/editing/deleting a preset refetches the presets list automatically -- **PASS**
-  - All three mutation hooks (`useCreateMacroPreset`, `useUpdateMacroPreset`, `useDeleteMacroPreset`) call `queryClient.invalidateQueries({ queryKey: ["macroPresets", traineeId] })` on success, which triggers React Query to refetch.
+- [x] **AC-39** -- PASS -- Earned achievements show: Trophy icon (line 47), name (line 53), earned date formatted (lines 57-65), and description (lines 54-55).
+
+- [x] **AC-40** -- PASS -- Locked achievements show: Lock icon (line 49), grayed-out styling (opacity-60), progress toward unlocking with "X / Y" label and Progress bar (lines 67-74).
+
+- [x] **AC-41** -- PASS -- Summary shown in PageHeader description: `${stats.earned} of ${stats.total} achievements earned` (line 72 of achievements/page.tsx). Stats computed via `useMemo` filtering earned achievements.
+
+### Settings
+
+- [x] **AC-42** -- PASS -- Settings page (`web/src/app/(trainee-dashboard)/trainee/settings/page.tsx`) renders `ProfileSection` which includes: first/last name inputs (lines 163-184 of profile-section.tsx), profile image upload via file input (lines 56-89), remove button when image exists (lines 141-149).
+
+- [x] **AC-43** -- PASS -- `AppearanceSection` (`web/src/components/settings/appearance-section.tsx`) renders Light/Dark/System theme toggle using `next-themes` with Sun/Moon/Monitor icons and radio group semantics.
+
+- [x] **AC-44** -- PASS -- `SecuritySection` (`web/src/components/settings/security-section.tsx`) has current password, new password, and confirm password fields (lines 103-168).
+
+- [x] **AC-45** -- PASS -- Profile changes call `updateProfile.mutate()` with `onSuccess: () => toast.success("Profile updated")` (line 50 of profile-section.tsx). Image upload also shows success toast.
+
+- [x] **AC-46** -- PASS -- Password validation (lines 27-46 of security-section.tsx): current password required, new password min 8 chars, confirm must match. Error messages displayed with `role="alert"`.
+
+## Acceptance Criteria Summary
+
+| Status | Count |
+|--------|-------|
+| PASS   | 45    |
+| FAIL   | 1     |
+| Total  | 46    |
+
+**Failed:** AC-19 (trainer branding colors not implemented)
 
 ---
 
-## Edge Cases Verification
+## Edge Cases Verified
 
-### 1. No presets -- Shows empty state with CTA button
-**PASS** -- Lines 114-131 of `macro-presets-section.tsx` render the empty state when `presets.length === 0`. Empty state includes Utensils icon, "No macro presets" title, description, and "Add Preset" CTA. The condition `!isLoading && !isError && presets && presets.length === 0` correctly distinguishes this from error/loading states.
+1. **Trainee with no trainer** -- PARTIALLY HANDLED -- The dashboard will render but no explicit "Contact support" message exists. The `user.trainer` field exists on the User type but is not checked for null in the dashboard. The EmptyState for no program says "Your trainer hasn't assigned a program yet" which implicitly assumes a trainer exists. **Verdict:** Low risk (FK constraint prevents this scenario in practice).
 
-### 2. Setting new default -- UI should refetch and reflect the change
-**PASS** -- When a preset is updated with `is_default: true`, `useUpdateMacroPreset.onSuccess` invalidates the query, causing a refetch. The backend handles unsetting the previous default, and the refetched data reflects the change.
+2. **Trainee with expired subscription** -- NOT IMPLEMENTED -- No subscription check or expired banner exists in the trainee dashboard layout or any page. **Verdict:** Out of scope for Phase 1 per ticket ("Stripe subscription management UI" is out of scope), but the banner would be a nice-to-have.
 
-### 3. Deleting the default preset -- No preset is default after deletion
-**PASS** -- The delete mutation invalidates the presets query. The UI has no special handling for "must have a default" -- it simply renders whatever the backend returns. If no preset is default, no "Default" badge appears, which is correct behavior.
+3. **Trainee not onboarded** -- NOT IMPLEMENTED -- No check for `onboarding_completed` in the layout or dashboard. User type has the field (`onboarding_completed: boolean`) but it is never read. **Verdict:** Ticket explicitly lists "Onboarding wizard on web" as out of scope, so this is acceptable.
 
-### 4. Copy to trainee with existing presets -- Creates a new preset (no override)
-**PASS** -- The copy mutation posts to `/copy_to/` endpoint. The backend handles creating a new preset. The `useCopyMacroPreset` hook invalidates both source and target trainee queries on success.
+4. **Multiple active programs** -- PASS -- `ProgramViewer` shows a program switcher (DropdownMenu) when `programs.length > 1` (line 63). Defaults to first active program or first program overall (line 41).
 
-### 5. Copy to same trainee -- Frontend excludes current trainee from dropdown
-**PASS** -- `copy-preset-dialog.tsx` line 39: `(allTrainees ?? []).filter((t) => t.id !== traineeId)` removes the current trainee from the selector.
+5. **Program with 0 exercises on a day** -- PASS -- `DayCard` explicitly handles this: `day.exercises.length === 0` shows "No exercises scheduled" (lines 226-229). Distinguished from rest day.
 
-### 6. Trainer with no other trainees -- Copy dialog shows empty message
-**PASS** -- `copy-preset-dialog.tsx` lines 89-91: When `otherTrainees.length === 0`, renders `<p>No other trainees to copy to.</p>`. The submit button is also disabled via `otherTrainees.length === 0` in the disabled condition (line 126).
+6. **Program with 52+ weeks** -- PASS -- Week tabs container has `overflow-x-auto` (line 139 of program-viewer.tsx), enabling horizontal scrolling.
 
-### 7. Very long preset name -- Truncated in card display, full name in edit dialog
-**PASS** -- `macro-presets-section.tsx` line 233: `<p className="truncate ..." title={preset.name}>` truncates with ellipsis and shows full name on hover. In edit mode, `preset-form-dialog.tsx` populates the full name in the text input (no truncation).
+7. **Weight in kg vs lbs** -- PARTIALLY HANDLED -- Weight card always displays `kg` (line 105 of weight-trend-card.tsx: `{Number(latest.weight_kg).toFixed(1)} kg`). The `LatestWeightCheckIn` type only has `weight_kg`. No lbs conversion. **Verdict:** Acceptable given backend stores kg. The ticket says "Display weight in the unit recorded" and backend field is `weight_kg`.
 
-### 8. Backend validation error -- Frontend validates first, shows error toast if backend rejects
-**PASS** -- Frontend validation in `preset-form-dialog.tsx` `validate()` function catches common range errors. If backend still rejects (e.g., duplicate default), `onError` callback fires `toast.error(getErrorMessage(err))` which extracts DRF field-level errors.
+8. **Network failure mid-page** -- PASS -- Each card independently fetches data via separate `useQuery` hooks. Each has its own loading/error/success states. One card failing does not affect others. Confirmed by reading all 4 card components.
 
-### 9. Rapid create/delete -- React Query invalidation handles stale data
-**PASS** -- All mutations use `invalidateQueries` on success. No optimistic updates, so data always reflects server state. React Query automatically deduplicates concurrent refetches.
+9. **Concurrent sessions (mobile + web)** -- PASS -- JWT-based auth. Tokens are independent. No session locking mechanism. Both sessions can be active simultaneously.
 
-### 10. Frequency null -- No frequency badge shown, select shows "None"
-**PASS** -- `macro-presets-section.tsx` lines 222-227: `frequencyLabel` is `null` when `frequency_per_week === null`, so no badge renders. `preset-form-dialog.tsx` lines 24-25: First option `{ value: "", label: "None" }` handles null frequency. On submit, `frequency ? Number(frequency) : null` correctly sends `null` when "None" is selected.
+10. **Concurrent impersonation** -- PASS -- Different JWTs, independent sessions. Layout checks `user.role` via auth context, not cookie.
 
 ---
 
-## Error States Verification
+## Bugs Found
 
-| Trigger | Expected | Code Reference | Status |
-|---------|----------|----------------|--------|
-| Failed to load presets | Inline error with "Retry" button | `macro-presets-section.tsx` lines 102-112 | PASS |
-| Create/edit fails (validation) | Error toast with message, dialog stays open | `preset-form-dialog.tsx` line 145 (only calls `toast.error`, does NOT call `onOpenChange(false)`) | PASS |
-| Delete fails | Error toast with message | `macro-presets-section.tsx` line 73 (only calls `toast.error`, does NOT call `setDeleteTarget(null)`) | PASS |
-| Copy fails | Error toast with message, dialog stays open | `copy-preset-dialog.tsx` line 68 (only calls `toast.error`, does NOT call `onOpenChange(false)`) | PASS |
-| No trainee selected in copy | Submit button disabled | `copy-preset-dialog.tsx` line 125: `!targetTraineeId` disables button | PASS |
-| Network error | Error toast | `error-utils.ts` falls through to `"An unexpected error occurred"` for non-ApiError network failures | PASS |
+| # | Severity | Description | File:Line |
+|---|----------|-------------|-----------|
+| 1 | Medium | **Login page does not redirect TRAINEE to `/trainee/dashboard`** -- After successful login, the TRAINEE role falls through to default `destination = "/dashboard"`. Middleware then redirects to `/trainee/dashboard`, causing a double-hop (flash of redirect). ADMIN and AMBASSADOR are handled but TRAINEE is not. | `web/src/app/(auth)/login/page.tsx:49-54` |
+| 2 | Medium | **Trainer branding not applied (AC-19)** -- The `TRAINEE_BRANDING` API URL is defined in `constants.ts` but never fetched or applied. No branding hook exists. No CSS variable injection for trainer colors. Dashboard renders with default theme only. | `web/src/lib/constants.ts:254` (defined but unused) |
+| 3 | Low | **ProfileSection includes "Business name" field** -- The reused `ProfileSection` component includes a "Business name" input field (lines 186-195 of profile-section.tsx) which is trainer-specific and irrelevant for trainees. Should be hidden for TRAINEE role. | `web/src/components/settings/profile-section.tsx:186-195` |
 
 ---
 
-## UX State Verification
+## Additional Observations
 
-| State | Expected | Status | Notes |
-|-------|----------|--------|-------|
-| Loading | 3 skeleton cards in grid layout | PASS | `PresetsSkeleton` renders 3 cards with matching layout |
-| Empty | Centered Utensils icon + message + CTA | PASS | Matches specification exactly |
-| Populated | Responsive card grid with all actions | PASS | 1/2/3 column responsive grid |
-| Error | Inline error with retry | PASS | RefreshCw icon + retry button |
-| Success feedback | Toast for create/edit/delete/copy | PASS | All four operations show success toast |
-| Delete confirmation | AlertDialog, not instant delete | FAIL | Uses Dialog, not AlertDialog (see AC-26) |
-| Accessibility | aria-labels on all action buttons | PASS | Edit: `"Edit {name} preset"`, Delete: `"Delete {name} preset"`, Copy: `"Copy {name} preset to another trainee"` |
+### Positive Findings
 
----
+1. **Excellent TypeScript typing** -- All types properly defined in `trainee-dashboard.ts` and reusing `trainee-view.ts`. No `any` types found. TypeScript compiles cleanly.
 
-## Failed Tests Detail
+2. **Consistent architecture** -- All pages follow the same pattern: loading state, error state with retry, empty state, success state. Matches existing codebase conventions.
 
-| # | AC | Expected | Actual | Root Cause |
-|---|-----|----------|--------|------------|
-| 1 | AC-26 | Delete uses `AlertDialog` component | Delete uses standard `Dialog` component | Developer chose `Dialog` instead of the ticket-specified `AlertDialog`. Functionally equivalent but lacks `role="alertdialog"` accessibility semantic for destructive actions. |
-| 2 | AC-36 | Macro presets section between Nutrition Goals card and Programs card | Section placed full-width below the entire 2-column grid | Intentional layout decision (per code comment on line 157), but deviates from ticket spec. Nutrition Goals and Programs share a column in the 2-col layout, making "between" placement architecturally awkward. |
+3. **Accessibility is thorough** -- ARIA labels on nav links, `aria-current="page"` on active links, `role="tablist"/"tab"/"tabpanel"` on program weeks, skip-to-content link in layout, `sr-only` loading text, keyboard support on announcement cards (`onKeyDown` for Enter/Space), focus-visible rings via Tailwind.
 
----
+4. **Component reuse is extensive** -- Settings reuses `ProfileSection`, `AppearanceSection`, `SecuritySection`. Messages reuses `ConversationList`, `ChatView`, `MessageSearch`, `ChatInput`. Shared components (`ErrorState`, `EmptyState`, `Skeleton`, `Badge`, `Card`, `Progress`) used throughout.
 
-## Bugs Found Outside Tests
+5. **Smart badge count system** -- `useTraineeBadgeCounts` hook cleanly aggregates message and announcement unread counts. Used by both desktop and mobile sidebars.
 
-| # | Severity | Description | Steps to Reproduce |
-|---|----------|-------------|-------------------|
-| - | - | No additional bugs found outside acceptance criteria | - |
+6. **UserNav properly routes TRAINEE** -- The `UserNav` component (line 59 of `user-nav.tsx`) correctly routes TRAINEE users to `/trainee/settings` from the dropdown menu.
+
+7. **WebSocket messaging fully functional** -- Real-time updates, typing indicators, read receipts, and image attachments all supported through the reused messaging infrastructure.
+
+8. **Proper data fetching** -- `staleTime: 5 * 60 * 1000` (5 min) for dashboard data. Weight check-in 404s handled gracefully (`retry` returning false for 404).
+
+### Risk Assessment
+
+- **Bug #1 (login redirect):** Users will experience a brief flash/redirect when logging in as TRAINEE. Not a blocker but a UX regression. Easy fix: add `else if (loggedInUser.role === UserRole.TRAINEE) destination = "/trainee/dashboard"` in login page.
+- **Bug #2 (branding):** This is the only FAIL among 46 ACs. The API URL is defined but the feature was never wired up. Requires creating a branding hook and applying CSS variables.
+- **Bug #3 (business name):** Minor UX issue. Trainee sees an irrelevant "Business name" field in settings. Low priority.
 
 ---
-
-## Summary
-
-| Category | Count |
-|----------|-------|
-| Acceptance criteria total | 38 |
-| Passed | 35 |
-| Failed | 2 |
-| Partial | 1 (AC-26, functionally equivalent) |
-| Edge cases verified | 10/10 |
-| Error states verified | 6/6 |
-| UX states verified | 6/7 (1 fail: Dialog vs AlertDialog) |
 
 ## Confidence Level: HIGH
 
-The implementation is comprehensive and production-quality. The two failures are:
-
-1. **AC-26 (Dialog vs AlertDialog)**: Low impact. The Dialog component provides equivalent UX with Cancel/Confirm buttons and loading states. The only difference is the WAI-ARIA `role="alertdialog"` semantic, which screen readers use to announce the dialog as requiring immediate attention. This is a minor accessibility concern.
-
-2. **AC-36 (Placement)**: Medium impact. The section is placed below the entire 2-column grid rather than between Nutrition Goals and Programs. This appears to be an intentional layout decision -- inserting a full-width section between two cards in the right column of a 2-column layout would be visually awkward. The chosen placement is arguably better UX, but it does not match the ticket specification.
-
-Neither failure represents a functional bug or user-facing regression. The feature is fully functional with all CRUD operations, copy-to-trainee, proper state management, error handling, accessibility labels, and responsive layout working correctly.
+**Rationale:** 45 of 46 acceptance criteria pass. TypeScript compiles cleanly with zero errors. The single failing AC (branding) is a feature gap rather than a regression. The login redirect bug is medium severity but the middleware catches it, so trainees still land on the correct page. All edge cases are handled or have acceptable justification. The implementation is architecturally sound, well-typed, accessible, and consistent with the existing codebase patterns.
