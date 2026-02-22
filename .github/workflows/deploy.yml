@@ -57,6 +57,9 @@ jobs:
             echo "=== Waiting for services to be healthy ==="
             sleep 10
 
+            echo "=== Reloading nginx config ==="
+            docker exec fitnessai_nginx nginx -s reload
+
             echo "=== Running migrations ==="
             docker exec fitnessai_backend python manage.py migrate --noinput
 
