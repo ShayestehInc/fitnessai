@@ -9,7 +9,7 @@ from ambassador.urls import admin_urlpatterns as ambassador_admin_urlpatterns
 from subscriptions.urls import payment_urlpatterns
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
     path('api/auth/', include('djoser.urls')),
     path('api/auth/', include('djoser.urls.jwt')),
     path('api/users/', include('users.urls')),
