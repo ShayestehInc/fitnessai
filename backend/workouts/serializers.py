@@ -19,7 +19,7 @@ class ExerciseSerializer(serializers.ModelSerializer[Exercise]):
         model = Exercise
         fields = [
             'id', 'name', 'description', 'video_url', 'image_url', 'muscle_group',
-            'difficulty_level', 'category',
+            'difficulty_level', 'suitable_for_goals', 'category',
             'is_public', 'created_by', 'created_by_email', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']

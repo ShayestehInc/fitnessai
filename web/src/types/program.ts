@@ -81,6 +81,7 @@ export interface ScheduleExercise {
   weight: number;
   unit: "lbs" | "kg";
   rest_seconds: number;
+  image_url?: string;
 }
 
 export interface ScheduleDay {
@@ -109,6 +110,7 @@ export interface Exercise {
   image_url: string | null;
   muscle_group: MuscleGroup;
   difficulty_level: DifficultyLevel | null;
+  suitable_for_goals: GoalType[];
   category: string;
   is_public: boolean;
   created_by: number | null;
@@ -201,6 +203,7 @@ export interface GenerateProgramPayload {
   goal: GoalType;
   duration_weeks: number;
   training_days_per_week: number;
+  training_days: string[];
   custom_day_config?: CustomDayConfig[];
 }
 

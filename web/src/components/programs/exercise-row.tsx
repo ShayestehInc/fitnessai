@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowUp, ArrowDown, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ArrowUp, ArrowDown, Trash2, Dumbbell } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { ScheduleExercise } from "@/types/program";
@@ -24,6 +25,8 @@ export function ExerciseRow({
   onMoveUp,
   onMoveDown,
 }: ExerciseRowProps) {
+  const [imgError, setImgError] = useState(false);
+
   const updateField = <K extends keyof ScheduleExercise>(
     field: K,
     value: ScheduleExercise[K],
@@ -37,7 +40,7 @@ export function ExerciseRow({
       role="group"
       aria-label={`Exercise ${index + 1}: ${exercise.exercise_name}`}
     >
-      {/* Top row: index, name, reorder/delete actions */}
+      {/* Top row: index, image, name, reorder/delete actions */}
       <div className="flex items-center gap-2">
         <span
           className="w-6 shrink-0 text-center text-xs font-medium text-muted-foreground"
@@ -45,6 +48,19 @@ export function ExerciseRow({
         >
           {index + 1}
         </span>
+
+        {exercise.image_url && !imgError ? (
+          <img
+            src={exercise.image_url}
+            alt=""
+            className="h-8 w-10 shrink-0 rounded object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="flex h-8 w-10 shrink-0 items-center justify-center rounded bg-muted">
+            <Dumbbell className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
 
         <div className="min-w-0 flex-1">
           <p
@@ -196,7 +212,7 @@ export function ExerciseRow({
                 Math.min(600, Math.max(0, parseInt(e.target.value) || 0)),
               )
             }
-            className="h-8 w-14 text-center text-xs"
+            className="h-8 w-16 text-center text-xs"
           />
           <span className="text-xs text-muted-foreground">s</span>
         </div>

@@ -9,8 +9,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ExerciseCard } from "./exercise-card";
 import { ExerciseDetailDialog } from "./exercise-detail-dialog";
 import { CreateExerciseDialog } from "./create-exercise-dialog";
-import { MUSCLE_GROUP_LABELS, MuscleGroup } from "@/types/program";
-import type { Exercise } from "@/types/program";
+import { MUSCLE_GROUP_LABELS, DIFFICULTY_LABELS, GOAL_LABELS, MuscleGroup } from "@/types/program";
+import type { Exercise, DifficultyLevel, GoalType } from "@/types/program";
 
 interface ExerciseListProps {
   exercises: Exercise[];
@@ -18,9 +18,15 @@ interface ExerciseListProps {
   onSearchChange: (value: string) => void;
   muscleGroup: MuscleGroup | "";
   onMuscleGroupChange: (mg: MuscleGroup | "") => void;
+  difficultyLevel: DifficultyLevel | "";
+  onDifficultyChange: (dl: DifficultyLevel | "") => void;
+  goal: GoalType | "";
+  onGoalChange: (g: GoalType | "") => void;
 }
 
 const ALL_GROUPS = Object.entries(MUSCLE_GROUP_LABELS) as [MuscleGroup, string][];
+const ALL_DIFFICULTIES = Object.entries(DIFFICULTY_LABELS) as [DifficultyLevel, string][];
+const ALL_GOALS = Object.entries(GOAL_LABELS) as [GoalType, string][];
 
 export function ExerciseList({
   exercises,
@@ -28,6 +34,10 @@ export function ExerciseList({
   onSearchChange,
   muscleGroup,
   onMuscleGroupChange,
+  difficultyLevel,
+  onDifficultyChange,
+  goal,
+  onGoalChange,
 }: ExerciseListProps) {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -87,18 +97,76 @@ export function ExerciseList({
           ))}
         </div>
 
+        {/* Difficulty filter chips */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => onDifficultyChange("")}
+            className={cn(
+              "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              !difficultyLevel
+                ? "border-primary bg-primary text-primary-foreground"
+                : "hover:bg-accent",
+            )}
+          >
+            All Levels
+          </button>
+          {ALL_DIFFICULTIES.map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => onDifficultyChange(key)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                difficultyLevel === key
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "hover:bg-accent",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Training goal filter chips */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => onGoalChange("")}
+            className={cn(
+              "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              !goal
+                ? "border-primary bg-primary text-primary-foreground"
+                : "hover:bg-accent",
+            )}
+          >
+            All Goals
+          </button>
+          {ALL_GOALS.map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => onGoalChange(key)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                goal === key
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "hover:bg-accent",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Grid */}
         {exercises.length === 0 ? (
           <EmptyState
             icon={Dumbbell}
-            title={searchValue || muscleGroup ? "No exercises match your search" : "No exercises yet"}
+            title={searchValue || muscleGroup || difficultyLevel || goal ? "No exercises match your search" : "No exercises yet"}
             description={
-              searchValue || muscleGroup
+              searchValue || muscleGroup || difficultyLevel || goal
                 ? "Try adjusting your search or filters."
                 : "Add your first custom exercise to get started."
             }
             action={
-              !searchValue && !muscleGroup ? (
+              !searchValue && !muscleGroup && !difficultyLevel && !goal ? (
                 <Button onClick={() => setCreateOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create Exercise

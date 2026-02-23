@@ -73,6 +73,7 @@ export function ExercisePickerDialog({
         weight: 0,
         unit: "lbs",
         rest_seconds: 60,
+        image_url: exercise.image_url ?? undefined,
       };
       onSelect(scheduleExercise);
       setAddedIds((prev) => new Set([...prev, exercise.id]));

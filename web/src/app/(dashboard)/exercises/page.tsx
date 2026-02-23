@@ -9,11 +9,13 @@ import { PageTransition } from "@/components/shared/page-transition";
 import { ErrorState } from "@/components/shared/error-state";
 import { ExerciseList } from "@/components/exercises/exercise-list";
 import { ExerciseGridSkeleton } from "@/components/exercises/exercise-grid-skeleton";
-import type { MuscleGroup } from "@/types/program";
+import type { MuscleGroup, DifficultyLevel, GoalType } from "@/types/program";
 
 export default function ExercisesPage() {
   const [search, setSearch] = useState("");
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | "">("");
+  const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel | "">("");
+  const [goal, setGoal] = useState<GoalType | "">("");
   const debouncedSearch = useDebounce(search, 300);
 
   const {
@@ -24,7 +26,7 @@ export default function ExercisesPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useExercises(debouncedSearch, muscleGroup);
+  } = useExercises(debouncedSearch, muscleGroup, difficultyLevel, goal);
 
   // Flatten all pages into a single array
   const exercises = useMemo(
@@ -59,6 +61,14 @@ export default function ExercisesPage() {
 
   const handleMuscleGroupChange = useCallback((mg: MuscleGroup | "") => {
     setMuscleGroup(mg);
+  }, []);
+
+  const handleDifficultyChange = useCallback((dl: DifficultyLevel | "") => {
+    setDifficultyLevel(dl);
+  }, []);
+
+  const handleGoalChange = useCallback((g: GoalType | "") => {
+    setGoal(g);
   }, []);
 
   if (isLoading) {
@@ -100,6 +110,10 @@ export default function ExercisesPage() {
           onSearchChange={handleSearchChange}
           muscleGroup={muscleGroup}
           onMuscleGroupChange={handleMuscleGroupChange}
+          difficultyLevel={difficultyLevel}
+          onDifficultyChange={handleDifficultyChange}
+          goal={goal}
+          onGoalChange={handleGoalChange}
         />
         {/* Infinite scroll sentinel */}
         <div ref={sentinelRef} />

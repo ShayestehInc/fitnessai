@@ -16,6 +16,10 @@ import {
 } from "@/components/ui/dialog";
 import { useCreateFeatureRequest } from "@/hooks/use-feature-requests";
 import { getErrorMessage } from "@/lib/error-utils";
+import {
+  CATEGORY_LABELS,
+  type FeatureRequestCategory,
+} from "@/types/feature-request";
 
 interface CreateFeatureRequestDialogProps {
   open: boolean;
@@ -28,17 +32,32 @@ export function CreateFeatureRequestDialog({
 }: CreateFeatureRequestDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState<FeatureRequestCategory | "">("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const createMutation = useCreateFeatureRequest();
+
+  const resetForm = useCallback(() => {
+    setTitle("");
+    setDescription("");
+    setCategory("");
+    setErrors({});
+  }, []);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
       const newErrors: Record<string, string> = {};
 
-      if (!title.trim()) newErrors.title = "Title is required";
-      if (!description.trim()) newErrors.description = "Description is required";
+      if (title.trim().length < 10) {
+        newErrors.title = "Title must be at least 10 characters";
+      }
+      if (description.trim().length < 30) {
+        newErrors.description = "Description must be at least 30 characters";
+      }
+      if (!category) {
+        newErrors.category = "Category is required";
+      }
 
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
@@ -46,19 +65,22 @@ export function CreateFeatureRequestDialog({
       }
 
       createMutation.mutate(
-        { title: title.trim(), description: description.trim() },
+        {
+          title: title.trim(),
+          description: description.trim(),
+          category: category as FeatureRequestCategory,
+        },
         {
           onSuccess: () => {
             toast.success("Feature request submitted");
             onOpenChange(false);
-            setTitle("");
-            setDescription("");
+            resetForm();
           },
           onError: (err) => toast.error(getErrorMessage(err)),
         },
       );
     },
-    [title, description, createMutation, onOpenChange],
+    [title, description, category, createMutation, onOpenChange, resetForm],
   );
 
   return (
@@ -86,11 +108,35 @@ export function CreateFeatureRequestDialog({
                 setErrors((prev) => ({ ...prev, title: "" }));
               }}
               maxLength={200}
-              placeholder="Feature title"
+              placeholder="Feature title (min 10 characters)"
               aria-invalid={Boolean(errors.title)}
             />
             {errors.title && (
               <p className="text-sm text-destructive">{errors.title}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="fr-category">Category</Label>
+            <select
+              id="fr-category"
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value as FeatureRequestCategory | "");
+                setErrors((prev) => ({ ...prev, category: "" }));
+              }}
+              className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              aria-invalid={Boolean(errors.category)}
+            >
+              <option value="">Select a category</option>
+              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            {errors.category && (
+              <p className="text-sm text-destructive">{errors.category}</p>
             )}
           </div>
 
@@ -110,7 +156,7 @@ export function CreateFeatureRequestDialog({
               }}
               maxLength={2000}
               rows={5}
-              placeholder="Describe the feature in detail..."
+              placeholder="Describe the feature in detail (min 30 characters)..."
               className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
               aria-invalid={Boolean(errors.description)}
             />

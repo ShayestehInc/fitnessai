@@ -1114,7 +1114,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Tip: Use Unsplash or Pexels for free high-quality images',
+                  'Tip: Use Unsplash for free high-quality images',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.textTheme.bodySmall?.color,
                   ),

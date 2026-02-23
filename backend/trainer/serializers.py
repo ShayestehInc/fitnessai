@@ -400,15 +400,39 @@ class GenerateProgramRequestSerializer(serializers.Serializer[dict[str, Any]]):
         ('recomp', 'Body Recomposition'),
         ('general_fitness', 'General Fitness'),
     ]
+    VALID_DAY_NAMES = {'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'}
 
     split_type = serializers.ChoiceField(choices=SPLIT_CHOICES)
     difficulty = serializers.ChoiceField(choices=DIFFICULTY_CHOICES)
     goal = serializers.ChoiceField(choices=GOAL_CHOICES)
     duration_weeks = serializers.IntegerField(min_value=1, max_value=52)
     training_days_per_week = serializers.IntegerField(min_value=2, max_value=7)
+    training_days = serializers.ListField(
+        child=serializers.CharField(max_length=10),
+        min_length=2,
+        max_length=7,
+        required=False,
+        default=list,
+    )
     custom_day_config = CustomDayConfigSerializer(many=True, required=False, default=list)
 
+    def validate_training_days(self, value: list[str]) -> list[str]:
+        if not value:
+            return value
+        for day in value:
+            if day not in self.VALID_DAY_NAMES:
+                raise serializers.ValidationError(
+                    f"Invalid day name: '{day}'. Must be one of: {', '.join(sorted(self.VALID_DAY_NAMES))}"
+                )
+        if len(set(value)) != len(value):
+            raise serializers.ValidationError("Duplicate day names are not allowed.")
+        return value
+
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        training_days = attrs.get('training_days', [])
+        if training_days:
+            # Sync training_days_per_week from training_days length
+            attrs['training_days_per_week'] = len(training_days)
         if attrs['split_type'] == 'custom' and not attrs.get('custom_day_config'):
             raise serializers.ValidationError(
                 {'custom_day_config': 'Required when split_type is "custom".'}
@@ -443,6 +467,7 @@ class GenerateProgramRequestSerializer(serializers.Serializer[dict[str, Any]]):
             goal=data['goal'],
             duration_weeks=data['duration_weeks'],
             training_days_per_week=data['training_days_per_week'],
+            training_days=data.get('training_days', []),
             custom_day_config=custom_days,
             trainer_id=trainer_id,
         )

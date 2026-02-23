@@ -15,8 +15,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useCreateExercise } from "@/hooks/use-exercises";
+import { apiClient } from "@/lib/api-client";
+import { API_URLS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error-utils";
-import { MUSCLE_GROUP_LABELS, MuscleGroup } from "@/types/program";
+import { MUSCLE_GROUP_LABELS } from "@/types/program";
+import { FileUploadField } from "./file-upload-field";
 
 interface CreateExerciseDialogProps {
   open: boolean;
@@ -32,12 +35,27 @@ export function CreateExerciseDialog({
   const [description, setDescription] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   const createMutation = useCreateExercise();
 
+  const resetForm = useCallback(() => {
+    setName("");
+    setMuscleGroup("");
+    setDescription("");
+    setVideoUrl("");
+    setImageUrl("");
+    setImageFile(null);
+    setVideoFile(null);
+    setErrors({});
+    setSaving(false);
+  }, []);
+
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
       const newErrors: Record<string, string> = {};
 
@@ -49,30 +67,58 @@ export function CreateExerciseDialog({
         return;
       }
 
-      createMutation.mutate(
-        {
+      setSaving(true);
+
+      try {
+        // 1. Create the exercise (include URLs only if no file was selected)
+        const created = await createMutation.mutateAsync({
           name: name.trim(),
           muscle_group: muscleGroup,
           description: description.trim() || undefined,
-          video_url: videoUrl.trim() || undefined,
-          image_url: imageUrl.trim() || undefined,
-        },
-        {
-          onSuccess: (data) => {
-            toast.success(`Exercise '${data.name}' created`);
-            onOpenChange(false);
-            setName("");
-            setMuscleGroup("");
-            setDescription("");
-            setVideoUrl("");
-            setImageUrl("");
-            setErrors({});
-          },
-          onError: (err) => toast.error(getErrorMessage(err)),
-        },
-      );
+          image_url: !imageFile ? imageUrl.trim() || undefined : undefined,
+          video_url: !videoFile ? videoUrl.trim() || undefined : undefined,
+        });
+
+        // 2. Upload files to the newly created exercise
+        if (imageFile) {
+          const imgFormData = new FormData();
+          imgFormData.append("image", imageFile);
+          await apiClient.postFormData(
+            `${API_URLS.EXERCISES}${created.id}/upload-image/`,
+            imgFormData,
+          );
+        }
+
+        if (videoFile) {
+          const vidFormData = new FormData();
+          vidFormData.append("video", videoFile);
+          await apiClient.postFormData(
+            `${API_URLS.EXERCISES}${created.id}/upload-video/`,
+            vidFormData,
+          );
+        }
+
+        toast.success(`Exercise '${created.name}' created`);
+        onOpenChange(false);
+        resetForm();
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+      } finally {
+        setSaving(false);
+      }
     },
-    [name, muscleGroup, description, videoUrl, imageUrl, createMutation, onOpenChange],
+    [
+      name,
+      muscleGroup,
+      description,
+      videoUrl,
+      imageUrl,
+      imageFile,
+      videoFile,
+      createMutation,
+      onOpenChange,
+      resetForm,
+    ],
   );
 
   return (
@@ -145,25 +191,27 @@ export function CreateExerciseDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="ex-video">Video URL (optional)</Label>
-            <Input
-              id="ex-video"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://youtube.com/watch?v=..."
-            />
-          </div>
+          <FileUploadField
+            label="Image (optional)"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            maxSizeMB={10}
+            currentUrl={imageUrl}
+            onFileSelect={setImageFile}
+            onUrlChange={setImageUrl}
+            uploading={saving && imageFile !== null}
+            selectedFile={imageFile}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="ex-image">Image URL (optional)</Label>
-            <Input
-              id="ex-image"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://example.com/exercise.jpg"
-            />
-          </div>
+          <FileUploadField
+            label="Video (optional)"
+            accept="video/mp4,video/quicktime,video/x-msvideo,video/webm,video/x-m4v"
+            maxSizeMB={100}
+            currentUrl={videoUrl}
+            onFileSelect={setVideoFile}
+            onUrlChange={setVideoUrl}
+            uploading={saving && videoFile !== null}
+            selectedFile={videoFile}
+          />
 
           <DialogFooter>
             <Button
@@ -173,8 +221,8 @@ export function CreateExerciseDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending && (
+            <Button type="submit" disabled={saving}>
+              {saving && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
               )}
               Create

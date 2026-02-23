@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
-import type { ChatMessage, AiChatResponse, AiProvider } from "@/types/ai-chat";
+import type { ChatMessage, AiChatResponse, AiProvidersResponse } from "@/types/ai-chat";
 
 export function useAiChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -66,9 +66,9 @@ export function useAiChat() {
 }
 
 export function useAiProviders() {
-  return useQuery<AiProvider[]>({
+  return useQuery<AiProvidersResponse>({
     queryKey: ["ai-providers"],
-    queryFn: () => apiClient.get<AiProvider[]>(API_URLS.AI_PROVIDERS),
+    queryFn: () => apiClient.get<AiProvidersResponse>(API_URLS.AI_PROVIDERS),
     staleTime: 10 * 60 * 1000,
   });
 }

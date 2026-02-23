@@ -625,9 +625,11 @@ class ProgramTemplateDetailView(generics.RetrieveUpdateDestroyAPIView[ProgramTem
 
 class GenerateProgramView(views.APIView):
     """
-    POST: Generate a complete training program using the smart program generator.
+    POST: Generate a complete training program using AI.
 
     Accepts split type, difficulty, goal, duration, and training days per week.
+    Uses an LLM to intelligently design exercise selection and program structure.
+    Falls back to deterministic generation if AI is unavailable.
     Returns a generated schedule + nutrition template without saving.
     The trainer reviews and saves via the existing program template endpoints.
     """
@@ -638,13 +640,13 @@ class GenerateProgramView(views.APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        from workouts.services.program_generator import generate_program
+        from workouts.services.program_generator import generate_program_with_ai
 
         trainer = cast(User, request.user)
         gen_request = serializer.to_dataclass(trainer_id=trainer.id)
 
         try:
-            result = generate_program(gen_request)
+            result = generate_program_with_ai(gen_request)
         except ValueError as exc:
             return Response(
                 {'error': str(exc)},

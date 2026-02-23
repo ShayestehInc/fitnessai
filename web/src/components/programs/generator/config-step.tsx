@@ -5,6 +5,7 @@ import {
   DIFFICULTY_LABELS,
   GoalType,
   GOAL_LABELS,
+  DAY_NAMES,
   type SplitType,
   type CustomDayConfig,
 } from "@/types/program";
@@ -14,17 +15,27 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { CustomDayConfigurator } from "./custom-day-config";
 
+const SHORT_DAY_LABELS: Record<string, string> = {
+  Monday: "Mon",
+  Tuesday: "Tue",
+  Wednesday: "Wed",
+  Thursday: "Thu",
+  Friday: "Fri",
+  Saturday: "Sat",
+  Sunday: "Sun",
+};
+
 interface ConfigStepProps {
   splitType: SplitType;
   difficulty: DifficultyLevel | null;
   goal: GoalType | null;
   durationWeeks: number;
-  trainingDaysPerWeek: number;
+  trainingDays: string[];
   customDayConfig: CustomDayConfig[];
   onDifficultyChange: (d: DifficultyLevel) => void;
   onGoalChange: (g: GoalType) => void;
   onDurationChange: (w: number) => void;
-  onDaysChange: (d: number) => void;
+  onTrainingDaysChange: (days: string[]) => void;
   onCustomDayConfigChange: (configs: CustomDayConfig[]) => void;
 }
 
@@ -33,16 +44,26 @@ export function ConfigStep({
   difficulty,
   goal,
   durationWeeks,
-  trainingDaysPerWeek,
+  trainingDays,
   customDayConfig,
   onDifficultyChange,
   onGoalChange,
   onDurationChange,
-  onDaysChange,
+  onTrainingDaysChange,
   onCustomDayConfigChange,
 }: ConfigStepProps) {
   const difficulties = Object.values(DifficultyLevel);
   const goals = Object.values(GoalType);
+
+  const toggleDay = (day: string) => {
+    if (trainingDays.includes(day)) {
+      if (trainingDays.length <= 2) return; // minimum 2 training days
+      onTrainingDaysChange(trainingDays.filter((d) => d !== day));
+    } else {
+      if (trainingDays.length >= 7) return; // max 7
+      onTrainingDaysChange([...trainingDays, day]);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -126,40 +147,63 @@ export function ConfigStep({
         </div>
       </fieldset>
 
-      {/* Duration + Days Per Week */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="duration-weeks">Duration (weeks)</Label>
-          <Input
-            id="duration-weeks"
-            type="number"
-            min={1}
-            max={52}
-            step={1}
-            value={durationWeeks}
-            onChange={(e) => onDurationChange(Math.max(1, Math.min(52, Math.round(Number(e.target.value)) || 1)))}
-          />
-          <p className="text-xs text-muted-foreground">Between 1 and 52 weeks</p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="days-per-week">Training days per week</Label>
-          <Input
-            id="days-per-week"
-            type="number"
-            min={2}
-            max={7}
-            step={1}
-            value={trainingDaysPerWeek}
-            onChange={(e) => onDaysChange(Math.max(2, Math.min(7, Math.round(Number(e.target.value)) || 2)))}
-          />
-          <p className="text-xs text-muted-foreground">Between 2 and 7 days</p>
-        </div>
+      {/* Duration */}
+      <div className="space-y-2">
+        <Label htmlFor="duration-weeks">Duration (weeks)</Label>
+        <Input
+          id="duration-weeks"
+          type="number"
+          min={1}
+          max={52}
+          step={1}
+          value={durationWeeks}
+          onChange={(e) => onDurationChange(Math.max(1, Math.min(52, Math.round(Number(e.target.value)) || 1)))}
+          className="max-w-[200px]"
+        />
+        <p className="text-xs text-muted-foreground">Between 1 and 52 weeks</p>
       </div>
+
+      {/* Training Day Picker */}
+      <fieldset className="space-y-2">
+        <Label asChild>
+          <legend>Training Days</legend>
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Select which days you want to train. Unselected days will be rest days.
+        </p>
+        <div className="flex gap-1.5" role="group" aria-label="Training days">
+          {DAY_NAMES.map((day) => {
+            const isSelected = trainingDays.includes(day);
+            return (
+              <button
+                key={day}
+                type="button"
+                role="checkbox"
+                aria-checked={isSelected}
+                aria-label={`${day}${isSelected ? " (training day)" : " (rest day)"}`}
+                className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-lg border text-sm font-medium transition-all",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  isSelected
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                )}
+                onClick={() => toggleDay(day)}
+              >
+                {SHORT_DAY_LABELS[day]}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {trainingDays.length} training day{trainingDays.length !== 1 ? "s" : ""} / {7 - trainingDays.length} rest day{(7 - trainingDays.length) !== 1 ? "s" : ""}
+        </p>
+      </fieldset>
 
       {/* Custom day config (only for custom split) */}
       {splitType === "custom" && (
         <CustomDayConfigurator
-          trainingDays={trainingDaysPerWeek}
+          trainingDays={trainingDays.length}
           config={customDayConfig}
           onChange={onCustomDayConfigChange}
         />

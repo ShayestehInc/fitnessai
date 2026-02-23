@@ -14,6 +14,15 @@ export interface AiChatResponse {
 }
 
 export interface AiProvider {
-  name: string;
-  is_configured: boolean;
+  provider: string;
+  model: string;
+  configured: boolean;
+}
+
+export interface AiProvidersResponse {
+  providers: AiProvider[];
+  current: {
+    provider: string;
+    model: string;
+  };
 }

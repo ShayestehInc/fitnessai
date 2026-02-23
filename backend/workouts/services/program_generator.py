@@ -2,11 +2,18 @@
 Smart Program Generator service.
 
 Generates complete training programs based on split type, difficulty, goal,
-and duration. Uses exercise database with difficulty classifications to pick
-appropriate exercises for each training day.
+and duration. Supports two modes:
+
+1. **AI-powered generation** (default): Uses an LLM to intelligently design
+   the program's exercise selection, structure, and nutrition. Falls back to
+   deterministic mode if AI is unavailable.
+
+2. **Deterministic generation**: Rule-based algorithm that picks exercises
+   from the database using hardcoded split configs and scheme tables.
 """
 from __future__ import annotations
 
+import json
 import logging
 import random
 from dataclasses import dataclass, field
@@ -49,6 +56,7 @@ class GenerateProgramRequest:
     goal: GoalType
     duration_weeks: int
     training_days_per_week: int
+    training_days: list[str] = field(default_factory=list)
     custom_day_config: list[CustomDayConfig] = field(default_factory=list)
     trainer_id: int | None = None
 
@@ -63,6 +71,7 @@ class GeneratedExercise:
     reps: str  # Can be "8-10" or "12"
     rest_seconds: int
     is_compound: bool
+    image_url: str = ''
 
 
 @dataclass(frozen=True)
@@ -369,10 +378,11 @@ def _prefetch_exercise_pool(
     all_difficulties = [difficulty] + adjacent_map.get(difficulty, [])
 
     # Single query: fetch all exercises for all muscle groups at relevant difficulties
+    # Include NULL difficulty_level so exercises without classification are usable
     all_exercises = list(
         Exercise.objects.filter(
             Q(muscle_group__in=muscle_groups) & privacy_q &
-            Q(difficulty_level__in=all_difficulties)
+            (Q(difficulty_level__in=all_difficulties) | Q(difficulty_level__isnull=True))
         )
     )
 
@@ -386,19 +396,21 @@ def _prefetch_exercise_pool(
             exact_match_ids.add(ex.id)
 
     # For muscle groups with too few exercises at exact difficulty, include adjacent
+    # and unclassified (NULL difficulty) exercises
     for mg in muscle_groups:
         if len(pool.get(mg, [])) < 3:
             for ex in all_exercises:
                 if ex.muscle_group == mg and ex.id not in exact_match_ids:
                     pool.setdefault(mg, []).append(ex)
 
-    # Last resort: for muscle groups with zero exercises, fetch any difficulty
+    # Last resort: for muscle groups with zero exercises, fetch ANY exercise
+    # (including those with NULL difficulty_level)
     empty_groups = [mg for mg in muscle_groups if not pool.get(mg)]
     if empty_groups:
         fallback_exercises = list(
             Exercise.objects.filter(
                 Q(muscle_group__in=empty_groups) & privacy_q
-            ).exclude(difficulty_level__isnull=True)
+            )
         )
         for ex in fallback_exercises:
             pool.setdefault(ex.muscle_group, []).append(ex)
@@ -538,11 +550,19 @@ def generate_program(request: GenerateProgramRequest) -> GeneratedProgram:
 
         days: list[GeneratedDay] = []
         training_day_idx = 0
+        # Use explicit training_days if provided, else default to first N days
+        selected_training_days = set(request.training_days) if request.training_days else set()
 
         for day_idx in range(7):
             day_name = DAY_NAMES[day_idx]
 
-            if training_day_idx < len(day_templates):
+            # Decide if this day is a training day
+            is_training = (
+                (selected_training_days and day_name in selected_training_days)
+                or (not selected_training_days and training_day_idx < len(day_templates))
+            )
+
+            if is_training and training_day_idx < len(day_templates):
                 label, muscle_groups = day_templates[training_day_idx]
                 training_day_idx += 1
 
@@ -575,6 +595,7 @@ def generate_program(request: GenerateProgramRequest) -> GeneratedProgram:
                                 reps=deload_reps,
                                 rest_seconds=scheme.rest_seconds,
                                 is_compound=compound,
+                                image_url=ex.image_url or '',
                             )
                         else:
                             # Apply progressive overload
@@ -590,6 +611,7 @@ def generate_program(request: GenerateProgramRequest) -> GeneratedProgram:
                                 reps=adj_reps,
                                 rest_seconds=scheme.rest_seconds,
                                 is_compound=compound,
+                                image_url=ex.image_url or '',
                             )
                         day_exercises.append(gen_ex)
 
@@ -693,6 +715,7 @@ def _to_schedule_json(weeks: list[GeneratedWeek]) -> dict[str, Any]:
                                 'rest_seconds': ex.rest_seconds,
                                 'weight': 0,
                                 'unit': 'lbs',
+                                'image_url': ex.image_url,
                             }
                             for ex in day.exercises
                         ],
@@ -722,3 +745,360 @@ def _to_nutrition_json(nutrition: NutritionTemplate) -> dict[str, Any]:
         },
         'note': nutrition.note,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# AI-Powered Program Generation
+# ──────────────────────────────────────────────────────────────────────────
+
+_MAX_EXERCISES_PER_MUSCLE_GROUP_FOR_AI: int = 15
+
+
+def _build_exercise_bank_for_ai(
+    muscle_groups: set[str],
+    trainer_id: int | None,
+) -> list[dict[str, Any]]:
+    """
+    Fetch exercises relevant to the requested muscle groups and format
+    them for the AI prompt.
+
+    Limits to _MAX_EXERCISES_PER_MUSCLE_GROUP_FOR_AI per muscle group to
+    keep the prompt size manageable. Prioritises trainer-custom exercises,
+    then samples from public exercises for variety.
+
+    Returns a list of dicts with id, name, muscle_group, category.
+    """
+    privacy_q = Q(is_public=True)
+    if trainer_id:
+        privacy_q |= Q(created_by_id=trainer_id)
+
+    all_exercises = list(
+        Exercise.objects.filter(
+            Q(muscle_group__in=muscle_groups) & privacy_q
+        ).order_by('muscle_group', 'name')
+    )
+
+    # Group by muscle group and sample
+    by_group: dict[str, list[Exercise]] = {}
+    for ex in all_exercises:
+        by_group.setdefault(ex.muscle_group, []).append(ex)
+
+    result: list[dict[str, Any]] = []
+    for mg in sorted(muscle_groups):
+        pool = by_group.get(mg, [])
+        if not pool:
+            continue
+
+        # Prioritise trainer's custom exercises
+        custom = [ex for ex in pool if ex.created_by_id == trainer_id] if trainer_id else []
+        public = [ex for ex in pool if ex not in custom]
+
+        selected: list[Exercise] = list(custom)
+        remaining_slots = _MAX_EXERCISES_PER_MUSCLE_GROUP_FOR_AI - len(selected)
+        if remaining_slots > 0 and public:
+            sampled = random.sample(public, min(remaining_slots, len(public)))
+            selected.extend(sampled)
+
+        for ex in selected:
+            result.append({
+                'id': ex.id,
+                'name': ex.name,
+                'muscle_group': ex.muscle_group,
+                'category': ex.category or '',
+                'image_url': ex.image_url or '',
+            })
+
+    return result
+
+
+def _get_all_muscle_groups_for_request(request: GenerateProgramRequest) -> set[str]:
+    """Extract all muscle groups needed for a generation request."""
+    if request.split_type == 'custom' and request.custom_day_config:
+        groups: set[str] = set()
+        for cfg in request.custom_day_config:
+            groups.update(cfg.muscle_groups)
+        return groups
+
+    base_config = _SPLIT_CONFIGS.get(request.split_type, [])
+    groups = set()
+    for _label, mgs in base_config:
+        groups.update(mgs)
+    return groups
+
+
+def _parse_ai_response(raw_text: str) -> dict[str, Any]:
+    """
+    Parse the AI's JSON response, stripping markdown fences if present.
+
+    Raises:
+        ValueError: If the response is not valid JSON.
+    """
+    text = raw_text.strip()
+    # Strip markdown code fences
+    if text.startswith('```'):
+        # Remove opening fence (```json or ```)
+        first_newline = text.index('\n')
+        text = text[first_newline + 1:]
+    if text.endswith('```'):
+        text = text[:-3].rstrip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"AI returned invalid JSON: {exc}") from exc
+
+
+def _validate_ai_program(
+    data: dict[str, Any],
+    valid_exercise_ids: set[int],
+) -> None:
+    """
+    Validate the AI-generated program structure.
+
+    Raises:
+        ValueError: If the structure is invalid.
+    """
+    if 'week_template' not in data:
+        raise ValueError("AI response missing 'week_template'.")
+    week_template = data['week_template']
+    if 'days' not in week_template or not isinstance(week_template['days'], list):
+        raise ValueError("AI response missing 'week_template.days' array.")
+
+    for day in week_template['days']:
+        if day.get('is_rest_day'):
+            continue
+        exercises = day.get('exercises', [])
+        if not isinstance(exercises, list):
+            raise ValueError(f"Day '{day.get('day')}' exercises must be a list.")
+        for ex in exercises:
+            ex_id = ex.get('exercise_id')
+            if ex_id and ex_id not in valid_exercise_ids:
+                logger.warning(
+                    "AI selected exercise_id=%s (%s) not in bank — will be kept but flagged.",
+                    ex_id, ex.get('exercise_name'),
+                )
+
+    if 'nutrition_template' not in data:
+        raise ValueError("AI response missing 'nutrition_template'.")
+
+
+def _expand_weeks_from_template(
+    week_template: dict[str, Any],
+    progression: dict[str, Any],
+    duration_weeks: int,
+) -> list[dict[str, Any]]:
+    """
+    Expand a single week template into N weeks with progressive overload
+    and deload weeks.
+    """
+    reps_increase = progression.get('reps_increase_per_week', 1)
+    sets_interval = progression.get('sets_increase_interval_weeks', 3)
+    deload_every = progression.get('deload_every_n_weeks', 4)
+    deload_volume = progression.get('deload_volume_modifier', 0.6)
+    deload_intensity = progression.get('deload_intensity_modifier', 0.6)
+
+    weeks: list[dict[str, Any]] = []
+    template_days = week_template.get('days', [])
+
+    for week_num in range(1, duration_weeks + 1):
+        is_deload = (
+            deload_every > 0
+            and duration_weeks >= 4
+            and week_num % deload_every == 0
+        )
+
+        effective_week = ((week_num - 1) % max(deload_every, 1)) + 1
+
+        expanded_days: list[dict[str, Any]] = []
+        for day in template_days:
+            if day.get('is_rest_day'):
+                expanded_days.append({
+                    'day': day['day'],
+                    'name': day.get('name', 'Rest'),
+                    'is_rest_day': True,
+                    'exercises': [],
+                })
+                continue
+
+            expanded_exercises: list[dict[str, Any]] = []
+            for ex in day.get('exercises', []):
+                base_sets = int(ex.get('sets', 3))
+                base_reps = str(ex.get('reps', '10'))
+                rest_seconds = int(ex.get('rest_seconds', 60))
+
+                if is_deload:
+                    adj_sets = max(2, int(base_sets * deload_volume))
+                    adj_reps = base_reps
+                else:
+                    extra_sets = min(
+                        (effective_week - 1) // max(sets_interval, 1),
+                        _MAX_EXTRA_SETS,
+                    )
+                    extra_reps = min(
+                        (effective_week - 1) // 2 * reps_increase,
+                        _MAX_EXTRA_REPS,
+                    )
+                    adj_sets = base_sets + extra_sets
+                    try:
+                        if '-' in base_reps:
+                            parts = base_reps.split('-')
+                            low = int(parts[0]) + extra_reps
+                            high = int(parts[1]) + extra_reps
+                            adj_reps = f"{low}-{high}"
+                        else:
+                            adj_reps = str(int(base_reps) + extra_reps)
+                    except (ValueError, IndexError):
+                        adj_reps = base_reps
+
+                expanded_exercises.append({
+                    'exercise_id': ex.get('exercise_id'),
+                    'exercise_name': ex.get('exercise_name', ''),
+                    'muscle_group': ex.get('muscle_group', ''),
+                    'sets': adj_sets,
+                    'reps': adj_reps,
+                    'rest_seconds': rest_seconds,
+                    'weight': 0,
+                    'unit': 'lbs',
+                    'image_url': ex.get('image_url', ''),
+                })
+
+            expanded_days.append({
+                'day': day['day'],
+                'name': day.get('name', ''),
+                'is_rest_day': False,
+                'exercises': expanded_exercises,
+            })
+
+        intensity_mod = deload_intensity if is_deload else 1.0
+        volume_mod = deload_volume if is_deload else 1.0
+
+        weeks.append({
+            'week_number': week_num,
+            'is_deload': is_deload,
+            'intensity_modifier': intensity_mod,
+            'volume_modifier': volume_mod,
+            'days': expanded_days,
+        })
+
+    return weeks
+
+
+def generate_program_with_ai(request: GenerateProgramRequest) -> GeneratedProgram:
+    """
+    Generate a training program using AI (LLM).
+
+    The AI designs the Week 1 template with intelligent exercise selection,
+    then we programmatically expand it across all weeks with progressive
+    overload and deload weeks.
+
+    Falls back to the deterministic generator if AI is unavailable or fails.
+
+    Raises:
+        ValueError: If both AI and deterministic generation fail.
+    """
+    from trainer.ai_config import get_ai_config, get_api_key
+    from trainer.ai_chat import get_chat_model
+    from workouts.ai_prompts import get_structured_program_generation_prompt
+    from langchain_core.messages import HumanMessage
+    from trainer.ai_config import AIModelConfig
+
+    # Gather muscle groups and fetch exercise bank
+    muscle_groups = _get_all_muscle_groups_for_request(request)
+    exercise_bank = _build_exercise_bank_for_ai(muscle_groups, request.trainer_id)
+
+    if not exercise_bank:
+        logger.warning("No exercises in bank for muscle groups %s — falling back to deterministic.", muscle_groups)
+        return generate_program(request)
+
+    valid_exercise_ids = {ex['id'] for ex in exercise_bank}
+
+    # Build custom day config for prompt
+    custom_day_prompt: list[dict[str, Any]] | None = None
+    if request.custom_day_config:
+        custom_day_prompt = [
+            {'label': cfg.label, 'muscle_groups': cfg.muscle_groups}
+            for cfg in request.custom_day_config
+        ]
+
+    # Build the prompt
+    prompt = get_structured_program_generation_prompt(
+        split_type=request.split_type,
+        difficulty=request.difficulty,
+        goal=request.goal,
+        duration_weeks=request.duration_weeks,
+        training_days_per_week=request.training_days_per_week,
+        exercise_bank=exercise_bank,
+        custom_day_config=custom_day_prompt,
+        training_days=request.training_days if request.training_days else None,
+    )
+
+    # Get AI config — use higher max_tokens for program generation
+    config = get_ai_config()
+    api_key = get_api_key(config.provider)
+
+    if not api_key:
+        logger.warning("No API key configured for %s — falling back to deterministic.", config.provider)
+        return generate_program(request)
+
+    gen_config = AIModelConfig(
+        provider=config.provider,
+        model_name=config.model_name,
+        temperature=0.7,
+        max_tokens=4096,
+    )
+
+    try:
+        llm = get_chat_model(gen_config)
+        response = llm.invoke([HumanMessage(content=prompt)])
+        raw_text = str(response.content)
+
+        ai_data = _parse_ai_response(raw_text)
+        _validate_ai_program(ai_data, valid_exercise_ids)
+
+        # Build image_url lookup from exercise bank
+        image_map: dict[int, str] = {
+            ex['id']: ex.get('image_url', '') for ex in exercise_bank
+        }
+
+        # Extract components
+        name = str(ai_data.get('name', ''))
+        description = str(ai_data.get('description', ''))
+        week_template = ai_data['week_template']
+
+        # Inject image_urls into the AI template (AI doesn't return them)
+        for day in week_template.get('days', []):
+            for ex in day.get('exercises', []):
+                ex_id = ex.get('exercise_id')
+                if ex_id and ex_id in image_map:
+                    ex['image_url'] = image_map[ex_id]
+        progression = ai_data.get('progression', {
+            'reps_increase_per_week': 1,
+            'sets_increase_interval_weeks': 3,
+            'deload_every_n_weeks': 4,
+            'deload_volume_modifier': 0.6,
+            'deload_intensity_modifier': 0.6,
+        })
+        nutrition_template = ai_data.get('nutrition_template', {})
+
+        # Expand week template into full schedule
+        expanded_weeks = _expand_weeks_from_template(
+            week_template=week_template,
+            progression=progression,
+            duration_weeks=request.duration_weeks,
+        )
+
+        schedule = {'weeks': expanded_weeks}
+
+        return GeneratedProgram(
+            name=name,
+            description=description,
+            schedule=schedule,
+            nutrition_template=nutrition_template,
+            difficulty_level=request.difficulty,
+            goal_type=request.goal,
+            duration_weeks=request.duration_weeks,
+        )
+
+    except Exception:
+        logger.exception("AI program generation failed — falling back to deterministic generator.")
+        return generate_program(request)

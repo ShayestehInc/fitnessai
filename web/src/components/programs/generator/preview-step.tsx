@@ -195,10 +195,11 @@ function NutritionDayCard({
 
 function PreviewSkeleton() {
   return (
-    <div className="space-y-4" role="status" aria-label="Generating program">
-      <h3 className="text-lg font-semibold">Generating your program...</h3>
+    <div className="space-y-4" role="status" aria-label="Generating program with AI">
+      <h3 className="text-lg font-semibold">AI is designing your program...</h3>
       <p className="text-sm text-muted-foreground">
-        Selecting exercises and building your schedule. This may take a few seconds.
+        Our AI coach is selecting the best exercises, designing your split, and
+        building a progressive overload plan. This may take 10-15 seconds.
       </p>
       <Card>
         <CardContent className="space-y-3 p-6">

@@ -1,28 +1,54 @@
 """
-Management command to classify exercises by difficulty level.
+Management command to classify exercises by difficulty level and training goals.
 
-Supports AI-powered classification via OpenAI GPT-4o and a local heuristic fallback.
-Idempotent: only processes exercises where difficulty_level is NULL.
+Uses the configured AI provider (Anthropic/OpenAI/Google via LangChain) to
+classify each exercise with:
+  - difficulty_level: beginner / intermediate / advanced
+  - suitable_for_goals: list of training goals the exercise is suited for
+
+Processes exercises in batches of BATCH_SIZE, grouped by muscle_group.
+Falls back to heuristic pattern-matching when AI is unavailable or fails.
+Idempotent: by default only processes unclassified exercises.
 """
 from __future__ import annotations
 
 import json
 import logging
 import re
+import time
+from dataclasses import dataclass
 from typing import Any
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandParser
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
 from workouts.models import Exercise
 
 logger = logging.getLogger(__name__)
 
-# Batch size for OpenAI API calls (grouped by muscle_group)
-BATCH_SIZE = 30
+BATCH_SIZE = 25
 
-# Heuristic patterns for fallback classification
+VALID_LEVELS = frozenset({'beginner', 'intermediate', 'advanced'})
+VALID_GOALS = frozenset({
+    'build_muscle', 'fat_loss', 'strength',
+    'endurance', 'recomp', 'general_fitness',
+})
+
+# ──────────────────────────────────────────────────────────────────────────
+# Dataclass for classification results
+# ──────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class ExerciseClassification:
+    """Classification result for a single exercise."""
+    difficulty_level: str
+    suitable_for_goals: list[str]
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Heuristic Fallback
+# ──────────────────────────────────────────────────────────────────────────
+
 _BEGINNER_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r'\bmachine\b', re.IGNORECASE),
     re.compile(r'\bcable\b', re.IGNORECASE),
@@ -31,11 +57,13 @@ _BEGINNER_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r'\bleg curl\b', re.IGNORECASE),
     re.compile(r'\bleg extension\b', re.IGNORECASE),
     re.compile(r'\blat pulldown\b', re.IGNORECASE),
+    re.compile(r'\bpulldown\b', re.IGNORECASE),
     re.compile(r'\bseated row\b', re.IGNORECASE),
     re.compile(r'\bpec deck\b', re.IGNORECASE),
     re.compile(r'\bchest press\b', re.IGNORECASE),
-    re.compile(r'\bshoulder press machine\b', re.IGNORECASE),
     re.compile(r'\bhack squat\b', re.IGNORECASE),
+    re.compile(r'\bassisted\b', re.IGNORECASE),
+    re.compile(r'\bpulley\b', re.IGNORECASE),
 ]
 
 _ADVANCED_PATTERNS: list[re.Pattern[str]] = [
@@ -48,40 +76,31 @@ _ADVANCED_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r'\bplyometric\b', re.IGNORECASE),
     re.compile(r'\bplyo\b', re.IGNORECASE),
     re.compile(r'\bexplosive\b', re.IGNORECASE),
-    re.compile(r'\bkettlebell swing\b', re.IGNORECASE),
     re.compile(r'\bfront squat\b', re.IGNORECASE),
     re.compile(r'\boverhead squat\b', re.IGNORECASE),
-    re.compile(r'\bpower clean\b', re.IGNORECASE),
-    re.compile(r'\bsumo deadlift\b', re.IGNORECASE),
+    re.compile(r'\bthick bar\b', re.IGNORECASE),
+    re.compile(r'\bpin touch\b', re.IGNORECASE),
+    re.compile(r'\bpin press\b', re.IGNORECASE),
 ]
 
-_BEGINNER_CATEGORIES: set[str] = {
-    'cable fly', 'cable crossover', 'cable curl', 'cable tricep',
-    'machine press', 'machine fly', 'machine row', 'machine curl',
-    'leg press', 'leg curl', 'leg extension', 'calf raise machine',
-    'lat pulldown', 'seated row', 'pec deck',
-}
+# Compound movement patterns (for goal classification)
+_COMPOUND_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r'\bpress\b', re.IGNORECASE),
+    re.compile(r'\bsquat\b', re.IGNORECASE),
+    re.compile(r'\bdeadlift\b', re.IGNORECASE),
+    re.compile(r'\brow\b', re.IGNORECASE),
+    re.compile(r'\bpull.?up\b', re.IGNORECASE),
+    re.compile(r'\bchin.?up\b', re.IGNORECASE),
+    re.compile(r'\blunge\b', re.IGNORECASE),
+    re.compile(r'\bthrust\b', re.IGNORECASE),
+    re.compile(r'\bdip\b', re.IGNORECASE),
+]
 
-_ADVANCED_CATEGORIES: set[str] = {
-    'snatch', 'clean', 'jerk', 'clean and jerk', 'power clean',
-    'muscle up', 'pistol squat', 'plyo',
-}
 
-VALID_LEVELS = frozenset({'beginner', 'intermediate', 'advanced'})
-
-
-def _classify_by_heuristic(name: str, category: str) -> str:
-    """Classify an exercise using name/category pattern matching."""
+def _classify_difficulty_heuristic(name: str, category: str) -> str:
+    """Classify difficulty using name/category pattern matching."""
     combined = f"{name} {category}".lower()
 
-    # Check category-based overrides first
-    cat_lower = category.lower().strip()
-    if cat_lower in _BEGINNER_CATEGORIES:
-        return 'beginner'
-    if cat_lower in _ADVANCED_CATEGORIES:
-        return 'advanced'
-
-    # Check name patterns
     for pattern in _BEGINNER_PATTERNS:
         if pattern.search(combined):
             return 'beginner'
@@ -89,69 +108,122 @@ def _classify_by_heuristic(name: str, category: str) -> str:
         if pattern.search(combined):
             return 'advanced'
 
-    # Default: intermediate (free weight compounds and isolation)
     return 'intermediate'
 
 
-def _classify_batch_with_openai(
-    exercises: list[dict[str, str]],
-) -> dict[str, str]:
+def _classify_goals_heuristic(name: str, category: str, difficulty: str) -> list[str]:
+    """Classify training goals using heuristics."""
+    combined = f"{name} {category}".lower()
+    goals: list[str] = []
+
+    is_compound = any(p.search(combined) for p in _COMPOUND_PATTERNS)
+
+    # Almost all exercises can build muscle
+    goals.append('build_muscle')
+
+    if is_compound:
+        goals.append('strength')
+        goals.append('recomp')
+        goals.append('fat_loss')
+    else:
+        goals.append('general_fitness')
+
+    if difficulty == 'beginner':
+        goals.append('endurance')
+        if 'general_fitness' not in goals:
+            goals.append('general_fitness')
+
+    # Deduplicate and limit
+    return list(dict.fromkeys(goals))[:4]
+
+
+def _classify_heuristic(name: str, category: str) -> ExerciseClassification:
+    """Full heuristic classification for one exercise."""
+    difficulty = _classify_difficulty_heuristic(name, category)
+    goals = _classify_goals_heuristic(name, category, difficulty)
+    return ExerciseClassification(difficulty_level=difficulty, suitable_for_goals=goals)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# AI Classification
+# ──────────────────────────────────────────────────────────────────────────
+
+def _classify_batch_with_ai(
+    exercises: list[dict[str, Any]],
+) -> dict[str, ExerciseClassification]:
     """
-    Classify a batch of exercises using OpenAI GPT-4o.
+    Classify a batch of exercises using the configured AI provider.
 
     Returns:
-        Dict mapping exercise name -> difficulty_level.
+        Dict mapping exercise ID (str) -> ExerciseClassification.
 
     Raises:
-        RuntimeError: If OpenAI API call fails or response is unparseable.
+        RuntimeError: If AI call fails or response is unparseable.
     """
-    import openai
-
+    from trainer.ai_config import get_ai_config, get_api_key, AIModelConfig
+    from trainer.ai_chat import get_chat_model
+    from langchain_core.messages import HumanMessage
     from workouts.ai_prompts import get_exercise_classification_prompt
 
-    api_key = getattr(settings, 'OPENAI_API_KEY', None)
+    config = get_ai_config()
+    api_key = get_api_key(config.provider)
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is not configured in settings.")
+        raise RuntimeError(f"No API key configured for {config.provider.value}.")
 
-    client = openai.OpenAI(api_key=api_key)
-    prompt = get_exercise_classification_prompt(exercises)
-
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
+    # Use low temperature for consistent classification
+    gen_config = AIModelConfig(
+        provider=config.provider,
+        model_name=config.model_name,
         temperature=0.1,
         max_tokens=4096,
     )
 
-    content = response.choices[0].message.content
+    prompt = get_exercise_classification_prompt(exercises)
+    llm = get_chat_model(gen_config)
+    response = llm.invoke([HumanMessage(content=prompt)])
+
+    content = str(response.content).strip()
     if not content:
-        raise RuntimeError("OpenAI returned empty response.")
+        raise RuntimeError("AI returned empty response.")
 
     # Strip markdown code fences if present
-    content = content.strip()
     if content.startswith("```"):
         content = re.sub(r'^```(?:json)?\s*', '', content)
         content = re.sub(r'\s*```$', '', content)
 
-    parsed: list[dict[str, str]] = json.loads(content)
-    result: dict[str, str] = {}
+    parsed: list[dict[str, Any]] = json.loads(content)
+    result: dict[str, ExerciseClassification] = {}
+
     for item in parsed:
-        exercise_id = item.get("id", "")
-        name = item.get("name", "")
+        exercise_id = str(item.get("id", ""))
         level = item.get("difficulty_level", "")
-        if level in VALID_LEVELS:
-            # Key by ID (preferred) and also by name (fallback)
-            if exercise_id:
-                result[str(exercise_id)] = level
-            if name:
-                result[name] = level
+        goals_raw = item.get("suitable_for_goals", [])
+
+        if level not in VALID_LEVELS:
+            continue
+
+        goals = [g for g in goals_raw if g in VALID_GOALS]
+        if not goals:
+            goals = ['build_muscle', 'general_fitness']
+
+        result[exercise_id] = ExerciseClassification(
+            difficulty_level=level,
+            suitable_for_goals=goals,
+        )
+
     return result
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# Management Command
+# ──────────────────────────────────────────────────────────────────────────
+
 class Command(BaseCommand):
     help = (
-        "Classify exercises by difficulty level (beginner/intermediate/advanced). "
-        "Uses OpenAI by default, or --heuristic for pattern-based fallback."
+        "Classify exercises by difficulty level and training goals. "
+        "Uses the configured AI provider by default, or --heuristic for "
+        "pattern-based fallback. Classifies both difficulty_level and "
+        "suitable_for_goals fields."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -163,7 +235,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--heuristic",
             action="store_true",
-            help="Use name-pattern heuristic instead of OpenAI API.",
+            help="Use name-pattern heuristic instead of AI.",
         )
         parser.add_argument(
             "--muscle-group",
@@ -174,7 +246,13 @@ class Command(BaseCommand):
         parser.add_argument(
             "--force",
             action="store_true",
-            help="Re-classify exercises that already have a difficulty_level.",
+            help="Re-classify ALL exercises, even those already classified.",
+        )
+        parser.add_argument(
+            "--batch-size",
+            type=int,
+            default=BATCH_SIZE,
+            help=f"Number of exercises per AI batch (default: {BATCH_SIZE}).",
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
@@ -182,12 +260,18 @@ class Command(BaseCommand):
         use_heuristic: bool = options["heuristic"]
         muscle_group_filter: str | None = options["muscle_group"]
         force: bool = options["force"]
+        batch_size: int = options["batch_size"]
 
         # Build queryset
-        qs: QuerySet[Exercise] = Exercise.objects.filter(is_public=True)
+        qs: QuerySet[Exercise] = Exercise.objects.all()
 
         if not force:
-            qs = qs.filter(difficulty_level__isnull=True)
+            # Only exercises missing difficulty OR goals
+            qs = qs.filter(
+                Q(difficulty_level__isnull=True)
+                | Q(difficulty_level='')
+                | Q(suitable_for_goals=[])
+            )
 
         if muscle_group_filter:
             valid_groups = {c[0] for c in Exercise.MuscleGroup.choices}
@@ -203,19 +287,19 @@ class Command(BaseCommand):
 
         total = qs.count()
         if total == 0:
-            self.stdout.write(self.style.SUCCESS("No exercises to classify."))
+            self.stdout.write(self.style.SUCCESS("All exercises are already classified."))
             return
 
+        method = "heuristic" if use_heuristic else "AI"
         self.stdout.write(
             f"{'[DRY RUN] ' if dry_run else ''}"
-            f"Classifying {total} exercises "
-            f"using {'heuristic' if use_heuristic else 'OpenAI GPT-4o'}..."
+            f"Classifying {total} exercises using {method}..."
         )
 
         if use_heuristic:
             self._classify_heuristic(qs, dry_run)
         else:
-            self._classify_openai(qs, dry_run)
+            self._classify_ai(qs, dry_run, batch_size)
 
     def _classify_heuristic(
         self, qs: QuerySet[Exercise], dry_run: bool
@@ -225,60 +309,72 @@ class Command(BaseCommand):
         counts: dict[str, int] = {'beginner': 0, 'intermediate': 0, 'advanced': 0}
 
         for exercise in qs.iterator():
-            level = _classify_by_heuristic(exercise.name, exercise.category)
-            counts[level] += 1
+            result = _classify_heuristic(exercise.name, exercise.category)
+            counts[result.difficulty_level] += 1
 
             if dry_run:
                 self.stdout.write(
-                    f"  [{exercise.muscle_group}] {exercise.name} → {level}"
+                    f"  [{exercise.muscle_group}] {exercise.name}"
+                    f" → {result.difficulty_level}"
+                    f" | goals: {', '.join(result.suitable_for_goals)}"
                 )
             else:
-                exercise.difficulty_level = level
+                exercise.difficulty_level = result.difficulty_level
+                exercise.suitable_for_goals = result.suitable_for_goals
                 updates.append(exercise)
 
         if not dry_run and updates:
-            Exercise.objects.bulk_update(updates, ['difficulty_level'], batch_size=200)
+            Exercise.objects.bulk_update(
+                updates, ['difficulty_level', 'suitable_for_goals'], batch_size=200
+            )
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"{'[DRY RUN] ' if dry_run else ''}"
-                f"Classification complete: "
+                f"\n{'[DRY RUN] ' if dry_run else ''}"
+                f"Heuristic classification complete: "
                 f"beginner={counts['beginner']}, "
                 f"intermediate={counts['intermediate']}, "
-                f"advanced={counts['advanced']}"
+                f"advanced={counts['advanced']}, "
+                f"total={sum(counts.values())}"
             )
         )
 
-    def _classify_openai(
-        self, qs: QuerySet[Exercise], dry_run: bool
+    def _classify_ai(
+        self, qs: QuerySet[Exercise], dry_run: bool, batch_size: int
     ) -> None:
-        """Classify exercises using OpenAI, batched by muscle_group."""
-        # Group exercises by muscle_group for better context
-        muscle_groups = (
-            qs.values_list('muscle_group', flat=True).distinct().order_by('muscle_group')
+        """Classify exercises using AI, batched by muscle_group."""
+        muscle_groups = list(
+            qs.values_list('muscle_group', flat=True)
+            .distinct()
+            .order_by('muscle_group')
         )
 
         total_classified = 0
-        total_failed = 0
+        total_ai_ok = 0
+        total_heuristic_fallback = 0
         counts: dict[str, int] = {'beginner': 0, 'intermediate': 0, 'advanced': 0}
+        goal_counts: dict[str, int] = {g: 0 for g in VALID_GOALS}
 
         for mg in muscle_groups:
             mg_exercises = list(
-                qs.filter(muscle_group=mg).values('id', 'name', 'muscle_group', 'category')
+                qs.filter(muscle_group=mg)
+                .values('id', 'name', 'muscle_group', 'category')
             )
-            self.stdout.write(f"\n  Processing {mg}: {len(mg_exercises)} exercises")
+            self.stdout.write(f"\n  {mg.upper()}: {len(mg_exercises)} exercises")
 
-            # Build an ID-keyed lookup for this muscle group
-            id_to_exercise: dict[int, dict[str, Any]] = {
-                ex['id']: ex for ex in mg_exercises
-            }
+            for i in range(0, len(mg_exercises), batch_size):
+                batch = mg_exercises[i:i + batch_size]
+                batch_num = i // batch_size + 1
+                total_batches = (len(mg_exercises) + batch_size - 1) // batch_size
+                self.stdout.write(
+                    f"    Batch {batch_num}/{total_batches} "
+                    f"({len(batch)} exercises)...",
+                    ending="",
+                )
 
-            # Process in batches
-            for i in range(0, len(mg_exercises), BATCH_SIZE):
-                batch = mg_exercises[i:i + BATCH_SIZE]
                 batch_data = [
                     {
-                        'id': ex['id'],
+                        'id': str(ex['id']),
                         'name': ex['name'],
                         'muscle_group': ex['muscle_group'],
                         'category': ex['category'] or '',
@@ -286,54 +382,78 @@ class Command(BaseCommand):
                     for ex in batch
                 ]
 
+                # Try AI classification
+                ai_results: dict[str, ExerciseClassification] = {}
                 try:
-                    classifications = _classify_batch_with_openai(batch_data)
+                    ai_results = _classify_batch_with_ai(batch_data)
+                    self.stdout.write(f" AI OK ({len(ai_results)}/{len(batch)} parsed)")
                 except Exception as exc:
                     self.stderr.write(
                         self.style.WARNING(
-                            f"    OpenAI failed for batch {i // BATCH_SIZE + 1}: {exc}. "
-                            f"Falling back to heuristic for {len(batch)} exercises."
+                            f" AI failed: {exc}. Using heuristic fallback."
                         )
                     )
-                    # Heuristic fallback for this batch — keyed by ID
-                    classifications = {
-                        str(ex['id']): _classify_by_heuristic(ex['name'], ex['category'] or '')
-                        for ex in batch
-                    }
 
-                # Apply classifications
+                # Apply results (AI with heuristic fallback per exercise)
                 updates: list[Exercise] = []
                 for ex_dict in batch:
-                    ex_id = ex_dict['id']
+                    ex_id = str(ex_dict['id'])
                     name = ex_dict['name']
-                    # Look up by ID first (preferred), then fall back to name
-                    level = classifications.get(str(ex_id)) or classifications.get(name)
-                    if not level or level not in VALID_LEVELS:
-                        # Fallback to heuristic if AI missed this exercise
-                        level = _classify_by_heuristic(name, ex_dict.get('category', ''))
-                        total_failed += 1
+                    category = ex_dict.get('category', '')
 
-                    counts[level] += 1
+                    ai_result = ai_results.get(ex_id)
+                    if ai_result:
+                        classification = ai_result
+                        total_ai_ok += 1
+                    else:
+                        classification = _classify_heuristic(name, category)
+                        total_heuristic_fallback += 1
+
+                    counts[classification.difficulty_level] += 1
+                    for g in classification.suitable_for_goals:
+                        goal_counts[g] = goal_counts.get(g, 0) + 1
 
                     if dry_run:
-                        self.stdout.write(f"    [{ex_id}] {name} → {level}")
+                        src = "AI" if ai_result else "heuristic"
+                        self.stdout.write(
+                            f"      [{ex_id}] {name}"
+                            f" → {classification.difficulty_level}"
+                            f" | {', '.join(classification.suitable_for_goals)}"
+                            f" ({src})"
+                        )
                     else:
-                        ex_obj = Exercise(id=ex_id)
-                        ex_obj.difficulty_level = level
+                        ex_obj = Exercise(id=int(ex_id))
+                        ex_obj.difficulty_level = classification.difficulty_level
+                        ex_obj.suitable_for_goals = classification.suitable_for_goals
                         updates.append(ex_obj)
                         total_classified += 1
 
                 if not dry_run and updates:
-                    Exercise.objects.bulk_update(updates, ['difficulty_level'], batch_size=200)
+                    Exercise.objects.bulk_update(
+                        updates,
+                        ['difficulty_level', 'suitable_for_goals'],
+                        batch_size=200,
+                    )
 
+                # Rate-limit between batches to avoid API throttling
+                if i + batch_size < len(mg_exercises):
+                    time.sleep(1)
+
+        # Summary
+        self.stdout.write("")
         self.stdout.write(
             self.style.SUCCESS(
-                f"\n{'[DRY RUN] ' if dry_run else ''}"
-                f"Classification complete: "
-                f"beginner={counts['beginner']}, "
-                f"intermediate={counts['intermediate']}, "
-                f"advanced={counts['advanced']}, "
-                f"total={sum(counts.values())}, "
-                f"fallback_to_heuristic={total_failed}"
+                f"{'[DRY RUN] ' if dry_run else ''}"
+                f"Classification complete!"
             )
         )
+        self.stdout.write(f"  Difficulty: "
+                          f"beginner={counts['beginner']}, "
+                          f"intermediate={counts['intermediate']}, "
+                          f"advanced={counts['advanced']}")
+        self.stdout.write(f"  Goals: " + ", ".join(
+            f"{g}={c}" for g, c in sorted(goal_counts.items()) if c > 0
+        ))
+        self.stdout.write(f"  Total: {sum(counts.values())} exercises")
+        self.stdout.write(f"  AI classified: {total_ai_ok}")
+        self.stdout.write(f"  Heuristic fallback: {total_heuristic_fallback}")

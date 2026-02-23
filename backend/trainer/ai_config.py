@@ -31,19 +31,19 @@ MODEL_CONFIGS = {
         provider=AIProvider.OPENAI,
         model_name="gpt-4o",
         temperature=0.7,
-        max_tokens=2048,
+        max_tokens=4096,
     ),
     AIProvider.ANTHROPIC: AIModelConfig(
         provider=AIProvider.ANTHROPIC,
         model_name="claude-sonnet-4-20250514",
         temperature=0.7,
-        max_tokens=2048,
+        max_tokens=4096,
     ),
     AIProvider.GOOGLE: AIModelConfig(
         provider=AIProvider.GOOGLE,
-        model_name="gemini-1.5-pro",
+        model_name="gemini-2.0-flash",
         temperature=0.7,
-        max_tokens=2048,
+        max_tokens=4096,
     ),
 }
 

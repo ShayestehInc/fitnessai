@@ -15,10 +15,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useUpdateExercise } from "@/hooks/use-exercises";
+import {
+  useUpdateExercise,
+  useUploadExerciseImage,
+  useUploadExerciseVideo,
+} from "@/hooks/use-exercises";
 import { getErrorMessage } from "@/lib/error-utils";
-import { MUSCLE_GROUP_LABELS, MuscleGroup } from "@/types/program";
-import type { Exercise } from "@/types/program";
+import { MUSCLE_GROUP_LABELS, DIFFICULTY_LABELS, GOAL_LABELS } from "@/types/program";
+import { cn } from "@/lib/utils";
+import { FileUploadField } from "./file-upload-field";
+import type { Exercise, DifficultyLevel, GoalType } from "@/types/program";
+
+const DIFFICULTY_COLORS: Record<DifficultyLevel, string> = {
+  beginner: "bg-emerald-100 text-emerald-700",
+  intermediate: "bg-amber-100 text-amber-700",
+  advanced: "bg-red-100 text-red-700",
+};
 
 interface ExerciseDetailDialogProps {
   exercise: Exercise | null;
@@ -46,9 +58,12 @@ export function ExerciseDetailDialog({
     description: "",
     video_url: "",
     image_url: "",
+    difficulty_level: "" as DifficultyLevel | "",
+    suitable_for_goals: [] as GoalType[],
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
 
-  // Reset state when exercise changes or dialog closes
   useEffect(() => {
     if (exercise && open) {
       setForm({
@@ -57,8 +72,12 @@ export function ExerciseDetailDialog({
         description: exercise.description || "",
         video_url: exercise.video_url || "",
         image_url: exercise.image_url || "",
+        difficulty_level: exercise.difficulty_level || "",
+        suitable_for_goals: exercise.suitable_for_goals || [],
       });
       setImgError(false);
+      setImageFile(null);
+      setVideoFile(null);
     }
     if (!open) {
       setEditing(false);
@@ -66,8 +85,15 @@ export function ExerciseDetailDialog({
   }, [exercise, open]);
 
   const updateMutation = useUpdateExercise(exercise?.id ?? 0);
+  const uploadImageMutation = useUploadExerciseImage(exercise?.id ?? 0);
+  const uploadVideoMutation = useUploadExerciseVideo(exercise?.id ?? 0);
 
-  const handleSave = useCallback(() => {
+  const isSaving =
+    updateMutation.isPending ||
+    uploadImageMutation.isPending ||
+    uploadVideoMutation.isPending;
+
+  const handleSave = useCallback(async () => {
     if (!form.name.trim()) {
       toast.error("Name is required");
       return;
@@ -77,23 +103,47 @@ export function ExerciseDetailDialog({
       return;
     }
 
-    updateMutation.mutate(
-      {
+    try {
+      // 1. Upload files first if selected
+      if (imageFile) {
+        await uploadImageMutation.mutateAsync(imageFile);
+      }
+      if (videoFile) {
+        await uploadVideoMutation.mutateAsync(videoFile);
+      }
+
+      // 2. PATCH other fields (only include URL fields if no file was uploaded)
+      const patchData: Record<string, string | string[] | null | undefined> = {
         name: form.name.trim(),
         muscle_group: form.muscle_group,
         description: form.description.trim() || undefined,
-        video_url: form.video_url.trim() || undefined,
-        image_url: form.image_url.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Exercise updated");
-          setEditing(false);
-        },
-        onError: (err) => toast.error(getErrorMessage(err)),
-      },
-    );
-  }, [form, updateMutation]);
+        difficulty_level: form.difficulty_level || null,
+        suitable_for_goals: form.suitable_for_goals,
+      };
+      if (!imageFile) {
+        patchData.image_url = form.image_url.trim() || undefined;
+      }
+      if (!videoFile) {
+        patchData.video_url = form.video_url.trim() || undefined;
+      }
+
+      await updateMutation.mutateAsync(patchData);
+
+      toast.success("Exercise updated");
+      setEditing(false);
+      setImageFile(null);
+      setVideoFile(null);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  }, [
+    form,
+    imageFile,
+    videoFile,
+    updateMutation,
+    uploadImageMutation,
+    uploadVideoMutation,
+  ]);
 
   if (!exercise) return null;
 
@@ -107,12 +157,26 @@ export function ExerciseDetailDialog({
           <div className="flex items-start justify-between gap-2">
             <div>
               <DialogTitle>{editing ? "Edit Exercise" : exercise.name}</DialogTitle>
-              <DialogDescription>
-                {!editing && (
-                  <Badge variant="secondary">
-                    {MUSCLE_GROUP_LABELS[exercise.muscle_group] ??
-                      exercise.muscle_group}
-                  </Badge>
+              <DialogDescription asChild>
+                {!editing ? (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <Badge variant="secondary">
+                      {MUSCLE_GROUP_LABELS[exercise.muscle_group] ??
+                        exercise.muscle_group}
+                    </Badge>
+                    {exercise.difficulty_level && (
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+                          DIFFICULTY_COLORS[exercise.difficulty_level],
+                        )}
+                      >
+                        {DIFFICULTY_LABELS[exercise.difficulty_level]}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span />
                 )}
               </DialogDescription>
             </div>
@@ -174,28 +238,80 @@ export function ExerciseDetailDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-video">Video URL</Label>
-              <Input
-                id="edit-video"
-                value={form.video_url}
+              <Label htmlFor="edit-difficulty">Difficulty Level</Label>
+              <select
+                id="edit-difficulty"
+                value={form.difficulty_level}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, video_url: e.target.value }))
+                  setForm((f) => ({
+                    ...f,
+                    difficulty_level: e.target.value as DifficultyLevel | "",
+                  }))
                 }
-                placeholder="https://youtube.com/watch?v=..."
-              />
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">No difficulty set</option>
+                {Object.entries(DIFFICULTY_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-image">Image URL</Label>
-              <Input
-                id="edit-image"
-                value={form.image_url}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, image_url: e.target.value }))
-                }
-                placeholder="https://example.com/exercise.jpg"
-              />
+              <Label>Training Goals</Label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(GOAL_LABELS).map(([key, label]) => {
+                  const goalKey = key as GoalType;
+                  const isSelected = form.suitable_for_goals.includes(goalKey);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          suitable_for_goals: isSelected
+                            ? f.suitable_for_goals.filter((g) => g !== goalKey)
+                            : [...f.suitable_for_goals, goalKey],
+                        }))
+                      }
+                      className={cn(
+                        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                        isSelected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-input text-muted-foreground hover:bg-accent",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            <FileUploadField
+              label="Image"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              maxSizeMB={10}
+              currentUrl={form.image_url}
+              onFileSelect={setImageFile}
+              onUrlChange={(url) => setForm((f) => ({ ...f, image_url: url }))}
+              uploading={uploadImageMutation.isPending}
+              selectedFile={imageFile}
+            />
+
+            <FileUploadField
+              label="Video"
+              accept="video/mp4,video/quicktime,video/x-msvideo,video/webm,video/x-m4v"
+              maxSizeMB={100}
+              currentUrl={form.video_url}
+              onFileSelect={setVideoFile}
+              onUrlChange={(url) => setForm((f) => ({ ...f, video_url: url }))}
+              uploading={uploadVideoMutation.isPending}
+              selectedFile={videoFile}
+            />
           </div>
         ) : (
           <>
@@ -216,6 +332,22 @@ export function ExerciseDetailDialog({
               <p className="text-sm text-muted-foreground">
                 {exercise.description}
               </p>
+            )}
+
+            {exercise.suitable_for_goals?.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Suitable For</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {exercise.suitable_for_goals.map((goal: GoalType) => (
+                    <span
+                      key={goal}
+                      className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground"
+                    >
+                      {GOAL_LABELS[goal] ?? goal}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
 
             {ytId && (
@@ -244,12 +376,12 @@ export function ExerciseDetailDialog({
             <Button
               variant="outline"
               onClick={() => setEditing(false)}
-              disabled={updateMutation.isPending}
+              disabled={isSaving}
             >
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={updateMutation.isPending}>
-              {updateMutation.isPending && (
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving && (
                 <Loader2
                   className="mr-2 h-4 w-4 animate-spin"
                   aria-hidden="true"

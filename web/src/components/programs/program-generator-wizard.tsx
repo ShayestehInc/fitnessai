@@ -19,6 +19,7 @@ import type {
 } from "@/types/program";
 
 const STEPS = ["Split Type", "Configure", "Preview"] as const;
+const DEFAULT_TRAINING_DAYS = ["Monday", "Tuesday", "Thursday", "Friday"];
 
 export function ProgramGeneratorWizard() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export function ProgramGeneratorWizard() {
   const [difficulty, setDifficulty] = useState<DifficultyLevel | null>(null);
   const [goal, setGoal] = useState<GoalType | null>(null);
   const [durationWeeks, setDurationWeeks] = useState(4);
-  const [trainingDaysPerWeek, setTrainingDaysPerWeek] = useState(4);
+  const [trainingDays, setTrainingDays] = useState<string[]>(DEFAULT_TRAINING_DAYS);
   const [customDayConfig, setCustomDayConfig] = useState<CustomDayConfig[]>([]);
 
   // Preview state
@@ -38,10 +39,13 @@ export function ProgramGeneratorWizard() {
     useState<GeneratedProgramResponse | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
+  const trainingDaysPerWeek = trainingDays.length;
+
   const canAdvance = useCallback((): boolean => {
     if (step === 0) return splitType !== null;
     if (step === 1) {
       if (!difficulty || !goal) return false;
+      if (trainingDays.length < 2) return false;
       if (splitType === "custom") {
         return (
           customDayConfig.length === trainingDaysPerWeek &&
@@ -51,7 +55,7 @@ export function ProgramGeneratorWizard() {
       return true;
     }
     return false;
-  }, [step, splitType, difficulty, goal, customDayConfig, trainingDaysPerWeek]);
+  }, [step, splitType, difficulty, goal, customDayConfig, trainingDays, trainingDaysPerWeek]);
 
   const triggerGeneration = useCallback(async () => {
     setGeneratedData(null);
@@ -64,6 +68,7 @@ export function ProgramGeneratorWizard() {
         goal: goal!,
         duration_weeks: durationWeeks,
         training_days_per_week: trainingDaysPerWeek,
+        training_days: trainingDays,
         custom_day_config:
           splitType === "custom" ? customDayConfig : undefined,
       });
@@ -77,6 +82,7 @@ export function ProgramGeneratorWizard() {
     goal,
     durationWeeks,
     trainingDaysPerWeek,
+    trainingDays,
     customDayConfig,
     generateMutation,
   ]);
@@ -174,12 +180,12 @@ export function ProgramGeneratorWizard() {
             difficulty={difficulty}
             goal={goal}
             durationWeeks={durationWeeks}
-            trainingDaysPerWeek={trainingDaysPerWeek}
+            trainingDays={trainingDays}
             customDayConfig={customDayConfig}
             onDifficultyChange={setDifficulty}
             onGoalChange={setGoal}
             onDurationChange={setDurationWeeks}
-            onDaysChange={setTrainingDaysPerWeek}
+            onTrainingDaysChange={setTrainingDays}
             onCustomDayConfigChange={setCustomDayConfig}
           />
         )}
@@ -212,7 +218,7 @@ export function ProgramGeneratorWizard() {
             {step === 1 ? (
               <>
                 <Wand2 className="mr-2 h-4 w-4" aria-hidden="true" />
-                Generate
+                Generate with AI
               </>
             ) : (
               <>
@@ -232,7 +238,7 @@ export function ProgramGeneratorWizard() {
                   className="mr-2 h-4 w-4 animate-spin"
                   aria-hidden="true"
                 />
-                Generating...
+                AI is generating...
               </>
             ) : (
               "Open in Builder"

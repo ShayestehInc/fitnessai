@@ -28,7 +28,7 @@ export function ChatContainer() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const isConfigured =
-    providers.data && Array.isArray(providers.data) && providers.data.some((p) => p.is_configured);
+    providers.data?.providers?.some((p) => p.configured);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
