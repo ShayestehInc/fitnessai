@@ -23,7 +23,7 @@ jobs:
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script_stop: true
-          command_timeout: 10m
+          command_timeout: 14m
           envs: SECRET_KEY,DB_PASSWORD,DROPLET_IP,OPENAI_API_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,DO_SPACES_KEY,DO_SPACES_SECRET
           script: |
             set -euo pipefail
