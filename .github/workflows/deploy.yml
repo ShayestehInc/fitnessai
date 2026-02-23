@@ -24,7 +24,7 @@ jobs:
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script_stop: true
           command_timeout: 14m
-          envs: SECRET_KEY,DB_PASSWORD,DROPLET_IP,OPENAI_API_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,DO_SPACES_KEY,DO_SPACES_SECRET
+          envs: SECRET_KEY,DB_PASSWORD,DROPLET_IP,AI_PROVIDER,OPENAI_API_KEY,ANTHROPIC_API_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,DO_SPACES_KEY,DO_SPACES_SECRET
           script: |
             set -euo pipefail
             cd /opt/fitnessai
@@ -45,7 +45,9 @@ jobs:
               "NEXT_PUBLIC_API_URL=http://${DROPLET_IP}" \
               "CORS_ALLOWED_ORIGINS=http://${DROPLET_IP}" \
               "CSRF_TRUSTED_ORIGINS=http://${DROPLET_IP}" \
+              "AI_PROVIDER=${AI_PROVIDER:-openai}" \
               "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+              "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
               "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}" \
               "STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" \
               "STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}" \
@@ -82,7 +84,9 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}

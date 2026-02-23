@@ -22,6 +22,12 @@ from pydantic import SecretStr
 from .ai_config import AIProvider, AIModelConfig, get_ai_config, get_api_key
 from users.models import User
 
+_ENV_VAR_FOR_PROVIDER: dict[AIProvider, str] = {
+    AIProvider.OPENAI: "OPENAI_API_KEY",
+    AIProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
+    AIProvider.GOOGLE: "GOOGLE_API_KEY",
+}
+
 
 class DecimalEncoder(json.JSONEncoder):
     """JSON encoder that handles Decimal types."""
@@ -40,15 +46,23 @@ def get_chat_model(config: AIModelConfig) -> BaseChatModel:
 
     Returns:
         A LangChain chat model instance
+
+    Raises:
+        ValueError: If the API key for the configured provider is missing.
     """
     api_key = get_api_key(config.provider)
+    if not api_key:
+        raise ValueError(
+            f"API key for {config.provider.value} is not configured. "
+            f"Set the {_ENV_VAR_FOR_PROVIDER[config.provider]} environment variable."
+        )
 
     if config.provider == AIProvider.OPENAI:
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(
             model=config.model_name,
             temperature=config.temperature,
-            api_key=SecretStr(api_key) if api_key else None,
+            api_key=SecretStr(api_key),
         )
 
     elif config.provider == AIProvider.ANTHROPIC:
@@ -59,7 +73,7 @@ def get_chat_model(config: AIModelConfig) -> BaseChatModel:
             "model": config.model_name,
             "temperature": config.temperature,
             "max_tokens": config.max_tokens,
-            "api_key": SecretStr(api_key) if api_key else SecretStr(""),
+            "api_key": SecretStr(api_key),
         }
         return ChatAnthropic(**anthropic_kwargs)
 
@@ -360,7 +374,7 @@ def get_available_providers() -> list[dict[str, Any]]:
         providers.append({
             "provider": provider.value,
             "model": config.model_name,
-            "configured": api_key is not None,
+            "configured": bool(api_key),
         })
 
     return providers

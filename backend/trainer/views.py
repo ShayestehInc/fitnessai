@@ -1196,7 +1196,14 @@ class AIChatView(views.APIView):
         conversation_history = request.data.get('conversation_history', [])
 
         # Get AI chat instance and send message
-        ai_chat = get_ai_chat(user)
+        try:
+            ai_chat = get_ai_chat(user)
+        except ValueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         result = ai_chat.chat(
             message=message,
             conversation_history=conversation_history,
