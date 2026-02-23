@@ -225,6 +225,20 @@ export const API_URLS = {
 
   MESSAGING_SEARCH: `${API_BASE}/api/messaging/search/`,
 
+  // Ambassador Admin (scoped)
+  AMBASSADOR_ADMIN_DASHBOARD: `${API_BASE}/api/ambassador/admin/dashboard/`,
+  AMBASSADOR_ADMIN_TRAINERS: `${API_BASE}/api/ambassador/admin/trainers/`,
+  AMBASSADOR_ADMIN_CREATE_TRAINER: `${API_BASE}/api/ambassador/admin/trainers/create/`,
+  ambassadorAdminTrainerDetail: (id: number) =>
+    `${API_BASE}/api/ambassador/admin/trainers/${id}/`,
+  AMBASSADOR_ADMIN_SUBSCRIPTIONS: `${API_BASE}/api/ambassador/admin/subscriptions/`,
+  AMBASSADOR_ADMIN_TIERS: `${API_BASE}/api/ambassador/admin/tiers/`,
+  AMBASSADOR_ADMIN_COUPONS: `${API_BASE}/api/ambassador/admin/coupons/`,
+  ambassadorAdminCouponDetail: (id: number) =>
+    `${API_BASE}/api/ambassador/admin/coupons/${id}/`,
+  ambassadorAdminImpersonate: (trainerId: number) =>
+    `${API_BASE}/api/ambassador/admin/impersonate/${trainerId}/`,
+
   // Ambassador (self-service)
   AMBASSADOR_DASHBOARD: `${API_BASE}/api/ambassador/dashboard/`,
   AMBASSADOR_REFERRAL_CODE: `${API_BASE}/api/ambassador/referral-code/`,

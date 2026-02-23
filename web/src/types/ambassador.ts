@@ -109,3 +109,49 @@ export interface AmbassadorConnectStatus {
   payouts_enabled: boolean;
   details_submitted: boolean;
 }
+
+// Ambassador admin (scoped) types
+export interface AmbassadorAdminDashboardData {
+  total_trainers: number;
+  active_trainers: number;
+  total_trainees: number;
+  tier_breakdown: Record<string, number>;
+  monthly_recurring_revenue: string;
+  referral_code: string;
+  commission_rate: string;
+}
+
+export interface AmbassadorAdminTrainer {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  is_active: boolean;
+  created_at: string;
+  trainee_count: number;
+  subscription: {
+    id: number | null;
+    tier: string | null;
+    status: string | null;
+  } | null;
+}
+
+export interface CreateTrainerPayload {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface AmbassadorAdminImpersonationResponse {
+  access: string;
+  refresh: string;
+  trainer: {
+    id: number;
+    email: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+  };
+  message: string;
+}

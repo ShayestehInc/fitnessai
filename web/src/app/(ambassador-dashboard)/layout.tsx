@@ -7,6 +7,7 @@ import { UserRole } from "@/types/user";
 import { AmbassadorSidebar } from "@/components/layout/ambassador-sidebar";
 import { AmbassadorSidebarMobile } from "@/components/layout/ambassador-sidebar-mobile";
 import { Header } from "@/components/layout/header";
+import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AmbassadorDashboardLayout({
@@ -87,6 +88,7 @@ export default function AmbassadorDashboardLayout({
         onOpenChange={setMobileOpen}
       />
       <div className="flex flex-1 flex-col">
+        <ImpersonationBanner />
         <Header onMenuClick={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-auto p-4 lg:p-6" id="main-content">
           {children}
