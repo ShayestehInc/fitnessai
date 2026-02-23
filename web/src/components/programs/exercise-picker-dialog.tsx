@@ -49,9 +49,9 @@ export function ExercisePickerDialog({
   const { data, isLoading, isError, refetch } = useExercises(
     deferredSearch,
     selectedGroup,
-    1,
     selectedDifficulty,
   );
+  const firstPage = data?.pages[0];
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -177,7 +177,7 @@ export function ExercisePickerDialog({
               message="Failed to load exercises"
               onRetry={() => refetch()}
             />
-          ) : data && data.results.length === 0 ? (
+          ) : firstPage && firstPage.results.length === 0 ? (
             <EmptyState
               icon={Dumbbell}
               title="No exercises found"
@@ -187,17 +187,17 @@ export function ExercisePickerDialog({
                   : "No exercises available yet."
               }
             />
-          ) : data ? (
+          ) : firstPage ? (
             <>
-              {data.count > data.results.length && (
+              {firstPage.count > firstPage.results.length && (
                 <p className="text-xs text-muted-foreground">
-                  Showing {data.results.length} of {data.count} exercises.
+                  Showing {firstPage.results.length} of {firstPage.count} exercises.
                   Refine your search to see more.
                 </p>
               )}
               <ScrollArea className="h-[40vh]">
                 <ul className="space-y-1" aria-label="Exercise list">
-                  {data.results.map((exercise) => {
+                  {firstPage.results.map((exercise) => {
                     const justAdded = addedIds.has(exercise.id);
                     return (
                       <li key={exercise.id}>

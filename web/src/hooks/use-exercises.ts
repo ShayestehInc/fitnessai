@@ -1,32 +1,38 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import type { PaginatedResponse } from "@/types/api";
 import type { Exercise, MuscleGroup, DifficultyLevel } from "@/types/program";
 
+const PAGE_SIZE = 60;
+
 export function useExercises(
   search: string = "",
   muscleGroup: MuscleGroup | "" = "",
-  page: number = 1,
   difficultyLevel: DifficultyLevel | "" = "",
 ) {
-  const params = new URLSearchParams();
-  if (search) params.set("search", search);
-  if (muscleGroup) params.set("muscle_group", muscleGroup);
-  if (difficultyLevel) params.set("difficulty_level", difficultyLevel);
-  params.set("page", String(page));
-  params.set("page_size", "100");
-
-  const queryString = params.toString();
-
-  return useQuery<PaginatedResponse<Exercise>>({
-    queryKey: ["exercises", search, muscleGroup, page, difficultyLevel],
-    queryFn: () =>
-      apiClient.get<PaginatedResponse<Exercise>>(
-        `${API_URLS.EXERCISES}?${queryString}`,
-      ),
+  return useInfiniteQuery<PaginatedResponse<Exercise>>({
+    queryKey: ["exercises", search, muscleGroup, difficultyLevel],
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (muscleGroup) params.set("muscle_group", muscleGroup);
+      if (difficultyLevel) params.set("difficulty_level", difficultyLevel);
+      params.set("page", String(pageParam));
+      params.set("page_size", String(PAGE_SIZE));
+      return apiClient.get<PaginatedResponse<Exercise>>(
+        `${API_URLS.EXERCISES}?${params.toString()}`,
+      );
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
+      lastPage.next ? (lastPageParam as number) + 1 : undefined,
     staleTime: 5 * 60 * 1000,
   });
 }
