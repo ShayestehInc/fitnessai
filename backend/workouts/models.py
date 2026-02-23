@@ -30,6 +30,7 @@ class Exercise(models.Model):
     description = models.TextField(blank=True)
     video_url = models.URLField(blank=True, null=True)
     image_url = models.URLField(
+        max_length=2048,
         blank=True,
         null=True,
         help_text="Thumbnail image URL for this exercise"
@@ -57,6 +58,15 @@ class Exercise(models.Model):
         null=True,
         blank=True,
         help_text="Exercise difficulty: beginner (machines/cables), intermediate (free weights), advanced (complex/specialty)"
+    )
+
+    suitable_for_goals = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Training goals this exercise is best suited for. "
+            "Values from: build_muscle, fat_loss, strength, endurance, recomp, general_fitness"
+        ),
     )
 
     category = models.CharField(
