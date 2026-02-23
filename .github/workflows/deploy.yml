@@ -24,7 +24,7 @@ jobs:
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script_stop: true
           command_timeout: 10m
-          envs: SECRET_KEY,DB_PASSWORD,DROPLET_IP,OPENAI_API_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET
+          envs: SECRET_KEY,DB_PASSWORD,DROPLET_IP,OPENAI_API_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,DO_SPACES_KEY,DO_SPACES_SECRET
           script: |
             set -euo pipefail
             cd /opt/fitnessai
@@ -49,6 +49,11 @@ jobs:
               "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}" \
               "STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" \
               "STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}" \
+              "DO_SPACES_KEY=${DO_SPACES_KEY}" \
+              "DO_SPACES_SECRET=${DO_SPACES_SECRET}" \
+              "DO_SPACES_BUCKET=fitnessai-bucket" \
+              "DO_SPACES_ENDPOINT=https://sfo3.digitaloceanspaces.com" \
+              "DO_SPACES_REGION=sfo3" \
               > .env.production
 
             echo "=== Building and deploying ==="
@@ -62,6 +67,9 @@ jobs:
 
             echo "=== Running migrations ==="
             docker exec fitnessai_backend python manage.py migrate --noinput
+
+            echo "=== Loading exercise bank ==="
+            docker exec fitnessai_backend python manage.py loaddata workouts/fixtures/exercises.json
 
             echo "=== Service status ==="
             docker compose -f docker-compose.prod.yml ps
@@ -78,3 +86,5 @@ jobs:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          DO_SPACES_KEY: ${{ secrets.DO_SPACES_KEY }}
+          DO_SPACES_SECRET: ${{ secrets.DO_SPACES_SECRET }}
