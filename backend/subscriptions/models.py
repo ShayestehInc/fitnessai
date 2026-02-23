@@ -709,6 +709,15 @@ class Coupon(models.Model):
         limit_choices_to={'role': 'ADMIN'},
         help_text="Admin who created this coupon"
     )
+    created_by_ambassador = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ambassador_created_coupons',
+        limit_choices_to={'role': 'AMBASSADOR'},
+        help_text="Ambassador who created this coupon"
+    )
     # Applicable tiers (for trainer subscriptions)
     applicable_tiers = models.JSONField(
         default=list,
@@ -752,6 +761,7 @@ class Coupon(models.Model):
             models.Index(fields=['code']),
             models.Index(fields=['status']),
             models.Index(fields=['created_by_trainer']),
+            models.Index(fields=['created_by_ambassador']),
             models.Index(fields=['valid_until']),
         ]
 

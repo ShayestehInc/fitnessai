@@ -4,6 +4,7 @@ URL configuration for ambassador app.
 from django.urls import path
 
 from . import views
+from . import views_admin
 
 app_name = 'ambassador'
 
@@ -52,4 +53,17 @@ admin_urlpatterns = [
         views.AdminTriggerPayoutView.as_view(),
         name='admin-ambassador-payout',
     ),
+]
+
+# Ambassador admin endpoints — scoped admin capabilities (mounted at /api/ambassador/admin/)
+ambassador_admin_urlpatterns = [
+    path('dashboard/', views_admin.AmbassadorAdminDashboardView.as_view(), name='ambassador-admin-dashboard'),
+    path('trainers/', views_admin.AmbassadorAdminTrainersView.as_view(), name='ambassador-admin-trainers'),
+    path('trainers/create/', views_admin.AmbassadorAdminCreateTrainerView.as_view(), name='ambassador-admin-create-trainer'),
+    path('trainers/<int:trainer_id>/', views_admin.AmbassadorAdminTrainerDetailView.as_view(), name='ambassador-admin-trainer-detail'),
+    path('subscriptions/', views_admin.AmbassadorAdminSubscriptionsView.as_view(), name='ambassador-admin-subscriptions'),
+    path('tiers/', views_admin.AmbassadorAdminTiersView.as_view(), name='ambassador-admin-tiers'),
+    path('coupons/', views_admin.AmbassadorAdminCouponsView.as_view(), name='ambassador-admin-coupons'),
+    path('coupons/<int:coupon_id>/', views_admin.AmbassadorAdminCouponDetailView.as_view(), name='ambassador-admin-coupon-detail'),
+    path('impersonate/<int:trainer_id>/', views_admin.AmbassadorAdminImpersonateView.as_view(), name='ambassador-admin-impersonate'),
 ]

@@ -6,6 +6,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from ambassador.urls import admin_urlpatterns as ambassador_admin_urlpatterns
+from ambassador.urls import ambassador_admin_urlpatterns as ambassador_scoped_admin_urlpatterns
 from subscriptions.urls import payment_urlpatterns
 
 urlpatterns = [
@@ -26,6 +27,7 @@ urlpatterns = [
 
     # Ambassador endpoints
     path('api/ambassador/', include('ambassador.urls')),
+    path('api/ambassador/admin/', include((ambassador_scoped_admin_urlpatterns, 'ambassador-scoped-admin'))),
 
     # Calendar integration
     path('api/calendar/', include('calendars.urls')),
