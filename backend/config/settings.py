@@ -146,6 +146,27 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Storage — DigitalOcean Spaces (S3-compatible) in production, local filesystem in dev
+_do_spaces_key = os.getenv("DO_SPACES_KEY")
+if _do_spaces_key:
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    AWS_ACCESS_KEY_ID = _do_spaces_key
+    AWS_SECRET_ACCESS_KEY = os.getenv("DO_SPACES_SECRET", "")
+    AWS_STORAGE_BUCKET_NAME = os.getenv("DO_SPACES_BUCKET", "fitnessai-bucket")
+    AWS_S3_ENDPOINT_URL = os.getenv("DO_SPACES_ENDPOINT", "https://sfo3.digitaloceanspaces.com")
+    AWS_S3_REGION_NAME = os.getenv("DO_SPACES_REGION", "sfo3")
+    AWS_DEFAULT_ACL = "public-read"
+    AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=86400"}
+    AWS_QUERYSTRING_AUTH = False
+    AWS_LOCATION = "media"
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -235,6 +256,9 @@ CALENDAR_ENCRYPTION_KEY = os.getenv('CALENDAR_ENCRYPTION_KEY', '')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
 APPLE_CLIENT_ID = os.getenv('APPLE_CLIENT_ID', '')  # Bundle ID (e.g., com.yourapp.bundleid)
 APPLE_TEAM_ID = os.getenv('APPLE_TEAM_ID', '')
+
+# SerpAPI (exercise image search)
+SERPAPI_KEY = os.getenv('SERPAPI_KEY', '')
 
 # Email Configuration
 # Dev: console backend prints emails to stdout

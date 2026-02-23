@@ -91,6 +91,17 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
                 # Invalid difficulty_level: return empty queryset rather than unfiltered
                 return queryset.none()
 
+        goal = self.request.query_params.get('goal')
+        if goal:
+            valid_goals = {
+                'build_muscle', 'fat_loss', 'strength',
+                'endurance', 'recomp', 'general_fitness',
+            }
+            if goal in valid_goals:
+                queryset = queryset.filter(suitable_for_goals__contains=[goal])
+            else:
+                return queryset.none()
+
         return queryset.order_by('muscle_group', 'name')
 
     def perform_create(self, serializer: BaseSerializer[Exercise]) -> None:
@@ -169,20 +180,18 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
 
         unique_filename = f"exercises/{uuid.uuid4().hex}{file_extension}"
 
-        # Delete old image if it exists and is stored locally
+        # Delete old image if it exists in our storage (local or Spaces)
         if exercise.image_url:
-            old_url = exercise.image_url
-            # Check if it's a local media file
-            if old_url.startswith(settings.MEDIA_URL) or '/media/' in old_url:
-                old_path = old_url.replace(settings.MEDIA_URL, '').lstrip('/')
-                if default_storage.exists(old_path):
-                    default_storage.delete(old_path)
+            old_path = self._extract_storage_path(exercise.image_url)
+            if old_path and default_storage.exists(old_path):
+                default_storage.delete(old_path)
 
         # Save the new image
         saved_path = default_storage.save(unique_filename, image_file)
 
-        # Build the full URL
-        image_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{saved_path}")
+        # Build the full URL — default_storage.url() returns the correct URL
+        # for both local filesystem and remote backends (e.g. DO Spaces)
+        image_url = default_storage.url(saved_path)
 
         # Update exercise with new image URL
         exercise.image_url = image_url
@@ -263,20 +272,18 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
 
         unique_filename = f"exercises/videos/{uuid.uuid4().hex}{file_extension}"
 
-        # Delete old video if it exists and is stored locally
-        if exercise.video_url:
-            old_url = exercise.video_url
-            # Check if it's a local media file (not YouTube)
-            if (old_url.startswith(settings.MEDIA_URL) or '/media/' in old_url) and 'youtube' not in old_url:
-                old_path = old_url.replace(settings.MEDIA_URL, '').lstrip('/')
-                if default_storage.exists(old_path):
-                    default_storage.delete(old_path)
+        # Delete old video if it exists in our storage (local or Spaces)
+        if exercise.video_url and 'youtube' not in exercise.video_url:
+            old_path = self._extract_storage_path(exercise.video_url)
+            if old_path and default_storage.exists(old_path):
+                default_storage.delete(old_path)
 
         # Save the new video
         saved_path = default_storage.save(unique_filename, video_file)
 
-        # Build the full URL
-        video_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{saved_path}")
+        # Build the full URL — default_storage.url() returns the correct URL
+        # for both local filesystem and remote backends (e.g. DO Spaces)
+        video_url = default_storage.url(saved_path)
 
         # Update exercise with new video URL
         exercise.video_url = video_url
@@ -287,6 +294,41 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
             'video_url': video_url,
             'message': 'Video uploaded successfully'
         }, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _extract_storage_path(url: str) -> str | None:
+        """
+        Extract the default_storage-relative path from a media URL.
+
+        Handles both local paths (/media/exercises/foo.jpg) and
+        DO Spaces URLs (https://bucket.sfo3.digitaloceanspaces.com/media/exercises/foo.jpg).
+
+        Returns None for external URLs (YouTube, SerpAPI images, etc.).
+        """
+        if not url:
+            return None
+
+        # DO Spaces URL — extract path after /media/
+        if "digitaloceanspaces.com" in url:
+            marker = "/media/"
+            idx = url.find(marker)
+            if idx >= 0:
+                return url[idx + len(marker):]
+            return None
+
+        # Local relative path: /media/... or media/...
+        if url.startswith("/media/"):
+            return url[len("/media/"):]
+        if url.startswith("media/"):
+            return url[len("media/"):]
+
+        # Localhost absolute URL
+        if url.startswith(("http://localhost", "http://127.0.0.1")) and "/media/" in url:
+            idx = url.find("/media/")
+            return url[idx + len("/media/"):]
+
+        # Not our storage
+        return None
 
 
 class ProgramViewSet(viewsets.ModelViewSet[Program]):
