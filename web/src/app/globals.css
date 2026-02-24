@@ -217,6 +217,32 @@
   border-radius: 4px;
 }
 
+/* Horizontal scroll hint — right-edge gradient fade on mobile.
+   Uses var(--card) so it blends into Card backgrounds in both themes.
+   JS in DataTable and TraineeActivityTab toggles .scrolled-end when the
+   user scrolls to the right edge or the table fits without overflow. */
+@media (max-width: 767px) {
+  .table-scroll-hint {
+    position: relative;
+  }
+  .table-scroll-hint::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 32px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, var(--card));
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    transition: opacity 0.15s ease;
+  }
+  /* Hide the hint when the user has scrolled to the end or content fits */
+  .table-scroll-hint.scrolled-end::after {
+    opacity: 0;
+  }
+}
+
 /* Prevent iOS text size adjustment */
 html {
   -webkit-text-size-adjust: 100%;

@@ -78,13 +78,15 @@ export function WeightChart({ data }: WeightChartProps) {
               <XAxis
                 dataKey="date"
                 className="text-xs"
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                interval="preserveStartEnd"
               />
               <YAxis
                 className="text-xs"
                 tick={{ fill: "hsl(var(--muted-foreground))" }}
                 domain={["dataMin - 2", "dataMax + 2"]}
                 unit=" kg"
+                width={50}
               />
               <Tooltip contentStyle={tooltipContentStyle} />
               <Line
@@ -145,11 +147,13 @@ export function VolumeChart({ data }: VolumeChartProps) {
               <XAxis
                 dataKey="date"
                 className="text-xs"
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                interval="preserveStartEnd"
               />
               <YAxis
                 className="text-xs"
                 tick={{ fill: "hsl(var(--muted-foreground))" }}
+                width={50}
               />
               <Tooltip
                 contentStyle={tooltipContentStyle}
@@ -216,7 +220,8 @@ export function AdherenceChart({ data }: AdherenceChartProps) {
               <XAxis
                 dataKey="date"
                 className="text-xs"
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                interval="preserveStartEnd"
               />
               <YAxis
                 className="text-xs"

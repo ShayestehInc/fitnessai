@@ -4,6 +4,36 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-24] — Pipeline 37: Trainer Dashboard Mobile Responsiveness
+
+### Changed
+- **DataTable responsive columns** — Hide less-important columns on mobile (`hidden md:table-cell`) across trainee list (Program, Joined), program list (Goal, Used, Created), invitation list (Program, Expires), activity tab (Carbs, Fat), revenue tables (Since, Type, Date)
+- **DataTable compact pagination** — `Page X of Y (Z total)` → `X/Y` on mobile, icon-only Previous/Next buttons with 44px touch targets
+- **Trainee detail page** — Header stacks vertically on mobile, action buttons use 2-column grid with 44px min-height, scrollable tabs at 320px
+- **Revenue section header** — Restructured into two-row layout: heading + period selector on row 1, export buttons on row 2
+- **Exercise bank filters** — Collapsible filter chips behind "Filters (N)" toggle on mobile with `aria-expanded`/`aria-controls`
+- **Exercise row inputs** — Taller `h-9` inputs on mobile for better touch targets, reduced left padding (`pl-0 sm:pl-8`)
+- **Program builder save bar** — Sticky at bottom on mobile with safe-area-inset-bottom padding, reverts to static at `md:` breakpoint
+- **Chat pages** — `100vh` → `100dvh` on AI Chat and Messages pages to fix Mobile Safari address bar overlap
+- **Dashboard home table** — Recent Trainees table now hides Program and Joined columns on mobile with scroll hint
+- **Progress charts** — Added `interval="preserveStartEnd"` and smaller font size to prevent XAxis label overlap on mobile
+
+### Added
+- **Horizontal scroll hints** — `.table-scroll-hint` CSS class with gradient fade + JS scroll listener that hides when scrolled to edge; applied to DataTable and TraineeActivityTab
+- **Dialog overflow protection** — Added `max-h-[90dvh] overflow-y-auto` to 9 trainer dialogs (edit-goals, mark-missed-day, remove-trainee, change-program, exercise-picker, assign-program, create-invitation, announcement-form, create-feature-request)
+- **Compact notification/announcement pagination** — Icon-only Previous/Next buttons on mobile matching DataTable pattern
+- **Calendar event truncation** — Long event titles truncate properly at mobile widths
+
+### Technical
+- TypeScript: zero errors, build passes
+- Security: 10/10 PASS — purely CSS/layout changes
+- Architecture: 9/10 APPROVE — CSS-first approach, consistent `md:` breakpoint usage
+- UX: 9/10 — 6 issues found and fixed during audit
+- Hacker: 7/10 — found and fixed 19 additional files beyond ticket scope
+- 25+ files changed across web/src/
+
+---
+
 ## [2026-02-24] — Pipeline 36: Trainee Web Mobile Responsiveness
 
 ### Changed

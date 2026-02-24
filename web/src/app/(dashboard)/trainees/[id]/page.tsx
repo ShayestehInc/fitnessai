@@ -75,7 +75,7 @@ export default function TraineeDetailPage({
   return (
     <PageTransition>
       <div className="space-y-6">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <Button variant="ghost" size="sm" className="mb-2" asChild>
               <Link href="/trainees">
@@ -88,7 +88,7 @@ export default function TraineeDetailPage({
                 <User className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="min-w-0">
-                <h1 className="truncate text-2xl font-bold tracking-tight" title={displayName}>
+                <h1 className="truncate text-xl font-bold tracking-tight sm:text-2xl" title={displayName}>
                   {displayName}
                 </h1>
                 <p className="truncate text-sm text-muted-foreground">{trainee.email}</p>
@@ -100,7 +100,7 @@ export default function TraineeDetailPage({
           </div>
 
           {/* Trainee Actions */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 [&_button]:min-h-[44px] sm:flex sm:flex-wrap sm:[&_button]:min-h-0">
             <ImpersonateTraineeButton
               traineeId={trainee.id}
               traineeName={displayName}
@@ -147,12 +147,14 @@ export default function TraineeDetailPage({
         </div>
 
         <Tabs defaultValue="overview">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-            <TabsTrigger value="progress">Progress</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+          <div className="scrollbar-thin overflow-x-auto">
+            <TabsList className="inline-flex w-max min-w-full justify-start">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="activity">Activity</TabsTrigger>
+              <TabsTrigger value="progress">Progress</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+          </div>
           <TabsContent value="overview" className="mt-4">
             <TraineeOverviewTab trainee={trainee} />
           </TabsContent>

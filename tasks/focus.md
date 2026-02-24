@@ -1,20 +1,29 @@
-# Pipeline 36 Focus: Web App Mobile Responsiveness
+# Pipeline 37 Focus: Trainer Dashboard Mobile Responsiveness
 
 ## Priority
-Make the entire trainee web dashboard fully mobile-friendly. Every page must work beautifully on phones (320px–480px) and tablets (768px–1024px), not just desktop. Currently the web app is built for desktop viewports — tables overflow, sidebar doesn't collapse, touch targets are too small, and content doesn't reflow on narrow screens.
-
-## Key Changes
-- Navigation: Sidebar must collapse to hamburger menu or bottom nav on mobile
-- Tables: Convert to card-based layouts on small screens (no horizontal scroll)
-- Forms/inputs: Touch-friendly sizing (min 44px tap targets)
-- Charts/visualizations: Must resize and remain readable
-- Typography/spacing: Scale appropriately for mobile viewports
-- Modals/dialogs: Full-screen or properly constrained on mobile
-- All trainee web pages: Dashboard, Workouts, Nutrition, Settings, etc.
+Make the **trainer web dashboard** fully mobile-friendly. The trainee portal was already optimized in Pipeline 36 — now apply the same treatment to the trainer-facing pages.
 
 ## Scope
-- Trainee web portal — all pages
-- CSS/layout changes only — no backend work
-- Use Tailwind responsive utilities (sm:, md:, lg:) consistently
-- Test at 375px (iPhone), 768px (tablet), 1024px+ (desktop) breakpoints
-- Maintain existing desktop experience — only enhance for smaller screens
+All pages under the `(dashboard)` layout used by trainers:
+- Dashboard home (stats, trainees)
+- Trainee list + detail (tabs, activity, progress)
+- Programs (list, builder, generator)
+- Exercise bank (grid, create/edit dialogs)
+- Invitations management
+- Notifications
+- Messages / AI Chat
+- Announcements
+- Branding settings
+- Analytics
+- Subscription / Payments
+- Calendar
+- Settings (profile, appearance, security)
+
+## Key Areas
+1. Tables (trainee list, invitations, notifications) — responsive on mobile
+2. Dialog/modal overflow — all dialogs scrollable at mobile viewport
+3. Touch targets — minimum 44px on interactive elements
+4. Form layouts — stack vertically on mobile
+5. Chart readability — axis labels, legends at small widths
+6. Navigation — sidebar/drawer already exists, verify usability
+7. Cards and grids — single column on mobile, multi-column on desktop

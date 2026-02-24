@@ -37,7 +37,7 @@ export function InactiveTrainees({ trainees }: InactiveTraineesProps) {
               key={t.id}
               href={`/trainees/${t.id}`}
               aria-label={`View ${`${t.first_name} ${t.last_name}`.trim() || t.email} — ${t.last_activity ? `last active ${formatDistanceToNow(new Date(t.last_activity), { addSuffix: true })}` : "never logged"}`}
-              className="flex items-center justify-between rounded-md p-2 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex items-center justify-between gap-3 rounded-md p-2 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">
@@ -45,7 +45,7 @@ export function InactiveTrainees({ trainees }: InactiveTraineesProps) {
                 </p>
                 <p className="truncate text-xs text-muted-foreground">{t.email}</p>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
                 {t.last_activity
                   ? `Last active ${formatDistanceToNow(new Date(t.last_activity), { addSuffix: true })}`
                   : "Never logged"}

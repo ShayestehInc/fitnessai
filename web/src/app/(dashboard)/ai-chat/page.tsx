@@ -149,7 +149,7 @@ export default function AiChatPage() {
             title="AI Chat"
             description="Your AI assistant for trainee insights and management"
           />
-          <div className="flex h-[calc(100vh-12rem)] flex-col items-center justify-center gap-4">
+          <div className="flex h-[calc(100dvh-12rem)] flex-col items-center justify-center gap-4">
             <div className="rounded-full bg-amber-100 p-4 dark:bg-amber-900/20">
               <AlertTriangle className="h-8 w-8 text-amber-500" />
             </div>
@@ -171,7 +171,7 @@ export default function AiChatPage() {
           description="Your AI assistant for trainee insights and management"
         />
 
-        <div className="flex h-[calc(100vh-12rem)] overflow-hidden rounded-lg border bg-card">
+        <div className="flex h-[calc(100dvh-12rem)] overflow-hidden rounded-lg border bg-card">
           {/* Sidebar */}
           <div
             className={`w-full shrink-0 overflow-y-auto border-r md:w-80 ${

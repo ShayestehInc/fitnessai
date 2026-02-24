@@ -44,6 +44,7 @@ export const traineeColumns: Column<TraineeListItem>[] = [
   {
     key: "program",
     header: "Program",
+    className: "hidden md:table-cell",
     cell: (row) => (
       <span className="text-sm text-muted-foreground">
         {row.current_program?.name ?? "None"}
@@ -53,6 +54,7 @@ export const traineeColumns: Column<TraineeListItem>[] = [
   {
     key: "joined",
     header: "Joined",
+    className: "hidden md:table-cell",
     cell: (row) => (
       <span className="text-sm text-muted-foreground">
         {format(new Date(row.created_at), "MMM d, yyyy")}

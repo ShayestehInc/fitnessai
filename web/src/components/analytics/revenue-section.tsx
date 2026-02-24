@@ -213,6 +213,7 @@ const subscriberColumns: Column<RevenueSubscriber>[] = [
   {
     key: "subscribed_since",
     header: "Since",
+    className: "hidden md:table-cell",
     cell: (row) => <span>{formatRelativeDate(row.subscribed_since)}</span>,
   },
 ];
@@ -233,6 +234,7 @@ const paymentColumns: Column<RevenuePayment>[] = [
   {
     key: "payment_type",
     header: "Type",
+    className: "hidden md:table-cell",
     cell: (row) => (
       <span>{PAYMENT_TYPE_LABELS[row.payment_type] ?? row.payment_type}</span>
     ),
@@ -256,6 +258,7 @@ const paymentColumns: Column<RevenuePayment>[] = [
   {
     key: "paid_at",
     header: "Date",
+    className: "hidden md:table-cell",
     cell: (row) => (
       <span>
         {row.paid_at
@@ -346,35 +349,35 @@ export function RevenueSection() {
 
   return (
     <section aria-labelledby="revenue-heading">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 id="revenue-heading" className="text-lg font-semibold">
-          Revenue
-        </h2>
-        <div className="flex flex-wrap items-center gap-2">
-          {hasData && (
-            <>
-              <ExportButton
-                url={`${API_URLS.EXPORT_PAYMENTS}?days=${days}`}
-                filename={`payments_${new Date().toLocaleDateString("en-CA")}.csv`}
-                label="Export Payments"
-                aria-label="Export payments as CSV"
-                disabled={isFetching}
-              />
-              <ExportButton
-                url={API_URLS.EXPORT_SUBSCRIBERS}
-                filename={`subscribers_${new Date().toLocaleDateString("en-CA")}.csv`}
-                label="Export Subscribers"
-                aria-label="Export subscribers as CSV"
-                disabled={isFetching}
-              />
-            </>
-          )}
+      <div className="mb-4 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 id="revenue-heading" className="text-lg font-semibold">
+            Revenue
+          </h2>
           <RevenuePeriodSelector
             value={days}
             onChange={setDays}
             disabled={isLoading}
           />
         </div>
+        {hasData && (
+          <div className="flex gap-2">
+            <ExportButton
+              url={`${API_URLS.EXPORT_PAYMENTS}?days=${days}`}
+              filename={`payments_${new Date().toLocaleDateString("en-CA")}.csv`}
+              label="Export Payments"
+              aria-label="Export payments as CSV"
+              disabled={isFetching}
+            />
+            <ExportButton
+              url={API_URLS.EXPORT_SUBSCRIBERS}
+              filename={`subscribers_${new Date().toLocaleDateString("en-CA")}.csv`}
+              label="Export Subscribers"
+              aria-label="Export subscribers as CSV"
+              disabled={isFetching}
+            />
+          </div>
+        )}
       </div>
 
       {isLoading ? (

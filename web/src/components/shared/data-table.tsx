@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useCallback, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -46,9 +47,26 @@ export function DataTable<T>({
     totalCount !== undefined ? Math.ceil(totalCount / pageSize) : 1;
   const showPagination = totalCount !== undefined && totalPages > 1;
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const updateScrollHint = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+    el.classList.toggle("scrolled-end", atEnd);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateScrollHint();
+    el.addEventListener("scroll", updateScrollHint, { passive: true });
+    return () => el.removeEventListener("scroll", updateScrollHint);
+  }, [updateScrollHint]);
+
   return (
     <div>
-      <div className="overflow-x-auto rounded-md border">
+      <div ref={scrollRef} className="table-scroll-hint overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -110,28 +128,31 @@ export function DataTable<T>({
       </div>
       {showPagination && (
         <div className="flex items-center justify-between px-2 py-4">
-          <p className="text-sm text-muted-foreground">
-            Page {page} of {totalPages} ({totalCount} total)
+          <p className="text-sm text-muted-foreground" aria-label={`Page ${page} of ${totalPages}, ${totalCount} total items`}>
+            <span className="hidden sm:inline">Page {page} of {totalPages} ({totalCount} total)</span>
+            <span className="sm:hidden" aria-hidden="true">{page}/{totalPages}</span>
           </p>
           <nav className="flex items-center gap-2" aria-label="Table pagination">
             <Button
               variant="outline"
               size="sm"
+              className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
               onClick={() => onPageChange?.(page - 1)}
               disabled={page <= 1}
               aria-label="Go to previous page"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              Previous
+              <span className="hidden sm:inline">Previous</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
+              className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
               onClick={() => onPageChange?.(page + 1)}
               disabled={page >= totalPages}
               aria-label="Go to next page"
             >
-              Next
+              <span className="hidden sm:inline">Next</span>
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           </nav>

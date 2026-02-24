@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-24 (Pipeline 36: Trainee Web Mobile Responsiveness)
+> Last updated: 2026-02-24 (Pipeline 37: Trainer Dashboard Mobile Responsiveness)
 
 ---
 
@@ -242,6 +242,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Trainer branding (trainee web) | ✅ Done | Shipped 2026-02-23 (Pipeline 34): `useTraineeBranding()` hook with React Query caching (5-min staleTime), `BrandLogo` shared component with image error fallback, hex color sanitization, trainer's app name/logo/primary color applied to both desktop and mobile trainee sidebars |
 | Nutrition tracking page (web) | ✅ Done | Shipped 2026-02-24 (Pipeline 35): `/trainee/nutrition` page with AI meal logging (parse → preview → confirm), daily macro tracking with date navigation, meal history with delete, macro preset chips, over-goal amber indicators, shared MacroBar component |
 | Mobile responsiveness (trainee web) | ✅ Done | Shipped 2026-02-24 (Pipeline 36): Full mobile optimization — dvh viewport fix, responsive exercise log grid, sticky workout bottom bar, iOS auto-zoom prevention, safe area insets, touch-friendly targets, responsive charts, dialog overflow fixes, scrollable week tabs, numeric keyboard inputs |
+| Mobile responsiveness (trainer web) | ✅ Done | Shipped 2026-02-24 (Pipeline 37): Full trainer dashboard mobile optimization — responsive DataTable column hiding, compact pagination, collapsible exercise filter chips, sticky program builder save bar, dvh chat fix, revenue header restructuring, 44px touch targets, horizontal scroll hints, trainee detail action grid, scrollable tabs, 9 dialog overflow fixes, progress chart mobile labels |
 
 ### 3.10 Social & Community
 | Feature | Status | Notes |

@@ -24,6 +24,7 @@ export const invitationColumns: Column<Invitation>[] = [
   {
     key: "program",
     header: "Program",
+    className: "hidden md:table-cell",
     cell: (row) => (
       <span className="text-sm text-muted-foreground">
         {row.program_template_name ?? "None"}
@@ -42,6 +43,7 @@ export const invitationColumns: Column<Invitation>[] = [
   {
     key: "expires",
     header: "Expires",
+    className: "hidden md:table-cell",
     cell: (row) => (
       <span className="text-sm text-muted-foreground">
         {format(new Date(row.expires_at), "MMM d, yyyy")}

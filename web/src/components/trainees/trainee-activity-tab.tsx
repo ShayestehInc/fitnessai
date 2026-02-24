@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Card,
@@ -36,6 +36,22 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
     traineeId,
     days,
   );
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const updateScrollHint = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+    el.classList.toggle("scrolled-end", atEnd);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateScrollHint();
+    el.addEventListener("scroll", updateScrollHint, { passive: true });
+    return () => el.removeEventListener("scroll", updateScrollHint);
+  }, [updateScrollHint]);
 
   return (
     <Card>
@@ -74,7 +90,7 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
             No activity data for this period
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div ref={scrollRef} className="table-scroll-hint overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -83,8 +99,8 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
                   <TableHead>Food</TableHead>
                   <TableHead className="text-right">Calories</TableHead>
                   <TableHead className="text-right">Protein</TableHead>
-                  <TableHead className="text-right">Carbs</TableHead>
-                  <TableHead className="text-right">Fat</TableHead>
+                  <TableHead className="hidden text-right md:table-cell">Carbs</TableHead>
+                  <TableHead className="hidden text-right md:table-cell">Fat</TableHead>
                   <TableHead>Goals</TableHead>
                 </TableRow>
               </TableHeader>
@@ -106,10 +122,10 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
                     <TableCell className="text-right">
                       {Math.round(row.protein_consumed)}g
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden text-right md:table-cell">
                       {Math.round(row.carbs_consumed)}g
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden text-right md:table-cell">
                       {Math.round(row.fat_consumed)}g
                     </TableCell>
                     <TableCell>

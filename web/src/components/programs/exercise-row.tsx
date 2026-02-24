@@ -76,7 +76,7 @@ export function ExerciseRow({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="min-h-[44px] min-w-[44px] sm:h-7 sm:min-h-0 sm:w-7 sm:min-w-0"
             onClick={onMoveUp}
             disabled={index === 0}
             aria-label={`Move ${exercise.exercise_name} up`}
@@ -87,7 +87,7 @@ export function ExerciseRow({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="min-h-[44px] min-w-[44px] sm:h-7 sm:min-h-0 sm:w-7 sm:min-w-0"
             onClick={onMoveDown}
             disabled={index === totalExercises - 1}
             aria-label={`Move ${exercise.exercise_name} down`}
@@ -98,7 +98,7 @@ export function ExerciseRow({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-destructive hover:text-destructive"
+            className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive sm:h-7 sm:min-h-0 sm:w-7 sm:min-w-0"
             onClick={onRemove}
             aria-label={`Remove ${exercise.exercise_name}`}
           >
@@ -108,7 +108,7 @@ export function ExerciseRow({
       </div>
 
       {/* Bottom row: parameter inputs -- wraps responsively */}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 pl-8">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 pl-0 sm:pl-8">
         <div className="flex items-center gap-1">
           <label
             className="text-xs font-medium text-muted-foreground"
@@ -125,7 +125,7 @@ export function ExerciseRow({
             onChange={(e) =>
               updateField("sets", Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))
             }
-            className="h-8 w-14 text-center text-xs"
+            className="h-9 w-14 text-center text-xs sm:h-8"
           />
         </div>
 
@@ -156,7 +156,7 @@ export function ExerciseRow({
               }
             }}
             maxLength={10}
-            className="h-8 w-16 text-center text-xs"
+            className="h-9 w-16 text-center text-xs sm:h-8"
           />
         </div>
 
@@ -177,14 +177,14 @@ export function ExerciseRow({
             onChange={(e) =>
               updateField("weight", Math.min(9999, Math.max(0, parseFloat(e.target.value) || 0)))
             }
-            className="h-8 w-16 text-center text-xs"
+            className="h-9 w-16 text-center text-xs sm:h-8"
           />
           <select
             value={exercise.unit}
             onChange={(e) =>
               updateField("unit", e.target.value as "lbs" | "kg")
             }
-            className="h-8 rounded-md border border-input bg-background px-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="h-9 rounded-md border border-input bg-background px-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-8"
             aria-label={`Weight unit for ${exercise.exercise_name}`}
           >
             <option value="lbs">lbs</option>
@@ -212,7 +212,7 @@ export function ExerciseRow({
                 Math.min(600, Math.max(0, parseInt(e.target.value) || 0)),
               )
             }
-            className="h-8 w-16 text-center text-xs"
+            className="h-9 w-16 text-center text-xs sm:h-8"
           />
           <span className="text-xs text-muted-foreground">s</span>
         </div>

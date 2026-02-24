@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dumbbell, Plus, Search } from "lucide-react";
+import { Dumbbell, Filter, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -42,6 +42,9 @@ export function ExerciseList({
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const activeFilterCount = (muscleGroup ? 1 : 0) + (difficultyLevel ? 1 : 0) + (goal ? 1 : 0);
 
   function handleCardClick(exercise: Exercise) {
     setSelectedExercise(exercise);
@@ -68,91 +71,107 @@ export function ExerciseList({
           </Button>
         </div>
 
-        {/* Muscle group filter chips */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => onMuscleGroupChange("")}
-            className={cn(
-              "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              !muscleGroup
-                ? "border-primary bg-primary text-primary-foreground"
-                : "hover:bg-accent",
-            )}
-          >
-            All
-          </button>
-          {ALL_GROUPS.map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => onMuscleGroupChange(key)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                muscleGroup === key
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "hover:bg-accent",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* Mobile filter toggle */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-[44px] md:hidden"
+          onClick={() => setShowFilters((v) => !v)}
+          aria-expanded={showFilters}
+          aria-controls="exercise-filter-panel"
+        >
+          <Filter className="mr-2 h-4 w-4" />
+          Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+        </Button>
 
-        {/* Difficulty filter chips */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => onDifficultyChange("")}
-            className={cn(
-              "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              !difficultyLevel
-                ? "border-primary bg-primary text-primary-foreground"
-                : "hover:bg-accent",
-            )}
-          >
-            All Levels
-          </button>
-          {ALL_DIFFICULTIES.map(([key, label]) => (
+        {/* Filter chips — always visible on md+, toggle on mobile */}
+        <div id="exercise-filter-panel" className={cn("space-y-3", showFilters ? "block" : "hidden md:block")}>
+          {/* Muscle group filter chips */}
+          <div className="flex flex-wrap gap-2">
             <button
-              key={key}
-              onClick={() => onDifficultyChange(key)}
+              onClick={() => onMuscleGroupChange("")}
               className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                difficultyLevel === key
+                "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
+                !muscleGroup
                   ? "border-primary bg-primary text-primary-foreground"
                   : "hover:bg-accent",
               )}
             >
-              {label}
+              All
             </button>
-          ))}
-        </div>
+            {ALL_GROUPS.map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => onMuscleGroupChange(key)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
+                  muscleGroup === key
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "hover:bg-accent",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-        {/* Training goal filter chips */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => onGoalChange("")}
-            className={cn(
-              "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              !goal
-                ? "border-primary bg-primary text-primary-foreground"
-                : "hover:bg-accent",
-            )}
-          >
-            All Goals
-          </button>
-          {ALL_GOALS.map(([key, label]) => (
+          {/* Difficulty filter chips */}
+          <div className="flex flex-wrap gap-2">
             <button
-              key={key}
-              onClick={() => onGoalChange(key)}
+              onClick={() => onDifficultyChange("")}
               className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                goal === key
+                "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
+                !difficultyLevel
                   ? "border-primary bg-primary text-primary-foreground"
                   : "hover:bg-accent",
               )}
             >
-              {label}
+              All Levels
             </button>
-          ))}
+            {ALL_DIFFICULTIES.map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => onDifficultyChange(key)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
+                  difficultyLevel === key
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "hover:bg-accent",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Training goal filter chips */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => onGoalChange("")}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
+                !goal
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "hover:bg-accent",
+              )}
+            >
+              All Goals
+            </button>
+            {ALL_GOALS.map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => onGoalChange(key)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
+                  goal === key
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "hover:bg-accent",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Grid */}

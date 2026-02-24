@@ -129,8 +129,8 @@ export default function NotificationsPage() {
                 onClick={() => setPage((p) => p - 1)}
                 aria-label="Go to previous page"
               >
-                <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
-                Previous
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Previous</span>
               </Button>
               <span className="text-sm text-muted-foreground" aria-current="page">
                 Page {page}
@@ -142,8 +142,8 @@ export default function NotificationsPage() {
                 onClick={() => setPage((p) => p + 1)}
                 aria-label="Go to next page"
               >
-                Next
-                <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </Button>
             </nav>
           )}
