@@ -4,6 +4,37 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-24] — Pipeline 35: Trainee Web Nutrition Tracking Page
+
+### Added
+- **Nutrition page** (`/trainee/nutrition`) — Full nutrition tracking for trainee web portal with AI-powered meal logging, daily macro tracking, date navigation, meal history, and macro presets
+- **AI meal logging** — Natural language input → parse → preview → confirm & save flow. Clarification handling when AI needs more details. Character count with progressive feedback (shows at 1800+)
+- **Macro tracking** — 4 progress bars (Calories, Protein, Carbs, Fat) with consumed/goal display, over-goal amber indicators showing excess amount (+N)
+- **Date navigation** — Previous/next day arrows, disabled forward past today, "Today" quick-return button, midnight crossover auto-advance
+- **Meal history** — List of logged meals with delete confirmation dialog. Race-condition-safe delete target capture
+- **Macro preset chips** — Read-only trainer-managed presets with active detection, skeleton loading, keyboard-accessible tooltips
+- **Shared MacroBar component** (`components/shared/macro-bar.tsx`) — Extracted from DRY violation, used by both dashboard summary card and nutrition page
+- **4 new React Query hooks** — `useParseNaturalLanguage`, `useConfirmAndSaveMeal`, `useDeleteMealEntry`, `useTraineeMacroPresets`
+- **Date utilities** — `addDays()` and `formatDisplayDate()` extracted to `schedule-utils.ts`
+
+### Changed
+- `trainee-nav-links.tsx` — Added "Nutrition" link with Apple icon between Progress and Messages
+- `nutrition-summary-card.tsx` — Replaced inline MacroBar with shared component import
+- `constants.ts` — Added 3 API URL constants for nutrition endpoints
+
+### Fixed (Backend)
+- Added `IsTrainee` permission on `parse_natural_language` and `confirm_and_save` endpoints (previously only `IsAuthenticated`)
+- `delete_meal_entry` and `edit_meal_entry` now use their serializers instead of manual validation
+
+### Technical
+- TypeScript: zero errors
+- Security: 8/10 CONDITIONAL PASS — 3 HIGH fixed, rate limiting deferred
+- Architecture: 9/10 APPROVE — follows all existing patterns
+- UX: 8.5/10 — 18 accessibility and usability issues found and fixed
+- 21 files changed, +1,677 / -671 lines
+
+---
+
 ## [2026-02-23] — Pipeline 34: Trainee Web Trainer Branding
 
 ### Added
