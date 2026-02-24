@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 import { API_URLS } from "@/lib/constants";
 import {
   getAccessToken,
@@ -105,6 +106,9 @@ export function useMessagingWebSocket({
   onMessageDeleted,
 }: UseMessagingWebSocketOptions): UseMessagingWebSocketReturn {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const currentUserIdRef = useRef(user?.id);
+  currentUserIdRef.current = user?.id;
 
   const [connectionState, setConnectionState] =
     useState<WsConnectionState>("disconnected");
@@ -186,6 +190,7 @@ export function useMessagingWebSocket({
 
   const updateConversationPreview = useCallback(
     (message: Message) => {
+      const isFromOther = message.sender.id !== currentUserIdRef.current;
       queryClient.setQueryData(
         ["messaging", "conversations"],
         (old: Conversation[] | undefined) => {
@@ -197,10 +202,17 @@ export function useMessagingWebSocket({
               last_message_at: message.created_at,
               last_message_preview:
                 message.content || (message.image ? "Sent a photo" : ""),
+              ...(isFromOther
+                ? { unread_count: conv.unread_count + 1 }
+                : {}),
             };
           });
         },
       );
+      // Refetch the authoritative unread count from the server
+      queryClient.invalidateQueries({
+        queryKey: ["messaging", "unread-count"],
+      });
     },
     [queryClient, conversationId],
   );

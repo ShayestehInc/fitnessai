@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { Suspense, useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft, MessageSquare, Search } from "lucide-react";
 import { useConversations } from "@/hooks/use-messaging";
@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import type { Conversation } from "@/types/messaging";
 import type { SearchMessageResult } from "@/types/messaging";
 
-export default function MessagesPage() {
+function MessagesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const conversationIdParam = searchParams.get("conversation");
@@ -208,7 +208,7 @@ export default function MessagesPage() {
         </Button>
       </div>
 
-      <div className="flex flex-1 overflow-hidden rounded-lg border bg-card">
+      <div className="flex h-[calc(100vh-12rem)] overflow-hidden rounded-lg border bg-card">
         {/* Sidebar: either search results or conversation list */}
         <div
           className={`w-full shrink-0 overflow-y-auto border-r md:w-80 ${
@@ -293,5 +293,23 @@ export default function MessagesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <PageHeader
+            title="Messages"
+            description="Direct messages with your trainees"
+          />
+          <LoadingSpinner label="Loading messages..." />
+        </div>
+      }
+    >
+      <MessagesContent />
+    </Suspense>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MessageSquare, Loader2 } from "lucide-react";
 import { useStartConversation } from "@/hooks/use-messaging";
+import { useTrainee } from "@/hooks/use-trainees";
 import { ChatInput } from "./chat-input";
 
 interface NewConversationViewProps {
@@ -15,7 +16,12 @@ export function NewConversationView({
   onConversationCreated,
 }: NewConversationViewProps) {
   const startConversation = useStartConversation();
+  const { data: trainee, isLoading: isLoadingTrainee } = useTrainee(traineeId);
   const [error, setError] = useState<string | null>(null);
+
+  const traineeName = trainee
+    ? `${trainee.first_name} ${trainee.last_name}`.trim() || trainee.email
+    : null;
 
   const handleSend = (content: string, image?: File) => {
     setError(null);
@@ -35,7 +41,15 @@ export function NewConversationView({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b px-4 py-3">
-        <h2 className="text-sm font-semibold">New Message</h2>
+        <h2 className="text-sm font-semibold">
+          {isLoadingTrainee ? (
+            <span className="inline-block h-4 w-32 animate-pulse rounded bg-muted" />
+          ) : traineeName ? (
+            `Message to ${traineeName}`
+          ) : (
+            "New Message"
+          )}
+        </h2>
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
@@ -46,7 +60,9 @@ export function NewConversationView({
           />
         </div>
         <p className="mb-2 max-w-sm text-sm text-muted-foreground">
-          Send your first message to start the conversation.
+          {traineeName
+            ? `Send your first message to ${traineeName} to start the conversation.`
+            : "Send your first message to start the conversation."}
         </p>
         {error && (
           <p className="mb-2 text-sm text-destructive" role="alert">
