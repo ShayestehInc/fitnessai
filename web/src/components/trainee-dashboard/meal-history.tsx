@@ -126,7 +126,7 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="ml-2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                      className="ml-2 h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => openDeleteDialog(index, meal.name)}
                       disabled={isDeleting}
                       aria-label={`Remove ${meal.name}`}
@@ -148,7 +148,7 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
           if (!open) closeDeleteDialog();
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Remove this meal?</DialogTitle>
             <DialogDescription>

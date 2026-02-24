@@ -127,7 +127,7 @@ export function NutritionPage() {
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-9 w-9 sm:h-8 sm:w-8"
           onClick={goToPreviousDay}
           aria-label="Previous day"
         >
@@ -135,7 +135,7 @@ export function NutritionPage() {
         </Button>
 
         <span
-          className="min-w-[180px] whitespace-nowrap text-center text-sm font-medium"
+          className="min-w-[140px] whitespace-nowrap text-center text-sm font-medium sm:min-w-[180px]"
           aria-live="polite"
           aria-atomic="true"
         >
@@ -145,7 +145,7 @@ export function NutritionPage() {
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-9 w-9 sm:h-8 sm:w-8"
           onClick={goToNextDay}
           disabled={isToday}
           aria-label={isToday ? "Next day (already viewing today)" : "Next day"}
@@ -159,6 +159,7 @@ export function NutritionPage() {
             size="sm"
             onClick={goToToday}
             className="ml-2 text-xs"
+            aria-label="Jump to today"
           >
             Today
           </Button>

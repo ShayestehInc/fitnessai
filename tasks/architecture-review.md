@@ -1,61 +1,38 @@
-# Architecture Review: Trainee Web Nutrition Page
+# Architecture Review: Web App Mobile Responsiveness — Trainee Dashboard
 
 ## Review Date
 2026-02-24
 
 ## Files Reviewed
-- `web/src/hooks/use-trainee-nutrition.ts`
-- `web/src/hooks/use-trainee-dashboard.ts`
-- `web/src/components/trainee-dashboard/nutrition-page.tsx`
-- `web/src/components/trainee-dashboard/meal-log-input.tsx`
+- `web/src/app/globals.css`
+- `web/src/app/layout.tsx`
+- `web/src/app/(dashboard)/layout.tsx`
+- `web/src/app/(trainee-dashboard)/layout.tsx`
+- `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx`
+- `web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx`
+- `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx`
+- `web/src/components/shared/page-header.tsx`
+- `web/src/components/trainee-dashboard/exercise-log-card.tsx`
+- `web/src/components/trainee-dashboard/active-workout.tsx`
+- `web/src/components/trainee-dashboard/workout-detail-dialog.tsx`
+- `web/src/components/trainee-dashboard/workout-finish-dialog.tsx`
+- `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx`
+- `web/src/components/trainee-dashboard/trainee-progress-charts.tsx`
+- `web/src/components/trainee-dashboard/program-viewer.tsx`
 - `web/src/components/trainee-dashboard/meal-history.tsx`
-- `web/src/components/trainee-dashboard/macro-preset-chips.tsx`
-- `web/src/components/shared/macro-bar.tsx`
-- `web/src/types/trainee-dashboard.ts`
-- `web/src/types/trainee-view.ts`
-- `web/src/lib/constants.ts`
-- `web/src/lib/schedule-utils.ts`
-- `web/src/lib/api-client.ts`
-- `web/src/components/ui/progress.tsx`
-- `web/src/components/trainee-dashboard/nutrition-summary-card.tsx`
-- `backend/workouts/serializers.py`
-- `backend/workouts/views.py`
+- `web/src/components/trainee-dashboard/nutrition-page.tsx`
 
 ---
 
 ## Architectural Alignment
 - [x] Follows existing layered architecture
-- [x] Models/schemas in correct locations
-- [x] No business logic in routers/views (components are purely rendering; mutations and queries in hook layer)
-- [x] Consistent with existing patterns
+- [x] Models/schemas in correct locations (no data model changes)
+- [x] No business logic in routers/views (changes are purely presentational)
+- [x] Consistent with existing patterns (mostly -- see findings below)
 
-### Layering Assessment
+### Overall Assessment
 
-**Hook Layer (`use-trainee-nutrition.ts`)**
-
-Follows the exact same conventions as `use-trainee-dashboard.ts`:
-- React Query `useMutation`/`useQuery` wrappers returning typed results
-- API URLs from the centralized `constants.ts` object
-- Proper cache invalidation on mutation success targeting `["trainee-dashboard", "nutrition-summary", date]` and `["trainee-dashboard", "today-log", date]`
-- Input validation (`assertValidDate`) in the hook layer, guarding against developer misuse
-- `STALE_TIME` constant consistent with the dashboard hook (5 minutes)
-
-**Component Layer**
-
-Clear separation of concerns:
-- `NutritionPage` -- orchestrator: date state management, data fetching, conditional rendering
-- `MealLogInput` -- encapsulates the parse-then-confirm two-step mutation lifecycle
-- `MealHistory` -- handles meal display and deletion with a confirmation dialog
-- `MacroPresetChips` -- read-only display of trainer-created presets with active detection
-- `MacroBar` -- pure presentational component (correctly omits `"use client"`)
-
-**Type Layer**
-
-Types are intentionally split:
-- `trainee-dashboard.ts` -- dashboard-specific types (workout history, weight, AI parsing, macro presets)
-- `trainee-view.ts` -- types shared with the impersonation view (NutritionSummary, MacroValues, NutritionMeal)
-
-This split is correct. `NutritionSummary` and `NutritionMeal` are referenced by both the summary card on the trainee dashboard home and the full nutrition page.
+The changes are entirely presentational/CSS-level and do not alter any data models, API contracts, state management, or business logic. This is architecturally clean. The responsive adjustments use Tailwind's mobile-first breakpoint system (`sm:`, `lg:`) which is the established convention in the codebase. Good decisions were made around CSS-only solutions where possible (Tailwind responsive classes) versus JS-based solutions (`useIsMobile` hook) only where the third-party library (Recharts) requires imperative configuration that cannot be controlled via CSS.
 
 ---
 
@@ -63,33 +40,119 @@ This split is correct. `NutritionSummary` and `NutritionMeal` are referenced by 
 
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | N/A | No schema changes -- purely frontend |
+| Schema changes backward-compatible | N/A | No schema changes |
 | Migrations reversible | N/A | No migrations |
-| Indexes added for new queries | N/A | No new backend queries |
-| No N+1 query patterns | PASS | Single query per data need (nutrition summary, macro presets, today log) |
+| Indexes added for new queries | N/A | No new queries |
+| No N+1 query patterns | N/A | No query changes |
 
-### Frontend-to-Backend Type Alignment
+---
 
-| Frontend Type | Backend Serializer | Match |
-|---------------|-------------------|-------|
-| `MacroPreset` (`trainee-dashboard.ts`) | `MacroPresetSerializer` | PASS -- All 13 fields match exactly |
-| `ParseNaturalLanguageResponse` | `NaturalLanguageLogResponseSerializer` | PASS -- Fields match: `nutrition`, `workout`, `confidence`, `needs_clarification`, `clarification_question` |
-| `ConfirmAndSavePayload` | `ConfirmLogSaveSerializer` | PASS -- `parsed_data`, `date`, `confirm` |
-| `NutritionSummary` (`trainee-view.ts`) | `nutrition_summary` action response | PASS -- `date`, `goals`, `consumed`, `remaining`, `meals`, `per_meal_targets` |
-| `NutritionMeal` (`trainee-view.ts`) | Meal entries in `nutrition_data.meals` JSON | PASS -- `name`, `protein`, `carbs`, `fat`, `calories`, `timestamp` |
+## Detailed Findings
 
-**Minor note**: The inline type for meals in `ParseNaturalLanguageResponse.nutrition.meals` omits `timestamp` compared to `NutritionMeal`. This is correct because timestamps are not available at parse time -- they are added when the meal is saved. Using a separate inline type (rather than `Omit<NutritionMeal, 'timestamp'>`) avoids coupling.
+### 1. `useIsMobile` Hook Placement (Minor Concern)
+
+**File:** `web/src/components/trainee-dashboard/trainee-progress-charts.tsx:44-54`
+
+The `useIsMobile` hook is defined inline in the charts component file rather than extracted to `src/hooks/`. Currently it is only used by `WeightTrendChart` and `WorkoutVolumeChart` in that same file, so co-location is defensible. However:
+
+- The hook is a general-purpose utility (parameterized breakpoint, standard `matchMedia` pattern).
+- The `src/hooks/` directory already has 40+ hooks, establishing a clear convention for extracting reusable hooks.
+- If any other component (e.g., trainer-facing charts, admin charts) needs responsive behavior for Recharts, this hook will be duplicated.
+- shadcn/ui projects conventionally ship a `use-mobile.ts` hook in the hooks directory.
+
+**Recommendation:** Extract to `src/hooks/use-mobile.ts` for consistency. This is minor and does not block shipping, but should be done to prevent duplication as the codebase grows.
+
+### 2. Inconsistent `h-dvh` vs `h-screen` Across Layouts (Minor Concern)
+
+**Files:** Layout files across route groups.
+
+The developer correctly migrated `(dashboard)/layout.tsx` and `(trainee-dashboard)/layout.tsx` from `h-screen` to `h-dvh` to fix mobile Safari's dynamic viewport issue. However, two other layouts still use `h-screen`:
+
+- `(admin-dashboard)/layout.tsx` line 54: `h-screen`
+- `(ambassador-dashboard)/layout.tsx` line 80: `h-screen`
+
+While the ticket scope was explicitly "trainee dashboard only," this creates an inconsistency. When admin/ambassador users access their dashboards on mobile Safari, they will hit the same 100vh bug. This is tech debt that should be tracked.
+
+**Recommendation:** Either update all four layouts now (trivial two-line change), or create a follow-up ticket. The inconsistency is minor since admin/ambassador dashboards are not primarily used on mobile today, but it is a latent bug.
+
+### 3. Dialog Pattern Consistency (Good, with one minor inconsistency)
+
+All trainee dashboard dialogs now consistently use:
+```
+max-h-[90dvh] overflow-y-auto sm:max-w-[Npx]
+```
+
+This is a good, uniform pattern within the trainee scope. The one minor inconsistency is `workout-detail-dialog.tsx` which adds `sm:max-h-[80vh]`:
+```
+max-h-[90dvh] overflow-y-auto sm:max-h-[80vh] sm:max-w-[600px]
+```
+
+This means on desktop it reverts to `vh` units rather than `dvh`. While `dvh` vs `vh` matters less on desktop (no dynamic address bars), mixing units within the same component is slightly inconsistent. The admin dialogs (`subscription-detail-dialog.tsx`, `coupon-detail-dialog.tsx`) still use `max-h-[80vh]` / `max-h-[85vh]` without `dvh`. This means the project now has three different max-height patterns for dialogs:
+
+1. `max-h-[90dvh]` (trainee dialogs, mobile)
+2. `max-h-[80vh]` / `max-h-[85vh]` (admin dialogs)
+3. No max-height at all (some trainer dialogs like `sm:max-w-md`)
+
+**Recommendation:** This is acceptable for now given the scoped ticket. Consider establishing a shared dialog size constant or utility class (e.g., `.dialog-mobile-safe`) if more dialogs are added. The current approach works correctly.
+
+### 4. Responsive Grid in exercise-log-card.tsx (Good)
+
+**File:** `web/src/components/trainee-dashboard/exercise-log-card.tsx:64,78`
+
+The grid pattern `grid-cols-[1.75rem_1fr_1fr_2rem_2rem] sm:grid-cols-[2.5rem_1fr_1fr_2.5rem_2.5rem]` is specific and well-considered. The use of `rem` for fixed columns and `1fr` for fluid columns is the correct approach for this type of data-entry grid. The values are defined inline (not via CSS variables or utilities) which is the standard Tailwind approach.
+
+The grid template is duplicated between the header row (line 64) and the data rows (line 78). If the column widths need to change, two lines must be updated in sync. This is a pre-existing pattern (not introduced by this change), so it is not new tech debt. If a third occurrence were added, extracting to a variable would be warranted.
+
+**Status:** Approved. The approach is maintainable and follows Tailwind conventions.
+
+### 5. Global CSS Additions (Good)
+
+**File:** `web/src/app/globals.css`
+
+Four CSS blocks were added:
+1. `.scrollbar-thin` -- Utility for horizontal scroll containers (used by program-viewer week tabs)
+2. iOS text-size-adjust prevention (`-webkit-text-size-adjust: 100%`)
+3. iOS auto-zoom prevention (16px minimum input font-size below 639px)
+4. Number input spinner removal
+
+All four are well-organized, properly commented, and placed in logical order. The iOS-specific fixes use appropriate media queries and vendor prefixes. The number input spinner removal is global, which is a deliberate decision documented in `dev-done.md` (saves horizontal space, and the exercise log uses its own controls).
+
+**Note on scope:** The 16px minimum font-size for inputs below 639px and the spinner removal are applied globally, not just to trainee dashboard. This is actually correct behavior (prevents iOS zoom on all inputs, and spinners are generally unwanted in this app) and is not a problem, but it is a broader change than the ticket scope implies. The developer made the right call applying these globally.
+
+The `.scrollbar-thin` class is a custom utility. An alternative would be to use a Tailwind plugin like `tailwind-scrollbar`, but a 12-line CSS class is simpler and avoids a dependency. Good pragmatic choice.
+
+### 6. Viewport Meta Export (Good)
+
+**File:** `web/src/app/layout.tsx`
+
+Adding `export const viewport: Viewport` follows the Next.js 14+ convention for viewport configuration. This correctly separates viewport metadata from the `metadata` export (which is the Next.js recommended approach since v14).
+
+### 7. CSS-First vs JS-First Responsive Approach (Good Architecture Decision)
+
+The implementation correctly uses CSS-first responsive patterns (Tailwind breakpoints, `hidden sm:inline`, responsive grid classes) for layout changes, and only resorts to the JS-based `useIsMobile` hook for Recharts configuration which cannot be controlled via CSS. This separation is architecturally sound:
+
+- **CSS:** layout, visibility, spacing, sizing, typography
+- **JS:** library-specific imperative config (Recharts XAxis angle, tick size, margin)
+
+This avoids unnecessary hydration mismatches and flash-of-wrong-layout issues.
+
+### 8. `PageHeader` Change Scope (Intentional)
+
+**File:** `web/src/components/shared/page-header.tsx`
+
+The `PageHeader` component is in the `shared/` directory, meaning it is used across all dashboards (trainer, admin, trainee, ambassador). The change from `text-2xl` to `text-xl sm:text-2xl` affects ALL pages that use this component, not just trainee pages. This is a broader change than the ticket scope.
+
+However, the change is an improvement for all mobile users, so it is a net positive. It is architecturally appropriate since it belongs in the shared component rather than being special-cased per dashboard.
 
 ---
 
 ## Scalability Concerns
 
-| # | Area | Issue | Recommendation | Severity |
-|---|------|-------|----------------|----------|
-| 1 | MealHistory extra query | `MealHistory` calls `useTraineeTodayLog(date)` to resolve `dailyLogId` for the delete endpoint. This adds a second network request. | Consider adding `daily_log_id` to the `nutrition-summary` backend response. The frontend could then pass it down as a prop, eliminating this query entirely. Low urgency: the query is cached (5-min stale) and the response is small. | Minor |
-| 2 | `useCallback` with unstable dependency (FIXED) | `handleDelete` had `deleteMutation` in its dependency array. The mutation object reference changes every render, making the memoization ineffective. | Fixed: removed `deleteMutation` from deps. `mutate` is referentially stable in React Query v5. | Minor (fixed) |
-| 3 | Date utilities duplicated (FIXED) | `formatDisplayDate` and `addDays` were defined locally in `nutrition-page.tsx`, duplicating logic that belongs in the shared `schedule-utils.ts`. | Fixed: extracted both functions to `schedule-utils.ts` and updated the import. | Minor (fixed) |
-| 4 | Delete dialog stale-index risk (FIXED by linter) | The original `deleteIndex` state stored only the array index. If the meals array reordered between opening the dialog and confirming, the wrong meal could be deleted. | The linter refactored to `deleteTarget: { index, name }`, capturing the meal name at dialog-open time. The name is used in the confirmation text, providing a visual safeguard. The index is still used for the API call, which is correct given React Query invalidation refreshes the list. | Minor (fixed) |
+| # | Area | Issue | Recommendation |
+|---|------|-------|----------------|
+| 1 | Hook duplication risk | `useIsMobile` defined inline will be duplicated if other chart components need it | Extract to `src/hooks/use-mobile.ts` |
+| 2 | Dialog pattern sprawl | Three different max-height patterns across the app | Consider a shared dialog wrapper or documented convention |
+| 3 | Layout inconsistency | `h-dvh` only applied to 2 of 4 dashboard layouts | Apply to admin and ambassador layouts as well |
 
 ---
 
@@ -97,73 +160,42 @@ This split is correct. `NutritionSummary` and `NutritionMeal` are referenced by 
 
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| -- | None introduced. | -- | -- |
+| 1 | `useIsMobile` hook co-located instead of shared | Low | Extract to `src/hooks/use-mobile.ts` |
+| 2 | Admin/ambassador layouts still use `h-screen` | Low | Change `h-screen` to `h-dvh` in `(admin-dashboard)/layout.tsx` and `(ambassador-dashboard)/layout.tsx` |
+| 3 | Mixed `vh`/`dvh` units in workout-detail-dialog | Low | Use `dvh` consistently or document the reasoning |
 
 ## Technical Debt Reduced
 
 | # | Description |
 |---|-------------|
-| 1 | `addDays()` and `formatDisplayDate()` extracted to `schedule-utils.ts` -- centralizes date utilities for reuse across any future date-navigation UI |
-| 2 | `useCallback` dependency correctness in `MealHistory` -- eliminates a subtle anti-pattern where memoization was ineffective |
-| 3 | Linter improved `deleteTarget` to capture meal name at dialog open time, improving correctness |
-| 4 | Linter added `aria-busy` and `aria-label` to skeleton loading states, `aria-live="polite"` to the date display, and `aria-label` to individual macro values in the meal list |
+| 1 | Global CSS now prevents iOS auto-zoom on inputs (was a latent usability bug everywhere) |
+| 2 | Number input spinners removed globally (were visually inconsistent on mobile) |
+| 3 | Viewport meta properly exported via Next.js convention (was missing entirely) |
+| 4 | `h-dvh` adoption in two layouts fixes the longstanding mobile Safari 100vh issue |
+| 5 | Custom scrollbar utility for horizontal scroll containers is reusable across the app |
 
 ---
 
 ## Positive Architectural Observations
 
-1. **Query invalidation chain is correct and complete**: When a meal is confirmed/saved or deleted, both `nutrition-summary` and `today-log` queries are invalidated. This ensures macro bars, meal history, and preset active states all stay in sync.
+1. **No new dependencies introduced:** All responsive behavior achieved with existing Tailwind classes, built-in CSS, and one small inline hook. No new npm packages.
 
-2. **`"use client"` boundaries are correct**: Hook files use it (consistent with all other hooks in the project). `MacroBar` correctly omits it since it's a pure function component with no hooks or event handlers.
+2. **Mobile-first breakpoint usage is correct:** The pattern is consistently base = mobile, then `sm:` / `lg:` for larger screens. This is Tailwind's intended approach.
 
-3. **Accessibility is production-quality**: All interactive elements have `aria-label`s. Date navigation uses `<nav>` with `aria-label`. Meal list uses `role="list"` / `role="listitem"`. Progress bars have descriptive `aria-label` text. Error states use `role="alert"`. Skeletons now have `aria-busy`.
+3. **Touch target sizing is thoughtful:** Checkboxes enlarged to 24px (h-6 w-6) on mobile with extra padding, date nav buttons to 36px (h-9 w-9). These exceed the minimum 24px WCAG target but fall slightly short of Apple's 44px recommendation -- a reasonable pragmatic tradeoff given the data-dense nature of the exercise log.
 
-4. **Error handling is thorough**: Every mutation has `onError` callbacks with user-facing toasts. The nutrition query has loading/error/empty states. The parse mutation differentiates API errors from general failures.
+4. **Text abbreviation pattern is consistent:** "Weight" becomes "Wt", "Set 1" becomes "S1", "Finish Workout" becomes "Finish", "Discard" becomes icon-only. All abbreviated versions include `aria-label` or `title` for accessibility.
 
-5. **All UX states are handled**: Loading (skeleton), Error (retry-able), Empty/no goals, Empty/no meals, Success (macro bars + meal list), Clarification needed, Over input limit.
-
-6. **Component sizes are within guidelines**: NutritionPage ~255 lines (orchestrator, justified), MealLogInput ~241 lines, MealHistory ~180 lines, MacroPresetChips ~67 lines, MacroBar ~33 lines.
-
----
-
-## Changes Made During This Review
-
-| # | File | What Changed | Why |
-|---|------|-------------|-----|
-| 1 | `web/src/lib/schedule-utils.ts` | Added `addDays()` and `formatDisplayDate()` utility functions | Extracted from nutrition-page.tsx to centralize date utilities for reuse |
-| 2 | `web/src/components/trainee-dashboard/nutrition-page.tsx` | Replaced local `addDays` and `formatDisplayDate` with imports from `schedule-utils.ts` | DRY: utilities belong in the shared lib, not in a component file |
-| 3 | `web/src/components/trainee-dashboard/meal-history.tsx` | Removed `deleteMutation` from `useCallback` dependency array | `mutate` is referentially stable in React Query v5; including the full mutation object defeated memoization |
-
----
-
-## Detailed Scoring Matrix
-
-| Area | Score | Notes |
-|------|-------|-------|
-| Layering | 10/10 | Hook fetches data, components render, types in dedicated files |
-| Data model / types | 10/10 | All frontend types match backend serializer contracts exactly |
-| API design / query keys | 10/10 | Proper staleTime, retry, invalidation chains, centralized URLs |
-| Component decomposition | 9/10 | Clean separation; minor: MealHistory's extra query for dailyLogId could be eliminated with a backend change |
-| Scalability | 9/10 | No re-render issues; one optimizable extra network request |
-| Technical debt | 9/10 | Net reduction -- extracted utilities, fixed useCallback anti-pattern |
+5. **No structural component refactoring needed:** The responsive changes were achieved without splitting components or changing prop interfaces. This means the API surface of every component is unchanged, minimizing risk of regression.
 
 ---
 
 ## Architecture Score: 9/10
 
-The trainee web nutrition page implementation is architecturally sound. It follows every established pattern in the codebase:
+The changes are clean, focused, and architecturally appropriate. They follow existing Tailwind/Next.js patterns, make good CSS-first vs JS-based decisions, and introduce minimal tech debt. The three minor items (hook co-location, layout inconsistency, dialog pattern variance) are all low-severity and do not compromise the system's architecture. The implementation will be easy to maintain and extend.
 
-- **Hook structure**: mirrors `use-trainee-dashboard.ts` exactly (React Query, typed responses, centralized URLs, consistent stale time)
-- **Query key naming**: all under `["trainee-dashboard", ...]` namespace with date parameterization
-- **Type organization**: types split correctly between `trainee-dashboard.ts` (dashboard-specific) and `trainee-view.ts` (shared with impersonation)
-- **Component layering**: orchestrator pattern in NutritionPage, self-contained mutation lifecycles in MealLogInput and MealHistory
-- **API URL centralization**: all endpoints registered in `constants.ts` following the `TRAINEE_*` naming convention
-
-Three improvements were made during this review:
-1. Extracted `addDays` and `formatDisplayDate` to `schedule-utils.ts` for reuse
-2. Fixed `useCallback` dependency anti-pattern in MealHistory
-3. Linter additionally improved accessibility attributes and delete-dialog safety
-
-The one remaining suggestion (backend returning `daily_log_id` in nutrition summary to eliminate MealHistory's secondary query) is an optimization opportunity for a future iteration.
+The one point deducted is for the `useIsMobile` hook not being extracted to the shared hooks directory, which is a minor departure from the codebase's established convention of centralizing hooks. This is easily fixable and does not impact functionality.
 
 ## Recommendation: APPROVE
+
+The architecture is sound. The responsive approach is well-layered and consistent with the project's existing conventions. The minor tech debt items (`useIsMobile` extraction, `h-dvh` consistency across layouts, dialog pattern documentation) are tracked above and should be addressed in a follow-up cleanup pass, but do not block shipping this feature.

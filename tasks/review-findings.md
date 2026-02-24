@@ -1,26 +1,37 @@
-# Code Review: Trainee Web — Nutrition Tracking Page
+# Code Review: Web App Mobile Responsiveness — Trainee Dashboard
 
 ## Review Date
 2026-02-24
 
 ## Files Reviewed
-1. `web/src/hooks/use-trainee-nutrition.ts` (77 lines)
-2. `web/src/components/trainee-dashboard/nutrition-page.tsx` (291 lines)
-3. `web/src/components/trainee-dashboard/meal-log-input.tsx` (242 lines)
-4. `web/src/components/trainee-dashboard/meal-history.tsx` (147 lines)
-5. `web/src/components/trainee-dashboard/macro-preset-chips.tsx` (67 lines)
-6. `web/src/app/(trainee-dashboard)/trainee/nutrition/page.tsx` (19 lines)
-7. `web/src/components/trainee-dashboard/trainee-nav-links.tsx` (31 lines)
-8. `web/src/lib/constants.ts` (lines 291-295 added)
-9. `web/src/types/trainee-dashboard.ts` (lines 116-157 added)
+1. `web/src/app/layout.tsx` (viewport export)
+2. `web/src/app/globals.css` (scrollbar-thin, dvh, iOS text-size-adjust, number spinner removal)
+3. `web/src/app/(dashboard)/layout.tsx` (h-screen -> h-dvh)
+4. `web/src/app/(trainee-dashboard)/layout.tsx` (h-screen -> h-dvh)
+5. `web/src/components/shared/page-header.tsx` (responsive h1 sizing)
+6. `web/src/components/trainee-dashboard/exercise-log-card.tsx` (responsive grid, touch targets)
+7. `web/src/components/trainee-dashboard/active-workout.tsx` (header actions, grid breakpoints, dialog dvh)
+8. `web/src/components/trainee-dashboard/workout-detail-dialog.tsx` (mobile dialog sizing, set detail widths)
+9. `web/src/components/trainee-dashboard/workout-finish-dialog.tsx` (dialog dvh + overflow)
+10. `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx` (dialog dvh + overflow)
+11. `web/src/components/trainee-dashboard/trainee-progress-charts.tsx` (useIsMobile hook, chart responsive)
+12. `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx` (dvh max-height)
+13. `web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx` (header flex-col wrap)
+14. `web/src/components/trainee-dashboard/program-viewer.tsx` (scrollbar-thin, grid breakpoints)
+15. `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx` (gap reduction on mobile)
 
-Pattern references reviewed:
-- `web/src/hooks/use-trainee-dashboard.ts`
-- `web/src/components/trainee-dashboard/nutrition-summary-card.tsx`
-- `web/src/types/trainee-view.ts`
-- `web/src/lib/api-client.ts`
-- `web/src/lib/schedule-utils.ts`
-- `backend/workouts/views.py` (endpoint contracts)
+Context files reviewed:
+- `web/src/app/(trainee-dashboard)/trainee/dashboard/page.tsx` (NOT changed -- should it be?)
+- `web/src/app/(trainee-dashboard)/trainee/history/page.tsx` (NOT changed)
+- `web/src/app/(trainee-dashboard)/trainee/settings/page.tsx` (NOT changed)
+- `web/src/app/(trainee-dashboard)/trainee/achievements/page.tsx` (NOT changed)
+- `web/src/components/trainee-dashboard/trainee-sidebar.tsx` (NOT changed)
+- `web/src/components/trainee-dashboard/trainee-header.tsx` (NOT changed)
+- `web/src/components/trainee-dashboard/workout-history-list.tsx` (NOT changed)
+- `web/src/components/trainee-dashboard/nutrition-page.tsx` (NOT changed)
+- `web/src/components/trainee-dashboard/meal-log-input.tsx` (NOT changed)
+- `web/src/components/trainee-dashboard/meal-history.tsx` (NOT changed)
+- `web/package.json` (Tailwind v4, Next 16.1.6, React 19.2.3, Recharts 3.7.0)
 
 ---
 
@@ -28,104 +39,104 @@ Pattern references reviewed:
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| C1 | `use-trainee-nutrition.ts:37-42` | **Missing query invalidation for `today-log`.** `useConfirmAndSaveMeal` only invalidates `["trainee-dashboard", "nutrition-summary", date]`. But `meal-history.tsx:33` depends on `useTraineeTodayLog(date)` with query key `["trainee-dashboard", "today-log", date]` to obtain the `dailyLogId` needed for delete. After logging the FIRST meal for a date (when no DailyLog existed before), the `todayLogs` cache still returns empty, so `dailyLogId` remains `null` and **delete buttons never appear** until the user manually refreshes. | Add `queryClient.invalidateQueries({ queryKey: ["trainee-dashboard", "today-log", date] })` to both `useConfirmAndSaveMeal` and `useDeleteMealEntry` `onSuccess` callbacks. |
-| C2 | `use-trainee-nutrition.ts:20-25` | **`useParseNaturalLanguage` sends `date` without format validation.** The `date` string is derived from state that originates from `getTodayString()` or `addDays()`, both of which always produce `YYYY-MM-DD`. However, there is no runtime guard ensuring the format. If a code path ever passes a malformed date, the backend call could fail silently or produce unexpected behavior. Additionally, the `user_input` is sent to the backend which forwards it to an LLM -- while prompt injection defense is the backend's responsibility, the frontend should at minimum validate the `date` format before sending. | Add a regex check that `date` matches `/^\d{4}-\d{2}-\d{2}$/` in the mutation function, and throw early if invalid. This is defensive programming for a field that hits external AI services. |
+| C1 | `web/src/app/layout.tsx:28-29` | **`maximumScale: 1` and `userScalable: false` is an accessibility violation (WCAG 1.4.4 Resize Text).** This prevents users with low vision from pinch-to-zoom on mobile. Apple's accessibility guidelines explicitly state apps must not disable pinch-to-zoom. WCAG 2.1 SC 1.4.4 (Level AA) requires that text can be resized up to 200%. This is not just a guideline preference -- multiple accessibility auditing tools (Lighthouse, axe) flag `user-scalable=no` as a failure. Many users with visual impairments rely on pinch-to-zoom as their primary text magnification method. | Remove `maximumScale: 1` and `userScalable: false` from the viewport configuration. If the concern is preventing accidental zoom on form inputs on iOS, use `font-size: 16px` (minimum) on input elements instead, which prevents iOS auto-zoom without disabling user-initiated zoom. The inputs in the codebase already use Tailwind's `text-sm` (14px) which triggers iOS auto-zoom; bumping to `text-base` (16px) on mobile via `text-sm sm:text-base` or a global CSS rule for inputs on small screens would be the correct fix. |
 
 ## Major Issues (should fix)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| M1 | `nutrition-page.tsx:46-76` + `nutrition-summary-card.tsx:35-65` | **Exact duplicate `MacroBar` component.** The `MacroBar` function and its `MacroBarProps` interface in `nutrition-page.tsx` are character-for-character copies from `nutrition-summary-card.tsx`. This violates DRY -- any future bug fix or design change must be applied in two places. | Extract `MacroBar` and `MacroBarProps` into a shared component file `web/src/components/shared/macro-bar.tsx` and import from both locations. |
-| M2 | `nutrition-page.tsx:112-123` | **Stale closure risk in midnight `useEffect`.** The effect captures `today` from the render scope. The `setInterval` callback on line 117 compares `prev === today` where `today` is the closed-over value from when the effect last ran. The effect re-registers when `today` changes (dependency array `[today]`), but `today` only changes on re-render. If the component does not re-render between midnight crossings (e.g., user leaves tab open, no interaction), the stale `today` in the closure could cause incorrect behavior. Currently this mostly works because `setSelectedDate` triggers a re-render, but the logic is fragile and hard to reason about. | Call `getTodayString()` directly inside the `setInterval` callback instead of relying on the closed-over `today`. Replace `if (prev === today && prev !== current)` with a self-contained `const nowToday = getTodayString(); if (prev !== nowToday) { /* check if prev was the old today */ }`. |
-| M3 | `meal-log-input.tsx:75` | **Unsafe double type cast: `parsedResult as unknown as Record<string, unknown>`.** This erases all type safety at a critical API boundary. `ConfirmAndSavePayload.parsed_data` is typed as `Record<string, unknown>` but the actual data is `ParseNaturalLanguageResponse`. If the response type changes, the cast silently hides the mismatch. | Change `ConfirmAndSavePayload.parsed_data` from `Record<string, unknown>` to `ParseNaturalLanguageResponse`. This removes the need for the double cast entirely and gives TypeScript the ability to catch payload shape mismatches. |
-| M4 | `meal-history.tsx:33-35` | **Separate API call for `dailyLogId` introduces fragile coupling.** `MealHistory` calls `useTraineeTodayLog(date)` solely to extract `todayLogs?.[0]?.id` for the delete endpoint URL. This additional API call: (a) is not coordinated with the parent's nutrition-summary lifecycle, (b) has no loading or error indication (if it's loading, delete buttons silently disappear), (c) is not invalidated by meal mutations (see C1). If this query fails, the entire delete feature is silently disabled with no user feedback. | Short-term: add `today-log` invalidation (per C1 fix), add a loading/error indicator when `todayLogs` data is undefined. Long-term: have the backend include `daily_log_id` in the `NutritionSummary` response and pass it from the parent via props. |
-| M5 | `meal-history.tsx:78` | **Using array `index` as React `key` for a mutable list.** Meals can be deleted, which shifts all subsequent indices. React uses keys for DOM reconciliation -- when meal at index 0 is deleted, React thinks the element at index 0 is the same (previously index 1) and may not properly animate or clean up. Also, the `entry_index` passed to the delete API is the array index at render time. If two rapid deletes happen before the query refetch, the second delete's `entry_index` will be stale and could delete the wrong meal. | Use a compound key like `${meal.name}-${meal.calories}-${meal.timestamp ?? index}`. For the stale-index race condition: disable all delete buttons while `deleteMutation.isPending` is true (not just the dialog buttons). |
-| M6 | `meal-log-input.tsx:69` | **`parseMutation` in `useCallback` dependency array defeats memoization.** React Query's `useMutation` returns a new object reference on every render. Since `handleSubmit` lists `parseMutation` as a dependency, it is recreated on every render, making the `useCallback` wrapper provide zero memoization benefit. Similarly, `handleKeyDown` (line 105) depends on `handleSubmit`, so it too recreates every render. | Either remove the `useCallback` wrappers (they provide no benefit with unstable deps), or use `parseMutation.mutate` via a ref: `const parseMutateRef = useRef(parseMutation.mutate); parseMutateRef.current = parseMutation.mutate;` and reference `parseMutateRef.current` inside the callback. |
+| M1 | `web/src/components/trainee-dashboard/trainee-progress-charts.tsx:44-53` | **`useIsMobile` hook causes hydration mismatch in SSR.** `useState(false)` is the initial server-render value, but `window.matchMedia` runs in `useEffect` on the client. This means the first server-rendered HTML will always use the desktop layout (isMobile = false), and then on hydration the client may immediately flip to mobile. This causes a visible layout flash (FOUC) on mobile devices: charts render at desktop sizing, then snap to mobile sizing after hydration. While React 19 suppresses the hydration mismatch warning for useEffect-driven state, the visual flash remains a real UX problem. | Use a CSS-first approach instead: wrap the chart in a container and use Tailwind responsive classes for height (`h-[220px] sm:h-[250px]` -- already done). For the XAxis/YAxis props that cannot be expressed in CSS, consider: (a) using a `useSyncExternalStore` hook with `getServerSnapshot` returning a default, (b) rendering a CSS `<style>` tag that hides/shows different chart configurations, or (c) accepting the flash as a minor tradeoff but documenting it. The current approach silently produces incorrect SSR output. |
+| M2 | `web/src/components/trainee-dashboard/trainee-progress-charts.tsx:44-53` | **`useIsMobile` defined locally but used in two exported components (`WeightTrendChart` and `WorkoutVolumeChart`).** Each component creates its own `matchMedia` listener. If this hook needs to be shared more broadly (other charts, other pages), the local definition will be copy-pasted. The dev-done.md acknowledges this was intentional ("not a shared hook since it's only needed there"), but it is already used in two separate components in the same file, and the ticket's focus.md says "Charts/visualizations: Must resize and remain readable" -- implying any future chart component would need it too. | Extract `useIsMobile` to `web/src/hooks/use-is-mobile.ts` as a shared hook. Two usages in the same file already meets the threshold for extraction. This prevents future duplication and centralizes the breakpoint constant. |
+| M3 | `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx:164` | **Inline `style={{ maxHeight: "calc(100dvh - 10rem)" }}` is a magic number that bypasses the design system.** The `10rem` subtraction assumes a specific header + padding height that could break if the layout padding, header height, or surrounding elements change. This is also the only inline style in the entire trainee dashboard. All other spacing/sizing uses Tailwind utilities. | Use a Tailwind arbitrary value class: `max-h-[calc(100dvh-10rem)]`. Better yet, restructure the messages page layout to use flex-grow within the parent's overflow-hidden container (the layout already has `flex-1 overflow-auto`), eliminating the need for hardcoded height calculations entirely. The parent `<main>` already handles overflow -- the messages container just needs `min-h-0 flex-1` to fill available space. |
+| M4 | `web/src/components/trainee-dashboard/exercise-log-card.tsx:127` | **Checkbox touch target is 28px (h-7 w-7), below Apple's 44px minimum.** The ticket explicitly requires "All tap targets are at least 44px on mobile." The dev-done.md acknowledges this: "Made exercise log card checkboxes 28px (7*4) on mobile, exceeding the 24px minimum but close to 44px Apple guideline." 28px is not "close to" 44px -- it is 64% of the guideline. The small checkbox in the exercise log grid is a frequent interaction point (users tap to mark sets complete), and the cramped grid with 1.5-gap makes mis-taps likely. | Increase to `h-11 w-11 sm:h-5 sm:w-5` (44px on mobile). If this doesn't fit in the current grid template, increase the 4th and 5th grid column from `2rem` to `2.75rem` on mobile: `grid-cols-[1.75rem_1fr_1fr_2.75rem_2.75rem]`. Alternatively, add invisible padding around the checkbox button so the visual size stays at 28px but the tap target area is 44px: use `p-2` on the wrapping `<div className="flex items-center justify-center">` to extend the tappable area. |
+| M5 | `web/src/components/trainee-dashboard/exercise-log-card.tsx:69` | **Column header "Wt" is an unconventional abbreviation.** Changing "Weight" to "Wt" saves only ~3 characters of horizontal space. The abbreviation may confuse non-native English speakers and is not a standard fitness abbreviation (standard abbreviations are "Weight", "Wgt", or the full word). More importantly, the header row has `aria-hidden="true"` (line 66), so screen readers won't see it at all -- the aria-labels on the inputs are fine. The concern is purely visual. | Use responsive text instead: `<span className="sm:hidden">Wt</span><span className="hidden sm:inline">Weight ({unit})</span>`. This shows the short form only on mobile where space is tight, and the full label on desktop. |
+| M6 | `web/src/components/trainee-dashboard/active-workout.tsx:337-338` | **"Finish" + hidden " Workout" produces a non-breaking space entity in the DOM.** `Finish<span className="hidden sm:inline">&nbsp;Workout</span>` renders as "Finish" on mobile and "Finish Workout" on desktop. However, the `&nbsp;` is inside the hidden span -- so on desktop the text is "Finish[nbsp]Workout" which renders identically to "Finish Workout" but is semantically different (non-breaking space prevents line wrap between the words). If the button ever becomes narrower, this prevents the text from wrapping naturally. | Use a regular space: `<span className="hidden sm:inline"> Workout</span>`. The `&nbsp;` is unnecessary because the button container already has `flex` and `items-center`, so the space won't collapse. |
 
 ## Minor Issues (nice to fix)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| m1 | `nutrition-page.tsx` (general) | **No skeleton for meal history section.** AC-31 specifies "skeleton placeholders for macro bars, meal list, and date navigation." Date nav and macro bars have skeletons, but the meal history section has no skeleton -- it simply doesn't render during loading (line 283: `!isLoading && !isError`). | Add a `MealHistorySkeleton` component (e.g., 3 placeholder rows) and render it when `isLoading` is true. |
-| m2 | `meal-log-input.tsx:153-158` | **Character limit error message is unreachable.** The `<Input>` has `maxLength={MAX_INPUT_LENGTH}` (line 137), which prevents the browser from accepting more than 2000 characters. The condition `input.length > MAX_INPUT_LENGTH` (line 154) can never be true. | Remove the `maxLength` attribute from the `<Input>` and rely on the visual error + `isInputValid` check to enforce the limit. This gives better UX (user sees what they pasted, then sees the error). OR keep `maxLength` and remove the dead error message. |
-| m3 | `macro-preset-chips.tsx:31-35` | **Floating-point comparison for `isActive` detection.** Comparing `preset.calories === currentGoals.calories` with strict equality works for integers from JSON, but if either API returns values with floating-point precision artifacts (e.g., `150.00000001`), the comparison silently fails. | Use `Math.round()` on both sides for each comparison. |
-| m4 | `meal-log-input.tsx:109-111` | **Parsed result cleared on date change, but input text is NOT cleared.** If a user types something, navigates to a different date, the typed text persists but the parsed result disappears. This could be intentional (user wants to re-submit for the new date) but it's a minor UX inconsistency. | Either clear both (`setInput("")` alongside `setParsedResult(null)`) or keep current behavior with a comment explaining the design choice. |
-| m5 | `meal-history.tsx:93` | **Delete buttons silently hidden when `dailyLogId === null`.** If the `useTraineeTodayLog` query is loading or errored, delete buttons disappear with no feedback. The user sees meals but cannot delete them and has no idea why. | Show a subtle loading indicator or disabled state for delete buttons while `todayLogs` is loading. Show an error indicator if the query failed. |
-| m6 | `meal-log-input.tsx:194` | **Array `index` as React `key` for parsed items.** While parsed items are not mutable (no add/remove), duplicate meal names from AI parsing (e.g., "Chicken breast" x2) make index-only keys fragile for reconciliation. | Use `key={\`${meal.name}-${meal.calories}-${index}\`}`. |
-| m7 | `use-trainee-nutrition.ts:1` | **Unnecessary `"use client"` directive on hooks file.** This file contains only hooks (no JSX). The directive is only needed for components. The existing `use-trainee-dashboard.ts` also has it, so this follows the existing (incorrect) pattern. | Low priority. Keep for consistency or remove from both files. |
-| m8 | `nutrition-page.tsx:175` | **Date display `min-w-[160px]` may truncate longer locale dates.** "Wed, Feb 24, 2026" fits, but edge cases like "Wed, Sept 24, 2026" (if toLocaleDateString produces "Sept" instead of "Sep") might be tight. | Increase to `min-w-[180px]` or use `whitespace-nowrap` to prevent wrapping. |
+| m1 | `web/src/app/globals.css:215-216` | **`scrollbar-thin` custom class uses `hsl(var(--border))` for thumb color, but the project defines `--border` as oklch.** Looking at `globals.css:68`, `--border: oklch(0.922 0 0)` and dark mode `--border: oklch(1 0 0 / 10%)`. The `hsl()` wrapper around an oklch value produces an invalid CSS color. The browser will silently fallback to its default scrollbar color. | Change to `background: var(--border);` (let CSS use the oklch value directly), or use the Tailwind mapped variable: `background: var(--color-border);`. The `@theme` block at the top of globals.css maps `--color-border: var(--border)`, so either will work. |
+| m2 | `web/src/app/globals.css:220-225` | **`.h-screen-safe` custom utility class is defined but never used anywhere in the codebase.** The layouts use `h-dvh` (Tailwind v4 built-in utility) directly. The `@supports (height: 100dvh)` wrapper with the custom class is dead code. | Remove the `.h-screen-safe` block entirely. Tailwind v4 natively supports `h-dvh`, `min-h-dvh`, `max-h-dvh`, making this custom class redundant. |
+| m3 | `web/src/components/trainee-dashboard/workout-detail-dialog.tsx:132-133` | **"S1", "S2" abbreviation for "Set 1", "Set 2" is inconsistent with the exercise log card.** The exercise log card header row uses "Set" (line 67 of exercise-log-card.tsx), but the workout detail dialog uses "S" prefix (changed from "Set"). This creates an inconsistent vocabulary within the same feature area. | Either use "S1" in both places (for space savings) or "Set 1" in both. Consistency matters more than the specific choice. |
+| m4 | `web/src/components/trainee-dashboard/active-workout.tsx:331` | **The Discard button has `size="sm"` from the original code, but the Finish button was changed to `size="sm"` in this diff.** Both buttons should have had the same size before, but the diff shows `size="sm"` was only added to the Finish button. Looking at the original code, the Discard button already had `variant="outline" size="sm"`, so both now match. This is fine -- just noting the asymmetry was pre-existing. | No action needed. Both buttons now correctly use `size="sm"`. |
+| m5 | `web/src/app/globals.css:236-239` | **`-moz-appearance: textfield` is deprecated in Firefox.** The standard property is `appearance: textfield`. While `-moz-appearance` still works in current Firefox, it may be removed in future versions. | Use `appearance: textfield;` as the primary declaration with `-moz-appearance: textfield;` as a fallback above it. |
+| m6 | `web/src/components/trainee-dashboard/workout-detail-dialog.tsx:138` | **`truncate` on the weight/BW column may clip relevant data.** The weight column uses `min-w-0 flex-1 truncate`. For values like "225.5 lbs" (9 chars), this fits easily. But if a user's unit is something long like "kilogram" (unlikely but possible from data), truncation could hide the unit entirely. The previous fixed-width `w-20` at least guaranteed visible space. | Add a `title` attribute with the full text so truncated values are accessible on hover: `title={set.weight > 0 ? \`${set.weight} ${set.unit || "lbs"}\` : "Bodyweight"}`. |
+| m7 | `web/src/components/trainee-dashboard/active-workout.tsx:374` | **Discard dialog has `max-h-[90dvh]` but no `overflow-y-auto`.** The workout finish and weight check-in dialogs correctly pair `max-h-[90dvh]` with `overflow-y-auto`, but the discard confirmation dialog only has `max-h-[90dvh]`. The discard dialog is very short (title + description + 2 buttons), so overflow is extremely unlikely, but the pattern is inconsistent with the other dialogs. | Add `overflow-y-auto` for consistency: `className="max-h-[90dvh] overflow-y-auto sm:max-w-[400px]"`. |
 
 ---
 
 ## Security Concerns
 
-1. **No XSS risk.** All user-generated content (`meal.name`, `clarification_question`, `input`) is rendered via React JSX auto-escaping. No `dangerouslySetInnerHTML`. PASS.
-2. **No SQL injection risk.** All API calls use `apiClient` with JSON payloads. Backend uses Django ORM. PASS.
-3. **Query parameter encoding.** The `useTraineeDashboardNutrition(date)` hook (in `use-trainee-dashboard.ts:41`) properly uses `encodeURIComponent(date)`. New hooks use POST (no query params). PASS.
-4. **IDOR on delete.** `traineeDeleteMealEntry(logId)` includes a user-controlled `logId`. Backend `delete_meal_entry` view checks `daily_log.trainee != user` (line 1016), providing server-side IDOR protection. PASS.
-5. **No secrets in code.** No API keys, tokens, or credentials in any reviewed file. PASS.
+1. **No XSS risk.** All changes are CSS/layout. No new data rendering paths. No `dangerouslySetInnerHTML`. PASS.
+2. **No injection risk.** No new API calls or data paths added. PASS.
+3. **No secrets in code.** Verified entire diff. PASS.
+4. **Viewport zoom-disable (C1) is not a security issue but an accessibility issue.** Noted above.
+5. **No CORS/CSRF concerns.** No backend changes. PASS.
 
 ## Performance Concerns
 
-1. **C1 (missing invalidation)** forces users to refresh to see delete buttons after first meal log.
-2. **M6 (`useCallback` with unstable deps)** defeats memoization but has negligible real-world impact at current scale.
-3. **No N+1 patterns.** `useTraineeTodayLog` is a single additional API call per date, not per meal.
-4. **React Query `staleTime: 5min`** is appropriate.
-5. **`setInterval` at 60s** for midnight check is reasonable and low-overhead.
+1. **`useIsMobile` hook creates two `matchMedia` listeners per page render** (one per chart component). Each listener is lightweight, but the hydration mismatch (M1) causes a re-render on every mobile page load, which triggers Recharts to re-render both charts from scratch. This is a noticeable performance hit on low-end mobile devices.
+2. **The `-webkit-appearance: none` for number input spinners is a global CSS rule** applied to ALL `input[type="number"]` elements across the entire app (not just trainee dashboard). This is intentional per dev-done.md but could have unintended effects on trainer/admin dashboards where number spinners might be desired.
+3. **No unnecessary re-renders from Tailwind class changes.** All responsive changes use CSS-only responsive variants (`sm:`, `lg:`) which require zero JavaScript re-renders. PASS.
+4. **`scrollbar-thin` custom class uses vendor-specific pseudo-elements** (`::-webkit-scrollbar`). These are ignored by Firefox, which uses `scrollbar-width: thin` instead. Both approaches are applied, covering all major browsers. PASS.
 
-## Acceptance Criteria Verification
+## Tailwind v4 Compatibility
 
-| AC | Status | Notes |
-|----|--------|-------|
-| AC-1 | PASS | "Nutrition" with Apple icon between Progress and Messages in `trainee-nav-links.tsx` |
-| AC-2 | PASS | Uses `(trainee-dashboard)` layout group which has auth guard |
-| AC-3 | PASS | Macro summary with 4 macros via `useTraineeDashboardNutrition` |
-| AC-4 | PASS | Progress bars with consumed/goal, chart-1 through chart-4 colors |
-| AC-5 | PASS | "No nutrition goals set" empty state with CircleSlash icon |
-| AC-6 | PASS | Date nav with left/right arrows and formatted date display |
-| AC-7 | PASS | Left/right arrow navigation implemented |
-| AC-8 | PASS | Right arrow disabled when `isToday` |
-| AC-9 | PASS | "Today" button appears when viewing past date |
-| AC-10 | PASS | Date change triggers `useTraineeDashboardNutrition(selectedDate)` refetch |
-| AC-11 | PASS | "Log Food" card with text input and submit button |
-| AC-12 | PASS | Natural language input with placeholder example |
-| AC-13 | PASS | POST to `parse-natural-language/` with `{ user_input, date }` |
-| AC-14 | PASS | Parsed results confirmation card with name, kcal, P/C/F |
-| AC-15 | PASS | Confirm & Save calls `confirm-and-save/` with correct payload |
-| AC-16 | PARTIAL | Toast works, nutrition-summary invalidated. But `today-log` NOT invalidated (C1) |
-| AC-17 | PASS | Cancel clears parsedResult without saving |
-| AC-18 | PASS | Clarification question displayed in amber alert box |
-| AC-19 | PASS | Loader2 spinner + input disabled during parse |
-| AC-20 | PASS | Error toasts for parse failures with differentiated messages |
-| AC-21 | PASS | Meal history from `data.meals` for selected date |
-| AC-22 | PASS | Each meal: name, kcal, P/C/F in compact row |
-| AC-23 | PASS | Empty state: "No meals logged yet..." |
-| AC-24 | PARTIAL | Delete endpoint correct, but buttons may not appear after first meal log (C1) |
-| AC-25 | PASS | Dialog with Cancel/Remove, meal name in description |
-| AC-26 | PARTIAL | Toast "Meal removed" works, but `today-log` NOT invalidated |
-| AC-27 | PASS | Preset chips rendered when presets exist |
-| AC-28 | PASS | Preset names in Badge components |
-| AC-29 | PASS | Active preset visually distinguished (`variant="default"`) |
-| AC-30 | PASS | Read-only with tooltip explaining trainer management |
-| AC-31 | PARTIAL | Skeletons for macro bars + date nav, but NO skeleton for meal history |
-| AC-32 | PASS | ErrorState component with retry callback |
-| AC-33 | PASS | Single-column responsive layout |
-| AC-34 | NOT VERIFIED | Needs `npx tsc --noEmit` execution |
+1. **`h-dvh`** -- Valid in Tailwind v4. Maps to `height: 100dvh`. PASS.
+2. **`sm:`, `lg:`, `xl:` responsive prefixes** -- Valid in Tailwind v4. PASS.
+3. **`max-h-[90dvh]`** -- Arbitrary value with dvh unit. Valid in Tailwind v4. PASS.
+4. **`max-h-[calc(100dvh-10rem)]`** (in messages page, currently inline style) -- Would be valid as a Tailwind arbitrary value class. See M3.
+5. **`text-xl`, `text-2xl`, `text-sm`, `text-base`** -- Standard Tailwind utilities. PASS.
+6. **`scrollbar-thin`** -- This is a custom CSS class, NOT a Tailwind utility. Tailwind v4 does not ship a `scrollbar-thin` utility. The implementation in `globals.css` is correct as a custom class. PASS.
+
+## Edge Case Analysis
+
+| Edge Case | Status | Notes |
+|-----------|--------|-------|
+| iPhone SE (320px width) | PARTIAL | Exercise log card grid `grid-cols-[1.75rem_1fr_1fr_2rem_2rem]` with `gap-1.5` totals ~9rem (144px) fixed + 2 flexible columns. At 320px minus card padding (~32px), the two `1fr` inputs get ~72px each. That is tight but functional. However, the Add Set button and remove-set icon button in the 5th column are only 2rem (32px) -- below 44px touch target. |
+| Mobile Safari 100vh bug | PASS | Correctly addressed with `h-dvh` replacing `h-screen`. |
+| Landscape phone | PARTIAL | `sm:` breakpoint (640px) used for exercise grid columns. Most phones in landscape are 640px-812px wide, so they would get the `sm:` treatment (2-column grid, larger gaps). This is appropriate. However, the chart height `h-[220px] sm:h-[250px]` does not account for landscape where vertical space is constrained -- a phone in landscape with 375px height has limited room for 220px charts plus headers. |
+| Very long exercise names | PASS | Exercise names in `ExerciseLogCard` use `CardTitle` with `text-base` -- these will wrap naturally within the card. In `ProgramViewer` day cards, exercise names have `truncate` (line 284). PASS. |
+| Many meals (10+) on nutrition page | NOT ADDRESSED | The nutrition page was not modified in this diff, but the meal history list has no `max-height` or virtual scrolling. On mobile, 10+ meals create a very long page. This is acceptable (page scrolls naturally) but could benefit from a "show more" pattern. |
+| Chart with 30 data points at 320px | PASS | `interval="preserveStartEnd"` on mobile correctly shows only first and last labels. `-45deg` angle prevents overlap. PASS. |
+| Week tabs with 8+ weeks | PASS | `scrollbar-thin` class with `overflow-x-auto` enables horizontal scroll. `-mx-1 px-1` provides edge padding so the first/last tabs are not clipped. `pb-2` gives scrollbar room. PASS. |
+| Workout with many exercises | PASS | The exercise grid is inside the main scrollable `<main>` area with `overflow-auto`. No additional scrolling needed. PASS. |
+
+## Missing Changes (pages/components NOT updated)
+
+| # | File | Issue | Impact |
+|---|------|-------|--------|
+| MC1 | `web/src/app/(trainee-dashboard)/trainee/dashboard/page.tsx:22` | **Dashboard page uses `grid gap-4 md:grid-cols-2` but the ticket says "Dashboard grid cards stack to single column below ~380px".** The `md:` breakpoint is 768px, meaning cards are single-column below 768px and 2-column above. This seems correct for mobile (phones always see single column), but the ticket AC specifically mentions "below ~380px" which implies a lower breakpoint. The current behavior is actually fine -- `md:` is more conservative. However, this file was NOT changed in the diff despite being listed in the ticket's technical approach. | Low. Current `md:grid-cols-2` behavior is acceptable. No horizontal overflow at 320px because cards are already single-column. |
+| MC2 | `web/src/components/trainee-dashboard/nutrition-page.tsx` | **Nutrition page was not touched.** The date navigation buttons at `h-8 w-8` (32px) are below the 44px touch target. The macro bars, meal cards, and AI input are all within cards that span full width and should work on mobile, but were not explicitly verified/modified in this responsiveness pass. | Medium. The date nav buttons are used frequently and are too small for comfortable thumb tapping on mobile. |
+| MC3 | `web/src/components/trainee-dashboard/meal-history.tsx:129` | **Delete button on meals is `h-7 w-7` (28px) -- below 44px touch target.** This was not modified in this diff. | Medium. Delete is a destructive action -- a small touch target could lead to accidental mis-taps on adjacent elements, or frustration trying to hit the target. |
+| MC4 | `web/src/components/trainee-dashboard/meal-log-input.tsx:162` | **AI submit button is `size="icon"` (default 40px) -- close to 44px but not explicitly verified.** The input + button flex row was not modified for mobile. | Low. 40px is close enough and the button is easily tappable. |
+| MC5 | `web/src/components/trainee-dashboard/workout-history-list.tsx` | **Workout history list was not touched.** The card layout with flex-wrap stats should work on mobile, but the "Details" button is `size="sm"` which may be below 44px height. | Low. The button has padding that likely makes it ~36px tall -- acceptable. |
+| MC6 | `web/src/components/trainee-dashboard/announcements-list.tsx` | **Not reviewed or modified.** If announcements have long text, card rendering on mobile should be verified. | Low. Standard Card components handle text wrapping. |
 
 ---
 
 ## Quality Score: 6/10
 
-The implementation is well-structured, follows existing patterns, and handles most states correctly. Component decomposition is clean. But:
+**What's good:**
+- Correct use of Tailwind v4's `h-dvh` for mobile Safari address bar issue. This is the right modern approach.
+- Thoughtful chart responsiveness with angled labels, `preserveStartEnd` interval, and reduced margins.
+- Scrollbar-thin on program week tabs with proper edge padding is a nice touch.
+- Consistent pattern of `max-h-[90dvh] overflow-y-auto` across dialogs.
+- Global CSS fixes for number input spinners and iOS text-size-adjust are correct and impactful.
+- The exercise log card responsive grid is well thought out with proper `min-w-0` on inputs.
+- Announcements header flex-col wrap is a clean responsive pattern.
 
-- **C1 is a genuine data lifecycle bug** that breaks delete-after-first-log flow.
-- **M1 (MacroBar duplication)** introduces real maintenance burden across two files.
-- **M3 (unsafe double cast)** sacrifices type safety at a payload boundary.
-- **M4 (fragile dailyLogId fetching)** can silently disable delete with no user feedback.
-- **M5 (index keys on mutable list)** risks visual glitches and stale-index race conditions.
+**What prevents a higher score:**
+- **C1 (zoom disability)** is a genuine accessibility failure that would fail WCAG AA audit and app store accessibility reviews.
+- **M1 (hydration mismatch)** creates a visible layout flash on every mobile page load for the progress page.
+- **M3 (inline style with magic number)** breaks the design system pattern established everywhere else.
+- **M4 (touch targets below 44px)** directly contradicts the ticket's own acceptance criteria.
+- **m1 (scrollbar color bug)** means the scrollbar-thin feature on week tabs silently fails to show the correct theme color.
+- Multiple trainee pages with touch-target issues were not addressed (MC2, MC3).
 
-The code quality within individual files is solid, but the cross-component data flow has gaps that will surface as user-facing bugs.
+The changes are directionally correct and improve mobile UX significantly, but the accessibility violation (C1), the hydration flash (M1), and the touch target shortfalls (M4) prevent this from meeting the quality bar for a mobile responsiveness feature.
 
 ## Recommendation: REQUEST CHANGES
 
-Fix C1 and C2 before merge. Address M1 through M6. The implementation is close to shippable but the query invalidation gap (C1) is a real bug that will affect every user who logs their first meal of the day and then tries to delete it.
+Fix C1 (remove zoom-disable -- this is a WCAG violation and potential app store rejection risk). Address M1 or document the tradeoff. Fix m1 (scrollbar color is broken). Verify touch targets meet the 44px minimum stated in the ticket's own acceptance criteria (M4). The remaining majors (M2, M3, M5, M6) are important but not blocking.

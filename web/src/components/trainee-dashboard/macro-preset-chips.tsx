@@ -54,6 +54,8 @@ export function MacroPresetChips({ currentGoals }: MacroPresetChipsProps) {
             Math.round(preset.carbs) === Math.round(currentGoals.carbs) &&
             Math.round(preset.fat) === Math.round(currentGoals.fat);
 
+          const macroSummary = `${preset.calories} kcal \u00B7 P: ${preset.protein}g \u00B7 C: ${preset.carbs}g \u00B7 F: ${preset.fat}g`;
+
           return (
             <Tooltip key={preset.id}>
               <TooltipTrigger asChild>
@@ -62,6 +64,7 @@ export function MacroPresetChips({ currentGoals }: MacroPresetChipsProps) {
                   variant={isActive ? "default" : "outline"}
                   className="cursor-default select-none"
                   tabIndex={0}
+                  title={macroSummary}
                 >
                   {preset.name}
                   {isActive && (

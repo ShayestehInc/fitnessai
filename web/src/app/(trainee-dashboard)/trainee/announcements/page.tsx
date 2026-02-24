@@ -76,7 +76,7 @@ export default function AnnouncementsPage() {
   return (
     <PageTransition>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <PageHeader
             title="Announcements"
             description="Updates from your trainer"
@@ -87,7 +87,7 @@ export default function AnnouncementsPage() {
               size="sm"
               onClick={handleMarkAllRead}
               disabled={markAllRead.isPending}
-              className="gap-2"
+              className="gap-2 self-start sm:self-auto"
             >
               {markAllRead.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

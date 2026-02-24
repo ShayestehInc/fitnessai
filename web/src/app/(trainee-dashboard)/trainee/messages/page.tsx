@@ -138,7 +138,8 @@ function TraineeMessagesContent() {
 
   return (
     <PageTransition>
-      <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {/* Height = viewport minus header (4rem) minus main padding (2rem on mobile, 3rem on lg) */}
+      <div className="flex h-[calc(100dvh-6rem)] flex-col gap-4 lg:h-[calc(100dvh-7rem)]">
         <div className="flex items-center justify-between">
           <PageHeader
             title="Messages"
@@ -161,10 +162,10 @@ function TraineeMessagesContent() {
           )}
         </div>
 
-        <div className="flex flex-1 overflow-hidden rounded-lg border bg-card">
+        <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border bg-card">
           {/* Sidebar: conversation list or search */}
           <div
-            className={`w-full shrink-0 overflow-y-auto border-r md:w-80 ${
+            className={`w-full shrink-0 overflow-y-auto md:w-80 md:border-r ${
               selectedConversation ? "hidden md:block" : "block"
             }`}
           >

@@ -306,10 +306,10 @@ export function ActiveWorkout() {
         title={workoutName}
         description={activeProgram.name}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div
               className="flex items-center gap-1.5 rounded-md bg-muted px-3 py-1.5"
-              role="timer"
+              role="status"
               aria-live="off"
               aria-label={`Elapsed time: ${formatDuration(elapsedSeconds)}`}
             >
@@ -326,20 +326,22 @@ export function ActiveWorkout() {
               aria-label="Discard workout"
             >
               <X className="mr-1.5 h-4 w-4" />
-              Discard
+              <span className="hidden sm:inline">Discard</span>
             </Button>
             <Button
+              size="sm"
               onClick={() => setShowFinishDialog(true)}
               disabled={saveMutation.isPending}
               aria-label="Finish workout and review summary"
             >
-              Finish Workout
+              Finish
+              <span className="hidden sm:inline"> Workout</span>
             </Button>
           </div>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 pb-20 sm:gap-4 sm:pb-0 lg:grid-cols-2">
         {exerciseStates.map((ex, i) => (
           <ExerciseLogCard
             key={ex.exercise_id}
@@ -358,6 +360,45 @@ export function ActiveWorkout() {
         ))}
       </div>
 
+      {/* Sticky bottom bar on mobile so Finish/Discard are always reachable */}
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between border-t bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg sm:hidden">
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1"
+            role="status"
+            aria-live="off"
+            aria-label={`Elapsed time: ${formatDuration(elapsedSeconds)}`}
+          >
+            <Timer className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+            <span className="font-mono text-xs font-medium tabular-nums">
+              {formatDuration(elapsedSeconds)}
+            </span>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {exerciseStates.reduce((sum, ex) => sum + ex.sets.filter((s) => s.completed).length, 0)}/
+            {exerciseStates.reduce((sum, ex) => sum + ex.sets.length, 0)} sets
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDiscardConfirm(true)}
+            disabled={saveMutation.isPending}
+            aria-label="Discard workout"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setShowFinishDialog(true)}
+            disabled={saveMutation.isPending}
+          >
+            Finish
+          </Button>
+        </div>
+      </div>
+
       <WorkoutFinishDialog
         open={showFinishDialog}
         onOpenChange={setShowFinishDialog}
@@ -369,7 +410,7 @@ export function ActiveWorkout() {
       />
 
       <Dialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Discard workout?</DialogTitle>
             <DialogDescription>

@@ -48,7 +48,7 @@ export function ExerciseLogCard({
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">{exerciseName}</CardTitle>
+          <CardTitle className="min-w-0 truncate text-base" title={exerciseName}>{exerciseName}</CardTitle>
           <span className="text-sm text-muted-foreground">
             {completedSets}/{sets.length} sets
           </span>
@@ -61,12 +61,13 @@ export function ExerciseLogCard({
       <CardContent className="space-y-2">
         {/* Header row */}
         <div
-          className="grid grid-cols-[2.5rem_1fr_1fr_2.5rem_2.5rem] items-center gap-2 text-xs font-medium text-muted-foreground"
+          className="grid grid-cols-[1.75rem_1fr_1fr_2rem_2rem] items-center gap-1.5 text-xs font-medium text-muted-foreground sm:grid-cols-[2.5rem_1fr_1fr_2.5rem_2.5rem] sm:gap-2"
           aria-hidden="true"
         >
           <span>Set</span>
           <span>Reps</span>
-          <span>Weight ({unit})</span>
+          <span className="sm:hidden">Wt</span>
+          <span className="hidden sm:inline">Weight ({unit})</span>
           <span />
           <span />
         </div>
@@ -74,7 +75,7 @@ export function ExerciseLogCard({
         {sets.map((set, setIndex) => (
           <div
             key={set.set_number}
-            className="grid grid-cols-[2.5rem_1fr_1fr_2.5rem_2.5rem] items-center gap-2"
+            className="grid grid-cols-[1.75rem_1fr_1fr_2rem_2rem] items-center gap-1.5 sm:grid-cols-[2.5rem_1fr_1fr_2.5rem_2.5rem] sm:gap-2"
             role="group"
             aria-label={`Set ${set.set_number}`}
           >
@@ -85,6 +86,9 @@ export function ExerciseLogCard({
               type="number"
               min={0}
               max={999}
+              step={1}
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={set.reps}
               onChange={(e) => {
                 const raw = e.target.value;
@@ -95,7 +99,7 @@ export function ExerciseLogCard({
                   raw === "" ? 0 : Math.max(0, parseInt(raw) || 0),
                 );
               }}
-              className="h-9"
+              className="h-9 min-w-0 px-2 text-sm sm:px-3"
               aria-label={`Set ${set.set_number} reps`}
             />
             <Input
@@ -103,6 +107,7 @@ export function ExerciseLogCard({
               min={0}
               max={9999}
               step="0.5"
+              inputMode="decimal"
               value={set.weight}
               onChange={(e) => {
                 const raw = e.target.value;
@@ -113,10 +118,10 @@ export function ExerciseLogCard({
                   raw === "" ? 0 : Math.max(0, parseFloat(raw) || 0),
                 );
               }}
-              className="h-9"
+              className="h-9 min-w-0 px-2 text-sm sm:px-3"
               aria-label={`Set ${set.set_number} weight`}
             />
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center p-1.5 sm:p-0">
               <button
                 type="button"
                 role="checkbox"
@@ -124,7 +129,7 @@ export function ExerciseLogCard({
                 aria-label={`Mark set ${set.set_number} as completed`}
                 onClick={() => onSetToggle(exerciseIndex, setIndex)}
                 className={cn(
-                  "flex h-5 w-5 items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "flex h-7 w-7 items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-5 sm:w-5",
                   set.completed
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-input bg-background hover:border-primary/50",
