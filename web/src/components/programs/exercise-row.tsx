@@ -76,7 +76,7 @@ export function ExerciseRow({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-8 w-8 sm:h-7 sm:w-7"
             onClick={onMoveUp}
             disabled={index === 0}
             aria-label={`Move ${exercise.exercise_name} up`}
@@ -87,7 +87,7 @@ export function ExerciseRow({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-8 w-8 sm:h-7 sm:w-7"
             onClick={onMoveDown}
             disabled={index === totalExercises - 1}
             aria-label={`Move ${exercise.exercise_name} down`}
@@ -108,7 +108,7 @@ export function ExerciseRow({
       </div>
 
       {/* Bottom row: parameter inputs -- wraps responsively */}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 pl-8">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 pl-0 sm:pl-8">
         <div className="flex items-center gap-1">
           <label
             className="text-xs font-medium text-muted-foreground"

@@ -83,8 +83,8 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
                   <TableHead>Food</TableHead>
                   <TableHead className="text-right">Calories</TableHead>
                   <TableHead className="text-right">Protein</TableHead>
-                  <TableHead className="text-right">Carbs</TableHead>
-                  <TableHead className="text-right">Fat</TableHead>
+                  <TableHead className="hidden text-right md:table-cell">Carbs</TableHead>
+                  <TableHead className="hidden text-right md:table-cell">Fat</TableHead>
                   <TableHead>Goals</TableHead>
                 </TableRow>
               </TableHeader>
@@ -106,10 +106,10 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
                     <TableCell className="text-right">
                       {Math.round(row.protein_consumed)}g
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden text-right md:table-cell">
                       {Math.round(row.carbs_consumed)}g
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden text-right md:table-cell">
                       {Math.round(row.fat_consumed)}g
                     </TableCell>
                     <TableCell>

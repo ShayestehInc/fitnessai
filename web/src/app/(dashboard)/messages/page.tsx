@@ -208,7 +208,7 @@ function MessagesContent() {
         </Button>
       </div>
 
-      <div className="flex h-[calc(100vh-12rem)] overflow-hidden rounded-lg border bg-card">
+      <div className="flex h-[calc(100dvh-12rem)] overflow-hidden rounded-lg border bg-card">
         {/* Sidebar: either search results or conversation list */}
         <div
           className={`w-full shrink-0 overflow-y-auto border-r md:w-80 ${

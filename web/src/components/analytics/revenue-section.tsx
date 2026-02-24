@@ -213,6 +213,7 @@ const subscriberColumns: Column<RevenueSubscriber>[] = [
   {
     key: "subscribed_since",
     header: "Since",
+    className: "hidden md:table-cell",
     cell: (row) => <span>{formatRelativeDate(row.subscribed_since)}</span>,
   },
 ];
@@ -233,6 +234,7 @@ const paymentColumns: Column<RevenuePayment>[] = [
   {
     key: "payment_type",
     header: "Type",
+    className: "hidden md:table-cell",
     cell: (row) => (
       <span>{PAYMENT_TYPE_LABELS[row.payment_type] ?? row.payment_type}</span>
     ),
@@ -256,6 +258,7 @@ const paymentColumns: Column<RevenuePayment>[] = [
   {
     key: "paid_at",
     header: "Date",
+    className: "hidden md:table-cell",
     cell: (row) => (
       <span>
         {row.paid_at

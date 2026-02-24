@@ -111,7 +111,8 @@ export function DataTable<T>({
       {showPagination && (
         <div className="flex items-center justify-between px-2 py-4">
           <p className="text-sm text-muted-foreground">
-            Page {page} of {totalPages} ({totalCount} total)
+            <span className="hidden sm:inline">Page {page} of {totalPages} ({totalCount} total)</span>
+            <span className="sm:hidden">{page}/{totalPages}</span>
           </p>
           <nav className="flex items-center gap-2" aria-label="Table pagination">
             <Button
@@ -122,7 +123,7 @@ export function DataTable<T>({
               aria-label="Go to previous page"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              Previous
+              <span className="hidden sm:inline">Previous</span>
             </Button>
             <Button
               variant="outline"
@@ -131,7 +132,7 @@ export function DataTable<T>({
               disabled={page >= totalPages}
               aria-label="Go to next page"
             >
-              Next
+              <span className="hidden sm:inline">Next</span>
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           </nav>

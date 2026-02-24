@@ -90,6 +90,7 @@ function makeColumns(currentUserId: number | null): Column<ProgramTemplate>[] {
     {
       key: "goal_type",
       header: "Goal",
+      className: "hidden md:table-cell",
       cell: (row) =>
         row.goal_type ? (
           <span>
@@ -113,6 +114,7 @@ function makeColumns(currentUserId: number | null): Column<ProgramTemplate>[] {
     {
       key: "times_used",
       header: "Used",
+      className: "hidden md:table-cell",
       cell: (row) => (
         <span>
           {row.times_used} time{row.times_used !== 1 ? "s" : ""}
@@ -122,6 +124,7 @@ function makeColumns(currentUserId: number | null): Column<ProgramTemplate>[] {
     {
       key: "created_at",
       header: "Created",
+      className: "hidden md:table-cell",
       cell: (row) => (
         <span className="text-muted-foreground">
           {formatDate(row.created_at)}
