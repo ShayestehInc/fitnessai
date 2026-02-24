@@ -1,38 +1,38 @@
-# Architecture Review: Web App Mobile Responsiveness — Trainee Dashboard
+# Architecture Review: Trainer Dashboard Mobile Responsiveness
 
 ## Review Date
 2026-02-24
 
 ## Files Reviewed
+- `web/src/components/shared/data-table.tsx`
+- `web/src/components/trainees/trainee-columns.tsx`
+- `web/src/components/trainees/trainee-activity-tab.tsx`
+- `web/src/components/programs/program-list.tsx`
+- `web/src/components/programs/program-builder.tsx`
+- `web/src/components/programs/exercise-row.tsx`
+- `web/src/components/exercises/exercise-list.tsx`
+- `web/src/components/invitations/invitation-columns.tsx`
+- `web/src/components/analytics/revenue-section.tsx`
+- `web/src/app/(dashboard)/trainees/[id]/page.tsx`
+- `web/src/app/(dashboard)/ai-chat/page.tsx`
+- `web/src/app/(dashboard)/messages/page.tsx`
 - `web/src/app/globals.css`
-- `web/src/app/layout.tsx`
 - `web/src/app/(dashboard)/layout.tsx`
-- `web/src/app/(trainee-dashboard)/layout.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx`
-- `web/src/components/shared/page-header.tsx`
-- `web/src/components/trainee-dashboard/exercise-log-card.tsx`
-- `web/src/components/trainee-dashboard/active-workout.tsx`
-- `web/src/components/trainee-dashboard/workout-detail-dialog.tsx`
-- `web/src/components/trainee-dashboard/workout-finish-dialog.tsx`
-- `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx`
-- `web/src/components/trainee-dashboard/trainee-progress-charts.tsx`
-- `web/src/components/trainee-dashboard/program-viewer.tsx`
-- `web/src/components/trainee-dashboard/meal-history.tsx`
-- `web/src/components/trainee-dashboard/nutrition-page.tsx`
 
 ---
 
 ## Architectural Alignment
+
 - [x] Follows existing layered architecture
-- [x] Models/schemas in correct locations (no data model changes)
-- [x] No business logic in routers/views (changes are purely presentational)
-- [x] Consistent with existing patterns (mostly -- see findings below)
+- [x] Models/schemas in correct locations (no backend changes -- pure frontend CSS/JSX)
+- [x] No business logic in routers/views (all changes are presentational)
+- [x] Consistent with existing patterns
 
 ### Overall Assessment
 
-The changes are entirely presentational/CSS-level and do not alter any data models, API contracts, state management, or business logic. This is architecturally clean. The responsive adjustments use Tailwind's mobile-first breakpoint system (`sm:`, `lg:`) which is the established convention in the codebase. Good decisions were made around CSS-only solutions where possible (Tailwind responsive classes) versus JS-based solutions (`useIsMobile` hook) only where the third-party library (Recharts) requires imperative configuration that cannot be controlled via CSS.
+The implementation follows a CSS-first strategy using Tailwind responsive breakpoints, which is the correct approach for this codebase. Pipeline 36 established this pattern for the trainee web portal and this work extends it consistently to the trainer dashboard. All responsiveness lives in the view layer (component className props and globals.css). No state management, API, or business logic was touched.
+
+The only JavaScript added was a minimal scroll event listener for the `table-scroll-hint` gradient. This is the right layer for that concern since it is a pure UI affordance that cannot be achieved with CSS alone.
 
 ---
 
@@ -40,109 +40,92 @@ The changes are entirely presentational/CSS-level and do not alter any data mode
 
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | N/A | No schema changes |
+| Schema changes backward-compatible | N/A | No backend/schema changes |
 | Migrations reversible | N/A | No migrations |
 | Indexes added for new queries | N/A | No new queries |
-| No N+1 query patterns | N/A | No query changes |
+| No N+1 query patterns | N/A | No data fetching changes |
 
 ---
 
 ## Detailed Findings
 
-### 1. `useIsMobile` Hook Placement (Minor Concern)
+### 1. Column Hiding via `className` Property (Good Architecture Decision)
 
-**File:** `web/src/components/trainee-dashboard/trainee-progress-charts.tsx:44-54`
+The `hidden md:table-cell` pattern applied through the `Column.className` property keeps the DataTable component generic. Columns are always rendered in the DOM (important for accessibility) but visually hidden below `md` (768px). This is architecturally superior to conditionally filtering the columns array in JavaScript, which would change the component's data contract, cause hydration mismatches with SSR, and make the logic harder to reason about.
 
-The `useIsMobile` hook is defined inline in the charts component file rather than extracted to `src/hooks/`. Currently it is only used by `WeightTrendChart` and `WorkoutVolumeChart` in that same file, so co-location is defensible. However:
-
-- The hook is a general-purpose utility (parameterized breakpoint, standard `matchMedia` pattern).
-- The `src/hooks/` directory already has 40+ hooks, establishing a clear convention for extracting reusable hooks.
-- If any other component (e.g., trainer-facing charts, admin charts) needs responsive behavior for Recharts, this hook will be duplicated.
-- shadcn/ui projects conventionally ship a `use-mobile.ts` hook in the hooks directory.
-
-**Recommendation:** Extract to `src/hooks/use-mobile.ts` for consistency. This is minor and does not block shipping, but should be done to prevent duplication as the codebase grows.
-
-### 2. Inconsistent `h-dvh` vs `h-screen` Across Layouts (Minor Concern)
-
-**Files:** Layout files across route groups.
-
-The developer correctly migrated `(dashboard)/layout.tsx` and `(trainee-dashboard)/layout.tsx` from `h-screen` to `h-dvh` to fix mobile Safari's dynamic viewport issue. However, two other layouts still use `h-screen`:
-
-- `(admin-dashboard)/layout.tsx` line 54: `h-screen`
-- `(ambassador-dashboard)/layout.tsx` line 80: `h-screen`
-
-While the ticket scope was explicitly "trainee dashboard only," this creates an inconsistency. When admin/ambassador users access their dashboards on mobile Safari, they will hit the same 100vh bug. This is tech debt that should be tracked.
-
-**Recommendation:** Either update all four layouts now (trivial two-line change), or create a follow-up ticket. The inconsistency is minor since admin/ambassador dashboards are not primarily used on mobile today, but it is a latent bug.
-
-### 3. Dialog Pattern Consistency (Good, with one minor inconsistency)
-
-All trainee dashboard dialogs now consistently use:
-```
-max-h-[90dvh] overflow-y-auto sm:max-w-[Npx]
+All five table components use the identical pattern:
+```ts
+{ className: "hidden md:table-cell" }
 ```
 
-This is a good, uniform pattern within the trainee scope. The one minor inconsistency is `workout-detail-dialog.tsx` which adds `sm:max-h-[80vh]`:
-```
-max-h-[90dvh] overflow-y-auto sm:max-h-[80vh] sm:max-w-[600px]
-```
+Applied consistently to:
+- `trainee-columns.tsx` (Program, Joined -- 2 columns)
+- `program-list.tsx` (Goal, Used, Created -- 3 columns)
+- `invitation-columns.tsx` (Program, Expires -- 2 columns)
+- `revenue-section.tsx` (Since, Type, Date -- 3 columns)
+- `trainee-activity-tab.tsx` (Carbs, Fat -- 2 columns)
 
-This means on desktop it reverts to `vh` units rather than `dvh`. While `dvh` vs `vh` matters less on desktop (no dynamic address bars), mixing units within the same component is slightly inconsistent. The admin dialogs (`subscription-detail-dialog.tsx`, `coupon-detail-dialog.tsx`) still use `max-h-[80vh]` / `max-h-[85vh]` without `dvh`. This means the project now has three different max-height patterns for dialogs:
+**Status:** Approved. This pattern scales well -- adding column hiding to new columns requires only adding `className` to the column definition, with zero changes to the DataTable component.
 
-1. `max-h-[90dvh]` (trainee dialogs, mobile)
-2. `max-h-[80vh]` / `max-h-[85vh]` (admin dialogs)
-3. No max-height at all (some trainer dialogs like `sm:max-w-md`)
+### 2. Breakpoint Consistency (Good)
 
-**Recommendation:** This is acceptable for now given the scoped ticket. Consider establishing a shared dialog size constant or utility class (e.g., `.dialog-mobile-safe`) if more dialogs are added. The current approach works correctly.
+The implementation uses `md:` (768px) as the primary mobile/desktop breakpoint for column hiding and layout changes, and `sm:` (640px) for intermediate adjustments (flex wrapping, text sizing, padding). This is consistent with the existing codebase:
 
-### 4. Responsive Grid in exercise-log-card.tsx (Good)
+- Dashboard sidebar: `md:w-80`
+- Messages/AI Chat panel split: `md:w-80`
+- Exercise filter toggle: `md:hidden` / `hidden md:block`
+- PageHeader stacking: `sm:flex-row`
 
-**File:** `web/src/components/trainee-dashboard/exercise-log-card.tsx:64,78`
+No inconsistencies found in breakpoint usage across the changed files.
 
-The grid pattern `grid-cols-[1.75rem_1fr_1fr_2rem_2rem] sm:grid-cols-[2.5rem_1fr_1fr_2.5rem_2.5rem]` is specific and well-considered. The use of `rem` for fixed columns and `1fr` for fluid columns is the correct approach for this type of data-entry grid. The values are defined inline (not via CSS variables or utilities) which is the standard Tailwind approach.
+### 3. Scroll Hint Gradient Pattern (Fixed -- was broken)
 
-The grid template is duplicated between the header row (line 64) and the data rows (line 78). If the column widths need to change, two lines must be updated in sync. This is a pre-existing pattern (not introduced by this change), so it is not new tech debt. If a third occurrence were added, extracting to a variable would be warranted.
+**Problem Found:** The CSS defined `.table-scroll-hint.scrolled-end::after { opacity: 0; }` but no JavaScript ever toggled the `scrolled-end` class. The gradient permanently covered the rightmost 32px of table content on mobile, including when the user had scrolled all the way to the right or when the table content fit within the viewport without any overflow.
 
-**Status:** Approved. The approach is maintainable and follows Tailwind conventions.
+**Fix Applied:** Added `useRef` + `useEffect` + passive scroll event listener in both `DataTable` and `TraineeActivityTab` that toggles `.scrolled-end` when:
+- The scroll position reaches the right edge, OR
+- The content does not overflow at all (no horizontal scroll needed)
 
-### 5. Global CSS Additions (Good)
+The scroll listener uses `{ passive: true }` to avoid blocking the main thread, and properly cleans up on unmount.
 
-**File:** `web/src/app/globals.css`
+**Files:** `web/src/components/shared/data-table.tsx`, `web/src/components/trainees/trainee-activity-tab.tsx`
 
-Four CSS blocks were added:
-1. `.scrollbar-thin` -- Utility for horizontal scroll containers (used by program-viewer week tabs)
-2. iOS text-size-adjust prevention (`-webkit-text-size-adjust: 100%`)
-3. iOS auto-zoom prevention (16px minimum input font-size below 639px)
-4. Number input spinner removal
+### 4. Touch Target Compliance (Fixed -- was insufficient)
 
-All four are well-organized, properly commented, and placed in logical order. The iOS-specific fixes use appropriate media queries and vendor prefixes. The number input spinner removal is global, which is a deliberate decision documented in `dev-done.md` (saves horizontal space, and the exercise log uses its own controls).
+**Problem Found:** Exercise row action buttons (move up, move down, delete) were `h-8 w-8` (32px) on mobile, which falls below the 44px minimum specified in the ticket and recommended by Apple's Human Interface Guidelines.
 
-**Note on scope:** The 16px minimum font-size for inputs below 639px and the spinner removal are applied globally, not just to trainee dashboard. This is actually correct behavior (prevents iOS zoom on all inputs, and spinners are generally unwanted in this app) and is not a problem, but it is a broader change than the ticket scope implies. The developer made the right call applying these globally.
+**Fix Applied:** Changed to `min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0` pattern, consistent with how the DataTable pagination buttons handle the same requirement. This ensures a 44px clickable area on mobile while reverting to the compact `h-7 w-7` on desktop.
 
-The `.scrollbar-thin` class is a custom utility. An alternative would be to use a Tailwind plugin like `tailwind-scrollbar`, but a 12-line CSS class is simpler and avoids a dependency. Good pragmatic choice.
+**File:** `web/src/components/programs/exercise-row.tsx`
 
-### 6. Viewport Meta Export (Good)
+### 5. Sticky Save Bar Pattern (Good)
 
-**File:** `web/src/app/layout.tsx`
+The program builder save bar uses `sticky bottom-0 z-10 -mx-4 ... md:static md:mx-0 ...`. The `-mx-4` negative margin correctly counteracts the `p-4` padding from the `<main>` element in the dashboard layout (`web/src/app/(dashboard)/layout.tsx` line 61: `className="flex-1 overflow-auto p-4 lg:p-6"`), making the bar edge-to-edge on mobile. On `md:` and above, the negative margin resets to `mx-0` and the bar reverts to static positioning with no border or background.
 
-Adding `export const viewport: Viewport` follows the Next.js 14+ convention for viewport configuration. This correctly separates viewport metadata from the `metadata` export (which is the Next.js recommended approach since v14).
+This is a standard and well-understood pattern for sticky bars inside padded containers. The `z-10` is appropriate -- it ensures the bar sits above table content but below modals/dialogs (which use `z-50`).
 
-### 7. CSS-First vs JS-First Responsive Approach (Good Architecture Decision)
+### 6. Exercise Filter Collapsible (Good)
 
-The implementation correctly uses CSS-first responsive patterns (Tailwind breakpoints, `hidden sm:inline`, responsive grid classes) for layout changes, and only resorts to the JS-based `useIsMobile` hook for Recharts configuration which cannot be controlled via CSS. This separation is architecturally sound:
+The exercise-list filter collapsible uses local `useState` + `md:hidden` toggle button + `hidden md:block` filter panel. This is the correct approach:
 
-- **CSS:** layout, visibility, spacing, sizing, typography
-- **JS:** library-specific imperative config (Recharts XAxis angle, tick size, margin)
+- State is local to the component (no global state pollution)
+- The toggle button uses proper ARIA: `aria-expanded`, `aria-controls`
+- Active filter count badge provides user feedback
+- On `md:` and above, filters are always visible (the toggle button is hidden, the panel uses `md:block`)
 
-This avoids unnecessary hydration mismatches and flash-of-wrong-layout issues.
+### 7. Revenue Section Header Refactoring (Good)
 
-### 8. `PageHeader` Change Scope (Intentional)
+The revenue section header was restructured from a single `flex-wrap` row (where heading, period selector, and export buttons could wrap unpredictably on mobile) to a stacked layout: heading + period selector on one row (`justify-between`), export buttons on a separate row below. This is the architecturally correct approach because it creates predictable, deterministic layouts rather than relying on flex-wrap behavior which varies with content length.
 
-**File:** `web/src/components/shared/page-header.tsx`
+### 8. `100dvh` Migration (Good)
 
-The `PageHeader` component is in the `shared/` directory, meaning it is used across all dashboards (trainer, admin, trainee, ambassador). The change from `text-2xl` to `text-xl sm:text-2xl` affects ALL pages that use this component, not just trainee pages. This is a broader change than the ticket scope.
+Both chat pages (AI Chat, Messages) correctly use `100dvh` instead of `100vh` for container height calculations. This fixes the Mobile Safari dynamic address bar issue. No remaining `100vh` usage found in the dashboard route group.
 
-However, the change is an improvement for all mobile users, so it is a net positive. It is architecturally appropriate since it belongs in the shared component rather than being special-cased per dashboard.
+### 9. CSS Architecture for `table-scroll-hint` (Acceptable)
+
+The `table-scroll-hint` CSS uses a raw `@media (max-width: 767px)` query instead of Tailwind's responsive system. This is necessary because Tailwind utility classes cannot target `::after` pseudo-elements with responsive variants in inline classes. The `767px` value correctly aligns with Tailwind's `md:` breakpoint (768px).
+
+The gradient uses `var(--card)` for the fade color, which matches the Card component backgrounds where all DataTable instances are placed. If a table were placed outside a Card, the gradient color would need adjustment, but this is not the case currently.
 
 ---
 
@@ -150,52 +133,40 @@ However, the change is an improvement for all mobile users, so it is a net posit
 
 | # | Area | Issue | Recommendation |
 |---|------|-------|----------------|
-| 1 | Hook duplication risk | `useIsMobile` defined inline will be duplicated if other chart components need it | Extract to `src/hooks/use-mobile.ts` |
-| 2 | Dialog pattern sprawl | Three different max-height patterns across the app | Consider a shared dialog wrapper or documented convention |
-| 3 | Layout inconsistency | `h-dvh` only applied to 2 of 4 dashboard layouts | Apply to admin and ambassador layouts as well |
+| 1 | Scroll hint duplication | The `updateScrollHint` logic is duplicated between `DataTable` and `TraineeActivityTab`. If more manually-constructed tables need the hint, this should be extracted into a custom hook. | Low priority. Only 2 instances currently. Extract to `useScrollHint()` hook if a 3rd instance appears. |
+| 2 | Column hiding scalability | Adding more `hidden md:table-cell` columns is trivial -- just add `className` to the column definition. No changes needed to DataTable. | No action needed. Pattern scales well. |
+| 3 | Filter collapsible pattern | Only the exercise-list uses the collapsible filter pattern. If other pages need it, a shared `CollapsibleFilterPanel` component should be extracted. | Low priority. Only 1 instance currently. |
+| 4 | `colSpan` with hidden columns | `colSpan={columns.length}` in DataTable's empty state counts all columns including CSS-hidden ones. Browsers handle this gracefully (cell spans entire visible row). | No action needed. Not a real bug. |
 
 ---
 
-## Technical Debt Introduced
+## Technical Debt
+
+### Introduced (Minimal)
 
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| 1 | `useIsMobile` hook co-located instead of shared | Low | Extract to `src/hooks/use-mobile.ts` |
-| 2 | Admin/ambassador layouts still use `h-screen` | Low | Change `h-screen` to `h-dvh` in `(admin-dashboard)/layout.tsx` and `(ambassador-dashboard)/layout.tsx` |
-| 3 | Mixed `vh`/`dvh` units in workout-detail-dialog | Low | Use `dvh` consistently or document the reasoning |
+| 1 | `32px` gradient width in CSS is a magic number | Low | Could be a CSS variable, but it is used in exactly one place and is a visual design constant. No action needed unless the value needs to change. |
+| 2 | `@media (max-width: 767px)` hardcoded instead of Tailwind plugin | Low | Necessary for `::after` pseudo-element targeting. Standard Tailwind approach. |
+| 3 | Scroll hint logic duplicated across 2 files | Low | Extract to `useScrollHint()` hook if a 3rd instance is needed. |
 
-## Technical Debt Reduced
+### Reduced
 
 | # | Description |
 |---|-------------|
-| 1 | Global CSS now prevents iOS auto-zoom on inputs (was a latent usability bug everywhere) |
-| 2 | Number input spinners removed globally (were visually inconsistent on mobile) |
-| 3 | Viewport meta properly exported via Next.js convention (was missing entirely) |
-| 4 | `h-dvh` adoption in two layouts fixes the longstanding mobile Safari 100vh issue |
-| 5 | Custom scrollbar utility for horizontal scroll containers is reusable across the app |
-
----
-
-## Positive Architectural Observations
-
-1. **No new dependencies introduced:** All responsive behavior achieved with existing Tailwind classes, built-in CSS, and one small inline hook. No new npm packages.
-
-2. **Mobile-first breakpoint usage is correct:** The pattern is consistently base = mobile, then `sm:` / `lg:` for larger screens. This is Tailwind's intended approach.
-
-3. **Touch target sizing is thoughtful:** Checkboxes enlarged to 24px (h-6 w-6) on mobile with extra padding, date nav buttons to 36px (h-9 w-9). These exceed the minimum 24px WCAG target but fall slightly short of Apple's 44px recommendation -- a reasonable pragmatic tradeoff given the data-dense nature of the exercise log.
-
-4. **Text abbreviation pattern is consistent:** "Weight" becomes "Wt", "Set 1" becomes "S1", "Finish Workout" becomes "Finish", "Discard" becomes icon-only. All abbreviated versions include `aria-label` or `title` for accessibility.
-
-5. **No structural component refactoring needed:** The responsive changes were achieved without splitting components or changing prop interfaces. This means the API surface of every component is unchanged, minimizing risk of regression.
+| 1 | Exercise row buttons now meet 44px touch target requirement |
+| 2 | Scroll hint gradient properly hides when content fits or user scrolls to end |
+| 3 | DataTable pagination is now mobile-friendly (compact text, icon-only buttons) |
+| 4 | `100dvh` consistently used across chat pages |
 
 ---
 
 ## Architecture Score: 9/10
 
-The changes are clean, focused, and architecturally appropriate. They follow existing Tailwind/Next.js patterns, make good CSS-first vs JS-based decisions, and introduce minimal tech debt. The three minor items (hook co-location, layout inconsistency, dialog pattern variance) are all low-severity and do not compromise the system's architecture. The implementation will be easy to maintain and extend.
+The implementation is clean, consistent, and well-layered. The CSS-first approach is the correct architectural decision for responsive design changes. Column hiding via `className` scales well without touching the DataTable API. The breakpoint usage is consistent throughout. The two issues found during review (dead `scrolled-end` CSS class, undersized touch targets) have been fixed.
 
-The one point deducted is for the `useIsMobile` hook not being extracted to the shared hooks directory, which is a minor departure from the codebase's established convention of centralizing hooks. This is easily fixable and does not impact functionality.
+One point deducted for the scroll-hint logic duplication between DataTable and TraineeActivityTab. With only two instances this is acceptable, but it should be extracted into a `useScrollHint` custom hook if the pattern spreads to more components.
 
 ## Recommendation: APPROVE
 
-The architecture is sound. The responsive approach is well-layered and consistent with the project's existing conventions. The minor tech debt items (`useIsMobile` extraction, `h-dvh` consistency across layouts, dialog pattern documentation) are tracked above and should be addressed in a follow-up cleanup pass, but do not block shipping this feature.
+The architecture is sound. The responsive approach is well-layered, uses CSS-first patterns where possible, and is consistent with the project's established conventions. The minor debt items (scroll-hint hook extraction, gradient magic number) are tracked above and do not block shipping.

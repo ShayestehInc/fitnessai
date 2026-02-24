@@ -154,16 +154,16 @@ export default function CalendarPage() {
                   {events.data.map((event) => (
                     <div
                       key={event.id}
-                      className="flex items-center justify-between rounded-md border p-3"
+                      className="flex items-center justify-between gap-3 rounded-md border p-3"
                     >
-                      <div>
-                        <p className="text-sm font-medium">{event.title}</p>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium" title={event.title}>{event.title}</p>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(event.start_time), "MMM d, h:mm a")} -{" "}
                           {format(new Date(event.end_time), "h:mm a")}
                         </p>
                       </div>
-                      <Badge variant="secondary" className="capitalize">
+                      <Badge variant="secondary" className="shrink-0 capitalize">
                         {event.calendar_provider}
                       </Badge>
                     </div>

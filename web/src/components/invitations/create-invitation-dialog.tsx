@@ -93,7 +93,7 @@ export function CreateInvitationDialog() {
           New Invitation
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Invite a Trainee</DialogTitle>
           <DialogDescription>
