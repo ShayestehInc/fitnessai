@@ -28,30 +28,49 @@ interface MealHistoryProps {
 }
 
 export function MealHistory({ meals, date }: MealHistoryProps) {
-  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+  // Store both the index and the name of the meal targeted for deletion.
+  // Capturing the name at dialog-open time prevents stale-index issues if
+  // the meals array is reordered by a background react-query refetch.
+  const [deleteTarget, setDeleteTarget] = useState<{
+    index: number;
+    name: string;
+  } | null>(null);
   const deleteMutation = useDeleteMealEntry(date);
   const { data: todayLogs, isLoading: isLoadingLogs } = useTraineeTodayLog(date);
 
   const dailyLogId = todayLogs?.[0]?.id ?? null;
   const isDeleting = deleteMutation.isPending;
 
+  const openDeleteDialog = useCallback(
+    (index: number, mealName: string) => {
+      setDeleteTarget({ index, name: mealName });
+    },
+    [],
+  );
+
+  const closeDeleteDialog = useCallback(() => {
+    if (!isDeleting) setDeleteTarget(null);
+  }, [isDeleting]);
+
   const handleDelete = useCallback(() => {
-    if (deleteIndex === null || dailyLogId === null) return;
+    if (deleteTarget === null || dailyLogId === null) return;
 
     deleteMutation.mutate(
-      { logId: dailyLogId, entry_index: deleteIndex },
+      { logId: dailyLogId, entry_index: deleteTarget.index },
       {
         onSuccess: () => {
           toast.success("Meal removed");
-          setDeleteIndex(null);
+          setDeleteTarget(null);
         },
         onError: () => {
           toast.error("Failed to remove meal.");
-          setDeleteIndex(null);
+          setDeleteTarget(null);
         },
       },
     );
-  }, [deleteIndex, dailyLogId, deleteMutation]);
+    // deleteMutation.mutate is referentially stable in React Query v5
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deleteTarget, dailyLogId]);
 
   return (
     <>
@@ -69,7 +88,11 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
         </CardHeader>
         <CardContent>
           {meals.length === 0 ? (
-            <div className="py-6 text-center">
+            <div className="flex flex-col items-center py-8 text-center">
+              <UtensilsCrossed
+                className="mb-2 h-8 w-8 text-muted-foreground/40"
+                aria-hidden="true"
+              />
               <p className="text-sm text-muted-foreground">
                 No meals logged yet. Use the input above to log your food.
               </p>
@@ -84,11 +107,17 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{meal.name}</p>
-                    <div className="flex gap-3 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                       <span>{Math.round(meal.calories)} kcal</span>
-                      <span>P: {Math.round(meal.protein)}g</span>
-                      <span>C: {Math.round(meal.carbs)}g</span>
-                      <span>F: {Math.round(meal.fat)}g</span>
+                      <span aria-label={`Protein: ${Math.round(meal.protein)} grams`}>
+                        P: {Math.round(meal.protein)}g
+                      </span>
+                      <span aria-label={`Carbs: ${Math.round(meal.carbs)} grams`}>
+                        C: {Math.round(meal.carbs)}g
+                      </span>
+                      <span aria-label={`Fat: ${Math.round(meal.fat)} grams`}>
+                        F: {Math.round(meal.fat)}g
+                      </span>
                     </div>
                   </div>
                   {isLoadingLogs ? (
@@ -98,7 +127,7 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
                       variant="ghost"
                       size="icon"
                       className="ml-2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => setDeleteIndex(index)}
+                      onClick={() => openDeleteDialog(index, meal.name)}
                       disabled={isDeleting}
                       aria-label={`Remove ${meal.name}`}
                     >
@@ -114,24 +143,24 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
 
       {/* Delete Confirmation Dialog */}
       <Dialog
-        open={deleteIndex !== null}
+        open={deleteTarget !== null}
         onOpenChange={(open) => {
-          if (!open && !isDeleting) setDeleteIndex(null);
+          if (!open) closeDeleteDialog();
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remove this meal?</DialogTitle>
             <DialogDescription>
-              {deleteIndex !== null && meals[deleteIndex]
-                ? `"${meals[deleteIndex].name}" will be removed from your log.`
+              {deleteTarget
+                ? `"${deleteTarget.name}" will be removed from your log.`
                 : "This meal will be removed from your log."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setDeleteIndex(null)}
+              onClick={closeDeleteDialog}
               disabled={isDeleting}
             >
               Cancel

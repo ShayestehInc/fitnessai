@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import { Send, Loader2, X, AlertTriangle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import {
 import type { ParseNaturalLanguageResponse } from "@/types/trainee-dashboard";
 
 const MAX_INPUT_LENGTH = 2000;
+/** Show character count when the user is within this many characters of the limit. */
+const CHAR_COUNT_THRESHOLD = 200;
 
 interface MealLogInputProps {
   date: string;
@@ -28,6 +30,8 @@ export function MealLogInput({ date }: MealLogInputProps) {
   const [input, setInput] = useState("");
   const [parsedResult, setParsedResult] = useState<ParseNaturalLanguageResponse | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const helpTextId = useId();
+  const charCountId = useId();
 
   const parseMutation = useParseNaturalLanguage();
   const confirmMutation = useConfirmAndSaveMeal(date);
@@ -37,6 +41,9 @@ export function MealLogInput({ date }: MealLogInputProps) {
   const trimmedInput = input.trim();
   const isInputValid = trimmedInput.length > 0 && trimmedInput.length <= MAX_INPUT_LENGTH;
   const isOverLimit = input.length > MAX_INPUT_LENGTH;
+  const isNearLimit = input.length >= MAX_INPUT_LENGTH - CHAR_COUNT_THRESHOLD;
+  const parsedMeals = parsedResult?.nutrition?.meals ?? [];
+  const needsClarification = parsedResult?.needs_clarification;
 
   function handleSubmit() {
     if (!isInputValid || isParsing) return;
@@ -95,7 +102,12 @@ export function MealLogInput({ date }: MealLogInputProps) {
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit();
+      // If parsed results are shown and ready to confirm, Enter confirms
+      if (parsedMeals.length > 0 && !needsClarification && !isConfirming) {
+        handleConfirm();
+      } else {
+        handleSubmit();
+      }
     }
     if (e.key === "Escape" && parsedResult) {
       e.preventDefault();
@@ -103,14 +115,23 @@ export function MealLogInput({ date }: MealLogInputProps) {
     }
   }
 
+  // Clear stale parse error state when user starts typing new input
+  useEffect(() => {
+    if (input.length > 0 && parseMutation.isError) {
+      parseMutation.reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input]);
+
   // Clear parsed result and input when date changes
   useEffect(() => {
     setParsedResult(null);
     setInput("");
   }, [date]);
 
-  const parsedMeals = parsedResult?.nutrition?.meals ?? [];
-  const needsClarification = parsedResult?.needs_clarification;
+  const describedByIds = [helpTextId, isNearLimit ? charCountId : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <Card>
@@ -119,7 +140,7 @@ export function MealLogInput({ date }: MealLogInputProps) {
           <Sparkles className="h-4 w-4" aria-hidden="true" />
           Log Food
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <p id={helpTextId} className="text-sm text-muted-foreground">
           Describe what you ate in natural language
         </p>
       </CardHeader>
@@ -134,13 +155,14 @@ export function MealLogInput({ date }: MealLogInputProps) {
             placeholder='e.g., "2 eggs, toast, and a glass of orange juice"'
             disabled={isParsing}
             aria-label="Describe your meal"
-            aria-invalid={isOverLimit}
+            aria-describedby={describedByIds || undefined}
+            aria-invalid={isOverLimit || undefined}
           />
           <Button
             onClick={handleSubmit}
             disabled={!isInputValid || isParsing}
             size="icon"
-            aria-label="Parse meal"
+            aria-label={isParsing ? "Analyzing your meal..." : "Analyze meal"}
           >
             {isParsing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -150,9 +172,15 @@ export function MealLogInput({ date }: MealLogInputProps) {
           </Button>
         </div>
 
-        {isOverLimit && (
-          <p className="text-xs text-destructive" role="alert">
-            Input exceeds {MAX_INPUT_LENGTH} character limit ({input.length}/{MAX_INPUT_LENGTH})
+        {/* Character count — visible when approaching or exceeding limit */}
+        {isNearLimit && (
+          <p
+            id={charCountId}
+            className={`text-xs ${isOverLimit ? "text-destructive" : "text-muted-foreground"}`}
+            role={isOverLimit ? "alert" : undefined}
+          >
+            {input.length} / {MAX_INPUT_LENGTH} characters
+            {isOverLimit && " — please shorten your description"}
           </p>
         )}
 
@@ -176,7 +204,7 @@ export function MealLogInput({ date }: MealLogInputProps) {
               size="icon"
               className="ml-auto h-6 w-6 shrink-0"
               onClick={handleCancel}
-              aria-label="Dismiss"
+              aria-label="Dismiss clarification"
             >
               <X className="h-3 w-3" />
             </Button>
@@ -187,20 +215,29 @@ export function MealLogInput({ date }: MealLogInputProps) {
         {parsedMeals.length > 0 && !needsClarification && (
           <div className="space-y-3">
             <p className="text-sm font-medium">
-              Parsed items ({parsedMeals.length})
+              Detected {parsedMeals.length} {parsedMeals.length === 1 ? "item" : "items"}
             </p>
-            <div className="space-y-2">
+            <div className="space-y-2" role="list" aria-label="Detected food items">
               {parsedMeals.map((meal, index) => (
                 <div
                   key={`${meal.name}-${meal.calories}-${index}`}
-                  className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2"
+                  role="listitem"
+                  className="flex flex-wrap items-center justify-between gap-1 rounded-md border bg-muted/30 px-3 py-2"
                 >
-                  <span className="text-sm font-medium">{meal.name}</span>
-                  <div className="flex gap-3 text-xs text-muted-foreground">
+                  <span className="min-w-0 truncate text-sm font-medium">
+                    {meal.name}
+                  </span>
+                  <div className="ml-auto flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                     <span>{Math.round(meal.calories)} kcal</span>
-                    <span>P: {Math.round(meal.protein)}g</span>
-                    <span>C: {Math.round(meal.carbs)}g</span>
-                    <span>F: {Math.round(meal.fat)}g</span>
+                    <span aria-label={`Protein: ${Math.round(meal.protein)} grams`}>
+                      P: {Math.round(meal.protein)}g
+                    </span>
+                    <span aria-label={`Carbs: ${Math.round(meal.carbs)} grams`}>
+                      C: {Math.round(meal.carbs)}g
+                    </span>
+                    <span aria-label={`Fat: ${Math.round(meal.fat)} grams`}>
+                      F: {Math.round(meal.fat)}g
+                    </span>
                   </div>
                 </div>
               ))}
@@ -211,29 +248,36 @@ export function MealLogInput({ date }: MealLogInputProps) {
 
       {/* Confirm / Cancel */}
       {parsedMeals.length > 0 && !needsClarification && (
-        <CardFooter className="flex justify-end gap-2 pt-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCancel}
-            disabled={isConfirming}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleConfirm}
-            disabled={isConfirming}
-          >
-            {isConfirming ? (
-              <>
-                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Confirm & Save"
-            )}
-          </Button>
+        <CardFooter className="flex flex-col items-end gap-2 pt-0">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCancel}
+              disabled={isConfirming}
+              aria-label="Cancel and discard detected items"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirm}
+              disabled={isConfirming}
+            >
+              {isConfirming ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Confirm & Save"
+              )}
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Press <kbd className="rounded border px-1 py-0.5 text-[10px] font-mono">Enter</kbd> to confirm
+            or <kbd className="rounded border px-1 py-0.5 text-[10px] font-mono">Esc</kbd> to cancel
+          </p>
         </CardFooter>
       )}
     </Card>

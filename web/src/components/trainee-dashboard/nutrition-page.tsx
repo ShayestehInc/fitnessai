@@ -17,35 +17,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MacroBar } from "@/components/shared/macro-bar";
 import { useTraineeDashboardNutrition } from "@/hooks/use-trainee-dashboard";
-import { getTodayString } from "@/lib/schedule-utils";
+import { getTodayString, addDays, formatDisplayDate } from "@/lib/schedule-utils";
 import { MealLogInput } from "./meal-log-input";
 import { MealHistory } from "./meal-history";
 import { MacroPresetChips } from "./macro-preset-chips";
 
-function formatDisplayDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function addDays(dateStr: string, days: number): string {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
-  d.setDate(d.getDate() + days);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
-
 function MacrosSkeleton() {
   return (
-    <Card>
+    <Card aria-busy="true" aria-label="Loading macro goals">
       <CardHeader className="pb-3">
         <Skeleton className="h-5 w-36" />
       </CardHeader>
@@ -63,7 +42,7 @@ function MacrosSkeleton() {
 
 function MealHistorySkeleton() {
   return (
-    <Card>
+    <Card aria-busy="true" aria-label="Loading meal history">
       <CardHeader className="pb-3">
         <Skeleton className="h-5 w-20" />
       </CardHeader>
@@ -86,20 +65,25 @@ export function NutritionPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayString);
   const isToday = selectedDate === getTodayString();
 
-  // Update date if tab stays open past midnight
+  // Track what "today" was when the user last interacted, so we can
+  // auto-advance to the real today if the tab stays open past midnight.
+  const [lastKnownToday, setLastKnownToday] = useState(getTodayString);
+
   useEffect(() => {
     const checkDate = () => {
       const currentToday = getTodayString();
+      if (currentToday === lastKnownToday) return;
+
       setSelectedDate((prev) => {
-        // Only auto-update if user was viewing the old today
-        const oldToday = addDays(currentToday, -1);
-        if (prev === oldToday) return currentToday;
+        // Only auto-update if the user was viewing the previous "today"
+        if (prev === lastKnownToday) return currentToday;
         return prev;
       });
+      setLastKnownToday(currentToday);
     };
     const interval = setInterval(checkDate, 60_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [lastKnownToday]);
 
   const { data, isLoading, isError, refetch } =
     useTraineeDashboardNutrition(selectedDate);
@@ -150,8 +134,12 @@ export function NutritionPage() {
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        <span className="min-w-[180px] whitespace-nowrap text-center text-sm font-medium">
-          {formatDisplayDate(selectedDate)}
+        <span
+          className="min-w-[180px] whitespace-nowrap text-center text-sm font-medium"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {isToday ? "Today" : formatDisplayDate(selectedDate)}
         </span>
 
         <Button
@@ -160,7 +148,7 @@ export function NutritionPage() {
           className="h-8 w-8"
           onClick={goToNextDay}
           disabled={isToday}
-          aria-label="Next day"
+          aria-label={isToday ? "Next day (already viewing today)" : "Next day"}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -210,7 +198,9 @@ export function NutritionPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Macro Goals</CardTitle>
             <p className="text-sm text-muted-foreground">
-              {isToday ? "Today's macros" : formatDisplayDate(selectedDate)}
+              {isToday
+                ? `Today, ${formatDisplayDate(selectedDate)}`
+                : formatDisplayDate(selectedDate)}
             </p>
           </CardHeader>
           <CardContent className="space-y-3">

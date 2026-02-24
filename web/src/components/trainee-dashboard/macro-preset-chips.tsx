@@ -2,6 +2,7 @@
 
 import { Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -16,12 +17,31 @@ interface MacroPresetChipsProps {
 }
 
 export function MacroPresetChips({ currentGoals }: MacroPresetChipsProps) {
-  const { data: presets } = useTraineeMacroPresets();
+  const { data: presets, isLoading, isError } = useTraineeMacroPresets();
 
-  if (!presets || presets.length === 0) return null;
+  // Show skeleton chips while loading
+  if (isLoading) {
+    return (
+      <div className="flex flex-wrap items-center gap-2" aria-busy="true">
+        <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+          <Zap className="h-3 w-3" aria-hidden="true" />
+          Presets
+        </span>
+        <Skeleton className="h-5 w-20 rounded-full" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </div>
+    );
+  }
+
+  // Silently hide on error or empty — presets are supplementary
+  if (isError || !presets || presets.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div
+      className="flex flex-wrap items-center gap-2"
+      role="list"
+      aria-label="Nutrition presets"
+    >
       <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
         <Zap className="h-3 w-3" aria-hidden="true" />
         Presets
@@ -38,8 +58,10 @@ export function MacroPresetChips({ currentGoals }: MacroPresetChipsProps) {
             <Tooltip key={preset.id}>
               <TooltipTrigger asChild>
                 <Badge
+                  role="listitem"
                   variant={isActive ? "default" : "outline"}
                   className="cursor-default select-none"
+                  tabIndex={0}
                 >
                   {preset.name}
                   {isActive && (
