@@ -139,6 +139,7 @@ export function WorkoutDetailDialog({
                       <span
                         className="min-w-0 flex-1 truncate"
                         title={set.weight > 0 ? `${set.weight} ${set.unit || "lbs"}` : "Bodyweight"}
+                        aria-label={set.weight > 0 ? `${set.weight} ${set.unit || "lbs"}` : "Bodyweight"}
                       >
                         {set.weight > 0
                           ? `${set.weight} ${set.unit || "lbs"}`

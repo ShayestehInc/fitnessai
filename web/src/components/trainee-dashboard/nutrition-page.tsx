@@ -135,7 +135,7 @@ export function NutritionPage() {
         </Button>
 
         <span
-          className="min-w-[180px] whitespace-nowrap text-center text-sm font-medium"
+          className="min-w-[140px] whitespace-nowrap text-center text-sm font-medium sm:min-w-[180px]"
           aria-live="polite"
           aria-atomic="true"
         >
@@ -159,6 +159,7 @@ export function NutritionPage() {
             size="sm"
             onClick={goToToday}
             className="ml-2 text-xs"
+            aria-label="Jump to today"
           >
             Today
           </Button>

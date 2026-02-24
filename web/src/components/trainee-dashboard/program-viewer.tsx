@@ -163,7 +163,7 @@ export function ProgramViewer({ programs }: ProgramViewerProps) {
       {weeks.length > 0 && (
         <div className="space-y-4">
           <div
-            className="scrollbar-thin -mx-1 flex gap-1 overflow-x-auto px-1 pb-2"
+            className="scrollbar-thin -mx-1 flex gap-1 overflow-x-auto px-1 pb-2 pr-4 sm:pr-1"
             role="tablist"
             aria-label="Program weeks"
           >
@@ -177,7 +177,7 @@ export function ProgramViewer({ programs }: ProgramViewerProps) {
                 onClick={() => setSelectedWeek(idx)}
                 onKeyDown={(e) => handleWeekKeyDown(e, idx)}
                 className={cn(
-                  "shrink-0 rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "shrink-0 rounded-md px-4 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:py-2",
                   selectedWeek === idx
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -281,7 +281,7 @@ function DayCard({
                   {i + 1}.
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{ex.exercise_name}</p>
+                  <p className="truncate font-medium" title={ex.exercise_name}>{ex.exercise_name}</p>
                   <p className="text-xs text-muted-foreground">
                     {ex.sets} sets x {ex.reps} reps
                     {ex.weight > 0 && (

@@ -86,6 +86,9 @@ export function ExerciseLogCard({
               type="number"
               min={0}
               max={999}
+              step={1}
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={set.reps}
               onChange={(e) => {
                 const raw = e.target.value;
@@ -104,6 +107,7 @@ export function ExerciseLogCard({
               min={0}
               max={9999}
               step="0.5"
+              inputMode="decimal"
               value={set.weight}
               onChange={(e) => {
                 const raw = e.target.value;
@@ -125,7 +129,7 @@ export function ExerciseLogCard({
                 aria-label={`Mark set ${set.set_number} as completed`}
                 onClick={() => onSetToggle(exerciseIndex, setIndex)}
                 className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-5 sm:w-5",
+                  "flex h-7 w-7 items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-5 sm:w-5",
                   set.completed
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-input bg-background hover:border-primary/50",

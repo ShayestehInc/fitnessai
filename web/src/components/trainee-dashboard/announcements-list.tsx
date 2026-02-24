@@ -81,7 +81,7 @@ function AnnouncementCard({
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             {!announcement.is_read && (
               <Circle
                 className="h-2.5 w-2.5 shrink-0 fill-primary text-primary"
@@ -93,9 +93,10 @@ function AnnouncementCard({
             )}
             <CardTitle
               className={cn(
-                "text-base",
+                "min-w-0 truncate text-base",
                 !announcement.is_read && "font-bold",
               )}
+              title={announcement.title}
             >
               {announcement.title}
             </CardTitle>

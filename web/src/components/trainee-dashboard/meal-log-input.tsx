@@ -152,7 +152,7 @@ export function MealLogInput({ date }: MealLogInputProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder='e.g., "2 eggs, toast, and a glass of orange juice"'
+            placeholder='e.g., "2 eggs, toast, orange juice"'
             disabled={isParsing}
             aria-label="Describe your meal"
             aria-describedby={describedByIds || undefined}
@@ -274,7 +274,7 @@ export function MealLogInput({ date }: MealLogInputProps) {
               )}
             </Button>
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="hidden text-[11px] text-muted-foreground sm:block">
             Press <kbd className="rounded border px-1 py-0.5 text-[10px] font-mono">Enter</kbd> to confirm
             or <kbd className="rounded border px-1 py-0.5 text-[10px] font-mono">Esc</kbd> to cancel
           </p>

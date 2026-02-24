@@ -95,9 +95,9 @@ export function WorkoutFinishDialog({
               aria-label="Workout summary"
               role="region"
             >
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Workout</span>
-                <span className="font-medium">{workoutName}</span>
+              <div className="flex justify-between gap-2 text-sm">
+                <span className="shrink-0 text-muted-foreground">Workout</span>
+                <span className="min-w-0 truncate text-right font-medium" title={workoutName}>{workoutName}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Duration</span>

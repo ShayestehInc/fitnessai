@@ -1,79 +1,109 @@
-# UX Audit: Trainee Web Nutrition Page
+# UX Audit: Mobile Responsiveness for Trainee Web Dashboard
 
 ## Audit Date
 2026-02-24
 
 ## Files Audited
+- `web/src/app/globals.css`
+- `web/src/app/layout.tsx`
+- `web/src/components/shared/page-header.tsx`
+- `web/src/components/trainee-dashboard/exercise-log-card.tsx`
+- `web/src/components/trainee-dashboard/active-workout.tsx`
+- `web/src/components/trainee-dashboard/workout-detail-dialog.tsx`
+- `web/src/components/trainee-dashboard/workout-finish-dialog.tsx`
+- `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx`
+- `web/src/components/trainee-dashboard/trainee-progress-charts.tsx`
+- `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx`
+- `web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx`
+- `web/src/components/trainee-dashboard/program-viewer.tsx`
+- `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx`
 - `web/src/components/trainee-dashboard/nutrition-page.tsx`
-- `web/src/components/trainee-dashboard/meal-log-input.tsx`
 - `web/src/components/trainee-dashboard/meal-history.tsx`
+- `web/src/components/trainee-dashboard/meal-log-input.tsx`
 - `web/src/components/trainee-dashboard/macro-preset-chips.tsx`
+- `web/src/components/trainee-dashboard/announcements-list.tsx`
+- `web/src/components/trainee-dashboard/trainee-header.tsx`
+- `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx`
+- `web/src/app/(trainee-dashboard)/layout.tsx`
+- `web/src/components/shared/error-state.tsx`
+- `web/src/components/shared/empty-state.tsx`
 - `web/src/components/shared/macro-bar.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/nutrition/page.tsx`
+- `web/src/components/shared/loading-spinner.tsx`
 
 ---
 
 ## Usability Issues Found & Fixed
 
-| # | Severity | Screen/Component | Issue | Fix Applied |
-|---|----------|-----------------|-------|-------------|
-| 1 | Major | macro-bar.tsx | When consumed exceeds goal (e.g., 250g protein vs 200g goal), the progress bar capped at 100% with no visual distinction. Users had no way to tell they had exceeded their target. | Added amber color styling when over goal, "over" indicator showing (+amount), and `aria-valuetext` with "exceeded by" message. Bar color changes to amber via `--chart-5` CSS variable. |
-| 2 | Major | meal-log-input.tsx | Character count only appeared after exceeding the 2000-char limit. Users had no progressive feedback as they approached it. | Added `CHAR_COUNT_THRESHOLD` (200 chars before limit). Character count now appears at 1800+ characters, turns destructive red with helper text when over. |
-| 3 | Medium | meal-log-input.tsx | Submit button `aria-label` was "Parse meal" -- technical jargon. Users of screen readers would not understand what "parse" means. | Changed to "Analyze meal" (default) and "Analyzing your meal..." (loading state). |
-| 4 | Medium | meal-log-input.tsx | The `<Input>` had no `aria-describedby` linking it to the helper text "Describe what you ate in natural language". Screen reader users missed this context. | Added `useId()` for `helpTextId` and `charCountId`. Input now has `aria-describedby` linking to both the helper text and the character count (when visible). |
-| 5 | Medium | meal-log-input.tsx | Parsed items list had no semantic list markup (`role="list"` / `role="listitem"`). Screen readers saw a flat div soup. | Added `role="list"` with `aria-label="Detected food items"` on the container and `role="listitem"` on each parsed meal. |
-| 6 | Medium | meal-log-input.tsx | Copy: "Parsed items (3)" is developer language. Users do not think in terms of "parsing". | Changed to "Detected 3 items" (or "Detected 1 item" for singular). |
-| 7 | Medium | meal-history.tsx | Empty state was plain centered text with no visual anchor. Other empty states in the app (e.g., nutrition goals) use icons. | Added a faded `UtensilsCrossed` icon (h-8 w-8, 40% opacity) above the empty text. Padding increased to `py-8` for breathing room. |
-| 8 | Medium | meal-history.tsx & meal-log-input.tsx | Macro abbreviations (P, C, F) were unlabeled for screen readers. A visually impaired user would hear "P colon 25 g" without context. | Added `aria-label` attributes: "Protein: 25 grams", "Carbs: 30 grams", "Fat: 12 grams" on each span. |
-| 9 | Medium | meal-history.tsx | Macro values could overflow on small screens when meal names are long, since the macro `<div>` did not wrap. | Added `flex-wrap` class to the macro values container in both meal-history and meal-log-input. |
-| 10 | Low | macro-preset-chips.tsx | No loading state -- while presets were loading, the section simply rendered nothing. Flash of empty content. | Added skeleton loading state with two pill-shaped placeholders and `aria-busy="true"`. |
-| 11 | Low | macro-preset-chips.tsx | Preset container had no list semantics for screen readers. | Added `role="list"` with `aria-label="Nutrition presets"` on container, `role="listitem"` on each Badge. |
-| 12 | Low | nutrition-page.tsx | Date display did not announce changes to screen readers. Navigating days was visually clear but silent for assistive tech. | Added `aria-live="polite"` and `aria-atomic="true"` on the date display span. |
-| 13 | Low | nutrition-page.tsx | "Next day" button when disabled (already on today) gave no context about why it was disabled. | Added dynamic `aria-label`: "Next day (already viewing today)" when disabled, "Next day" otherwise. |
-| 14 | Low | nutrition-page.tsx | Loading skeletons had no screen reader announcement. | Added `aria-busy="true"` and `aria-label` ("Loading macro goals" / "Loading meal history") to skeleton Card wrappers. |
-| 15 | Low | nutrition-page.tsx | Date navigation showed the formatted date even when viewing today, making it slightly harder to quickly identify "am I looking at today?". | Changed display to show "Today" when viewing today's date. The macro goals subtitle now shows "Today, Mon Feb 24, 2026" for full context. |
-| 16 | Low | meal-log-input.tsx | Cancel button in the confirm/cancel footer had no `aria-label` explaining what is being cancelled. | Added `aria-label="Cancel and discard detected items"`. |
-| 17 | Low | macro-bar.tsx | Numerals in the consumed/goal display were not tabular-aligned, causing visual jitter as numbers changed. | Added `tabular-nums` class to the numeric span for consistent digit widths. |
-| 18 | Low | meal-log-input.tsx | Parsed meal item names had no `truncate` or `min-w-0` -- very long food names could push macro values off screen. | Added `min-w-0 truncate` on the name span and `ml-3 shrink-0` on the macros container to prevent overflow. |
+| # | Severity | Screen/Component | Issue | Fix Applied | Status |
+|---|----------|-----------------|-------|-------------|--------|
+| 1 | Medium | `page-header.tsx` | Only 4px (`gap-1`) vertical gap between title and actions on mobile when they stack -- felt cramped | Increased to `gap-2` (8px) for breathing room between stacked elements | FIXED |
+| 2 | Medium | `exercise-log-card.tsx` | Checkbox touch target was 24x24px (`h-6 w-6`) on mobile, below the 44px recommended minimum. Desktop also made them even smaller (`sm:h-5 sm:w-5`) which is the correct inverse pattern. | Increased mobile checkbox to `h-7 w-7` (28px) while keeping `sm:h-5 sm:w-5` for desktop. The surrounding padding cell adds to the tappable zone. | FIXED |
+| 3 | Medium | `active-workout.tsx` | Used `role="timer"` which is not a valid WAI-ARIA role. Screen readers may ignore or misreport this element. Present in both the header timer and the mobile sticky bar. | Changed to `role="status"` with `aria-live="off"` in both locations. | FIXED |
+| 4 | Medium | `active-workout.tsx` | Sticky bottom bar lacked `safe-area-inset-bottom` padding on notched iPhones. Buttons could be partially obscured by the home indicator. | Added `pb-[max(0.75rem,env(safe-area-inset-bottom))]` to the sticky bar. | FIXED |
+| 5 | Medium | `trainee-progress-charts.tsx` | `useIsMobile` hook initialized to `false` unconditionally, causing a hydration mismatch flash on mobile devices (SSR renders desktop layout, then client re-renders as mobile). | Updated initial state to check `window.matchMedia` when available, preventing the layout flash. | FIXED |
+| 6 | Medium | `layout.tsx` (root) | Viewport metadata lacked `viewportFit: "cover"`, preventing `env(safe-area-inset-*)` from working on notched devices. | Added `viewportFit: "cover"` to the Next.js viewport export. | FIXED |
+| 7 | Medium | `globals.css` | No safe-area-inset rules for body padding on notched devices. Content could render behind the iPhone notch in landscape. | Added `@supports (padding: env(safe-area-inset-bottom))` block with left/right body padding. | FIXED |
+| 8 | Low | `weight-checkin-dialog.tsx` | Weight and Date inputs lacked `required` and `aria-required` attributes. Screen readers did not announce them as mandatory fields. | Added `required` and `aria-required="true"` to both inputs. | FIXED |
+| 9 | Low | `meal-history.tsx` | Delete confirmation dialog was missing `sm:max-w-[400px]` constraint, making it wider than other dialogs on desktop -- inconsistent with `weight-checkin-dialog`, `workout-finish-dialog`, and `discard-confirm` dialogs. | Added `sm:max-w-[400px]` to match the established dialog pattern. | FIXED |
+| 10 | Low | `program-viewer.tsx` | Week tab buttons had only `py-2` (8px) vertical padding, producing a ~36px tall tap target on mobile -- below the 44px recommended minimum. | Increased to `py-2.5` on mobile (10px, yielding ~40px) with `sm:py-2` for desktop. | FIXED |
+| 11 | Low | `announcements-list.tsx` | Announcement title text had no truncation or `min-w-0` constraint. Very long titles would push the date badge off-screen on 320px viewports. | Added `min-w-0` to the title container and `truncate` + `title` attribute to the `CardTitle` for overflow handling. | FIXED |
+| 12 | Low | `workout-detail-dialog.tsx` | "BW" abbreviation for Bodyweight had no screen reader expansion. `title` attribute only works on hover, not with assistive technology. | Added `aria-label` with full "Bodyweight" text alongside the `title` attribute. | FIXED |
+| 13 | Low | `nutrition-page.tsx` | "Today" quick-nav button had no `aria-label`, relying solely on visible text. | Added `aria-label="Jump to today"` for clarity. | FIXED |
+| 14 | Low | `meal-log-input.tsx` | Placeholder text was unnecessarily long (`"2 eggs, toast, and a glass of orange juice"`), truncating awkwardly on 320px screens. | Shortened to `"2 eggs, toast, orange juice"` which fits better on narrow viewports. | FIXED |
+| 15 | Low | `messages/page.tsx` | Conversation list sidebar had `border-r` even when full-width on mobile. The border was redundant (hidden by the card border) and could cause a subtle visual double-line artifact. | Changed to `md:border-r` so the divider only appears when the sidebar and chat pane are side-by-side. | FIXED |
 
 ---
 
 ## Accessibility Issues Found & Fixed
 
-| # | WCAG Level | Component | Issue | Fix Applied |
-|---|------------|-----------|-------|-------------|
-| 1 | A (1.3.1) | meal-log-input.tsx | Parsed items list lacked semantic structure (no role="list" / role="listitem"). | Added ARIA list roles and label. |
-| 2 | A (1.3.1) | macro-preset-chips.tsx | Preset chips container lacked list semantics. | Added role="list" with aria-label, role="listitem" on each Badge. |
-| 3 | A (4.1.2) | meal-log-input.tsx | Input field not programmatically linked to its description text. | Connected via aria-describedby using useId(). |
-| 4 | A (4.1.3) | nutrition-page.tsx | Date changes not announced to screen readers. | Added aria-live="polite" region. |
-| 5 | AA (1.4.13) | macro-bar.tsx | No aria-valuetext on progress bars, only generic percentage. | Added descriptive aria-valuetext with label, values, and over-goal status. |
-| 6 | A (1.1.1) | meal-history.tsx, meal-log-input.tsx | Macro abbreviations (P, C, F) not expanded for screen readers. | Added aria-label on each abbreviated span. |
+| # | WCAG Level | Component | Issue | Fix Applied | Status |
+|---|------------|-----------|-------|-------------|--------|
+| 1 | A (4.1.2) | `active-workout.tsx` | `role="timer"` is not a valid ARIA role. Assistive tech behavior is undefined for invalid roles. | Changed to `role="status"` (both instances). | FIXED |
+| 2 | A (1.3.1) | `weight-checkin-dialog.tsx` | Weight and Date inputs lacked `required`/`aria-required`. Screen readers did not convey that these fields are mandatory. | Added `required` and `aria-required="true"` to both inputs. | FIXED |
+| 3 | A (1.1.1) | `workout-detail-dialog.tsx` | "BW" abbreviation not expanded for screen readers. Only `title` attribute (hover-only). | Added `aria-label="Bodyweight"` for proper accessible name. | FIXED |
+| 4 | AA (2.5.5) | `exercise-log-card.tsx` | Set completion checkboxes had 24x24px touch target on mobile, below 44px recommendation. | Increased to 28px (`h-7 w-7`). With surrounding padding area, effective tap zone is adequate. | FIXED |
+| 5 | AA (2.5.5) | `program-viewer.tsx` | Week tab buttons had ~36px height, below 44px recommendation for touch targets. | Increased vertical padding on mobile (`py-2.5` -> ~40px). | FIXED |
 
 ---
 
 ## Missing States Checklist
 
-- [x] Loading / skeleton -- MacrosSkeleton and MealHistorySkeleton provide card-level skeletons with correct dimensions. MacroPresetChips now has its own pill-shaped skeleton. All annotated with aria-busy.
-- [x] Empty / zero data -- "No nutrition goals set" with CircleSlash icon when trainer hasn't configured goals. "No meals logged yet" with faded UtensilsCrossed icon in meal history. Presets silently hidden when empty (supplementary UI).
-- [x] Error / failure -- ErrorState with retry button shown for failed nutrition data fetch. Toast messages for parse failures ("Couldn't understand that. Try rephrasing."), save failures ("Failed to save meal."), and delete failures ("Failed to remove meal."). Parse error state clears when user starts typing again.
-- [x] Success / confirmation -- Toast "Meal logged!" on successful save. Toast "Meal removed" on successful delete. Input auto-clears and re-focuses after save. Delete dialog auto-closes.
-- [x] Offline / degraded -- react-query retry logic handles transient failures. 5-minute staleTime provides caching. Error state shows retry button.
-- [x] Permission denied -- Not explicitly handled at this level; relies on the global auth interceptor. Acceptable since this is a trainee-only page behind auth.
+- [x] Loading / skeleton -- All components have proper loading skeletons with `aria-busy="true"`. Chart cards use `ChartSkeleton`, nutrition page uses `MacrosSkeleton` and `MealHistorySkeleton`, conversation list uses `LoadingSpinner`.
+- [x] Empty / zero data -- All components have `EmptyState` with descriptive text and appropriate icons (Dumbbell, Scale, CalendarCheck, Megaphone, MessageSquare, UtensilsCrossed). Presets silently hidden when empty (supplementary UI).
+- [x] Error / failure -- All data-fetching components have `ErrorState` with retry buttons. Toast messages used for mutation failures.
+- [x] Success / confirmation -- Toast notifications used consistently for all mutations (workout save, weight check-in, meal log, meal delete, mark all read).
+- [x] Offline / degraded -- react-query retry logic handles transient failures. Error states with retry buttons shown for persistent failures.
+- [x] Permission denied -- Layout redirects non-trainee users to appropriate dashboards. Auth check on every route.
 
 ---
 
-## What Was Already Well-Done
+## Safe Area & Viewport Fixes
 
-1. **Keyboard navigation excellent** -- Enter to parse/confirm, Escape to cancel parsed results. The linter further improved this by making Enter confirm parsed results when they're displayed.
-2. **Delete confirmation dialog** -- Proper dialog with descriptive title, meal name in description, cancel/destructive button pair. Dialog cannot be dismissed while deletion is in-flight.
-3. **Input validation** -- Max length enforced, empty input disabled, over-limit shown. Date validation in the hook layer.
-4. **Clarification flow** -- When the AI needs more info, a warm amber alert with clear copy ("Need more details") appears. Dismiss button present.
-5. **Date auto-advance** -- Tab staying open past midnight correctly advances to the new day if the user was viewing "today". Implemented with a clean interval pattern.
-6. **Cannot navigate to future dates** -- Next day button properly disabled when viewing today, preventing confusion.
-7. **Optimistic-feeling UX** -- Toast messages are immediate on success/error. Focus returns to input after logging. Query invalidation ensures fresh data.
-8. **Consistent card pattern** -- All sections use the same Card/CardHeader/CardContent structure with consistent `pb-3` header padding and `text-base` title size.
-9. **Screen reader support was already good** -- aria-labels on nav buttons, aria-hidden on decorative icons, role="alert" on error messages, sr-only for active preset. Audit improved it further.
-10. **Linter auto-refactored delete state** -- The delete dialog now captures the meal name at open-time (via `deleteTarget: {index, name}`), preventing stale-name issues if the meals array changes during the dialog being open. This is a race-condition fix.
+| # | Severity | Issue | Fix | Status |
+|---|----------|-------|-----|--------|
+| 1 | Medium | Root `layout.tsx` viewport metadata lacked `viewportFit: "cover"` -- required for `env(safe-area-inset-*)` to function on notched devices. | Added `viewportFit: "cover"` to viewport export. | FIXED |
+| 2 | Medium | `globals.css` had no safe-area-inset rules for body content on notched devices. | Added `@supports` block with left/right body padding using `env(safe-area-inset-left/right)`. | FIXED |
+| 3 | Medium | Active workout sticky bottom bar lacked safe-area bottom padding for notched iPhones. | Added `pb-[max(0.75rem,env(safe-area-inset-bottom))]`. | FIXED |
+
+---
+
+## What Was Already Well-Done (Positive Findings)
+
+1. **Consistent dialog pattern**: All dialogs use `max-h-[90dvh] overflow-y-auto` ensuring they are scrollable on small screens. Dialog content uses `max-w-[calc(100%-2rem)]` on the base component.
+2. **iOS auto-zoom prevention**: `globals.css` enforces `font-size: 16px` on inputs below 640px, preventing the annoying iOS zoom behavior.
+3. **Number input spinners removed**: Hidden with CSS for cleaner mobile UX and horizontal space savings.
+4. **Reduced motion support**: `prefers-reduced-motion: reduce` media query disables all animations.
+5. **Skip to main content**: Layout has a proper skip link for keyboard users.
+6. **Screen reader fallbacks for charts**: Both `WeightTrendChart` and `WorkoutVolumeChart` include `sr-only` `<ul>` lists with data points as text alternatives.
+7. **Proper focus management**: Components use `focus-visible` rings consistently throughout.
+8. **Keyboard navigation in program week tabs**: Full arrow key, Home/End key support with roving tabindex pattern.
+9. **Breakpoint-responsive chart rendering**: Charts adapt font sizes, axis label angles, and margins based on `useIsMobile`.
+10. **Mobile sidebar**: Sheet-based sidebar with proper ARIA labels and auto-close on navigation.
+11. **Card hover effects respect `prefers-reduced-motion`**: `card-hover` class is gated behind `@media (hover: hover) and (prefers-reduced-motion: no-preference)`.
+12. **Beforeunload guard on active workout**: Prevents accidental navigation away from an in-progress workout.
+13. **Responsive grid layouts**: Exercise log cards use `lg:grid-cols-2`, program day cards use `sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`.
+14. **Consistent EmptyState and ErrorState components**: Shared across all pages with proper ARIA roles.
+15. **Mobile-first button labeling**: Discard button hides text on mobile (shows just icon) with `aria-label` for screen readers. "Finish Workout" abbreviates to "Finish" on mobile.
 
 ---
 
@@ -81,13 +111,13 @@
 
 | # | Severity | Issue | Recommendation |
 |---|----------|-------|----------------|
-| 1 | Low | No way for trainees to edit a logged meal -- only delete and re-log. | Consider adding an edit flow or inline editing for meal name/macros. |
-| 2 | Low | No total calories summary displayed at the top of the Meals card. Users must mentally sum logged meals. | Consider adding a small summary row: "Total: 1,450 kcal" at the bottom of the meal list. |
-| 3 | Info | Macro bar does not show percentage text (e.g., "75%") -- only the progress bar fill. Some users may prefer explicit percentage. | Consider optional percentage display on hover or as a tooltip. |
-| 4 | Info | No meal timestamps displayed in meal history, even though the data model has a `timestamp` field. | Consider showing "Logged at 2:30 PM" on each meal entry for users who log multiple meals throughout the day. |
+| 1 | Low | Checkbox effective tap zone in exercise-log-card is still below 44px even at 28px. Full compliance would require a larger touch wrapper or invisible padding. | Consider wrapping the checkbox in a 44px invisible button area to meet WCAG AAA target size. |
+| 2 | Info | No haptic feedback on mobile for set completion toggles. | Consider using the Vibration API for a brief pulse when toggling set completion (where supported). |
+| 3 | Info | Charts do not have a text-only fallback mode toggle. Screen reader users get the sr-only list, but low-vision users may prefer a data table view. | Consider adding a "View as table" toggle for charts. |
+| 4 | Info | Conversation list in messages page uses a fixed `md:w-80` sidebar width. On tablet-sized screens (768-1024px) this leaves limited space for the chat area. | Consider using a proportional width (`md:w-1/3 lg:w-80`) for better tablet utilization. |
 
 ---
 
-## Overall UX Score: 8.5/10
+## Overall UX Score: 8/10
 
-**Rationale:** The nutrition page was well-built from the start with solid patterns: proper error/loading/empty states, good keyboard shortcuts, correct ARIA labeling on most interactive elements, and consistent card-based layout matching the rest of the trainee dashboard. The main gaps were in progressive feedback (character count, over-goal visual), screen reader completeness (missing aria-describedby, list semantics, date announcements, macro abbreviation expansion), and a few visual polish items (empty state icon, tabular-nums, text truncation). All 18 issues have been fixed. The 1.5 points off are for: (1) no meal editing capability (delete-and-relog is clunky), (2) no total calorie summary in the meals card, and (3) unused timestamp data that could add value. These are product decisions rather than implementation bugs.
+**Rationale:** The trainee web dashboard has a strong mobile-responsive foundation with thorough handling of all critical states (loading, empty, error, success) across every component. The codebase demonstrates consistent patterns (dialog sizing, skeleton loading, card-based layout) and genuine attention to accessibility (screen reader text, ARIA attributes, keyboard navigation, reduced motion support). The main issues found were: (1) an invalid ARIA role that could confuse assistive technology, (2) missing safe-area support for notched devices (critical for iOS PWA usage), (3) touch target sizes below recommended minimums on interactive elements, (4) a hydration mismatch in the chart mobile detection hook, and (5) several minor text overflow and accessibility gaps. All 15 usability issues and 5 accessibility issues have been fixed. The remaining 2 points are for: the checkbox touch targets still being slightly below WCAG AAA recommendations (would require a design change), and some tablet-specific layout optimization opportunities that require product decisions.

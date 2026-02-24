@@ -130,6 +130,7 @@ export function WeightCheckInDialog({
               step="0.1"
               min="20"
               max="500"
+              inputMode="decimal"
               placeholder="75.0"
               value={weight}
               onChange={(e) => {
@@ -140,6 +141,8 @@ export function WeightCheckInDialog({
                   return next;
                 });
               }}
+              required
+              aria-required="true"
               aria-invalid={!!fieldErrors.weight_kg}
               aria-describedby={fieldErrors.weight_kg ? "weight-error" : undefined}
             />
@@ -165,6 +168,8 @@ export function WeightCheckInDialog({
                   return next;
                 });
               }}
+              required
+              aria-required="true"
               aria-invalid={!!fieldErrors.date}
               aria-describedby={fieldErrors.date ? "date-error" : undefined}
             />
