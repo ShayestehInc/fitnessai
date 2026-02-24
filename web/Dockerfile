@@ -9,6 +9,7 @@ ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 FROM node:20-alpine AS runner
