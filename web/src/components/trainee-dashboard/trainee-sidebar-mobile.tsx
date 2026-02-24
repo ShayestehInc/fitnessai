@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTraineeBadgeCounts, getBadgeCount } from "@/hooks/use-trainee-badge-counts";
+import { useTraineeBranding, getBrandingDisplayName } from "@/hooks/use-trainee-branding";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
   SheetContent,
@@ -25,13 +29,42 @@ export function TraineeSidebarMobile({
 }: TraineeSidebarMobileProps) {
   const pathname = usePathname();
   const counts = useTraineeBadgeCounts();
+  const { branding, isLoading: brandingLoading } = useTraineeBranding();
+  const displayName = getBrandingDisplayName(branding);
+  const [imgError, setImgError] = useState(false);
+
+  const showLogo = branding.logo_url && !imgError;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-64 p-0">
         <SheetHeader className="flex h-16 flex-row items-center gap-2 border-b px-6">
-          <Dumbbell className="h-6 w-6 text-sidebar-primary" aria-hidden="true" />
-          <SheetTitle className="text-lg font-semibold">FitnessAI</SheetTitle>
+          {brandingLoading ? (
+            <>
+              <Skeleton className="h-6 w-6 rounded" />
+              <Skeleton className="h-5 w-24" />
+            </>
+          ) : (
+            <>
+              {showLogo ? (
+                <Image
+                  src={branding.logo_url!}
+                  alt=""
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 shrink-0 rounded object-contain"
+                  onError={() => setImgError(true)}
+                  aria-hidden="true"
+                  unoptimized
+                />
+              ) : (
+                <Dumbbell className="h-6 w-6 text-sidebar-primary" aria-hidden="true" />
+              )}
+              <SheetTitle className="truncate text-lg font-semibold">
+                {displayName}
+              </SheetTitle>
+            </>
+          )}
         </SheetHeader>
         <nav className="overflow-y-auto space-y-1 px-3 py-4" aria-label="Main navigation">
           {traineeNavLinks.map((link) => {
@@ -52,8 +85,21 @@ export function TraineeSidebarMobile({
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
                 )}
+                style={
+                  isActive && branding.primary_color !== "#6366F1"
+                    ? { backgroundColor: `${branding.primary_color}20` }
+                    : undefined
+                }
               >
-                <link.icon className="h-4 w-4" aria-hidden="true" />
+                <link.icon
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                  style={
+                    isActive && branding.primary_color !== "#6366F1"
+                      ? { color: branding.primary_color }
+                      : undefined
+                  }
+                />
                 <span className="flex-1">{link.label}</span>
                 {badgeCount > 0 && (
                   <Badge
