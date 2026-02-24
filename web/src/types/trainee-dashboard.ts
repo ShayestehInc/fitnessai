@@ -113,3 +113,46 @@ export interface SaveWorkoutPayload {
   };
 }
 
+// AI natural language parsing response
+export interface ParseNaturalLanguageResponse {
+  nutrition?: {
+    meals?: Array<{
+      name: string;
+      protein: number;
+      carbs: number;
+      fat: number;
+      calories: number;
+    }>;
+  };
+  workout?: Record<string, unknown>;
+  confidence?: number;
+  needs_clarification?: boolean;
+  clarification_question?: string | null;
+}
+
+// Confirm and save payload
+export interface ConfirmAndSavePayload {
+  parsed_data: Record<string, unknown>;
+  date: string;
+  confirm: boolean;
+}
+
+// Macro preset (trainee view — read-only)
+export interface MacroPreset {
+  id: number;
+  trainee: number;
+  trainee_email: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  frequency_per_week: number | null;
+  is_default: boolean;
+  sort_order: number;
+  created_by: number | null;
+  created_by_email: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
