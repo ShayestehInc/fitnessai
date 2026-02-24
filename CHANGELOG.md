@@ -4,6 +4,28 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-24] — Pipeline 38: Admin Dashboard Mobile Responsiveness
+
+### Changed
+- **Responsive table columns** — 14 columns hidden on mobile (`hidden md:table-cell`) across admin tables: trainers (Trainees, Status, Joined), subscriptions (Tier, Start, Status), tiers (Price, Active, Subs), coupons (Type, Uses, Expires), users (Role, Status, Joined)
+- **Mobile-safe dialogs** — 9 admin dialogs updated with `max-h-[90dvh] overflow-y-auto` to prevent off-screen content on small viewports
+- **Full-width filter inputs** — 4 filter/search inputs made full-width on mobile for easier touch interaction
+- **Stacked button groups** — 3 button groups restructured to stack vertically on mobile with proper spacing
+- **Touch target fixes** — Minimum 44px touch targets on all interactive admin elements
+- **Layout dvh fix** — Replaced `100vh` with `100dvh` for Mobile Safari address bar compatibility
+
+### Fixed
+- **3 missing error states** — Added error boundaries/states to admin pages that were missing them
+- **2 stale state bugs** — Fixed stale state in admin dialogs that persisted data between open/close cycles
+
+### Technical
+- Completes the three-part web responsive sweep: P36 (Trainee Portal), P37 (Trainer Dashboard), P38 (Admin Dashboard)
+- All admin pages now fully usable on mobile devices (320px+)
+- Quality Score: 9/10 SHIP
+- Security: purely CSS/layout changes, no auth/data/API modifications
+
+---
+
 ## [2026-02-24] — Pipeline 37: Trainer Dashboard Mobile Responsiveness
 
 ### Changed
