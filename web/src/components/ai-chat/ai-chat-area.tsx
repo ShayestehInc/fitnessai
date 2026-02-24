@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BrainCircuit, Loader2, Send, X } from "lucide-react";
+import { BrainCircuit, Loader2, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ChatMessage } from "./chat-message";
 import { SuggestionChips } from "./suggestion-chips";
 import { TraineeSelector } from "./trainee-selector";
@@ -13,7 +12,9 @@ interface AiChatAreaProps {
   thread: AiChatThreadDetail | undefined;
   isLoadingThread: boolean;
   isSending: boolean;
+  pendingMessage: string | null;
   sendError: string | null;
+  suggestedFollowup: string;
   onSend: (content: string, traineeId?: number) => void;
   onDismissError: () => void;
 }
@@ -22,18 +23,21 @@ export function AiChatArea({
   thread,
   isLoadingThread,
   isSending,
+  pendingMessage,
   sendError,
+  suggestedFollowup,
   onSend,
   onDismissError,
 }: AiChatAreaProps) {
   const [input, setInput] = useState("");
   const [traineeId, setTraineeId] = useState<number | undefined>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll when messages change or when sending
+  // Auto-scroll when messages change, pending message appears, or sending state changes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [thread?.messages, isSending]);
+  }, [thread?.messages, pendingMessage, isSending]);
 
   const handleSend = useCallback(() => {
     if (!input.trim() || isSending) return;
@@ -43,13 +47,19 @@ export function AiChatArea({
   }, [input, traineeId, isSending, onSend]);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSend();
+        return;
+      }
+      // Tab to accept AI suggestion
+      if (e.key === "Tab" && suggestedFollowup && !input) {
+        e.preventDefault();
+        setInput(suggestedFollowup);
       }
     },
-    [handleSend],
+    [handleSend, suggestedFollowup, input],
   );
 
   const handleSuggestion = useCallback(
@@ -84,7 +94,9 @@ export function AiChatArea({
     );
   }
 
-  const messages = thread?.messages ?? [];
+  const serverMessages = thread?.messages ?? [];
+  const hasMessages = serverMessages.length > 0 || pendingMessage !== null;
+  const showGhost = !isSending && !input && suggestedFollowup;
 
   return (
     <div className="flex h-full flex-col">
@@ -113,7 +125,7 @@ export function AiChatArea({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        {messages.length === 0 ? (
+        {!hasMessages ? (
           <div className="flex h-full flex-col items-center justify-center gap-6">
             <div className="rounded-full bg-muted p-4">
               <BrainCircuit className="h-12 w-12 text-muted-foreground" />
@@ -129,7 +141,7 @@ export function AiChatArea({
           </div>
         ) : (
           <div className="space-y-4">
-            {messages.map((msg) => (
+            {serverMessages.map((msg) => (
               <ChatMessage
                 key={msg.id}
                 message={{
@@ -139,27 +151,55 @@ export function AiChatArea({
                 }}
               />
             ))}
-            {isSending && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Thinking...</span>
-              </div>
+
+            {/* Optimistic user message + thinking indicator */}
+            {pendingMessage !== null && (
+              <>
+                <ChatMessage
+                  message={{
+                    role: "user",
+                    content: pendingMessage,
+                    timestamp: new Date().toISOString(),
+                  }}
+                />
+                <div className="flex items-center gap-2 rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
+                  <Sparkles className="h-4 w-4 animate-pulse" />
+                  <span>AI is crafting your answer...</span>
+                </div>
+              </>
             )}
+
             <div ref={messagesEndRef} />
           </div>
         )}
       </div>
 
-      {/* Input */}
+      {/* Input with ghost AI suggestion */}
       <div className="flex gap-2 border-t px-4 py-3">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask your AI assistant..."
-          disabled={isSending}
-          className="flex-1"
-        />
+        <div className="relative flex-1">
+          {/* Ghost text layer — AI-generated follow-up shown behind the real input */}
+          {showGhost && (
+            <div
+              className="pointer-events-none absolute inset-0 flex items-center px-3 text-sm text-muted-foreground/40"
+              aria-hidden="true"
+            >
+              <span className="truncate">{suggestedFollowup}</span>
+              <span className="ml-2 shrink-0 rounded border border-muted-foreground/20 px-1 py-0.5 text-[10px] leading-none text-muted-foreground/40">
+                Tab
+              </span>
+            </div>
+          )}
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={showGhost ? "" : "Ask your AI assistant..."}
+            disabled={isSending}
+            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+          />
+        </div>
         <Button
           onClick={handleSend}
           disabled={!input.trim() || isSending}

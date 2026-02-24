@@ -87,3 +87,4 @@ class SendMessageResponseSerializer(serializers.Serializer):
     user_message = AIChatMessageSerializer()
     assistant_message = AIChatMessageSerializer()
     thread_title = serializers.CharField()
+    suggested_followup = serializers.CharField(allow_blank=True)

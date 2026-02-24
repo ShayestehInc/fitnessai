@@ -6,6 +6,7 @@ All functions return dataclass instances, never dicts.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
@@ -21,6 +22,31 @@ from users.models import User
 logger = logging.getLogger(__name__)
 
 MAX_TITLE_LENGTH = 60
+
+FOLLOWUP_TAG_PATTERN: re.Pattern[str] = re.compile(
+    r'<suggested_followup>(.*?)</suggested_followup>',
+    re.DOTALL,
+)
+
+FOLLOWUP_INSTRUCTION = (
+    '\n\nAt the very end of your response, suggest one short follow-up '
+    'question the trainer might want to ask next. Wrap it in XML tags '
+    'exactly like this: <suggested_followup>your suggestion here</suggested_followup>'
+)
+
+
+def _extract_followup(response: str) -> tuple[str, str]:
+    """Extract <suggested_followup> tag from response.
+
+    Returns (clean_response, followup_text). If no tag found,
+    followup_text is empty and clean_response is the original.
+    """
+    match = FOLLOWUP_TAG_PATTERN.search(response)
+    if not match:
+        return response, ''
+    followup = match.group(1).strip()
+    clean = response[:match.start()].rstrip() + response[match.end():]
+    return clean.strip(), followup
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +80,7 @@ class SendAIMessageResult:
     user_message: AIChatMessageData
     assistant_message: AIChatMessageData
     thread_title: str
+    suggested_followup: str
 
 
 # ---------------------------------------------------------------------------
@@ -198,10 +225,10 @@ def send_message_to_thread(
             content=stripped,
         )
 
-        # Call AI
+        # Call AI — append instruction so the model includes a follow-up suggestion
         ai_chat = AIChat(trainer)
         result = ai_chat.chat(
-            message=stripped,
+            message=stripped + FOLLOWUP_INSTRUCTION,
             conversation_history=conversation_history,
             trainee_id=effective_trainee_id,
         )
@@ -209,12 +236,15 @@ def send_message_to_thread(
         if result.get('error') and not result.get('response'):
             raise RuntimeError(f"AI service error: {result['error']}")
 
-        response_content: str = result.get('response', '')
+        raw_response: str = result.get('response', '')
         provider: str = result.get('provider', '')
         model_name: str = result.get('model', '')
         usage = result.get('usage')
 
-        # Persist assistant message
+        # Extract the follow-up suggestion before persisting
+        response_content, suggested_followup = _extract_followup(raw_response)
+
+        # Persist assistant message (clean content, without the tag)
         assistant_msg = AIChatMessage.objects.create(
             thread=thread,
             role=AIChatMessage.Role.ASSISTANT,
@@ -256,6 +286,7 @@ def send_message_to_thread(
             created_at=assistant_msg.created_at,
         ),
         thread_title=thread.title,
+        suggested_followup=suggested_followup,
     )
 
 

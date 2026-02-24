@@ -62,6 +62,7 @@ export interface SendAiMessageResponse {
   user_message: AiChatThreadMessage;
   assistant_message: AiChatThreadMessage;
   thread_title: string;
+  suggested_followup: string;
 }
 
 export interface CreateThreadRequest {

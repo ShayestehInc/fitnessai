@@ -23,6 +23,8 @@ import type { AiChatThread } from "@/types/ai-chat";
 export default function AiChatPage() {
   const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [suggestedFollowup, setSuggestedFollowup] = useState("");
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
   const providers = useAiProviders();
   const threads = useAiThreads();
@@ -44,6 +46,8 @@ export default function AiChatPage() {
   const handleSelectThread = useCallback((thread: AiChatThread) => {
     setSelectedThreadId(thread.id);
     setSendError(null);
+    setSuggestedFollowup("");
+    setPendingMessage(null);
   }, []);
 
   const handleNewThread = useCallback(() => {
@@ -65,11 +69,18 @@ export default function AiChatPage() {
     (content: string, traineeId?: number) => {
       if (!selectedThreadId) return;
       setSendError(null);
+      setSuggestedFollowup("");
+      setPendingMessage(content);
 
       sendMessage.mutate(
         { message: content, trainee_id: traineeId },
         {
+          onSuccess: (data) => {
+            setPendingMessage(null);
+            setSuggestedFollowup(data.suggested_followup || "");
+          },
           onError: (err) => {
+            setPendingMessage(null);
             setSendError(err.message || "Failed to send message");
           },
         },
@@ -202,7 +213,9 @@ export default function AiChatPage() {
               thread={threadDetail.data}
               isLoadingThread={threadDetail.isLoading}
               isSending={sendMessage.isPending}
+              pendingMessage={pendingMessage}
               sendError={sendError}
+              suggestedFollowup={suggestedFollowup}
               onSend={handleSend}
               onDismissError={handleDismissError}
             />

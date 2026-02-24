@@ -174,6 +174,7 @@ class AIChatThreadSendView(views.APIView):
             'user_message': user_msg,
             'assistant_message': assistant_msg,
             'thread_title': result.thread_title,
+            'suggested_followup': result.suggested_followup,
         })
 
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)

@@ -71,7 +71,10 @@ export default function CalendarPage() {
     );
   }
 
-  const conns = connections.data ?? [];
+  const rawConns = connections.data;
+  const conns: CalendarConnection[] = Array.isArray(rawConns)
+    ? rawConns
+    : (rawConns as unknown as { results?: CalendarConnection[] })?.results ?? [];
   const hasConnections = conns.length > 0;
 
   return (
