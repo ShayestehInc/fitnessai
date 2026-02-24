@@ -4,6 +4,44 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-24] — Pipeline 36: Trainee Web Mobile Responsiveness
+
+### Changed
+- **Dynamic viewport height** — Replaced `h-screen` (100vh) with `h-dvh` (100dvh) in trainee and trainer dashboard layouts, fixing Mobile Safari address bar overlap
+- **Exercise log card** — Responsive 5-column grid that compresses gracefully at 320px, responsive "Wt" / "Weight" column header, numeric/decimal keyboard inputs (`inputMode`)
+- **Active workout** — Sticky bottom bar on mobile with timer, set counter, Finish/Discard buttons always reachable; header actions wrap on narrow screens; abbreviated button text
+- **Charts** — `useIsMobile` hook for Recharts: angled XAxis labels (-45°), smaller fonts, `preserveStartEnd` interval, reduced chart heights
+- **Program viewer** — Week tabs horizontally scrollable with thin scrollbar indicator, increased tab touch targets on mobile
+- **Dialogs** — All dialogs (`workout-detail`, `workout-finish`, `weight-checkin`, `meal-delete`, `discard-confirm`) use `max-h-[90dvh] overflow-y-auto` to prevent off-screen content
+- **Workout detail** — Responsive "S1" / "Set 1" prefix, title tooltip on truncated weight values
+- **Nutrition page** — Larger date nav button touch targets (36px on mobile), responsive date display width
+- **Messages** — Flexbox-based viewport height, sidebar border hidden on mobile single-panel view
+- **Announcements** — Header stacks vertically on mobile with proper gap
+
+### Added
+- **iOS auto-zoom prevention** — `font-size: 16px !important` on inputs at mobile breakpoint (replaces WCAG-violating `maximumScale: 1`)
+- **Safe area insets** — `viewportFit: "cover"` + `env(safe-area-inset-*)` body padding for notched devices (iPhone X+)
+- **Number spinner removal** — Global CSS hiding `input[type="number"]` spinners to save horizontal space
+- **Scrollbar-thin utility** — Thin scrollbar styling using correct oklch `var(--border)` color
+- **Touch target improvements** — Checkbox wrapper padding (p-1.5), meal delete buttons (h-8), nutrition nav buttons (h-9)
+- **Responsive page header** — `text-xl` on mobile, `text-2xl` on sm+
+
+### Fixed
+- **Scrollbar color mismatch** — Changed `hsl(var(--border))` to `var(--border)` since CSS vars use oklch
+- **Deprecated `-moz-appearance`** — Replaced with standard `appearance: textfield`
+- **Invalid `role="timer"`** — Changed to `role="status"` (valid ARIA role)
+- **Exercise name overflow** — Added `truncate` with `title` attribute on long exercise names
+
+### Technical
+- TypeScript: zero errors, build passes
+- Security: 10/10 PASS — purely CSS/layout changes, no auth/data/API modifications
+- Architecture: 9/10 APPROVE — CSS-first approach, JS only for Recharts imperative config
+- UX: 8/10 — 15 usability + 5 accessibility issues found and fixed during audit
+- Hacker: 8/10 — sticky bottom bar, numeric keyboards, tooltip fallbacks, keyboard hint hiding
+- 21 files changed across web/src/
+
+---
+
 ## [2026-02-24] — Pipeline 35: Trainee Web Nutrition Tracking Page
 
 ### Added
