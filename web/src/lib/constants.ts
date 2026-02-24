@@ -131,11 +131,18 @@ export const API_URLS = {
   announcementDetail: (id: number) =>
     `${API_BASE}/api/trainer/announcements/${id}/`,
 
-  // Trainer AI Chat
+  // Trainer AI Chat (legacy stateless)
   AI_CHAT: `${API_BASE}/api/trainer/ai/chat/`,
   AI_CONTEXT: (traineeId: number) =>
     `${API_BASE}/api/trainer/ai/context/${traineeId}/`,
   AI_PROVIDERS: `${API_BASE}/api/trainer/ai/providers/`,
+
+  // AI Chat Threads (persistent)
+  AI_THREADS: `${API_BASE}/api/trainer/ai/threads/`,
+  aiThreadDetail: (id: number) =>
+    `${API_BASE}/api/trainer/ai/threads/${id}/`,
+  aiThreadSend: (id: number) =>
+    `${API_BASE}/api/trainer/ai/threads/${id}/send/`,
 
   // Trainer Branding
   TRAINER_BRANDING: `${API_BASE}/api/trainer/branding/`,

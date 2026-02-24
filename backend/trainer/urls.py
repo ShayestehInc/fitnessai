@@ -17,6 +17,11 @@ from .views import (
     TraineeLayoutConfigView,
     TrainerBrandingView, TrainerBrandingLogoView,
 )
+from .ai_chat_views import (
+    AIChatThreadListCreateView,
+    AIChatThreadDetailView,
+    AIChatThreadSendView,
+)
 from .notification_views import (
     NotificationListView, UnreadCountView,
     MarkNotificationReadView, MarkAllReadView, DeleteNotificationView,
@@ -89,10 +94,15 @@ urlpatterns = [
     path('notifications/<int:pk>/read/', MarkNotificationReadView.as_view(), name='notification-mark-read'),
     path('notifications/<int:pk>/', DeleteNotificationView.as_view(), name='notification-delete'),
 
-    # AI Chat
+    # AI Chat (legacy stateless endpoint)
     path('ai/chat/', AIChatView.as_view(), name='ai-chat'),
     path('ai/context/<int:trainee_id>/', AIChatTraineeContextView.as_view(), name='ai-context'),
     path('ai/providers/', AIProvidersView.as_view(), name='ai-providers'),
+
+    # AI Chat Threads (persistent)
+    path('ai/threads/', AIChatThreadListCreateView.as_view(), name='ai-thread-list-create'),
+    path('ai/threads/<int:thread_id>/', AIChatThreadDetailView.as_view(), name='ai-thread-detail'),
+    path('ai/threads/<int:thread_id>/send/', AIChatThreadSendView.as_view(), name='ai-thread-send'),
 
     # Announcements (trainer CRUD)
     path('announcements/', TrainerAnnouncementListCreateView.as_view(), name='trainer-announcements'),

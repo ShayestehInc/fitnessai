@@ -1,68 +1,116 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
-import type { ChatMessage, AiChatResponse, AiProvidersResponse } from "@/types/ai-chat";
+import type {
+  AiChatThread,
+  AiChatThreadDetail,
+  AiProvidersResponse,
+  CreateThreadRequest,
+  SendAiMessageResponse,
+} from "@/types/ai-chat";
 
-export function useAiChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isSending, setIsSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const THREAD_LIST_KEY = ["ai-threads"] as const;
+const threadDetailKey = (id: number) => ["ai-thread", id] as const;
 
-  const sendMessage = useCallback(
-    async (content: string, traineeId?: number) => {
-      if (!content.trim() || isSending) return;
+export function useAiThreads() {
+  return useQuery<AiChatThread[]>({
+    queryKey: THREAD_LIST_KEY,
+    queryFn: () => apiClient.get<AiChatThread[]>(API_URLS.AI_THREADS),
+  });
+}
 
-      setError(null);
-      setIsSending(true);
+export function useAiThread(id: number | null) {
+  return useQuery<AiChatThreadDetail>({
+    queryKey: threadDetailKey(id!),
+    queryFn: () =>
+      apiClient.get<AiChatThreadDetail>(API_URLS.aiThreadDetail(id!)),
+    enabled: id !== null,
+  });
+}
 
-      const userMessage: ChatMessage = {
-        role: "user",
-        content: content.trim(),
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, userMessage]);
+export function useCreateAiThread() {
+  const queryClient = useQueryClient();
 
-      try {
-        const response = await apiClient.post<AiChatResponse>(
-          API_URLS.AI_CHAT,
-          {
-            message: content.trim(),
-            ...(traineeId ? { trainee_id: traineeId } : {}),
+  return useMutation<AiChatThread, Error, CreateThreadRequest>({
+    mutationFn: (data) =>
+      apiClient.post<AiChatThread>(API_URLS.AI_THREADS, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: THREAD_LIST_KEY });
+    },
+  });
+}
+
+export function useSendAiMessage(threadId: number | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    SendAiMessageResponse,
+    Error,
+    { message: string; trainee_id?: number }
+  >({
+    mutationFn: (data) =>
+      apiClient.post<SendAiMessageResponse>(
+        API_URLS.aiThreadSend(threadId!),
+        data,
+      ),
+    onSuccess: (data) => {
+      // Append new messages to the cached thread detail
+      if (threadId !== null) {
+        queryClient.setQueryData<AiChatThreadDetail>(
+          threadDetailKey(threadId),
+          (old) => {
+            if (!old) return old;
+            return {
+              ...old,
+              title: data.thread_title,
+              last_message_at: data.assistant_message.created_at,
+              messages: [
+                ...old.messages,
+                data.user_message,
+                data.assistant_message,
+              ],
+            };
           },
         );
-
-        const assistantMessage: ChatMessage = {
-          role: "assistant",
-          content: response.response,
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to send message";
-        setError(message);
-        // Remove the user message on error so they can retry
-        setMessages((prev) => prev.slice(0, -1));
-      } finally {
-        setIsSending(false);
       }
+      // Refresh sidebar list (title, last_message_at may have changed)
+      queryClient.invalidateQueries({ queryKey: THREAD_LIST_KEY });
     },
-    [isSending],
-  );
+  });
+}
 
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-    setError(null);
-  }, []);
+export function useRenameAiThread() {
+  const queryClient = useQueryClient();
 
-  const dismissError = useCallback(() => {
-    setError(null);
-  }, []);
+  return useMutation<
+    { id: number; title: string },
+    Error,
+    { threadId: number; title: string }
+  >({
+    mutationFn: ({ threadId, title }) =>
+      apiClient.patch<{ id: number; title: string }>(
+        API_URLS.aiThreadDetail(threadId),
+        { title },
+      ),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: THREAD_LIST_KEY });
+      queryClient.invalidateQueries({ queryKey: threadDetailKey(data.id) });
+    },
+  });
+}
 
-  return { messages, isSending, error, sendMessage, clearMessages, dismissError };
+export function useDeleteAiThread() {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, number>({
+    mutationFn: (threadId) =>
+      apiClient.delete<void>(API_URLS.aiThreadDetail(threadId)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: THREAD_LIST_KEY });
+    },
+  });
 }
 
 export function useAiProviders() {

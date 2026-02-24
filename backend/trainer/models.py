@@ -387,3 +387,79 @@ class TrainerBranding(models.Model):
                 'secondary_color': cls.DEFAULT_SECONDARY_COLOR,
             },
         )
+
+
+class AIChatThread(models.Model):
+    """
+    Persistent AI chat thread for a trainer.
+
+    Each thread stores a conversation with the AI assistant, optionally
+    scoped to a specific trainee for context.
+    """
+
+    trainer = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='ai_chat_threads',
+        limit_choices_to={'role': 'TRAINER'},
+    )
+    trainee_context = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ai_chat_context_threads',
+        limit_choices_to={'role': 'TRAINEE'},
+        help_text="Optional trainee to scope AI context to",
+    )
+    title = models.CharField(max_length=200, default='New conversation')
+    last_message_at = models.DateTimeField(null=True, blank=True)
+    is_deleted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'ai_chat_threads'
+        indexes = [
+            models.Index(fields=['trainer', '-last_message_at']),
+            models.Index(fields=['trainer', 'is_deleted']),
+        ]
+        ordering = ['-last_message_at']
+
+    def __str__(self) -> str:
+        return f"{self.trainer.email} — {self.title}"
+
+
+class AIChatMessage(models.Model):
+    """
+    A single message in an AI chat thread.
+
+    Stores both user and assistant messages for full conversation replay.
+    """
+
+    class Role(models.TextChoices):
+        USER = 'user', 'User'
+        ASSISTANT = 'assistant', 'Assistant'
+
+    thread = models.ForeignKey(
+        AIChatThread,
+        on_delete=models.CASCADE,
+        related_name='messages',
+    )
+    role = models.CharField(max_length=10, choices=Role.choices)
+    content = models.TextField()
+    provider = models.CharField(max_length=50, blank=True, default='')
+    model_name = models.CharField(max_length=100, blank=True, default='')
+    usage_metadata = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'ai_chat_messages'
+        indexes = [
+            models.Index(fields=['thread', 'created_at']),
+        ]
+        ordering = ['created_at']
+
+    def __str__(self) -> str:
+        preview = self.content[:50] if self.content else ''
+        return f"[{self.role}] {preview}"
