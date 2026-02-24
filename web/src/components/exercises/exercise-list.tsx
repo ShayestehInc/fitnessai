@@ -77,13 +77,15 @@ export function ExerciseList({
           size="sm"
           className="md:hidden"
           onClick={() => setShowFilters((v) => !v)}
+          aria-expanded={showFilters}
+          aria-controls="exercise-filter-panel"
         >
           <Filter className="mr-2 h-4 w-4" />
           Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </Button>
 
         {/* Filter chips — always visible on md+, toggle on mobile */}
-        <div className={cn("space-y-3", showFilters ? "block" : "hidden md:block")}>
+        <div id="exercise-filter-panel" className={cn("space-y-3", showFilters ? "block" : "hidden md:block")}>
           {/* Muscle group filter chips */}
           <div className="flex flex-wrap gap-2">
             <button

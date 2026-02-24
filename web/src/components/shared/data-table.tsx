@@ -48,7 +48,7 @@ export function DataTable<T>({
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-md border">
+      <div className="table-scroll-hint overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -110,9 +110,9 @@ export function DataTable<T>({
       </div>
       {showPagination && (
         <div className="flex items-center justify-between px-2 py-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground" aria-label={`Page ${page} of ${totalPages}, ${totalCount} total items`}>
             <span className="hidden sm:inline">Page {page} of {totalPages} ({totalCount} total)</span>
-            <span className="sm:hidden">{page}/{totalPages}</span>
+            <span className="sm:hidden" aria-hidden="true">{page}/{totalPages}</span>
           </p>
           <nav className="flex items-center gap-2" aria-label="Table pagination">
             <Button

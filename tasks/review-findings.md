@@ -1,37 +1,26 @@
-# Code Review: Web App Mobile Responsiveness — Trainee Dashboard
+# Code Review: Trainer Dashboard Mobile Responsiveness (Pipeline 37)
 
 ## Review Date
 2026-02-24
 
 ## Files Reviewed
-1. `web/src/app/layout.tsx` (viewport export)
-2. `web/src/app/globals.css` (scrollbar-thin, dvh, iOS text-size-adjust, number spinner removal)
-3. `web/src/app/(dashboard)/layout.tsx` (h-screen -> h-dvh)
-4. `web/src/app/(trainee-dashboard)/layout.tsx` (h-screen -> h-dvh)
-5. `web/src/components/shared/page-header.tsx` (responsive h1 sizing)
-6. `web/src/components/trainee-dashboard/exercise-log-card.tsx` (responsive grid, touch targets)
-7. `web/src/components/trainee-dashboard/active-workout.tsx` (header actions, grid breakpoints, dialog dvh)
-8. `web/src/components/trainee-dashboard/workout-detail-dialog.tsx` (mobile dialog sizing, set detail widths)
-9. `web/src/components/trainee-dashboard/workout-finish-dialog.tsx` (dialog dvh + overflow)
-10. `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx` (dialog dvh + overflow)
-11. `web/src/components/trainee-dashboard/trainee-progress-charts.tsx` (useIsMobile hook, chart responsive)
-12. `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx` (dvh max-height)
-13. `web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx` (header flex-col wrap)
-14. `web/src/components/trainee-dashboard/program-viewer.tsx` (scrollbar-thin, grid breakpoints)
-15. `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx` (gap reduction on mobile)
+1. `web/src/app/(dashboard)/ai-chat/page.tsx` (dvh fix)
+2. `web/src/app/(dashboard)/messages/page.tsx` (dvh fix)
+3. `web/src/app/(dashboard)/trainees/[id]/page.tsx` (header stacking, action grid)
+4. `web/src/components/analytics/revenue-section.tsx` (column hiding on subscriber/payment tables)
+5. `web/src/components/exercises/exercise-list.tsx` (collapsible filter chips)
+6. `web/src/components/invitations/invitation-columns.tsx` (column hiding)
+7. `web/src/components/programs/exercise-row.tsx` (padding, touch targets)
+8. `web/src/components/programs/program-builder.tsx` (sticky save bar)
+9. `web/src/components/programs/program-list.tsx` (column hiding)
+10. `web/src/components/shared/data-table.tsx` (responsive pagination, column className)
+11. `web/src/components/trainees/trainee-activity-tab.tsx` (column hiding)
+12. `web/src/components/trainees/trainee-columns.tsx` (column hiding)
 
-Context files reviewed:
-- `web/src/app/(trainee-dashboard)/trainee/dashboard/page.tsx` (NOT changed -- should it be?)
-- `web/src/app/(trainee-dashboard)/trainee/history/page.tsx` (NOT changed)
-- `web/src/app/(trainee-dashboard)/trainee/settings/page.tsx` (NOT changed)
-- `web/src/app/(trainee-dashboard)/trainee/achievements/page.tsx` (NOT changed)
-- `web/src/components/trainee-dashboard/trainee-sidebar.tsx` (NOT changed)
-- `web/src/components/trainee-dashboard/trainee-header.tsx` (NOT changed)
-- `web/src/components/trainee-dashboard/workout-history-list.tsx` (NOT changed)
-- `web/src/components/trainee-dashboard/nutrition-page.tsx` (NOT changed)
-- `web/src/components/trainee-dashboard/meal-log-input.tsx` (NOT changed)
-- `web/src/components/trainee-dashboard/meal-history.tsx` (NOT changed)
-- `web/package.json` (Tailwind v4, Next 16.1.6, React 19.2.3, Recharts 3.7.0)
+Context files reviewed (no changes but verified):
+- `web/src/app/globals.css` (no scroll-hint class added -- relevant gap)
+- `web/src/app/(dashboard)/programs/page.tsx` (PageHeader already responsive)
+- `web/src/components/shared/page-header.tsx` (verified existing `flex-col sm:flex-row` pattern)
 
 ---
 
@@ -39,104 +28,110 @@ Context files reviewed:
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| C1 | `web/src/app/layout.tsx:28-29` | **`maximumScale: 1` and `userScalable: false` is an accessibility violation (WCAG 1.4.4 Resize Text).** This prevents users with low vision from pinch-to-zoom on mobile. Apple's accessibility guidelines explicitly state apps must not disable pinch-to-zoom. WCAG 2.1 SC 1.4.4 (Level AA) requires that text can be resized up to 200%. This is not just a guideline preference -- multiple accessibility auditing tools (Lighthouse, axe) flag `user-scalable=no` as a failure. Many users with visual impairments rely on pinch-to-zoom as their primary text magnification method. | Remove `maximumScale: 1` and `userScalable: false` from the viewport configuration. If the concern is preventing accidental zoom on form inputs on iOS, use `font-size: 16px` (minimum) on input elements instead, which prevents iOS auto-zoom without disabling user-initiated zoom. The inputs in the codebase already use Tailwind's `text-sm` (14px) which triggers iOS auto-zoom; bumping to `text-base` (16px) on mobile via `text-sm sm:text-base` or a global CSS rule for inputs on small screens would be the correct fix. |
+| C1 | `exercise-row.tsx:101` | **Delete button NOT given the touch target increase.** Move-up and move-down buttons were correctly changed from `h-7 w-7` to `h-8 w-8 sm:h-7 sm:w-7` (lines 79, 90), but the delete/trash button at line 101 still uses `h-7 w-7` (28px). This means the delete button has a 28px touch target on mobile -- well below the 44px minimum stated in AC #14, and inconsistent with the other two action buttons in the same row. A user tapping to delete an exercise will struggle to hit this target, especially on a crowded exercise list. | Change `className="h-7 w-7 text-destructive hover:text-destructive"` to `className="h-8 w-8 text-destructive hover:text-destructive sm:h-7 sm:w-7"` to match the move-up and move-down buttons. |
+| C2 | `data-table.tsx:51` | **AC #11 NOT implemented: No horizontal scroll indicator on DataTable.** The ticket explicitly requires "All DataTable instances show a subtle horizontal scroll indicator (right-edge gradient fade) on mobile when the table is wider than the viewport." The Technical Approach section specifically called for a `.table-scroll-hint` utility class in `globals.css` and a gradient overlay on the `.overflow-x-auto` wrapper. Neither was implemented. The `overflow-x-auto` div at line 51 has no gradient, no `mask-image`, no `::after` pseudo-element. On mobile, tables that overflow horizontally will give users zero visual indication that there is more content to the right -- they must accidentally discover it by swiping. | Add a CSS utility class in `globals.css` that applies a right-edge gradient fade via `mask-image` or an `::after` pseudo-element on `.overflow-x-auto` containers. For example: wrap the `overflow-x-auto` div in a `relative` container, and add `::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 40px; pointer-events: none; background: linear-gradient(to right, transparent, var(--background)); }` visible only on mobile (`@media (max-width: 767px)`). Alternatively, use `mask-image: linear-gradient(to right, black calc(100% - 40px), transparent)` on the scroll container. |
+| C3 | `revenue-section.tsx:352-380` | **AC #9 NOT met: Revenue section header wrapping not restructured.** The ticket requires "export buttons move below the heading/period selector on mobile rather than all cramming onto one line." The current implementation at lines 352-380 still uses `flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between` on the outer div. The inner `div` at line 356 puts both ExportButtons AND the RevenuePeriodSelector together in a single `flex flex-wrap items-center gap-2`. On a 375px screen with "Export Payments" + "Export Subscribers" + the 3-button period selector, this creates an awkward 2-line wrap where the period selector drops to a second line left-aligned under the export buttons. The ticket asked for export buttons to be in their own div that goes full-width on mobile with the period selector staying adjacent to the heading. | Restructure the header into: (1) a row with heading + period selector (`flex items-center justify-between`), and (2) a separate row for export buttons (`flex gap-2`) that only appears below on mobile. E.g.: `<div className="flex flex-col gap-3"><div className="flex items-center justify-between"><h2>Revenue</h2><RevenuePeriodSelector /></div>{hasData && <div className="flex gap-2"><ExportButton /><ExportButton /></div>}</div>` |
+
+---
 
 ## Major Issues (should fix)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| M1 | `web/src/components/trainee-dashboard/trainee-progress-charts.tsx:44-53` | **`useIsMobile` hook causes hydration mismatch in SSR.** `useState(false)` is the initial server-render value, but `window.matchMedia` runs in `useEffect` on the client. This means the first server-rendered HTML will always use the desktop layout (isMobile = false), and then on hydration the client may immediately flip to mobile. This causes a visible layout flash (FOUC) on mobile devices: charts render at desktop sizing, then snap to mobile sizing after hydration. While React 19 suppresses the hydration mismatch warning for useEffect-driven state, the visual flash remains a real UX problem. | Use a CSS-first approach instead: wrap the chart in a container and use Tailwind responsive classes for height (`h-[220px] sm:h-[250px]` -- already done). For the XAxis/YAxis props that cannot be expressed in CSS, consider: (a) using a `useSyncExternalStore` hook with `getServerSnapshot` returning a default, (b) rendering a CSS `<style>` tag that hides/shows different chart configurations, or (c) accepting the flash as a minor tradeoff but documenting it. The current approach silently produces incorrect SSR output. |
-| M2 | `web/src/components/trainee-dashboard/trainee-progress-charts.tsx:44-53` | **`useIsMobile` defined locally but used in two exported components (`WeightTrendChart` and `WorkoutVolumeChart`).** Each component creates its own `matchMedia` listener. If this hook needs to be shared more broadly (other charts, other pages), the local definition will be copy-pasted. The dev-done.md acknowledges this was intentional ("not a shared hook since it's only needed there"), but it is already used in two separate components in the same file, and the ticket's focus.md says "Charts/visualizations: Must resize and remain readable" -- implying any future chart component would need it too. | Extract `useIsMobile` to `web/src/hooks/use-is-mobile.ts` as a shared hook. Two usages in the same file already meets the threshold for extraction. This prevents future duplication and centralizes the breakpoint constant. |
-| M3 | `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx:164` | **Inline `style={{ maxHeight: "calc(100dvh - 10rem)" }}` is a magic number that bypasses the design system.** The `10rem` subtraction assumes a specific header + padding height that could break if the layout padding, header height, or surrounding elements change. This is also the only inline style in the entire trainee dashboard. All other spacing/sizing uses Tailwind utilities. | Use a Tailwind arbitrary value class: `max-h-[calc(100dvh-10rem)]`. Better yet, restructure the messages page layout to use flex-grow within the parent's overflow-hidden container (the layout already has `flex-1 overflow-auto`), eliminating the need for hardcoded height calculations entirely. The parent `<main>` already handles overflow -- the messages container just needs `min-h-0 flex-1` to fill available space. |
-| M4 | `web/src/components/trainee-dashboard/exercise-log-card.tsx:127` | **Checkbox touch target is 28px (h-7 w-7), below Apple's 44px minimum.** The ticket explicitly requires "All tap targets are at least 44px on mobile." The dev-done.md acknowledges this: "Made exercise log card checkboxes 28px (7*4) on mobile, exceeding the 24px minimum but close to 44px Apple guideline." 28px is not "close to" 44px -- it is 64% of the guideline. The small checkbox in the exercise log grid is a frequent interaction point (users tap to mark sets complete), and the cramped grid with 1.5-gap makes mis-taps likely. | Increase to `h-11 w-11 sm:h-5 sm:w-5` (44px on mobile). If this doesn't fit in the current grid template, increase the 4th and 5th grid column from `2rem` to `2.75rem` on mobile: `grid-cols-[1.75rem_1fr_1fr_2.75rem_2.75rem]`. Alternatively, add invisible padding around the checkbox button so the visual size stays at 28px but the tap target area is 44px: use `p-2` on the wrapping `<div className="flex items-center justify-center">` to extend the tappable area. |
-| M5 | `web/src/components/trainee-dashboard/exercise-log-card.tsx:69` | **Column header "Wt" is an unconventional abbreviation.** Changing "Weight" to "Wt" saves only ~3 characters of horizontal space. The abbreviation may confuse non-native English speakers and is not a standard fitness abbreviation (standard abbreviations are "Weight", "Wgt", or the full word). More importantly, the header row has `aria-hidden="true"` (line 66), so screen readers won't see it at all -- the aria-labels on the inputs are fine. The concern is purely visual. | Use responsive text instead: `<span className="sm:hidden">Wt</span><span className="hidden sm:inline">Weight ({unit})</span>`. This shows the short form only on mobile where space is tight, and the full label on desktop. |
-| M6 | `web/src/components/trainee-dashboard/active-workout.tsx:337-338` | **"Finish" + hidden " Workout" produces a non-breaking space entity in the DOM.** `Finish<span className="hidden sm:inline">&nbsp;Workout</span>` renders as "Finish" on mobile and "Finish Workout" on desktop. However, the `&nbsp;` is inside the hidden span -- so on desktop the text is "Finish[nbsp]Workout" which renders identically to "Finish Workout" but is semantically different (non-breaking space prevents line wrap between the words). If the button ever becomes narrower, this prevents the text from wrapping naturally. | Use a regular space: `<span className="hidden sm:inline"> Workout</span>`. The `&nbsp;` is unnecessary because the button container already has `flex` and `items-center`, so the space won't collapse. |
+| M1 | `trainees/[id]/page.tsx:149-155` | **Trainee detail tabs overflow at 320px (Edge Case #9 not addressed).** The `TabsList` with 4 tabs (Overview, Activity, Progress, Settings) at lines 149-155 has no responsive treatment. The ticket specifically calls out edge case #9: "the 4 tabs must not overflow; use horizontal scrolling or responsive text sizing if needed." On a 320px screen, these 4 tabs (~80px each = 320px of content plus padding and gaps) will likely overflow or clip. No `ScrollArea` wrapper or `overflow-x-auto` was added, unlike the program builder which correctly uses `ScrollArea` for its week tabs. | Wrap the `TabsList` in a `ScrollArea` with `<ScrollBar orientation="horizontal" />`, matching the pattern at `program-builder.tsx` lines 437-451. Alternatively, add `className="overflow-x-auto"` to a wrapper div around the TabsList. |
+| M2 | `exercise-row.tsx:128,159,181,215` | **Parameter input touch targets below 44px (AC #14 partially missed).** The ticket's Technical Approach explicitly says "Increase input heights from `h-8` to `h-9 sm:h-8` for better touch targets." This was NOT done. The Sets input (line 128, `h-8 w-14`), Reps input (line 159, `h-8 w-16`), Weight input (line 181, `h-8 w-16`), and Rest input (line 215, `h-8 w-16`) all still use `h-8` (32px). These are the primary inputs the trainer taps on mobile to configure exercise parameters. 32px is significantly below 44px and makes data entry frustrating on a touchscreen. | Change `h-8` to `h-9 sm:h-8` on all four parameter `Input` elements, and also on the unit `<select>` at line 187 (currently `h-8`). This gives a 36px (h-9) touch target on mobile which is closer to the guideline, while preserving the compact desktop design. |
+| M3 | `program-builder.tsx:484` | **Sticky save bar uses `sm:` breakpoint (640px), inconsistent with rest of PR which uses `md:` (768px).** The save bar classes `sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:px-0 sm:py-0` revert from sticky to static at 640px. But ALL other responsive changes in this PR use `md:` (768px) as the mobile/desktop breakpoint: column hiding (`hidden md:table-cell`), filter toggle (`md:hidden`), header stacking (`md:flex-row`). This means on tablets between 640-768px, the save bar is static but tables still have columns hidden, creating an inconsistent experience. A user on a 700px iPad Mini would see mobile-style tables but desktop-style save bar. | Change all `sm:` prefixes on this line to `md:`: `md:static md:mx-0 md:border-t-0 md:bg-transparent md:px-0 md:py-0`. |
+| M4 | `data-table.tsx:114-115` | **Mobile pagination text lacks accessibility context.** The mobile text shows e.g. `3/10` with no label. A screen reader announces "3 slash 10" which is meaningless without context. The desktop version clearly says "Page 3 of 10 (200 total)". The `<p>` wrapping element has no `aria-label` to provide the context that the `sm:hidden` text takes away. | Add an `aria-label` to the `<p>` element: `aria-label={\`Page ${page} of ${totalPages}, ${totalCount} total items\`}`. This way screen readers always get the full context regardless of which visual text is displayed. |
+| M5 | `exercise-list.tsx:75-83` | **Filter toggle button missing `aria-expanded` and `aria-controls`.** The toggle button at lines 75-83 controls the visibility of the filter panel but does not communicate its state to assistive technology. A screen reader user cannot tell whether filters are currently visible or hidden. This is a WCAG 4.1.2 (Name, Role, Value) issue. | Add `aria-expanded={showFilters}` and `aria-controls="exercise-filter-panel"` to the `<Button>` at line 75, and add `id="exercise-filter-panel"` to the filter panel `<div>` at line 86. |
+
+---
 
 ## Minor Issues (nice to fix)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| m1 | `web/src/app/globals.css:215-216` | **`scrollbar-thin` custom class uses `hsl(var(--border))` for thumb color, but the project defines `--border` as oklch.** Looking at `globals.css:68`, `--border: oklch(0.922 0 0)` and dark mode `--border: oklch(1 0 0 / 10%)`. The `hsl()` wrapper around an oklch value produces an invalid CSS color. The browser will silently fallback to its default scrollbar color. | Change to `background: var(--border);` (let CSS use the oklch value directly), or use the Tailwind mapped variable: `background: var(--color-border);`. The `@theme` block at the top of globals.css maps `--color-border: var(--border)`, so either will work. |
-| m2 | `web/src/app/globals.css:220-225` | **`.h-screen-safe` custom utility class is defined but never used anywhere in the codebase.** The layouts use `h-dvh` (Tailwind v4 built-in utility) directly. The `@supports (height: 100dvh)` wrapper with the custom class is dead code. | Remove the `.h-screen-safe` block entirely. Tailwind v4 natively supports `h-dvh`, `min-h-dvh`, `max-h-dvh`, making this custom class redundant. |
-| m3 | `web/src/components/trainee-dashboard/workout-detail-dialog.tsx:132-133` | **"S1", "S2" abbreviation for "Set 1", "Set 2" is inconsistent with the exercise log card.** The exercise log card header row uses "Set" (line 67 of exercise-log-card.tsx), but the workout detail dialog uses "S" prefix (changed from "Set"). This creates an inconsistent vocabulary within the same feature area. | Either use "S1" in both places (for space savings) or "Set 1" in both. Consistency matters more than the specific choice. |
-| m4 | `web/src/components/trainee-dashboard/active-workout.tsx:331` | **The Discard button has `size="sm"` from the original code, but the Finish button was changed to `size="sm"` in this diff.** Both buttons should have had the same size before, but the diff shows `size="sm"` was only added to the Finish button. Looking at the original code, the Discard button already had `variant="outline" size="sm"`, so both now match. This is fine -- just noting the asymmetry was pre-existing. | No action needed. Both buttons now correctly use `size="sm"`. |
-| m5 | `web/src/app/globals.css:236-239` | **`-moz-appearance: textfield` is deprecated in Firefox.** The standard property is `appearance: textfield`. While `-moz-appearance` still works in current Firefox, it may be removed in future versions. | Use `appearance: textfield;` as the primary declaration with `-moz-appearance: textfield;` as a fallback above it. |
-| m6 | `web/src/components/trainee-dashboard/workout-detail-dialog.tsx:138` | **`truncate` on the weight/BW column may clip relevant data.** The weight column uses `min-w-0 flex-1 truncate`. For values like "225.5 lbs" (9 chars), this fits easily. But if a user's unit is something long like "kilogram" (unlikely but possible from data), truncation could hide the unit entirely. The previous fixed-width `w-20` at least guaranteed visible space. | Add a `title` attribute with the full text so truncated values are accessible on hover: `title={set.weight > 0 ? \`${set.weight} ${set.unit || "lbs"}\` : "Bodyweight"}`. |
-| m7 | `web/src/components/trainee-dashboard/active-workout.tsx:374` | **Discard dialog has `max-h-[90dvh]` but no `overflow-y-auto`.** The workout finish and weight check-in dialogs correctly pair `max-h-[90dvh]` with `overflow-y-auto`, but the discard confirmation dialog only has `max-h-[90dvh]`. The discard dialog is very short (title + description + 2 buttons), so overflow is extremely unlikely, but the pattern is inconsistent with the other dialogs. | Add `overflow-y-auto` for consistency: `className="max-h-[90dvh] overflow-y-auto sm:max-w-[400px]"`. |
+| m1 | `exercise-list.tsx:78` | **Filter toggle button uses `size="sm"` which renders at ~32px height on mobile.** This button is `md:hidden` so it is a mobile-only interaction point, but it is below the 44px touch target guideline. It is less critical than the exercise row buttons since it is used infrequently, but it still contradicts AC #14. | Consider using default size or adding `className="h-11 md:hidden"` to ensure 44px minimum height. |
+| m2 | `program-builder.tsx:484` | **Sticky save bar uses `-mx-4` which assumes parent has exactly `px-4` padding.** If the dashboard layout's main content area ever changes its padding (e.g., for different breakpoints), the save bar will either not reach the edges or overflow. The negative margin pattern is fragile. | Consider using `inset-x-0` with `fixed bottom-0` instead of `sticky` with negative margins, or verify the parent padding is stable. The current approach works but is tightly coupled to the layout. |
+| m3 | `program-builder.tsx:484` | **Sticky save bar has no semantic role.** The bar contains Save/Cancel buttons and a keyboard shortcut hint, serving as a toolbar. Screen readers would benefit from a `role="toolbar"` and `aria-label="Program actions"`. | Add `role="toolbar" aria-label="Program actions"` to the sticky div. |
+| m4 | `ai-chat/page.tsx:152,174` | **`12rem` offset in `h-[calc(100dvh-12rem)]` is a magic number appearing in 4 places across 2 files.** If the dashboard header height or layout padding changes, all 4 instances need manual updating. | Extract to a shared CSS variable or Tailwind utility, e.g., `--dashboard-chrome-height: 12rem;` in `globals.css`. Low priority since it works today. |
+| m5 | `trainee-columns.tsx:12` | **Name column `max-w-[200px]` may be too wide on very narrow screens.** On a 320px screen with ~32px total horizontal padding, 200px for the name column leaves only ~88px for the remaining visible columns (Status, Last Activity). The truncation works correctly, but the other columns may feel cramped. | Consider `max-w-[160px] md:max-w-[200px]` to give more breathing room to adjacent columns on mobile. |
+| m6 | `data-table.tsx:66` | **`colSpan={columns.length}` counts hidden columns.** When columns use `hidden md:table-cell`, the array still includes them. The "No results found" cell's `colSpan` will be e.g. 5 but only 3 columns are visible on mobile. HTML handles this correctly (the cell spans all available columns), so this is not a bug, but it is worth documenting. | No code change needed. The HTML spec handles colSpan exceeding visible columns gracefully. Noting for awareness only. |
+| m7 | `exercise-list.tsx:86` | **Filter state not synced: filters selected then collapsed are invisible.** When a user opens the filter panel on mobile, selects a muscle group, then collapses the panel, only the count badge indicates active filters. The user cannot see WHICH specific filters are active without re-opening the panel. This is a minor UX friction point. | Consider showing small active-filter pills below the toggle button when collapsed and `activeFilterCount > 0`, or add a "Clear all filters" button visible alongside the toggle when filters are active. |
 
 ---
 
 ## Security Concerns
 
-1. **No XSS risk.** All changes are CSS/layout. No new data rendering paths. No `dangerouslySetInnerHTML`. PASS.
-2. **No injection risk.** No new API calls or data paths added. PASS.
-3. **No secrets in code.** Verified entire diff. PASS.
-4. **Viewport zoom-disable (C1) is not a security issue but an accessibility issue.** Noted above.
-5. **No CORS/CSRF concerns.** No backend changes. PASS.
+No security concerns. All changes are CSS class modifications and minor JSX restructuring within existing components. No new endpoints, no data handling changes, no auth modifications, no user input processing changes.
+
+---
 
 ## Performance Concerns
 
-1. **`useIsMobile` hook creates two `matchMedia` listeners per page render** (one per chart component). Each listener is lightweight, but the hydration mismatch (M1) causes a re-render on every mobile page load, which triggers Recharts to re-render both charts from scratch. This is a noticeable performance hit on low-end mobile devices.
-2. **The `-webkit-appearance: none` for number input spinners is a global CSS rule** applied to ALL `input[type="number"]` elements across the entire app (not just trainee dashboard). This is intentional per dev-done.md but could have unintended effects on trainer/admin dashboards where number spinners might be desired.
-3. **No unnecessary re-renders from Tailwind class changes.** All responsive changes use CSS-only responsive variants (`sm:`, `lg:`) which require zero JavaScript re-renders. PASS.
-4. **`scrollbar-thin` custom class uses vendor-specific pseudo-elements** (`::-webkit-scrollbar`). These are ignored by Firefox, which uses `scrollbar-width: thin` instead. Both approaches are applied, covering all major browsers. PASS.
+1. **No performance issues introduced.** All changes use CSS-only responsive patterns (Tailwind utility classes). No new JavaScript, no new state beyond the `showFilters` boolean (trivially cheap), no new data fetching, no additional renders.
 
-## Tailwind v4 Compatibility
+2. **Column hiding via CSS is the optimal approach.** Using `hidden md:table-cell` on column definitions means the DOM contains all columns but CSS hides them. This avoids conditional column arrays that would cause unnecessary re-renders and React reconciliation work. Correct design decision.
 
-1. **`h-dvh`** -- Valid in Tailwind v4. Maps to `height: 100dvh`. PASS.
-2. **`sm:`, `lg:`, `xl:` responsive prefixes** -- Valid in Tailwind v4. PASS.
-3. **`max-h-[90dvh]`** -- Arbitrary value with dvh unit. Valid in Tailwind v4. PASS.
-4. **`max-h-[calc(100dvh-10rem)]`** (in messages page, currently inline style) -- Would be valid as a Tailwind arbitrary value class. See M3.
-5. **`text-xl`, `text-2xl`, `text-sm`, `text-base`** -- Standard Tailwind utilities. PASS.
-6. **`scrollbar-thin`** -- This is a custom CSS class, NOT a Tailwind utility. Tailwind v4 does not ship a `scrollbar-thin` utility. The implementation in `globals.css` is correct as a custom class. PASS.
+3. **`activeFilterCount` computation** at `exercise-list.tsx:47` runs on every render but consists of 3 trivial ternary operations. No concern.
 
-## Edge Case Analysis
+4. **Sticky save bar** uses CSS `position: sticky` which is GPU-accelerated in all modern browsers. No scroll performance impact.
 
-| Edge Case | Status | Notes |
-|-----------|--------|-------|
-| iPhone SE (320px width) | PARTIAL | Exercise log card grid `grid-cols-[1.75rem_1fr_1fr_2rem_2rem]` with `gap-1.5` totals ~9rem (144px) fixed + 2 flexible columns. At 320px minus card padding (~32px), the two `1fr` inputs get ~72px each. That is tight but functional. However, the Add Set button and remove-set icon button in the 5th column are only 2rem (32px) -- below 44px touch target. |
-| Mobile Safari 100vh bug | PASS | Correctly addressed with `h-dvh` replacing `h-screen`. |
-| Landscape phone | PARTIAL | `sm:` breakpoint (640px) used for exercise grid columns. Most phones in landscape are 640px-812px wide, so they would get the `sm:` treatment (2-column grid, larger gaps). This is appropriate. However, the chart height `h-[220px] sm:h-[250px]` does not account for landscape where vertical space is constrained -- a phone in landscape with 375px height has limited room for 220px charts plus headers. |
-| Very long exercise names | PASS | Exercise names in `ExerciseLogCard` use `CardTitle` with `text-base` -- these will wrap naturally within the card. In `ProgramViewer` day cards, exercise names have `truncate` (line 284). PASS. |
-| Many meals (10+) on nutrition page | NOT ADDRESSED | The nutrition page was not modified in this diff, but the meal history list has no `max-height` or virtual scrolling. On mobile, 10+ meals create a very long page. This is acceptable (page scrolls naturally) but could benefit from a "show more" pattern. |
-| Chart with 30 data points at 320px | PASS | `interval="preserveStartEnd"` on mobile correctly shows only first and last labels. `-45deg` angle prevents overlap. PASS. |
-| Week tabs with 8+ weeks | PASS | `scrollbar-thin` class with `overflow-x-auto` enables horizontal scroll. `-mx-1 px-1` provides edge padding so the first/last tabs are not clipped. `pb-2` gives scrollbar room. PASS. |
-| Workout with many exercises | PASS | The exercise grid is inside the main scrollable `<main>` area with `overflow-auto`. No additional scrolling needed. PASS. |
+---
 
-## Missing Changes (pages/components NOT updated)
+## Acceptance Criteria Verification
 
-| # | File | Issue | Impact |
-|---|------|-------|--------|
-| MC1 | `web/src/app/(trainee-dashboard)/trainee/dashboard/page.tsx:22` | **Dashboard page uses `grid gap-4 md:grid-cols-2` but the ticket says "Dashboard grid cards stack to single column below ~380px".** The `md:` breakpoint is 768px, meaning cards are single-column below 768px and 2-column above. This seems correct for mobile (phones always see single column), but the ticket AC specifically mentions "below ~380px" which implies a lower breakpoint. The current behavior is actually fine -- `md:` is more conservative. However, this file was NOT changed in the diff despite being listed in the ticket's technical approach. | Low. Current `md:grid-cols-2` behavior is acceptable. No horizontal overflow at 320px because cards are already single-column. |
-| MC2 | `web/src/components/trainee-dashboard/nutrition-page.tsx` | **Nutrition page was not touched.** The date navigation buttons at `h-8 w-8` (32px) are below the 44px touch target. The macro bars, meal cards, and AI input are all within cards that span full width and should work on mobile, but were not explicitly verified/modified in this responsiveness pass. | Medium. The date nav buttons are used frequently and are too small for comfortable thumb tapping on mobile. |
-| MC3 | `web/src/components/trainee-dashboard/meal-history.tsx:129` | **Delete button on meals is `h-7 w-7` (28px) -- below 44px touch target.** This was not modified in this diff. | Medium. Delete is a destructive action -- a small touch target could lead to accidental mis-taps on adjacent elements, or frustration trying to hit the target. |
-| MC4 | `web/src/components/trainee-dashboard/meal-log-input.tsx:162` | **AI submit button is `size="icon"` (default 40px) -- close to 44px but not explicitly verified.** The input + button flex row was not modified for mobile. | Low. 40px is close enough and the button is easily tappable. |
-| MC5 | `web/src/components/trainee-dashboard/workout-history-list.tsx` | **Workout history list was not touched.** The card layout with flex-wrap stats should work on mobile, but the "Details" button is `size="sm"` which may be below 44px height. | Low. The button has padding that likely makes it ~36px tall -- acceptable. |
-| MC6 | `web/src/components/trainee-dashboard/announcements-list.tsx` | **Not reviewed or modified.** If announcements have long text, card rendering on mobile should be verified. | Low. Standard Card components handle text wrapping. |
+| AC # | Criterion | Status | Notes |
+|------|-----------|--------|-------|
+| 1 | Trainee detail action buttons use responsive grid | PASS | `grid grid-cols-2 gap-2 sm:flex sm:flex-wrap` at line 103 |
+| 2 | Trainee detail header stacks vertically on mobile | PASS | `flex flex-col gap-4 md:flex-row md:items-start md:justify-between` at line 78 |
+| 3 | Trainee table hides Program and Joined on mobile | PASS | `hidden md:table-cell` added to both column definitions |
+| 4 | Program list hides Goal, Used, Created on mobile | PASS | `hidden md:table-cell` added to all three columns |
+| 5 | Invitation table hides Program and Expires on mobile | PASS | `hidden md:table-cell` added to both columns |
+| 6 | Exercise row reduces left padding on mobile | PASS | `pl-0 sm:pl-8` at line 111 |
+| 7 | Program builder save bar sticky on mobile | PASS (with caveat) | Sticky pattern works, but uses `sm:` breakpoint instead of `md:` (see M3) |
+| 8 | Exercise bank filter chips collapsible on mobile | PASS | Toggle button with count badge, `hidden md:block` pattern, `showFilters` state |
+| 9 | Revenue section header wraps properly on mobile | FAIL | Not restructured per ticket requirements (see C3) |
+| 10 | Chat pages use 100dvh | PASS | Both AI Chat (2 instances) and Messages updated to `100dvh` |
+| 11 | DataTable horizontal scroll indicator | FAIL | Not implemented at all (see C2) |
+| 12 | Activity tab hides Carbs and Fat columns | PASS | `hidden md:table-cell` on both header and body cells |
+| 13 | Programs page header stacks on mobile | PASS | PageHeader already handles `flex-col sm:flex-row` stacking. Verified. |
+| 14 | Touch targets >= 44px on all mobile interactive elements | PARTIAL FAIL | Reorder buttons improved to h-8 (32px) but delete button missed (C1), parameter inputs unchanged at h-8 (M2), filter toggle at ~32px (m1). Note: even h-8 (32px) is below 44px, though the ticket's approach called for h-9 (36px) as a compromise. |
+| 15 | No horizontal scroll on body/main at 320-1920px | LIKELY PASS | Column hiding prevents table-driven overflow. No body-level horizontal scroll expected. |
+
+**Summary: 10/15 PASS, 2 FAIL (AC #9, #11), 1 PARTIAL FAIL (AC #14), 2 PASS with caveats (AC #7, #15)**
 
 ---
 
 ## Quality Score: 6/10
 
-**What's good:**
-- Correct use of Tailwind v4's `h-dvh` for mobile Safari address bar issue. This is the right modern approach.
-- Thoughtful chart responsiveness with angled labels, `preserveStartEnd` interval, and reduced margins.
-- Scrollbar-thin on program week tabs with proper edge padding is a nice touch.
-- Consistent pattern of `max-h-[90dvh] overflow-y-auto` across dialogs.
-- Global CSS fixes for number input spinners and iOS text-size-adjust are correct and impactful.
-- The exercise log card responsive grid is well thought out with proper `min-w-0` on inputs.
-- Announcements header flex-col wrap is a clean responsive pattern.
+**What is good:**
+- Clean, consistent column-hiding pattern via `hidden md:table-cell` applied uniformly across 5 different table components. Well-executed pattern.
+- CSS-only approach throughout. No JS viewport detection, no `useMediaQuery`. Correct and performant.
+- Collapsible filter chips with count badge is a thoughtful mobile UX pattern.
+- Sticky save bar on program builder is an important UX improvement (users no longer need to scroll to the end of a long form).
+- Responsive pagination (icon-only prev/next buttons, compact page text) is a nice detail.
+- Header stacking and action button grid on trainee detail page works well.
+- `100dvh` fix for chat pages addresses a real iOS Safari issue.
 
 **What prevents a higher score:**
-- **C1 (zoom disability)** is a genuine accessibility failure that would fail WCAG AA audit and app store accessibility reviews.
-- **M1 (hydration mismatch)** creates a visible layout flash on every mobile page load for the progress page.
-- **M3 (inline style with magic number)** breaks the design system pattern established everywhere else.
-- **M4 (touch targets below 44px)** directly contradicts the ticket's own acceptance criteria.
-- **m1 (scrollbar color bug)** means the scrollbar-thin feature on week tabs silently fails to show the correct theme color.
-- Multiple trainee pages with touch-target issues were not addressed (MC2, MC3).
+- Two entire acceptance criteria not implemented (scroll indicators, revenue header restructuring).
+- Touch target improvements partially applied -- reorder buttons changed but delete button, parameter inputs, and filter toggle missed.
+- Breakpoint inconsistency (sm vs md) on the program builder save bar.
+- Missing accessibility attributes on filter toggle (aria-expanded/aria-controls).
+- Tab overflow at 320px not addressed (edge case #9).
 
-The changes are directionally correct and improve mobile UX significantly, but the accessibility violation (C1), the hydration flash (M1), and the touch target shortfalls (M4) prevent this from meeting the quality bar for a mobile responsiveness feature.
+The implementation covers about 75% of the ticket thoroughly and correctly, but the missing 25% includes two explicitly called-out acceptance criteria and the touch target work that was the developer's own stated goal.
 
 ## Recommendation: REQUEST CHANGES
 
-Fix C1 (remove zoom-disable -- this is a WCAG violation and potential app store rejection risk). Address M1 or document the tradeoff. Fix m1 (scrollbar color is broken). Verify touch targets meet the 44px minimum stated in the ticket's own acceptance criteria (M4). The remaining majors (M2, M3, M5, M6) are important but not blocking.
+**Must fix (Critical):**
+1. C1: Exercise row delete button touch target (trivial -- add `h-8 w-8 sm:h-7 sm:w-7`)
+2. C2: DataTable horizontal scroll indicator (requires CSS in globals.css + wrapper in data-table.tsx)
+3. C3: Revenue section header restructuring (moderate JSX refactor)
+
+**Should fix (Major):**
+4. M1: Trainee detail tabs ScrollArea wrapper at 320px
+5. M2: Exercise row parameter input heights (h-9 sm:h-8)
+6. M3: Save bar sm: -> md: breakpoint consistency
+7. M4: Pagination accessibility (aria-label)
+8. M5: Filter toggle aria-expanded

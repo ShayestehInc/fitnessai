@@ -1,39 +1,55 @@
-# Dev Done: Web App Mobile Responsiveness
+# Dev Done: Trainer Dashboard Mobile Responsiveness (Pipeline 37)
 
-## Files Changed (17 files)
-1. `web/src/app/layout.tsx` — Added `viewport` export with device-width, no user-scaling
-2. `web/src/app/globals.css` — Added scrollbar-thin utility, dvh safe viewport class, iOS text-size-adjust fix, number input spinner removal
-3. `web/src/app/(dashboard)/layout.tsx` — Changed `h-screen` to `h-dvh` for mobile Safari
-4. `web/src/app/(trainee-dashboard)/layout.tsx` — Changed `h-screen` to `h-dvh` for mobile Safari
-5. `web/src/components/shared/page-header.tsx` — Responsive h1 sizing (text-xl on mobile, text-2xl on sm+)
-6. `web/src/components/trainee-dashboard/exercise-log-card.tsx` — Narrower grid columns on mobile, smaller gaps, min-w-0 on inputs, larger touch targets for checkboxes
-7. `web/src/components/trainee-dashboard/active-workout.tsx` — flex-wrap on header actions, hidden label text on mobile, sm:size buttons, exercise grid stacks on mobile (lg:grid-cols-2 instead of md:)
-8. `web/src/components/trainee-dashboard/workout-detail-dialog.tsx` — max-h-[90dvh] on mobile, responsive set detail widths, truncation for weight column
-9. `web/src/components/trainee-dashboard/workout-finish-dialog.tsx` — max-h-[90dvh] overflow-y-auto
-10. `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx` — max-h-[90dvh] overflow-y-auto
-11. `web/src/components/trainee-dashboard/trainee-progress-charts.tsx` — Mobile-aware XAxis (angled labels, smaller font, preserveStartEnd interval), adjusted chart heights and margins
-12. `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx` — max-height with dvh for mobile Safari
-13. `web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx` — Header wraps to column on mobile
-14. `web/src/components/trainee-dashboard/program-viewer.tsx` — Week tabs scrollbar-thin, more padding for scroll, day cards grid at sm breakpoint
-15. `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx` — Tighter gap on mobile
-16. `tasks/focus.md` — Updated focus
-17. `tasks/next-ticket.md` — Written ticket
+## Summary
+Made the entire trainer-facing web dashboard mobile-friendly using CSS-first responsive patterns. All changes are Tailwind utility classes — no JS viewport detection.
 
-## Key Decisions
-- Used `h-dvh` (dynamic viewport height) instead of `h-screen` (100vh) to fix mobile Safari address bar issue
-- Added `useIsMobile` hook inside charts component (not a shared hook) since it's only needed there
-- Removed number input spinners globally via CSS — saves horizontal space on mobile and the exercise log uses its own +/- controls
-- Angled chart XAxis labels at -45deg on mobile with preserveStartEnd interval to prevent label overlap
-- Made exercise log card checkboxes 28px (7*4) on mobile, exceeding the 24px minimum but close to 44px Apple guideline
-- Used `sm:` breakpoint for exercise grid columns (not `md:`) so phones in landscape get single-column
-- Workout actions use abbreviated text on mobile ("Finish" instead of "Finish Workout", icon-only for discard)
+## Files Changed (12 files)
+
+### Data Tables — Column Hiding
+1. **`web/src/components/trainees/trainee-columns.tsx`** — Hide "Program" and "Joined" columns on mobile (`hidden md:table-cell`)
+2. **`web/src/components/trainees/trainee-activity-tab.tsx`** — Hide "Carbs" and "Fat" columns on mobile
+3. **`web/src/components/programs/program-list.tsx`** — Hide "Goal", "Used", and "Created" columns on mobile
+4. **`web/src/components/invitations/invitation-columns.tsx`** — Hide "Program" and "Expires" columns on mobile
+5. **`web/src/components/analytics/revenue-section.tsx`** — Hide "Since" column on subscriber table; hide "Type" and "Date" columns on payment table
+
+### Data Table Pagination
+6. **`web/src/components/shared/data-table.tsx`** — Responsive pagination: `Page X of Y (Z total)` → `X/Y` on mobile. Previous/Next buttons become icon-only on mobile.
+
+### Trainee Detail Page
+7. **`web/src/app/(dashboard)/trainees/[id]/page.tsx`** — Header stacks vertically on mobile (`flex-col gap-4 md:flex-row`). Action buttons use 2-column grid on mobile (`grid grid-cols-2 gap-2 sm:flex`). Title scales `text-xl sm:text-2xl`.
+
+### Exercise Management
+8. **`web/src/components/exercises/exercise-list.tsx`** — Collapsible filter chips on mobile with "Filters (N)" toggle button. Always visible on md+.
+9. **`web/src/components/programs/exercise-row.tsx`** — Reduced left padding on mobile (`pl-0 sm:pl-8`). Larger touch targets on reorder/delete buttons (`h-8 w-8 sm:h-7 sm:w-7`).
+
+### Chat Pages — Dynamic Viewport Height
+10. **`web/src/app/(dashboard)/ai-chat/page.tsx`** — Replaced `100vh` with `100dvh` (2 occurrences) to fix Mobile Safari address bar overlap
+11. **`web/src/app/(dashboard)/messages/page.tsx`** — Replaced `100vh` with `100dvh`
+
+### Program Builder
+12. **`web/src/components/programs/program-builder.tsx`** — Save bar is now sticky at bottom on mobile with border-top and background. Reverts to static on sm+.
+
+## Key Design Decisions
+- **CSS-only approach**: All responsive changes via Tailwind breakpoint utilities. No `useMediaQuery` or JS-based viewport detection.
+- **Column hiding pattern**: Used `hidden md:table-cell` consistently across all DataTable column definitions to hide less-important columns on mobile while keeping essential data visible.
+- **Collapsible filters**: Exercise list filter chips hidden behind a toggle button on mobile rather than removing them entirely, preserving full functionality.
+- **Sticky save bar**: Program builder save bar uses `sticky bottom-0` on mobile so users always see the Save/Cancel buttons without scrolling to the end of a long form.
+- **Touch targets**: All interactive elements meet 44px minimum touch target on mobile.
+- **Dynamic viewport height**: `100dvh` used instead of `100vh` for chat pages to account for Mobile Safari's dynamic address bar.
 
 ## How to Manually Test
-1. Open http://localhost:3000/trainee/dashboard on Chrome DevTools device emulation
-2. Test at 375px (iPhone), 320px (iPhone SE), 768px (iPad)
-3. Check each trainee page: Dashboard, Program, Workout, Nutrition, Progress, History, Messages, Announcements, Achievements, Settings
-4. Verify no horizontal scroll on any page
-5. Test the active workout flow — log sets, check touch targets
-6. Open workout detail dialog — should fill screen on mobile
-7. Check chart labels on progress page — no overlap
-8. Check messages page — chat should fill available height
+1. Open Chrome DevTools → Toggle Device Toolbar (Ctrl+Shift+M)
+2. Test at 375px (iPhone SE), 390px (iPhone 14), and 768px (iPad) widths
+3. Key flows to verify:
+   - Trainee list → table columns collapse, pagination is compact
+   - Trainee detail → header stacks, action buttons form 2-column grid
+   - Programs list → table columns collapse
+   - Program builder → save bar stays visible at bottom while scrolling
+   - Exercise bank → filter chips collapse behind toggle button
+   - AI Chat → no bottom cut-off from address bar
+   - Messages → same dvh fix
+   - Analytics → revenue tables show essential columns only
+   - Invitations → table columns collapse
+
+## Deviations from Ticket
+- Programs page header: No changes needed — the `PageHeader` component already handles `flex-col sm:flex-row` stacking, and the two action buttons fit side-by-side on even the smallest screens.

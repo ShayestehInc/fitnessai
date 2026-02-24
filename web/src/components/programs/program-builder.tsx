@@ -481,7 +481,7 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
       </Card>
 
       {/* Save Button */}
-      <div className="sticky bottom-0 z-10 -mx-4 flex items-center justify-end gap-3 border-t bg-background px-4 py-3 sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:px-0 sm:py-0">
+      <div className="sticky bottom-0 z-10 -mx-4 flex items-center justify-end gap-3 border-t bg-background px-4 py-3 md:static md:mx-0 md:border-t-0 md:bg-transparent md:px-0 md:py-0">
         <kbd className="hidden text-xs text-muted-foreground sm:inline">
           {typeof navigator !== "undefined" &&
           /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
