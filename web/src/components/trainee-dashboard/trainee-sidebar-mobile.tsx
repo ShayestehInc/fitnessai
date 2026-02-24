@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTraineeBadgeCounts, getBadgeCount } from "@/hooks/use-trainee-badge-counts";
-import { useTraineeBranding, getBrandingDisplayName } from "@/hooks/use-trainee-branding";
+import { useTraineeBranding, getBrandingDisplayName, hasCustomPrimaryColor } from "@/hooks/use-trainee-branding";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -31,6 +31,7 @@ export function TraineeSidebarMobile({
   const counts = useTraineeBadgeCounts();
   const { branding, isLoading: brandingLoading } = useTraineeBranding();
   const displayName = getBrandingDisplayName(branding);
+  const isCustomColor = hasCustomPrimaryColor(branding);
   const [imgError, setImgError] = useState(false);
 
   const showLogo = branding.logo_url && !imgError;
@@ -86,7 +87,7 @@ export function TraineeSidebarMobile({
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
                 )}
                 style={
-                  isActive && branding.primary_color !== "#6366F1"
+                  isActive && isCustomColor
                     ? { backgroundColor: `${branding.primary_color}20` }
                     : undefined
                 }
@@ -95,7 +96,7 @@ export function TraineeSidebarMobile({
                   className="h-4 w-4"
                   aria-hidden="true"
                   style={
-                    isActive && branding.primary_color !== "#6366F1"
+                    isActive && isCustomColor
                       ? { color: branding.primary_color }
                       : undefined
                   }

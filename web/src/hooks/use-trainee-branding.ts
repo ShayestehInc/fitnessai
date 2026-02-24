@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 
-interface TraineeBranding {
+export interface TraineeBranding {
   app_name: string;
   primary_color: string;
   secondary_color: string;
@@ -38,4 +38,8 @@ export function useTraineeBranding(): {
 
 export function getBrandingDisplayName(branding: TraineeBranding): string {
   return branding.app_name.trim() || "FitnessAI";
+}
+
+export function hasCustomPrimaryColor(branding: TraineeBranding): boolean {
+  return branding.primary_color.toLowerCase() !== DEFAULT_BRANDING.primary_color.toLowerCase();
 }

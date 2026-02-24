@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { Dumbbell, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTraineeBadgeCounts, getBadgeCount } from "@/hooks/use-trainee-badge-counts";
-import { useTraineeBranding, getBrandingDisplayName } from "@/hooks/use-trainee-branding";
+import { useTraineeBranding, getBrandingDisplayName, hasCustomPrimaryColor } from "@/hooks/use-trainee-branding";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -56,6 +56,7 @@ export function TraineeSidebar({ collapsed, onToggle }: TraineeSidebarProps) {
   const counts = useTraineeBadgeCounts();
   const { branding, isLoading: brandingLoading } = useTraineeBranding();
   const displayName = getBrandingDisplayName(branding);
+  const isCustomColor = hasCustomPrimaryColor(branding);
 
   return (
     <aside
@@ -63,11 +64,6 @@ export function TraineeSidebar({ collapsed, onToggle }: TraineeSidebarProps) {
         "hidden shrink-0 border-r bg-sidebar transition-[width] duration-200 lg:block",
         collapsed ? "w-16" : "w-64",
       )}
-      style={
-        branding.primary_color !== "#6366F1"
-          ? ({ "--sidebar-accent-brand": branding.primary_color } as React.CSSProperties)
-          : undefined
-      }
     >
       <div className="flex h-full flex-col">
         <div
@@ -150,7 +146,7 @@ export function TraineeSidebar({ collapsed, onToggle }: TraineeSidebarProps) {
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
                   )}
                   style={
-                    isActive && branding.primary_color !== "#6366F1"
+                    isActive && isCustomColor
                       ? { backgroundColor: `${branding.primary_color}20` }
                       : undefined
                   }
@@ -160,7 +156,7 @@ export function TraineeSidebar({ collapsed, onToggle }: TraineeSidebarProps) {
                       className="h-4 w-4"
                       aria-hidden="true"
                       style={
-                        isActive && branding.primary_color !== "#6366F1"
+                        isActive && isCustomColor
                           ? { color: branding.primary_color }
                           : undefined
                       }
