@@ -163,7 +163,7 @@ export function ProgramViewer({ programs }: ProgramViewerProps) {
       {weeks.length > 0 && (
         <div className="space-y-4">
           <div
-            className="flex gap-1 overflow-x-auto pb-1"
+            className="scrollbar-thin -mx-1 flex gap-1 overflow-x-auto px-1 pb-2"
             role="tablist"
             aria-label="Program weeks"
           >
@@ -194,7 +194,7 @@ export function ProgramViewer({ programs }: ProgramViewerProps) {
               id={`week-panel-${selectedWeek}`}
               role="tabpanel"
               aria-label={`Week ${currentWeek.week_number} schedule`}
-              className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             >
               {currentWeek.days.map((day, dayIdx) => (
                 <DayCard key={dayIdx} day={day} dayIndex={dayIdx} />

@@ -76,7 +76,7 @@ export function WorkoutDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-[600px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-h-[80vh] sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{workoutName}</DialogTitle>
           <DialogDescription>
@@ -127,15 +127,15 @@ export function WorkoutDetailDialog({
                   {ex.sets.map((set) => (
                     <div
                       key={set.set_number}
-                      className="flex items-center gap-3 text-sm"
+                      className="flex items-center gap-2 text-sm sm:gap-3"
                     >
-                      <span className="w-12 text-muted-foreground">
-                        Set {set.set_number}
+                      <span className="w-8 shrink-0 text-muted-foreground sm:w-12">
+                        S{set.set_number}
                       </span>
-                      <span className="w-16">
+                      <span className="w-14 shrink-0 sm:w-16">
                         {set.reps} reps
                       </span>
-                      <span className="w-20">
+                      <span className="min-w-0 flex-1 truncate">
                         {set.weight > 0
                           ? `${set.weight} ${set.unit || "lbs"}`
                           : "BW"}

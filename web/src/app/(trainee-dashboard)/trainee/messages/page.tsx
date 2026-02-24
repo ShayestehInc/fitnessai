@@ -161,7 +161,7 @@ function TraineeMessagesContent() {
           )}
         </div>
 
-        <div className="flex flex-1 overflow-hidden rounded-lg border bg-card">
+        <div className="flex flex-1 overflow-hidden rounded-lg border bg-card" style={{ maxHeight: "calc(100dvh - 10rem)" }}>
           {/* Sidebar: conversation list or search */}
           <div
             className={`w-full shrink-0 overflow-y-auto border-r md:w-80 ${

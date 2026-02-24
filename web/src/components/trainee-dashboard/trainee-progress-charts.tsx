@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { format, parseISO, isValid } from "date-fns";
 import { Scale, Dumbbell, CalendarCheck, Plus } from "lucide-react";
 import {
@@ -40,6 +41,18 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
+function useIsMobile(breakpoint = 640): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 function ChartSkeleton() {
   return (
     <Card aria-busy="true">
@@ -59,6 +72,7 @@ interface WeightTrendChartProps {
 }
 
 export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
+  const isMobile = useIsMobile();
   const { data: checkIns, isLoading, isError, refetch } =
     useTraineeWeightHistory();
 
@@ -121,20 +135,25 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[250px]" role="img" aria-label="Weight trend chart">
+        <div className="h-[220px] sm:h-[250px]" role="img" aria-label="Weight trend chart">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
+            <LineChart data={chartData} margin={{ left: isMobile ? -10 : 0, right: 8 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis
                 dataKey="date"
                 className="text-xs"
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: isMobile ? 10 : 12 }}
+                angle={isMobile ? -45 : 0}
+                textAnchor={isMobile ? "end" : "middle"}
+                height={isMobile ? 50 : 30}
+                interval={isMobile ? "preserveStartEnd" : 0}
               />
               <YAxis
                 className="text-xs"
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: isMobile ? 10 : 12 }}
                 domain={["dataMin - 2", "dataMax + 2"]}
                 unit=" kg"
+                width={isMobile ? 45 : 60}
               />
               <Tooltip contentStyle={tooltipContentStyle} />
               <Line
@@ -162,6 +181,7 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
 }
 
 export function WorkoutVolumeChart() {
+  const isMobile = useIsMobile();
   const { data, isLoading, isError, refetch } = useTraineeWorkoutHistory(1);
 
   if (isLoading) return <ChartSkeleton />;
@@ -217,18 +237,23 @@ export function WorkoutVolumeChart() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[250px]" role="img" aria-label="Workout volume chart">
+        <div className="h-[220px] sm:h-[250px]" role="img" aria-label="Workout volume chart">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
+            <BarChart data={chartData} margin={{ left: isMobile ? -10 : 0, right: 8 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis
                 dataKey="date"
                 className="text-xs"
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: isMobile ? 10 : 12 }}
+                angle={isMobile ? -45 : 0}
+                textAnchor={isMobile ? "end" : "middle"}
+                height={isMobile ? 50 : 30}
+                interval={isMobile ? "preserveStartEnd" : 0}
               />
               <YAxis
                 className="text-xs"
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: isMobile ? 10 : 12 }}
+                width={isMobile ? 40 : 60}
               />
               <Tooltip
                 contentStyle={tooltipContentStyle}

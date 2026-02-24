@@ -21,7 +21,7 @@ export default function TraineeProgressPage() {
           description="Track your training progress and body weight trends."
         />
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
           <WeightTrendChart
             onOpenLogWeight={() => setWeightDialogOpen(true)}
           />
