@@ -148,7 +148,7 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
           if (!open) closeDeleteDialog();
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Remove this meal?</DialogTitle>
             <DialogDescription>
