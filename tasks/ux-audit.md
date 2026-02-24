@@ -1,14 +1,15 @@
-# UX Audit: Trainee Web -- Trainer Branding Application (Pipeline 34)
+# UX Audit: Trainee Web Nutrition Page
 
 ## Audit Date
-2026-02-23
+2026-02-24
 
 ## Files Audited
-- `web/src/hooks/use-trainee-branding.ts`
-- `web/src/components/trainee-dashboard/trainee-sidebar.tsx`
-- `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx`
-- `web/src/components/trainee-dashboard/trainee-nav-links.tsx`
-- `web/src/components/trainee-dashboard/trainee-header.tsx`
+- `web/src/components/trainee-dashboard/nutrition-page.tsx`
+- `web/src/components/trainee-dashboard/meal-log-input.tsx`
+- `web/src/components/trainee-dashboard/meal-history.tsx`
+- `web/src/components/trainee-dashboard/macro-preset-chips.tsx`
+- `web/src/components/shared/macro-bar.tsx`
+- `web/src/app/(trainee-dashboard)/trainee/nutrition/page.tsx`
 
 ---
 
@@ -16,10 +17,24 @@
 
 | # | Severity | Screen/Component | Issue | Fix Applied |
 |---|----------|-----------------|-------|-------------|
-| 1 | Minor | trainee-sidebar.tsx | Nav link label text lacked `truncate` class (inconsistent with trainer sidebar pattern in `sidebar.tsx` line 124) -- could cause horizontal overflow with unusually long labels | Added `truncate` class to nav label `<span>` at line 174 |
-| 2 | Minor | trainee-sidebar-mobile.tsx | `SheetTitle` lacked `title` attribute for long brand names -- truncated names had no way for user to see the full text | Added `title` tooltip matching desktop sidebar pattern (shows on hover when name > 15 chars) |
-| 3 | Info | trainee-sidebar-mobile.tsx | Logo rendering was inlined with its own separate `imgError` state management, duplicating logic from desktop's `BrandLogo` component. Could drift in behavior over time. | Extracted local `BrandLogo` component within mobile file with consistent rendering pattern |
-| 4 | Low | Both sidebars | Custom branding colors have no contrast validation -- a trainer could pick a very light primary color (e.g., `#FFFF00`) that would be invisible against the sidebar background | NOT FIXED -- This belongs at the input layer (trainer branding settings form), not the rendering layer. The sidebars correctly render whatever color they receive. Recommend: add minimum contrast ratio check in the trainer branding settings page. |
+| 1 | Major | macro-bar.tsx | When consumed exceeds goal (e.g., 250g protein vs 200g goal), the progress bar capped at 100% with no visual distinction. Users had no way to tell they had exceeded their target. | Added amber color styling when over goal, "over" indicator showing (+amount), and `aria-valuetext` with "exceeded by" message. Bar color changes to amber via `--chart-5` CSS variable. |
+| 2 | Major | meal-log-input.tsx | Character count only appeared after exceeding the 2000-char limit. Users had no progressive feedback as they approached it. | Added `CHAR_COUNT_THRESHOLD` (200 chars before limit). Character count now appears at 1800+ characters, turns destructive red with helper text when over. |
+| 3 | Medium | meal-log-input.tsx | Submit button `aria-label` was "Parse meal" -- technical jargon. Users of screen readers would not understand what "parse" means. | Changed to "Analyze meal" (default) and "Analyzing your meal..." (loading state). |
+| 4 | Medium | meal-log-input.tsx | The `<Input>` had no `aria-describedby` linking it to the helper text "Describe what you ate in natural language". Screen reader users missed this context. | Added `useId()` for `helpTextId` and `charCountId`. Input now has `aria-describedby` linking to both the helper text and the character count (when visible). |
+| 5 | Medium | meal-log-input.tsx | Parsed items list had no semantic list markup (`role="list"` / `role="listitem"`). Screen readers saw a flat div soup. | Added `role="list"` with `aria-label="Detected food items"` on the container and `role="listitem"` on each parsed meal. |
+| 6 | Medium | meal-log-input.tsx | Copy: "Parsed items (3)" is developer language. Users do not think in terms of "parsing". | Changed to "Detected 3 items" (or "Detected 1 item" for singular). |
+| 7 | Medium | meal-history.tsx | Empty state was plain centered text with no visual anchor. Other empty states in the app (e.g., nutrition goals) use icons. | Added a faded `UtensilsCrossed` icon (h-8 w-8, 40% opacity) above the empty text. Padding increased to `py-8` for breathing room. |
+| 8 | Medium | meal-history.tsx & meal-log-input.tsx | Macro abbreviations (P, C, F) were unlabeled for screen readers. A visually impaired user would hear "P colon 25 g" without context. | Added `aria-label` attributes: "Protein: 25 grams", "Carbs: 30 grams", "Fat: 12 grams" on each span. |
+| 9 | Medium | meal-history.tsx | Macro values could overflow on small screens when meal names are long, since the macro `<div>` did not wrap. | Added `flex-wrap` class to the macro values container in both meal-history and meal-log-input. |
+| 10 | Low | macro-preset-chips.tsx | No loading state -- while presets were loading, the section simply rendered nothing. Flash of empty content. | Added skeleton loading state with two pill-shaped placeholders and `aria-busy="true"`. |
+| 11 | Low | macro-preset-chips.tsx | Preset container had no list semantics for screen readers. | Added `role="list"` with `aria-label="Nutrition presets"` on container, `role="listitem"` on each Badge. |
+| 12 | Low | nutrition-page.tsx | Date display did not announce changes to screen readers. Navigating days was visually clear but silent for assistive tech. | Added `aria-live="polite"` and `aria-atomic="true"` on the date display span. |
+| 13 | Low | nutrition-page.tsx | "Next day" button when disabled (already on today) gave no context about why it was disabled. | Added dynamic `aria-label`: "Next day (already viewing today)" when disabled, "Next day" otherwise. |
+| 14 | Low | nutrition-page.tsx | Loading skeletons had no screen reader announcement. | Added `aria-busy="true"` and `aria-label` ("Loading macro goals" / "Loading meal history") to skeleton Card wrappers. |
+| 15 | Low | nutrition-page.tsx | Date navigation showed the formatted date even when viewing today, making it slightly harder to quickly identify "am I looking at today?". | Changed display to show "Today" when viewing today's date. The macro goals subtitle now shows "Today, Mon Feb 24, 2026" for full context. |
+| 16 | Low | meal-log-input.tsx | Cancel button in the confirm/cancel footer had no `aria-label` explaining what is being cancelled. | Added `aria-label="Cancel and discard detected items"`. |
+| 17 | Low | macro-bar.tsx | Numerals in the consumed/goal display were not tabular-aligned, causing visual jitter as numbers changed. | Added `tabular-nums` class to the numeric span for consistent digit widths. |
+| 18 | Low | meal-log-input.tsx | Parsed meal item names had no `truncate` or `min-w-0` -- very long food names could push macro values off screen. | Added `min-w-0 truncate` on the name span and `ml-3 shrink-0` on the macros container to prevent overflow. |
 
 ---
 
@@ -27,35 +42,52 @@
 
 | # | WCAG Level | Component | Issue | Fix Applied |
 |---|------------|-----------|-------|-------------|
-| 1 | A (1.1.1) | trainee-sidebar.tsx, trainee-sidebar-mobile.tsx | Brand logo `Image` used `alt=""` with `aria-hidden="true"`, treating trainer logos as decorative. When a custom logo is present, it conveys brand identity and should have meaningful alt text. | Changed `alt` to `{displayName} logo`. Removed `aria-hidden` from Image. Fallback Dumbbell icon remains `aria-hidden="true"` since the brand name is conveyed by adjacent text. |
-| 2 | A (1.3.1) | trainee-sidebar.tsx | Collapsed sidebar badge dot (red circle at line 165) was purely visual with no screen reader equivalent -- screen reader users in collapsed mode would have no idea about unread items | Added `<span className="sr-only">{badgeCount} unread</span>` inside the badge dot wrapper |
+| 1 | A (1.3.1) | meal-log-input.tsx | Parsed items list lacked semantic structure (no role="list" / role="listitem"). | Added ARIA list roles and label. |
+| 2 | A (1.3.1) | macro-preset-chips.tsx | Preset chips container lacked list semantics. | Added role="list" with aria-label, role="listitem" on each Badge. |
+| 3 | A (4.1.2) | meal-log-input.tsx | Input field not programmatically linked to its description text. | Connected via aria-describedby using useId(). |
+| 4 | A (4.1.3) | nutrition-page.tsx | Date changes not announced to screen readers. | Added aria-live="polite" region. |
+| 5 | AA (1.4.13) | macro-bar.tsx | No aria-valuetext on progress bars, only generic percentage. | Added descriptive aria-valuetext with label, values, and over-goal status. |
+| 6 | A (1.1.1) | meal-history.tsx, meal-log-input.tsx | Macro abbreviations (P, C, F) not expanded for screen readers. | Added aria-label on each abbreviated span. |
 
 ---
 
 ## Missing States Checklist
 
-- [x] Loading / skeleton -- Both desktop and mobile show `Skeleton` placeholders while branding loads. Desktop shows skeleton for logo (h-6 w-6) and name (h-5 w-24); collapsed state correctly hides name skeleton. Mobile matches.
-- [x] Empty / zero data -- `getBrandingDisplayName` falls back to "FitnessAI" when `app_name` is empty. `BrandLogo` falls back to Dumbbell icon when `logo_url` is null.
-- [x] Error / failure -- `BrandLogo` handles image load errors via `onError` -> falls back to Dumbbell. `useQuery` with `retry: 1` retries once on API failure, then falls back to `DEFAULT_BRANDING`.
-- [x] Success / confirmation -- N/A for read-only branding display (no user mutations).
-- [x] Offline / degraded -- Hook falls back to `DEFAULT_BRANDING` (default indigo color, "FitnessAI" name, no logo) ensuring sidebar is always functional. `staleTime: 5 * 60 * 1000` provides caching.
-- [x] Permission denied -- Hook uses `retry: 1`; a 401/403 will be retried once then fall back to defaults. Acceptable since branding is non-critical UI chrome.
+- [x] Loading / skeleton -- MacrosSkeleton and MealHistorySkeleton provide card-level skeletons with correct dimensions. MacroPresetChips now has its own pill-shaped skeleton. All annotated with aria-busy.
+- [x] Empty / zero data -- "No nutrition goals set" with CircleSlash icon when trainer hasn't configured goals. "No meals logged yet" with faded UtensilsCrossed icon in meal history. Presets silently hidden when empty (supplementary UI).
+- [x] Error / failure -- ErrorState with retry button shown for failed nutrition data fetch. Toast messages for parse failures ("Couldn't understand that. Try rephrasing."), save failures ("Failed to save meal."), and delete failures ("Failed to remove meal."). Parse error state clears when user starts typing again.
+- [x] Success / confirmation -- Toast "Meal logged!" on successful save. Toast "Meal removed" on successful delete. Input auto-clears and re-focuses after save. Delete dialog auto-closes.
+- [x] Offline / degraded -- react-query retry logic handles transient failures. 5-minute staleTime provides caching. Error state shows retry button.
+- [x] Permission denied -- Not explicitly handled at this level; relies on the global auth interceptor. Acceptable since this is a trainee-only page behind auth.
 
 ---
 
 ## What Was Already Well-Done
 
-1. **Loading skeletons match content dimensions** -- Skeleton sizes (h-6 w-6 for logo, h-5 w-24 for text) match actual content, preventing layout shift on load.
-2. **Graceful fallbacks at every level** -- Hook defaults, display name fallback, image error fallback are all handled with no broken states.
-3. **Custom color application is tasteful** -- Using 12.5% opacity (`20` hex suffix) for background tint and full color for icon creates a subtle, professional branded feel that works with most colors.
-4. **Keyboard navigation intact** -- All nav links are proper `<Link>` elements with `aria-current="page"` for active state. Collapsed mode has tooltips via `TooltipProvider`. Toggle buttons have descriptive aria-labels.
-5. **Smooth transition animation** -- `transition-[width] duration-200` provides polished sidebar collapse/expand.
-6. **Consistent with existing patterns** -- Trainee sidebar follows the same structural conventions as the trainer/admin sidebars (same header height, collapse behavior, nav spacing, tooltip pattern).
-7. **`staleTime` on branding query** -- 5-minute stale time prevents unnecessary refetches of branding data which changes very infrequently.
-8. **`unoptimized` on trainer logo** -- Correctly bypasses Next.js image optimization for external/dynamic logo URLs, preventing build-time errors.
+1. **Keyboard navigation excellent** -- Enter to parse/confirm, Escape to cancel parsed results. The linter further improved this by making Enter confirm parsed results when they're displayed.
+2. **Delete confirmation dialog** -- Proper dialog with descriptive title, meal name in description, cancel/destructive button pair. Dialog cannot be dismissed while deletion is in-flight.
+3. **Input validation** -- Max length enforced, empty input disabled, over-limit shown. Date validation in the hook layer.
+4. **Clarification flow** -- When the AI needs more info, a warm amber alert with clear copy ("Need more details") appears. Dismiss button present.
+5. **Date auto-advance** -- Tab staying open past midnight correctly advances to the new day if the user was viewing "today". Implemented with a clean interval pattern.
+6. **Cannot navigate to future dates** -- Next day button properly disabled when viewing today, preventing confusion.
+7. **Optimistic-feeling UX** -- Toast messages are immediate on success/error. Focus returns to input after logging. Query invalidation ensures fresh data.
+8. **Consistent card pattern** -- All sections use the same Card/CardHeader/CardContent structure with consistent `pb-3` header padding and `text-base` title size.
+9. **Screen reader support was already good** -- aria-labels on nav buttons, aria-hidden on decorative icons, role="alert" on error messages, sr-only for active preset. Audit improved it further.
+10. **Linter auto-refactored delete state** -- The delete dialog now captures the meal name at open-time (via `deleteTarget: {index, name}`), preventing stale-name issues if the meals array changes during the dialog being open. This is a race-condition fix.
 
 ---
 
-## Overall UX Score: 9/10
+## Not Fixed (Require Design Decisions)
 
-**Rationale:** The branding implementation is solid and production-ready. All critical states (loading, error, empty, populated) are handled with appropriate fallbacks. The design pattern of tinting the active nav link with the brand color at low opacity is tasteful and works well. Accessibility was good from the start (aria-labels on buttons, aria-current on links, semantic nav landmarks) and has been improved with meaningful alt text on logos and screen reader text for collapsed badge dots. The only area not addressed is contrast validation for custom brand colors, which belongs in the settings/input layer rather than the rendering layer. The gap from 9 to 10 would require: (1) adding contrast validation on the trainer settings page, and (2) potentially animating the brand color transitions when branding data loads.
+| # | Severity | Issue | Recommendation |
+|---|----------|-------|----------------|
+| 1 | Low | No way for trainees to edit a logged meal -- only delete and re-log. | Consider adding an edit flow or inline editing for meal name/macros. |
+| 2 | Low | No total calories summary displayed at the top of the Meals card. Users must mentally sum logged meals. | Consider adding a small summary row: "Total: 1,450 kcal" at the bottom of the meal list. |
+| 3 | Info | Macro bar does not show percentage text (e.g., "75%") -- only the progress bar fill. Some users may prefer explicit percentage. | Consider optional percentage display on hover or as a tooltip. |
+| 4 | Info | No meal timestamps displayed in meal history, even though the data model has a `timestamp` field. | Consider showing "Logged at 2:30 PM" on each meal entry for users who log multiple meals throughout the day. |
+
+---
+
+## Overall UX Score: 8.5/10
+
+**Rationale:** The nutrition page was well-built from the start with solid patterns: proper error/loading/empty states, good keyboard shortcuts, correct ARIA labeling on most interactive elements, and consistent card-based layout matching the rest of the trainee dashboard. The main gaps were in progressive feedback (character count, over-goal visual), screen reader completeness (missing aria-describedby, list semantics, date announcements, macro abbreviation expansion), and a few visual polish items (empty state icon, tabular-nums, text truncation). All 18 issues have been fixed. The 1.5 points off are for: (1) no meal editing capability (delete-and-relog is clunky), (2) no total calorie summary in the meals card, and (3) unused timestamp data that could add value. These are product decisions rather than implementation bugs.

@@ -1,198 +1,61 @@
-# Architecture Review: Trainee Web -- Trainer Branding Application (Pipeline 34)
+# Architecture Review: Trainee Web Nutrition Page
 
 ## Review Date
-2026-02-23
+2026-02-24
 
 ## Files Reviewed
-
-**New/Modified Components (Pipeline 34 scope):**
-- `web/src/components/trainee-dashboard/trainee-sidebar.tsx` -- desktop sidebar with branding
-- `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx` -- mobile sidebar with branding
-- `web/src/components/trainee-dashboard/brand-logo.tsx` -- **extracted** shared BrandLogo component
-
-**New/Modified Hooks:**
-- `web/src/hooks/use-trainee-branding.ts` -- React Query hook for trainee-facing branding data
-
-**New/Modified Types:**
-- `web/src/types/branding.ts` -- `TraineeBranding` interface moved here (alongside existing `TrainerBranding`)
-
-**Comparison Files Reviewed (existing patterns):**
-- `web/src/hooks/use-branding.ts` -- trainer-side branding hook (for pattern comparison)
-- `web/src/types/branding.ts` -- existing `TrainerBranding` type
-- `web/src/lib/constants.ts` -- `API_URLS.TRAINEE_BRANDING` endpoint
-- `web/src/lib/api-client.ts` -- API client pattern
-- `web/src/components/layout/sidebar.tsx` -- trainer desktop sidebar (structural reference)
-- `web/src/components/layout/sidebar-mobile.tsx` -- trainer mobile sidebar (structural reference)
-- `web/src/components/layout/admin-sidebar.tsx` -- admin desktop sidebar (structural reference)
-- `web/src/components/layout/admin-sidebar-mobile.tsx` -- admin mobile sidebar (structural reference)
-- `web/src/components/layout/ambassador-sidebar.tsx` -- ambassador desktop sidebar (structural reference)
-- `web/src/components/layout/ambassador-sidebar-mobile.tsx` -- ambassador mobile sidebar (structural reference)
-- `backend/users/views.py` -- `MyBrandingView` endpoint (API contract verification)
-- `backend/trainer/serializers.py` -- `TrainerBrandingSerializer` (response shape verification)
+- `web/src/hooks/use-trainee-nutrition.ts`
+- `web/src/hooks/use-trainee-dashboard.ts`
+- `web/src/components/trainee-dashboard/nutrition-page.tsx`
+- `web/src/components/trainee-dashboard/meal-log-input.tsx`
+- `web/src/components/trainee-dashboard/meal-history.tsx`
+- `web/src/components/trainee-dashboard/macro-preset-chips.tsx`
+- `web/src/components/shared/macro-bar.tsx`
+- `web/src/types/trainee-dashboard.ts`
+- `web/src/types/trainee-view.ts`
+- `web/src/lib/constants.ts`
+- `web/src/lib/schedule-utils.ts`
+- `web/src/lib/api-client.ts`
+- `web/src/components/ui/progress.tsx`
+- `web/src/components/trainee-dashboard/nutrition-summary-card.tsx`
+- `backend/workouts/serializers.py`
+- `backend/workouts/views.py`
 
 ---
 
 ## Architectural Alignment
+- [x] Follows existing layered architecture
+- [x] Models/schemas in correct locations
+- [x] No business logic in routers/views (components are purely rendering; mutations and queries in hook layer)
+- [x] Consistent with existing patterns
 
-- [x] Follows existing layered architecture (hook for data fetching, component for UI, types in `types/`)
-- [x] Models/schemas in correct locations (after fix: `TraineeBranding` moved to `types/branding.ts`)
-- [x] No business logic in components (display name derivation and color comparison are pure utility functions in the hook module)
-- [x] Consistent with existing patterns (mirrors `use-branding.ts` / `TrainerBranding` patterns)
+### Layering Assessment
 
----
+**Hook Layer (`use-trainee-nutrition.ts`)**
 
-## 1. LAYERING -- Business Logic in Right Layer?
+Follows the exact same conventions as `use-trainee-dashboard.ts`:
+- React Query `useMutation`/`useQuery` wrappers returning typed results
+- API URLs from the centralized `constants.ts` object
+- Proper cache invalidation on mutation success targeting `["trainee-dashboard", "nutrition-summary", date]` and `["trainee-dashboard", "today-log", date]`
+- Input validation (`assertValidDate`) in the hook layer, guarding against developer misuse
+- `STALE_TIME` constant consistent with the dashboard hook (5 minutes)
 
-**Score: 10/10**
+**Component Layer**
 
-The layering is textbook:
+Clear separation of concerns:
+- `NutritionPage` -- orchestrator: date state management, data fetching, conditional rendering
+- `MealLogInput` -- encapsulates the parse-then-confirm two-step mutation lifecycle
+- `MealHistory` -- handles meal display and deletion with a confirmation dialog
+- `MacroPresetChips` -- read-only display of trainer-created presets with active detection
+- `MacroBar` -- pure presentational component (correctly omits `"use client"`)
 
-| Layer | File | Responsibility |
-|-------|------|---------------|
-| Types | `types/branding.ts` | `TraineeBranding` interface |
-| Data | `hooks/use-trainee-branding.ts` | React Query fetch + defaults + utility functions |
-| UI | `trainee-sidebar.tsx`, `trainee-sidebar-mobile.tsx` | Consume hook, render branding |
-| Shared UI | `brand-logo.tsx` | Reusable logo rendering with error fallback |
+**Type Layer**
 
-The hook cleanly separates three concerns:
-1. **Data fetching** (`useTraineeBranding`) -- query, staleTime, retry, default fallback
-2. **Display logic** (`getBrandingDisplayName`) -- pure function, no side effects
-3. **Color detection** (`hasCustomPrimaryColor`) -- pure comparison function
+Types are intentionally split:
+- `trainee-dashboard.ts` -- dashboard-specific types (workout history, weight, AI parsing, macro presets)
+- `trainee-view.ts` -- types shared with the impersonation view (NutritionSummary, MacroValues, NutritionMeal)
 
-Components consume these without any data-fetching logic of their own. The sidebar components only deal with presentation: skeleton states, layout, active-link highlighting with branded colors.
-
----
-
-## 2. DATA MODEL -- Types Match Backend? Well-Defined?
-
-**Score: 9/10**
-
-**API contract verification:**
-
-The backend `MyBrandingView` returns:
-```python
-{'app_name': str, 'primary_color': str, 'secondary_color': str, 'logo_url': str | None}
-```
-
-The frontend `TraineeBranding` interface matches exactly:
-```typescript
-{ app_name: string; primary_color: string; secondary_color: string; logo_url: string | null; }
-```
-
-**Field naming discrepancy (documented, correct):**
-- `TrainerBranding.logo` (relative path, used for CRUD in trainer branding settings)
-- `TraineeBranding.logo_url` (absolute URL from `SerializerMethodField`, read-only for trainees)
-
-This is not a bug -- it correctly reflects two different API contracts. The `TrainerBrandingSerializer` exposes `logo_url` as a `SerializerMethodField` that calls `request.build_absolute_uri()`, while the trainer-facing CRUD uses the raw `logo` field. I added a JSDoc comment to `types/branding.ts` documenting this intentional difference.
-
-**Default branding values:**
-```typescript
-const DEFAULT_BRANDING: TraineeBranding = {
-  app_name: "",
-  primary_color: "#6366F1",
-  secondary_color: "#818CF8",
-  logo_url: null,
-};
-```
-
-These match the backend's `_DEFAULT_BRANDING_RESPONSE` exactly (`TrainerBranding.DEFAULT_PRIMARY_COLOR` = `#6366F1`, `DEFAULT_SECONDARY_COLOR` = `#818CF8`). Backward-compatible -- trainees with no trainer or no branding configured will see the FitnessAI defaults.
-
----
-
-## 3. API DESIGN -- React Query Setup Correct? Cache Strategy Appropriate?
-
-**Score: 10/10**
-
-```typescript
-useQuery<TraineeBranding>({
-  queryKey: ["trainee-branding"],
-  queryFn: () => apiClient.get<TraineeBranding>(API_URLS.TRAINEE_BRANDING),
-  staleTime: 5 * 60 * 1000,
-  retry: 1,
-});
-```
-
-**Cache strategy analysis:**
-
-| Aspect | Choice | Rationale |
-|--------|--------|-----------|
-| `staleTime: 5min` | Correct | Branding changes infrequently (trainer updates once, maybe never again). 5 minutes prevents unnecessary refetches while still picking up changes within a session. |
-| `retry: 1` | Correct | Branding is non-critical UI enhancement. One retry is sufficient; failing silently to defaults is the right behavior. |
-| Query key `["trainee-branding"]` | Correct | Simple, stable key. No parameterization needed (one branding per trainee session). No collision with trainer-side `["branding"]` key used in `use-branding.ts`. |
-| Default fallback `data ?? DEFAULT_BRANDING` | Correct | Graceful degradation -- the sidebar renders with FitnessAI defaults during loading or on error. |
-
-**API URL centralized:**
-```typescript
-TRAINEE_BRANDING: `${API_BASE}/api/users/my-branding/`,
-```
-
-Follows the existing `TRAINEE_*` naming pattern used for `TRAINEE_PROGRAMS`, `TRAINEE_NUTRITION_SUMMARY`, etc.
-
----
-
-## 4. FRONTEND PATTERNS -- Components Follow Conventions? DRY?
-
-**Score: 9/10 (after fixes)**
-
-### Issues Found and Fixed
-
-**Issue 1 (Major -- fixed): DRY violation in BrandLogo**
-
-Both `trainee-sidebar.tsx` and `trainee-sidebar-mobile.tsx` contained independent implementations of a `BrandLogo` component with the same logic: accept a `logoUrl`, manage `imgError` state, fall back to `<Dumbbell>` on error. The implementations were nearly identical but subtly different (desktop version accepted a `size` prop, mobile version was hardcoded to `h-6 w-6`).
-
-**Fix:** Extracted `BrandLogo` to `/web/src/components/trainee-dashboard/brand-logo.tsx` as a shared component with `logoUrl`, `altText`, and `size` props. Both sidebars now import from the shared file. Removed ~25 lines of duplicated code per sidebar.
-
-**Issue 2 (Minor -- fixed): Type defined in wrong layer**
-
-The `TraineeBranding` interface was defined inline in `hooks/use-trainee-branding.ts`. The codebase convention is types in `types/` directory -- `TrainerBranding` is in `types/branding.ts`, `WorkoutHistoryItem` is in `types/trainee-dashboard.ts`, etc.
-
-**Fix:** Moved `TraineeBranding` to `types/branding.ts` (collocated with the related `TrainerBranding` type). The hook file now imports from `@/types/branding` and re-exports the type for convenience.
-
-### Patterns That Align Well
-
-- Both sidebars follow the exact structural pattern of the trainer/admin/ambassador sidebars: same class names, same collapse behavior, same tooltip pattern
-- Loading states use `<Skeleton>` consistently with other sidebars
-- Badge rendering follows the same pattern as the trainer sidebar's unread count badges
-- Custom color application (`style={{ backgroundColor: ... }}`) is a safe progressive enhancement -- falls back to theme colors when `isCustomColor` is false
-- The `${branding.primary_color}20` pattern (appending hex alpha) is a clean approach for creating a tinted background without needing CSS variable injection
-
----
-
-## 5. SCALABILITY -- Re-renders, Performance
-
-**Score: 10/10**
-
-**No unnecessary re-renders:**
-- `useTraineeBranding()` is called once per sidebar component. Since both desktop and mobile sidebars are never mounted simultaneously (desktop is `hidden lg:block`, mobile is a Sheet), the React Query cache serves both efficiently with zero duplicate network requests.
-- `getBrandingDisplayName` and `hasCustomPrimaryColor` are pure functions called during render -- no memo needed since their inputs (`branding` object) only change when the query refetches.
-- `BrandLogo` uses local `useState` for `imgError` -- this is the correct pattern. The error state is per-mount, so if the image 404s, only the mounted instance re-renders.
-
-**No N+1 patterns:**
-- One API call fetches all branding data. No per-field fetching, no waterfall.
-
-**Image optimization:**
-- `unoptimized` prop on `next/image` is correct for user-uploaded logos from the backend (external URLs that Next.js image optimizer may not be configured for).
-
----
-
-## 6. TECHNICAL DEBT -- Introduced or Reduced?
-
-**Score: 9/10 (net positive after fixes)**
-
-### Debt Reduced (by this review)
-
-| # | Change | Impact |
-|---|--------|--------|
-| 1 | Extracted `BrandLogo` to shared component | Eliminates ~50 lines of duplication between sidebars. Future branding-aware components can import and reuse. |
-| 2 | Moved `TraineeBranding` to `types/branding.ts` | All branding types now live in one file, consistent with codebase convention. |
-| 3 | Added JSDoc documenting `logo` vs `logo_url` field difference | Prevents future confusion when someone sees both types side by side. |
-
-### Debt Remaining (pre-existing, not introduced by this pipeline)
-
-| # | Description | Severity | Suggested Resolution |
-|---|-------------|----------|---------------------|
-| 1 | Trainer sidebar (`layout/sidebar.tsx`) does not use trainer branding | Low | Future pipeline: apply same branding pattern to the trainer's own sidebar when viewing their dashboard |
-| 2 | No shared `ActiveLinkStyle` utility for branded active states | Low | The `style={{ backgroundColor: \`\${color}20\` }}` pattern is now repeated in both sidebars. If branding expands to more components, extract a `getBrandedActiveStyle(branding, isActive)` utility. Not needed yet. |
+This split is correct. `NutritionSummary` and `NutritionMeal` are referenced by both the summary card on the trainee dashboard home and the full nutrition page.
 
 ---
 
@@ -200,24 +63,66 @@ The `TraineeBranding` interface was defined inline in `hooks/use-trainee-brandin
 
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | N/A | No backend schema changes -- reads existing `my-branding/` endpoint |
+| Schema changes backward-compatible | N/A | No schema changes -- purely frontend |
 | Migrations reversible | N/A | No migrations |
-| Indexes added for new queries | N/A | Uses existing endpoint |
-| No N+1 query patterns | PASS | Single API call for all branding data |
-| Types match API contracts | PASS | `TraineeBranding` exactly matches `MyBrandingView` response shape (verified against backend code) |
-| Default values match backend | PASS | `DEFAULT_BRANDING` matches `_DEFAULT_BRANDING_RESPONSE` in `MyBrandingView` |
+| Indexes added for new queries | N/A | No new backend queries |
+| No N+1 query patterns | PASS | Single query per data need (nutrition summary, macro presets, today log) |
+
+### Frontend-to-Backend Type Alignment
+
+| Frontend Type | Backend Serializer | Match |
+|---------------|-------------------|-------|
+| `MacroPreset` (`trainee-dashboard.ts`) | `MacroPresetSerializer` | PASS -- All 13 fields match exactly |
+| `ParseNaturalLanguageResponse` | `NaturalLanguageLogResponseSerializer` | PASS -- Fields match: `nutrition`, `workout`, `confidence`, `needs_clarification`, `clarification_question` |
+| `ConfirmAndSavePayload` | `ConfirmLogSaveSerializer` | PASS -- `parsed_data`, `date`, `confirm` |
+| `NutritionSummary` (`trainee-view.ts`) | `nutrition_summary` action response | PASS -- `date`, `goals`, `consumed`, `remaining`, `meals`, `per_meal_targets` |
+| `NutritionMeal` (`trainee-view.ts`) | Meal entries in `nutrition_data.meals` JSON | PASS -- `name`, `protein`, `carbs`, `fat`, `calories`, `timestamp` |
+
+**Minor note**: The inline type for meals in `ParseNaturalLanguageResponse.nutrition.meals` omits `timestamp` compared to `NutritionMeal`. This is correct because timestamps are not available at parse time -- they are added when the meal is saved. Using a separate inline type (rather than `Omit<NutritionMeal, 'timestamp'>`) avoids coupling.
+
+---
 
 ## Scalability Concerns
 
-| # | Area | Issue | Recommendation |
-|---|------|-------|----------------|
-| -- | -- | No scalability concerns identified | The branding data is small, infrequently changing, and properly cached. |
+| # | Area | Issue | Recommendation | Severity |
+|---|------|-------|----------------|----------|
+| 1 | MealHistory extra query | `MealHistory` calls `useTraineeTodayLog(date)` to resolve `dailyLogId` for the delete endpoint. This adds a second network request. | Consider adding `daily_log_id` to the `nutrition-summary` backend response. The frontend could then pass it down as a prop, eliminating this query entirely. Low urgency: the query is cached (5-min stale) and the response is small. | Minor |
+| 2 | `useCallback` with unstable dependency (FIXED) | `handleDelete` had `deleteMutation` in its dependency array. The mutation object reference changes every render, making the memoization ineffective. | Fixed: removed `deleteMutation` from deps. `mutate` is referentially stable in React Query v5. | Minor (fixed) |
+| 3 | Date utilities duplicated (FIXED) | `formatDisplayDate` and `addDays` were defined locally in `nutrition-page.tsx`, duplicating logic that belongs in the shared `schedule-utils.ts`. | Fixed: extracted both functions to `schedule-utils.ts` and updated the import. | Minor (fixed) |
+| 4 | Delete dialog stale-index risk (FIXED by linter) | The original `deleteIndex` state stored only the array index. If the meals array reordered between opening the dialog and confirming, the wrong meal could be deleted. | The linter refactored to `deleteTarget: { index, name }`, capturing the meal name at dialog-open time. The name is used in the confirmation text, providing a visual safeguard. The index is still used for the API call, which is correct given React Query invalidation refreshes the list. | Minor (fixed) |
+
+---
 
 ## Technical Debt Introduced
 
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| -- | None introduced | -- | The implementation is clean and follows established patterns. |
+| -- | None introduced. | -- | -- |
+
+## Technical Debt Reduced
+
+| # | Description |
+|---|-------------|
+| 1 | `addDays()` and `formatDisplayDate()` extracted to `schedule-utils.ts` -- centralizes date utilities for reuse across any future date-navigation UI |
+| 2 | `useCallback` dependency correctness in `MealHistory` -- eliminates a subtle anti-pattern where memoization was ineffective |
+| 3 | Linter improved `deleteTarget` to capture meal name at dialog open time, improving correctness |
+| 4 | Linter added `aria-busy` and `aria-label` to skeleton loading states, `aria-live="polite"` to the date display, and `aria-label` to individual macro values in the meal list |
+
+---
+
+## Positive Architectural Observations
+
+1. **Query invalidation chain is correct and complete**: When a meal is confirmed/saved or deleted, both `nutrition-summary` and `today-log` queries are invalidated. This ensures macro bars, meal history, and preset active states all stay in sync.
+
+2. **`"use client"` boundaries are correct**: Hook files use it (consistent with all other hooks in the project). `MacroBar` correctly omits it since it's a pure function component with no hooks or event handlers.
+
+3. **Accessibility is production-quality**: All interactive elements have `aria-label`s. Date navigation uses `<nav>` with `aria-label`. Meal list uses `role="list"` / `role="listitem"`. Progress bars have descriptive `aria-label` text. Error states use `role="alert"`. Skeletons now have `aria-busy`.
+
+4. **Error handling is thorough**: Every mutation has `onError` callbacks with user-facing toasts. The nutrition query has loading/error/empty states. The parse mutation differentiates API errors from general failures.
+
+5. **All UX states are handled**: Loading (skeleton), Error (retry-able), Empty/no goals, Empty/no meals, Success (macro bars + meal list), Clarification needed, Over input limit.
+
+6. **Component sizes are within guidelines**: NutritionPage ~255 lines (orchestrator, justified), MealLogInput ~241 lines, MealHistory ~180 lines, MacroPresetChips ~67 lines, MacroBar ~33 lines.
 
 ---
 
@@ -225,11 +130,9 @@ The `TraineeBranding` interface was defined inline in `hooks/use-trainee-brandin
 
 | # | File | What Changed | Why |
 |---|------|-------------|-----|
-| 1 | `web/src/components/trainee-dashboard/brand-logo.tsx` | **Created** shared `BrandLogo` component | Eliminate DRY violation between desktop and mobile sidebars |
-| 2 | `web/src/components/trainee-dashboard/trainee-sidebar.tsx` | Removed inline `BrandLogo` definition, now imports from `./brand-logo` | DRY fix |
-| 3 | `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx` | Removed inline `BrandLogo` definition, now imports from `./brand-logo` | DRY fix |
-| 4 | `web/src/types/branding.ts` | Added `TraineeBranding` interface with JSDoc | Types belong in `types/` directory per codebase convention |
-| 5 | `web/src/hooks/use-trainee-branding.ts` | Import `TraineeBranding` from `@/types/branding` instead of defining inline; re-exports for convenience | Consistent type location |
+| 1 | `web/src/lib/schedule-utils.ts` | Added `addDays()` and `formatDisplayDate()` utility functions | Extracted from nutrition-page.tsx to centralize date utilities for reuse |
+| 2 | `web/src/components/trainee-dashboard/nutrition-page.tsx` | Replaced local `addDays` and `formatDisplayDate` with imports from `schedule-utils.ts` | DRY: utilities belong in the shared lib, not in a component file |
+| 3 | `web/src/components/trainee-dashboard/meal-history.tsx` | Removed `deleteMutation` from `useCallback` dependency array | `mutate` is referentially stable in React Query v5; including the full mutation object defeated memoization |
 
 ---
 
@@ -237,28 +140,30 @@ The `TraineeBranding` interface was defined inline in `hooks/use-trainee-brandin
 
 | Area | Score | Notes |
 |------|-------|-------|
-| Layering | 10/10 | Hook fetches data, components render, utilities are pure functions |
-| Data model / types | 9/10 | Correct API contract match; minor: `logo` vs `logo_url` naming documented |
-| API design / query keys | 10/10 | Proper staleTime, retry, default fallback, centralized URL, no key collisions |
-| Component decomposition | 9/10 | After extraction of shared BrandLogo, both sidebars are clean and DRY |
-| Scalability | 10/10 | Single small API call, proper caching, no re-render concerns |
-| Technical debt | 9/10 | Net reduction -- extracted shared component, centralized type, added documentation |
+| Layering | 10/10 | Hook fetches data, components render, types in dedicated files |
+| Data model / types | 10/10 | All frontend types match backend serializer contracts exactly |
+| API design / query keys | 10/10 | Proper staleTime, retry, invalidation chains, centralized URLs |
+| Component decomposition | 9/10 | Clean separation; minor: MealHistory's extra query for dailyLogId could be eliminated with a backend change |
+| Scalability | 9/10 | No re-render issues; one optimizable extra network request |
+| Technical debt | 9/10 | Net reduction -- extracted utilities, fixed useCallback anti-pattern |
 
 ---
 
 ## Architecture Score: 9/10
 
-The trainer branding application to the trainee web portal is architecturally sound. The implementation correctly:
+The trainee web nutrition page implementation is architecturally sound. It follows every established pattern in the codebase:
 
-- **Separates data from presentation**: `useTraineeBranding` hook handles fetching and defaults; sidebar components only handle rendering
-- **Matches the backend API contract**: `TraineeBranding` interface exactly matches `MyBrandingView` response shape, including the correct `logo_url` field (vs trainer-side `logo`)
-- **Uses appropriate cache strategy**: 5-minute staleTime for infrequently-changing data, single retry, graceful degradation to defaults
-- **Follows existing patterns**: mirrors the trainer sidebar structure, uses centralized `API_URLS`, consistent query key naming
-- **Progressive enhancement**: branded colors are applied via inline `style` props only when custom color is detected, falling back to theme defaults otherwise
+- **Hook structure**: mirrors `use-trainee-dashboard.ts` exactly (React Query, typed responses, centralized URLs, consistent stale time)
+- **Query key naming**: all under `["trainee-dashboard", ...]` namespace with date parameterization
+- **Type organization**: types split correctly between `trainee-dashboard.ts` (dashboard-specific) and `trainee-view.ts` (shared with impersonation)
+- **Component layering**: orchestrator pattern in NutritionPage, self-contained mutation lifecycles in MealLogInput and MealHistory
+- **API URL centralization**: all endpoints registered in `constants.ts` following the `TRAINEE_*` naming convention
 
-Three architectural improvements were made during this review:
-1. Extracted `BrandLogo` into a shared component to eliminate DRY violation
-2. Moved `TraineeBranding` type to `types/branding.ts` per codebase convention
-3. Added JSDoc documenting the intentional `logo` vs `logo_url` field difference
+Three improvements were made during this review:
+1. Extracted `addDays` and `formatDisplayDate` to `schedule-utils.ts` for reuse
+2. Fixed `useCallback` dependency anti-pattern in MealHistory
+3. Linter additionally improved accessibility attributes and delete-dialog safety
+
+The one remaining suggestion (backend returning `daily_log_id` in nutrition summary to eliminate MealHistory's secondary query) is an optimization opportunity for a future iteration.
 
 ## Recommendation: APPROVE
