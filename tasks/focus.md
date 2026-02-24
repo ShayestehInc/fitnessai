@@ -1,17 +1,20 @@
-# Pipeline 34 Focus: Trainee Web — Trainer Branding Application
+# Pipeline 35 Focus: Trainee Web — Nutrition Tracking Page
 
 ## Priority
-Apply the trainer's white-label branding (app name, colors, logo) to the trainee web portal. The backend API exists at `/api/users/my-branding/` and returns the trainer's branding config. The trainee portal currently hardcodes "FitnessAI" everywhere and uses the default theme. This is the last remaining item to complete the white-label infrastructure.
+Build a dedicated Nutrition page in the trainee web portal with AI-powered meal logging, macro tracking with date navigation, meal history, and macro preset quick-select. The backend APIs all exist (`nutrition-summary`, `parse-natural-language`, `confirm-and-save`, `macro-presets`). The mobile app has full nutrition tracking. The trainee web portal only has a summary card on the dashboard — no way to actually log food or view meal history.
 
 ## Key Changes
-- Web: Create `useTraineeBranding()` hook to fetch branding from `/api/users/my-branding/`
-- Web: Replace hardcoded "FitnessAI" with trainer's `app_name` in sidebar + mobile sidebar
-- Web: Display trainer's logo in sidebar header when available
-- Web: Apply trainer's `primary_color` as CSS custom property override for sidebar accent
-- Backend: No changes needed — API already exists and works
+- Web: Create `/trainee/nutrition` page with full macro tracking + meal logging
+- Web: AI natural language food input (reuse existing `parse-natural-language` endpoint)
+- Web: Meal history list with today's logged meals from nutrition_data
+- Web: Date navigation (previous/next day) to view past nutrition
+- Web: Macro preset quick-select for trainees
+- Web: Add "Nutrition" link to trainee sidebar nav
+- Backend: No changes needed — all APIs already exist
 
 ## Scope
-- Trainee web portal only (trainer/admin/ambassador dashboards unaffected)
-- Branding = app_name + logo + primary_color + secondary_color
-- Graceful fallback to defaults when no branding is configured
-- No new backend endpoints needed
+- Trainee web portal only
+- Reuse existing backend endpoints (no new API work)
+- Match patterns from existing trainee web components (workout logging, dashboard cards)
+- Graceful empty/loading/error states
+- Mobile-responsive design

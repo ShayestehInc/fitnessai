@@ -8,9 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
+import { MacroBar } from "@/components/shared/macro-bar";
 import { useTraineeDashboardNutrition } from "@/hooks/use-trainee-dashboard";
 import { getTodayString } from "@/lib/schedule-utils";
 
@@ -29,38 +29,6 @@ function CardSkeleton() {
         ))}
       </CardContent>
     </Card>
-  );
-}
-
-interface MacroBarProps {
-  label: string;
-  consumed: number;
-  goal: number;
-  color: string;
-  unit?: string;
-}
-
-function MacroBar({ label, consumed, goal, color, unit = " g" }: MacroBarProps) {
-  const percentage = goal > 0 ? Math.min((consumed / goal) * 100, 100) : 0;
-
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground">
-          {Math.round(consumed)} / {Math.round(goal)}
-          {unit}
-        </span>
-      </div>
-      <Progress
-        value={percentage}
-        className="h-2"
-        aria-label={`${label}: ${Math.round(consumed)} of ${Math.round(goal)}${unit}`}
-        style={
-          { "--progress-color": color } as React.CSSProperties
-        }
-      />
-    </div>
   );
 }
 

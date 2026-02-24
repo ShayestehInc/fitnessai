@@ -1,50 +1,47 @@
-# Ship Decision: Trainee Web — Trainer Branding Application (Pipeline 34)
+# Ship Decision: Trainee Web — Nutrition Tracking Page (Pipeline 35)
 
 ## Verdict: SHIP
 ## Confidence: HIGH
 ## Quality Score: 9/10
-## Summary: Trainee web portal now displays trainer's custom branding (app name, logo, primary color) in both desktop and mobile sidebars. All 14 of 15 acceptance criteria pass fully; AC-7 (secondary_color) is partial but acceptable — the color is fetched, sanitized, and available for future use. Zero critical/major issues remain. TypeScript compiles cleanly.
 
-## Remaining Concerns:
-- **AC-7 (secondary_color)**: Fetched and sanitized but not applied to any distinct UI element. This is a deliberate scope limitation — there's no natural second-accent element in the current sidebar design. The data is ready for future use (e.g., hover states, header accent).
-- **Color contrast**: No frontend validation that a trainer's chosen primary_color has sufficient contrast against the sidebar background. The backend validates hex format but not contrast ratio. Recommend adding a contrast check in the trainer branding settings form in a future pipeline.
-- **TraineeHeader not branded**: The top header bar doesn't apply any branding. A future pipeline could add a subtle brand accent there for a more cohesive white-label experience.
+## Summary
+Full-featured nutrition tracking page for the trainee web portal. AI-powered natural language meal logging, daily macro tracking with date navigation, meal history with delete, and macro preset display — all 34 acceptance criteria pass. Zero critical or major issues remain.
 
-## What Was Built:
-Pipeline 34 applies trainer white-label branding to the trainee web portal sidebars:
+## Acceptance Criteria: 34/34 PASS
 
-**New Hook: `use-trainee-branding.ts`**
-- Fetches branding from `GET /api/users/my-branding/` via React Query
-- 5-minute staleTime cache, single retry, silent fallback to defaults
-- `sanitizeBranding()` validates hex colors against `/^#[0-9a-fA-F]{6}$/` (defense-in-depth)
-- Exports `getBrandingDisplayName()` and `hasCustomPrimaryColor()` utility functions
+## Audit Results
+| Agent | Score | Verdict |
+|-------|-------|---------|
+| Code Review (post-fix) | 6→8/10 | All C/M issues fixed |
+| UX Audit | 8.5/10 | 18 issues found and fixed |
+| Security Audit | 8/10 | CONDITIONAL PASS — 3 HIGH fixed |
+| Architecture Review | 9/10 | APPROVE |
+| Hacker Audit | 8/10 | 6 bugs found and fixed |
 
-**New Component: `brand-logo.tsx`**
-- Shared `BrandLogo` component used by both desktop and mobile sidebars
-- Renders `next/image` when logo URL present, falls back to Dumbbell icon on error/null
+## TypeScript: PASS (zero errors)
 
-**Modified: `trainee-sidebar.tsx` (desktop)**
-- Shows trainer's app name (truncated with title tooltip for names >15 chars)
-- Displays trainer's logo via `BrandLogo` component
-- Active nav links tinted with `primary_color` at 12% opacity, icons colored with full `primary_color`
-- Skeleton loading states for logo and name while branding fetches
-- Accessible: meaningful alt text on logo, sr-only text for collapsed badge dots
+## Key Fixes Applied
+1. **Query invalidation lifecycle** — both `nutrition-summary` and `today-log` invalidated on meal mutations
+2. **Backend security** — `IsTrainee` permission on `parse_natural_language` and `confirm_and_save`
+3. **Backend serializer usage** — `delete_meal_entry` and `edit_meal_entry` now use their serializers
+4. **Shared MacroBar** — extracted from DRY violation, added over-goal amber indicator
+5. **Midnight crossover** — `lastKnownToday` state handles multi-day tab staleness
+6. **Delete dialog race condition** — captures meal name at open time
+7. **Keyboard shortcuts** — Enter confirms parsed results, Esc cancels
+8. **Accessibility** — aria-live, aria-describedby, list semantics, aria-valuetext, tabular-nums
+9. **Responsive layout** — flex-wrap on macros, truncate on names
+10. **Date validation** — regex guard before API calls
 
-**Modified: `trainee-sidebar-mobile.tsx` (mobile)**
-- Same branding applied to the Sheet drawer sidebar
-- Added `SheetDescription` for Radix Dialog accessibility compliance
-- Consistent `shrink-0` and `truncate` classes matching desktop sidebar
+## Remaining Concerns (non-blocking)
+- **Rate limiting** on AI parsing endpoint (Medium — deferred to infra)
+- **Prompt injection hardening** — user input directly in prompt, mitigated by Pydantic validation
+- **Trainer email exposure** in macro presets API — low risk, deferred
+- **No meal editing** — delete + re-log is sufficient for MVP
 
-**New Type: `TraineeBranding` in `types/branding.ts`**
-- Collocated with existing `TrainerBranding` type
-- JSDoc documenting intentional `logo` vs `logo_url` field difference
-
-**Technical Quality:**
-- TypeScript: zero compilation errors
-- Security: PASS (9/10) — no secrets, no XSS, no CSS injection, strong auth/authz
-- Accessibility: meaningful alt text, sr-only labels, SheetDescription, aria-current
-- Architecture: APPROVE (9/10) — proper layering, shared component, centralized types
-- 5 files changed, 209 lines added, 23 removed
+## What Was Built
+- `/trainee/nutrition` page with AI meal logging, macro tracking, date navigation, meal history, and macro presets
+- 6 new frontend files, 1 new hooks file, shared MacroBar component, backend security fixes
+- 21 files changed, +1,677 / -671 lines
 
 ---
 
@@ -57,29 +54,47 @@ Pipeline 34 applies trainer white-label branding to the trainee web portal sideb
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-1 | PASS | `useTraineeBranding()` calls `apiClient.get<TraineeBranding>(API_URLS.TRAINEE_BRANDING)` via React Query |
-| AC-2 | PASS | `getBrandingDisplayName()` returns `branding.app_name.trim() \|\| "FitnessAI"` — used in desktop sidebar |
-| AC-3 | PASS | Mobile sidebar uses same `getBrandingDisplayName()` in `SheetTitle` |
-| AC-4 | PASS | `BrandLogo` renders `<Image>` when `logoUrl` truthy, `<Dumbbell>` on null/error |
-| AC-5 | PASS | Mobile sidebar imports and uses shared `BrandLogo` component |
-| AC-6 | PASS | Active links: `style={{ backgroundColor: \`${primary_color}20\` }}` and icon `style={{ color: primary_color }}` |
-| AC-7 | PARTIAL | `secondary_color` fetched, sanitized, available in branding data — not applied to distinct element (acceptable scope limitation) |
-| AC-8 | PASS | React Query with `staleTime: 5 * 60 * 1000` and `retry: 1` |
-| AC-9 | PASS | Both sidebars show `<Skeleton>` (h-6 w-6 for logo, h-5 w-24 for name) during loading |
-| AC-10 | PASS | `data ? sanitizeBranding(data) : DEFAULT_BRANDING` — silent fallback, no error toast |
-| AC-11 | PASS | Default `app_name: ""` → "FitnessAI"; default `primary_color: "#6366F1"` → `hasCustomPrimaryColor()` returns false → no inline styles |
-| AC-12 | PASS | `${color}20` alpha suffix for background works in both light/dark modes; icon color is full hex |
-| AC-13 | PASS | `width={24} height={24}` with `className="h-6 w-6"` and `object-contain` |
-| AC-14 | PASS | `npx tsc --noEmit` passes with zero errors |
-| AC-15 | PASS | Only trainee files modified — no changes to trainer/admin/ambassador code |
+| AC-1 | PASS | `trainee-nav-links.tsx:26` — "Nutrition" with Apple icon between Progress and Messages |
+| AC-2 | PASS | Uses `(trainee-dashboard)` layout group with auth guard |
+| AC-3 | PASS | 4 MacroBars via `useTraineeDashboardNutrition(selectedDate)` |
+| AC-4 | PASS | Progress bars with consumed/goal, chart-1..4, over-goal amber |
+| AC-5 | PASS | "No nutrition goals set" with CircleSlash icon |
+| AC-6 | PASS | Date nav with ChevronLeft/Right + formatted date + "Today" label |
+| AC-7 | PASS | `goToPreviousDay`/`goToNextDay` callbacks |
+| AC-8 | PASS | `disabled={isToday}` on next button |
+| AC-9 | PASS | "Today" button when `!isToday` |
+| AC-10 | PASS | `useTraineeDashboardNutrition(selectedDate)` refetches on date change |
+| AC-11 | PASS | "Log Food" card with Sparkles icon |
+| AC-12 | PASS | Natural language input with placeholder example |
+| AC-13 | PASS | POST parse-natural-language with `{ user_input, date }` + date validation |
+| AC-14 | PASS | Parsed results card with name, kcal, P/C/F per item |
+| AC-15 | PASS | Confirm & Save → POST confirm-and-save |
+| AC-16 | PASS | Toast "Meal logged!", invalidates nutrition-summary + today-log |
+| AC-17 | PASS | Cancel clears parsedResult |
+| AC-18 | PASS | Clarification amber alert box with AI question |
+| AC-19 | PASS | Loader2 spinner + input disabled during parse |
+| AC-20 | PASS | Error toasts with differentiated 400 vs 500 messages |
+| AC-21 | PASS | MealHistory with meals from selected date |
+| AC-22 | PASS | Name, kcal, P/C/F in compact row with flex-wrap |
+| AC-23 | PASS | Empty state "No meals logged yet" with UtensilsCrossed icon |
+| AC-24 | PASS | Delete via POST with entry_index + dailyLogId |
+| AC-25 | PASS | Dialog "Remove this meal?" with captured meal name |
+| AC-26 | PASS | Toast "Meal removed", invalidates both queries |
+| AC-27 | PASS | Preset chips when presets exist, skeleton while loading |
+| AC-28 | PASS | Preset names in Badge components |
+| AC-29 | PASS | Active preset with `variant="default"` + sr-only |
+| AC-30 | PASS | Read-only tooltip "Your trainer manages your nutrition presets" |
+| AC-31 | PASS | MacrosSkeleton + MealHistorySkeleton + preset skeleton with aria-busy |
+| AC-32 | PASS | ErrorState with retry callback |
+| AC-33 | PASS | Single-column responsive, flex-wrap on macros |
+| AC-34 | PASS | `npx tsc --noEmit` — zero errors |
 
 ### 3. All Audit Reports Verified
 
-| Audit | Verdict | Score | Critical/High Issues |
-|-------|---------|-------|---------------------|
-| Code Review (R1) | APPROVE | 8/10 | 2 major, 2 minor — all fixed |
-| QA | HIGH confidence | 14/15 pass | 0 bugs found |
-| UX Audit | PASS | 9/10 | 2 a11y issues fixed, 2 usability issues fixed |
-| Security Audit | PASS | 9/10 | 0 critical/high issues |
-| Architecture Review | APPROVE | 9/10 | DRY violation fixed, type relocated |
-| Hacker Report | All fixed | 8.5/10 | 4 issues found and fixed |
+| Audit | Score | Critical/High Issues |
+|-------|-------|---------------------|
+| Code Review | 6→8/10 | 2 critical + 6 major — all fixed in round 1 |
+| UX Audit | 8.5/10 | 18 issues found and fixed |
+| Security Audit | 8/10 | 3 HIGH fixed (IsTrainee perms, serializer bypass) |
+| Architecture Review | 9/10 | APPROVE — 3 minor issues fixed |
+| Hacker Audit | 8/10 | 6 bugs found and fixed |

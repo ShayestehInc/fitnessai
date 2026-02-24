@@ -1,90 +1,100 @@
-# Hacker Report: Trainee Web Portal -- Trainer Branding Application (Pipeline 34)
+# Hacker Report: Trainee Web Nutrition Page
 
-## Date: 2026-02-23
+## Date: 2026-02-24
 
 ## Files Audited
-- `web/src/hooks/use-trainee-branding.ts`
-- `web/src/components/trainee-dashboard/trainee-sidebar.tsx`
-- `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx`
-- `web/src/components/trainee-dashboard/brand-logo.tsx`
+- `web/src/components/trainee-dashboard/nutrition-page.tsx`
+- `web/src/components/trainee-dashboard/meal-log-input.tsx`
+- `web/src/components/trainee-dashboard/meal-history.tsx`
+- `web/src/components/trainee-dashboard/macro-preset-chips.tsx`
+- `web/src/components/shared/macro-bar.tsx`
+- `web/src/hooks/use-trainee-nutrition.ts`
+- `web/src/app/(trainee-dashboard)/trainee/nutrition/page.tsx`
 - `web/src/components/trainee-dashboard/trainee-nav-links.tsx`
-- `web/src/components/trainee-dashboard/trainee-header.tsx`
-- `web/src/app/(trainee-dashboard)/layout.tsx`
-- `web/src/types/branding.ts`
 
 ## Dead Buttons & Non-Functional UI
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| -- | -- | -- | -- | -- | No dead buttons or non-functional UI elements found in the branding feature. All sidebar toggle buttons, nav links, and collapse/expand controls are properly wired. |
+| 1 | Low | macro-preset-chips.tsx | Preset badges | Badges have tooltip on hover but are not keyboard-focusable. Screen reader and keyboard-only users can never access the tooltip. | **Fixed** -- Added `tabIndex={0}` to Badge elements so keyboard users can tab to them and trigger the tooltip. |
 
 ## Visual Misalignments & Layout Bugs
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | Medium | trainee-sidebar-mobile.tsx | Nav link labels missing `truncate` class. Desktop sidebar uses `<span className="flex-1 truncate">` for labels, but mobile sidebar had `<span className="flex-1">` without `truncate`. The trainer sidebar mobile (`sidebar-mobile.tsx`) also uses `truncate`. Inconsistency could cause text overflow if nav labels are long or translated into a verbose locale. | **Fixed** -- Added `truncate` class to `<span className="flex-1 truncate">{link.label}</span>` in mobile sidebar nav links. |
-| 2 | Low | trainee-sidebar-mobile.tsx | Nav link icons missing `shrink-0` class. Desktop sidebar wraps icons in `<span className="relative shrink-0">`, and the trainer mobile sidebar uses `className="h-4 w-4 shrink-0"` on icons. The trainee mobile sidebar had `className="h-4 w-4"` without `shrink-0`. In an edge case with very long labels and tight layout, the icon could shrink. | **Fixed** -- Added `shrink-0` to icon className: `className="h-4 w-4 shrink-0"`. |
+| 2 | Medium | meal-log-input.tsx | Parsed meal items -- on narrow viewports (<375px) the meal name and macro values (kcal, P, C, F) are in a `flex` row with `shrink-0` on the macros div. The macros never wrap, so they can overflow the card on small screens. | **Fixed** -- Changed to `flex-wrap` on the outer container and `flex-wrap` with `gap-x-3 gap-y-0.5` on the macros div. Used `ml-auto` instead of `shrink-0` so macros wrap below the name on tiny screens. |
 
 ## Broken Flows & Logic Bugs
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 3 | Medium | Malformed hex color from API | 1. Trainer saves branding via API. 2. Due to a bug or direct DB edit, `primary_color` becomes an invalid value like `red` or `#GGG`. 3. Trainee opens portal. | Sidebar should fall back to default colors. | **Before fix:** `hasCustomPrimaryColor` would return `true` (it only checks inequality with default), and the invalid value would be injected into inline `style={{ color: "red" }}` or `style={{ backgroundColor: "#GGG20" }}`. CSS would ignore the invalid value, leading to no color at all on the active link icon, or falling through to the className-based colors. Not catastrophic, but unpredictable. **Fixed** -- Added `sanitizeBranding()` function in `use-trainee-branding.ts` that validates `primary_color` and `secondary_color` against `/^#[0-9a-fA-F]{6}$/` regex. Invalid colors fall back to defaults before reaching any component. |
-| 4 | Low | Accessibility: missing SheetDescription | 1. Open trainee mobile sidebar. 2. Check browser console. 3. Radix Dialog (which Sheet is built on) may log a console warning about missing Description. | No accessibility warnings in console. | **Before fix:** The `Sheet` component wraps Radix `Dialog.Root`. Radix Dialog expects both `Title` and `Description` children. The mobile sidebar had `SheetTitle` but no `SheetDescription`. While not visually broken, screen readers get less context and Radix logs a warning. **Fixed** -- Added `<SheetDescription className="sr-only">Navigation menu</SheetDescription>` after `SheetHeader`, providing screen reader context without visual impact. |
+| 3 | Medium | nutrition-page.tsx: Midnight date-change logic | 1. Open nutrition page on Feb 23 at 11:55 PM. 2. Keep tab open for 2+ days without interacting. 3. Come back Feb 25. | Page should auto-advance to Feb 25 if user was viewing "today" (Feb 23). | **Before fix:** The `useEffect` interval computed `oldToday = addDays(currentToday, -1)`, meaning it only checked if the user was viewing *yesterday*. If the tab stayed open for 2+ days, the check `prev === oldToday` would fail because `prev` would be 2+ days behind `currentToday - 1`. The user would be stuck viewing an old date with no auto-advance. **Fixed** -- Replaced with a `lastKnownToday` state variable that tracks what "today" was at the last check. When `currentToday` changes, the effect checks if the user is viewing `lastKnownToday` (the previous "today"), and if so, advances to `currentToday`. Then updates `lastKnownToday`. This works correctly even if the tab is open for weeks. |
+| 4 | Medium | meal-history.tsx: Stale deleteIndex race condition | 1. Log 3 meals (A, B, C). 2. Click delete on meal C (index=2). 3. Before confirming, another tab/device logs a new meal. React Query background refetch fires. 4. The meals array is now [A, B, C, D]. 5. Confirm delete in the dialog. | Should delete meal C. Dialog shows "C". | **Before fix:** `deleteIndex` was a bare number. The dialog description read `meals[deleteIndex].name` on every render. If the meals array changed between opening the dialog and confirming, the displayed name could change (if items shifted), or `meals[deleteIndex]` could be undefined (if items were removed). The actual deletion by index could target the wrong meal. **Fixed** -- Replaced `deleteIndex: number | null` with `deleteTarget: { index: number; name: string } | null`. The name is captured at dialog-open time via `openDeleteDialog(index, meal.name)`. The dialog always shows the captured name, not a live lookup from the array. |
+| 5 | Low | meal-log-input.tsx: No keyboard shortcut for Confirm & Save | 1. Type a meal description. 2. Press Enter to parse. 3. AI returns parsed items. 4. User wants to confirm. | User should be able to press Enter again to confirm. | **Before fix:** `handleKeyDown` always called `handleSubmit()` on Enter, which would try to re-parse (a no-op since input is unchanged, or error if input was cleared). **Fixed** -- `handleKeyDown` now checks if `parsedMeals.length > 0 && !needsClarification`. If so, Enter calls `handleConfirm()`. Added a hint below the buttons: "Press Enter to confirm or Esc to cancel". |
+| 6 | Low | meal-log-input.tsx: Stale parse error not cleared | 1. Type "asdfghjkl" and submit. 2. AI returns error, toast fires. 3. Mutation stays in `isError` state. 4. User fixes input and types valid text. 5. The old error state lingers in the mutation object. | Error state should clear when user starts new input. | **Fixed** -- Added `useEffect` that calls `parseMutation.reset()` when `input` changes and `parseMutation.isError` is true. |
 
 ## Edge Case Analysis
 | # | Category | Scenario | Status |
 |---|----------|----------|--------|
-| 5 | Boundary | `app_name` is 50 characters (model max_length=50) | **OK** -- Both sidebars use `truncate` CSS class on the display name. Desktop sidebar adds `title` attribute for names >15 chars so full name appears on hover. Mobile sidebar also adds `title` on `SheetTitle`. |
-| 6 | Boundary | `app_name` is empty string (no custom name) | **OK** -- `getBrandingDisplayName()` falls back to `"FitnessAI"` when `app_name.trim()` is empty. |
-| 7 | Boundary | `logo_url` returns 404 | **OK** -- `BrandLogo` component uses `useState(false)` for `imgError`, sets it `true` on `Image.onError`, then renders fallback `Dumbbell` icon. Graceful degradation. |
-| 8 | Boundary | `logo_url` is null (no logo uploaded) | **OK** -- `BrandLogo` checks `!logoUrl` first and immediately renders fallback icon. |
-| 9 | Boundary | `primary_color` is invalid hex | **Fixed** -- `sanitizeBranding()` now validates and falls back to default. |
-| 10 | Boundary | API is slow (5+ seconds) | **OK** -- Both sidebars show `Skeleton` placeholders for logo and name during loading. Navigation links render immediately (not dependent on branding data). |
-| 11 | Boundary | API fails entirely (network error) | **OK** -- `retry: 1` retries once. On failure, `data` is `undefined`, hook returns `DEFAULT_BRANDING`. User sees "FitnessAI" with default purple colors. No error banner (appropriate for branding -- app remains fully functional). |
-| 12 | Boundary | Branding changes mid-session | **Acceptable** -- `staleTime: 5 * 60 * 1000` means branding refreshes at most every 5 minutes. React Query will refetch in background when the query becomes stale and the component re-mounts. For branding (which changes rarely), this is a reasonable tradeoff. |
-| 13 | Boundary | Sidebar collapsed state with custom branding | **OK** -- Collapsed sidebar shows only the `BrandLogo` icon. When expanded, shows logo + name. Toggle persists via `localStorage`. |
-| 14 | Boundary | 99+ unread badges with custom color active link | **OK** -- Badge uses `variant="destructive"` (red) which is independent of branding colors. The custom color only affects the active link background (`primary_color + "20"` for 12% opacity) and icon color, which doesn't conflict with the badge. |
-| 15 | Auth | Non-trainee user accessing trainee routes | **OK** -- Layout checks `user.role` and redirects ADMIN/AMBASSADOR/TRAINER to their respective dashboards. The `useTraineeBranding` hook's API endpoint (`/api/users/my-branding/`) has `IsTrainee` permission, so it would 403 for non-trainee users, but the redirect happens before any API call. |
+| 7 | Boundary | User pastes 3000 characters into meal input | **OK** -- `isOverLimit` flag triggers character count display with destructive color. Submit button is disabled. `aria-invalid` is set. |
+| 8 | Boundary | User submits empty/whitespace-only input | **OK** -- `trimmedInput.length > 0` check prevents submission. Button disabled state is correct. |
+| 9 | Boundary | AI returns `needs_clarification: true` | **OK** -- Amber warning box with clarification question appears. User can dismiss with X button or Esc key. |
+| 10 | Boundary | AI returns `nutrition.meals: []` (empty array) | **OK** -- Toast error "No food items detected. Try being more specific." fires. `parsedResult` not set. |
+| 11 | Boundary | Delete meal when dailyLogId is null | **OK** -- Delete button hidden entirely when `dailyLogId === null`. No way to trigger delete. |
+| 12 | Boundary | Rapid date navigation | **OK** -- Each date change clears parsed result and input via `useEffect([date])`. `goToNextDay` uses functional setState with fresh `getTodayString()` call inside the callback, so stale closures are not an issue. |
+| 13 | Boundary | Date navigation beyond today | **OK** -- `goToNextDay` checks `next > getTodayString()` and returns `prev` if true. Next button is disabled when viewing today. |
+| 14 | Boundary | Macro goals are all zero | **OK** -- `hasGoals` check shows "No nutrition goals set" empty state with clear message that trainer hasn't configured targets. |
+| 15 | Boundary | Network error on nutrition data fetch | **OK** -- `ErrorState` component shown with "Failed to load nutrition data" message and retry button. MealLogInput and MealHistory are hidden during error state. |
+| 16 | Boundary | Double-click Confirm & Save | **OK** -- `isConfirming` flag disables both Cancel and Confirm buttons during save. `handleConfirm` returns early if `isConfirming`. |
+| 17 | Boundary | MacroBar with consumed > goal | **OK** -- `MacroBar` shows amber over-goal indicator, displays excess amount `(+N)`, changes progress bar color to chart-5. `percentage` is capped at 100% via `Math.min`. |
+| 18 | Data | Macro presets API fails | **OK** -- `useTraineeMacroPresets` has `retry: 1`. On failure, `isError` causes `MacroPresetChips` to return `null` (silently hidden). Presets are supplementary info, not critical. |
 
 ## Product Improvement Suggestions
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 16 | Medium | Branding | Apply `primary_color` to the sidebar header border-bottom or add a subtle brand-colored accent line | Currently the branding only affects active nav link backgrounds and icons. A colored accent on the sidebar header would make the branding feel more intentional and premium. Stripe and Linear use subtle header accents. |
-| 17 | Medium | Branding | Use `secondary_color` somewhere in the UI (currently unused) | The `TraineeBranding` type includes `secondary_color` but it's never used in any component. `hasCustomPrimaryColor` checks only `primary_color`. The secondary color field is fetched and sanitized but wasted. Could be used for hover states on nav links or the collapsed sidebar indicator. |
-| 18 | Low | Branding | Add a smooth CSS transition when branding loads (fade from skeleton to branded) | Currently the skeleton snaps to the branded content when loading completes. A 150ms fade-in transition would feel more polished, similar to how image lazy-loading works. |
-| 19 | Low | Mobile sidebar | Add swipe-to-close gesture for the mobile sidebar | The Sheet component supports drag-to-dismiss via Radix Dialog, but only via the overlay click or X button. Many mobile-first apps (Linear, Notion) support edge-swipe gestures for sidebar dismissal. |
-| 20 | Medium | Branding | Apply branding to the trainee header (top bar) in addition to sidebar | The `TraineeHeader` component currently shows no branding at all -- just a greeting and user nav. Could show the trainer's logo or a subtle brand color accent, creating a more cohesive white-labeled experience. |
+| 19 | Medium | Nutrition | Show "Remaining" macros below the progress bars | The API returns `remaining` data (`NutritionSummary.remaining`) but it is not displayed anywhere. Users tracking macros want to know "how much more can I eat?" at a glance. This is the primary use case for the page. Could be a toggle or shown below each MacroBar. |
+| 20 | Medium | Meal Log | Add example suggestions or quick-log buttons for common meals | First-time users may not know what to type. Adding "Quick log: Breakfast, Lunch, Dinner, Snack" chips above the input would reduce friction. Linear and Notion use placeholder suggestions to onboard users. |
+| 21 | Low | Meal History | Add timestamps to meal entries | `NutritionMeal.timestamp` exists in the type but is not displayed. Showing "logged at 2:30 PM" helps users understand their eating timeline. |
+| 22 | Low | Date Navigation | Add keyboard shortcuts for date navigation (arrow keys) | Power users want to press Left/Right arrow keys to navigate dates without clicking buttons. Currently requires mouse. |
+| 23 | Low | Meal Log | Add ability to edit a logged meal instead of delete-and-re-enter | Currently the only way to fix a wrong meal is to delete it and re-log. An edit button would reduce friction. |
 
 ## Accessibility Observations
-- Desktop sidebar: `nav` has `aria-label="Main navigation"`. Good.
-- Mobile sidebar: `nav` has `aria-label="Main navigation"`. Good.
-- Desktop sidebar: `aria-current="page"` on active links. Good.
-- Mobile sidebar: `aria-current="page"` on active links. Good.
-- `BrandLogo`: fallback `Dumbbell` icon has `aria-hidden="true"` (decorative). Good.
-- `BrandLogo`: `Image` tag uses `altText` prop for meaningful alt text when provided. Good.
-- Desktop sidebar: collapse/expand buttons have `aria-label`. Good.
-- Desktop sidebar: collapsed badge dots include `<span className="sr-only">{badgeCount} unread</span>`. Good.
-- Mobile sidebar: `SheetDescription` now added for screen reader context. Fixed.
-- Skip-to-content link in layout. Good.
-- Loading skeletons use default `Skeleton` component (animated pulse). Acceptable, though `aria-busy="true"` on the sidebar container during loading would be ideal.
+- Date navigation: `nav` has `aria-label="Date navigation"`. Good.
+- Date display: Has `aria-live="polite"` and `aria-atomic="true"`. Good -- screen readers announce date changes.
+- Next day button: Has contextual `aria-label` when disabled. Good.
+- Macro bars: Each `MacroBar` has `aria-label` and `aria-valuetext`. Good.
+- Meal input: Has `aria-label`, `aria-describedby`, `aria-invalid`. Good.
+- Parsed items list: Has `role="list"` and `role="listitem"`. Good.
+- Meal history: Has `role="list"` and `role="listitem"`. Good.
+- Delete confirmation dialog: Proper `DialogTitle` and `DialogDescription`. Good.
+- Loading skeletons: Have `aria-busy="true"` and `aria-label`. Good.
+- Preset badges: Were NOT keyboard-focusable. **Fixed** with `tabIndex={0}`.
+- Character count: Uses `role="alert"` when over limit. Good.
 
 ## Summary
-- Dead UI elements found: 0
-- Visual bugs found: 2 (both fixed: missing `truncate` on mobile nav labels, missing `shrink-0` on mobile nav icons)
-- Logic bugs found: 2 (both fixed: malformed hex color not sanitized, missing `SheetDescription` accessibility warning)
-- Edge cases verified: 11 (all pass)
-- Improvements suggested: 5 (all deferred -- cosmetic enhancements and design decisions)
-- Items fixed by hacker: 4
+- Dead UI elements found: 1 (preset badges not keyboard-accessible -- fixed)
+- Visual bugs found: 1 (parsed meal item overflow on narrow screens -- fixed)
+- Logic bugs found: 4 (midnight date logic, stale delete index, missing Enter shortcut, stale parse error -- all fixed)
+- Edge cases verified: 12 (all pass)
+- Improvements suggested: 5 (deferred -- require product decisions)
+- Items fixed by hacker: 6
 
 ### Files Changed
-1. **`web/src/hooks/use-trainee-branding.ts`**
-   - Added `HEX_COLOR_PATTERN` regex constant for `#RRGGBB` validation.
-   - Added `sanitizeBranding()` function that validates `primary_color` and `secondary_color` against the regex, falling back to defaults for invalid values.
-   - Changed hook return from `data ?? DEFAULT_BRANDING` to `data ? sanitizeBranding(data) : DEFAULT_BRANDING`.
+1. **`web/src/components/trainee-dashboard/nutrition-page.tsx`**
+   - Replaced midnight date-change logic: introduced `lastKnownToday` state variable instead of computing `oldToday = addDays(currentToday, -1)`. The new logic correctly handles multi-day tab staleness.
 
-2. **`web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx`**
-   - Added `SheetDescription` import and usage (`<SheetDescription className="sr-only">Navigation menu</SheetDescription>`) to satisfy Radix Dialog accessibility requirements.
-   - Added `shrink-0` to nav link icon className for layout consistency with desktop sidebar.
-   - Added `truncate` to nav link label `<span>` for consistency with desktop sidebar and trainer sidebar mobile.
+2. **`web/src/components/trainee-dashboard/meal-log-input.tsx`**
+   - Moved `parsedMeals` and `needsClarification` derived values above `handleKeyDown` for clearer code flow.
+   - Updated `handleKeyDown`: Enter now confirms parsed results when available, falls back to submit otherwise.
+   - Added `useEffect` to clear stale parse mutation error when user types new input.
+   - Changed parsed meal item layout to `flex-wrap` with responsive gap values.
+   - Added keyboard shortcut hint (`Enter` / `Esc`) below Confirm & Save buttons.
 
-## Chaos Score: 8.5/10
+3. **`web/src/components/trainee-dashboard/meal-history.tsx`**
+   - Replaced `deleteIndex: number | null` state with `deleteTarget: { index: number; name: string } | null`.
+   - Added `openDeleteDialog` and `closeDeleteDialog` callbacks.
+   - Dialog description now uses `deleteTarget.name` (captured at open time) instead of live `meals[deleteIndex].name` lookup.
 
-The branding implementation is well-structured and handles most edge cases correctly out of the box. The `BrandLogo` component with image error fallback is a solid pattern. The skeleton loading states during branding fetch are properly implemented. The `title` attribute for long app names shows attention to detail. The main gaps were defensive: missing hex color validation (which the backend already enforces, but defense-in-depth matters), a missing `SheetDescription` that would trigger Radix console warnings, and minor CSS inconsistencies between desktop and mobile sidebar nav items. The `secondary_color` being fetched but never used is a missed opportunity that a future iteration should address. Overall, this is production-ready with the fixes applied.
+4. **`web/src/components/trainee-dashboard/macro-preset-chips.tsx`**
+   - Added `tabIndex={0}` to preset Badge elements for keyboard accessibility.
+
+## Chaos Score: 8/10
+
+The nutrition page is well-structured with proper loading, error, and empty states across all components. The `MacroBar` component handles over-goal display elegantly. The AI meal parsing flow is solid with clarification handling, character limits, and proper date-change cleanup. The main issues found were: (1) a subtle midnight-crossing bug that would only manifest after 24+ hours of tab inactivity, (2) a race condition between the delete confirmation dialog and background data refetches, (3) a missing keyboard workflow for confirming parsed meals, and (4) a responsive layout issue on very narrow screens. All have been fixed. The codebase shows consistent patterns (react-query invalidation, proper aria attributes, defensive null checks) that make it reliable in production.

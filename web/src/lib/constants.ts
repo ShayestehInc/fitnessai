@@ -288,6 +288,12 @@ export const API_URLS = {
   traineeWorkoutDetail: (id: number) =>
     `${API_BASE}/api/workouts/daily-logs/${id}/workout-detail/`,
 
+  // Trainee nutrition APIs
+  TRAINEE_PARSE_NATURAL_LANGUAGE: `${API_BASE}/api/workouts/daily-logs/parse-natural-language/`,
+  TRAINEE_CONFIRM_AND_SAVE: `${API_BASE}/api/workouts/daily-logs/confirm-and-save/`,
+  traineeDeleteMealEntry: (logId: number) =>
+    `${API_BASE}/api/workouts/daily-logs/${logId}/delete-meal-entry/`,
+
   // WebSocket
   wsMessaging: (conversationId: number) =>
     `${WS_BASE}/ws/messaging/${conversationId}/`,

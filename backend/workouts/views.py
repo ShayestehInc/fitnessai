@@ -35,6 +35,8 @@ from .serializers import (
     NaturalLanguageLogInputSerializer,
     NaturalLanguageLogResponseSerializer,
     ConfirmLogSaveSerializer,
+    DeleteMealEntrySerializer,
+    EditMealEntrySerializer,
     NutritionGoalSerializer,
     TrainerAdjustGoalSerializer,
     WeightCheckInSerializer,
@@ -482,7 +484,8 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
         serializer = WorkoutDetailSerializer(daily_log)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['post'], url_path='parse-natural-language')
+    @action(detail=False, methods=['post'], url_path='parse-natural-language',
+            permission_classes=[IsTrainee])
     def parse_natural_language(self, request: Request) -> Response:
         """
         Parse natural language input into structured log data.
@@ -547,7 +550,8 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    @action(detail=False, methods=['post'], url_path='confirm-and-save')
+    @action(detail=False, methods=['post'], url_path='confirm-and-save',
+            permission_classes=[IsTrainee])
     def confirm_and_save(self, request: Request) -> Response:
         """
         Confirm and save parsed log data to database.
@@ -940,45 +944,24 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        entry_index = request.data.get('entry_index')
-        entry_data = request.data.get('data')
-
-        if entry_index is None or entry_data is None:
+        serializer = EditMealEntrySerializer(data=request.data)
+        if not serializer.is_valid():
             return Response(
-                {'error': 'entry_index and data are required'},
+                serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not isinstance(entry_data, dict):
-            return Response(
-                {'error': 'data must be an object'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        entry_data: dict[str, Any] = serializer.validated_data['data']
 
         nutrition_data = daily_log.nutrition_data or {}
         meals: list[Any] = nutrition_data.get('meals', [])
 
-        # entry_index is a flat index into the meals array.
-        target_index = entry_index
-        if not isinstance(target_index, int) or target_index < 0 or target_index >= len(meals):
+        target_index: int = serializer.validated_data['entry_index']
+        if target_index >= len(meals):
             return Response(
                 {'error': 'Invalid entry_index: entry not found'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        # Validate numeric fields
-        for field in ['protein', 'carbs', 'fat', 'calories']:
-            if field in entry_data:
-                value = entry_data[field]
-                if not isinstance(value, (int, float)) or value < 0:
-                    return Response(
-                        {'error': f'{field} must be a non-negative number'},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-        # Whitelist allowed keys to prevent arbitrary key injection
-        allowed_keys = {'name', 'protein', 'carbs', 'fat', 'calories', 'timestamp'}
-        entry_data = {k: v for k, v in entry_data.items() if k in allowed_keys}
 
         if not entry_data:
             return Response(
@@ -1019,19 +1002,18 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        entry_index = request.data.get('entry_index')
-
-        if entry_index is None:
+        serializer = DeleteMealEntrySerializer(data=request.data)
+        if not serializer.is_valid():
             return Response(
-                {'error': 'entry_index is required'},
+                serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         nutrition_data = daily_log.nutrition_data or {}
         meals: list[Any] = nutrition_data.get('meals', [])
 
-        target_index = entry_index
-        if not isinstance(target_index, int) or target_index < 0 or target_index >= len(meals):
+        target_index: int = serializer.validated_data['entry_index']
+        if target_index >= len(meals):
             return Response(
                 {'error': 'Invalid entry_index: entry not found'},
                 status=status.HTTP_404_NOT_FOUND,
