@@ -1,49 +1,34 @@
-# Dev Done: Trainee Web — Workout Logging & Progress Tracking
+# Dev Done: Trainee Web — Trainer Branding Application
 
-## Date: 2026-02-21
+## Date: 2026-02-23
 
 ## Summary
-Added interactive workout logging, weight check-in, workout history, and progress charts to the trainee web portal. The portal was previously read-only (Pipeline 32); this pipeline makes it fully interactive for workout tracking.
+Applied trainer white-label branding (app name, logo, primary color) to the trainee web portal. The backend API (`GET /api/users/my-branding/`) already existed. This is purely frontend work — fetching branding data and applying it to sidebar components.
 
-## Files Created (11)
+## Files Created (1)
+1. `web/src/hooks/use-trainee-branding.ts` — `useTraineeBranding()` hook with React Query (5-min staleTime), `getBrandingDisplayName()` helper. Returns typed `TraineeBranding` with defaults.
 
-### Components
-1. `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx` — Weight check-in form dialog with kg input, date picker, notes, client-side validation (20-500 kg, no future dates), backend error display
-2. `web/src/components/trainee-dashboard/active-workout.tsx` — Full active workout component with timer, exercise state management, beforeunload guard, save mutation
-3. `web/src/components/trainee-dashboard/exercise-log-card.tsx` — Individual exercise logging card with set table (reps, weight, completed checkbox), add/remove sets, target display
-4. `web/src/components/trainee-dashboard/workout-finish-dialog.tsx` — Workout completion confirmation dialog showing summary (exercises, sets, volume, duration)
-5. `web/src/components/trainee-dashboard/workout-history-list.tsx` — Paginated workout history list with detail dialog integration
-6. `web/src/components/trainee-dashboard/workout-detail-dialog.tsx` — Workout detail view dialog showing all exercises with logged sets
-7. `web/src/components/trainee-dashboard/trainee-progress-charts.tsx` — Three progress components: WeightTrendChart (line), WorkoutVolumeChart (bar), WeeklyAdherenceCard (progress bar)
-8. `web/src/components/ui/textarea.tsx` — Standard shadcn/ui textarea component
-
-### Pages
-9. `web/src/app/(trainee-dashboard)/trainee/workout/page.tsx` — Active workout page
-10. `web/src/app/(trainee-dashboard)/trainee/history/page.tsx` — Workout history page
-11. `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx` — Progress charts page
-
-## Files Modified (6)
-1. `web/src/types/trainee-dashboard.ts` — Added 9 new types: WorkoutHistoryItem, WorkoutHistoryResponse, WorkoutDetailData, WorkoutData, WorkoutSession, WorkoutExerciseLog, WorkoutSetLog, CreateWeightCheckInPayload, SaveWorkoutPayload
-2. `web/src/lib/constants.ts` — Added 3 API URL constants: TRAINEE_DAILY_LOGS, TRAINEE_WORKOUT_HISTORY, traineeWorkoutDetail(id)
-3. `web/src/hooks/use-trainee-dashboard.ts` — Added 4 hooks: useCreateWeightCheckIn (mutation), useTraineeWorkoutHistory (query), useTraineeWorkoutDetail (query), useSaveWorkout (mutation)
-4. `web/src/components/trainee-dashboard/trainee-nav-links.tsx` — Added History and Progress nav links (8 total, was 6)
-5. `web/src/components/trainee-dashboard/weight-trend-card.tsx` — Added "Log Weight" button and WeightCheckInDialog integration
-6. `web/src/components/trainee-dashboard/todays-workout-card.tsx` — Added "Start Workout" button linking to /trainee/workout
+## Files Modified (2)
+1. `web/src/components/trainee-dashboard/trainee-sidebar.tsx` — Integrated branding: logo with `<Image>` + `onError` fallback to Dumbbell, app name with truncation + title tooltip, primary color applied to active nav links (background + icon color), skeleton loading state for header.
+2. `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx` — Same branding integration: logo, app name, primary color on active links, skeleton loading.
 
 ## Key Decisions
-1. Used native HTML button with role="checkbox" instead of Radix Checkbox to avoid adding new dependency
-2. Timer is client-side only (useState + setInterval), not persisted to backend
-3. Workout data format matches existing backend `workout_data` JSONField schema
-4. No readiness/post-workout surveys — deferred to keep scope manageable (mobile-only for now)
-5. Progress charts reuse the same recharts + chart-utils patterns as the trainer analytics page
-6. Weight chart reverses API data (newest-first) to display chronologically (left=old, right=new)
+1. Created a separate `TraineeBranding` interface in the hook file (with `logo_url` matching the actual API field name) rather than reusing the trainer-side `TrainerBranding` type which uses `logo`.
+2. Used `next/image` with `unoptimized` for logo (external URL from backend, can't be optimized by Next.js).
+3. Applied branding primary color via inline `style` on active nav links rather than CSS variables — simpler, more targeted, no global CSS changes needed.
+4. Color application uses `${color}20` (hex with alpha) for background tint, raw color for icon — works in both light and dark modes.
+5. Default branding check uses `!== "#6366F1"` to avoid applying inline styles when using default colors (prevents style override of the CSS theme).
+6. Skeleton loading for header area only — nav links render immediately since they don't depend on branding.
+
+## Deviations from Ticket
+- AC-7 (secondary_color application): Not explicitly applied to distinct elements since the sidebar only has one accent color. The secondary color is available in the branding data for future use.
+- Did not add CSS variable override in layout.tsx — inline styles on individual elements were simpler and more contained.
 
 ## How to Test
-1. Log in as TRAINEE user
-2. Dashboard: Weight card shows "Log Weight" button -> opens dialog -> submit -> toast + card refresh
-3. Dashboard: Today's Workout card shows "Start Workout" button -> navigates to /trainee/workout
-4. /trainee/workout: Timer runs, edit reps/weight, toggle completed checkboxes, add/remove sets, "Finish Workout" -> summary dialog -> save -> redirect to dashboard
-5. /trainee/history: Shows paginated workout history, click "Details" -> full workout view in dialog
-6. /trainee/progress: Weight trend line chart, workout volume bar chart, weekly adherence with color-coded progress bar
-7. All pages have loading, empty, and error states
-8. beforeunload fires if navigating away during active workout
+1. Log in as TRAINEE user whose trainer has custom branding configured
+2. Sidebar should show trainer's app_name (or "FitnessAI" if empty), trainer's logo (or Dumbbell if none), and active nav link with trainer's primary color tint
+3. Toggle sidebar collapse — logo should display correctly in both states
+4. Open mobile drawer — same branding appears
+5. Log in as TRAINEE whose trainer has NO branding — everything looks identical to before (FitnessAI + Dumbbell + default indigo)
+6. Refresh page — branding loads from cache (no flash), re-fetches in background after 5 min
+7. `npx tsc --noEmit` passes

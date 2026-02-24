@@ -4,6 +4,29 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-23] — Pipeline 34: Trainee Web Trainer Branding
+
+### Added
+- Trainee web portal now shows trainer's custom branding (app name, logo, primary color) in sidebar
+- New `useTraineeBranding()` hook with React Query caching (5-min staleTime)
+- Shared `BrandLogo` component with graceful image error fallback
+- Frontend hex color sanitization for defense-in-depth
+- `SheetDescription` for Radix Dialog accessibility compliance
+
+### Changed
+- Trainee desktop sidebar displays trainer's logo, app name, and branded active link colors
+- Trainee mobile sidebar applies same branding treatment
+- `TraineeBranding` type moved to `types/branding.ts` (collocated with `TrainerBranding`)
+- `BrandLogo` extracted to shared component eliminating DRY violation
+
+### Technical
+- TypeScript: zero errors
+- Security: PASS (9/10) — no XSS, no CSS injection, strict hex validation
+- Architecture: APPROVE (9/10) — proper layering, shared components, centralized types
+- 5 files changed, 209 lines added
+
+---
+
 ## [2026-02-21] — Trainee Web Workout Logging & Progress Tracking (Pipeline 33)
 
 ### Added

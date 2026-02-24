@@ -1,209 +1,198 @@
-# Architecture Review: Trainee Web -- Workout Logging & Progress Tracking (Pipeline 33)
+# Architecture Review: Trainee Web -- Trainer Branding Application (Pipeline 34)
 
 ## Review Date
-2026-02-21
+2026-02-23
 
 ## Files Reviewed
 
-**New/Modified Components (Pipeline 33 scope):**
-- `web/src/components/trainee-dashboard/active-workout.tsx` -- interactive workout logging
-- `web/src/components/trainee-dashboard/exercise-log-card.tsx` -- per-exercise set editor
-- `web/src/components/trainee-dashboard/workout-finish-dialog.tsx` -- workout summary and save confirmation
-- `web/src/components/trainee-dashboard/workout-history-list.tsx` -- paginated history list with drill-in
-- `web/src/components/trainee-dashboard/workout-detail-dialog.tsx` -- read-only workout detail view
-- `web/src/components/trainee-dashboard/trainee-progress-charts.tsx` -- weight trend, volume, and adherence charts
-- `web/src/components/trainee-dashboard/weekly-progress-card.tsx` -- weekly progress dashboard card
-- `web/src/components/trainee-dashboard/weight-trend-card.tsx` -- weight dashboard card with trend
-- `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx` -- weight check-in form dialog
-- `web/src/components/trainee-dashboard/nutrition-summary-card.tsx` -- macro tracking dashboard card
-- `web/src/components/trainee-dashboard/program-viewer.tsx` -- program schedule viewer with week tabs
-- `web/src/components/trainee-dashboard/todays-workout-card.tsx` -- today's workout dashboard card
-- `web/src/components/trainee-dashboard/trainee-header.tsx` -- header bar
-- `web/src/components/trainee-dashboard/trainee-sidebar.tsx` -- desktop sidebar
-- `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx` -- mobile sidebar
-- `web/src/components/trainee-dashboard/trainee-nav-links.tsx` -- navigation configuration
-- `web/src/components/trainee-dashboard/achievements-grid.tsx` -- achievements grid
-- `web/src/components/trainee-dashboard/announcements-list.tsx` -- announcements list
+**New/Modified Components (Pipeline 34 scope):**
+- `web/src/components/trainee-dashboard/trainee-sidebar.tsx` -- desktop sidebar with branding
+- `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx` -- mobile sidebar with branding
+- `web/src/components/trainee-dashboard/brand-logo.tsx` -- **extracted** shared BrandLogo component
 
 **New/Modified Hooks:**
-- `web/src/hooks/use-trainee-dashboard.ts` -- all trainee data fetching (programs, nutrition, weight, progress, workout history, daily logs, save workout)
+- `web/src/hooks/use-trainee-branding.ts` -- React Query hook for trainee-facing branding data
 
 **New/Modified Types:**
-- `web/src/types/trainee-dashboard.ts` -- WorkoutHistoryItem, WorkoutHistoryResponse, WorkoutDetailData, WorkoutData, WorkoutSession, WorkoutExerciseLog, WorkoutSetLog, SaveWorkoutPayload, CreateWeightCheckInPayload, WeeklyProgress, LatestWeightCheckIn, Announcement, Achievement
-
-**New/Modified Utilities:**
-- `web/src/lib/schedule-utils.ts` -- getTodaysDayNumber, findTodaysWorkout, getTodayString, formatDuration
-- `web/src/lib/chart-utils.ts` -- tooltipContentStyle, CHART_COLORS
-- `web/src/lib/constants.ts` -- TRAINEE_DAILY_LOGS, TRAINEE_WORKOUT_HISTORY, traineeWorkoutDetail API URLs
-
-**New Pages:**
-- `web/src/app/(trainee-dashboard)/trainee/workout/page.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/history/page.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/dashboard/page.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/program/page.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/achievements/page.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/announcements/page.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/messages/page.tsx`
-- `web/src/app/(trainee-dashboard)/trainee/settings/page.tsx`
-- `web/src/app/(trainee-dashboard)/layout.tsx`
+- `web/src/types/branding.ts` -- `TraineeBranding` interface moved here (alongside existing `TrainerBranding`)
 
 **Comparison Files Reviewed (existing patterns):**
-- `web/src/components/trainees/progress-charts.tsx` -- trainer-side charts (for pattern comparison)
-- `web/src/hooks/use-programs.ts` -- existing hook pattern
-- `web/src/hooks/use-trainees.ts` -- existing hook pattern
-- `web/src/hooks/use-trainee-badge-counts.ts` -- badge count composition hook
-- `web/src/types/trainee-view.ts` -- existing trainee types
-- `web/src/lib/api-client.ts` -- API client
+- `web/src/hooks/use-branding.ts` -- trainer-side branding hook (for pattern comparison)
+- `web/src/types/branding.ts` -- existing `TrainerBranding` type
+- `web/src/lib/constants.ts` -- `API_URLS.TRAINEE_BRANDING` endpoint
+- `web/src/lib/api-client.ts` -- API client pattern
+- `web/src/components/layout/sidebar.tsx` -- trainer desktop sidebar (structural reference)
+- `web/src/components/layout/sidebar-mobile.tsx` -- trainer mobile sidebar (structural reference)
+- `web/src/components/layout/admin-sidebar.tsx` -- admin desktop sidebar (structural reference)
+- `web/src/components/layout/admin-sidebar-mobile.tsx` -- admin mobile sidebar (structural reference)
+- `web/src/components/layout/ambassador-sidebar.tsx` -- ambassador desktop sidebar (structural reference)
+- `web/src/components/layout/ambassador-sidebar-mobile.tsx` -- ambassador mobile sidebar (structural reference)
+- `backend/users/views.py` -- `MyBrandingView` endpoint (API contract verification)
+- `backend/trainer/serializers.py` -- `TrainerBrandingSerializer` (response shape verification)
 
 ---
 
 ## Architectural Alignment
 
-- [x] Follows existing layered architecture (route group -> layout -> pages -> components -> hooks)
-- [x] Types in correct locations (`types/` for types, `hooks/` for data, `components/` for UI, `app/` for pages)
-- [x] No business logic in route pages -- data fetching in hooks, presentation in components
-- [x] Consistent with existing patterns (query hooks, API_URLS, shared components)
+- [x] Follows existing layered architecture (hook for data fetching, component for UI, types in `types/`)
+- [x] Models/schemas in correct locations (after fix: `TraineeBranding` moved to `types/branding.ts`)
+- [x] No business logic in components (display name derivation and color comparison are pure utility functions in the hook module)
+- [x] Consistent with existing patterns (mirrors `use-branding.ts` / `TrainerBranding` patterns)
 
 ---
 
-## 1. LAYERING -- Business Logic in Right Layer? State in Right Layer?
-
-**Score: 9/10**
-
-**Strengths:**
-
-Business logic is properly housed in the hooks layer. The `use-trainee-dashboard.ts` file encapsulates all API interactions:
-- `useTraineeDashboardPrograms()` -- program fetching
-- `useTraineeDashboardNutrition(date)` -- date-parameterized nutrition summary
-- `useTraineeWeeklyProgress()` -- weekly adherence
-- `useTraineeLatestWeight()` -- latest check-in with 404 retry suppression
-- `useTraineeWeightHistory()` -- weight history for charts
-- `useCreateWeightCheckIn()` -- mutation with cache invalidation
-- `useTraineeWorkoutHistory(page)` -- paginated history
-- `useTraineeWorkoutDetail(id)` -- conditional detail fetch
-- `useTraineeTodayLog(date)` -- today's log check
-- `useSaveWorkout()` -- check-then-create-or-patch logic for daily logs
-
-The `useSaveWorkout` hook encapsulates the "check if daily log exists, then PATCH or POST" logic, keeping it out of the component. This is the correct layer for this decision.
-
-Date/schedule utility functions are properly extracted to `lib/schedule-utils.ts`. Chart utilities are shared via `lib/chart-utils.ts`, consistent with the trainer-side charts that also import from the same file.
-
-Pages are thin wrappers that compose components. For example, `trainee/workout/page.tsx` is just 12 lines wrapping `<ActiveWorkout />` in `<PageTransition>`.
-
-**One observation:** `active-workout.tsx` at ~340 lines is the largest component. It manages timer state, exercise state, and workout serialization. This is borderline but acceptable -- the logic is cohesive (all state relates to a single active workout session), and the callbacks are properly `useCallback`-wrapped. Extracting the timer to a custom `useTimer` hook would be a marginal improvement but is not architecturally necessary.
-
----
-
-## 2. DATA MODEL -- Types Match Backend? Consistent Naming?
-
-**Score: 9/10**
-
-**Strengths:**
-
-- New types in `trainee-dashboard.ts` are well-structured and match expected DRF API response shapes.
-- Reuses existing types from `trainee-view.ts` (`TraineeViewProgram`, `NutritionSummary`) rather than duplicating them. The trainee dashboard hooks import from both type files -- this is the correct approach.
-- `WorkoutHistoryResponse` properly models DRF's paginated response format (`count`, `next`, `previous`, `results`).
-- `WorkoutData` type handles both direct `exercises` and `sessions` formats (web vs. mobile), showing awareness of the backend's polymorphic data shape.
-- `SetEntry` interface in `exercise-log-card.tsx` adds `isExtra: boolean` to distinguish program-target sets from user-added sets. This is a UI-only concern properly kept out of the API types.
-
-**One minor inconsistency:** `PaginatedDailyLogs` is defined inline in the hook file rather than in a types file. The trainer-side code uses `PaginatedResponse<T>` from `types/api.ts`. However, since the daily log response items have a different shape than other paginated resources, defining it inline is pragmatically acceptable.
-
----
-
-## 3. API DESIGN -- API Calls Follow Established Patterns? Query Keys Consistent?
+## 1. LAYERING -- Business Logic in Right Layer?
 
 **Score: 10/10**
 
-All API URLs are properly centralized in `lib/constants.ts` under the `API_URLS` object. The new trainee endpoints follow the exact same conventions:
+The layering is textbook:
 
-- Static URLs: `TRAINEE_DAILY_LOGS`, `TRAINEE_WORKOUT_HISTORY` (UPPER_SNAKE_CASE)
-- Dynamic URLs: `traineeWorkoutDetail: (id: number) => ...` (camelCase functions)
-- All use the same `API_BASE` prefix
+| Layer | File | Responsibility |
+|-------|------|---------------|
+| Types | `types/branding.ts` | `TraineeBranding` interface |
+| Data | `hooks/use-trainee-branding.ts` | React Query fetch + defaults + utility functions |
+| UI | `trainee-sidebar.tsx`, `trainee-sidebar-mobile.tsx` | Consume hook, render branding |
+| Shared UI | `brand-logo.tsx` | Reusable logo rendering with error fallback |
 
-Query keys are consistently namespaced under `["trainee-dashboard", "<resource>", ...params]`:
-- This namespace is shared across `use-trainee-dashboard.ts`, `use-trainee-announcements.ts`, and `use-trainee-achievements.ts`
-- Enables efficient bulk invalidation if needed (e.g., `queryClient.invalidateQueries({ queryKey: ["trainee-dashboard"] })`)
-- No collisions with trainer-facing query keys (which use `["programs"]`, `["trainees"]`, etc.)
+The hook cleanly separates three concerns:
+1. **Data fetching** (`useTraineeBranding`) -- query, staleTime, retry, default fallback
+2. **Display logic** (`getBrandingDisplayName`) -- pure function, no side effects
+3. **Color detection** (`hasCustomPrimaryColor`) -- pure comparison function
 
-Mutation `onSuccess` callbacks correctly invalidate related queries:
-- `useSaveWorkout` invalidates `weekly-progress`, `workout-history`, and `today-log`
-- `useCreateWeightCheckIn` invalidates `weight-checkins` and `latest-weight`
-
-`staleTime: 5 * 60 * 1000` is used consistently across all trainee queries, matching the `useAllTrainees` pattern.
-
----
-
-## 4. FRONTEND PATTERNS -- Component Decomposition, Prop Drilling, Hook Patterns
-
-**Score: 9/10**
-
-**Component decomposition is excellent.** Each component has a clear, single responsibility:
-
-| Component | Role | Data Source |
-|-----------|------|-------------|
-| `TodaysWorkoutCard` | Read-only dashboard card | Self-fetching (hook) |
-| `ActiveWorkout` | Full interactive workout logging | Self-fetching + state |
-| `ExerciseLogCard` | Per-exercise set editor | Props from parent |
-| `WorkoutFinishDialog` | Confirmation with summary | Props from parent |
-| `WorkoutHistoryList` | Paginated history with drill-in | Self-fetching (hook) |
-| `WorkoutDetailDialog` | Read-only detail view | Self-fetching (hook) |
-| `WeightTrendChart` | Weight line chart | Self-fetching (hook) |
-| `WorkoutVolumeChart` | Volume bar chart | Self-fetching (hook) |
-| `WeeklyAdherenceCard` | Adherence metric | Self-fetching (hook) |
-| `ProgramViewer` | Program schedule viewer | Props from parent |
-| `AchievementsGrid` | Achievements grid | Props from parent |
-| `AnnouncementsList` | Announcements list | Props from parent |
-
-Prop drilling is minimal and appropriate. `ExerciseLogCard` receives callbacks for set manipulation from `ActiveWorkout` -- this is the correct approach (lifting state up to the workout coordinator). No context providers needed.
-
-The trainee nav system (`trainee-nav-links.ts` data, `trainee-sidebar.tsx` desktop, `trainee-sidebar-mobile.tsx` mobile) follows the exact same pattern as the trainer dashboard's nav system.
-
-Shared components are properly reused: `PageHeader`, `PageTransition`, `ErrorState`, `EmptyState`, `LoadingSpinner`, `Badge` from the shared library.
+Components consume these without any data-fetching logic of their own. The sidebar components only deal with presentation: skeleton states, layout, active-link highlighting with branded colors.
 
 ---
 
-## 5. SCALABILITY -- N+1 Queries, Unbounded Fetches, Pagination
+## 2. DATA MODEL -- Types Match Backend? Well-Defined?
 
 **Score: 9/10**
 
-**Properly bounded:**
-- Workout history is paginated (page_size=20) with next/previous navigation
-- Weight check-in chart limits to 30 most recent entries (`checkIns.slice(0, 30)`)
-- `useTraineeTodayLog` filters by date at the API level (`?date=${date}`)
-- `enabled: id > 0` on `useTraineeWorkoutDetail` prevents unnecessary fetches
-- `retry` function on `useTraineeLatestWeight` skips retrying 404s
+**API contract verification:**
 
-**One bounded concern:** `useTraineeWeightHistory` fetches ALL weight check-ins without pagination. The chart mitigates this by slicing to 30 entries, but the full dataset is still transferred. For a trainee with years of daily weigh-ins, this could grow to 1000+ entries. Acceptable for now since most trainees have at most a few hundred entries, but adding `?ordering=-date&page_size=100` would be a future improvement.
+The backend `MyBrandingView` returns:
+```python
+{'app_name': str, 'primary_color': str, 'secondary_color': str, 'logo_url': str | None}
+```
 
-**One display concern:** `WorkoutVolumeChart` fetches only page 1 of workout history (20 items). This is appropriate for a "recent volume" chart but the component does not explicitly indicate the time window to the user.
+The frontend `TraineeBranding` interface matches exactly:
+```typescript
+{ app_name: string; primary_color: string; secondary_color: string; logo_url: string | null; }
+```
+
+**Field naming discrepancy (documented, correct):**
+- `TrainerBranding.logo` (relative path, used for CRUD in trainer branding settings)
+- `TraineeBranding.logo_url` (absolute URL from `SerializerMethodField`, read-only for trainees)
+
+This is not a bug -- it correctly reflects two different API contracts. The `TrainerBrandingSerializer` exposes `logo_url` as a `SerializerMethodField` that calls `request.build_absolute_uri()`, while the trainer-facing CRUD uses the raw `logo` field. I added a JSDoc comment to `types/branding.ts` documenting this intentional difference.
+
+**Default branding values:**
+```typescript
+const DEFAULT_BRANDING: TraineeBranding = {
+  app_name: "",
+  primary_color: "#6366F1",
+  secondary_color: "#818CF8",
+  logo_url: null,
+};
+```
+
+These match the backend's `_DEFAULT_BRANDING_RESPONSE` exactly (`TrainerBranding.DEFAULT_PRIMARY_COLOR` = `#6366F1`, `DEFAULT_SECONDARY_COLOR` = `#818CF8`). Backward-compatible -- trainees with no trainer or no branding configured will see the FitnessAI defaults.
+
+---
+
+## 3. API DESIGN -- React Query Setup Correct? Cache Strategy Appropriate?
+
+**Score: 10/10**
+
+```typescript
+useQuery<TraineeBranding>({
+  queryKey: ["trainee-branding"],
+  queryFn: () => apiClient.get<TraineeBranding>(API_URLS.TRAINEE_BRANDING),
+  staleTime: 5 * 60 * 1000,
+  retry: 1,
+});
+```
+
+**Cache strategy analysis:**
+
+| Aspect | Choice | Rationale |
+|--------|--------|-----------|
+| `staleTime: 5min` | Correct | Branding changes infrequently (trainer updates once, maybe never again). 5 minutes prevents unnecessary refetches while still picking up changes within a session. |
+| `retry: 1` | Correct | Branding is non-critical UI enhancement. One retry is sufficient; failing silently to defaults is the right behavior. |
+| Query key `["trainee-branding"]` | Correct | Simple, stable key. No parameterization needed (one branding per trainee session). No collision with trainer-side `["branding"]` key used in `use-branding.ts`. |
+| Default fallback `data ?? DEFAULT_BRANDING` | Correct | Graceful degradation -- the sidebar renders with FitnessAI defaults during loading or on error. |
+
+**API URL centralized:**
+```typescript
+TRAINEE_BRANDING: `${API_BASE}/api/users/my-branding/`,
+```
+
+Follows the existing `TRAINEE_*` naming pattern used for `TRAINEE_PROGRAMS`, `TRAINEE_NUTRITION_SUMMARY`, etc.
+
+---
+
+## 4. FRONTEND PATTERNS -- Components Follow Conventions? DRY?
+
+**Score: 9/10 (after fixes)**
+
+### Issues Found and Fixed
+
+**Issue 1 (Major -- fixed): DRY violation in BrandLogo**
+
+Both `trainee-sidebar.tsx` and `trainee-sidebar-mobile.tsx` contained independent implementations of a `BrandLogo` component with the same logic: accept a `logoUrl`, manage `imgError` state, fall back to `<Dumbbell>` on error. The implementations were nearly identical but subtly different (desktop version accepted a `size` prop, mobile version was hardcoded to `h-6 w-6`).
+
+**Fix:** Extracted `BrandLogo` to `/web/src/components/trainee-dashboard/brand-logo.tsx` as a shared component with `logoUrl`, `altText`, and `size` props. Both sidebars now import from the shared file. Removed ~25 lines of duplicated code per sidebar.
+
+**Issue 2 (Minor -- fixed): Type defined in wrong layer**
+
+The `TraineeBranding` interface was defined inline in `hooks/use-trainee-branding.ts`. The codebase convention is types in `types/` directory -- `TrainerBranding` is in `types/branding.ts`, `WorkoutHistoryItem` is in `types/trainee-dashboard.ts`, etc.
+
+**Fix:** Moved `TraineeBranding` to `types/branding.ts` (collocated with the related `TrainerBranding` type). The hook file now imports from `@/types/branding` and re-exports the type for convenience.
+
+### Patterns That Align Well
+
+- Both sidebars follow the exact structural pattern of the trainer/admin/ambassador sidebars: same class names, same collapse behavior, same tooltip pattern
+- Loading states use `<Skeleton>` consistently with other sidebars
+- Badge rendering follows the same pattern as the trainer sidebar's unread count badges
+- Custom color application (`style={{ backgroundColor: ... }}`) is a safe progressive enhancement -- falls back to theme colors when `isCustomColor` is false
+- The `${branding.primary_color}20` pattern (appending hex alpha) is a clean approach for creating a tinted background without needing CSS variable injection
+
+---
+
+## 5. SCALABILITY -- Re-renders, Performance
+
+**Score: 10/10**
+
+**No unnecessary re-renders:**
+- `useTraineeBranding()` is called once per sidebar component. Since both desktop and mobile sidebars are never mounted simultaneously (desktop is `hidden lg:block`, mobile is a Sheet), the React Query cache serves both efficiently with zero duplicate network requests.
+- `getBrandingDisplayName` and `hasCustomPrimaryColor` are pure functions called during render -- no memo needed since their inputs (`branding` object) only change when the query refetches.
+- `BrandLogo` uses local `useState` for `imgError` -- this is the correct pattern. The error state is per-mount, so if the image 404s, only the mounted instance re-renders.
+
+**No N+1 patterns:**
+- One API call fetches all branding data. No per-field fetching, no waterfall.
+
+**Image optimization:**
+- `unoptimized` prop on `next/image` is correct for user-uploaded logos from the backend (external URLs that Next.js image optimizer may not be configured for).
 
 ---
 
 ## 6. TECHNICAL DEBT -- Introduced or Reduced?
 
-**Score: 9/10 (net positive)**
+**Score: 9/10 (net positive after fixes)**
 
-### Debt Reduced
+### Debt Reduced (by this review)
 
-1. **Shared chart utilities** -- `tooltipContentStyle` and `CHART_COLORS` in `lib/chart-utils.ts` are consumed by both the new trainee charts (`trainee-progress-charts.tsx`) and the existing trainer-side charts (`trainees/progress-charts.tsx`). This reduces duplication.
+| # | Change | Impact |
+|---|--------|--------|
+| 1 | Extracted `BrandLogo` to shared component | Eliminates ~50 lines of duplication between sidebars. Future branding-aware components can import and reuse. |
+| 2 | Moved `TraineeBranding` to `types/branding.ts` | All branding types now live in one file, consistent with codebase convention. |
+| 3 | Added JSDoc documenting `logo` vs `logo_url` field difference | Prevents future confusion when someone sees both types side by side. |
 
-2. **Centralized schedule utilities** -- `getTodaysDayNumber`, `findTodaysWorkout`, `getTodayString`, `formatDuration` are properly centralized in `lib/schedule-utils.ts`.
-
-3. **Type reuse** -- `TraineeViewProgram` and `NutritionSummary` imported from existing `trainee-view.ts` rather than redefined.
-
-### Fixed During This Review
-
-| # | File | What Changed | Why |
-|---|------|-------------|-----|
-| 1 | `nutrition-summary-card.tsx` | Removed duplicate `getToday()` function, replaced with import of `getTodayString` from `@/lib/schedule-utils` | The component defined a local `getToday()` function that was an exact duplicate of `getTodayString()` in `schedule-utils.ts`. Single source of truth for date formatting prevents divergence. |
-
-### Minor Debt Remaining
+### Debt Remaining (pre-existing, not introduced by this pipeline)
 
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| 1 | `PaginatedDailyLogs` defined inline in hook file | Low | Could use `PaginatedResponse<TodayLogEntry>` from `types/api.ts` if shapes align |
-| 2 | `active-workout.tsx` helper functions (`buildInitialSets`, `parseTarget`) could be extracted | Low | Move to a utility file if workout initialization logic is needed elsewhere |
+| 1 | Trainer sidebar (`layout/sidebar.tsx`) does not use trainer branding | Low | Future pipeline: apply same branding pattern to the trainer's own sidebar when viewing their dashboard |
+| 2 | No shared `ActiveLinkStyle` utility for branded active states | Low | The `style={{ backgroundColor: \`\${color}20\` }}` pattern is now repeated in both sidebars. If branding expands to more components, extract a `getBrandedActiveStyle(branding, isActive)` utility. Not needed yet. |
 
 ---
 
@@ -211,24 +200,36 @@ Shared components are properly reused: `PageHeader`, `PageTransition`, `ErrorSta
 
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | N/A | No backend schema changes -- all types consume existing API endpoints |
+| Schema changes backward-compatible | N/A | No backend schema changes -- reads existing `my-branding/` endpoint |
 | Migrations reversible | N/A | No migrations |
-| Indexes added for new queries | N/A | Uses existing endpoints |
-| No N+1 query patterns | PASS | Each component makes at most one query; no nested loops of API calls |
-| Types match API contracts | PASS | `WorkoutHistoryResponse` matches DRF pagination; `WorkoutData` handles both exercise and session formats |
+| Indexes added for new queries | N/A | Uses existing endpoint |
+| No N+1 query patterns | PASS | Single API call for all branding data |
+| Types match API contracts | PASS | `TraineeBranding` exactly matches `MyBrandingView` response shape (verified against backend code) |
+| Default values match backend | PASS | `DEFAULT_BRANDING` matches `_DEFAULT_BRANDING_RESPONSE` in `MyBrandingView` |
 
 ## Scalability Concerns
 
 | # | Area | Issue | Recommendation |
 |---|------|-------|----------------|
-| 1 | Weight history | `useTraineeWeightHistory` fetches all records without pagination | Low priority -- add `?page_size=100&ordering=-date` in a future pass. Chart already limits to 30 entries for rendering. |
-| 2 | Workout volume chart | Only shows page 1 (20 workouts) | Acceptable -- recent volume is the most useful data. Could add a "load more" option later. |
+| -- | -- | No scalability concerns identified | The branding data is small, infrequently changing, and properly cached. |
 
 ## Technical Debt Introduced
 
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| 1 | `PaginatedDailyLogs` defined inline in hook file | Low | Unify with `PaginatedResponse<T>` from `types/api.ts` |
+| -- | None introduced | -- | The implementation is clean and follows established patterns. |
+
+---
+
+## Changes Made During This Review
+
+| # | File | What Changed | Why |
+|---|------|-------------|-----|
+| 1 | `web/src/components/trainee-dashboard/brand-logo.tsx` | **Created** shared `BrandLogo` component | Eliminate DRY violation between desktop and mobile sidebars |
+| 2 | `web/src/components/trainee-dashboard/trainee-sidebar.tsx` | Removed inline `BrandLogo` definition, now imports from `./brand-logo` | DRY fix |
+| 3 | `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx` | Removed inline `BrandLogo` definition, now imports from `./brand-logo` | DRY fix |
+| 4 | `web/src/types/branding.ts` | Added `TraineeBranding` interface with JSDoc | Types belong in `types/` directory per codebase convention |
+| 5 | `web/src/hooks/use-trainee-branding.ts` | Import `TraineeBranding` from `@/types/branding` instead of defining inline; re-exports for convenience | Consistent type location |
 
 ---
 
@@ -236,29 +237,28 @@ Shared components are properly reused: `PageHeader`, `PageTransition`, `ErrorSta
 
 | Area | Score | Notes |
 |------|-------|-------|
-| Layering | 9/10 | Business logic in hooks, UI in components, pages are thin orchestrators |
-| Data model / types | 9/10 | Proper reuse of existing types, new types well-structured |
-| API design / query keys | 10/10 | Consistent namespacing, centralized URLs, proper invalidation |
-| Component decomposition | 9/10 | Clear single-responsibility, minimal prop drilling, excellent shared reuse |
-| Scalability | 9/10 | Paginated history, bounded chart data, conditional fetches |
-| Technical debt | 9/10 | Net reduction via shared utilities; one inline type definition is minor |
-| Accessibility | 9/10 | ARIA attributes, keyboard handlers, screen reader text throughout |
+| Layering | 10/10 | Hook fetches data, components render, utilities are pure functions |
+| Data model / types | 9/10 | Correct API contract match; minor: `logo` vs `logo_url` naming documented |
+| API design / query keys | 10/10 | Proper staleTime, retry, default fallback, centralized URL, no key collisions |
+| Component decomposition | 9/10 | After extraction of shared BrandLogo, both sidebars are clean and DRY |
+| Scalability | 10/10 | Single small API call, proper caching, no re-render concerns |
+| Technical debt | 9/10 | Net reduction -- extracted shared component, centralized type, added documentation |
 
 ---
 
 ## Architecture Score: 9/10
 
-The implementation demonstrates strong architectural discipline. The new workout logging, progress tracking, and history features integrate seamlessly with the established codebase patterns:
+The trainer branding application to the trainee web portal is architecturally sound. The implementation correctly:
 
-- **Proper separation of concerns**: pages compose components, components consume hooks, hooks manage API interactions
-- **Consistent query key namespacing** under `["trainee-dashboard", ...]` across all trainee hooks
-- **Centralized API URLs** in `lib/constants.ts` following established naming conventions
-- **Type reuse** from `trainee-view.ts` rather than duplication
-- **Shared chart utilities** between trainer and trainee dashboards
-- **Proper pagination** on workout history
-- **All five UX states** (loading, empty, error, success, special cases like rest day/no program) handled at the component level
-- **One duplicate utility function fixed** during this review (getToday -> getTodayString)
+- **Separates data from presentation**: `useTraineeBranding` hook handles fetching and defaults; sidebar components only handle rendering
+- **Matches the backend API contract**: `TraineeBranding` interface exactly matches `MyBrandingView` response shape, including the correct `logo_url` field (vs trainer-side `logo`)
+- **Uses appropriate cache strategy**: 5-minute staleTime for infrequently-changing data, single retry, graceful degradation to defaults
+- **Follows existing patterns**: mirrors the trainer sidebar structure, uses centralized `API_URLS`, consistent query key naming
+- **Progressive enhancement**: branded colors are applied via inline `style` props only when custom color is detected, falling back to theme defaults otherwise
 
-The only improvements would be marginal: extracting the timer to a custom hook, adding pagination to weight history fetches, and unifying the inline paginated type. None rise to the level of architectural concern.
+Three architectural improvements were made during this review:
+1. Extracted `BrandLogo` into a shared component to eliminate DRY violation
+2. Moved `TraineeBranding` type to `types/branding.ts` per codebase convention
+3. Added JSDoc documenting the intentional `logo` vs `logo_url` field difference
 
 ## Recommendation: APPROVE

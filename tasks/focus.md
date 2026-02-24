@@ -1,19 +1,17 @@
-# Pipeline 33 Focus: Trainee Web — Workout Logging & Progress Tracking
+# Pipeline 34 Focus: Trainee Web — Trainer Branding Application
 
 ## Priority
-Make the trainee web portal interactive. Currently it's entirely read-only — trainees can view their assigned program, see nutrition macros, and read announcements, but cannot log workouts, record weight, or view historical progress. This pipeline adds the core interactive features that make the web portal actually useful for daily training.
+Apply the trainer's white-label branding (app name, colors, logo) to the trainee web portal. The backend API exists at `/api/users/my-branding/` and returns the trainer's branding config. The trainee portal currently hardcodes "FitnessAI" everywhere and uses the default theme. This is the last remaining item to complete the white-label infrastructure.
 
 ## Key Changes
-- Web: Weight check-in dialog (record weight from dashboard)
-- Web: Active workout logging (start workout → log sets/reps/weight → complete → save to DailyLog)
-- Web: Workout history page with completed workout details
-- Web: Progress page with weight trend chart, workout volume chart, and adherence stats
-- Backend: No new endpoints needed — all trainee APIs already exist
+- Web: Create `useTraineeBranding()` hook to fetch branding from `/api/users/my-branding/`
+- Web: Replace hardcoded "FitnessAI" with trainer's `app_name` in sidebar + mobile sidebar
+- Web: Display trainer's logo in sidebar header when available
+- Web: Apply trainer's `primary_color` as CSS custom property override for sidebar accent
+- Backend: No changes needed — API already exists and works
 
 ## Scope
-- Trainee can record a weight check-in from the web dashboard
-- Trainee can start a workout from their program schedule, log sets/reps/weight for each exercise, and save the completed workout
-- Trainee can view their workout history with exercise details
-- Trainee can view progress charts (weight trend, workout volume, weekly adherence)
-- All backend APIs already exist — this is purely frontend work
-- Reuse existing trainee API endpoints and hooks where possible
+- Trainee web portal only (trainer/admin/ambassador dashboards unaffected)
+- Branding = app_name + logo + primary_color + secondary_color
+- Graceful fallback to defaults when no branding is configured
+- No new backend endpoints needed
