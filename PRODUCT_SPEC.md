@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-21 (Pipeline 33: Trainee Web Workout Logging & Progress Tracking)
+> Last updated: 2026-02-23 (Pipeline 34: Trainee Web Trainer Branding Application)
 
 ---
 
@@ -239,7 +239,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Trainee workout history (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 33): Paginated list with detail dialog, exercise/set breakdown, volume/duration stats, "Page X of Y" pagination |
 | Trainee progress charts (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 33): Weight trend (LineChart), workout volume (BarChart), weekly adherence (progress bar), theme-aware CHART_COLORS, screen reader fallbacks |
 | Trainee "already logged" detection (web) | ✅ Done | Shipped 2026-02-21 (Pipeline 33): Dashboard card shows "View Today's Workout" when already logged, "Start Workout" when not |
-| Trainer branding (trainee web) | 🟡 Deferred | API URL defined, not yet wired. Branding colors/logo from trainer not applied to trainee web portal |
+| Trainer branding (trainee web) | ✅ Done | Shipped 2026-02-23 (Pipeline 34): `useTraineeBranding()` hook with React Query caching (5-min staleTime), `BrandLogo` shared component with image error fallback, hex color sanitization, trainer's app name/logo/primary color applied to both desktop and mobile trainee sidebars |
 
 ### 3.10 Social & Community
 | Feature | Status | Notes |
@@ -837,6 +837,29 @@ Full-stack intelligent program generation with exercise difficulty classificatio
 - Architecture audit: 9/10 APPROVE (clean service layer, no N+1, deterministic algorithms)
 - Final verdict: 9/10 SHIP
 
+### 4.26 Trainee Web Portal — Trainer Branding Application (Pipeline 34) -- COMPLETED (2026-02-23)
+
+Applies trainer white-label branding (app name, logo, primary color) to the trainee web portal sidebars.
+
+**What was built:**
+
+**Web (Next.js)**
+- `useTraineeBranding()` custom React Query hook fetching `GET /api/users/my-branding/` with 5-minute staleTime and graceful fallback to null
+- `BrandLogo` shared component (`web/src/components/shared/brand-logo.tsx`) with `onError` image fallback to Dumbbell icon, accepting size, className, and alt props
+- `TraineeBranding` type added to `web/src/types/branding.ts` alongside `TrainerBranding`
+- Trainee desktop sidebar (`trainee-sidebar.tsx`): renders trainer's logo via `BrandLogo`, displays trainer's `app_name` as title, applies `primary_color` to active link background via inline CSS custom property
+- Trainee mobile sidebar (`trainee-sidebar-mobile.tsx`): same branding treatment — `BrandLogo` in sheet header, app name text, active link color override
+- Hex color sanitization: `sanitizeHexColor()` utility validates `#RRGGBB` / `#RGB` patterns before applying to DOM (defense-in-depth against CSS injection)
+- `SheetDescription` added to Radix Sheet in mobile sidebar for Radix Dialog accessibility compliance
+
+**Pipeline Results:**
+- 14/15 acceptance criteria pass (secondary_color not applied to distinct element — acceptable scope)
+- TypeScript: zero errors
+- Code review: APPROVE
+- Security audit: 9/10 PASS — no XSS, no CSS injection, strict hex validation
+- Architecture audit: 9/10 APPROVE — proper layering, shared components, centralized types
+- 5 files changed, 209 lines added
+
 ### 4.15 Acceptance Criteria
 
 - [x] Completing a workout persists all exercise data to DailyLog.workout_data
@@ -946,7 +969,8 @@ Full-stack intelligent program generation with exercise difficulty classificatio
 
 ### Phase 12: Future Enhancements
 - Video attachments on community posts
-- ~~Trainee web access~~ ✅ Completed 2026-02-21 (Pipeline 32 — full trainee web portal: dashboard, program viewer, messages, announcements, achievements, settings; branding deferred)
+- ~~Trainee web access~~ ✅ Completed 2026-02-21 (Pipeline 32 — full trainee web portal: dashboard, program viewer, messages, announcements, achievements, settings)
+- ~~Trainee web trainer branding~~ ✅ Completed 2026-02-23 (Pipeline 34 — trainer app name, logo, and primary color applied to trainee web sidebars; `useTraineeBranding()` hook, `BrandLogo` shared component, hex color sanitization)
 - ~~WebSocket support for web messaging (replace HTTP polling)~~ ✅ Completed 2026-02-19 (Pipeline 22)
 - ~~Web typing indicators (component exists, awaiting WebSocket)~~ ✅ Completed 2026-02-19 (Pipeline 22)
 - ~~Message editing and deletion~~ ✅ Completed 2026-02-19 (Pipeline 23)
