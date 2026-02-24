@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { useSidebarCollapse } from "@/hooks/use-sidebar-collapse";
 import { UserRole } from "@/types/user";
 import { AmbassadorSidebar } from "@/components/layout/ambassador-sidebar";
 import { AmbassadorSidebarMobile } from "@/components/layout/ambassador-sidebar-mobile";
@@ -17,6 +18,7 @@ export default function AmbassadorDashboardLayout({
 }) {
   const { isLoading, isAuthenticated, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { collapsed, toggleCollapsed } = useSidebarCollapse();
   const router = useRouter();
 
   useEffect(() => {
@@ -75,19 +77,19 @@ export default function AmbassadorDashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:shadow-lg"
       >
         Skip to main content
       </a>
-      <AmbassadorSidebar />
+      <AmbassadorSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       <AmbassadorSidebarMobile
         open={mobileOpen}
         onOpenChange={setMobileOpen}
       />
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col overflow-hidden">
         <ImpersonationBanner />
         <Header onMenuClick={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-auto p-4 lg:p-6" id="main-content">

@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings } from "lucide-react";
 
+const ROLE_LABELS: Record<string, string> = {
+  [UserRole.TRAINER]: "Trainer",
+  [UserRole.ADMIN]: "Admin",
+  [UserRole.AMBASSADOR]: "Ambassador",
+  [UserRole.TRAINEE]: "Trainee",
+};
+
 export function UserNav() {
   const { user, logout } = useAuth();
 
@@ -26,11 +33,13 @@ export function UserNav() {
     ? `${user.first_name} ${user.last_name}`.trim() || user.email
     : "";
 
+  const roleLabel = user ? ROLE_LABELS[user.role] ?? "" : "";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center gap-2 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex items-center gap-2.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:rounded-lg lg:border lg:border-border lg:px-3 lg:py-1.5 lg:hover:bg-accent"
           aria-label={`User menu for ${displayName}`}
         >
           <Avatar className="h-8 w-8">
@@ -39,6 +48,16 @@ export function UserNav() {
             )}
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
+          <div className="hidden text-left lg:block">
+            <p className="max-w-[140px] truncate text-sm font-medium leading-tight">
+              {displayName}
+            </p>
+            {roleLabel && (
+              <p className="text-xs leading-tight text-muted-foreground">
+                {roleLabel}
+              </p>
+            )}
+          </div>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

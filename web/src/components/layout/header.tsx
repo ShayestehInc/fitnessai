@@ -17,9 +17,9 @@ export function Header({ onMenuClick }: HeaderProps) {
         size="icon"
         className="lg:hidden"
         onClick={onMenuClick}
+        aria-label="Open navigation menu"
       >
         <Menu className="h-5 w-5" />
-        <span className="sr-only">Toggle menu</span>
       </Button>
       <div className="flex-1" />
       <div className="flex items-center gap-3">
