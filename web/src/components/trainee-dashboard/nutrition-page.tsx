@@ -13,9 +13,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
+import { MacroBar } from "@/components/shared/macro-bar";
 import { useTraineeDashboardNutrition } from "@/hooks/use-trainee-dashboard";
 import { getTodayString } from "@/lib/schedule-utils";
 import { MealLogInput } from "./meal-log-input";
@@ -43,38 +43,6 @@ function addDays(dateStr: string, days: number): string {
   return `${y}-${m}-${dd}`;
 }
 
-interface MacroBarProps {
-  label: string;
-  consumed: number;
-  goal: number;
-  color: string;
-  unit?: string;
-}
-
-function MacroBar({ label, consumed, goal, color, unit = " g" }: MacroBarProps) {
-  const percentage = goal > 0 ? Math.min((consumed / goal) * 100, 100) : 0;
-
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground">
-          {Math.round(consumed)} / {Math.round(goal)}
-          {unit}
-        </span>
-      </div>
-      <Progress
-        value={percentage}
-        className="h-2"
-        aria-label={`${label}: ${Math.round(consumed)} of ${Math.round(goal)}${unit}`}
-        style={
-          { "--progress-color": color } as React.CSSProperties
-        }
-      />
-    </div>
-  );
-}
-
 function MacrosSkeleton() {
   return (
     <Card>
@@ -93,34 +61,45 @@ function MacrosSkeleton() {
   );
 }
 
-function DateNavSkeleton() {
+function MealHistorySkeleton() {
   return (
-    <div className="flex items-center justify-center gap-3">
-      <Skeleton className="h-8 w-8 rounded-md" />
-      <Skeleton className="h-5 w-40" />
-      <Skeleton className="h-8 w-8 rounded-md" />
-    </div>
+    <Card>
+      <CardHeader className="pb-3">
+        <Skeleton className="h-5 w-20" />
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center justify-between rounded-md border px-3 py-2">
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+            <Skeleton className="h-7 w-7 rounded-md" />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
 export function NutritionPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayString);
-  const today = getTodayString();
-  const isToday = selectedDate === today;
+  const isToday = selectedDate === getTodayString();
 
-  // Update "today" reference if tab stays open past midnight
+  // Update date if tab stays open past midnight
   useEffect(() => {
     const checkDate = () => {
-      const current = getTodayString();
+      const currentToday = getTodayString();
       setSelectedDate((prev) => {
-        // Only auto-update if user was viewing today
-        if (prev === today && prev !== current) return current;
+        // Only auto-update if user was viewing the old today
+        const oldToday = addDays(currentToday, -1);
+        if (prev === oldToday) return currentToday;
         return prev;
       });
     };
     const interval = setInterval(checkDate, 60_000);
     return () => clearInterval(interval);
-  }, [today]);
+  }, []);
 
   const { data, isLoading, isError, refetch } =
     useTraineeDashboardNutrition(selectedDate);
@@ -132,7 +111,6 @@ export function NutritionPage() {
   const goToNextDay = useCallback(() => {
     setSelectedDate((prev) => {
       const next = addDays(prev, 1);
-      // Don't go past today
       return next > getTodayString() ? prev : next;
     });
   }, []);
@@ -172,12 +150,8 @@ export function NutritionPage() {
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        <span className="min-w-[160px] text-center text-sm font-medium">
-          {isLoading ? (
-            <Skeleton className="mx-auto h-5 w-40" />
-          ) : (
-            formatDisplayDate(selectedDate)
-          )}
+        <span className="min-w-[180px] whitespace-nowrap text-center text-sm font-medium">
+          {formatDisplayDate(selectedDate)}
         </span>
 
         <Button
@@ -280,12 +254,11 @@ export function NutritionPage() {
       )}
 
       {/* Meal History */}
-      {!isLoading && !isError && (
-        <MealHistory
-          meals={meals}
-          date={selectedDate}
-        />
-      )}
+      {isLoading ? (
+        <MealHistorySkeleton />
+      ) : !isError ? (
+        <MealHistory meals={meals} date={selectedDate} />
+      ) : null}
     </div>
   );
 }

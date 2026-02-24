@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Trash2, UtensilsCrossed } from "lucide-react";
+import { Trash2, UtensilsCrossed, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,9 +30,10 @@ interface MealHistoryProps {
 export function MealHistory({ meals, date }: MealHistoryProps) {
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
   const deleteMutation = useDeleteMealEntry(date);
-  const { data: todayLogs } = useTraineeTodayLog(date);
+  const { data: todayLogs, isLoading: isLoadingLogs } = useTraineeTodayLog(date);
 
   const dailyLogId = todayLogs?.[0]?.id ?? null;
+  const isDeleting = deleteMutation.isPending;
 
   const handleDelete = useCallback(() => {
     if (deleteIndex === null || dailyLogId === null) return;
@@ -77,7 +78,7 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
             <div className="space-y-2" role="list" aria-label="Logged meals">
               {meals.map((meal, index) => (
                 <div
-                  key={index}
+                  key={`${meal.name}-${Math.round(meal.calories)}-${meal.timestamp ?? index}`}
                   role="listitem"
                   className="flex items-center justify-between rounded-md border px-3 py-2"
                 >
@@ -90,17 +91,20 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
                       <span>F: {Math.round(meal.fat)}g</span>
                     </div>
                   </div>
-                  {dailyLogId !== null && (
+                  {isLoadingLogs ? (
+                    <Loader2 className="ml-2 h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+                  ) : dailyLogId !== null ? (
                     <Button
                       variant="ghost"
                       size="icon"
                       className="ml-2 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => setDeleteIndex(index)}
+                      disabled={isDeleting}
                       aria-label={`Remove ${meal.name}`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -112,7 +116,7 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
       <Dialog
         open={deleteIndex !== null}
         onOpenChange={(open) => {
-          if (!open) setDeleteIndex(null);
+          if (!open && !isDeleting) setDeleteIndex(null);
         }}
       >
         <DialogContent>
@@ -128,16 +132,16 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
             <Button
               variant="outline"
               onClick={() => setDeleteIndex(null)}
-              disabled={deleteMutation.isPending}
+              disabled={isDeleting}
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={handleDelete}
-              disabled={deleteMutation.isPending}
+              disabled={isDeleting}
             >
-              {deleteMutation.isPending ? "Removing..." : "Remove"}
+              {isDeleting ? "Removing..." : "Remove"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -132,7 +132,7 @@ export interface ParseNaturalLanguageResponse {
 
 // Confirm and save payload
 export interface ConfirmAndSavePayload {
-  parsed_data: Record<string, unknown>;
+  parsed_data: ParseNaturalLanguageResponse;
   date: string;
   confirm: boolean;
 }

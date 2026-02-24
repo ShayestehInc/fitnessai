@@ -10,6 +10,13 @@ import type {
 } from "@/types/trainee-dashboard";
 
 const STALE_TIME = 5 * 60 * 1000; // 5 minutes
+const DATE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
+
+function assertValidDate(date: string): void {
+  if (!DATE_FORMAT.test(date)) {
+    throw new Error(`Invalid date format: "${date}". Expected YYYY-MM-DD.`);
+  }
+}
 
 /**
  * Mutation hook for AI natural language food parsing.
@@ -17,17 +24,20 @@ const STALE_TIME = 5 * 60 * 1000; // 5 minutes
  */
 export function useParseNaturalLanguage() {
   return useMutation({
-    mutationFn: (payload: { user_input: string; date: string }) =>
-      apiClient.post<ParseNaturalLanguageResponse>(
+    mutationFn: (payload: { user_input: string; date: string }) => {
+      assertValidDate(payload.date);
+      return apiClient.post<ParseNaturalLanguageResponse>(
         API_URLS.TRAINEE_PARSE_NATURAL_LANGUAGE,
         payload,
-      ),
+      );
+    },
   });
 }
 
 /**
  * Mutation hook for confirming and saving parsed meal data.
  * POST /api/workouts/daily-logs/confirm-and-save/
+ * Invalidates both nutrition-summary and today-log queries on success.
  */
 export function useConfirmAndSaveMeal(date: string) {
   const queryClient = useQueryClient();
@@ -38,6 +48,9 @@ export function useConfirmAndSaveMeal(date: string) {
       queryClient.invalidateQueries({
         queryKey: ["trainee-dashboard", "nutrition-summary", date],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "today-log", date],
+      });
     },
   });
 }
@@ -45,6 +58,7 @@ export function useConfirmAndSaveMeal(date: string) {
 /**
  * Mutation hook for deleting a meal entry from a daily log.
  * POST /api/workouts/daily-logs/<id>/delete-meal-entry/
+ * Invalidates both nutrition-summary and today-log queries on success.
  */
 export function useDeleteMealEntry(date: string) {
   const queryClient = useQueryClient();
@@ -57,6 +71,9 @@ export function useDeleteMealEntry(date: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["trainee-dashboard", "nutrition-summary", date],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["trainee-dashboard", "today-log", date],
       });
     },
   });

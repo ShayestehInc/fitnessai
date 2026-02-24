@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Send, Loader2, X, AlertTriangle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,9 @@ export function MealLogInput({ date }: MealLogInputProps) {
   const isConfirming = confirmMutation.isPending;
   const trimmedInput = input.trim();
   const isInputValid = trimmedInput.length > 0 && trimmedInput.length <= MAX_INPUT_LENGTH;
+  const isOverLimit = input.length > MAX_INPUT_LENGTH;
 
-  const handleSubmit = useCallback(() => {
+  function handleSubmit() {
     if (!isInputValid || isParsing) return;
 
     parseMutation.mutate(
@@ -66,13 +67,13 @@ export function MealLogInput({ date }: MealLogInputProps) {
         },
       },
     );
-  }, [isInputValid, isParsing, trimmedInput, date, parseMutation]);
+  }
 
-  const handleConfirm = useCallback(() => {
+  function handleConfirm() {
     if (!parsedResult || isConfirming) return;
 
     confirmMutation.mutate(
-      { parsed_data: parsedResult as unknown as Record<string, unknown>, date, confirm: true },
+      { parsed_data: parsedResult, date, confirm: true },
       {
         onSuccess: () => {
           toast.success("Meal logged!");
@@ -85,29 +86,27 @@ export function MealLogInput({ date }: MealLogInputProps) {
         },
       },
     );
-  }, [parsedResult, isConfirming, confirmMutation, date]);
+  }
 
-  const handleCancel = useCallback(() => {
+  function handleCancel() {
     setParsedResult(null);
-  }, []);
+  }
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit();
-      }
-      if (e.key === "Escape" && parsedResult) {
-        e.preventDefault();
-        handleCancel();
-      }
-    },
-    [handleSubmit, handleCancel, parsedResult],
-  );
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+    if (e.key === "Escape" && parsedResult) {
+      e.preventDefault();
+      handleCancel();
+    }
+  }
 
-  // Clear parsed result when date changes
+  // Clear parsed result and input when date changes
   useEffect(() => {
     setParsedResult(null);
+    setInput("");
   }, [date]);
 
   const parsedMeals = parsedResult?.nutrition?.meals ?? [];
@@ -134,8 +133,8 @@ export function MealLogInput({ date }: MealLogInputProps) {
             onKeyDown={handleKeyDown}
             placeholder='e.g., "2 eggs, toast, and a glass of orange juice"'
             disabled={isParsing}
-            maxLength={MAX_INPUT_LENGTH}
             aria-label="Describe your meal"
+            aria-invalid={isOverLimit}
           />
           <Button
             onClick={handleSubmit}
@@ -151,9 +150,9 @@ export function MealLogInput({ date }: MealLogInputProps) {
           </Button>
         </div>
 
-        {input.length > MAX_INPUT_LENGTH && (
+        {isOverLimit && (
           <p className="text-xs text-destructive" role="alert">
-            Input exceeds {MAX_INPUT_LENGTH} character limit
+            Input exceeds {MAX_INPUT_LENGTH} character limit ({input.length}/{MAX_INPUT_LENGTH})
           </p>
         )}
 
@@ -193,7 +192,7 @@ export function MealLogInput({ date }: MealLogInputProps) {
             <div className="space-y-2">
               {parsedMeals.map((meal, index) => (
                 <div
-                  key={index}
+                  key={`${meal.name}-${meal.calories}-${index}`}
                   className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2"
                 >
                   <span className="text-sm font-medium">{meal.name}</span>

@@ -29,10 +29,10 @@ export function MacroPresetChips({ currentGoals }: MacroPresetChipsProps) {
       <TooltipProvider delayDuration={200}>
         {presets.map((preset) => {
           const isActive =
-            preset.calories === currentGoals.calories &&
-            preset.protein === currentGoals.protein &&
-            preset.carbs === currentGoals.carbs &&
-            preset.fat === currentGoals.fat;
+            Math.round(preset.calories) === Math.round(currentGoals.calories) &&
+            Math.round(preset.protein) === Math.round(currentGoals.protein) &&
+            Math.round(preset.carbs) === Math.round(currentGoals.carbs) &&
+            Math.round(preset.fat) === Math.round(currentGoals.fat);
 
           return (
             <Tooltip key={preset.id}>
