@@ -1,120 +1,126 @@
-# Hacker Report: Trainer Dashboard Mobile Responsiveness (Pipeline 37)
+# Hacker Report: Admin Dashboard Post-Pipeline 38 Audit
 
 ## Date: 2026-02-24
 
 ## Files Audited
-### Changed files (from Pipeline 37 dev):
-- `web/src/components/shared/data-table.tsx`
-- `web/src/app/(dashboard)/trainees/[id]/page.tsx`
-- `web/src/components/trainees/trainee-columns.tsx`
-- `web/src/components/trainees/trainee-activity-tab.tsx`
-- `web/src/components/programs/program-list.tsx`
-- `web/src/components/programs/program-builder.tsx`
-- `web/src/components/programs/exercise-row.tsx`
-- `web/src/components/exercises/exercise-list.tsx`
-- `web/src/components/invitations/invitation-columns.tsx`
-- `web/src/components/analytics/revenue-section.tsx`
-- `web/src/app/(dashboard)/ai-chat/page.tsx`
-- `web/src/app/(dashboard)/messages/page.tsx`
-- `web/src/app/globals.css`
+### Admin components:
+- `web/src/components/admin/coupon-detail-dialog.tsx`
+- `web/src/components/admin/coupon-form-dialog.tsx`
+- `web/src/components/admin/coupon-list.tsx`
+- `web/src/components/admin/subscription-detail-dialog.tsx`
+- `web/src/components/admin/subscription-action-forms.tsx`
+- `web/src/components/admin/subscription-history-tabs.tsx`
+- `web/src/components/admin/subscription-list.tsx`
+- `web/src/components/admin/trainer-detail-dialog.tsx`
+- `web/src/components/admin/trainer-list.tsx`
+- `web/src/components/admin/ambassador-detail-dialog.tsx`
+- `web/src/components/admin/ambassador-list.tsx`
+- `web/src/components/admin/create-ambassador-dialog.tsx`
+- `web/src/components/admin/create-user-dialog.tsx`
+- `web/src/components/admin/tier-form-dialog.tsx`
+- `web/src/components/admin/tier-list.tsx`
+- `web/src/components/admin/dashboard-stats.tsx`
+- `web/src/components/admin/revenue-cards.tsx`
+- `web/src/components/admin/tier-breakdown.tsx`
+- `web/src/components/admin/past-due-alerts.tsx`
+- `web/src/components/admin/past-due-full-list.tsx`
+- `web/src/components/admin/upcoming-payments-list.tsx`
+- `web/src/components/admin/admin-dashboard-skeleton.tsx`
+- `web/src/components/admin/user-list.tsx`
 
-### Additional files audited (not in original change set):
-- `web/src/app/(dashboard)/dashboard/page.tsx`
-- `web/src/components/dashboard/recent-trainees.tsx`
-- `web/src/components/dashboard/inactive-trainees.tsx`
-- `web/src/components/dashboard/stats-cards.tsx`
-- `web/src/components/trainees/trainee-overview-tab.tsx`
-- `web/src/components/trainees/trainee-progress-tab.tsx`
-- `web/src/components/trainees/progress-charts.tsx`
-- `web/src/components/trainees/edit-goals-dialog.tsx`
-- `web/src/components/trainees/mark-missed-day-dialog.tsx`
-- `web/src/components/trainees/remove-trainee-dialog.tsx`
-- `web/src/components/trainees/change-program-dialog.tsx`
-- `web/src/components/trainees/impersonate-trainee-button.tsx`
-- `web/src/components/programs/exercise-picker-dialog.tsx`
-- `web/src/components/programs/assign-program-dialog.tsx`
-- `web/src/components/programs/week-editor.tsx`
-- `web/src/components/invitations/create-invitation-dialog.tsx`
-- `web/src/components/announcements/announcement-form-dialog.tsx`
-- `web/src/components/feature-requests/create-feature-request-dialog.tsx`
-- `web/src/app/(dashboard)/notifications/page.tsx`
-- `web/src/app/(dashboard)/announcements/page.tsx`
-- `web/src/app/(dashboard)/calendar/page.tsx`
-- `web/src/app/(dashboard)/settings/page.tsx`
-- `web/src/app/(dashboard)/layout.tsx`
+### Layout:
+- `web/src/components/layout/admin-sidebar.tsx`
+- `web/src/components/layout/admin-sidebar-mobile.tsx`
+- `web/src/components/layout/admin-nav-links.ts`
+- `web/src/components/layout/header.tsx`
+- `web/src/app/(admin-dashboard)/layout.tsx`
+
+### Admin pages:
+- `web/src/app/(admin-dashboard)/admin/dashboard/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/trainers/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/subscriptions/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/coupons/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/tiers/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/users/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/ambassadors/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/upcoming-payments/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/past-due/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/settings/page.tsx`
+
+### Shared:
+- `web/src/components/shared/data-table.tsx`
 - `web/src/components/shared/page-header.tsx`
+- `web/src/components/shared/error-state.tsx`
+- `web/src/components/ui/dialog.tsx`
+- `web/src/lib/admin-constants.ts`
+- `web/src/hooks/use-admin-coupons.ts`
+- `web/src/app/globals.css` (table-scroll-hint)
 
 ---
 
 ## Dead Buttons & Non-Functional UI
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| -- | -- | -- | -- | -- | -- |
+| 1 | Low | `admin/coupons/[id]/`, `admin/subscriptions/[id]/`, `admin/trainers/[id]/` | Empty `[id]` route directories | These directories either contain page files or don't exist | Three empty `[id]` directories exist with no `page.tsx`. Navigating directly to `/admin/coupons/123` would show a Next.js 404. Not a functional issue since these entities use dialog-based detail views, but dead code. |
 
-No dead buttons or non-functional UI found in the trainer dashboard pages. All action buttons (Impersonate, Assign Program, Message, Edit Goals, Mark Missed, Remove) navigate or open dialogs correctly. Filter toggle button correctly shows/hides the filter panel. Pagination buttons correctly page through results.
+**Assessment:** No dead buttons found. All admin dialog buttons (Edit, Revoke, Reactivate, Impersonate, Suspend, Activate, Create, Delete, Change Tier, Change Status, Record Payment, Save Notes, Approve All, Pay All, Trigger Payout) are properly wired with handlers, loading states, error handling, and toast feedback. The "Send Reminder" email button on the Past Due page shows a `toast.info` placeholder, which is intentional (not yet wired to a backend endpoint) and clearly communicates what it would do.
 
 ---
 
 ## Visual Misalignments & Layout Bugs
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | High | `dashboard/recent-trainees.tsx` | **Dashboard home "Recent Trainees" table shows all 4 columns (Name, Status, Program, Joined) on mobile.** This is a manual `<Table>` (not using the shared DataTable component), so it was missed in the Pipeline 37 column-hiding sweep. At 375px, the 4-column table overflows horizontally. It also lacks the `table-scroll-hint` class for the gradient indicator, and the Name column has no `max-w` or `truncate`, so long names/emails push the table wider. | **FIXED** -- Added `hidden md:table-cell` to both the `<TableHead>` and `<TableCell>` for "Program" and "Joined" columns. Added `table-scroll-hint` class to the overflow wrapper. Added `max-w-[200px] truncate` and `title` attribute to the trainee name link and email. |
-| 2 | Medium | `programs/program-builder.tsx` | **Keyboard shortcut hint shows at wrong breakpoint.** The `<kbd>` element uses `hidden ... sm:inline` (640px) while the save bar transitions from sticky-mobile to static-desktop at `md:` (768px). Between 640-768px, the keyboard shortcut hint "Cmd+S to save" appears inside the mobile-style sticky save bar, which looks wrong (keyboard shortcuts are irrelevant on tablets viewing the mobile bar). | **FIXED** -- Changed `sm:inline` to `md:inline` so the hint only appears when the save bar transitions to its desktop layout. |
-| 3 | Medium | `trainees/progress-charts.tsx` | **Trainer-side progress charts (Weight, Volume, Adherence) have no mobile-responsive XAxis label handling.** With 28 data points at 375px, the date labels ("Jan 1", "Jan 2", etc.) overlap each other and become unreadable. The YAxis widths are also not constrained, wasting horizontal space. | **FIXED** -- Added `interval="preserveStartEnd"` and `fontSize: 11` to all three chart XAxis components. Added explicit `width={50}` to the Weight and Volume chart YAxis components. Recharts now shows only the first and last date labels when space is tight, preventing overlap. |
-| 4 | Medium | `dashboard/inactive-trainees.tsx` | **"Needs Attention" card -- trainee name and "Last active X ago" text crowd each other on mobile.** The flex row has `justify-between` but no `gap`, so on narrow screens the name and timestamp text can touch. The timestamp text also lacks `shrink-0`, so long names push it to wrap oddly. | **FIXED** -- Added `gap-3` to the flex container, `shrink-0 whitespace-nowrap` to the timestamp `<p>`, ensuring the date stays on one line and the name truncates when space is tight. |
-| 5 | Low | `table-scroll-hint` CSS in `globals.css` | **Scroll gradient hint always visible on mobile even when table fits.** The `::after` pseudo-element creates a permanent 32px gradient overlay on the right edge of every DataTable on mobile, regardless of whether the table actually overflows. For tables that fit entirely (e.g., trainee table with only 3 visible columns at 768px), the gradient is misleading. | **NOT FIXED** -- This is a known limitation of the CSS-only approach. A proper fix requires JavaScript scroll detection to conditionally show the gradient. Documented as a future improvement. |
-| 6 | Low | `calendar/page.tsx` | **Calendar event titles have no truncation.** Long event titles (e.g., "Team Standup - Project Fitness AI - Sprint 42 Planning and Review") push the provider badge off-screen on mobile. The flex row has no `gap`, `min-w-0`, or `truncate` on the title. | **FIXED** -- Added `gap-3` to the flex row, `min-w-0` to the text container, `truncate` and `title` attribute to the event title `<p>`, and `shrink-0` to the provider Badge. |
+| -- | -- | -- | -- | -- |
+
+**Assessment:** The admin dashboard mobile-responsive work from Pipeline 38 is well-executed:
+
+- **Admin sidebar mobile** (`admin-sidebar-mobile.tsx`): Properly uses Sheet component with `side="left"`, `w-64`, nav links with `onClick={() => onOpenChange(false)}` to close on navigation. Correct `aria-label`, `aria-current`, and icon `aria-hidden` attributes.
+- **Admin sidebar desktop** (`admin-sidebar.tsx`): Properly uses `hidden lg:block` with `lg:` breakpoint, matching the `lg:hidden` hamburger button in the header.
+- **All admin dialogs**: Every dialog uses `max-h-[90dvh] overflow-y-auto` on `DialogContent`. This prevents overflow on mobile viewports with on-screen keyboards.
+- **DataTable**: Scroll hint gradient, `overflow-x-auto`, column hiding via `hidden md:table-cell`, responsive pagination with compact mobile buttons.
+- **Filter bars** (coupons, subscriptions, users): Use `flex-col sm:flex-row` for stacking on mobile.
+- **Coupon detail dialog title**: Uses `max-w-[200px] truncate sm:max-w-[400px]` -- responsive truncation for long coupon codes. Well done.
+- **Page headers**: Use `flex-col sm:flex-row` with gap for title/actions stacking.
+- **Ambassador stats grid**: `grid-cols-3` works at all breakpoints since the ambassador detail dialog uses `sm:max-w-lg`, ensuring the 3-column grid always has enough room.
+
+No visual bugs found in the admin section.
 
 ---
 
 ## Broken Flows & Logic Bugs
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 7 | High | Dialogs overflow on mobile | Open any of these dialogs on a 375px phone with on-screen keyboard active: Edit Goals, Mark Missed Day, Remove Trainee, Change Program, Assign Program, Create Invitation, Exercise Picker, Create Feature Request, Create Announcement. | Dialog content should be scrollable within the viewport. On-screen keyboard + dialog header + form content can easily exceed viewport height. | **Before fix:** 9 trainer-side dialogs had no `max-h` or `overflow-y-auto` constraints. The base DialogContent uses `max-w-[calc(100%-2rem)]` for width but has no height constraint. On short mobile viewports (especially with keyboard open), dialog content overflows below the visible area with no way to scroll to the submit button. **FIXED** -- Added `max-h-[90dvh] overflow-y-auto` to all 9 dialogs: `edit-goals-dialog.tsx`, `mark-missed-day-dialog.tsx`, `remove-trainee-dialog.tsx`, `change-program-dialog.tsx`, `exercise-picker-dialog.tsx` (changed from `80vh` to `90dvh`), `assign-program-dialog.tsx`, `create-invitation-dialog.tsx`, `announcement-form-dialog.tsx`, `create-feature-request-dialog.tsx`. |
-| 8 | Medium | Notifications pagination at 320px | Navigate to /notifications on a 320px screen. When there are multiple pages, the "Previous" and "Next" buttons show full text with icons, making the pagination row cramped. | Pagination buttons should be compact on mobile (icon-only), matching the DataTable compact pagination pattern implemented in this pipeline. | **FIXED** -- Changed both notification and announcement pagination buttons to hide "Previous"/"Next" text on mobile using `hidden sm:inline`, showing only the chevron icons. Matches the DataTable compact pagination pattern. |
-| 9 | Low | `data-table.tsx` colSpan mismatch | Navigate to /trainees with no trainees on a mobile screen. The "No results found" row uses `colSpan={columns.length}` which counts all columns including hidden ones. | On mobile with hidden columns, the colSpan is larger than the visible column count. | **NOT FIXED** -- This is technically correct HTML (colSpan can exceed visible column count without visual issues). No observable bug. Documented for awareness. |
+| 2 | Medium | Coupon detail dialog - usages error state | 1. Open a coupon detail dialog. 2. Simulate the usages API returning an error (e.g., 500). | User should see an error message with a retry option. | **Before fix:** The usages section showed nothing -- no loading spinner, no error message, no empty state. The `usages.isError` case was completely unhandled, leaving a silent failure with just the "Usages" heading and blank space below it. |
+| 3 | Medium | Past Due full list - error state | 1. Navigate to `/admin/past-due`. 2. API returns an error. | User should see an error message with retry. | **Before fix:** Component only destructured `data` and `isLoading` from `useQuery`. If the API failed, the user would see the empty state ("No past due payments") instead of an error, which is misleading -- it suggests all payments are current when in reality the data failed to load. |
+| 4 | Medium | Upcoming Payments list - error state | 1. Navigate to `/admin/upcoming-payments`. 2. API returns an error. | User should see an error message with retry. | **Before fix:** Same pattern as Past Due -- only `data` and `isLoading` destructured. API errors silently fell through to the empty state ("No upcoming payments"), giving false confidence that there are no payments due. |
+| 5 | Medium | Trainer detail dialog - stale suspend confirm | 1. Open trainer A's detail dialog. 2. Click "Suspend Trainer" to show the inline confirmation. 3. Close the dialog without confirming. 4. Open trainer B's detail dialog. | Trainer B's dialog should show the default action buttons (Impersonate, Suspend). | **Before fix:** The `showSuspendConfirm` state was not reset when the dialog re-opened for a different trainer because no `key` prop was used. The suspend confirmation for trainer A would still be visible, now targeted at trainer B. Clicking "Confirm Suspend" would suspend the wrong trainer -- trainer B instead of trainer A. |
+| 6 | Medium | Subscription detail dialog - stale action mode | 1. Open subscription A's detail dialog. 2. Click "Change Tier" to expand the tier change form. 3. Close the dialog. 4. Open subscription B's detail dialog. | Subscription B's dialog should show the default overview with action buttons. | **Before fix:** The `actionMode` state was not reset because no `key` prop was used. The tier change form from subscription A's session would still be open, with the old tier pre-selected and the old reason text filled in. Submitting could apply the wrong tier change to subscription B. |
 
 ---
 
 ## Product Improvement Suggestions
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 10 | High | Exercise Filters | **Replace filter chips with a dropdown or bottom sheet on mobile.** The current collapsible filter toggle is functional but the filter chips themselves (3 groups x 5-10 items each) are tiny touch targets (~28px height). A bottom sheet with larger, full-width filter rows would be much more thumb-friendly and is the pattern used by Linear, Notion, and iOS Settings. |
-| 11 | High | Program Builder | **Add swipe navigation between week tabs on mobile.** With 52 possible weeks, the horizontal ScrollArea for week tabs requires precise horizontal scrolling. Swipe-to-navigate (like a carousel) would be significantly faster. The "Copy Week to All" button could also be more prominent on mobile -- consider moving it into a sticky header within the schedule card. |
-| 12 | Medium | DataTable | **Replace table-scroll-hint gradient with a JS scroll listener.** The current CSS-only gradient always shows on mobile. A simple IntersectionObserver or scroll event listener that adds/removes a `scrollable` class would make the gradient conditional and not misleading on narrow tables that fit. |
-| 13 | Medium | Trainee Detail | **Add a floating action button (FAB) on mobile instead of the 6-button grid.** The current 2-column grid of 6 action buttons takes significant vertical space on mobile (3 rows). A FAB with a radial menu or bottom sheet would save space and put the primary actions (Message, Edit Goals) front and center while hiding less common actions (Impersonate, Mark Missed, Remove). |
-| 14 | Medium | All Tables | **Consider a card-based layout for tables on mobile.** The current column-hiding approach works but loses information. On mobile, each table row could become a card showing all fields in a stacked layout -- like how GitHub mobile shows issues as cards rather than table rows. This would eliminate the need for column hiding entirely. |
-| 15 | Low | Chart Containers | **Add responsive chart heights.** All three progress charts use a fixed `h-[250px]`. On landscape mobile or very small screens, 250px is a lot of vertical space. Consider `h-[200px] sm:h-[250px]` to give breathing room on mobile. |
-| 16 | Low | Pagination | **Add page number pills for tables with many pages.** The current "Page X/Y" with Previous/Next is functional but requires many taps to jump to page 5 of 10. Adding 3-5 page number pills (like `[1] [2] ... [9] [10]`) on desktop would improve navigation. On mobile, the compact icon-only format is correct. |
+| 7 | Low | Empty [id] routes | Remove the three empty `[id]` directories (`admin/coupons/[id]`, `admin/subscriptions/[id]`, `admin/trainers/[id]`). They have no page files and serve no purpose. If detail pages are planned, they should be created with actual content when needed. |
+| 8 | Medium | Past Due page | Add a "Send All Reminders" bulk action button at the top of the Past Due page. Currently each past-due trainer must be reminded individually via the Mail icon button. For an admin managing 20+ past-due accounts, a bulk action would save significant time. |
+| 9 | Low | Ambassador list | Add pagination to the ambassador list. Currently uses `useAdminAmbassadors(1, debouncedSearch)` with page hardcoded to `1`. If there are more than 20 ambassadors (default page size), the rest are invisible. |
 
 ---
 
 ## Summary
-- Dead UI elements found: 0
-- Visual bugs found: 6 (5 fixed, 1 documented as CSS-only limitation)
-- Logic bugs found: 3 (2 fixed, 1 no-op documented)
-- Edge cases verified: trainee detail with 0 programs (OK), 52-week program tabs (OK), long names on all tables (OK), landscape orientation (OK), 320px width (OK after fixes)
-- Improvements suggested: 7
-- Items fixed by hacker: 19 files touched
+- Dead UI elements found: 1 (3 empty route directories -- cosmetic dead code)
+- Visual bugs found: 0
+- Logic bugs found: 5 (all fixed)
+- Improvements suggested: 3
+- Items fixed by hacker: 5 issues across 7 files
 
 ### Files Changed by Hacker
-1. **`web/src/components/programs/program-builder.tsx`** -- Changed kbd hint from `sm:inline` to `md:inline`
-2. **`web/src/components/dashboard/recent-trainees.tsx`** -- Added mobile column hiding, `table-scroll-hint`, name truncation
-3. **`web/src/components/dashboard/inactive-trainees.tsx`** -- Added `gap-3`, `shrink-0 whitespace-nowrap` to timestamp
-4. **`web/src/components/trainees/progress-charts.tsx`** -- Added `interval="preserveStartEnd"`, `fontSize: 11`, explicit YAxis `width`
-5. **`web/src/app/(dashboard)/notifications/page.tsx`** -- Compact mobile pagination (icon-only buttons)
-6. **`web/src/app/(dashboard)/announcements/page.tsx`** -- Compact mobile pagination (icon-only buttons)
-7. **`web/src/components/trainees/edit-goals-dialog.tsx`** -- Added `max-h-[90dvh] overflow-y-auto`
-8. **`web/src/components/trainees/mark-missed-day-dialog.tsx`** -- Added `max-h-[90dvh] overflow-y-auto`
-9. **`web/src/components/trainees/remove-trainee-dialog.tsx`** -- Added `max-h-[90dvh] overflow-y-auto`
-10. **`web/src/components/trainees/change-program-dialog.tsx`** -- Added `max-h-[90dvh] overflow-y-auto`
-11. **`web/src/components/programs/exercise-picker-dialog.tsx`** -- Changed `max-h-[80vh]` to `max-h-[90dvh] overflow-y-auto`
-12. **`web/src/components/programs/assign-program-dialog.tsx`** -- Added `max-h-[90dvh] overflow-y-auto`
-13. **`web/src/components/invitations/create-invitation-dialog.tsx`** -- Added `max-h-[90dvh] overflow-y-auto`
-14. **`web/src/components/announcements/announcement-form-dialog.tsx`** -- Added `max-h-[90dvh] overflow-y-auto`
-15. **`web/src/components/feature-requests/create-feature-request-dialog.tsx`** -- Added `max-h-[90dvh] overflow-y-auto`
-16. **`web/src/app/(dashboard)/calendar/page.tsx`** -- Added event title truncation, gap, shrink-0
+1. **`web/src/components/admin/coupon-detail-dialog.tsx`** -- Added `usages.isError` handling with retry button in the Usages section
+2. **`web/src/components/admin/past-due-full-list.tsx`** -- Added `isError` destructuring from `useQuery` and `ErrorState` component for API failures
+3. **`web/src/components/admin/upcoming-payments-list.tsx`** -- Added `isError` destructuring from `useQuery` and `ErrorState` component for API failures
+4. **`web/src/app/(admin-dashboard)/admin/trainers/page.tsx`** -- Added `key={selectedTrainer?.id ?? "none"}` to `TrainerDetailDialog` to force remount and reset stale state when switching trainers
+5. **`web/src/app/(admin-dashboard)/admin/subscriptions/page.tsx`** -- Added `key={selectedSubId ?? "none"}` to `SubscriptionDetailDialog` to force remount and reset stale state when switching subscriptions
 
-## Chaos Score: 7/10
+## Chaos Score: 4/10
 
-The Pipeline 37 implementation does a good job on the core ticket scope: table column hiding, responsive pagination, filter collapsibility, sticky save bar, and dvh viewport fixes are all well-executed. However, the pipeline missed several areas that are clearly in scope per the focus.md: (1) the Dashboard home page "Recent Trainees" table was not responsive-ified despite being the first thing trainers see; (2) none of the 9 trainer-facing dialogs had mobile overflow protection (`max-h-[90dvh] overflow-y-auto`), making them unusable with an on-screen keyboard on short viewports; (3) the trainer-side progress charts had no mobile XAxis label handling, causing label overlap; (4) the notification and announcement pagination controls weren't made compact like the DataTable pagination was. All of these are now fixed. The remaining gaps are the always-visible scroll gradient (CSS-only limitation) and the sub-44px touch targets on filter chips and table action buttons (pragmatic trade-off for the existing component library size scale).
+The admin dashboard is in solid shape after Pipeline 38. The mobile-responsive work is thorough: every dialog has `max-h-[90dvh] overflow-y-auto`, all list pages use `flex-col sm:flex-row` filter stacking, the DataTable provides scroll hints and column hiding, and the admin mobile sidebar properly closes on navigation. The issues I found are subtle: three components with missing error states that would silently show empty-state messages on API failure (giving false confidence to the admin), and two dialogs with stale internal state when re-opened for different entities. All five issues are now fixed. The codebase follows consistent patterns (key-based remounting for dialogs with forms, ErrorState for API failures, toast feedback for mutations), and these fixes bring the remaining components into alignment with those established patterns.

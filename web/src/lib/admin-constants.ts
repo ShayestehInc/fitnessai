@@ -43,6 +43,6 @@ export const COUPON_STATUS_VARIANT: Record<
 /** Standard Tailwind class string for native <select> elements
  *  matching the project's Input component styling. */
 export const SELECT_CLASSES =
-  "flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" as const;
+  "flex h-11 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:h-9" as const;
 
 export const SELECT_CLASSES_FULL_WIDTH = `${SELECT_CLASSES} w-full` as const;

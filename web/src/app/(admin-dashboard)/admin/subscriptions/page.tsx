@@ -160,6 +160,7 @@ export default function AdminSubscriptionsPage() {
       )}
 
       <SubscriptionDetailDialog
+        key={selectedSubId ?? "none"}
         subscriptionId={selectedSubId}
         open={detailOpen}
         onOpenChange={setDetailOpen}

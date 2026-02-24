@@ -122,6 +122,7 @@ export default function AdminTrainersPage() {
       )}
 
       <TrainerDetailDialog
+        key={selectedTrainer?.id ?? "none"}
         trainer={selectedTrainer}
         open={dialogOpen}
         onOpenChange={(open) => {

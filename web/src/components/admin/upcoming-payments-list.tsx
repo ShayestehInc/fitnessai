@@ -5,6 +5,7 @@ import { CalendarClock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
@@ -22,7 +23,7 @@ interface UpcomingPayment {
 }
 
 export function UpcomingPaymentsList() {
-  const { data, isLoading } = useQuery<UpcomingPayment[]>({
+  const { data, isLoading, isError, refetch } = useQuery<UpcomingPayment[]>({
     queryKey: ["admin-upcoming-payments"],
     queryFn: () =>
       apiClient.get<UpcomingPayment[]>(API_URLS.ADMIN_UPCOMING_PAYMENTS),
@@ -35,6 +36,15 @@ export function UpcomingPaymentsList() {
           <Skeleton key={i} className="h-16 w-full" />
         ))}
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        message="Failed to load upcoming payments"
+        onRetry={() => refetch()}
+      />
     );
   }
 

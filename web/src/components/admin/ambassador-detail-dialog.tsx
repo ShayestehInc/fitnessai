@@ -106,9 +106,9 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
           disabled={bulkApproveMutation.isPending}
         >
           {bulkApproveMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
           ) : (
-            <Check className="mr-2 h-4 w-4" />
+            <Check className="mr-2 h-4 w-4" aria-hidden="true" />
           )}
           Approve All
         </Button>
@@ -124,9 +124,9 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
           disabled={bulkPayMutation.isPending}
         >
           {bulkPayMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
           ) : (
-            <DollarSign className="mr-2 h-4 w-4" />
+            <DollarSign className="mr-2 h-4 w-4" aria-hidden="true" />
           )}
           Pay All
         </Button>
@@ -141,9 +141,9 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
           disabled={payoutMutation.isPending}
         >
           {payoutMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
           ) : (
-            <DollarSign className="mr-2 h-4 w-4" />
+            <DollarSign className="mr-2 h-4 w-4" aria-hidden="true" />
           )}
           Trigger Payout
         </Button>

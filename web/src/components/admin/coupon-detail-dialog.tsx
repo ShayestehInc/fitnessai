@@ -105,7 +105,7 @@ export function CouponDetailDialog({
         <DialogHeader>
           <DialogTitle>
             {data ? (
-              <span className="inline-block max-w-[400px] truncate font-mono" title={data.code}>{data.code}</span>
+              <span className="inline-block max-w-[200px] truncate font-mono sm:max-w-[400px]" title={data.code}>{data.code}</span>
             ) : (
               "Coupon Details"
             )}
@@ -245,6 +245,17 @@ export function CouponDetailDialog({
                 <div className="flex items-center justify-center py-4" role="status" aria-label="Loading usages">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
                   <span className="sr-only">Loading usages...</span>
+                </div>
+              )}
+              {usages.isError && (
+                <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+                  Failed to load coupon usages.{" "}
+                  <button
+                    onClick={() => usages.refetch()}
+                    className="underline hover:no-underline"
+                  >
+                    Retry
+                  </button>
                 </div>
               )}
               {usages.data && usages.data.length === 0 && (

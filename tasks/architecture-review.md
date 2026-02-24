@@ -1,23 +1,52 @@
-# Architecture Review: Trainer Dashboard Mobile Responsiveness
+# Architecture Review: Admin Dashboard Mobile Responsiveness (Pipeline 38)
 
 ## Review Date
 2026-02-24
 
 ## Files Reviewed
-- `web/src/components/shared/data-table.tsx`
-- `web/src/components/trainees/trainee-columns.tsx`
-- `web/src/components/trainees/trainee-activity-tab.tsx`
-- `web/src/components/programs/program-list.tsx`
-- `web/src/components/programs/program-builder.tsx`
-- `web/src/components/programs/exercise-row.tsx`
-- `web/src/components/exercises/exercise-list.tsx`
-- `web/src/components/invitations/invitation-columns.tsx`
-- `web/src/components/analytics/revenue-section.tsx`
-- `web/src/app/(dashboard)/trainees/[id]/page.tsx`
-- `web/src/app/(dashboard)/ai-chat/page.tsx`
-- `web/src/app/(dashboard)/messages/page.tsx`
-- `web/src/app/globals.css`
-- `web/src/app/(dashboard)/layout.tsx`
+
+### Table Column Hiding (5 files)
+- `web/src/components/admin/trainer-list.tsx`
+- `web/src/components/admin/subscription-list.tsx`
+- `web/src/components/admin/coupon-list.tsx`
+- `web/src/components/admin/user-list.tsx`
+- `web/src/components/admin/tier-list.tsx`
+
+### Dialog Overflow Fixes (9 files)
+- `web/src/components/admin/subscription-detail-dialog.tsx`
+- `web/src/components/admin/coupon-detail-dialog.tsx`
+- `web/src/components/admin/coupon-form-dialog.tsx`
+- `web/src/components/admin/trainer-detail-dialog.tsx`
+- `web/src/components/admin/tier-form-dialog.tsx`
+- `web/src/components/admin/create-user-dialog.tsx`
+- `web/src/components/admin/create-ambassador-dialog.tsx`
+- `web/src/components/admin/ambassador-detail-dialog.tsx`
+- `web/src/app/(admin-dashboard)/admin/tiers/page.tsx`
+
+### Filter Input Fixes (4 pages)
+- `web/src/app/(admin-dashboard)/admin/trainers/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/subscriptions/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/coupons/page.tsx`
+- `web/src/app/(admin-dashboard)/admin/users/page.tsx`
+
+### Subscription Detail Subcomponents (1 file)
+- `web/src/components/admin/subscription-history-tabs.tsx`
+
+### List Components (3 files)
+- `web/src/components/admin/ambassador-list.tsx`
+- `web/src/components/admin/past-due-full-list.tsx`
+- `web/src/components/admin/upcoming-payments-list.tsx`
+
+### Layout (1 file)
+- `web/src/app/(admin-dashboard)/layout.tsx`
+
+### Untouched Components Verified (6 files)
+- `web/src/components/admin/dashboard-stats.tsx` -- already responsive
+- `web/src/components/admin/revenue-cards.tsx` -- already responsive
+- `web/src/components/admin/tier-breakdown.tsx` -- already responsive
+- `web/src/components/admin/past-due-alerts.tsx` -- already responsive
+- `web/src/components/admin/subscription-action-forms.tsx` -- already responsive
+- `web/src/components/admin/admin-dashboard-skeleton.tsx` -- already responsive
 
 ---
 
@@ -26,13 +55,11 @@
 - [x] Follows existing layered architecture
 - [x] Models/schemas in correct locations (no backend changes -- pure frontend CSS/JSX)
 - [x] No business logic in routers/views (all changes are presentational)
-- [x] Consistent with existing patterns
+- [x] Consistent with existing patterns from Pipeline 36 and Pipeline 37
 
 ### Overall Assessment
 
-The implementation follows a CSS-first strategy using Tailwind responsive breakpoints, which is the correct approach for this codebase. Pipeline 36 established this pattern for the trainee web portal and this work extends it consistently to the trainer dashboard. All responsiveness lives in the view layer (component className props and globals.css). No state management, API, or business logic was touched.
-
-The only JavaScript added was a minimal scroll event listener for the `table-scroll-hint` gradient. This is the right layer for that concern since it is a pure UI affordance that cannot be achieved with CSS alone.
+This pipeline applies the exact same CSS-first responsive strategy established in Pipeline 36 (trainee web) and Pipeline 37 (trainer dashboard) to the admin dashboard. Every pattern used here -- `hidden md:table-cell` for column hiding, `max-h-[90dvh] overflow-y-auto` for dialogs, `w-full sm:max-w-sm` for filter inputs, `flex-wrap` with split `gap-x`/`gap-y` for metadata rows, `min-h-[44px]` for touch targets, `h-dvh` for layout height -- has a direct precedent in the prior two pipelines. No new patterns were invented. No state management, API, or business logic was touched.
 
 ---
 
@@ -49,83 +76,96 @@ The only JavaScript added was a minimal scroll event listener for the `table-scr
 
 ## Detailed Findings
 
-### 1. Column Hiding via `className` Property (Good Architecture Decision)
+### 1. Column Hiding via `className` Property on `Column<T>` (Correct)
 
-The `hidden md:table-cell` pattern applied through the `Column.className` property keeps the DataTable component generic. Columns are always rendered in the DOM (important for accessibility) but visually hidden below `md` (768px). This is architecturally superior to conditionally filtering the columns array in JavaScript, which would change the component's data contract, cause hydration mismatches with SSR, and make the logic harder to reason about.
+Verified that `web/src/components/shared/data-table.tsx` line 19 defines `className?: string` on the `Column<T>` interface, and applies it to both `<TableHead>` (line 74) and `<TableCell>` (line 119). This means hiding a column with `hidden md:table-cell` correctly hides both the header and all data cells.
 
-All five table components use the identical pattern:
+All five admin table components use the identical pattern established in Pipeline 37:
 ```ts
 { className: "hidden md:table-cell" }
 ```
 
-Applied consistently to:
-- `trainee-columns.tsx` (Program, Joined -- 2 columns)
-- `program-list.tsx` (Goal, Used, Created -- 3 columns)
-- `invitation-columns.tsx` (Program, Expires -- 2 columns)
-- `revenue-section.tsx` (Since, Type, Date -- 3 columns)
-- `trainee-activity-tab.tsx` (Carbs, Fat -- 2 columns)
+Column hiding choices are sensible -- primary identification columns (name, email, status, price/amount) remain visible on mobile; supplementary columns (join dates, trainee counts, sort order, "applied to", "valid until") are hidden. The user can always tap a row to see full details in the detail dialog.
 
-**Status:** Approved. This pattern scales well -- adding column hiding to new columns requires only adding `className` to the column definition, with zero changes to the DataTable component.
+**Status:** Approved. Pattern is architecturally identical to Pipeline 37's trainee-columns, program-list, and invitation-columns.
 
-### 2. Breakpoint Consistency (Good)
+### 2. Breakpoint Consistency (Correct)
 
-The implementation uses `md:` (768px) as the primary mobile/desktop breakpoint for column hiding and layout changes, and `sm:` (640px) for intermediate adjustments (flex wrapping, text sizing, padding). This is consistent with the existing codebase:
+All responsive breakpoints in this pipeline:
+- `md:` (768px) -- table column hiding, button unstacking, grid column expansion
+- `sm:` (640px) -- filter input width cap (`sm:max-w-sm`), grid columns in forms (`sm:grid-cols-2`, `sm:grid-cols-3`), button row direction (`sm:flex-row`), touch target reset (`sm:min-h-0`)
 
-- Dashboard sidebar: `md:w-80`
-- Messages/AI Chat panel split: `md:w-80`
-- Exercise filter toggle: `md:hidden` / `hidden md:block`
-- PageHeader stacking: `sm:flex-row`
+This matches the breakpoint conventions used across Pipelines 36 and 37. The `md:` breakpoint for table column hiding is particularly important because it aligns with the sidebar collapse point, ensuring that when the sidebar is visible there is enough horizontal space for all table columns.
 
-No inconsistencies found in breakpoint usage across the changed files.
+### 3. Dialog `max-h-[90dvh] overflow-y-auto` (Correct)
 
-### 3. Scroll Hint Gradient Pattern (Fixed -- was broken)
+All nine admin dialogs now use `max-h-[90dvh] overflow-y-auto`. Prior to this pipeline, some dialogs used `max-h-[80vh]` or `max-h-[85vh]` (viewport-height units that do not account for Mobile Safari's dynamic address bar), while others had no max-height at all. The normalization to `90dvh` across all dialogs is the correct fix.
 
-**Problem Found:** The CSS defined `.table-scroll-hint.scrolled-end::after { opacity: 0; }` but no JavaScript ever toggled the `scrolled-end` class. The gradient permanently covered the rightmost 32px of table content on mobile, including when the user had scrolled all the way to the right or when the table content fit within the viewport without any overflow.
+The two previously-existing dialogs that had `vh`-based heights were:
+- `coupon-detail-dialog.tsx`: `max-h-[80vh]` changed to `max-h-[90dvh]`
+- `subscription-detail-dialog.tsx`: `max-h-[85vh]` changed to `max-h-[90dvh]`
 
-**Fix Applied:** Added `useRef` + `useEffect` + passive scroll event listener in both `DataTable` and `TraineeActivityTab` that toggles `.scrolled-end` when:
-- The scroll position reaches the right edge, OR
-- The content does not overflow at all (no horizontal scroll needed)
+This is consistent with every dialog touched in Pipelines 36 and 37 (trainee dashboard, trainer dashboard).
 
-The scroll listener uses `{ passive: true }` to avoid blocking the main thread, and properly cleans up on unmount.
+### 4. Subscription Detail Tabs Wrapping (Correct)
 
-**Files:** `web/src/components/shared/data-table.tsx`, `web/src/components/trainees/trainee-activity-tab.tsx`
+The `<TabsList>` in `subscription-detail-dialog.tsx` is wrapped in `<div className="overflow-x-auto">`. This prevents horizontal overflow if tab labels are long while keeping the tabs scrollable. The approach is lightweight and preserves keyboard accessibility (the TabsList still functions as a single focusable group).
 
-### 4. Touch Target Compliance (Fixed -- was insufficient)
+### 5. Form Grid Responsive Stacking (Correct)
 
-**Problem Found:** Exercise row action buttons (move up, move down, delete) were `h-8 w-8` (32px) on mobile, which falls below the 44px minimum specified in the ticket and recommended by Apple's Human Interface Guidelines.
+Two form grids were made responsive:
+- `coupon-form-dialog.tsx`: `grid-cols-2` changed to `grid-cols-1 sm:grid-cols-2`
+- `tier-form-dialog.tsx`: `grid-cols-3` changed to `grid-cols-1 sm:grid-cols-3`
 
-**Fix Applied:** Changed to `min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0` pattern, consistent with how the DataTable pagination buttons handle the same requirement. This ensures a 44px clickable area on mobile while reverting to the compact `h-7 w-7` on desktop.
+This ensures form fields stack vertically on mobile and arrange in columns on desktop. The `sm:` breakpoint is appropriate for form fields since even at 640px there is sufficient width for two or three input fields side by side.
 
-**File:** `web/src/components/programs/exercise-row.tsx`
+### 6. Touch Target Compliance (Correct)
 
-### 5. Sticky Save Bar Pattern (Good)
+Touch targets were added to:
+- Trainer page filter buttons (All/Active/Inactive): `min-h-[44px] sm:min-h-0`
+- Ambassador list "view" button: `min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0`
+- Past due list "send reminder" button: `min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0`
 
-The program builder save bar uses `sticky bottom-0 z-10 -mx-4 ... md:static md:mx-0 ...`. The `-mx-4` negative margin correctly counteracts the `p-4` padding from the `<main>` element in the dashboard layout (`web/src/app/(dashboard)/layout.tsx` line 61: `className="flex-1 overflow-auto p-4 lg:p-6"`), making the bar edge-to-edge on mobile. On `md:` and above, the negative margin resets to `mx-0` and the bar reverts to static positioning with no border or background.
+The pattern `min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0` is the same pattern used in Pipeline 37 for exercise-row buttons and DataTable pagination buttons. Consistent.
 
-This is a standard and well-understood pattern for sticky bars inside padded containers. The `z-10` is appropriate -- it ensures the bar sits above table content but below modals/dialogs (which use `z-50`).
+### 7. `h-dvh` Layout Migration (Correct)
 
-### 6. Exercise Filter Collapsible (Good)
+The admin layout (`web/src/app/(admin-dashboard)/layout.tsx`) was changed from `h-screen` to `h-dvh`. This matches the trainer dashboard layout (`web/src/app/(dashboard)/layout.tsx`) and trainee dashboard layout (`web/src/app/(trainee-dashboard)/layout.tsx`) which were migrated in Pipelines 36 and 37 respectively.
 
-The exercise-list filter collapsible uses local `useState` + `md:hidden` toggle button + `hidden md:block` filter panel. This is the correct approach:
+**Note:** The ambassador dashboard layout (`web/src/app/(ambassador-dashboard)/layout.tsx` line 80) still uses `h-screen`. This was not in scope for Pipeline 38 (admin-focused), but should be addressed in a future ambassador dashboard responsiveness pipeline for consistency.
 
-- State is local to the component (no global state pollution)
-- The toggle button uses proper ARIA: `aria-expanded`, `aria-controls`
-- Active filter count badge provides user feedback
-- On `md:` and above, filters are always visible (the toggle button is hidden, the panel uses `md:block`)
+### 8. Button Stacking Pattern (Correct)
 
-### 7. Revenue Section Header Refactoring (Good)
+Two button groups were changed to stack vertically on mobile:
+- `tier-list.tsx`: Edit/Delete buttons use `flex flex-col gap-1 sm:flex-row`
+- `trainer-detail-dialog.tsx`: Suspend confirmation buttons use `flex flex-col gap-2 sm:flex-row`
+- `create-user-dialog.tsx`: Delete confirmation buttons use `flex flex-col gap-2 sm:flex-row`
 
-The revenue section header was restructured from a single `flex-wrap` row (where heading, period selector, and export buttons could wrap unpredictably on mobile) to a stacked layout: heading + period selector on one row (`justify-between`), export buttons on a separate row below. This is the architecturally correct approach because it creates predictable, deterministic layouts rather than relying on flex-wrap behavior which varies with content length.
+This is the standard responsive button pattern. On mobile, full-width stacked buttons are easier to tap. On desktop, they sit in a row. The `sm:` breakpoint is appropriate here.
 
-### 8. `100dvh` Migration (Good)
+### 9. Metadata Row Wrapping (Correct)
 
-Both chat pages (AI Chat, Messages) correctly use `100dvh` instead of `100vh` for container height calculations. This fixes the Mobile Safari dynamic address bar issue. No remaining `100vh` usage found in the dashboard route group.
+Three metadata rows were changed from `flex items-center gap-X` to `flex flex-wrap items-center gap-x-X gap-y-1`:
+- `ambassador-list.tsx` (referral code, commission, earnings)
+- `past-due-full-list.tsx` (tier, due date, days overdue)
+- `upcoming-payments-list.tsx` (tier, due date, amount)
 
-### 9. CSS Architecture for `table-scroll-hint` (Acceptable)
+Splitting `gap` into `gap-x` and `gap-y` with a smaller vertical gap (1 = 4px) prevents excessive vertical spacing when items wrap. This is the same pattern used in the trainer dashboard components from Pipeline 37.
 
-The `table-scroll-hint` CSS uses a raw `@media (max-width: 767px)` query instead of Tailwind's responsive system. This is necessary because Tailwind utility classes cannot target `::after` pseudo-elements with responsive variants in inline classes. The `767px` value correctly aligns with Tailwind's `md:` breakpoint (768px).
+---
 
-The gradient uses `var(--card)` for the fade color, which matches the Card component backgrounds where all DataTable instances are placed. If a table were placed outside a Card, the gradient color would need adjustment, but this is not the case currently.
+## Components That Did NOT Need Changes (Verified)
+
+The following admin components were not touched in this pipeline. I reviewed each to confirm they were already responsive:
+
+1. **`dashboard-stats.tsx`** -- Uses `grid gap-4 sm:grid-cols-2 lg:grid-cols-4`. Already responsive.
+2. **`revenue-cards.tsx`** -- Same responsive grid pattern. Already responsive.
+3. **`tier-breakdown.tsx`** -- Single-column card with progress bars. Naturally responsive.
+4. **`past-due-alerts.tsx`** -- Card list with `min-w-0 flex-1` and `truncate`. Already responsive.
+5. **`subscription-action-forms.tsx`** -- Uses `flex flex-wrap gap-2` for action buttons. Already responsive.
+6. **`admin-dashboard-skeleton.tsx`** -- Uses same responsive grid as real components. Already responsive.
+
+No admin components were missed.
 
 ---
 
@@ -133,40 +173,33 @@ The gradient uses `var(--card)` for the fade color, which matches the Card compo
 
 | # | Area | Issue | Recommendation |
 |---|------|-------|----------------|
-| 1 | Scroll hint duplication | The `updateScrollHint` logic is duplicated between `DataTable` and `TraineeActivityTab`. If more manually-constructed tables need the hint, this should be extracted into a custom hook. | Low priority. Only 2 instances currently. Extract to `useScrollHint()` hook if a 3rd instance appears. |
-| 2 | Column hiding scalability | Adding more `hidden md:table-cell` columns is trivial -- just add `className` to the column definition. No changes needed to DataTable. | No action needed. Pattern scales well. |
-| 3 | Filter collapsible pattern | Only the exercise-list uses the collapsible filter pattern. If other pages need it, a shared `CollapsibleFilterPanel` component should be extracted. | Low priority. Only 1 instance currently. |
-| 4 | `colSpan` with hidden columns | `colSpan={columns.length}` in DataTable's empty state counts all columns including CSS-hidden ones. Browsers handle this gracefully (cell spans entire visible row). | No action needed. Not a real bug. |
+| 1 | Ambassador dashboard `h-screen` | The ambassador layout still uses `h-screen` instead of `h-dvh`. Not in scope for this pipeline but creates an inconsistency across the three dashboard layouts. | Low priority. Address in a future ambassador dashboard responsiveness pass. |
+| 2 | Dialog pattern documentation | All three pipelines (36, 37, 38) established `max-h-[90dvh] overflow-y-auto` as the standard for every dialog. This convention should be documented so new dialogs follow it by default. | Low priority. Consider adding to a contributing guide or component storybook. |
 
 ---
 
 ## Technical Debt
 
-### Introduced (Minimal)
-
-| # | Description | Severity | Suggested Resolution |
-|---|-------------|----------|---------------------|
-| 1 | `32px` gradient width in CSS is a magic number | Low | Could be a CSS variable, but it is used in exactly one place and is a visual design constant. No action needed unless the value needs to change. |
-| 2 | `@media (max-width: 767px)` hardcoded instead of Tailwind plugin | Low | Necessary for `::after` pseudo-element targeting. Standard Tailwind approach. |
-| 3 | Scroll hint logic duplicated across 2 files | Low | Extract to `useScrollHint()` hook if a 3rd instance is needed. |
+### Introduced
+None. This pipeline introduced zero new patterns and zero new technical debt. Every change uses an existing, established pattern.
 
 ### Reduced
 
 | # | Description |
 |---|-------------|
-| 1 | Exercise row buttons now meet 44px touch target requirement |
-| 2 | Scroll hint gradient properly hides when content fits or user scrolls to end |
-| 3 | DataTable pagination is now mobile-friendly (compact text, icon-only buttons) |
-| 4 | `100dvh` consistently used across chat pages |
+| 1 | Admin dialogs now all use `dvh` units instead of a mix of `vh` and nothing |
+| 2 | Admin layout now uses `h-dvh` consistent with trainer and trainee layouts |
+| 3 | Filter inputs across all admin pages now use the same `w-full sm:max-w-sm` pattern |
+| 4 | Touch targets on admin interactive elements meet the 44px minimum |
 
 ---
 
 ## Architecture Score: 9/10
 
-The implementation is clean, consistent, and well-layered. The CSS-first approach is the correct architectural decision for responsive design changes. Column hiding via `className` scales well without touching the DataTable API. The breakpoint usage is consistent throughout. The two issues found during review (dead `scrolled-end` CSS class, undersized touch targets) have been fixed.
+This is a textbook CSS-only responsive pipeline. Every pattern used has a direct precedent from Pipeline 36 or 37. The `Column.className` approach to table column hiding is architecturally sound -- it keeps the DataTable component generic while allowing per-column responsive behavior without JavaScript. The dialog overflow normalization eliminates an inconsistency that had accumulated (mix of `vh` units and missing max-heights). No new abstractions were needed; no new technical debt was introduced.
 
-One point deducted for the scroll-hint logic duplication between DataTable and TraineeActivityTab. With only two instances this is acceptable, but it should be extracted into a `useScrollHint` custom hook if the pattern spreads to more components.
+One point deducted for the ambassador layout `h-screen` inconsistency that was not addressed (out of scope but now the only remaining layout using `vh` instead of `dvh`). This is a minor concern that does not affect the quality of the work done in this pipeline.
 
 ## Recommendation: APPROVE
 
-The architecture is sound. The responsive approach is well-layered, uses CSS-first patterns where possible, and is consistent with the project's established conventions. The minor debt items (scroll-hint hook extraction, gradient magic number) are tracked above and do not block shipping.
+The architecture is sound. The implementation is consistent with the responsive patterns established in Pipelines 36 and 37, applies them systematically to all admin components, and correctly identifies components that were already responsive. No data model, API, or business logic was touched. The CSS-first approach is the right strategy for this kind of change.
