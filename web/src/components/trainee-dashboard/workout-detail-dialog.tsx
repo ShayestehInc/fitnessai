@@ -130,12 +130,16 @@ export function WorkoutDetailDialog({
                       className="flex items-center gap-2 text-sm sm:gap-3"
                     >
                       <span className="w-8 shrink-0 text-muted-foreground sm:w-12">
-                        S{set.set_number}
+                        <span className="sm:hidden">S{set.set_number}</span>
+                        <span className="hidden sm:inline">Set {set.set_number}</span>
                       </span>
                       <span className="w-14 shrink-0 sm:w-16">
                         {set.reps} reps
                       </span>
-                      <span className="min-w-0 flex-1 truncate">
+                      <span
+                        className="min-w-0 flex-1 truncate"
+                        title={set.weight > 0 ? `${set.weight} ${set.unit || "lbs"}` : "Bodyweight"}
+                      >
                         {set.weight > 0
                           ? `${set.weight} ${set.unit || "lbs"}`
                           : "BW"}

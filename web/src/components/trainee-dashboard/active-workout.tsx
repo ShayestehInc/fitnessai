@@ -335,7 +335,7 @@ export function ActiveWorkout() {
               aria-label="Finish workout and review summary"
             >
               Finish
-              <span className="hidden sm:inline">&nbsp;Workout</span>
+              <span className="hidden sm:inline"> Workout</span>
             </Button>
           </div>
         }
@@ -371,7 +371,7 @@ export function ActiveWorkout() {
       />
 
       <Dialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
-        <DialogContent className="max-h-[90dvh] sm:max-w-[400px]">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Discard workout?</DialogTitle>
             <DialogDescription>

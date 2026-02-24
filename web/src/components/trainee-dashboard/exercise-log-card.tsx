@@ -66,7 +66,8 @@ export function ExerciseLogCard({
         >
           <span>Set</span>
           <span>Reps</span>
-          <span>Wt ({unit})</span>
+          <span className="sm:hidden">Wt</span>
+          <span className="hidden sm:inline">Weight ({unit})</span>
           <span />
           <span />
         </div>
@@ -116,7 +117,7 @@ export function ExerciseLogCard({
               className="h-9 min-w-0 px-2 text-sm sm:px-3"
               aria-label={`Set ${set.set_number} weight`}
             />
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center p-1.5 sm:p-0">
               <button
                 type="button"
                 role="checkbox"
@@ -124,7 +125,7 @@ export function ExerciseLogCard({
                 aria-label={`Mark set ${set.set_number} as completed`}
                 onClick={() => onSetToggle(exerciseIndex, setIndex)}
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-5 sm:w-5",
+                  "flex h-6 w-6 items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-5 sm:w-5",
                   set.completed
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-input bg-background hover:border-primary/50",

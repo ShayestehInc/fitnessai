@@ -213,20 +213,22 @@
   background: transparent;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
+  background: var(--border);
   border-radius: 4px;
-}
-
-/* Mobile safe viewport — use dvh units */
-@supports (height: 100dvh) {
-  .h-screen-safe {
-    height: 100dvh;
-  }
 }
 
 /* Prevent iOS text size adjustment */
 html {
   -webkit-text-size-adjust: 100%;
+}
+
+/* Prevent iOS auto-zoom on input focus (requires 16px minimum font-size) */
+@media screen and (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 /* Ensure number inputs don't show spinners on mobile (saves horizontal space) */
@@ -236,7 +238,7 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
 }
 input[type="number"] {
-  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* Respect reduced motion */
