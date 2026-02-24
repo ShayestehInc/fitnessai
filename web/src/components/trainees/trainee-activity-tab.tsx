@@ -74,7 +74,7 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
             No activity data for this period
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="table-scroll-hint overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
