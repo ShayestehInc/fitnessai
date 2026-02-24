@@ -100,7 +100,7 @@ export default function TraineeDetailPage({
           </div>
 
           {/* Trainee Actions */}
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <div className="grid grid-cols-2 gap-2 [&_button]:min-h-[44px] sm:flex sm:flex-wrap sm:[&_button]:min-h-0">
             <ImpersonateTraineeButton
               traineeId={trainee.id}
               traineeName={displayName}
@@ -147,8 +147,8 @@ export default function TraineeDetailPage({
         </div>
 
         <Tabs defaultValue="overview">
-          <div className="overflow-x-auto">
-            <TabsList>
+          <div className="scrollbar-thin overflow-x-auto">
+            <TabsList className="inline-flex w-max min-w-full justify-start">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
               <TabsTrigger value="progress">Progress</TabsTrigger>

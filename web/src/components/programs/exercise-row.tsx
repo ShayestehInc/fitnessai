@@ -76,7 +76,7 @@ export function ExerciseRow({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 sm:h-7 sm:w-7"
+            className="min-h-[44px] min-w-[44px] sm:h-7 sm:min-h-0 sm:w-7 sm:min-w-0"
             onClick={onMoveUp}
             disabled={index === 0}
             aria-label={`Move ${exercise.exercise_name} up`}
@@ -87,7 +87,7 @@ export function ExerciseRow({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 sm:h-7 sm:w-7"
+            className="min-h-[44px] min-w-[44px] sm:h-7 sm:min-h-0 sm:w-7 sm:min-w-0"
             onClick={onMoveDown}
             disabled={index === totalExercises - 1}
             aria-label={`Move ${exercise.exercise_name} down`}
@@ -98,7 +98,7 @@ export function ExerciseRow({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive sm:h-7 sm:w-7"
+            className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive sm:h-7 sm:min-h-0 sm:w-7 sm:min-w-0"
             onClick={onRemove}
             aria-label={`Remove ${exercise.exercise_name}`}
           >

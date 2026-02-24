@@ -75,7 +75,7 @@ export function ExerciseList({
         <Button
           variant="outline"
           size="sm"
-          className="md:hidden"
+          className="min-h-[44px] md:hidden"
           onClick={() => setShowFilters((v) => !v)}
           aria-expanded={showFilters}
           aria-controls="exercise-filter-panel"
@@ -91,7 +91,7 @@ export function ExerciseList({
             <button
               onClick={() => onMuscleGroupChange("")}
               className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
                 !muscleGroup
                   ? "border-primary bg-primary text-primary-foreground"
                   : "hover:bg-accent",
@@ -104,7 +104,7 @@ export function ExerciseList({
                 key={key}
                 onClick={() => onMuscleGroupChange(key)}
                 className={cn(
-                  "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
                   muscleGroup === key
                     ? "border-primary bg-primary text-primary-foreground"
                     : "hover:bg-accent",
@@ -120,7 +120,7 @@ export function ExerciseList({
             <button
               onClick={() => onDifficultyChange("")}
               className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
                 !difficultyLevel
                   ? "border-primary bg-primary text-primary-foreground"
                   : "hover:bg-accent",
@@ -133,7 +133,7 @@ export function ExerciseList({
                 key={key}
                 onClick={() => onDifficultyChange(key)}
                 className={cn(
-                  "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
                   difficultyLevel === key
                     ? "border-primary bg-primary text-primary-foreground"
                     : "hover:bg-accent",
@@ -149,7 +149,7 @@ export function ExerciseList({
             <button
               onClick={() => onGoalChange("")}
               className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
                 !goal
                   ? "border-primary bg-primary text-primary-foreground"
                   : "hover:bg-accent",
@@ -162,7 +162,7 @@ export function ExerciseList({
                 key={key}
                 onClick={() => onGoalChange(key)}
                 className={cn(
-                  "rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:py-1",
                   goal === key
                     ? "border-primary bg-primary text-primary-foreground"
                     : "hover:bg-accent",

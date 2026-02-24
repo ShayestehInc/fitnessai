@@ -30,7 +30,7 @@ export default function ProgramsPage() {
         title="Programs"
         description="Create and manage workout program templates"
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
               <Link href="/programs/generate">
                 <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />

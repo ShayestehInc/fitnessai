@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useCallback, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -46,9 +47,26 @@ export function DataTable<T>({
     totalCount !== undefined ? Math.ceil(totalCount / pageSize) : 1;
   const showPagination = totalCount !== undefined && totalPages > 1;
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const updateScrollHint = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+    el.classList.toggle("scrolled-end", atEnd);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateScrollHint();
+    el.addEventListener("scroll", updateScrollHint, { passive: true });
+    return () => el.removeEventListener("scroll", updateScrollHint);
+  }, [updateScrollHint]);
+
   return (
     <div>
-      <div className="table-scroll-hint overflow-x-auto rounded-md border">
+      <div ref={scrollRef} className="table-scroll-hint overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -118,6 +136,7 @@ export function DataTable<T>({
             <Button
               variant="outline"
               size="sm"
+              className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
               onClick={() => onPageChange?.(page - 1)}
               disabled={page <= 1}
               aria-label="Go to previous page"
@@ -128,6 +147,7 @@ export function DataTable<T>({
             <Button
               variant="outline"
               size="sm"
+              className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
               onClick={() => onPageChange?.(page + 1)}
               disabled={page >= totalPages}
               aria-label="Go to next page"

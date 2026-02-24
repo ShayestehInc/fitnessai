@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Card,
@@ -36,6 +36,22 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
     traineeId,
     days,
   );
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const updateScrollHint = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+    el.classList.toggle("scrolled-end", atEnd);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateScrollHint();
+    el.addEventListener("scroll", updateScrollHint, { passive: true });
+    return () => el.removeEventListener("scroll", updateScrollHint);
+  }, [updateScrollHint]);
 
   return (
     <Card>
@@ -74,7 +90,7 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
             No activity data for this period
           </p>
         ) : (
-          <div className="table-scroll-hint overflow-x-auto">
+          <div ref={scrollRef} className="table-scroll-hint overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>

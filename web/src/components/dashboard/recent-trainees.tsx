@@ -34,14 +34,14 @@ export function RecentTrainees({ trainees }: RecentTraineesProps) {
         <CardDescription>Latest trainees to join your program</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        <div className="table-scroll-hint overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Program</TableHead>
-                <TableHead>Joined</TableHead>
+                <TableHead className="hidden md:table-cell">Program</TableHead>
+                <TableHead className="hidden md:table-cell">Joined</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -50,21 +50,22 @@ export function RecentTrainees({ trainees }: RecentTraineesProps) {
                   <TableCell>
                     <Link
                       href={`/trainees/${t.id}`}
-                      className="font-medium hover:underline"
+                      className="block max-w-[200px] truncate font-medium hover:underline"
+                      title={`${t.first_name} ${t.last_name}`.trim() || t.email}
                     >
                       {`${t.first_name} ${t.last_name}`.trim() || t.email}
                     </Link>
-                    <p className="truncate text-xs text-muted-foreground">{t.email}</p>
+                    <p className="max-w-[200px] truncate text-xs text-muted-foreground">{t.email}</p>
                   </TableCell>
                   <TableCell>
                     <Badge variant={t.profile_complete ? "default" : "secondary"}>
                       {t.profile_complete ? "Active" : "Onboarding"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
                     {t.current_program?.name ?? "None"}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
                     {formatDistanceToNow(new Date(t.created_at), {
                       addSuffix: true,
                     })}
