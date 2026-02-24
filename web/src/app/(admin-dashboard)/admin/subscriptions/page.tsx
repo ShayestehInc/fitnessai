@@ -83,7 +83,7 @@ export default function AdminSubscriptionsPage() {
           placeholder="Search by email..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          className="max-w-sm"
+          className="w-full sm:max-w-sm"
           aria-label="Search subscriptions"
         />
         <select
@@ -160,6 +160,7 @@ export default function AdminSubscriptionsPage() {
       )}
 
       <SubscriptionDetailDialog
+        key={selectedSubId ?? "none"}
         subscriptionId={selectedSubId}
         open={detailOpen}
         onOpenChange={setDetailOpen}

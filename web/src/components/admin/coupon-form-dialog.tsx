@@ -151,7 +151,7 @@ export function CouponFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Edit Coupon" : "Create Coupon"}
@@ -199,7 +199,7 @@ export function CouponFormDialog({
           </div>
 
           {!isEdit && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label htmlFor="coupon-type">Type</Label>
                 <select

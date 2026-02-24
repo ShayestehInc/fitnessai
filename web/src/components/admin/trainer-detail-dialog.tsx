@@ -94,7 +94,7 @@ export function TrainerDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90dvh] max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{name}</DialogTitle>
           <DialogDescription className="truncate">{trainer.email}</DialogDescription>
@@ -205,7 +205,7 @@ export function TrainerDetailDialog({
                   Are you sure you want to suspend {name}? They will lose
                   access to their dashboard.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     variant="destructive"
                     size="sm"

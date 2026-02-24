@@ -1,55 +1,71 @@
-# Dev Done: Trainer Dashboard Mobile Responsiveness (Pipeline 37)
+# Dev Done: Admin Dashboard Mobile Responsiveness (Pipeline 38)
+
+## Date
+2026-02-24
 
 ## Summary
-Made the entire trainer-facing web dashboard mobile-friendly using CSS-first responsive patterns. All changes are Tailwind utility classes — no JS viewport detection.
+Made all admin dashboard pages fully mobile-friendly using CSS-only Tailwind utility classes. Consistent `md:` breakpoint (768px) matching Pipelines 36/37 patterns.
 
-## Files Changed (12 files)
+## Files Changed (23 files)
 
-### Data Tables — Column Hiding
-1. **`web/src/components/trainees/trainee-columns.tsx`** — Hide "Program" and "Joined" columns on mobile (`hidden md:table-cell`)
-2. **`web/src/components/trainees/trainee-activity-tab.tsx`** — Hide "Carbs" and "Fat" columns on mobile
-3. **`web/src/components/programs/program-list.tsx`** — Hide "Goal", "Used", and "Created" columns on mobile
-4. **`web/src/components/invitations/invitation-columns.tsx`** — Hide "Program" and "Expires" columns on mobile
-5. **`web/src/components/analytics/revenue-section.tsx`** — Hide "Since" column on subscriber table; hide "Type" and "Date" columns on payment table
+### Table Column Hiding (5 files)
+1. **`web/src/components/admin/trainer-list.tsx`** — Added `className: "hidden md:table-cell"` to Trainees and Joined columns
+2. **`web/src/components/admin/subscription-list.tsx`** — Added to Next Payment and Past Due columns
+3. **`web/src/components/admin/coupon-list.tsx`** — Added to Applies To and Valid Until columns
+4. **`web/src/components/admin/user-list.tsx`** — Added to Trainees and Created columns
+5. **`web/src/components/admin/tier-list.tsx`** — Added to Trainee Limit and Order columns; action buttons now stack vertically on mobile (`flex flex-col gap-1 sm:flex-row`)
 
-### Data Table Pagination
-6. **`web/src/components/shared/data-table.tsx`** — Responsive pagination: `Page X of Y (Z total)` → `X/Y` on mobile. Previous/Next buttons become icon-only on mobile.
+### Dialog Overflow Fixes (9 files)
+6. **`web/src/components/admin/subscription-detail-dialog.tsx`** — Changed `max-h-[85vh]` to `max-h-[90dvh]`
+7. **`web/src/components/admin/coupon-detail-dialog.tsx`** — Changed `max-h-[80vh]` to `max-h-[90dvh]`
+8. **`web/src/components/admin/coupon-form-dialog.tsx`** — Added `max-h-[90dvh] overflow-y-auto`
+9. **`web/src/components/admin/trainer-detail-dialog.tsx`** — Added `max-h-[90dvh] overflow-y-auto`; suspend/activate confirm buttons now stack on mobile (`flex flex-col gap-2 sm:flex-row`)
+10. **`web/src/components/admin/tier-form-dialog.tsx`** — Added `max-h-[90dvh] overflow-y-auto`
+11. **`web/src/components/admin/create-user-dialog.tsx`** — Added `max-h-[90dvh] overflow-y-auto`
+12. **`web/src/components/admin/create-ambassador-dialog.tsx`** — Added `max-h-[90dvh] overflow-y-auto`
+13. **`web/src/components/admin/ambassador-detail-dialog.tsx`** — Added `max-h-[90dvh] overflow-y-auto`
+14. **`web/src/app/(admin-dashboard)/admin/tiers/page.tsx`** — Added `max-h-[90dvh] overflow-y-auto` to delete confirmation dialog
 
-### Trainee Detail Page
-7. **`web/src/app/(dashboard)/trainees/[id]/page.tsx`** — Header stacks vertically on mobile (`flex-col gap-4 md:flex-row`). Action buttons use 2-column grid on mobile (`grid grid-cols-2 gap-2 sm:flex`). Title scales `text-xl sm:text-2xl`.
+### Filter Input Fixes (4 pages)
+15. **`web/src/app/(admin-dashboard)/admin/trainers/page.tsx`** — Changed `max-w-sm` to `w-full sm:max-w-sm`
+16. **`web/src/app/(admin-dashboard)/admin/subscriptions/page.tsx`** — Same
+17. **`web/src/app/(admin-dashboard)/admin/coupons/page.tsx`** — Same
+18. **`web/src/app/(admin-dashboard)/admin/users/page.tsx`** — Same
 
-### Exercise Management
-8. **`web/src/components/exercises/exercise-list.tsx`** — Collapsible filter chips on mobile with "Filters (N)" toggle button. Always visible on md+.
-9. **`web/src/components/programs/exercise-row.tsx`** — Reduced left padding on mobile (`pl-0 sm:pl-8`). Larger touch targets on reorder/delete buttons (`h-8 w-8 sm:h-7 sm:w-7`).
+### Subscription History Tables (1 file)
+19. **`web/src/components/admin/subscription-history-tabs.tsx`** — Hidden Description column on payments table and By/Reason columns on changes table on mobile
 
-### Chat Pages — Dynamic Viewport Height
-10. **`web/src/app/(dashboard)/ai-chat/page.tsx`** — Replaced `100vh` with `100dvh` (2 occurrences) to fix Mobile Safari address bar overlap
-11. **`web/src/app/(dashboard)/messages/page.tsx`** — Replaced `100vh` with `100dvh`
+### Ambassador List Mobile Fix (1 file)
+20. **`web/src/components/admin/ambassador-list.tsx`** — Added `flex-wrap` + `gap-x-4 gap-y-1` to metadata row
 
-### Program Builder
-12. **`web/src/components/programs/program-builder.tsx`** — Save bar is now sticky at bottom on mobile with border-top and background. Reverts to static on sm+.
+### Payment Cards Mobile Fix (2 files)
+21. **`web/src/components/admin/past-due-full-list.tsx`** — Added `flex-wrap` + `gap-x-3 gap-y-1` to metadata row
+22. **`web/src/components/admin/upcoming-payments-list.tsx`** — Same
 
-## Key Design Decisions
-- **CSS-only approach**: All responsive changes via Tailwind breakpoint utilities. No `useMediaQuery` or JS-based viewport detection.
-- **Column hiding pattern**: Used `hidden md:table-cell` consistently across all DataTable column definitions to hide less-important columns on mobile while keeping essential data visible.
-- **Collapsible filters**: Exercise list filter chips hidden behind a toggle button on mobile rather than removing them entirely, preserving full functionality.
-- **Sticky save bar**: Program builder save bar uses `sticky bottom-0` on mobile so users always see the Save/Cancel buttons without scrolling to the end of a long form.
-- **Touch targets**: All interactive elements meet 44px minimum touch target on mobile.
-- **Dynamic viewport height**: `100dvh` used instead of `100vh` for chat pages to account for Mobile Safari's dynamic address bar.
+### Layout Fix (1 file)
+23. **`web/src/app/(admin-dashboard)/layout.tsx`** — Changed `h-screen` to `h-dvh` for Mobile Safari address bar compatibility
 
-## How to Manually Test
-1. Open Chrome DevTools → Toggle Device Toolbar (Ctrl+Shift+M)
-2. Test at 375px (iPhone SE), 390px (iPhone 14), and 768px (iPad) widths
-3. Key flows to verify:
-   - Trainee list → table columns collapse, pagination is compact
-   - Trainee detail → header stacks, action buttons form 2-column grid
-   - Programs list → table columns collapse
-   - Program builder → save bar stays visible at bottom while scrolling
-   - Exercise bank → filter chips collapse behind toggle button
-   - AI Chat → no bottom cut-off from address bar
-   - Messages → same dvh fix
-   - Analytics → revenue tables show essential columns only
-   - Invitations → table columns collapse
+## Key Decisions
+- **`dvh` units**: Used `90dvh` for dialogs instead of `vh` to properly account for Mobile Safari address bar
+- **Consistent `md:` breakpoint**: 768px for all mobile/desktop transitions, matching P36/P37 patterns
+- **Column hiding strategy**: Essential columns (Name, Status, Price) always visible; supplementary columns (dates, counts) hidden on mobile
+- **No JS viewport detection**: All responsive behavior via Tailwind utility classes only
 
 ## Deviations from Ticket
-- Programs page header: No changes needed — the `PageHeader` component already handles `flex-col sm:flex-row` stacking, and the two action buttons fit side-by-side on even the smallest screens.
+- None. All 15 acceptance criteria addressed.
+
+## Verification
+- Dashboard stats grid: `sm:grid-cols-2 lg:grid-cols-4` (already responsive)
+- Revenue cards: Same responsive grid (already responsive)
+- Tier breakdown: Simple card layout (already responsive)
+- Past due alerts: Card list with `min-w-0 flex-1 truncate` (already responsive)
+- Settings page: `max-w-2xl` constrained (already responsive)
+- PageHeader: Already has `flex-wrap` on actions wrapper
+
+## How to Test
+1. Open any admin page in Chrome DevTools responsive mode
+2. Test at 320px (iPhone SE), 375px (iPhone), 768px (iPad), 1024px+ (desktop)
+3. Verify tables show only essential columns on mobile
+4. Open any dialog and verify it's scrollable within viewport
+5. Check filter inputs stretch full width on mobile
+6. Verify no horizontal body scroll on any page

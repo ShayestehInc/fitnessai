@@ -98,7 +98,7 @@ export default function AdminCouponsPage() {
           placeholder="Search by code..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          className="max-w-sm"
+          className="w-full sm:max-w-sm"
           aria-label="Search coupons"
         />
         <select

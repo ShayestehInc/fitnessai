@@ -54,11 +54,13 @@ const columns: Column<AdminTrainerListItem>[] = [
   {
     key: "trainees",
     header: "Trainees",
+    className: "hidden md:table-cell",
     cell: (row) => row.trainee_count,
   },
   {
     key: "created",
     header: "Joined",
+    className: "hidden md:table-cell",
     cell: (row) => format(new Date(row.created_at), "MMM d, yyyy"),
   },
 ];

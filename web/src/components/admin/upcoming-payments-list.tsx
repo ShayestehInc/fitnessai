@@ -5,6 +5,7 @@ import { CalendarClock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
@@ -22,7 +23,7 @@ interface UpcomingPayment {
 }
 
 export function UpcomingPaymentsList() {
-  const { data, isLoading } = useQuery<UpcomingPayment[]>({
+  const { data, isLoading, isError, refetch } = useQuery<UpcomingPayment[]>({
     queryKey: ["admin-upcoming-payments"],
     queryFn: () =>
       apiClient.get<UpcomingPayment[]>(API_URLS.ADMIN_UPCOMING_PAYMENTS),
@@ -35,6 +36,15 @@ export function UpcomingPaymentsList() {
           <Skeleton key={i} className="h-16 w-full" />
         ))}
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        message="Failed to load upcoming payments"
+        onRetry={() => refetch()}
+      />
     );
   }
 
@@ -61,7 +71,7 @@ export function UpcomingPaymentsList() {
             <p className="truncate text-sm font-medium">
               {payment.trainer_name || payment.trainer_email}
             </p>
-            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span>{payment.tier_name}</span>
               <span>
                 Due: {format(new Date(payment.due_date), "MMM d, yyyy")}

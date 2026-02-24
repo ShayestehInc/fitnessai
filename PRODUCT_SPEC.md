@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-24 (Pipeline 37: Trainer Dashboard Mobile Responsiveness)
+> Last updated: 2026-02-24 (Pipeline 38: Admin Dashboard Mobile Responsiveness)
 
 ---
 
@@ -124,6 +124,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Coupon management | ✅ Done | |
 | Past due subscriptions | ✅ Done | |
 | Upcoming payments | ✅ Done | |
+| Mobile responsiveness (admin web) | ✅ Done | Shipped 2026-02-24 (Pipeline 38): Full admin dashboard mobile optimization — 14 responsive table columns, 9 mobile-safe dialogs, 4 full-width filter inputs, 3 stacked button groups, touch target fixes, layout dvh fix, 3 missing error states fixed, 2 stale state bugs fixed |
 
 ### 3.6 Payments
 | Feature | Status | Notes |
@@ -243,6 +244,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Nutrition tracking page (web) | ✅ Done | Shipped 2026-02-24 (Pipeline 35): `/trainee/nutrition` page with AI meal logging (parse → preview → confirm), daily macro tracking with date navigation, meal history with delete, macro preset chips, over-goal amber indicators, shared MacroBar component |
 | Mobile responsiveness (trainee web) | ✅ Done | Shipped 2026-02-24 (Pipeline 36): Full mobile optimization — dvh viewport fix, responsive exercise log grid, sticky workout bottom bar, iOS auto-zoom prevention, safe area insets, touch-friendly targets, responsive charts, dialog overflow fixes, scrollable week tabs, numeric keyboard inputs |
 | Mobile responsiveness (trainer web) | ✅ Done | Shipped 2026-02-24 (Pipeline 37): Full trainer dashboard mobile optimization — responsive DataTable column hiding, compact pagination, collapsible exercise filter chips, sticky program builder save bar, dvh chat fix, revenue header restructuring, 44px touch targets, horizontal scroll hints, trainee detail action grid, scrollable tabs, 9 dialog overflow fixes, progress chart mobile labels |
+| Mobile responsiveness (admin web) | ✅ Done | Shipped 2026-02-24 (Pipeline 38): Full admin dashboard mobile optimization — 14 responsive table columns, 9 mobile-safe dialogs, 4 full-width filter inputs, 3 stacked button groups, touch target fixes, layout dvh fix, 3 missing error states fixed, 2 stale state bugs fixed. All three responsive pipelines complete: P36 (Trainee), P37 (Trainer), P38 (Admin) |
 
 ### 3.10 Social & Community
 | Feature | Status | Notes |
@@ -862,6 +864,24 @@ Applies trainer white-label branding (app name, logo, primary color) to the trai
 - Security audit: 9/10 PASS — no XSS, no CSS injection, strict hex validation
 - Architecture audit: 9/10 APPROVE — proper layering, shared components, centralized types
 - 5 files changed, 209 lines added
+
+### 4.27 Admin Dashboard Mobile Responsiveness (Pipeline 38) -- COMPLETED (2026-02-24)
+
+Full mobile responsiveness for the admin web dashboard, completing the three-part responsive sweep (P36 Trainee, P37 Trainer, P38 Admin).
+
+**What was built:**
+- **Responsive table columns** — 14 columns hidden on mobile across admin tables (trainers, subscriptions, tiers, coupons, users) using `hidden md:table-cell` pattern
+- **Mobile-safe dialogs** — 9 admin dialogs updated with `max-h-[90dvh] overflow-y-auto` to prevent off-screen content
+- **Full-width filter inputs** — 4 filter/search inputs made full-width on mobile for easier touch interaction
+- **Stacked button groups** — 3 button groups restructured to stack vertically on mobile
+- **Touch target fixes** — Minimum 44px touch targets on interactive elements
+- **Layout dvh fix** — Replaced `100vh` with `100dvh` for Mobile Safari address bar compatibility
+- **Error state fixes** — 3 missing error states added across admin pages
+- **Stale state bug fixes** — 2 stale state bugs fixed in admin dialogs
+
+**Pipeline Results:**
+- All three web responsive pipelines now complete: P36 (Trainee Portal), P37 (Trainer Dashboard), P38 (Admin Dashboard)
+- Quality Score: 9/10 SHIP
 
 ### 4.15 Acceptance Criteria
 

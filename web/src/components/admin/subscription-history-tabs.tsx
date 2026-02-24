@@ -34,6 +34,7 @@ const paymentColumns: Column<AdminPaymentHistory>[] = [
   {
     key: "description",
     header: "Description",
+    className: "hidden md:table-cell",
     cell: (row) => row.description || "--",
   },
 ];
@@ -104,11 +105,13 @@ const changeColumns: Column<AdminSubscriptionChange>[] = [
   {
     key: "by",
     header: "By",
+    className: "hidden md:table-cell",
     cell: (row) => row.changed_by_email || "System",
   },
   {
     key: "reason",
     header: "Reason",
+    className: "hidden md:table-cell",
     cell: (row) => row.reason || "--",
   },
 ];

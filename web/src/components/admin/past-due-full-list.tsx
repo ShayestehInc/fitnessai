@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
@@ -38,7 +39,7 @@ function getSeverityBadge(daysOverdue: number): string {
 }
 
 export function PastDueFullList() {
-  const { data, isLoading } = useQuery<PastDueItem[]>({
+  const { data, isLoading, isError, refetch } = useQuery<PastDueItem[]>({
     queryKey: ["admin-past-due"],
     queryFn: () => apiClient.get<PastDueItem[]>(API_URLS.ADMIN_PAST_DUE),
   });
@@ -50,6 +51,15 @@ export function PastDueFullList() {
           <Skeleton key={i} className="h-20 w-full" />
         ))}
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        message="Failed to load past due payments"
+        onRetry={() => refetch()}
+      />
     );
   }
 
@@ -85,7 +95,7 @@ export function PastDueFullList() {
                 {getSeverityBadge(item.days_overdue)}
               </Badge>
             </div>
-            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span>{item.tier_name}</span>
               <span>
                 Due: {format(new Date(item.due_date), "MMM d, yyyy")}
@@ -102,11 +112,13 @@ export function PastDueFullList() {
             <Button
               variant="ghost"
               size="sm"
+              className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
               onClick={() =>
                 toast.info(`Reminder email would be sent to ${item.trainer_email}`)
               }
+              aria-label={`Send reminder to ${item.trainer_name || item.trainer_email}`}
             >
-              <Mail className="h-4 w-4" />
+              <Mail className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </div>

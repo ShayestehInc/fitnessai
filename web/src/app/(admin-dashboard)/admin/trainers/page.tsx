@@ -52,13 +52,14 @@ export default function AdminTrainersPage() {
           placeholder="Search by name or email..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          className="max-w-sm"
+          className="w-full sm:max-w-sm"
           aria-label="Search trainers"
         />
         <div className="flex gap-2" role="group" aria-label="Filter trainers by status">
           <Button
             variant={activeFilter === undefined ? "default" : "outline"}
             size="sm"
+            className="min-h-[44px] sm:min-h-0"
             onClick={() => setActiveFilter(undefined)}
             aria-pressed={activeFilter === undefined}
           >
@@ -67,6 +68,7 @@ export default function AdminTrainersPage() {
           <Button
             variant={activeFilter === true ? "default" : "outline"}
             size="sm"
+            className="min-h-[44px] sm:min-h-0"
             onClick={() => setActiveFilter(true)}
             aria-pressed={activeFilter === true}
           >
@@ -75,6 +77,7 @@ export default function AdminTrainersPage() {
           <Button
             variant={activeFilter === false ? "default" : "outline"}
             size="sm"
+            className="min-h-[44px] sm:min-h-0"
             onClick={() => setActiveFilter(false)}
             aria-pressed={activeFilter === false}
           >
@@ -119,6 +122,7 @@ export default function AdminTrainersPage() {
       )}
 
       <TrainerDetailDialog
+        key={selectedTrainer?.id ?? "none"}
         trainer={selectedTrainer}
         open={dialogOpen}
         onOpenChange={(open) => {
