@@ -59,6 +59,7 @@ const usageColumns: Column<AdminCouponUsage>[] = [
   {
     key: "used_at",
     header: "Used At",
+    className: "hidden md:table-cell",
     cell: (row) => format(new Date(row.used_at), "MMM d, yyyy HH:mm"),
   },
 ];

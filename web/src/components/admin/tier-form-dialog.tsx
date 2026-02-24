@@ -174,7 +174,7 @@ export function TierFormDialog({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-1">
               <Label htmlFor="tier-price">Price ($/mo)</Label>
               <Input

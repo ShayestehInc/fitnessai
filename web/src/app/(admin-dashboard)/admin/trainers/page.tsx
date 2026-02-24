@@ -59,6 +59,7 @@ export default function AdminTrainersPage() {
           <Button
             variant={activeFilter === undefined ? "default" : "outline"}
             size="sm"
+            className="min-h-[44px] sm:min-h-0"
             onClick={() => setActiveFilter(undefined)}
             aria-pressed={activeFilter === undefined}
           >
@@ -67,6 +68,7 @@ export default function AdminTrainersPage() {
           <Button
             variant={activeFilter === true ? "default" : "outline"}
             size="sm"
+            className="min-h-[44px] sm:min-h-0"
             onClick={() => setActiveFilter(true)}
             aria-pressed={activeFilter === true}
           >
@@ -75,6 +77,7 @@ export default function AdminTrainersPage() {
           <Button
             variant={activeFilter === false ? "default" : "outline"}
             size="sm"
+            className="min-h-[44px] sm:min-h-0"
             onClick={() => setActiveFilter(false)}
             aria-pressed={activeFilter === false}
           >

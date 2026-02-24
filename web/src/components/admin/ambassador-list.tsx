@@ -111,6 +111,7 @@ export function AmbassadorList() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                     onClick={() => {
                       setSelectedAmbassador(ambassador);
                       setDetailOpen(true);

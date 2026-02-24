@@ -81,11 +81,13 @@ export function SubscriptionDetailDialog({
 
         {data && (
           <Tabs defaultValue="overview">
-            <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="payments">Payments</TabsTrigger>
-              <TabsTrigger value="changes">Changes</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto">
+              <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="payments">Payments</TabsTrigger>
+                <TabsTrigger value="changes">Changes</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="overview" className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
