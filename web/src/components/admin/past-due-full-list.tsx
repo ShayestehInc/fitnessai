@@ -85,7 +85,7 @@ export function PastDueFullList() {
                 {getSeverityBadge(item.days_overdue)}
               </Badge>
             </div>
-            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span>{item.tier_name}</span>
               <span>
                 Due: {format(new Date(item.due_date), "MMM d, yyyy")}

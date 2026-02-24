@@ -94,7 +94,7 @@ export function AmbassadorList() {
                       {ambassador.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </div>
-                  <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span>Code: {ambassador.referral_code ?? "N/A"}</span>
                     <span>
                       Commission: {ambassador.commission_rate ?? 10}%

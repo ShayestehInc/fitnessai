@@ -49,12 +49,14 @@ const columns: Column<AdminUser>[] = [
   {
     key: "trainees",
     header: "Trainees",
+    className: "hidden md:table-cell",
     cell: (row) =>
       row.role === "TRAINER" ? row.trainee_count : "--",
   },
   {
     key: "created",
     header: "Created",
+    className: "hidden md:table-cell",
     cell: (row) => format(new Date(row.created_at), "MMM d, yyyy"),
   },
 ];

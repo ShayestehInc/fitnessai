@@ -162,7 +162,7 @@ export default function AdminTiersPage() {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Delete Tier</DialogTitle>
             <DialogDescription>

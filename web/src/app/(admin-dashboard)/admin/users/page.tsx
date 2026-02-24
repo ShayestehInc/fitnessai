@@ -69,7 +69,7 @@ export default function AdminUsersPage() {
           placeholder="Search by name or email..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          className="max-w-sm"
+          className="w-full sm:max-w-sm"
           aria-label="Search users"
         />
         <select

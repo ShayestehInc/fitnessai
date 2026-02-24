@@ -43,6 +43,7 @@ const columns: Column<AdminCouponListItem>[] = [
   {
     key: "applies_to",
     header: "Applies To",
+    className: "hidden md:table-cell",
     cell: (row) =>
       row.applies_to.charAt(0).toUpperCase() + row.applies_to.slice(1),
   },
@@ -65,6 +66,7 @@ const columns: Column<AdminCouponListItem>[] = [
   {
     key: "valid_until",
     header: "Valid Until",
+    className: "hidden md:table-cell",
     cell: (row) =>
       row.valid_until
         ? format(new Date(row.valid_until), "MMM d, yyyy")

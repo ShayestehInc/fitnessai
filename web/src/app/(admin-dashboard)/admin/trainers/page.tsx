@@ -52,7 +52,7 @@ export default function AdminTrainersPage() {
           placeholder="Search by name or email..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          className="max-w-sm"
+          className="w-full sm:max-w-sm"
           aria-label="Search trainers"
         />
         <div className="flex gap-2" role="group" aria-label="Filter trainers by status">

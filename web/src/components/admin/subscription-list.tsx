@@ -63,6 +63,7 @@ const columns: Column<AdminSubscriptionListItem>[] = [
   {
     key: "next_payment",
     header: "Next Payment",
+    className: "hidden md:table-cell",
     cell: (row) =>
       row.next_payment_date
         ? format(new Date(row.next_payment_date), "MMM d, yyyy")
@@ -71,6 +72,7 @@ const columns: Column<AdminSubscriptionListItem>[] = [
   {
     key: "past_due",
     header: "Past Due",
+    className: "hidden md:table-cell",
     cell: (row) => {
       const amount = parseFloat(row.past_due_amount);
       if (amount <= 0) return <span className="text-muted-foreground">--</span>;

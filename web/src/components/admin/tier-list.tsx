@@ -42,6 +42,7 @@ export function TierList({
     {
       key: "limit",
       header: "Trainee Limit",
+      className: "hidden md:table-cell",
       cell: (row) => row.trainee_limit_display,
     },
     {
@@ -71,13 +72,14 @@ export function TierList({
     {
       key: "sort",
       header: "Order",
+      className: "hidden md:table-cell",
       cell: (row) => row.sort_order,
     },
     {
       key: "actions",
       header: "Actions",
       cell: (row) => (
-        <div className="flex gap-1">
+        <div className="flex flex-col gap-1 sm:flex-row">
           <Button
             variant="ghost"
             size="sm"

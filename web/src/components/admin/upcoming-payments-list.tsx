@@ -61,7 +61,7 @@ export function UpcomingPaymentsList() {
             <p className="truncate text-sm font-medium">
               {payment.trainer_name || payment.trainer_email}
             </p>
-            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span>{payment.tier_name}</span>
               <span>
                 Due: {format(new Date(payment.due_date), "MMM d, yyyy")}

@@ -151,7 +151,7 @@ export function CouponFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Edit Coupon" : "Create Coupon"}
