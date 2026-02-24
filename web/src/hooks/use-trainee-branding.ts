@@ -3,13 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
+import type { TraineeBranding } from "@/types/branding";
 
-export interface TraineeBranding {
-  app_name: string;
-  primary_color: string;
-  secondary_color: string;
-  logo_url: string | null;
-}
+export type { TraineeBranding } from "@/types/branding";
+
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 const DEFAULT_BRANDING: TraineeBranding = {
   app_name: "",
@@ -17,6 +15,23 @@ const DEFAULT_BRANDING: TraineeBranding = {
   secondary_color: "#818CF8",
   logo_url: null,
 };
+
+/**
+ * Sanitize branding data from the API, falling back to defaults for
+ * any malformed color values to prevent broken inline styles.
+ */
+function sanitizeBranding(raw: TraineeBranding): TraineeBranding {
+  return {
+    app_name: raw.app_name,
+    primary_color: HEX_COLOR_PATTERN.test(raw.primary_color)
+      ? raw.primary_color
+      : DEFAULT_BRANDING.primary_color,
+    secondary_color: HEX_COLOR_PATTERN.test(raw.secondary_color)
+      ? raw.secondary_color
+      : DEFAULT_BRANDING.secondary_color,
+    logo_url: raw.logo_url,
+  };
+}
 
 export function useTraineeBranding(): {
   branding: TraineeBranding;
@@ -31,7 +46,7 @@ export function useTraineeBranding(): {
   });
 
   return {
-    branding: data ?? DEFAULT_BRANDING,
+    branding: data ? sanitizeBranding(data) : DEFAULT_BRANDING,
     isLoading,
   };
 }

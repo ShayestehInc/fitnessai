@@ -1,256 +1,190 @@
-# Security Audit: Trainee Web — Workout Logging & Progress Tracking (Pipeline 33)
+# Security Audit: Trainee Web -- Trainer Branding Application (Pipeline 34)
 
 ## Audit Date
-2026-02-21
+2026-02-23
 
 ## Scope
-Frontend-only feature: new pages (workout, history, progress), new components (active-workout, exercise-log-card, workout-finish-dialog, workout-detail-dialog, workout-history-list, trainee-progress-charts, weight-checkin-dialog, weight-trend-card), modified hooks and constants. No backend changes. All API endpoints already exist with server-side auth and row-level security.
+Frontend-only feature: new hook (`use-trainee-branding.ts`), modified components (`trainee-sidebar.tsx`, `trainee-sidebar-mobile.tsx`). Applies trainer's white-label branding (app name, logo URL, primary color) to the trainee web portal sidebars. No backend changes -- the `MyBrandingView` endpoint at `GET /api/users/my-branding/` already exists with `[IsAuthenticated, IsTrainee]` permission classes.
 
 ## Files Audited
 
-### Pages (New)
-- `web/src/app/(trainee-dashboard)/trainee/workout/page.tsx` -- Active workout page
-- `web/src/app/(trainee-dashboard)/trainee/history/page.tsx` -- Workout history page
-- `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx` -- Progress charts page
+### New Files
+- `web/src/hooks/use-trainee-branding.ts` -- React Query hook to fetch trainee's trainer branding
 
-### Components (New)
-- `web/src/components/trainee-dashboard/active-workout.tsx` -- Active workout session with timer, exercise logging, and save
-- `web/src/components/trainee-dashboard/exercise-log-card.tsx` -- Per-exercise card with reps/weight inputs and set management
-- `web/src/components/trainee-dashboard/workout-finish-dialog.tsx` -- Workout summary confirmation dialog before save
-- `web/src/components/trainee-dashboard/workout-detail-dialog.tsx` -- Read-only workout detail view dialog
-- `web/src/components/trainee-dashboard/workout-history-list.tsx` -- Paginated workout history with detail drill-down
-- `web/src/components/trainee-dashboard/trainee-progress-charts.tsx` -- Weight trend, workout volume, weekly adherence charts
-- `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx` -- Weight check-in form dialog
-- `web/src/components/trainee-dashboard/weight-trend-card.tsx` -- Weight trend summary card with log button
+### Modified Files
+- `web/src/components/trainee-dashboard/trainee-sidebar.tsx` -- Desktop sidebar with branding (logo, name, active link color)
+- `web/src/components/trainee-dashboard/trainee-sidebar-mobile.tsx` -- Mobile sidebar sheet with branding
 
-### Components (Modified)
-- `web/src/components/trainee-dashboard/todays-workout-card.tsx` -- Added "already logged" detection and conditional CTA
-- `web/src/components/trainee-dashboard/trainee-nav-links.tsx` -- Added History and Progress nav links
-
-### Hooks (Modified)
-- `web/src/hooks/use-trainee-dashboard.ts` -- Added `useCreateWeightCheckIn`, `useTraineeWorkoutHistory`, `useTraineeWorkoutDetail`, `useTraineeTodayLog`, `useSaveWorkout` hooks
-
-### Types (Modified)
-- `web/src/types/trainee-dashboard.ts` -- Added `WorkoutHistoryItem`, `WorkoutHistoryResponse`, `WorkoutDetailData`, `WorkoutData`, `WorkoutSession`, `WorkoutExerciseLog`, `WorkoutSetLog`, `CreateWeightCheckInPayload`, `SaveWorkoutPayload`
-
-### Utilities (New/Modified)
-- `web/src/lib/schedule-utils.ts` -- Added `getTodayString`, `formatDuration` utilities
-- `web/src/lib/constants.ts` -- Added `TRAINEE_DAILY_LOGS`, `TRAINEE_WORKOUT_HISTORY`, `traineeWorkoutDetail` URL constants
-- `web/src/lib/chart-utils.ts` -- New shared chart styling constants
-- `web/src/components/ui/textarea.tsx` -- New shadcn/ui textarea component
+### Supporting Files Reviewed (Pre-existing, for context)
+- `web/src/lib/api-client.ts` -- API client with JWT auth
+- `web/src/lib/constants.ts` -- `TRAINEE_BRANDING` URL constant
+- `web/src/types/branding.ts` -- `TraineeBranding` type definition
+- `web/next.config.ts` -- Next.js image remote patterns and security headers
+- `backend/users/views.py:379-411` -- `MyBrandingView` endpoint
+- `backend/trainer/serializers.py:325-359` -- `TrainerBrandingSerializer` with validation
+- `backend/trainer/models.py:330-379` -- `TrainerBranding` model with hex color validators
+- `backend/core/permissions.py:19-27` -- `IsTrainee` permission class
 
 ## Checklist
 - [x] No secrets, API keys, passwords, or tokens in source code or docs
 - [x] No secrets in git history (no new secrets introduced)
 - [x] All user input sanitized (React auto-escaping; no `dangerouslySetInnerHTML`)
-- [x] Authentication checked on all new routes (inherited from trainee-dashboard layout guard)
-- [x] Authorization -- correct role/permission guards (TRAINEE role enforced in layout + middleware; backend enforces row-level security)
-- [x] No IDOR vulnerabilities (backend `DailyLogViewSet.get_queryset()` filters by `trainee=user`; `workout_detail` uses `self.get_object()` which respects the scoped queryset)
-- [x] Rate limiting -- relies on existing backend DRF throttling
-- [x] Error messages don't leak internals (generic user-facing error messages throughout)
-- [x] Input validation -- reps/weight inputs clamped to `Math.max(0, ...)`, `min` attributes set on HTML inputs, weight check-in validated (20-500 kg range, date not in future)
-- [x] CORS policy appropriate (handled globally; no changes in this feature)
+- [x] Authentication checked on all new endpoints (pre-existing endpoint uses `[IsAuthenticated, IsTrainee]`)
+- [x] Authorization -- correct role/permission guards (TRAINEE role enforced; row-level security returns only own trainer's branding)
+- [x] No IDOR vulnerabilities (endpoint derives trainer from `request.user.parent_trainer` -- no user-supplied trainer ID)
+- [x] Error messages don't leak internals (API errors handled by generic `apiClient` error flow)
 
 ---
 
 ## 1. SECRETS Analysis
 
-**Methodology:** Searched all new and modified files (24 files total) for patterns matching `password`, `secret`, `api_key`, `apikey`, `token`, `credential`, `bearer`, `sk_`, `pk_`, `ghp_`, `gho_`, `OPENAI`, and `process.env`. Also searched all files under `tasks/` for leaked secrets.
+**Methodology:** Searched all new and modified files for patterns matching `password`, `secret`, `api_key`, `apikey`, `token`, `credential`, `bearer`, `sk_`, `pk_`, `ghp_`, `gho_`. Also searched git diff of tasks files.
 
 **Result: CLEAN**
 
 - Zero hardcoded secrets, API keys, passwords, or tokens found in any new or modified file.
 - No `.env` files introduced or modified.
-- `constants.ts` additions are URL path constants only (`TRAINEE_DAILY_LOGS`, `TRAINEE_WORKOUT_HISTORY`, `traineeWorkoutDetail`) -- no secrets.
-- Task files (`tasks/*.md`) contain references to "token" and "password" only in the context of describing security audit findings -- no actual secrets.
-- `chart-utils.ts` contains only CSS custom property references (`hsl(var(--chart-N))`).
+- `constants.ts` addition is a single URL path constant (`TRAINEE_BRANDING`) -- no secrets.
+- Task files contain no actual secret values.
 
 ---
 
 ## 2. INJECTION Analysis
 
-### XSS
-**Result: CLEAN**
+### 2.1 XSS via `app_name`
 
-- **No `dangerouslySetInnerHTML`** in any new or modified file. Verified via grep across all 24 files.
-- **No `innerHTML`**, **no `eval()`**, **no `new Function()`**, **no `document.write()`** in any file.
-- All user-supplied content is rendered through JSX text interpolation (`{variable}`), which React auto-escapes:
-  - `exercise-log-card.tsx`: Exercise names rendered as `{exerciseName}` in `<CardTitle>`.
-  - `workout-detail-dialog.tsx`: Workout names rendered as `{workoutName}` in `<DialogTitle>`, exercise names as `{ex.exercise_name}`, notes as `{data.notes}` in `<p>` tags.
-  - `workout-finish-dialog.tsx`: Workout name and duration rendered as text content.
-  - `workout-history-list.tsx`: Workout names rendered as `{item.workout_name}` in `<CardTitle>`.
-  - `trainee-progress-charts.tsx`: Chart data uses numeric values only (weight, volume). Labels are formatted dates.
-  - `weight-checkin-dialog.tsx`: Notes field accepts user input, rendered only in form inputs (not displayed elsewhere in the new code).
-- The `workout-detail-dialog.tsx` renders `data.notes` (line 146) as `<p className="mt-1 text-sm">{data.notes}</p>` -- JSX auto-escaping applies. Safe.
+**Result: SAFE -- Defense in Depth**
 
-### URL Parameter Injection
-**Result: FIXED (was Low severity)**
+The trainer-supplied `app_name` string flows through:
 
-Three instances of direct date string interpolation into URLs were found in `use-trainee-dashboard.ts`:
-- Line 41: `?date=${date}` in nutrition summary
-- Line 138: `?date=${date}` in today's log
-- Line 152: `?date=${payload.date}` in save workout
+1. **Backend model**: `CharField(max_length=50)` -- length-limited at the database level.
+2. **Backend serializer**: `validate_app_name()` strips all HTML tags via `re.sub(r'<[^>]+>', '', value)` before storage.
+3. **Frontend rendering**: Displayed via JSX text interpolation `{displayName}` in:
+   - `trainee-sidebar.tsx` line 89: `<span>{displayName}</span>`
+   - `trainee-sidebar-mobile.tsx` line 65: `<SheetTitle>{displayName}</SheetTitle>`
 
-While the `date` values are internally generated (from `getTodayString()` producing safe `YYYY-MM-DD` format), defensive coding requires URL encoding. **Fixed:** Added `encodeURIComponent()` to all three instances.
+   React auto-escapes all text content in JSX -- no `dangerouslySetInnerHTML` is used anywhere.
 
-### Template Injection
-**Result: CLEAN**
+4. **Additional safeguard**: `getBrandingDisplayName()` calls `.trim()` and falls back to `"FitnessAI"` for empty strings.
 
-No template strings used for HTML rendering. All UI is built via React JSX components.
+Verified: `grep -rn dangerouslySetInnerHTML` across the entire trainee-dashboard directory returns zero results.
 
-### SQL Injection
+### 2.2 CSS Injection via `primary_color`
+
+**Result: SAFE -- Backend Regex + React Style Object**
+
+The trainer-supplied `primary_color` is used in inline styles in two patterns:
+
+- `{ backgroundColor: \`${branding.primary_color}20\` }` (active link background with alpha)
+- `{ color: branding.primary_color }` (active link icon color)
+
+**Why this is safe:**
+
+1. **Backend validation is strict**: `HEX_COLOR_REGEX = re.compile(r'^#[0-9A-Fa-f]{6}$')` enforces exactly a 7-character hex color (e.g. `#6366F1`). Any CSS injection payload (containing semicolons, `url()`, `expression()`, `var()`, etc.) will be rejected by both:
+   - Model-level validator: `validate_hex_color()` raises `ValidationError`
+   - Serializer-level validator: `validate_primary_color()` raises `ValidationError`
+
+2. **React's style object is inherently safe**: The `style` prop uses a JavaScript object assigned to `element.style.color = value` via the DOM API, NOT raw CSS string concatenation. Even if a malicious value bypassed the backend (hypothetically), the DOM API silently ignores values containing semicolons or other injection payloads.
+
+3. **Gated by `hasCustomPrimaryColor()`**: The inline style is only applied when `hasCustomPrimaryColor()` returns `true`, which means `primary_color` differs from the default `#6366F1`. This function also calls `.toLowerCase()` which is safe against any case-based bypass.
+
+### 2.3 Image URL (`logo_url`) -- SSRF / Open Redirect
+
+**Result: SAFE**
+
+- `logo_url` is NOT a user-supplied raw URL. It is constructed by Django's `request.build_absolute_uri(obj.logo.url)` from an `ImageField` file upload. The URL points to the Django media storage backend.
+- The `Image` component uses `unoptimized` which bypasses Next.js image optimization proxy -- no SSRF risk from the optimizer fetching arbitrary external URLs.
+- Both sidebar components implement `onError` fallback: on image load failure, they gracefully fall back to the default `Dumbbell` icon.
+- `BrandLogo` component (trainee-sidebar.tsx line 27-52) also handles `null` URL gracefully.
+
+### 2.4 Template / Command / SQL Injection
+
 **Result: N/A**
 
-Frontend-only changes. The backend's `DailyLogViewSet.get_queryset()` filters `date_param` via Django ORM's `queryset.filter(date=date_param)` (line 396 of `views.py`), which uses parameterized queries.
+- No template strings used for HTML rendering. All UI is built via React JSX.
+- No backend changes in this feature. No command execution. No SQL queries.
 
 ---
 
 ## 3. AUTH/AUTHZ Analysis
 
-### Route Protection
+### Backend Endpoint
 **Result: CORRECTLY IMPLEMENTED**
 
-All three new pages (`/trainee/workout`, `/trainee/history`, `/trainee/progress`) are inside the `(trainee-dashboard)` route group which is protected by:
-1. `middleware.ts` -- cookie-based convenience guard (redirects non-trainees)
-2. `layout.tsx` -- server-verified role check via `useAuth()` (authoritative guard)
-3. Backend API -- JWT authentication + row-level security (ultimate authority)
+The `MyBrandingView` (`backend/users/views.py:379-411`) has:
+- `permission_classes = [IsAuthenticated, IsTrainee]` -- only authenticated trainees can access.
+- Row-level security: `user.parent_trainer` derives the trainer from the authenticated user's FK. No user-supplied trainer ID parameter.
+- Returns default branding if trainee has no parent trainer or trainer has no branding configured.
 
-### API Endpoint Scope
-**Result: ALL ENDPOINTS ARE TRAINEE-SAFE**
+### Frontend Route Protection
+**Result: CORRECTLY IMPLEMENTED**
 
-New hooks added in Pipeline 33 use the following endpoints:
-
-| Hook | API Endpoint | Backend Auth | Row-Level Security |
-|------|-------------|--------------|-------------------|
-| `useCreateWeightCheckIn` | `POST /api/workouts/weight-checkins/` | `IsAuthenticated` | Weight check-in created for requesting user |
-| `useTraineeWorkoutHistory` | `GET /api/workouts/daily-logs/workout-history/` | `IsTrainee` | `DailyLogService.get_workout_history_queryset(user.id)` scoped to user |
-| `useTraineeWorkoutDetail` | `GET /api/workouts/daily-logs/{id}/workout-detail/` | `IsTrainee` | `self.get_object()` uses `get_queryset()` which filters `trainee=user` |
-| `useTraineeTodayLog` | `GET /api/workouts/daily-logs/?date=X` | `IsAuthenticated` | `get_queryset()` filters `trainee=user` |
-| `useSaveWorkout` | `POST/PATCH /api/workouts/daily-logs/` | `IsAuthenticated` | `get_queryset()` filters `trainee=user`; PATCH uses filtered queryset |
+The sidebar components live inside the `(trainee-dashboard)` route group, protected by:
+1. `middleware.ts` -- cookie-based convenience guard
+2. `layout.tsx` -- server-verified role check
+3. Backend API -- JWT authentication + row-level security
 
 ### IDOR Analysis
 **Result: NO IDOR VULNERABILITIES**
 
-- `traineeWorkoutDetail(id)` constructs `/api/workouts/daily-logs/{id}/workout-detail/`. The `id` parameter is typed as `number` in TypeScript. On the backend, `DailyLogViewSet.workout_detail()` calls `self.get_object()` which uses the scoped `get_queryset()` filtering `trainee=user`. A trainee cannot access another trainee's workout detail -- Django returns 404 for IDs outside their queryset.
-- `useSaveWorkout` performs a read-modify-write pattern: first fetches existing daily logs filtered by date (scoped to user), then PATCHes the first result. The PATCH URL uses the fetched log's `id` from the user's own scoped results, preventing IDOR.
-- `useTraineeWorkoutHistory` pagination uses only `page` (a number) and `page_size` (hardcoded to 20). The backend's `workout_history` action has `permission_classes=[IsTrainee]` and queries only the requesting user's data.
+- The endpoint is `GET /api/users/my-branding/` with no URL parameters. The trainer is derived from `request.user.parent_trainer`. There is no way for a trainee to specify another trainer's ID.
+- The serializer exposes only: `app_name`, `primary_color`, `secondary_color`, `logo_url`, `created_at`, `updated_at`. No trainer email, ID, or other sensitive data.
 
 ---
 
 ## 4. DATA EXPOSURE Analysis
 
-### Type Definitions
+### API Response Fields
 **Result: CLEAN**
 
-New types in `trainee-dashboard.ts` expose only appropriate fields:
-- `WorkoutHistoryItem`: `id`, `date`, `workout_name`, `exercise_count`, `total_sets`, `total_volume_lbs`, `duration_display` -- summary data only.
-- `WorkoutDetailData`: `id`, `date`, `workout_data`, `notes` -- trainee's own workout log.
-- `WorkoutData`, `WorkoutSession`, `WorkoutExerciseLog`, `WorkoutSetLog`: Nested exercise/set data structures -- no PII.
-- `CreateWeightCheckInPayload`: `date`, `weight_kg`, `notes` -- outgoing payload only.
-- `SaveWorkoutPayload`: `date`, `workout_data` -- outgoing payload only.
+The `TrainerBrandingSerializer` exposes only branding-specific fields:
+- `app_name` (string, max 50 chars)
+- `primary_color` (hex color string)
+- `secondary_color` (hex color string)
+- `logo_url` (absolute URL to uploaded image or null)
+- `created_at`, `updated_at` (timestamps)
 
-No sensitive fields (passwords, payment info, other users' data) present in any type definition.
-
-### localStorage / sessionStorage
-**Result: CLEAN**
-
-No new `localStorage` or `sessionStorage` usage introduced by Pipeline 33 files. The existing token storage pattern (pre-existing, from Pipeline 32 audit) remains unchanged.
-
-### Console Logging
-**Result: CLEAN**
-
-Zero `console.log`, `console.warn`, `console.error`, `console.debug`, or `console.info` statements found in any new or modified file.
+No sensitive fields (trainer email, trainer ID, financial data, other trainees' data) are exposed.
 
 ### Error Messages
 **Result: CLEAN**
 
-All error messages shown to users are generic:
-- "Failed to load workout data" (active-workout.tsx)
-- "Failed to save workout. Please try again." (active-workout.tsx)
-- "Failed to load workout details" (workout-detail-dialog.tsx)
-- "Failed to load workout history" (workout-history-list.tsx)
-- "Failed to load weight data" (weight-trend-card.tsx, trainee-progress-charts.tsx)
-- "Failed to save weight check-in" (weight-checkin-dialog.tsx)
-- "Failed to load workout data" (trainee-progress-charts.tsx)
-- "Failed to load progress data" (trainee-progress-charts.tsx)
+On API failure, the `useQuery` hook relies on the generic `apiClient` error handling which throws `ApiError` with generic messages. The sidebar components handle loading/error states by showing skeleton loaders or falling back to default branding -- no error details exposed to the user.
 
-The weight check-in dialog does display server-side field validation errors (line 88-99 of weight-checkin-dialog.tsx), but these are standard DRF field-level errors (e.g., "This field is required", "Ensure this value is greater than or equal to 20") -- not internal system details.
+### Console Logging
+**Result: CLEAN**
+
+Zero `console.log`, `console.warn`, `console.error` statements in any new or modified file.
 
 ---
 
-## 5. INPUT VALIDATION Analysis
-
-### Reps Input (`exercise-log-card.tsx`)
-**Result: PROPERLY VALIDATED**
-
-- HTML `type="number"`, `min={0}`, `max={999}` attributes on the input element.
-- JavaScript: `Math.max(0, parseInt(e.target.value) || 0)` ensures non-negative integer. `parseInt` with `|| 0` handles NaN gracefully.
-- Negative numbers are impossible: `Math.max(0, ...)` clamps to zero.
-
-### Weight Input (`exercise-log-card.tsx`)
-**Result: PROPERLY VALIDATED**
-
-- HTML `type="number"`, `min={0}`, `max={9999}`, `step="0.5"` attributes.
-- JavaScript: `Math.max(0, parseFloat(e.target.value) || 0)` ensures non-negative float. `parseFloat` with `|| 0` handles NaN gracefully.
-- Negative numbers are impossible: `Math.max(0, ...)` clamps to zero.
-
-### Weight Check-in (`weight-checkin-dialog.tsx`)
-**Result: PROPERLY VALIDATED**
-
-- Weight: HTML `type="number"`, `step="0.1"`, `min="20"`, `max="500"`. JavaScript: validates `parseFloat(weight)` is between 20 and 500 kg.
-- Date: HTML `type="date"`, `max={getTodayString()}`. JavaScript: validates date is not in the future.
-- Notes: HTML `<Textarea>` with `maxLength={500}` (added during this audit as defense-in-depth).
-- All validation errors displayed with `role="alert"` and linked via `aria-describedby` for accessibility.
-
-### Date Parameters
-**Result: PROPERLY VALIDATED**
-
-- `getTodayString()` in `schedule-utils.ts` constructs dates from `new Date()` as `YYYY-MM-DD` -- always safe format.
-- The `date` parameter in the weight check-in dialog comes from an HTML `type="date"` input, which browsers constrain to valid date formats.
-- URL parameters now use `encodeURIComponent()` (fixed during this audit).
-
-### Set Count Limits
-**Result: ACCEPTABLE**
-
-- Users can add extra sets via the "Add Set" button (`active-workout.tsx` line 161). There is no hardcoded maximum set count on the frontend. However:
-  - Each additional set requires an explicit button click (no accidental mass creation).
-  - The backend will validate the payload size.
-  - The UI would become unwieldy before reaching any problematic count.
-  - This is a LOW concern -- a motivated user could POST a large payload directly to the API regardless of frontend limits.
-
----
-
-## 6. CORS/CSRF Analysis
+## 5. CORS/CSRF Analysis
 
 **Result: NO ISSUES**
 
-- No new CORS configuration. All API calls go through the existing `apiClient` which uses JWT Bearer token authentication via `Authorization` header.
-- No hardcoded URLs in any Pipeline 33 file (all URLs use `API_URLS` constants derived from `NEXT_PUBLIC_API_URL`).
+- No new CORS configuration. All API calls go through the existing `apiClient` with JWT Bearer token authentication.
+- No hardcoded URLs -- uses `API_URLS.TRAINEE_BRANDING` constant.
 - CSRF: not applicable -- JWT Bearer auth, not session cookies.
 
 ---
 
-## 7. DOM / Window Access Analysis
+## 6. Next.js Image Configuration (Pre-existing Observation)
 
-**Result: ACCEPTABLE**
+**Result: LOW -- PRE-EXISTING, NOT INTRODUCED BY THIS FEATURE**
 
-Only one instance of direct `window` access:
-- `active-workout.tsx` lines 97-104: `window.addEventListener("beforeunload", ...)` to prevent accidental navigation away from an unsaved workout. This is a legitimate, safe use pattern. The event listener is properly cleaned up in the useEffect return function.
+`web/next.config.ts` line 42-44 has an overly permissive remote pattern:
+```typescript
+{
+  protocol: "http",
+  hostname: "**",
+}
+```
 
-No `document.write()`, `eval()`, `new Function()`, `javascript:` URIs, or `onclick` string handlers found.
-
----
-
-## Fixes Applied During This Audit
-
-| # | Severity | Type | File | Change | Rationale |
-|---|----------|------|------|--------|-----------|
-| 1 | **Low** | URL encoding | `web/src/hooks/use-trainee-dashboard.ts:41` | Added `encodeURIComponent(date)` to nutrition summary URL | Defensive coding -- prevent URL injection if date parameter source changes in the future |
-| 2 | **Low** | URL encoding | `web/src/hooks/use-trainee-dashboard.ts:138` | Added `encodeURIComponent(date)` to today's log URL | Same as above |
-| 3 | **Low** | URL encoding | `web/src/hooks/use-trainee-dashboard.ts:152` | Added `encodeURIComponent(payload.date)` to save workout URL | Same as above |
-| 4 | **Low** | Input length | `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx:184` | Added `maxLength={500}` to notes textarea | Defense-in-depth against extremely long input payloads |
-
-All fixes verified with `npx tsc --noEmit` -- zero compilation errors.
+This allows Next.js `<Image>` to load images from any HTTP host. However:
+- The `unoptimized` prop on the branding images means Next.js does NOT proxy/fetch these images server-side -- the browser loads them directly.
+- The `logo_url` is always a backend-generated absolute URL pointing to the same origin (Django media files).
+- This is a pre-existing configuration, not introduced by Pipeline 34.
+- **Recommendation for future:** Restrict `remotePatterns` to known hosts (localhost, production backend domain).
 
 ---
 
@@ -283,42 +217,46 @@ None.
 
 | # | Severity | Type | File:Line | Issue | Recommendation |
 |---|----------|------|-----------|-------|----------------|
-| 1 | **Low** | URL parameter encoding | `web/src/hooks/use-trainee-dashboard.ts:41,138,152` | Date parameters were interpolated directly into URLs without `encodeURIComponent()`. | **FIXED** during this audit -- added `encodeURIComponent()` to all three instances. |
-| 2 | **Low** | Input length limit | `web/src/components/trainee-dashboard/weight-checkin-dialog.tsx:184` | Notes textarea had no `maxLength` attribute. While the backend enforces field length limits, defense-in-depth requires frontend limits too. | **FIXED** during this audit -- added `maxLength={500}`. |
-| 3 | **Low** | Unbounded set count | `web/src/components/trainee-dashboard/active-workout.tsx:161` | Users can add unlimited extra sets via the "Add Set" button. No frontend cap. | Consider adding a frontend cap (e.g., 50 sets per exercise) to prevent unreasonably large payloads. LOW priority since each set requires a deliberate button click and backend validates payload size. |
-| 4 | **Low** | Pre-existing debug endpoint | `backend/workouts/views.py:329-357` | The `ProgramViewSet.debug` action at `/api/workouts/programs/debug/` is accessible to any authenticated user. (Carried over from Pipeline 32 audit.) | Remove the `debug` action or restrict to admin-only. |
+| 1 | **Low** | Defense-in-depth | `web/src/hooks/use-trainee-branding.ts:39-40` | `hasCustomPrimaryColor()` validates that the color differs from default, but does not validate the hex format on the frontend. If a compromised/intercepted API response returned a non-hex `primary_color`, it would be used in inline styles. | Consider adding a frontend hex regex check (e.g., `/^#[0-9A-Fa-f]{6}$/`) in `hasCustomPrimaryColor()` or a separate sanitizer. The backend's strict regex validation makes exploitation extremely unlikely. |
+| 2 | **Low** | Pre-existing | `web/next.config.ts:42-44` | Overly permissive `remotePatterns` (`hostname: "**"` for HTTP) allows Next.js `<Image>` to load from any host. Not exploitable in this feature due to `unoptimized` prop and backend-controlled URLs, but weakens the overall security posture. | Restrict `remotePatterns` to known backend hostnames in a future security hardening pass. |
 
 ### Info Issues
 
 | # | Severity | Type | File:Line | Issue | Recommendation |
 |---|----------|------|-----------|-------|----------------|
-| 5 | **Info** | localStorage for JWTs | `web/src/lib/token-manager.ts` | JWT tokens stored in `localStorage` are accessible to any JavaScript on the same origin. Pre-existing pattern, not introduced by this feature. | Consider migrating to `httpOnly` cookies in a future security hardening pass. |
-| 6 | **Info** | Read-modify-write race | `web/src/hooks/use-trainee-dashboard.ts:149-163` | `useSaveWorkout` performs a GET-then-PATCH/POST sequence. If two saves happen concurrently (e.g., double-click), the second save could create a duplicate log or overwrite the first. | The `isPending` state on the mutation button (passed via `workout-finish-dialog.tsx` line 111) prevents double-submission at the UI level. This is sufficient for normal usage. Consider adding a `mutationKey` or optimistic locking for extra robustness. |
+| 3 | **Info** | localStorage for JWTs | `web/src/lib/token-manager.ts` | JWT tokens stored in `localStorage` are accessible to any JavaScript on the same origin. Pre-existing pattern, not introduced by this feature. | Consider migrating to `httpOnly` cookies in a future security hardening pass. |
+
+---
+
+## Fixes Applied During This Audit
+
+No fixes were necessary. All code in this feature is secure as implemented.
 
 ---
 
 ## Summary
 
-Pipeline 33 (Workout Logging & Progress Tracking) has an **excellent security posture**:
+Pipeline 34 (Trainee Web -- Trainer Branding Application) has an **excellent security posture**:
 
-1. **No secrets leaked** -- zero hardcoded credentials, API keys, or tokens in any new or modified file. Task files clean.
+1. **No secrets leaked** -- zero hardcoded credentials in any new or modified file.
 
-2. **No injection vectors** -- no `dangerouslySetInnerHTML`, no raw HTML rendering, no `eval()`, no template injection. All user content (exercise names, workout names, notes) rendered through React's auto-escaping JSX.
+2. **No XSS vectors** -- `app_name` is rendered via React JSX auto-escaping (no `dangerouslySetInnerHTML`). Backend additionally strips HTML tags from `app_name` before storage.
 
-3. **Strong auth/authz** -- all new pages inherit the three-layer defense from the trainee-dashboard layout (middleware cookie guard, layout server-verified role check, backend API auth). New API hooks use only trainee-accessible endpoints with proper backend row-level security.
+3. **No CSS injection** -- `primary_color` is strictly validated on the backend with `^#[0-9A-Fa-f]{6}$` regex. Frontend uses React's `style` object (not string concatenation), which is inherently immune to CSS injection.
 
-4. **No IDOR vulnerabilities** -- `traineeWorkoutDetail(id)` is protected by `DailyLogViewSet.get_queryset()` which filters `trainee=user`. The `useSaveWorkout` read-modify-write pattern uses the user's scoped queryset results.
+4. **No image URL exploitation** -- `logo_url` is a backend-generated absolute URL from Django's `ImageField` storage, not a user-supplied arbitrary URL. `onError` fallback handles broken images gracefully.
 
-5. **Proper input validation** -- reps clamped to 0-999, weight clamped to 0-9999, weight check-in validated 20-500 kg, date cannot be future, notes limited to 500 chars. All use `Math.max(0, ...)` to prevent negative values.
+5. **Strong auth/authz** -- `MyBrandingView` requires `[IsAuthenticated, IsTrainee]`. Row-level security derives the trainer from `request.user.parent_trainer` with no user-supplied parameters. No IDOR possible.
 
-6. **No data exposure** -- no `console.log` statements, no localStorage usage, no PII in type definitions, generic error messages throughout.
+6. **No data exposure** -- API response contains only branding fields (app_name, colors, logo_url, timestamps). No sensitive trainer data or other trainee data exposed.
 
-7. **No CORS/CSRF concerns** -- JWT Bearer auth, no hardcoded URLs, no new CORS configuration.
-
-8. **Defensive fixes applied** -- URL parameter encoding added to 3 instances, notes maxLength added to textarea.
+7. **No CORS/CSRF concerns** -- JWT Bearer auth, centralized URL constants, no new CORS configuration.
 
 ## Security Score: 9/10
 
-The 1-point deduction is for the pre-existing `ProgramViewSet.debug` endpoint (Low severity, carried over from Pipeline 32) and the pre-existing `localStorage` JWT storage pattern. Neither was introduced by Pipeline 33. All Pipeline 33-specific issues were fixed during this audit.
+The 1-point deduction is for:
+- Low: No frontend-side hex color validation (defense-in-depth; backend validation is strict, so real-world risk is negligible).
+- Low: Pre-existing overly permissive Next.js `remotePatterns` (not introduced by this feature).
+- Info: Pre-existing `localStorage` JWT storage (not introduced by this feature).
 
 ## Recommendation: PASS

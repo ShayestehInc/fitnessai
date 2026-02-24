@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Dumbbell, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTraineeBadgeCounts, getBadgeCount } from "@/hooks/use-trainee-badge-counts";
 import { useTraineeBranding, getBrandingDisplayName, hasCustomPrimaryColor } from "@/hooks/use-trainee-branding";
@@ -17,38 +15,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { BrandLogo } from "./brand-logo";
 import { traineeNavLinks } from "./trainee-nav-links";
 
 interface TraineeSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-}
-
-function BrandLogo({
-  logoUrl,
-  size = "h-6 w-6",
-}: {
-  logoUrl: string | null;
-  size?: string;
-}) {
-  const [imgError, setImgError] = useState(false);
-
-  if (!logoUrl || imgError) {
-    return <Dumbbell className={cn(size, "shrink-0 text-sidebar-primary")} aria-hidden="true" />;
-  }
-
-  return (
-    <Image
-      src={logoUrl}
-      alt=""
-      width={24}
-      height={24}
-      className={cn(size, "shrink-0 rounded object-contain")}
-      onError={() => setImgError(true)}
-      aria-hidden="true"
-      unoptimized
-    />
-  );
 }
 
 export function TraineeSidebar({ collapsed, onToggle }: TraineeSidebarProps) {
@@ -79,7 +51,7 @@ export function TraineeSidebar({ collapsed, onToggle }: TraineeSidebarProps) {
             </>
           ) : (
             <>
-              <BrandLogo logoUrl={branding.logo_url} />
+              <BrandLogo logoUrl={branding.logo_url} altText={`${displayName} logo`} />
               {!collapsed && (
                 <>
                   <span
@@ -162,12 +134,15 @@ export function TraineeSidebar({ collapsed, onToggle }: TraineeSidebarProps) {
                       }
                     />
                     {collapsed && showBadge && (
-                      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-destructive" />
+                      <>
+                        <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-destructive" />
+                        <span className="sr-only">{badgeCount} unread</span>
+                      </>
                     )}
                   </span>
                   {!collapsed && (
                     <>
-                      <span className="flex-1">{link.label}</span>
+                      <span className="flex-1 truncate">{link.label}</span>
                       {showBadge && (
                         <Badge
                           variant="destructive"
