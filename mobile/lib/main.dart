@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/database/app_database.dart';
 import 'core/providers/database_provider.dart';
 import 'core/providers/connectivity_provider.dart';
+import 'core/providers/locale_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/api_config_service.dart';
 import 'core/services/connectivity_service.dart';
@@ -47,7 +50,7 @@ class FitnessAIApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final themeState = ref.watch(themeProvider);
-    final themeData = AppThemeBuilder.buildTheme(themeState);
+    final locale = ref.watch(localeProvider);
 
     // Determine theme mode
     ThemeMode themeMode;
@@ -69,6 +72,14 @@ class FitnessAIApp extends ConsumerWidget {
       theme: AppThemeBuilder.buildTheme(themeState.copyWith(mode: AppThemeMode.light)),
       darkTheme: AppThemeBuilder.buildTheme(themeState.copyWith(mode: AppThemeMode.dark)),
       themeMode: themeMode,
+      locale: locale,
+      supportedLocales: supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
         // Apply smooth theme transitions

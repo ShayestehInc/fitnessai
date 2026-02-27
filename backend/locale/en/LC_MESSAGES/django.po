@@ -1,0 +1,77 @@
+# English translations for FitnessAI
+# Copyright (C) 2026 Shayesteh Inc.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: FitnessAI 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-27 00:00+0000\n"
+"PO-Revision-Date: 2026-02-27 00:00+0000\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# Auth errors
+msgid "Invalid credentials."
+msgstr "Invalid credentials."
+
+msgid "Account is disabled."
+msgstr "Account is disabled."
+
+msgid "Email is required."
+msgstr "Email is required."
+
+msgid "Password is required."
+msgstr "Password is required."
+
+# Validation
+msgid "This field is required."
+msgstr "This field is required."
+
+msgid "Invalid email address."
+msgstr "Invalid email address."
+
+msgid "Password must be at least 8 characters."
+msgstr "Password must be at least 8 characters."
+
+msgid "Passwords do not match."
+msgstr "Passwords do not match."
+
+# Trainer
+msgid "Trainee not found."
+msgstr "Trainee not found."
+
+msgid "Invitation sent successfully."
+msgstr "Invitation sent successfully."
+
+msgid "Invitation has expired."
+msgstr "Invitation has expired."
+
+msgid "Program assigned successfully."
+msgstr "Program assigned successfully."
+
+# Permissions
+msgid "You do not have permission to perform this action."
+msgstr "You do not have permission to perform this action."
+
+msgid "Authentication credentials were not provided."
+msgstr "Authentication credentials were not provided."
+
+msgid "Token has expired."
+msgstr "Token has expired."
+
+# Profile
+msgid "Profile updated successfully."
+msgstr "Profile updated successfully."
+
+msgid "Language changed successfully."
+msgstr "Language changed successfully."
+
+# General
+msgid "Not found."
+msgstr "Not found."
+
+msgid "Server error. Please try again later."
+msgstr "Server error. Please try again later."

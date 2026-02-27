@@ -221,6 +221,19 @@ class UserProfile(models.Model):
         help_text="Whether this trainee appears on leaderboards",
     )
 
+    # Language preference
+    class Language(models.TextChoices):
+        ENGLISH = 'en', 'English'
+        SPANISH = 'es', 'Spanish'
+        PORTUGUESE = 'pt-br', 'Portuguese (Brazil)'
+
+    preferred_language = models.CharField(
+        max_length=5,
+        choices=Language.choices,
+        default=Language.ENGLISH,
+        help_text="Preferred UI language",
+    )
+
     # Onboarding status
     onboarding_completed = models.BooleanField(default=False)
 

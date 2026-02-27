@@ -37,6 +37,12 @@ class ApiClient {
           if (token != null) {
             options.headers[ApiConstants.authorization] = '${ApiConstants.bearer} $token';
           }
+          // Add Accept-Language header from saved locale preference
+          final prefs = await SharedPreferences.getInstance();
+          final savedLocale = prefs.getString('preferred_locale');
+          if (savedLocale != null) {
+            options.headers['Accept-Language'] = savedLocale;
+          }
           print('API Request: ${options.method} ${options.path}');
           return handler.next(options);
         },

@@ -46,6 +46,7 @@ export const API_URLS = {
 
   // Settings / Profile
   UPDATE_PROFILE: `${API_BASE}/api/users/me/`,
+  USER_PROFILES: `${API_BASE}/api/users/profiles/`,
   PROFILE_IMAGE: `${API_BASE}/api/users/profile-image/`,
   CHANGE_PASSWORD: `${API_BASE}/api/auth/users/set_password/`,
 

@@ -35,6 +35,7 @@ import '../../features/settings/presentation/screens/edit_goals_screen.dart';
 import '../../features/settings/presentation/screens/edit_diet_screen.dart';
 import '../../features/settings/presentation/screens/theme_settings_screen.dart';
 import '../../features/settings/presentation/screens/branding_screen.dart';
+import '../../features/settings/presentation/screens/language_settings_screen.dart';
 import '../../features/settings/presentation/screens/admin_notifications_screen.dart';
 import '../../features/settings/presentation/screens/admin_security_screen.dart';
 import '../../features/trainer/presentation/screens/trainer_dashboard_screen.dart';
@@ -736,6 +737,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/theme-settings',
         name: 'theme-settings',
         builder: (context, state) => const ThemeSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/language-settings',
+        name: 'language-settings',
+        builder: (context, state) => const LanguageSettingsScreen(),
       ),
       GoRoute(
         path: '/admin/notifications',

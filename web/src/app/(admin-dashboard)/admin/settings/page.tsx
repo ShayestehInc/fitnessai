@@ -6,6 +6,7 @@ import { PageTransition } from "@/components/shared/page-transition";
 import { ErrorState } from "@/components/shared/error-state";
 import { ProfileSection } from "@/components/settings/profile-section";
 import { AppearanceSection } from "@/components/settings/appearance-section";
+import { LanguageSelector } from "@/components/settings/language-selector";
 import { SecuritySection } from "@/components/settings/security-section";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -102,6 +103,7 @@ export default function AdminSettingsPage() {
 
         <ProfileSection />
         <AppearanceSection />
+        <LanguageSelector />
         <SecuritySection />
       </div>
     </PageTransition>
