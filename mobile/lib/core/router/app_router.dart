@@ -35,6 +35,7 @@ import '../../features/settings/presentation/screens/edit_goals_screen.dart';
 import '../../features/settings/presentation/screens/edit_diet_screen.dart';
 import '../../features/settings/presentation/screens/theme_settings_screen.dart';
 import '../../features/settings/presentation/screens/branding_screen.dart';
+import '../../features/settings/presentation/screens/language_settings_screen.dart';
 import '../../features/settings/presentation/screens/admin_notifications_screen.dart';
 import '../../features/settings/presentation/screens/admin_security_screen.dart';
 import '../../features/trainer/presentation/screens/trainer_dashboard_screen.dart';
@@ -43,6 +44,7 @@ import '../../features/trainer/presentation/screens/trainee_detail_screen.dart';
 import '../../features/trainer/presentation/screens/invite_trainee_screen.dart';
 import '../../features/trainer/presentation/screens/assign_program_screen.dart';
 import '../../features/trainer/presentation/screens/trainer_notifications_screen.dart';
+import '../../features/trainer/presentation/screens/retention_analytics_screen.dart';
 import '../../features/exercises/presentation/screens/exercise_bank_screen.dart';
 import '../../features/programs/presentation/screens/programs_screen.dart';
 import '../../features/feature_requests/presentation/screens/feature_requests_screen.dart';
@@ -313,6 +315,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             initialTraineeName: traineeName,
           );
         },
+      ),
+
+      // Retention analytics
+      GoRoute(
+        path: '/trainer/retention',
+        name: 'trainer-retention',
+        builder: (context, state) => const RetentionAnalyticsScreen(),
       ),
 
       // Calendar integration for trainers
@@ -728,6 +737,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/theme-settings',
         name: 'theme-settings',
         builder: (context, state) => const ThemeSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/language-settings',
+        name: 'language-settings',
+        builder: (context, state) => const LanguageSettingsScreen(),
       ),
       GoRoute(
         path: '/admin/notifications',

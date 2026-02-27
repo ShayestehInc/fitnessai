@@ -1,0 +1,77 @@
+# Portuguese (Brazil) translations for FitnessAI
+# Copyright (C) 2026 Shayesteh Inc.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: FitnessAI 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-27 00:00+0000\n"
+"PO-Revision-Date: 2026-02-27 00:00+0000\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# Auth errors
+msgid "Invalid credentials."
+msgstr "Credenciais inválidas."
+
+msgid "Account is disabled."
+msgstr "A conta está desativada."
+
+msgid "Email is required."
+msgstr "O e-mail é obrigatório."
+
+msgid "Password is required."
+msgstr "A senha é obrigatória."
+
+# Validation
+msgid "This field is required."
+msgstr "Este campo é obrigatório."
+
+msgid "Invalid email address."
+msgstr "Endereço de e-mail inválido."
+
+msgid "Password must be at least 8 characters."
+msgstr "A senha deve ter pelo menos 8 caracteres."
+
+msgid "Passwords do not match."
+msgstr "As senhas não coincidem."
+
+# Trainer
+msgid "Trainee not found."
+msgstr "Aluno não encontrado."
+
+msgid "Invitation sent successfully."
+msgstr "Convite enviado com sucesso."
+
+msgid "Invitation has expired."
+msgstr "O convite expirou."
+
+msgid "Program assigned successfully."
+msgstr "Programa atribuído com sucesso."
+
+# Permissions
+msgid "You do not have permission to perform this action."
+msgstr "Você não tem permissão para realizar esta ação."
+
+msgid "Authentication credentials were not provided."
+msgstr "Credenciais de autenticação não foram fornecidas."
+
+msgid "Token has expired."
+msgstr "O token expirou."
+
+# Profile
+msgid "Profile updated successfully."
+msgstr "Perfil atualizado com sucesso."
+
+msgid "Language changed successfully."
+msgstr "Idioma alterado com sucesso."
+
+# General
+msgid "Not found."
+msgstr "Não encontrado."
+
+msgid "Server error. Please try again later."
+msgstr "Erro no servidor. Tente novamente mais tarde."

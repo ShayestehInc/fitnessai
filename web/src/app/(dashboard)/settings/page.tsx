@@ -6,6 +6,7 @@ import { PageTransition } from "@/components/shared/page-transition";
 import { ErrorState } from "@/components/shared/error-state";
 import { ProfileSection } from "@/components/settings/profile-section";
 import { AppearanceSection } from "@/components/settings/appearance-section";
+import { LanguageSelector } from "@/components/settings/language-selector";
 import { SecuritySection } from "@/components/settings/security-section";
 import { BrandingSection } from "@/components/settings/branding-section";
 import { LeaderboardSection } from "@/components/settings/leaderboard-section";
@@ -60,6 +61,7 @@ export default function SettingsPage() {
         <BrandingSection />
         <LeaderboardSection />
         <AppearanceSection />
+        <LanguageSelector />
         <SecuritySection />
       </div>
     </PageTransition>

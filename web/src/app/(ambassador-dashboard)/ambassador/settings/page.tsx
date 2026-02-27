@@ -6,6 +6,7 @@ import { PageTransition } from "@/components/shared/page-transition";
 import { ErrorState } from "@/components/shared/error-state";
 import { ProfileSection } from "@/components/settings/profile-section";
 import { AppearanceSection } from "@/components/settings/appearance-section";
+import { LanguageSelector } from "@/components/settings/language-selector";
 import { SecuritySection } from "@/components/settings/security-section";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -56,6 +57,7 @@ export default function AmbassadorSettingsPage() {
         <PageHeader title="Settings" description="Manage your account" />
         <ProfileSection />
         <AppearanceSection />
+        <LanguageSelector />
         <SecuritySection />
       </div>
     </PageTransition>

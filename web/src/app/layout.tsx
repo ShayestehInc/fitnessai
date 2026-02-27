@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { LocaleProvider } from "@/providers/locale-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -39,11 +40,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <ThemeProvider>
-          <QueryProvider>
-            <AuthProvider>
-              <TooltipProvider>{children}</TooltipProvider>
-            </AuthProvider>
-          </QueryProvider>
+          <LocaleProvider>
+            <QueryProvider>
+              <AuthProvider>
+                <TooltipProvider>{children}</TooltipProvider>
+              </AuthProvider>
+            </QueryProvider>
+          </LocaleProvider>
         </ThemeProvider>
         <Toaster />
       </body>

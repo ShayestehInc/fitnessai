@@ -215,6 +215,7 @@ class TrainerNotification(models.Model):
         GOAL_HIT = 'goal_hit', 'Goal Hit'
         CHECK_IN = 'check_in', 'Check In'
         MESSAGE = 'message', 'Message'
+        CHURN_ALERT = 'churn_alert', 'Churn Alert'
         GENERAL = 'general', 'General'
 
     trainer = models.ForeignKey(

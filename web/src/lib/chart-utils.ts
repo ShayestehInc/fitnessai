@@ -16,4 +16,14 @@ export const CHART_COLORS = {
   protein: "hsl(var(--chart-4))",
   calorie: "hsl(var(--chart-3))",
   weight: "hsl(var(--chart-5))",
+  engagement: "hsl(var(--chart-1))",
+  atRisk: "hsl(var(--chart-3))",
+} as const;
+
+/** Risk tier colors for retention analytics */
+export const RISK_TIER_COLORS = {
+  critical: "hsl(0, 84%, 60%)",
+  high: "hsl(25, 95%, 53%)",
+  medium: "hsl(45, 93%, 47%)",
+  low: "hsl(142, 71%, 45%)",
 } as const;

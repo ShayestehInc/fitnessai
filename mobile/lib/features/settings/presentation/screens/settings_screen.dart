@@ -7,6 +7,7 @@ import '../../../../core/providers/sync_provider.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'delete_account_screen.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -273,6 +274,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         onTap: () => context.push('/theme-settings'),
         index: index++,
       ),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.language,
+        title: context.l10n.settingsLanguage,
+        subtitle: context.l10n.settingsLanguageSelect,
+        onTap: () => context.push('/language-settings'),
+        index: index++,
+      ),
 
       const SizedBox(height: 24),
 
@@ -414,6 +423,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: 'Appearance',
         subtitle: 'Theme, colors, and display',
         onTap: () => context.push('/theme-settings'),
+        index: index++,
+      ),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.language,
+        title: context.l10n.settingsLanguage,
+        subtitle: context.l10n.settingsLanguageSelect,
+        onTap: () => context.push('/language-settings'),
         index: index++,
       ),
 
@@ -571,6 +588,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: 'Badges & Achievements',
         subtitle: 'View your earned badges',
         onTap: () => context.push('/community/achievements'),
+        index: index++,
+      ),
+
+      const SizedBox(height: 24),
+
+      // Appearance
+      _buildSectionHeader(context, 'APPEARANCE', index++),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.language,
+        title: context.l10n.settingsLanguage,
+        subtitle: context.l10n.settingsLanguageSelect,
+        onTap: () => context.push('/language-settings'),
         index: index++,
       ),
 

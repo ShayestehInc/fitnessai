@@ -77,6 +77,10 @@ class TrainerDashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
 
+                    // At-Risk Trainees section
+                    _buildAtRiskSection(context, ref, theme),
+                    const SizedBox(height: 24),
+
                     // Announcements quick-access
                     _buildSectionHeader(
                       context,
@@ -1112,6 +1116,103 @@ class TrainerDashboardScreen extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Widget _buildAtRiskSection(BuildContext context, WidgetRef ref, ThemeData theme) {
+    final atRiskAsync = ref.watch(retentionAnalyticsProvider(14));
+    return atRiskAsync.when(
+      data: (data) {
+        if (data == null) return const SizedBox.shrink();
+        final trainees = data['trainees'] as List<dynamic>? ?? [];
+        final atRisk = trainees
+            .where((t) {
+              final tier = t['risk_tier'] as String? ?? '';
+              return tier == 'critical' || tier == 'high';
+            })
+            .take(3)
+            .toList();
+        if (atRisk.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+              context,
+              'At-Risk Trainees',
+              onViewAll: () => context.push('/trainer/retention'),
+            ),
+            const SizedBox(height: 8),
+            ...atRisk.map((t) {
+              final name = t['trainee_name'] as String? ?? '';
+              final tier = t['risk_tier'] as String? ?? 'medium';
+              final score = (t['engagement_score'] as num?)?.toDouble() ?? 0;
+              final days = t['days_since_last_activity'] as int?;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GestureDetector(
+                  onTap: () => context.push('/trainer/trainees/${t['trainee_id']}'),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                              Text(
+                                days == null ? 'Never active' : days == 0 ? 'Today' : '$days days ago',
+                                style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${score.toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: score >= 50 ? const Color(0xFFEAB308) : const Color(0xFFEF4444),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _tierColor(tier).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            tier[0].toUpperCase() + tier.substring(1),
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _tierColor(tier)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  static Color _tierColor(String tier) {
+    return switch (tier) {
+      'critical' => const Color(0xFFEF4444),
+      'high' => const Color(0xFFF97316),
+      'medium' => const Color(0xFFEAB308),
+      'low' => const Color(0xFF22C55E),
+      _ => const Color(0xFF71717A),
+    };
   }
 
   Widget _buildEmptyState(BuildContext context) {

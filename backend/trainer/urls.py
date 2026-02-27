@@ -12,6 +12,7 @@ from .views import (
     AssignProgramTemplateView, ProgramTemplateUploadImageView, ProgramUploadImageView,
     GenerateProgramView,
     AdherenceAnalyticsView, AdherenceTrendView, ProgressAnalyticsView, RevenueAnalyticsView,
+    RetentionAnalyticsView, AtRiskTraineesView,
     GenerateMCPTokenView, AIChatView, AIChatTraineeContextView, AIProvidersView,
     MarkMissedDayView,
     TraineeLayoutConfigView,
@@ -74,6 +75,8 @@ urlpatterns = [
     path('analytics/adherence/trends/', AdherenceTrendView.as_view(), name='analytics-adherence-trends'),
     path('analytics/progress/', ProgressAnalyticsView.as_view(), name='analytics-progress'),
     path('analytics/revenue/', RevenueAnalyticsView.as_view(), name='analytics-revenue'),
+    path('analytics/retention/', RetentionAnalyticsView.as_view(), name='analytics-retention'),
+    path('analytics/at-risk/', AtRiskTraineesView.as_view(), name='analytics-at-risk'),
 
     # CSV Exports
     path('export/payments/', PaymentExportView.as_view(), name='export-payments'),

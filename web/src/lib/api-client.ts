@@ -23,6 +23,13 @@ function getAuthHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
+function getLocaleHeader(): Record<string, string> {
+  if (typeof document === "undefined") return {};
+  const match = document.cookie.match(/(?:^|; )NEXT_LOCALE=([^;]*)/);
+  const locale = match?.[1];
+  return locale ? { "Accept-Language": locale } : {};
+}
+
 function buildHeaders(
   options: RequestInit,
   authHeaders: Record<string, string>,
@@ -32,6 +39,7 @@ function buildHeaders(
       ? { "Content-Type": "application/json" }
       : {}),
     ...authHeaders,
+    ...getLocaleHeader(),
     ...options.headers,
   };
 }

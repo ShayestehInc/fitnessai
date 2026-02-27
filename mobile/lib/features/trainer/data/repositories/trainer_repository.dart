@@ -299,6 +299,43 @@ class TrainerRepository {
     }
   }
 
+  // Retention Analytics
+  Future<Map<String, dynamic>> getRetentionAnalytics({int days = 14}) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.trainerAnalyticsRetention,
+        queryParameters: {'days': days},
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load retention analytics',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> getAtRiskTrainees({int days = 14}) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.trainerAnalyticsAtRisk,
+        queryParameters: {'days': days},
+      );
+      return {
+        'success': true,
+        'data': response.data,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to load at-risk trainees',
+      };
+    }
+  }
+
   // Layout Config
   Future<Map<String, dynamic>> getTraineeLayoutConfig(int traineeId) async {
     try {

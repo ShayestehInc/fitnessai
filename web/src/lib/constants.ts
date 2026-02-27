@@ -46,6 +46,7 @@ export const API_URLS = {
 
   // Settings / Profile
   UPDATE_PROFILE: `${API_BASE}/api/users/me/`,
+  USER_PROFILES: `${API_BASE}/api/users/profiles/`,
   PROFILE_IMAGE: `${API_BASE}/api/users/profile-image/`,
   CHANGE_PASSWORD: `${API_BASE}/api/auth/users/set_password/`,
 
@@ -56,6 +57,8 @@ export const API_URLS = {
   ANALYTICS_ADHERENCE_TRENDS: `${API_BASE}/api/trainer/analytics/adherence/trends/`,
   ANALYTICS_PROGRESS: `${API_BASE}/api/trainer/analytics/progress/`,
   ANALYTICS_REVENUE: `${API_BASE}/api/trainer/analytics/revenue/`,
+  ANALYTICS_RETENTION: `${API_BASE}/api/trainer/analytics/retention/`,
+  ANALYTICS_AT_RISK: `${API_BASE}/api/trainer/analytics/at-risk/`,
 
   // CSV Exports
   EXPORT_PAYMENTS: `${API_BASE}/api/trainer/export/payments/`,
