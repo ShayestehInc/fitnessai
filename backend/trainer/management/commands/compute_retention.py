@@ -8,6 +8,7 @@ Intended to run daily via cron:
 from __future__ import annotations
 
 import logging
+from argparse import ArgumentParser
 
 from django.core.management.base import BaseCommand
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = "Compute trainee retention scores and send churn alert notifications."
 
-    def add_arguments(self, parser: BaseCommand) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
             "--days",
             type=int,

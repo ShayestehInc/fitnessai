@@ -10,8 +10,6 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
-from django.db.models import BooleanField, Count, Max, Q, Value
-from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 if TYPE_CHECKING:
