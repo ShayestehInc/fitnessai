@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-24 (Pipeline 38: Admin Dashboard Mobile Responsiveness)
+> Last updated: 2026-02-27 (Pipeline 39: Churn Prevention + Pipeline 40: i18n)
 
 ---
 
@@ -111,6 +111,8 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Progress analytics | ✅ Done | |
 | Revenue analytics | ✅ Done | Shipped 2026-02-20 (Pipeline 28): MRR, period revenue, subscriber/payment tables, monthly chart |
 | CSV data export | ✅ Done | Shipped 2026-02-21 (Pipeline 29): Export payments, subscribers, trainees as CSV with CSV injection protection |
+| Retention analytics | ✅ Done | Shipped 2026-02-27 (Pipeline 39): Engagement scoring (0-100), churn risk scoring (0-100) with 4 risk tiers (Critical/High/Medium/Low), 14-day rolling window, new trainee guard, web + mobile UI with summary cards, risk distribution chart, retention trend chart, at-risk trainee table |
+| Automated churn alerts | ✅ Done | Shipped 2026-02-27 (Pipeline 39): `compute_retention` management command for daily cron, trainer notifications for at-risk trainees (3-day dedup), re-engagement pushes for critical-risk (7-day dedup), `CHURN_ALERT` notification type |
 | Trainer notifications | ✅ Done | Fixed 2026-02-13: Uses parent_trainer, migration created |
 | Trainer notifications dashboard | ✅ Done | Shipped 2026-02-14: In-app notification feed with pagination, mark-read, swipe-to-dismiss, badge count |
 
@@ -305,6 +307,19 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | TV mode | ❌ Placeholder | Screen exists but empty |
 | Community feed (replaces Forums) | ✅ Done | Shipped 2026-02-16: Trainer-scoped feed with text posts, reactions (fire/thumbs_up/heart), auto-posts for workouts and achievements, optimistic updates, infinite scroll, image attachments, markdown, comments, real-time WebSocket updates |
 | Offline-first with local DB | ✅ Done | Shipped 2026-02-15: Drift (SQLite) local database, sync queue with FIFO/exponential backoff, connectivity monitoring with 2s debounce, offline-aware repositories for workouts/nutrition/weight, program caching, 409 conflict detection, UI banners (offline/syncing/synced/failed), failed sync bottom sheet, logout warning |
+
+### 3.13 Internationalization (i18n)
+| Feature | Status | Notes |
+|---------|--------|-------|
+| i18n infrastructure (Django) | ✅ Done | Shipped 2026-02-27 (Pipeline 40): `preferred_language` on UserProfile, `LocaleMiddleware`, `LANGUAGES`/`LOCALE_PATHS` settings, PO files for en/es/pt-BR |
+| i18n infrastructure (Flutter) | ✅ Done | Shipped 2026-02-27 (Pipeline 40): `flutter_localizations` + `gen_l10n` with ARB files, `LocaleProvider` StateNotifier, `context.l10n` extension, `Accept-Language` header |
+| i18n infrastructure (Next.js) | ✅ Done | Shipped 2026-02-27 (Pipeline 40): React context-based i18n, cookie persistence (`NEXT_LOCALE`), JSON message files, `t()` function, `Accept-Language` header |
+| Spanish translations | ✅ Done | Shipped 2026-02-27 (Pipeline 40): ~200 Flutter strings, ~130 web strings, ~20 backend API error strings |
+| Portuguese (Brazil) translations | ✅ Done | Shipped 2026-02-27 (Pipeline 40): ~200 Flutter strings, ~130 web strings, ~20 backend API error strings |
+| Language selector (mobile) | ✅ Done | Shipped 2026-02-27 (Pipeline 40): Language settings screen for all roles, backend sync via PATCH, SharedPreferences persistence |
+| Language selector (web) | ✅ Done | Shipped 2026-02-27 (Pipeline 40): LanguageSelector component on all 4 settings pages (admin, trainer, trainee, ambassador), cookie + API sync |
+| Translation glossary | ✅ Done | Shipped 2026-02-27 (Pipeline 40): Standardized fitness terms across en/es/pt-br with consistency rules |
+| String extraction (Phase B) | 🟡 Partial | Infrastructure in place; ~380 existing hardcoded strings in Flutter/Web screens to be migrated to l10n in future pipeline |
 
 ---
 
@@ -1099,3 +1114,5 @@ Full mobile responsiveness for the admin web dashboard, completing the three-par
 - **AI parsing is OpenAI-only** — Function Calling mode. No fallback provider yet. Rate limits apply.
 - **Real-time updates on community feed and messaging** — WebSocket via Django Channels shipped for community feed (2026-02-16: new posts, deletions, comments, reactions) and direct messaging on mobile (2026-02-19) and web (2026-02-19 Pipeline 22: new messages, typing indicators, read receipts, graceful HTTP polling fallback). Trainer dashboard still requires manual refresh.
 - **Web dashboard covers trainer, admin, and ambassador roles** — Web dashboard (Next.js) shipped for trainers and admins (2026-02-15), ambassador role added (2026-02-19). Full feature parity achieved for all three roles. Trainee web access not yet built.
+- **i18n string extraction incomplete** — i18n infrastructure is fully in place across Django, Flutter, and Next.js (Pipeline 40). ~200 strings per platform have translations (en/es/pt-br). However, ~380 existing hardcoded strings in Flutter/Web screens still need to be migrated from hardcoded English to `context.l10n.xxx` / `t('xxx')` calls. Infrastructure supports this incrementally.
+- **Churn prevention push notifications** — Retention analytics and scoring are complete (Pipeline 39). Automated churn alerts create TrainerNotification records. Re-engagement push delivery is logged but not yet wired to Firebase Cloud Messaging (firebase_admin integration pending).

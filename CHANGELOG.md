@@ -4,6 +4,49 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-27] — Pipeline 39: Trainee Retention & Churn Prevention Analytics
+
+### Added
+- **Engagement scoring** — 0-100 per-trainee score based on workout consistency (30%), nutrition consistency (25%), goal adherence (25%), and recency (20%) over a 14-day rolling window
+- **Churn risk scoring** — 0-100 score with 4 risk tiers: Critical (>=75), High (>=50), Medium (>=25), Low (<25). Combines engagement deficit (40%), inactivity signal (30%), declining trend (20%), and low volume signal (10%)
+- **New trainee guard** — Trainees created within the lookback window with zero activity are capped at Medium risk (not flagged as churning)
+- **Retention analytics API** — `GET /api/trainer/analytics/retention/?days=14` returns full retention analytics with summary, per-trainee scores, and daily trends
+- **At-risk trainees API** — `GET /api/trainer/analytics/at-risk/?days=14` returns critical + high risk trainees sorted by churn risk DESC
+- **Automated churn alerts** — `compute_retention` management command (daily cron) creates TrainerNotification entries for at-risk trainees with 3-day deduplication
+- **Re-engagement pushes** — Automated push notification records for critical-risk trainees with 7-day deduplication (FCM delivery pending firebase_admin wiring)
+- **CHURN_ALERT notification type** — New TrainerNotification.NotificationType enum value
+- **Web retention UI** — RetentionSection on analytics page with 4 summary cards (At-Risk Count, Avg Engagement, Retention Rate, Critical Count), risk distribution horizontal bar chart, retention trend line chart, at-risk trainee DataTable with risk badges and engagement bars
+- **Mobile retention UI** — RetentionAnalyticsScreen with summary card grid, risk tier badges, at-risk trainee tiles with engagement indicators
+
+### Technical
+- Frozen dataclasses pattern (RetentionAnalyticsResult, RetentionSummary, TraineeEngagementItem, RetentionTrendPoint) following revenue_analytics_service.py
+- Single annotated queryset with select_related to avoid N+1
+- bulk_create for notifications with type-safe int casting for JSONB field lookups
+- Per-trainer error handling in management command with .iterator() for memory efficiency
+- Quality Score: 9/10 SHIP
+
+---
+
+## [2026-02-27] — Pipeline 40: Multi-Language Support (i18n — Spanish + Portuguese)
+
+### Added
+- **Django i18n infrastructure** — `preferred_language` CharField on UserProfile (en/es/pt-br), `LocaleMiddleware`, `LANGUAGES`/`LOCALE_PATHS` settings, PO files for en/es/pt-BR (~20 API error strings)
+- **Flutter i18n infrastructure** — `flutter_localizations` + `gen_l10n` with ARB files (~200 strings each for en/es/pt), `LocaleProvider` (Riverpod StateNotifier + SharedPreferences persistence), `context.l10n` extension for concise access
+- **Next.js i18n infrastructure** — React context-based i18n with cookie persistence (`NEXT_LOCALE`), JSON message files (~130 strings each for en/es/pt-BR), `LocaleProvider` with `t()` function for dot-path key access
+- **Accept-Language header** — Propagated from both Flutter and Next.js API clients to Django backend
+- **Language selector (mobile)** — Language settings screen accessible from all role settings (admin, trainer, trainee), backend sync via PATCH to profiles endpoint, SharedPreferences persistence
+- **Language selector (web)** — LanguageSelector component added to all 4 settings pages (admin, trainer, trainee, ambassador), cookie + API sync, radio button UI matching AppearanceSection pattern
+- **Translation glossary** — `translations/glossary.md` with standardized fitness terms (Trainer/Trainee/Workout/Exercise/Set/Rep/Macros/etc.) across en/es/pt-br with 7 consistency rules
+
+### Technical
+- Cookie security: Secure flag for HTTPS, string-split getCookie (prevents ReDoS vs regex), SameSite=Lax
+- Synchronous locale initialization on web (reads cookie in useState initializer, no English flash)
+- html lang attribute synced on locale changes
+- ARB files auto-generate AppLocalizations via `flutter gen-l10n`
+- Quality Score: 9/10 SHIP
+
+---
+
 ## [2026-02-24] — Pipeline 38: Admin Dashboard Mobile Responsiveness
 
 ### Changed
