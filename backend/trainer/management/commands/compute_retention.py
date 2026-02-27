@@ -46,26 +46,33 @@ class Command(BaseCommand):
         total_pushes = 0
         trainers_processed = 0
 
-        for trainer in trainers:
-            result = get_retention_analytics(trainer, days)
-            if result.summary.total_trainees == 0:
+        for trainer in trainers.iterator():
+            try:
+                result = get_retention_analytics(trainer, days)
+                if result.summary.total_trainees == 0:
+                    continue
+
+                trainers_processed += 1
+
+                at_risk = [
+                    t for t in result.trainees
+                    if t.risk_tier in ("critical", "high")
+                ]
+                critical = [
+                    t for t in result.trainees
+                    if t.risk_tier == "critical"
+                ]
+
+                alerts = create_churn_alerts(trainer, at_risk)
+                pushes = send_re_engagement_pushes(trainer, critical)
+                total_alerts += alerts
+                total_pushes += pushes
+            except Exception:
+                logger.exception(
+                    "Failed to compute retention for trainer %s",
+                    trainer.email,
+                )
                 continue
-
-            trainers_processed += 1
-
-            at_risk = [
-                t for t in result.trainees
-                if t.risk_tier in ("critical", "high")
-            ]
-            critical = [
-                t for t in result.trainees
-                if t.risk_tier == "critical"
-            ]
-
-            alerts = create_churn_alerts(trainer, at_risk)
-            pushes = send_re_engagement_pushes(trainer, critical)
-            total_alerts += alerts
-            total_pushes += pushes
 
         self.stdout.write(
             self.style.SUCCESS(

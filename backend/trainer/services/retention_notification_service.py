@@ -52,12 +52,15 @@ def create_churn_alerts(
     cooldown_cutoff = now - timedelta(days=TRAINER_ALERT_COOLDOWN_DAYS)
 
     # Fetch existing recent churn alerts for this trainer
+    # Cast to int for type-safe comparison (JSONB may return str or int)
     existing_alerts = set(
-        TrainerNotification.objects.filter(
+        int(tid)
+        for tid in TrainerNotification.objects.filter(
             trainer=trainer,
             notification_type=TrainerNotification.NotificationType.CHURN_ALERT,
             created_at__gte=cooldown_cutoff,
         ).values_list('data__trainee_id', flat=True)
+        if tid is not None
     )
 
     created_count = 0
@@ -135,34 +138,38 @@ def send_re_engagement_pushes(
     push_cooldown_cutoff = now - timedelta(days=PUSH_COOLDOWN_DAYS)
 
     # Find trainees who already received a push recently
+    # Cast to int for type-safe comparison (JSONB may return str or int)
     recent_push_trainee_ids = set(
-        TrainerNotification.objects.filter(
+        int(tid)
+        for tid in TrainerNotification.objects.filter(
             trainer=trainer,
             notification_type=TrainerNotification.NotificationType.CHURN_ALERT,
             data__re_engagement_push=True,
             created_at__gte=push_cooldown_cutoff,
         ).values_list('data__trainee_id', flat=True)
+        if tid is not None
     )
 
-    sent_count = 0
+    notifications_to_create: list[TrainerNotification] = []
     for item in critical_trainees:
         if item.risk_tier != "critical":
             continue
         if item.trainee_id in recent_push_trainee_ids:
             continue
 
-        # Record that we sent the push (as a notification record for deduplication)
-        TrainerNotification.objects.create(
-            trainer=trainer,
-            notification_type=TrainerNotification.NotificationType.CHURN_ALERT,
-            title=f"Re-engagement: {item.trainee_name}",
-            message=f"Automated re-engagement push sent to {item.trainee_name}.",
-            data={
-                "trainee_id": item.trainee_id,
-                "trainee_email": item.trainee_email,
-                "re_engagement_push": True,
-                "risk_tier": item.risk_tier,
-            },
+        notifications_to_create.append(
+            TrainerNotification(
+                trainer=trainer,
+                notification_type=TrainerNotification.NotificationType.CHURN_ALERT,
+                title=f"Re-engagement: {item.trainee_name}",
+                message=f"Automated re-engagement push sent to {item.trainee_name}.",
+                data={
+                    "trainee_id": item.trainee_id,
+                    "trainee_email": item.trainee_email,
+                    "re_engagement_push": True,
+                    "risk_tier": item.risk_tier,
+                },
+            )
         )
 
         # NOTE: Actual FCM push delivery would be integrated here once
@@ -172,6 +179,8 @@ def send_re_engagement_pushes(
             item.trainee_email,
             trainer.email,
         )
-        sent_count += 1
 
-    return sent_count
+    if notifications_to_create:
+        TrainerNotification.objects.bulk_create(notifications_to_create)
+
+    return len(notifications_to_create)
