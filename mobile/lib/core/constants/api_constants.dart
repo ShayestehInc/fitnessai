@@ -79,6 +79,8 @@ class ApiConstants {
       '$apiBaseUrl/trainer/program-templates/$templateId/assign/';
   static String get trainerAnalyticsAdherence => '$apiBaseUrl/trainer/analytics/adherence/';
   static String get trainerAnalyticsProgress => '$apiBaseUrl/trainer/analytics/progress/';
+  static String get trainerAnalyticsRetention => '$apiBaseUrl/trainer/analytics/retention/';
+  static String get trainerAnalyticsAtRisk => '$apiBaseUrl/trainer/analytics/at-risk/';
   static String get trainerMcpToken => '$apiBaseUrl/trainer/mcp/token/';
   static String markMissedDay(int programId) =>
       '$apiBaseUrl/trainer/programs/$programId/mark-missed/';

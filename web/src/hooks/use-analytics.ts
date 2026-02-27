@@ -11,6 +11,11 @@ import type {
   RevenueAnalytics,
   RevenuePeriod,
 } from "@/types/analytics";
+import type {
+  RetentionAnalytics,
+  RetentionPeriod,
+  AtRiskResponse,
+} from "@/types/retention";
 
 export function useAdherenceAnalytics(days: AdherencePeriod) {
   return useQuery<AdherenceAnalytics>({
@@ -55,6 +60,30 @@ export function useRevenueAnalytics(days: RevenuePeriod) {
     staleTime: 5 * 60 * 1000,
     // Keep previous results visible while a new period is loading.
     // Prevents jarring flash-to-skeleton when switching 30d / 90d / 1y.
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useRetentionAnalytics(days: RetentionPeriod) {
+  return useQuery<RetentionAnalytics>({
+    queryKey: ["analytics", "retention", days],
+    queryFn: () =>
+      apiClient.get<RetentionAnalytics>(
+        `${API_URLS.ANALYTICS_RETENTION}?days=${days}`,
+      ),
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAtRiskTrainees(days: RetentionPeriod) {
+  return useQuery<AtRiskResponse>({
+    queryKey: ["analytics", "at-risk", days],
+    queryFn: () =>
+      apiClient.get<AtRiskResponse>(
+        `${API_URLS.ANALYTICS_AT_RISK}?days=${days}`,
+      ),
+    staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
   });
 }

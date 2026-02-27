@@ -56,6 +56,8 @@ export const API_URLS = {
   ANALYTICS_ADHERENCE_TRENDS: `${API_BASE}/api/trainer/analytics/adherence/trends/`,
   ANALYTICS_PROGRESS: `${API_BASE}/api/trainer/analytics/progress/`,
   ANALYTICS_REVENUE: `${API_BASE}/api/trainer/analytics/revenue/`,
+  ANALYTICS_RETENTION: `${API_BASE}/api/trainer/analytics/retention/`,
+  ANALYTICS_AT_RISK: `${API_BASE}/api/trainer/analytics/at-risk/`,
 
   // CSV Exports
   EXPORT_PAYMENTS: `${API_BASE}/api/trainer/export/payments/`,

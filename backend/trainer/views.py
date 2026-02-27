@@ -24,6 +24,7 @@ from django.utils import timezone
 from django.db.models import Case, Count, IntegerField, Q, Avg, Max, QuerySet, When
 
 from trainer.services.invitation_service import send_invitation_email
+from trainer.services.retention_analytics_service import get_retention_analytics
 from trainer.services.revenue_analytics_service import get_revenue_analytics
 from trainer.utils import parse_days_param as _parse_days_param
 from django.http import Http404
@@ -1116,6 +1117,94 @@ class RevenueAnalyticsView(views.APIView):
                 }
                 for p in result.recent_payments
             ],
+        })
+
+
+class RetentionAnalyticsView(views.APIView):
+    """
+    GET: Get retention analytics for the authenticated trainer.
+    Query params: ?days=14 (default 14, clamped 3-365)
+
+    Returns engagement scores, churn risk, risk distribution, and trends.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request: Request) -> Response:
+        trainer = cast(User, request.user)
+        days = _parse_days_param(request, default=14)
+        result = get_retention_analytics(trainer, days)
+        return Response({
+            'period_days': result.period_days,
+            'summary': {
+                'total_trainees': result.summary.total_trainees,
+                'at_risk_count': result.summary.at_risk_count,
+                'critical_count': result.summary.critical_count,
+                'high_count': result.summary.high_count,
+                'medium_count': result.summary.medium_count,
+                'low_count': result.summary.low_count,
+                'avg_engagement': result.summary.avg_engagement,
+                'retention_rate': result.summary.retention_rate,
+            },
+            'trainees': [
+                {
+                    'trainee_id': t.trainee_id,
+                    'trainee_email': t.trainee_email,
+                    'trainee_name': t.trainee_name,
+                    'engagement_score': t.engagement_score,
+                    'churn_risk_score': t.churn_risk_score,
+                    'risk_tier': t.risk_tier,
+                    'days_since_last_activity': t.days_since_last_activity,
+                    'workout_consistency': t.workout_consistency,
+                    'nutrition_consistency': t.nutrition_consistency,
+                    'last_active_date': t.last_active_date,
+                }
+                for t in result.trainees
+            ],
+            'trends': [
+                {
+                    'date': tp.date,
+                    'avg_engagement': tp.avg_engagement,
+                    'at_risk_count': tp.at_risk_count,
+                    'total_trainees': tp.total_trainees,
+                }
+                for tp in result.trends
+            ],
+        })
+
+
+class AtRiskTraineesView(views.APIView):
+    """
+    GET: Get at-risk trainees (critical + high) for the authenticated trainer.
+    Query params: ?days=14 (default 14, clamped 3-365)
+
+    Returns only critical and high risk trainees, sorted by churn risk DESC.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def get(self, request: Request) -> Response:
+        trainer = cast(User, request.user)
+        days = _parse_days_param(request, default=14)
+        result = get_retention_analytics(trainer, days)
+        at_risk = [
+            {
+                'trainee_id': t.trainee_id,
+                'trainee_email': t.trainee_email,
+                'trainee_name': t.trainee_name,
+                'engagement_score': t.engagement_score,
+                'churn_risk_score': t.churn_risk_score,
+                'risk_tier': t.risk_tier,
+                'days_since_last_activity': t.days_since_last_activity,
+                'workout_consistency': t.workout_consistency,
+                'nutrition_consistency': t.nutrition_consistency,
+                'last_active_date': t.last_active_date,
+            }
+            for t in result.trainees
+            if t.risk_tier in ('critical', 'high')
+        ]
+        return Response({
+            'period_days': result.period_days,
+            'at_risk_count': len(at_risk),
+            'trainees': at_risk,
         })
 
 

@@ -195,3 +195,21 @@ final progressAnalyticsProvider = FutureProvider.autoDispose<Map<String, dynamic
   }
   return null;
 });
+
+final retentionAnalyticsProvider = FutureProvider.autoDispose.family<Map<String, dynamic>?, int>((ref, days) async {
+  final repository = ref.watch(trainerRepositoryProvider);
+  final result = await repository.getRetentionAnalytics(days: days);
+  if (result['success']) {
+    return result['data'];
+  }
+  return null;
+});
+
+final atRiskTraineesProvider = FutureProvider.autoDispose.family<Map<String, dynamic>?, int>((ref, days) async {
+  final repository = ref.watch(trainerRepositoryProvider);
+  final result = await repository.getAtRiskTrainees(days: days);
+  if (result['success']) {
+    return result['data'];
+  }
+  return null;
+});
