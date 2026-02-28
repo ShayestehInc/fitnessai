@@ -14,6 +14,7 @@ class CalendarState {
   final List<CalendarEventModel> events;
   final List<TrainerAvailabilityModel> availability;
   final bool isLoading;
+  final bool connectionsLoaded;
   final String? error;
   final String? successMessage;
 
@@ -22,6 +23,7 @@ class CalendarState {
     this.events = const [],
     this.availability = const [],
     this.isLoading = false,
+    this.connectionsLoaded = false,
     this.error,
     this.successMessage,
   });
@@ -31,6 +33,7 @@ class CalendarState {
     List<CalendarEventModel>? events,
     List<TrainerAvailabilityModel>? availability,
     bool? isLoading,
+    bool? connectionsLoaded,
     String? error,
     String? successMessage,
   }) {
@@ -39,6 +42,7 @@ class CalendarState {
       events: events ?? this.events,
       availability: availability ?? this.availability,
       isLoading: isLoading ?? this.isLoading,
+      connectionsLoaded: connectionsLoaded ?? this.connectionsLoaded,
       error: error,
       successMessage: successMessage,
     );
@@ -64,10 +68,11 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final connections = await _repository.getConnections();
-      state = state.copyWith(connections: connections, isLoading: false);
+      state = state.copyWith(connections: connections, isLoading: false, connectionsLoaded: true);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
+        connectionsLoaded: true,
         error: 'Failed to load calendar connections: ${e.toString()}',
       );
     }

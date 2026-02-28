@@ -59,7 +59,7 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
       }
     });
 
-    if (!state.hasAnyConnection && !state.isLoading) {
+    if (state.connectionsLoaded && !state.hasAnyConnection) {
       return CalendarNoConnectionView(onGoBack: () => context.pop());
     }
 

@@ -62,21 +62,21 @@ class _TrainerAvailabilityScreenState
       ),
       body: state.isLoading && slots.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : slots.isEmpty
-              ? _buildEmpty(theme)
-              : RefreshIndicator(
-                  onRefresh: () =>
-                      ref.read(calendarProvider.notifier).loadAvailability(),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: dayKeys.length,
-                    itemBuilder: (context, index) {
-                      final day = dayKeys[index];
-                      final daySlots = grouped[day]!;
-                      return _buildDaySection(theme, day, daySlots);
-                    },
-                  ),
-                ),
+          : RefreshIndicator(
+              onRefresh: () =>
+                  ref.read(calendarProvider.notifier).loadAvailability(),
+              child: slots.isEmpty
+                  ? _buildEmpty(theme)
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: dayKeys.length,
+                      itemBuilder: (context, index) {
+                        final day = dayKeys[index];
+                        final daySlots = grouped[day]!;
+                        return _buildDaySection(theme, day, daySlots);
+                      },
+                    ),
+            ),
     );
   }
 
@@ -198,22 +198,28 @@ class _TrainerAvailabilityScreenState
   }
 
   Widget _buildEmpty(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.access_time, size: 64,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
-          const SizedBox(height: 16),
-          Text('No availability set', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            'Tap + to add your first time slot',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-            ),
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.6,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.access_time, size: 64,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
+              const SizedBox(height: 16),
+              Text('No availability set', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(
+                'Tap + to add your first time slot',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
