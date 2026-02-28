@@ -252,6 +252,65 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     }
   }
 
+  Future<void> updateAvailability(
+    int id, {
+    int? dayOfWeek,
+    String? startTime,
+    String? endTime,
+    bool? isActive,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final updated = await _repository.updateAvailability(
+        id,
+        dayOfWeek: dayOfWeek,
+        startTime: startTime,
+        endTime: endTime,
+        isActive: isActive,
+      );
+      final updatedList = state.availability
+          .map((a) => a.id == id ? updated : a)
+          .toList();
+      state = state.copyWith(
+        availability: updatedList,
+        isLoading: false,
+        successMessage: 'Availability updated',
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to update availability: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> toggleAvailability(int id, bool isActive) async {
+    // Optimistic update
+    final previousList = state.availability;
+    final optimisticList = previousList
+        .map((a) => a.id == id
+            ? TrainerAvailabilityModel(
+                id: a.id,
+                dayOfWeek: a.dayOfWeek,
+                startTime: a.startTime,
+                endTime: a.endTime,
+                isActive: isActive,
+              )
+            : a)
+        .toList();
+    state = state.copyWith(availability: optimisticList);
+
+    try {
+      await _repository.updateAvailability(id, isActive: isActive);
+    } catch (e) {
+      // Revert on failure
+      state = state.copyWith(
+        availability: previousList,
+        error: 'Failed to update availability: ${e.toString()}',
+      );
+    }
+  }
+
   Future<void> deleteAvailability(int id) async {
     state = state.copyWith(isLoading: true, error: null);
     try {

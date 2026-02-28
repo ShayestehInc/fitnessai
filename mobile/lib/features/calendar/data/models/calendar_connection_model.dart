@@ -76,7 +76,7 @@ class CalendarEventModel {
       endTime: DateTime.parse(json['end_time'] as String),
       location: json['location'] as String?,
       eventType: json['event_type'] as String,
-      isAllDay: json['is_all_day'] as bool? ?? false,
+      isAllDay: json['all_day'] as bool? ?? false,
       externalEventId: json['external_event_id'] as String?,
       syncedAt: json['synced_at'] != null
           ? DateTime.parse(json['synced_at'] as String)
