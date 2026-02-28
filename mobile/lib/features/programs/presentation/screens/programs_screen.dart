@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../data/models/program_model.dart';
 import '../../data/models/program_week_model.dart';
 import '../providers/program_provider.dart';
@@ -139,19 +140,32 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             tooltip: 'Create Program',
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'My Programs'),
-            Tab(text: 'Templates'),
-          ],
-        ),
+        bottom: Theme.of(context).platform == TargetPlatform.iOS
+            ? null
+            : TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'My Programs'),
+                  Tab(text: 'Templates'),
+                ],
+              ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildMyProgramsTab(context),
-          _buildTemplatesTab(context),
+          if (Theme.of(context).platform == TargetPlatform.iOS)
+            AdaptiveSegmentedControl(
+              controller: _tabController,
+              labels: const ['My Programs', 'Templates'],
+            ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildMyProgramsTab(context),
+                _buildTemplatesTab(context),
+              ],
+            ),
+          ),
         ],
       ),
     );

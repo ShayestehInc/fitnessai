@@ -1,15 +1,15 @@
-# UX Audit: Admin Dashboard Mobile Responsiveness (Pipeline 38)
+# UX Audit: Calendar Integration Completion (Pipeline 41)
 
-## Audit Date: 2026-02-24
-## Pipeline: 38
+## Audit Date: 2026-02-27
+## Pipeline: 41
 ## Auditor: UX Auditor
-## Scope: 21 admin dashboard files audited at 375px mobile width
+## Scope: 14 calendar feature files audited across screens, widgets, providers, and models
 
 ---
 
 ## Summary
 
-The admin dashboard mobile-responsive implementation is solid overall. The existing patterns from Pipeline 37 (column hiding with `hidden md:table-cell`, responsive stacking with `flex-col sm:flex-row`, `max-h-[90dvh] overflow-y-auto` on dialogs) are applied consistently across all admin pages. I found 5 issues -- 0 critical, 1 major, and 4 minor -- and fixed all of them.
+The calendar integration feature is well-structured with clean visual hierarchy, proper platform-adaptive widgets, and comprehensive CRUD feedback. However, I found 8 usability issues and 8 accessibility issues. All have been fixed in this pass. The most impactful fixes were replacing raw `CircularProgressIndicator` with shimmer loading placeholders (matching the app's established pattern), adding accessibility semantics throughout, and improving the no-connection empty state copy.
 
 ---
 
@@ -17,85 +17,105 @@ The admin dashboard mobile-responsive implementation is solid overall. The exist
 
 | # | Severity | Screen/Component | Issue | Recommendation | Status |
 |---|----------|-----------------|-------|----------------|--------|
-| 1 | Major | `admin-constants.ts` `SELECT_CLASSES` | Native `<select>` elements used on subscriptions, coupons, and users filter bars have `h-9` (36px height), falling below the 44px WCAG minimum touch target for mobile. These are primary filter controls used on every admin list page. | Changed `h-9` to `h-11 sm:h-9` so selects are 44px on mobile and revert to 36px on desktop. Since `SELECT_CLASSES` is a shared constant, this fix propagates to all admin filter selects and full-width form selects automatically. | **FIXED** |
-| 2 | Minor | `past-due-full-list.tsx` Mail button | The Mail reminder button lacks `aria-label` (screen readers would announce nothing meaningful) and lacks minimum touch target sizing on mobile. | Added `aria-label` with the trainer name/email, `aria-hidden="true"` on the icon, and `min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0` for mobile touch compliance. | **FIXED** |
-| 3 | Minor | `coupon-detail-dialog.tsx` title code display | The coupon code span in the dialog title uses `max-w-[400px]`, which exceeds the usable width of a dialog on a 375px screen (dialog is `max-w-2xl` but viewport-constrained, leaving approximately 300px for content). Long codes would force horizontal overflow of the title area. | Changed to `max-w-[200px] sm:max-w-[400px]` so the truncation breakpoint is appropriate for small screens. | **FIXED** |
-| 4 | Minor | `admin-sidebar-mobile.tsx` nav links | Mobile sidebar navigation links use `py-2` (8px vertical padding) resulting in approximately 36px total height, below the 44px WCAG touch target minimum. These are the primary navigation controls on mobile. | Added `min-h-[44px]` to the link class string to enforce compliant touch targets. | **FIXED** |
-| 5 | Minor | `ambassador-detail-dialog.tsx` icon accessibility | Six Lucide icons (3 Loader2 spinners, Check, 2 DollarSign) in the action buttons lack `aria-hidden="true"`, causing screen readers to potentially announce SVG content. | Added `aria-hidden="true"` to all six icons. | **FIXED** |
+| 1 | Major | CalendarEventsScreen | Loading state used raw `CircularProgressIndicator` instead of shimmer placeholders. Ticket explicitly requires shimmer. Inconsistent with app patterns (`trainer_notifications_screen` uses `LoadingShimmer`). | Replaced with `LoadingShimmer`-based skeleton matching the event list layout (date header shimmer + event row shimmers with time column and content). | **FIXED** |
+| 2 | Major | TrainerAvailabilityScreen | Loading state used raw `CircularProgressIndicator` instead of shimmer placeholders. Same inconsistency as #1. | Replaced with `LoadingShimmer`-based skeleton matching the day-grouped slot layout (day name shimmers + slot row shimmers). | **FIXED** |
+| 3 | Major | CalendarProviderFilter | Filter chips used `GestureDetector` which provides zero visual feedback on tap (no ripple, no highlight). Users get no confirmation their tap registered. | Replaced with `InkWell` wrapped in `Material` for proper ripple effect. Added `Semantics` with `button: true` and `selected` state. | **FIXED** |
+| 4 | Medium | CalendarNoConnectionView | Copy said "Connect a calendar first" which is terse and commanding. No explanation of what connecting does. Button label "Go to Calendar Settings" with a back arrow icon was confusing -- it looked like a back button but was the primary CTA. | Improved copy: title "No calendar connected", subtitle "Connect your Google or Microsoft calendar to see your events here." Changed button to "Connect a Calendar" with link icon. Added horizontal padding. | **FIXED** |
+| 5 | Medium | AvailabilitySlotEditor | Bottom sheet had no drag handle, making it unclear to users that the sheet can be swiped down to dismiss. This is a standard mobile UX pattern present in most production apps. | Added a centered 32x4 drag handle bar at the top of the bottom sheet with 0.2 opacity. | **FIXED** |
+| 6 | Minor | CalendarConnectionScreen | Loading state used raw `CircularProgressIndicator` instead of `AdaptiveSpinner`. Other screens (`trainer_dashboard`, `settings`) use `AdaptiveSpinner` for platform-adaptive loading. | Replaced with `AdaptiveSpinner()` for iOS/Android consistency. | **FIXED** |
+| 7 | Minor | AvailabilitySlotTile | No discoverability hint that slots can be swiped to delete. Users unfamiliar with the pattern may never discover this affordance. | Added "Swipe left to delete" to the Semantics label. Partial fix -- a visual hint on first use would be ideal but requires more infrastructure. | **FIXED (partial)** |
+| 8 | Minor | AvailabilitySlotEditor | `DropdownButtonFormField` used deprecated `value` parameter, generating lint warnings. | Changed to `initialValue` parameter. | **FIXED** |
 
 ---
 
 ## Accessibility Issues
 
-| # | WCAG Level | Issue | Fix |
-|---|------------|-------|-----|
-| 1 | AA (2.5.8 Target Size) | Native `<select>` filter elements at 36px height on mobile; sidebar nav links at approximately 36px; past-due Mail button without min size. | **FIXED** -- All now meet 44px minimum via responsive classes. |
-| 2 | A (1.1.1 Non-text Content) | Past-due Mail button has no accessible name; ambassador detail icons lack `aria-hidden`. | **FIXED** -- Added `aria-label` and `aria-hidden="true"` as appropriate. |
+| # | WCAG Level | Issue | Fix | Status |
+|---|------------|-------|-----|--------|
+| 1 | A (1.1.1) | CalendarEventTile: No semantic labels. Screen readers cannot convey event title, time, or location meaningfully. | Added `Semantics` wrapper with combined label: "{title}, {time range}, at {location}". | **FIXED** |
+| 2 | A (1.1.1) | _ProviderBadge: Single-letter badge ("G"/"M") with no tooltip or semantic label. Screen readers and long-press users cannot identify the provider. | Added `Tooltip` with "Google Calendar" / "Microsoft Outlook" and `Semantics` label. | **FIXED** |
+| 3 | A (4.1.2) | AvailabilitySlotTile: No semantic labels. Screen readers cannot convey time range or active status. Edit button had no tooltip. | Added `Semantics` with time range and active status. Added `tooltip: 'Edit time slot'` to edit `IconButton`. | **FIXED** |
+| 4 | A (4.1.2) | CalendarProviderFilter chips: No semantic roles or selected state communicated to assistive technology. | Added `Semantics(button: true, selected: ...)` with "Filter by {label}" semantic label. | **FIXED** |
+| 5 | A (1.1.1) | Empty state icons (events + availability screens): Missing `semanticLabel`. Messages not grouped for screen readers. | Added `semanticLabel` to icons. Wrapped empty states in `Semantics` with combined descriptive label. | **FIXED** |
+| 6 | AA (2.4.4) | Back buttons across all 3 screens lacked tooltips. Custom `IconButton` leading widgets need explicit tooltips for screen readers. | Added descriptive tooltips: "Back to Calendar Settings" on events/availability, "Go back" on connection screen. | **FIXED** |
+| 7 | A (1.1.1) | CalendarNoConnectionView: Calendar icon had no semantic label. | Added `semanticLabel: 'Calendar not connected'`. | **FIXED** |
+| 8 | A (4.1.2) | FloatingActionButton on availability screen: No tooltip. Screen readers would announce as unlabeled button. | Added `tooltip: 'Add availability slot'`. | **FIXED** |
 
 ---
 
 ## Missing States Checklist
 
-- [x] **Loading / skeleton** -- All list pages (trainers, subscriptions, coupons, users) render `Skeleton` blocks during loading with proper `role="status"` and `aria-label`. Ambassador list has its own skeleton. Dialog components (subscription-detail, coupon-detail) show centered `Loader2` with `sr-only` text. All render correctly at 375px.
-- [x] **Empty / zero data** -- All list pages use `EmptyState` component with contextual messages (search-filtered vs no data). Ambassador list has separate search/no-data messages with CTA. DataTable shows "No results found." for inline empty. Coupon usages section shows "No usages recorded yet". All center well at 375px.
-- [x] **Error / failure** -- All list pages use `ErrorState` with retry button. Subscription and coupon detail dialogs have inline error alerts with retry links. Form dialogs display `toast.error` on submission failure. Delete confirmation in create-user-dialog shows inline error via `deleteError` state.
-- [x] **Success / confirmation** -- All mutations fire `toast.success` on completion. Destructive actions (suspend trainer, delete user, revoke coupon) have confirmation steps before execution.
-- [x] **Offline / degraded** -- React Query retry handles transient failures. Not applicable beyond that for this admin dashboard.
-- [x] **Permission denied** -- Layout redirects non-admin users to `/dashboard` and unauthenticated users to `/login`.
+- [x] **Loading / skeleton** -- Events and availability screens now use shimmer placeholders that match their content layout. Connection screen uses AdaptiveSpinner.
+- [x] **Empty / zero data** -- Events screen has "No upcoming events" with pull-to-sync hint. Availability screen has "No availability set" with FAB hint. No-connection state has explanatory copy with action button.
+- [x] **Error / failure** -- All screens use `ref.listen` to surface errors via `showAdaptiveToast`. Error messages from the provider layer include context (e.g., "Failed to load events", "Sync failed").
+- [x] **Success / confirmation** -- Create, update, delete, connect, disconnect, and sync operations all show success toasts. Delete uses confirmation dialog with `isDestructive: true`.
+- [ ] **Offline / degraded** -- Not handled. No offline detection or stale-data indicator. Events screen preserves last loaded data on error, but no visual cue that data may be stale. Not critical for this pipeline.
+- [x] **Permission denied** -- CalendarNoConnectionView handles the "no connection" case. Auth errors bubble through the error toast system.
 
 ---
 
-## Responsive Behavior Assessment (375px)
+## Copy Review
 
-| Component Type | Observations | Status |
-|----------------|-------------|--------|
-| **List pages** (trainers, subscriptions, coupons, users) | Search input goes full-width on mobile. Filter selects stack vertically via `flex-col sm:flex-row`. PageHeader stacks title and actions. Tables hide secondary columns (`hidden md:table-cell`). Horizontal scroll with gradient hint on tables. | PASS |
-| **DataTable** (shared) | Rows are keyboard-navigable with `tabIndex`, `role="button"`, focus ring. Pagination has 44px touch targets. Column hiding consistent. Scroll hint gradient fades at end. | PASS |
-| **Detail dialogs** (trainer, subscription, coupon, ambassador) | All use `max-h-[90dvh] overflow-y-auto` for tall content. Grids use `grid-cols-2` or `grid-cols-2 sm:grid-cols-3` for responsive info layouts. Subscription detail tabs scroll horizontally with `overflow-x-auto` wrapper. | PASS |
-| **Form dialogs** (coupon, tier, create-user, create-ambassador) | All use `max-h-[90dvh] overflow-y-auto`. Form fields use `grid-cols-1 sm:grid-cols-2` or `grid-cols-2` (which is fine at 375px with gap-4). DialogFooter buttons stack naturally. | PASS |
-| **Card-based lists** (ambassador, past-due, upcoming-payments) | Use `flex items-center justify-between` with `min-w-0 flex-1` for truncation. Metadata items use `flex-wrap gap-x-3 gap-y-1` to handle wrapping at narrow widths. | PASS |
-| **Admin layout** | Mobile sidebar via Sheet component (w-64). Header hamburger button at `lg:hidden`. Skip-to-content link present. Main content has `p-4 lg:p-6` padding. | PASS |
-
----
-
-## Positive Patterns Observed
-
-1. **Consistent dialog sizing** -- All dialogs cap at `max-h-[90dvh]` with `overflow-y-auto`, preventing content from being unreachable on small screens. `dvh` correctly accounts for mobile browser chrome.
-2. **Proper truncation** -- Name/email cells use `min-w-0` + `truncate` pattern consistently across all list components, preventing text overflow at any width.
-3. **Touch target compliance on key controls** -- Ambassador list's Eye button, trainer page filter buttons, and DataTable pagination buttons all already have `min-h-[44px] min-w-[44px]` from prior pipeline work.
-4. **Form validation** -- All form dialogs (coupon, tier, user, ambassador) have client-side validation with inline error messages using `aria-invalid` and `aria-describedby` linking to error text. Password strength indicator in create-user-dialog.
-5. **Confirmation for destructive actions** -- Trainer suspend and user delete both use inline confirmation UI rather than browser `confirm()`, with proper cancel buttons.
-6. **Accessibility infrastructure** -- Skip-to-content link in layout, `role="status"` on loading states, `sr-only` text for spinners, `aria-label` on filter inputs and button groups, `aria-pressed` on toggle filter buttons.
+| Screen | Element | Copy | Assessment |
+|--------|---------|------|------------|
+| Events | AppBar title | "Calendar Events" | Clear and descriptive |
+| Events | Empty title | "No upcoming events" | Good |
+| Events | Empty subtitle | "Pull down to sync your calendar" | Actionable hint |
+| Events | Date headers | "Today" / "Monday, Mar 2" | Contextual, highlights today |
+| Availability | AppBar title | "Availability" | Clear |
+| Availability | Empty title | "No availability set" | Good |
+| Availability | Empty subtitle | "Tap + to add your first time slot" | References the FAB |
+| Availability | Delete dialog | "Remove this availability slot?" | Clear, non-alarming wording |
+| Availability | Validation | "End time must be after start time" | Specific and helpful |
+| Availability | Editor title | "Add Availability" / "Edit Availability" | Context-aware |
+| Connection | Header title | "Connect Your Calendar" | Welcoming |
+| Connection | Header subtitle | "Sync your Google or Microsoft calendar..." | Explains value proposition |
+| No Connection | Title | "No calendar connected" | States fact clearly |
+| No Connection | Subtitle | "Connect your Google or Microsoft calendar to see your events here." | Explains what to do and why |
+| No Connection | Button | "Connect a Calendar" | Clear CTA |
 
 ---
 
-## Consistency Checks
+## Consistency with App Patterns
 
-- [x] All table column hiding uses `hidden md:table-cell` pattern.
-- [x] All filter bars use `flex-col gap-3 sm:flex-row sm:items-center` stacking pattern.
-- [x] All search inputs use `w-full sm:max-w-sm` sizing pattern.
-- [x] All dialog contents use `max-h-[90dvh] overflow-y-auto` pattern.
-- [x] All form dialogs use `DialogFooter` for action buttons.
-- [x] All destructive mutations show `toast.error` on failure.
-- [x] All loading states use either `Skeleton` or `Loader2` with `sr-only` text.
-- [x] Coupon detail dialog `max-w-2xl`, subscription detail `max-w-3xl`, trainer/user dialogs `max-w-md`, tier/coupon forms `max-w-lg` -- all appropriate for their content density.
+| Pattern | Expected | Calendar Feature | Status |
+|---------|----------|-----------------|--------|
+| Toast messages | `showAdaptiveToast` with `ToastType` | Used correctly throughout | Consistent |
+| Confirm dialogs | `showAdaptiveConfirmDialog` with `isDestructive` | Used for delete and disconnect | Consistent |
+| Loading spinner | `AdaptiveSpinner` for simple loading | Now used on connection screen | **FIXED** |
+| Shimmer loading | `LoadingShimmer` for list/content loading | Now used on events and availability | **FIXED** |
+| Card styling | `theme.cardColor` + rounded borders + divider | Consistent across all tiles and cards | Consistent |
+| Platform-adaptive | `Switch.adaptive`, `CupertinoDatePicker` on iOS | Used correctly in slot tile and editor | Consistent |
+| Bottom sheet | Rounded top corners + `isScrollControlled` | Used correctly, now with drag handle | Consistent |
+| Error handling | Toast-based, no silent failures | All provider errors surface to UI | Consistent |
+| `const` constructors | Required throughout | Used correctly | Consistent |
+| Max 150 lines per widget | Convention from CLAUDE.md | All widgets under limit | Consistent |
 
 ---
 
-## Not Fixed (Informational -- Not Real Issues)
+## Items Not Fixed (Require Design Decisions or Larger Changes)
 
-| # | Severity | Observation | Notes |
-|---|----------|------------|-------|
-| 1 | Info | Coupon list shows 5 visible columns on mobile (Code, Type, Discount, Status, Usage). This is dense but the horizontal scroll with gradient hint handles it. | The `overflow-x-auto` + scroll hint pattern works. Hiding "Usage" on mobile could be considered but it provides important context alongside "Status". Not worth the trade-off. |
-| 2 | Info | Tier list has inline Edit/Delete action buttons in a table column. On mobile these stack vertically (`flex-col gap-1 sm:flex-row`), which is correct but increases row height. | The stacking behavior is appropriate. No change needed. |
-| 3 | Info | Ambassador list uses a custom card layout rather than DataTable. This is actually the superior mobile pattern. | The ambassador list pattern could inform a future "card mode" for DataTable on mobile, as noted in Pipeline 37's audit. |
+| # | Impact | Area | Observation | Suggested Approach |
+|---|--------|------|-------------|-------------------|
+| 1 | Medium | Events screen | No offline/stale data indicator. When events are loaded from cache after a failed sync, there is no visual cue. | Add a subtle "Last synced: X minutes ago" chip below the filter bar. Requires design input on placement and styling. |
+| 2 | Low | Availability screen | Swipe-to-delete has no visual discoverability hint for sighted users. | Consider a brief onboarding tooltip on first visit, or a subtle peek animation on the first slot. Requires design discussion. |
+| 3 | Low | Events screen | Tapping an event tile does nothing. Per ticket this is out of scope (external link deferred), but a non-interactive tile can be confusing. | Consider adding `InkWell` with external link icon to indicate tappability once the feature is built. |
+| 4 | Low | Events screen | Filter state resets to "All" when navigating away and returning. | Persist last-used filter in provider state so it survives navigation. |
 
 ---
 
 ## Overall UX Score: 8/10
 
-**Rationale:** The admin dashboard mobile implementation is well-executed with consistent patterns applied across all 21 files. All five core states (loading, empty, error, success, confirmation) are properly handled across every page and dialog. Accessibility is strong with ARIA attributes, keyboard navigation, screen reader text, and focus management. The responsive behavior at 375px is thoroughly handled with column hiding, stacking, and proper overflow management.
+**Rationale:** The calendar integration is well-built with clean visual design, proper platform-adaptive patterns, comprehensive state handling, and consistent use of the app's shared widget library. All CRUD flows provide immediate feedback. The optimistic toggle on availability slots prevents flicker. Grouping by date (events) and day-of-week (availability) is intuitive.
 
-The one major issue (36px select touch targets on filter bars used across 3+ pages) was a shared constant problem that affected multiple pages simultaneously -- now fixed. The minor issues were all small accessibility gaps (missing aria-labels/aria-hidden, title overflow, nav link sizing) that are typical of a first mobile pass and are now resolved.
+The score of 8 reflects the post-fix quality. Pre-fix score would have been 6/10 due to the missing shimmer loading states (major inconsistency with app patterns), zero accessibility semantics across all widgets, and non-responsive filter chips. All issues found have been addressed.
 
-The score reflects the quality after fixes. Pre-fix score would have been 7/10 due to the touch target issue affecting multiple primary interactive controls on mobile.
+**Files modified in this audit:**
+- `mobile/lib/features/calendar/presentation/screens/calendar_events_screen.dart` -- shimmer loading, back button tooltip, empty state semantics
+- `mobile/lib/features/calendar/presentation/screens/trainer_availability_screen.dart` -- shimmer loading, back button tooltip, FAB tooltip, empty state semantics
+- `mobile/lib/features/calendar/presentation/screens/calendar_connection_screen.dart` -- AdaptiveSpinner, back button tooltip
+- `mobile/lib/features/calendar/presentation/widgets/calendar_event_tile.dart` -- Semantics wrapper, provider badge tooltip
+- `mobile/lib/features/calendar/presentation/widgets/availability_slot_tile.dart` -- Semantics wrapper, edit button tooltip
+- `mobile/lib/features/calendar/presentation/widgets/availability_slot_editor.dart` -- drag handle, deprecated parameter fix
+- `mobile/lib/features/calendar/presentation/widgets/calendar_provider_filter.dart` -- InkWell + Semantics
+- `mobile/lib/features/calendar/presentation/widgets/calendar_no_connection_view.dart` -- improved copy, icon semantic label, back button tooltip

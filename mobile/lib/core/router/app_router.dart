@@ -71,6 +71,8 @@ import '../../features/payments/presentation/screens/trainer_coupons_screen.dart
 import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/ai_chat/presentation/screens/ai_chat_screen.dart';
 import '../../features/calendar/presentation/screens/calendar_connection_screen.dart';
+import '../../features/calendar/presentation/screens/calendar_events_screen.dart';
+import '../../features/calendar/presentation/screens/trainer_availability_screen.dart';
 import '../../shared/widgets/main_navigation_shell.dart';
 import '../../shared/widgets/trainer_navigation_shell.dart';
 import '../../shared/widgets/admin_navigation_shell.dart';
@@ -329,6 +331,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/trainer/calendar',
         name: 'trainer-calendar',
         builder: (context, state) => const CalendarConnectionScreen(),
+      ),
+      GoRoute(
+        path: '/trainer/calendar/events',
+        name: 'trainer-calendar-events',
+        builder: (context, state) => const CalendarEventsScreen(),
+      ),
+      GoRoute(
+        path: '/trainer/calendar/availability',
+        name: 'trainer-calendar-availability',
+        builder: (context, state) => const TrainerAvailabilityScreen(),
       ),
 
       // Branding settings for trainers

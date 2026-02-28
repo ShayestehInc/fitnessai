@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/haptic_service.dart';
 import '../providers/trainer_provider.dart';
 
 /// Full-page confirmation screen to remove a trainee.
@@ -31,6 +32,7 @@ class _RemoveTraineeScreenState extends ConsumerState<RemoveTraineeScreen> {
     if (!mounted) return;
 
     if (result['success'] == true) {
+      HapticService.heavyTap();
       ref.invalidate(traineesProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

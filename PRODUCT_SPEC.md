@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-27 (Pipeline 39: Churn Prevention + Pipeline 40: i18n)
+> Last updated: 2026-02-27 (Pipeline 41: Calendar Integration Completion)
 
 ---
 
@@ -301,7 +301,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 ### 3.11 Other
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Calendar integration (Google/Microsoft) | 🟡 Partial | Backend API done, mobile basic |
+| Calendar integration (Google/Microsoft) | ✅ Done | Shipped 2026-02-27 (Pipeline 41): Mobile events screen (date grouping, provider filter, pull-to-refresh sync, shimmer loading), trainer availability CRUD (add/edit/toggle/delete with adaptive time pickers, swipe-to-delete), 11 extracted widgets, backend hardening (error sanitization, input validation, HTTP timeouts, auto-pagination), full accessibility |
 | Feature request board | ✅ Done | In-app submission + voting |
 | MCP server (Claude Desktop) | ✅ Done | Trainer can query data via Claude Desktop |
 | TV mode | ❌ Placeholder | Screen exists but empty |

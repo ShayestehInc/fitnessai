@@ -62,32 +62,60 @@ class CalendarRepository {
   }
 
   /// Sync calendar events
-  Future<Map<String, dynamic>> syncCalendar(String provider) async {
+  Future<SyncResult> syncCalendar(String provider) async {
     final response = await _apiClient.dio.post(ApiConstants.calendarSync(provider));
-    return response.data as Map<String, dynamic>;
+    return SyncResult.fromJson(response.data as Map<String, dynamic>);
   }
 
-  /// Get calendar events
-  Future<List<CalendarEventModel>> getEvents({String? provider}) async {
+  /// Get calendar events with optional provider filter.
+  ///
+  /// Automatically fetches all pages from the paginated backend endpoint
+  /// to present a complete event list. Bounded by [maxPages] to prevent
+  /// runaway requests (default: 10 pages = ~200 events).
+  Future<List<CalendarEventModel>> getEvents({
+    String? provider,
+    int maxPages = 10,
+  }) async {
     final queryParams = <String, dynamic>{};
     if (provider != null) {
       queryParams['provider'] = provider;
     }
 
-    final response = await _apiClient.dio.get(
-      ApiConstants.calendarEvents,
-      queryParameters: queryParams,
-    );
-    final List<dynamic> data = response.data is List
-        ? response.data
-        : response.data['results'] ?? [];
-    return data
-        .map((json) => CalendarEventModel.fromJson(json as Map<String, dynamic>))
-        .toList();
+    final allEvents = <CalendarEventModel>[];
+    String? nextUrl;
+    int page = 0;
+
+    do {
+      final response = nextUrl != null
+          ? await _apiClient.dio.get(nextUrl)
+          : await _apiClient.dio.get(
+              ApiConstants.calendarEvents,
+              queryParameters: queryParams,
+            );
+
+      final List<dynamic> data;
+      if (response.data is List) {
+        data = response.data;
+        nextUrl = null;
+      } else {
+        data = response.data['results'] ?? [];
+        nextUrl = response.data['next'] as String?;
+      }
+
+      allEvents.addAll(
+        data.map(
+          (json) =>
+              CalendarEventModel.fromJson(json as Map<String, dynamic>),
+        ),
+      );
+      page++;
+    } while (nextUrl != null && page < maxPages);
+
+    return allEvents;
   }
 
   /// Create a calendar event
-  Future<Map<String, dynamic>> createEvent({
+  Future<CalendarEventModel> createEvent({
     required String title,
     required DateTime startTime,
     required DateTime endTime,
@@ -109,7 +137,7 @@ class CalendarRepository {
           'attendee_emails': attendeeEmails,
       },
     );
-    return response.data as Map<String, dynamic>;
+    return CalendarEventModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Get trainer availability slots

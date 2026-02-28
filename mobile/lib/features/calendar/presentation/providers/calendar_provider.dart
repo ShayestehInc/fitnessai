@@ -14,6 +14,7 @@ class CalendarState {
   final List<CalendarEventModel> events;
   final List<TrainerAvailabilityModel> availability;
   final bool isLoading;
+  final bool connectionsLoaded;
   final String? error;
   final String? successMessage;
 
@@ -22,6 +23,7 @@ class CalendarState {
     this.events = const [],
     this.availability = const [],
     this.isLoading = false,
+    this.connectionsLoaded = false,
     this.error,
     this.successMessage,
   });
@@ -31,6 +33,7 @@ class CalendarState {
     List<CalendarEventModel>? events,
     List<TrainerAvailabilityModel>? availability,
     bool? isLoading,
+    bool? connectionsLoaded,
     String? error,
     String? successMessage,
   }) {
@@ -39,6 +42,7 @@ class CalendarState {
       events: events ?? this.events,
       availability: availability ?? this.availability,
       isLoading: isLoading ?? this.isLoading,
+      connectionsLoaded: connectionsLoaded ?? this.connectionsLoaded,
       error: error,
       successMessage: successMessage,
     );
@@ -64,10 +68,11 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final connections = await _repository.getConnections();
-      state = state.copyWith(connections: connections, isLoading: false);
+      state = state.copyWith(connections: connections, isLoading: false, connectionsLoaded: true);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
+        connectionsLoaded: true,
         error: 'Failed to load calendar connections: ${e.toString()}',
       );
     }
@@ -185,11 +190,10 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final result = await _repository.syncCalendar(provider);
-      final syncedCount = result['synced_count'] ?? 0;
       await loadConnections();
       state = state.copyWith(
         isLoading: false,
-        successMessage: 'Synced $syncedCount events',
+        successMessage: 'Synced ${result.syncedCount} events',
       );
     } catch (e) {
       state = state.copyWith(
@@ -248,6 +252,57 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to create availability: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> updateAvailability(
+    int id, {
+    int? dayOfWeek,
+    String? startTime,
+    String? endTime,
+    bool? isActive,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final updated = await _repository.updateAvailability(
+        id,
+        dayOfWeek: dayOfWeek,
+        startTime: startTime,
+        endTime: endTime,
+        isActive: isActive,
+      );
+      final updatedList = state.availability
+          .map((a) => a.id == id ? updated : a)
+          .toList();
+      state = state.copyWith(
+        availability: updatedList,
+        isLoading: false,
+        successMessage: 'Availability updated',
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to update availability: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> toggleAvailability(int id, bool isActive) async {
+    // Optimistic update
+    final previousList = state.availability;
+    final optimisticList = previousList
+        .map((a) => a.id == id ? a.copyWith(isActive: isActive) : a)
+        .toList();
+    state = state.copyWith(availability: optimisticList);
+
+    try {
+      await _repository.updateAvailability(id, isActive: isActive);
+    } catch (e) {
+      // Revert on failure
+      state = state.copyWith(
+        availability: previousList,
+        error: 'Failed to update availability: ${e.toString()}',
       );
     }
   }

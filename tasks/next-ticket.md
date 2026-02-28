@@ -1,90 +1,120 @@
-# Feature: Admin Dashboard Mobile Responsiveness
+# Feature: Calendar Integration Completion (Mobile)
 
 ## Priority
 High
 
 ## User Story
-As a platform **admin** accessing the dashboard from a phone or tablet, I want all admin pages to be usable and visually polished on mobile so that I can manage trainers, subscriptions, tiers, coupons, users, and ambassadors on the go without needing a desktop.
+As a **trainer**, I want to view my synced calendar events and manage my availability slots from the mobile app, so that I can coordinate scheduling with trainees without switching to a browser.
 
 ## Acceptance Criteria
-- [ ] AC1: Trainer list table hides "Trainees" and "Joined" columns on mobile (`hidden md:table-cell`)
-- [ ] AC2: Subscription list table hides "Next Payment" and "Past Due" columns on mobile
-- [ ] AC3: Coupon list table hides "Applies To" and "Valid Until" columns on mobile
-- [ ] AC4: User list table hides "Trainees" and "Created" columns on mobile
-- [ ] AC5: Tier list table hides "Trainee Limit" and "Order" columns on mobile
-- [ ] AC6: Tier list action buttons (Edit/Delete) stack vertically on mobile (`flex flex-col sm:flex-row`)
-- [ ] AC7: All admin dialogs have `max-h-[90dvh] overflow-y-auto` for mobile viewport safety
-- [ ] AC8: Subscription detail dialog tabs and action forms are usable at 375px width
-- [ ] AC9: All page-level filter inputs use `w-full sm:max-w-sm` instead of bare `max-w-sm`
-- [ ] AC10: Ambassador list metadata wraps properly on mobile (no horizontal overflow)
-- [ ] AC11: Trainer detail dialog suspend/activate confirmation buttons stack on mobile
-- [ ] AC12: All admin page headers use responsive stacking (already handled by PageHeader component — verify)
-- [ ] AC13: Past due and upcoming payment cards are fully readable at 375px
-- [ ] AC14: Touch targets >= 44px on all mobile interactive elements (buttons, toggles, links)
-- [ ] AC15: No horizontal body scroll on any admin page at 320-1920px viewport widths
+- [ ] AC1: CalendarEventsScreen displays all synced events from connected calendars, grouped by date, with title, time, location, and provider badge
+- [ ] AC2: CalendarEventsScreen supports pull-to-refresh (triggers sync + reload)
+- [ ] AC3: CalendarEventsScreen has a provider filter (All / Google / Microsoft)
+- [ ] AC4: CalendarEventsScreen shows proper empty state when no events exist
+- [ ] AC5: CalendarEventsScreen shows proper error state with retry
+- [ ] AC6: TrainerAvailabilityScreen displays all availability slots grouped by day of week
+- [ ] AC7: TrainerAvailabilityScreen allows adding a new availability slot (day picker + start/end time pickers)
+- [ ] AC8: TrainerAvailabilityScreen allows toggling a slot active/inactive
+- [ ] AC9: TrainerAvailabilityScreen allows deleting a slot with confirmation
+- [ ] AC10: TrainerAvailabilityScreen allows editing an existing slot (update time/day)
+- [ ] AC11: Both routes registered in app_router.dart and navigation from CalendarConnectionScreen works
+- [ ] AC12: CalendarEventModel field name bug fixed (`all_day` not `is_all_day`)
+- [ ] AC13: `updateAvailability` exposed in CalendarNotifier (currently only in repository)
+- [ ] AC14: CalendarConnectionScreen refactored: extract card widget to stay under 150 lines
 
 ## Edge Cases
-1. Admin with 0 trainers, 0 subscriptions — empty states render correctly on mobile
-2. Trainer name 200+ characters — truncates with ellipsis, title tooltip
-3. Coupon code with 50 characters — truncates in table cell
-4. Subscription detail dialog with 50+ payment history rows — scrollable within dialog
-5. 10+ tier entries in the tier table — no layout break
-6. Ambassador with $99,999.99 earnings — number doesn't overflow card
-7. Past due alerts with 30+ day severity — red color coding visible on mobile
-8. Multiple filter dropdowns active simultaneously on subscriptions page
-9. 320px viewport (iPhone SE) — all tables show essential columns without body overflow
-10. Landscape orientation on phone — layouts still usable
+1. No calendar connected yet — events screen shows "Connect a calendar first" with button to navigate back to connection screen
+2. Calendar connected but zero events synced — shows empty state "No upcoming events. Pull to sync."
+3. Sync fails (expired token, network error) — error toast, events screen still shows last cached data
+4. Availability slot with end_time before start_time — validation prevents saving
+5. Duplicate availability slot (same day + overlapping times) — show warning but allow (backend allows it)
+6. All availability slots deleted — empty state "No availability set. Add your first slot."
+7. Rapidly toggling active/inactive — debounce or optimistic update to prevent UI flicker
+8. Very long event title — text overflow handled with ellipsis + max lines
+9. All-day events — display "All Day" instead of time range
+10. Events spanning midnight — show correct date grouping based on start_time
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| API error on any list | ErrorState with "Failed to load..." | Shows retry button |
-| Empty list after filter | EmptyState with clear message | No broken layout |
-| Dialog action fails | Toast error notification | Preserves dialog state |
+| Network error loading events | Error card with "Failed to load events" + Retry button | Preserves last cached state |
+| Network error loading availability | Error card with "Failed to load availability" + Retry button | Preserves last cached state |
+| Sync fails (token expired) | Adaptive toast: "Calendar sync failed. Please reconnect." (error) | Marks connection as expired |
+| Save availability fails | Adaptive toast: "Failed to save availability" (error) | Reverts optimistic update |
+| Delete availability fails | Adaptive toast: "Failed to delete slot" (error) | Reverts deletion |
 
 ## UX Requirements
-- **Loading state:** Already handled by skeleton components — verify they render at mobile widths
-- **Empty state:** Already handled by EmptyState component — verify responsive
-- **Error state:** Already handled by ErrorState component — verify responsive
-- **Success feedback:** Toast notifications via sonner — no changes needed
-- **Mobile behavior:** Tables hide less-important columns, dialogs fill mobile viewport, buttons stack vertically, filter controls go full-width
+- **Loading state:** Shimmer placeholders for both screens (consistent with existing loading_shimmer.dart pattern)
+- **Empty state (events):** Calendar icon + "No upcoming events" + "Pull down to sync your calendar" subtitle
+- **Empty state (availability):** Clock icon + "No availability set" + "Tap + to add your first time slot"
+- **Error state:** Error icon + message + Retry button (consistent with existing error states)
+- **Success feedback:** Adaptive toast for create/update/delete operations
+- **Pull-to-refresh:** Events screen syncs + reloads; Availability screen just reloads
+- **Navigation:** Back arrow returns to CalendarConnectionScreen
 
 ## Technical Approach
-### Files to modify:
 
-**Table column hiding (5 files):**
-1. `web/src/components/admin/trainer-list.tsx` — Add `className: "hidden md:table-cell"` to Trainees and Joined columns
-2. `web/src/components/admin/subscription-list.tsx` — Add to Next Payment and Past Due columns
-3. `web/src/components/admin/coupon-list.tsx` — Add to Applies To and Valid Until columns
-4. `web/src/components/admin/user-list.tsx` — Add to Trainees and Created columns
-5. `web/src/components/admin/tier-list.tsx` — Add to Trainee Limit and Order columns; stack action buttons
+### Files to Create
+1. `mobile/lib/features/calendar/presentation/screens/calendar_events_screen.dart` (~120 lines)
+   - ConsumerStatefulWidget
+   - Loads events via `calendarProvider`
+   - Groups events by date using `LinkedHashMap`
+   - Provider filter chips (All / Google / Microsoft)
+   - Pull-to-refresh triggers `syncCalendar()` then `loadEvents()`
+   - Each event tile: title, time range or "All Day", location if present, provider icon
 
-**Dialog overflow fixes (check all admin dialogs):**
-6. `web/src/components/admin/subscription-detail-dialog.tsx` — Verify max-h + overflow
-7. `web/src/components/admin/coupon-detail-dialog.tsx` — Verify max-h + overflow
-8. `web/src/components/admin/coupon-form-dialog.tsx` — Add max-h + overflow if missing
-9. `web/src/components/admin/trainer-detail-dialog.tsx` — Stack confirm buttons; add overflow
-10. `web/src/components/admin/tier-form-dialog.tsx` — Add max-h + overflow if missing
-11. `web/src/components/admin/create-user-dialog.tsx` — Add max-h + overflow if missing
-12. `web/src/components/admin/create-ambassador-dialog.tsx` — Add max-h + overflow if missing
+2. `mobile/lib/features/calendar/presentation/screens/trainer_availability_screen.dart` (~130 lines)
+   - ConsumerStatefulWidget
+   - Loads availability via `calendarProvider`
+   - Grouped by day of week (Monday-Sunday)
+   - Each slot: time range, active toggle, edit/delete actions
+   - FAB to add new slot → shows bottom sheet with day picker + time pickers
+   - Swipe-to-delete with confirmation
 
-**Filter input fixes (4 pages):**
-13. `web/src/app/(admin-dashboard)/admin/trainers/page.tsx` — `w-full sm:max-w-sm` on search input
-14. `web/src/app/(admin-dashboard)/admin/subscriptions/page.tsx` — Same pattern
-15. `web/src/app/(admin-dashboard)/admin/coupons/page.tsx` — Same pattern
-16. `web/src/app/(admin-dashboard)/admin/users/page.tsx` — Same pattern
+3. `mobile/lib/features/calendar/presentation/widgets/calendar_event_tile.dart` (~60 lines)
+   - Extracted widget for a single event row
+   - Provider badge (Google blue / Microsoft orange)
+   - Time formatting, all-day handling
 
-**Ambassador list mobile fix:**
-17. `web/src/components/admin/ambassador-list.tsx` — Wrap metadata responsively
+4. `mobile/lib/features/calendar/presentation/widgets/calendar_card.dart` (~80 lines)
+   - Extracted from CalendarConnectionScreen._buildCalendarCard()
+   - Keeps connection screen under 150 lines
 
-**Layout dvh fix:**
-18. `web/src/app/(admin-dashboard)/layout.tsx` — Replace `h-screen` with `h-dvh` if applicable
+5. `mobile/lib/features/calendar/presentation/widgets/availability_slot_editor.dart` (~80 lines)
+   - Bottom sheet for creating/editing availability slots
+   - Day of week dropdown, adaptive time pickers, save/cancel buttons
 
-### CSS-first approach:
-All changes via Tailwind utility classes. No JavaScript viewport detection. Consistent `md:` breakpoint (768px) for mobile/desktop transitions, matching Pipelines 36/37 patterns.
+### Files to Modify
+1. `mobile/lib/core/router/app_router.dart` — Add 2 routes:
+   - `/trainer/calendar/events` → CalendarEventsScreen
+   - `/trainer/calendar/availability` → TrainerAvailabilityScreen
+
+2. `mobile/lib/features/calendar/presentation/screens/calendar_connection_screen.dart`:
+   - Extract `_buildCalendarCard` to `calendar_card.dart`
+   - Fix navigation path: `/trainer/availability` → `/trainer/calendar/availability`
+   - Reduce to <150 lines
+
+3. `mobile/lib/features/calendar/data/models/calendar_connection_model.dart`:
+   - Fix `CalendarEventModel.fromJson`: change `is_all_day` → `all_day` to match backend
+
+4. `mobile/lib/features/calendar/presentation/providers/calendar_provider.dart`:
+   - Add `updateAvailability(id, {...})` method to CalendarNotifier
+   - Add `toggleAvailability(id, isActive)` convenience method
+
+### Dependencies
+- No new packages needed — all existing (flutter_riverpod, go_router, intl)
+
+### Key Design Decisions
+- Events screen uses the locally-cached CalendarEvent data (GET /events/), not direct API calls to Google/Microsoft
+- Pull-to-refresh on events triggers a sync first, then reloads from cache
+- Availability editor uses adaptive time picker for iOS-native feel
+- OAuth flow remains as-is (manual code paste) — deep link fix is a separate future pipeline
+- No pagination on events (backend doesn't support it) — acceptable for typical trainer usage
 
 ## Out of Scope
-- Converting tables to card views on mobile (too complex for this pipeline)
-- Redesigning admin pages or flows
-- Backend changes
-- Mobile app changes
+- OAuth deep-link redirect (requires native URL scheme setup — separate pipeline)
+- Web calendar fixes (disconnect endpoint mismatch, missing Microsoft flow)
+- Creating events from mobile (endpoint exists but UI deferred)
+- Trainee-facing calendar view
+- Recurring event expansion
+- Event detail screen (tapping opens external link via url_launcher)

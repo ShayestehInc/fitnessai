@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../exercises/presentation/providers/exercise_provider.dart';
 import '../../../exercises/data/models/exercise_model.dart';
 import '../../../programs/presentation/providers/program_provider.dart';
@@ -57,7 +59,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                 ref.invalidate(traineesProvider);
               },
               child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: adaptiveAlwaysScrollablePhysics(context),
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +72,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                       loading: () => const Center(
                         child: Padding(
                           padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(),
+                          child: AdaptiveSpinner(),
                         ),
                       ),
                       error: (e, _) => Text('Error: $e'),
@@ -215,7 +217,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                       loading: () => const Center(
                         child: Padding(
                           padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(),
+                          child: AdaptiveSpinner(),
                         ),
                       ),
                       error: (e, _) => Text('Error: $e'),
@@ -582,7 +584,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                 // Trainee list
                 Expanded(
                   child: traineesAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () => const Center(child: AdaptiveSpinner()),
                     error: (error, stack) => Center(
                       child: Text('Error: $error'),
                     ),
@@ -944,7 +946,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                     return Container(
                       color: theme.dividerColor,
                       child: const Center(
-                        child: CircularProgressIndicator(),
+                        child: AdaptiveSpinner(),
                       ),
                     );
                   },

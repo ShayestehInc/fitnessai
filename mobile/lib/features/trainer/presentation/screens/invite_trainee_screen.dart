@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/haptic_service.dart';
 import '../../data/models/invitation_model.dart';
 import '../providers/trainer_provider.dart';
 
@@ -299,6 +300,7 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
     setState(() => _isLoading = false);
 
     if (result['success']) {
+      HapticService.success();
       ref.invalidate(invitationsProvider);
       _emailController.clear();
       _messageController.clear();

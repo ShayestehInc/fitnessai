@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../trainer/presentation/providers/trainer_provider.dart';
 import '../../data/models/program_week_model.dart';
@@ -253,7 +254,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           ),
           TextButton(
             onPressed: () async {
-              final picked = await showDatePicker(
+              final picked = await showAdaptiveDatePicker(
                 context: context,
                 initialDate: _startDate,
                 firstDate: DateTime.now().subtract(const Duration(days: 7)),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/haptic_service.dart';
 import '../providers/payment_provider.dart';
 
 class TrainerPricingScreen extends ConsumerStatefulWidget {
@@ -221,7 +222,10 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
               ),
               Switch(
                 value: enabled,
-                onChanged: onEnabledChanged,
+                onChanged: (value) {
+                  HapticService.selectionTick();
+                  onEnabledChanged(value);
+                },
                 activeColor: theme.colorScheme.primary,
               ),
             ],

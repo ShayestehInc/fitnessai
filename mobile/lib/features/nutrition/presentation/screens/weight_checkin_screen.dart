@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/nutrition_provider.dart';
 
 class WeightCheckInScreen extends ConsumerStatefulWidget {
@@ -238,8 +240,10 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
     if (offlineWeightRepo == null) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please log in to save weight data.')),
+        showAdaptiveToast(
+          context,
+          message: 'Please log in to save weight data.',
+          type: ToastType.error,
         );
       }
       return;
@@ -256,25 +260,18 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
     if (!mounted) return;
 
     if (result.success) {
+      HapticService.success();
       if (result.offline) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.cloud_off, color: Color(0xFFF59E0B), size: 18),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Weight saved locally. It will sync when you\'re back online.',
-                  ),
-                ),
-              ],
-            ),
-          ),
+        showAdaptiveToast(
+          context,
+          message: 'Weight saved locally. It will sync when you\'re back online.',
+          type: ToastType.warning,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Weight check-in saved successfully!')),
+        showAdaptiveToast(
+          context,
+          message: 'Weight check-in saved successfully!',
+          type: ToastType.success,
         );
       }
       // Trigger sync if online
@@ -282,8 +279,10 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
       context.pop();
     } else {
       if (mounted) setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.error ?? 'Failed to save')),
+      showAdaptiveToast(
+        context,
+        message: result.error ?? 'Failed to save',
+        type: ToastType.error,
       );
     }
   }

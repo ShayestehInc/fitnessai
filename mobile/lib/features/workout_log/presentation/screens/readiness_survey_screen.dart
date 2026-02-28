@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../providers/workout_provider.dart';
 
 class ReadinessSurveyScreen extends ConsumerStatefulWidget {
@@ -333,27 +333,17 @@ class _ReadinessSurveyScreenState extends ConsumerState<ReadinessSurveyScreen> {
     );
   }
 
-  void _showSkipDialog(BuildContext context) {
-    showDialog(
+  void _showSkipDialog(BuildContext context) async {
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Skip Survey?'),
-        content: const Text('You can still start your workout without completing the survey.'),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Continue Survey'),
-          ),
-          TextButton(
-            onPressed: () {
-              context.pop();
-              widget.onSkip?.call();
-            },
-            child: const Text('Skip & Start'),
-          ),
-        ],
-      ),
+      title: 'Skip Survey?',
+      message: 'You can still start your workout without completing the survey.',
+      confirmText: 'Skip & Start',
+      cancelText: 'Continue Survey',
     );
+    if (confirmed == true) {
+      widget.onSkip?.call();
+    }
   }
 
   void _submitAndStart() {

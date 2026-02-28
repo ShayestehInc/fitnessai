@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../programs/data/models/program_model.dart';
 import '../../../programs/presentation/providers/program_provider.dart';
@@ -1053,7 +1055,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                       ),
                       TextButton(
                         onPressed: () async {
-                          final picked = await showDatePicker(
+                          final picked = await showAdaptiveDatePicker(
                             context: dialogContext,
                             initialDate: selectedStartDate,
                             firstDate: DateTime.now().subtract(const Duration(days: 30)),
@@ -1187,6 +1189,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                     );
 
                     if (mounted) {
+                      HapticService.success();
                       // Invalidate providers to refresh data across all screens
                       ref.invalidate(traineesProvider);
                       ref.invalidate(trainerStatsProvider);

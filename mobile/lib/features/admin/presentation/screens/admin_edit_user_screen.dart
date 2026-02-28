@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/haptic_service.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -370,7 +371,10 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
                   ),
                   Switch(
                     value: _isActive,
-                    onChanged: (value) => setState(() => _isActive = value),
+                    onChanged: (value) {
+                      HapticService.selectionTick();
+                      setState(() => _isActive = value);
+                    },
                   ),
                 ],
               ),

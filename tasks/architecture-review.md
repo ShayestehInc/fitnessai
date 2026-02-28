@@ -1,205 +1,94 @@
-# Architecture Review: Admin Dashboard Mobile Responsiveness (Pipeline 38)
+# Architecture Review: Calendar Integration Completion (Pipeline 41)
 
 ## Review Date
-2026-02-24
+2026-02-27
 
 ## Files Reviewed
+### Backend
+- `backend/calendars/models.py`
+- `backend/calendars/serializers.py`
+- `backend/calendars/services.py`
+- `backend/calendars/views.py`
+- `backend/calendars/urls.py`
 
-### Table Column Hiding (5 files)
-- `web/src/components/admin/trainer-list.tsx`
-- `web/src/components/admin/subscription-list.tsx`
-- `web/src/components/admin/coupon-list.tsx`
-- `web/src/components/admin/user-list.tsx`
-- `web/src/components/admin/tier-list.tsx`
-
-### Dialog Overflow Fixes (9 files)
-- `web/src/components/admin/subscription-detail-dialog.tsx`
-- `web/src/components/admin/coupon-detail-dialog.tsx`
-- `web/src/components/admin/coupon-form-dialog.tsx`
-- `web/src/components/admin/trainer-detail-dialog.tsx`
-- `web/src/components/admin/tier-form-dialog.tsx`
-- `web/src/components/admin/create-user-dialog.tsx`
-- `web/src/components/admin/create-ambassador-dialog.tsx`
-- `web/src/components/admin/ambassador-detail-dialog.tsx`
-- `web/src/app/(admin-dashboard)/admin/tiers/page.tsx`
-
-### Filter Input Fixes (4 pages)
-- `web/src/app/(admin-dashboard)/admin/trainers/page.tsx`
-- `web/src/app/(admin-dashboard)/admin/subscriptions/page.tsx`
-- `web/src/app/(admin-dashboard)/admin/coupons/page.tsx`
-- `web/src/app/(admin-dashboard)/admin/users/page.tsx`
-
-### Subscription Detail Subcomponents (1 file)
-- `web/src/components/admin/subscription-history-tabs.tsx`
-
-### List Components (3 files)
-- `web/src/components/admin/ambassador-list.tsx`
-- `web/src/components/admin/past-due-full-list.tsx`
-- `web/src/components/admin/upcoming-payments-list.tsx`
-
-### Layout (1 file)
-- `web/src/app/(admin-dashboard)/layout.tsx`
-
-### Untouched Components Verified (6 files)
-- `web/src/components/admin/dashboard-stats.tsx` -- already responsive
-- `web/src/components/admin/revenue-cards.tsx` -- already responsive
-- `web/src/components/admin/tier-breakdown.tsx` -- already responsive
-- `web/src/components/admin/past-due-alerts.tsx` -- already responsive
-- `web/src/components/admin/subscription-action-forms.tsx` -- already responsive
-- `web/src/components/admin/admin-dashboard-skeleton.tsx` -- already responsive
+### Mobile
+- `mobile/lib/features/calendar/data/models/calendar_connection_model.dart`
+- `mobile/lib/features/calendar/data/repositories/calendar_repository.dart`
+- `mobile/lib/features/calendar/presentation/providers/calendar_provider.dart`
+- `mobile/lib/features/calendar/presentation/screens/calendar_connection_screen.dart`
+- `mobile/lib/features/calendar/presentation/screens/calendar_events_screen.dart`
+- `mobile/lib/features/calendar/presentation/screens/trainer_availability_screen.dart`
+- `mobile/lib/features/calendar/presentation/widgets/*.dart` (9 files)
+- `mobile/lib/core/router/app_router.dart`
+- `mobile/lib/core/constants/api_constants.dart`
 
 ---
 
 ## Architectural Alignment
-
-- [x] Follows existing layered architecture
-- [x] Models/schemas in correct locations (no backend changes -- pure frontend CSS/JSX)
-- [x] No business logic in routers/views (all changes are presentational)
-- [x] Consistent with existing patterns from Pipeline 36 and Pipeline 37
-
-### Overall Assessment
-
-This pipeline applies the exact same CSS-first responsive strategy established in Pipeline 36 (trainee web) and Pipeline 37 (trainer dashboard) to the admin dashboard. Every pattern used here -- `hidden md:table-cell` for column hiding, `max-h-[90dvh] overflow-y-auto` for dialogs, `w-full sm:max-w-sm` for filter inputs, `flex-wrap` with split `gap-x`/`gap-y` for metadata rows, `min-h-[44px]` for touch targets, `h-dvh` for layout height -- has a direct precedent in the prior two pipelines. No new patterns were invented. No state management, API, or business logic was touched.
-
----
+- [x] Follows existing layered architecture (Provider -> Repository -> ApiClient)
+- [x] Models/schemas in correct locations (`data/models/`, `data/repositories/`)
+- [x] Consistent with existing feature-first folder structure
+- [x] Row-level security enforced (every view filters by authenticated user)
+- [x] Routes registered in `app_router.dart`
+- [x] API constants centralized in `api_constants.dart`
+- [x] FIXED: Business logic was in `CreateCalendarEventView` (dispatching to Google vs Microsoft). Moved to `CalendarSyncService.create_external_event()`.
+- [x] FIXED: `DisconnectCalendarView` and `SyncCalendarView` accepted arbitrary `provider` URL parameters without validation. Added `_validate_provider()` guard.
+- [x] FIXED: `CalendarEventsView.get_queryset()` now validates the `provider` query param before filtering.
 
 ## Data Model Assessment
-
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | N/A | No backend/schema changes |
-| Migrations reversible | N/A | No migrations |
-| Indexes added for new queries | N/A | No new queries |
-| No N+1 query patterns | N/A | No data fetching changes |
-
----
-
-## Detailed Findings
-
-### 1. Column Hiding via `className` Property on `Column<T>` (Correct)
-
-Verified that `web/src/components/shared/data-table.tsx` line 19 defines `className?: string` on the `Column<T>` interface, and applies it to both `<TableHead>` (line 74) and `<TableCell>` (line 119). This means hiding a column with `hidden md:table-cell` correctly hides both the header and all data cells.
-
-All five admin table components use the identical pattern established in Pipeline 37:
-```ts
-{ className: "hidden md:table-cell" }
-```
-
-Column hiding choices are sensible -- primary identification columns (name, email, status, price/amount) remain visible on mobile; supplementary columns (join dates, trainee counts, sort order, "applied to", "valid until") are hidden. The user can always tap a row to see full details in the detail dialog.
-
-**Status:** Approved. Pattern is architecturally identical to Pipeline 37's trainee-columns, program-list, and invitation-columns.
-
-### 2. Breakpoint Consistency (Correct)
-
-All responsive breakpoints in this pipeline:
-- `md:` (768px) -- table column hiding, button unstacking, grid column expansion
-- `sm:` (640px) -- filter input width cap (`sm:max-w-sm`), grid columns in forms (`sm:grid-cols-2`, `sm:grid-cols-3`), button row direction (`sm:flex-row`), touch target reset (`sm:min-h-0`)
-
-This matches the breakpoint conventions used across Pipelines 36 and 37. The `md:` breakpoint for table column hiding is particularly important because it aligns with the sidebar collapse point, ensuring that when the sidebar is visible there is enough horizontal space for all table columns.
-
-### 3. Dialog `max-h-[90dvh] overflow-y-auto` (Correct)
-
-All nine admin dialogs now use `max-h-[90dvh] overflow-y-auto`. Prior to this pipeline, some dialogs used `max-h-[80vh]` or `max-h-[85vh]` (viewport-height units that do not account for Mobile Safari's dynamic address bar), while others had no max-height at all. The normalization to `90dvh` across all dialogs is the correct fix.
-
-The two previously-existing dialogs that had `vh`-based heights were:
-- `coupon-detail-dialog.tsx`: `max-h-[80vh]` changed to `max-h-[90dvh]`
-- `subscription-detail-dialog.tsx`: `max-h-[85vh]` changed to `max-h-[90dvh]`
-
-This is consistent with every dialog touched in Pipelines 36 and 37 (trainee dashboard, trainer dashboard).
-
-### 4. Subscription Detail Tabs Wrapping (Correct)
-
-The `<TabsList>` in `subscription-detail-dialog.tsx` is wrapped in `<div className="overflow-x-auto">`. This prevents horizontal overflow if tab labels are long while keeping the tabs scrollable. The approach is lightweight and preserves keyboard accessibility (the TabsList still functions as a single focusable group).
-
-### 5. Form Grid Responsive Stacking (Correct)
-
-Two form grids were made responsive:
-- `coupon-form-dialog.tsx`: `grid-cols-2` changed to `grid-cols-1 sm:grid-cols-2`
-- `tier-form-dialog.tsx`: `grid-cols-3` changed to `grid-cols-1 sm:grid-cols-3`
-
-This ensures form fields stack vertically on mobile and arrange in columns on desktop. The `sm:` breakpoint is appropriate for form fields since even at 640px there is sufficient width for two or three input fields side by side.
-
-### 6. Touch Target Compliance (Correct)
-
-Touch targets were added to:
-- Trainer page filter buttons (All/Active/Inactive): `min-h-[44px] sm:min-h-0`
-- Ambassador list "view" button: `min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0`
-- Past due list "send reminder" button: `min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0`
-
-The pattern `min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0` is the same pattern used in Pipeline 37 for exercise-row buttons and DataTable pagination buttons. Consistent.
-
-### 7. `h-dvh` Layout Migration (Correct)
-
-The admin layout (`web/src/app/(admin-dashboard)/layout.tsx`) was changed from `h-screen` to `h-dvh`. This matches the trainer dashboard layout (`web/src/app/(dashboard)/layout.tsx`) and trainee dashboard layout (`web/src/app/(trainee-dashboard)/layout.tsx`) which were migrated in Pipelines 36 and 37 respectively.
-
-**Note:** The ambassador dashboard layout (`web/src/app/(ambassador-dashboard)/layout.tsx` line 80) still uses `h-screen`. This was not in scope for Pipeline 38 (admin-focused), but should be addressed in a future ambassador dashboard responsiveness pipeline for consistency.
-
-### 8. Button Stacking Pattern (Correct)
-
-Two button groups were changed to stack vertically on mobile:
-- `tier-list.tsx`: Edit/Delete buttons use `flex flex-col gap-1 sm:flex-row`
-- `trainer-detail-dialog.tsx`: Suspend confirmation buttons use `flex flex-col gap-2 sm:flex-row`
-- `create-user-dialog.tsx`: Delete confirmation buttons use `flex flex-col gap-2 sm:flex-row`
-
-This is the standard responsive button pattern. On mobile, full-width stacked buttons are easier to tap. On desktop, they sit in a row. The `sm:` breakpoint is appropriate here.
-
-### 9. Metadata Row Wrapping (Correct)
-
-Three metadata rows were changed from `flex items-center gap-X` to `flex flex-wrap items-center gap-x-X gap-y-1`:
-- `ambassador-list.tsx` (referral code, commission, earnings)
-- `past-due-full-list.tsx` (tier, due date, days overdue)
-- `upcoming-payments-list.tsx` (tier, due date, amount)
-
-Splitting `gap` into `gap-x` and `gap-y` with a smaller vertical gap (1 = 4px) prevents excessive vertical spacing when items wrap. This is the same pattern used in the trainer dashboard components from Pipeline 37.
-
----
-
-## Components That Did NOT Need Changes (Verified)
-
-The following admin components were not touched in this pipeline. I reviewed each to confirm they were already responsive:
-
-1. **`dashboard-stats.tsx`** -- Uses `grid gap-4 sm:grid-cols-2 lg:grid-cols-4`. Already responsive.
-2. **`revenue-cards.tsx`** -- Same responsive grid pattern. Already responsive.
-3. **`tier-breakdown.tsx`** -- Single-column card with progress bars. Naturally responsive.
-4. **`past-due-alerts.tsx`** -- Card list with `min-w-0 flex-1` and `truncate`. Already responsive.
-5. **`subscription-action-forms.tsx`** -- Uses `flex flex-wrap gap-2` for action buttons. Already responsive.
-6. **`admin-dashboard-skeleton.tsx`** -- Uses same responsive grid as real components. Already responsive.
-
-No admin components were missed.
-
----
+| Schema changes backward-compatible | PASS | No breaking changes. `CalendarConnection`, `CalendarEvent`, `TrainerAvailability` models are clean and well-structured. |
+| Encryption at rest for tokens | PASS | `_access_token` / `_refresh_token` use Fernet encryption with property getters/setters. |
+| Indexes for new queries | NOTE | `CalendarEvent` queries filter by `connection` + `start_time`. The `connection` FK already has an index. `start_time` is used in ordering. Consider adding `index_together = [['connection', 'start_time']]` if event counts per connection grow large. Not blocking. |
+| No N+1 query patterns | PASS | `CalendarEventsView` uses `select_related('connection')`. `TrainerAvailability` views are single-table queries. |
+| Mobile models match backend serializer output | PASS | All field names and types align. `provider_display` fallback in `CalendarConnectionModel.fromJson` is defensive. |
+| Unique constraints | PASS | `CalendarConnection` has `unique_together = [['user', 'provider']]`. `CalendarEvent` has `unique_together = [['connection', 'external_id']]`. |
 
 ## Scalability Concerns
 
-| # | Area | Issue | Recommendation |
-|---|------|-------|----------------|
-| 1 | Ambassador dashboard `h-screen` | The ambassador layout still uses `h-screen` instead of `h-dvh`. Not in scope for this pipeline but creates an inconsistency across the three dashboard layouts. | Low priority. Address in a future ambassador dashboard responsiveness pass. |
-| 2 | Dialog pattern documentation | All three pipelines (36, 37, 38) established `max-h-[90dvh] overflow-y-auto` as the standard for every dialog. This convention should be documented so new dialogs follow it by default. | Low priority. Consider adding to a contributing guide or component storybook. |
+| # | Area | Issue | Status | Recommendation |
+|---|------|-------|--------|----------------|
+| 1 | Mobile events fetch | `getEvents()` fetched only first page of paginated results (backend default PAGE_SIZE=20), silently truncating event lists for active calendars. | FIXED | Added auto-pagination in `CalendarRepository.getEvents()` with a `maxPages=10` safety bound (~200 events max). |
+| 2 | Backend HTTP timeouts | All `requests.get/post` calls in `GoogleCalendarService` and `MicrosoftCalendarService` had no timeout, risking indefinite hangs if Google/Microsoft APIs are slow. | FIXED | Added `_REQUEST_TIMEOUT = (10, 30)` (connect=10s, read=30s) to all external HTTP calls. |
+| 3 | Sync batch size | `CalendarSyncService.sync_events()` calls `update_or_create` in a loop for each event (N queries for N events). | NOT FIXED | For typical trainer calendars (< 200 events in 30 days), this is acceptable. If event volumes grow, consider `bulk_create` with `update_conflicts=True` (Django 4.1+). Not blocking. |
+| 4 | Single isLoading flag | `CalendarNotifier` uses one `isLoading` boolean for all operations. Concurrent `loadConnections()` + `loadEvents()` creates ambiguous UI state. | NOTE | Not blocking but worth refactoring to per-operation loading flags (e.g., `isLoadingConnections`, `isLoadingEvents`, `isSyncing`) in a future iteration. Current usage patterns are sequential so the impact is minimal. |
 
----
+## Technical Debt Introduced
 
-## Technical Debt
+| # | Description | Severity | Suggested Resolution |
+|---|-------------|----------|---------------------|
+| 1 | `CalendarConnectionScreen._showCallbackDialog` requires manual copy-paste of OAuth code and state from browser. This is a temporary UX workaround until deep linking is implemented. | Low | Implement deep link / custom URL scheme callback handler. The current approach works but is clunky. |
+| 2 | `apiClientProvider` is defined in both `auth_provider.dart` and `payment_provider.dart`. The calendar feature imports from `auth_provider.dart`, which is correct. The duplicate in payments is pre-existing tech debt, not introduced by this PR. | Low | Consolidate to a single `apiClientProvider` in a shared location. |
+| 3 | Backend `CalendarSyncService` raises a generic `Exception` with string message when token refresh fails. | Low | Consider a custom `CalendarTokenExpiredError` exception class for cleaner error handling upstream. |
 
-### Introduced
-None. This pipeline introduced zero new patterns and zero new technical debt. Every change uses an existing, established pattern.
+## Validation Gaps (Fixed)
 
-### Reduced
+| # | Area | Issue | Status |
+|---|------|-------|--------|
+| 1 | `CreateEventSerializer` | No cross-field validation: `end_time` could be before `start_time`. | FIXED - Added `validate()` method. |
+| 2 | `OAuthCallbackSerializer` | `code` and `state` fields had no max_length, allowing arbitrarily large payloads. | FIXED - Added `max_length` and `min_length` constraints. |
+| 3 | `DisconnectCalendarView` | `provider` URL parameter not validated against `Provider.choices`. | FIXED - Added `_validate_provider()`. |
+| 4 | `SyncCalendarView` | Same `provider` URL parameter issue. | FIXED - Added `_validate_provider()`. |
 
-| # | Description |
-|---|-------------|
-| 1 | Admin dialogs now all use `dvh` units instead of a mix of `vh` and nothing |
-| 2 | Admin layout now uses `h-dvh` consistent with trainer and trainee layouts |
-| 3 | Filter inputs across all admin pages now use the same `w-full sm:max-w-sm` pattern |
-| 4 | Touch targets on admin interactive elements meet the 44px minimum |
+## Positive Architectural Observations
 
----
+1. **Token encryption**: The `CalendarConnection` model properly encrypts OAuth tokens at rest using Fernet, with clean property-based access. This is a security-conscious design.
 
-## Architecture Score: 9/10
+2. **Service layer separation**: `GoogleCalendarService`, `MicrosoftCalendarService`, and `CalendarSyncService` properly separate OAuth mechanics, API calls, and sync logic. After the fix, event creation also routes through the service layer.
 
-This is a textbook CSS-only responsive pipeline. Every pattern used has a direct precedent from Pipeline 36 or 37. The `Column.className` approach to table column hiding is architecturally sound -- it keeps the DataTable component generic while allowing per-column responsive behavior without JavaScript. The dialog overflow normalization eliminates an inconsistency that had accumulated (mix of `vh` units and missing max-heights). No new abstractions were needed; no new technical debt was introduced.
+3. **CSRF protection on OAuth**: State tokens are generated server-side, stored in cache with TTL, and verified on callback. This prevents CSRF attacks on the OAuth flow.
 
-One point deducted for the ambassador layout `h-screen` inconsistency that was not addressed (out of scope but now the only remaining layout using `vh` instead of `dvh`). This is a minor concern that does not affect the quality of the work done in this pipeline.
+4. **Optimistic updates**: The `toggleAvailability` method in `CalendarNotifier` uses optimistic update with rollback on failure. This is the right UX pattern for toggle operations.
+
+5. **Widget extraction**: All screens stay under 230 lines. Reusable widgets (`CalendarCard`, `CalendarEventTile`, `AvailabilitySlotTile`, `TimeTile`, etc.) are properly extracted. Consistent with codebase conventions.
+
+6. **Defensive JSON parsing**: Mobile models use null-safe parsing with fallback defaults (`as int? ?? 0`, `as String? ?? json['provider']`), protecting against backend API changes.
+
+7. **Row-level security**: Every backend view filters by authenticated user. No IDOR vulnerabilities. `limit_choices_to={'role': 'TRAINER'}` on model FKs adds defense-in-depth.
+
+## Architecture Score: 8/10
+
+The calendar feature follows the established architecture well. The Provider -> Repository -> ApiClient pattern on mobile is correct. The backend properly separates concerns between services, serializers, and views. The primary issues were: (a) business logic leaked into `CreateCalendarEventView` (now fixed), (b) missing input validation on provider URL params and serializer cross-field checks (now fixed), and (c) missing HTTP timeouts on external API calls (now fixed). The remaining items (single isLoading flag, manual OAuth callback UX) are minor and do not warrant blocking.
 
 ## Recommendation: APPROVE
-
-The architecture is sound. The implementation is consistent with the responsive patterns established in Pipelines 36 and 37, applies them systematically to all admin components, and correctly identifies components that were already responsive. No data model, API, or business logic was touched. The CSS-first approach is the right strategy for this kind of change.

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/connectivity_service.dart';
+import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/logging_provider.dart';
 import '../widgets/draft_log_card.dart';
 
@@ -54,35 +56,30 @@ class _AICommandCenterScreenState
     final success = await ref.read(loggingStateProvider.notifier).confirmAndSave();
 
     if (success && mounted) {
+      HapticService.success();
       final loggingState = ref.read(loggingStateProvider);
       if (loggingState.savedOffline) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.cloud_off, color: Color(0xFFF59E0B), size: 18),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Log saved locally. It will sync when you\'re back online.',
-                  ),
-                ),
-              ],
-            ),
-          ),
+        showAdaptiveToast(
+          context,
+          message: 'Log saved locally. It will sync when you\'re back online.',
+          type: ToastType.warning,
         );
         // Trigger sync attempt when back online
         ref.read(syncServiceProvider)?.triggerSync();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Log saved successfully!')),
+        showAdaptiveToast(
+          context,
+          message: 'Log saved successfully!',
+          type: ToastType.success,
         );
       }
       Navigator.of(context).pop();
     } else if (mounted) {
       final error = ref.read(loggingStateProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error ?? 'Failed to save log')),
+      showAdaptiveToast(
+        context,
+        message: error ?? 'Failed to save log',
+        type: ToastType.error,
       );
     }
   }

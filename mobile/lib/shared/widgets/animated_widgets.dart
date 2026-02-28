@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../../core/services/haptic_service.dart';
 
 /// Animated press effect for any widget
 class AnimatedPress extends StatefulWidget {
@@ -49,6 +50,7 @@ class _AnimatedPressState extends State<AnimatedPress>
       onTapDown: (_) => _controller.forward(),
       onTapUp: (_) {
         _controller.reverse();
+        HapticService.lightTap();
         widget.onTap?.call();
       },
       onTapCancel: () => _controller.reverse(),
@@ -120,6 +122,7 @@ class _AnimatedCardState extends State<AnimatedCard>
       onTapDown: (_) => _controller.forward(),
       onTapUp: (_) {
         _controller.reverse();
+        HapticService.lightTap();
         widget.onTap?.call();
       },
       onTapCancel: () => _controller.reverse(),

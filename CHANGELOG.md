@@ -4,6 +4,41 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-02-27] — Pipeline 41: Calendar Integration Completion
+
+### Added
+- **CalendarEventsScreen** — Full event list with date grouping, provider filter chips (All/Google/Microsoft), pull-to-refresh sync, empty/no-connection states, shimmer loading placeholders
+- **TrainerAvailabilityScreen** — Availability CRUD with day-of-week grouping, add/edit/toggle/delete operations, adaptive time pickers (CupertinoDatePicker on iOS, showTimePicker on Android), optimistic toggle with rollback, swipe-to-delete with confirmation
+- **11 extracted widgets** — CalendarEventTile (with provider badge G/M), CalendarCard, AvailabilitySlotEditor, AvailabilitySlotTile, TimeTile, CalendarProviderFilter, CalendarNoConnectionView, CalendarConnectionHeader, CalendarActionsSection
+- **Accessibility** — Semantics labels on all interactive elements, tooltips on icon buttons and FAB, screen reader support throughout
+- **Auto-pagination** — Mobile repository fetches all pages from paginated events endpoint (bounded at 10 pages / ~200 events)
+
+### Fixed
+- **3 race conditions** — Filter revert, delete confirmation, and concurrent sync all raced against `ref.listen` clearing `state.error`; fixed with identity-based checks
+- **Initial frame flash** — Added `connectionsLoaded` flag to prevent "No calendar connected" flashing before connections load
+- **Field name bugs** — `is_all_day` → `all_day`, `external_event_id` → `external_id` in CalendarEventModel
+- **Backend error leakage** — 4 views exposed `str(e)` in error responses; replaced with generic messages + `logger.exception()`
+- **Provider badge colors** — Google=red, Microsoft=blue (matching card icon colors)
+- **Malformed time handling** — Empty/invalid time strings now show "--:--" or raw value instead of misleading "12:00 AM"
+
+### Security
+- Input validation: `max_length`/`min_length` on OAuth `code`/`state` fields, `max_length` on event description/location/attendees
+- Provider URL parameter validation via `_validate_provider()` helper
+- Admin panel token fields excluded (`_access_token`, `_refresh_token`)
+- HTTP request timeouts `(10, 30)` on all external API calls
+- `select_related('connection')` on events queryset (N+1 fix)
+- `CreateEventSerializer.validate()` ensures `end_time > start_time`
+
+### Technical
+- CalendarConnectionScreen refactored from 524 to 222 lines with 6 extracted widgets
+- Typed `SyncResult` model replaces raw `Map<String, dynamic>` returns
+- `TrainerAvailabilityModel.copyWith()` for optimistic state updates
+- Shared `calendarDayNames` constant across model, screens, and editor
+- Event creation logic moved from view to `CalendarSyncService.create_external_event()`
+- Quality Score: 8/10 SHIP
+
+---
+
 ## [2026-02-27] — Pipeline 39: Trainee Retention & Churn Prevention Analytics
 
 ### Added

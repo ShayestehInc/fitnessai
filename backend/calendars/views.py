@@ -3,6 +3,7 @@ Views for calendar integration.
 """
 from __future__ import annotations
 
+import logging
 import secrets
 from typing import Any, cast
 
@@ -24,6 +25,8 @@ from .serializers import (
     CreateEventSerializer
 )
 from .services import GoogleCalendarService, MicrosoftCalendarService, CalendarSyncService
+
+logger = logging.getLogger(__name__)
 
 
 class CalendarConnectionListView(generics.ListAPIView[CalendarConnection]):
@@ -125,9 +128,10 @@ class GoogleCallbackView(views.APIView):
                 'connection': CalendarConnectionSerializer(connection).data
             })
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Google Calendar OAuth callback failed for user %s", user.id)
             return Response(
-                {'error': f'Failed to connect Google Calendar: {str(e)}'},
+                {'error': 'Failed to connect Google Calendar. Please try again.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -219,11 +223,18 @@ class MicrosoftCallbackView(views.APIView):
                 'connection': CalendarConnectionSerializer(connection).data
             })
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Microsoft Calendar OAuth callback failed for user %s", user.id)
             return Response(
-                {'error': f'Failed to connect Microsoft Calendar: {str(e)}'},
+                {'error': 'Failed to connect Microsoft Calendar. Please try again.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+def _validate_provider(provider: str) -> bool:
+    """Validate that the provider is a valid calendar provider choice."""
+    valid_providers = {choice[0] for choice in CalendarConnection.Provider.choices}
+    return provider in valid_providers
 
 
 class DisconnectCalendarView(views.APIView):
@@ -233,6 +244,12 @@ class DisconnectCalendarView(views.APIView):
     permission_classes = [IsAuthenticated, IsTrainer]
 
     def post(self, request: Request, provider: str) -> Response:
+        if not _validate_provider(provider):
+            return Response(
+                {'error': f'Invalid provider: {provider}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         user = cast(User, request.user)
         try:
             connection = CalendarConnection.objects.get(
@@ -265,6 +282,12 @@ class SyncCalendarView(views.APIView):
     permission_classes = [IsAuthenticated, IsTrainer]
 
     def post(self, request: Request, provider: str) -> Response:
+        if not _validate_provider(provider):
+            return Response(
+                {'error': f'Invalid provider: {provider}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         user = cast(User, request.user)
         try:
             connection = CalendarConnection.objects.get(
@@ -288,9 +311,10 @@ class SyncCalendarView(views.APIView):
                 'last_synced_at': connection.last_synced_at
             })
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Calendar sync failed for user %s, provider %s", user.id, provider)
             return Response(
-                {'error': f'Sync failed: {str(e)}'},
+                {'error': 'Calendar sync failed. Please try again later.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -309,11 +333,13 @@ class CalendarEventsView(generics.ListAPIView[CalendarEvent]):
             status=CalendarConnection.Status.CONNECTED
         )
 
-        queryset = CalendarEvent.objects.filter(connection__in=connections)
+        queryset = CalendarEvent.objects.filter(
+            connection__in=connections,
+        ).select_related('connection')
 
         # Filter by provider if specified
         provider = self.request.query_params.get('provider')
-        if provider:
+        if provider and _validate_provider(provider):
             queryset = queryset.filter(connection__provider=provider)
 
         return queryset.order_by('start_time')
@@ -352,31 +378,14 @@ class CreateCalendarEventView(views.APIView):
 
         try:
             sync_service = CalendarSyncService(connection)
-            access_token: str = sync_service.ensure_valid_token()
-
-            result: dict[str, Any]
-            if connection.provider == CalendarConnection.Provider.GOOGLE:
-                google_service = GoogleCalendarService()
-                result = google_service.create_event(
-                    access_token=access_token,
-                    summary=data['title'],
-                    start_time=data['start_time'],
-                    end_time=data['end_time'],
-                    description=data.get('description', ''),
-                    location=data.get('location', ''),
-                    attendees=data.get('attendee_emails', [])
-                )
-            else:
-                microsoft_service = MicrosoftCalendarService()
-                result = microsoft_service.create_event(
-                    access_token=access_token,
-                    subject=data['title'],
-                    start_time=data['start_time'],
-                    end_time=data['end_time'],
-                    body=data.get('description', ''),
-                    location=data.get('location', ''),
-                    attendees=data.get('attendee_emails', [])
-                )
+            result = sync_service.create_external_event(
+                title=data['title'],
+                start_time=data['start_time'],
+                end_time=data['end_time'],
+                description=data.get('description', ''),
+                location=data.get('location', ''),
+                attendees=data.get('attendee_emails', []),
+            )
 
             return Response({
                 'message': 'Event created successfully',
@@ -384,9 +393,10 @@ class CreateCalendarEventView(views.APIView):
                 'event_link': result.get('htmlLink') or result.get('webLink')
             })
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Calendar event creation failed for user %s", user.id)
             return Response(
-                {'error': f'Failed to create event: {str(e)}'},
+                {'error': 'Failed to create calendar event. Please try again.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

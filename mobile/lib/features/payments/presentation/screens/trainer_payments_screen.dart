@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
 
@@ -49,21 +50,29 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
           onPressed: () => context.pop(),
         ),
         elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: theme.colorScheme.primary,
-          labelColor: theme.textTheme.bodyLarge?.color,
-          unselectedLabelColor: theme.textTheme.bodySmall?.color,
-          tabs: const [
-            Tab(text: 'Payments'),
-            Tab(text: 'Subscribers'),
-          ],
-        ),
+        bottom: theme.platform == TargetPlatform.iOS
+            ? null
+            : TabBar(
+                controller: _tabController,
+                indicatorColor: theme.colorScheme.primary,
+                labelColor: theme.textTheme.bodyLarge?.color,
+                unselectedLabelColor: theme.textTheme.bodySmall?.color,
+                tabs: const [
+                  Tab(text: 'Payments'),
+                  Tab(text: 'Subscribers'),
+                ],
+              ),
       ),
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                if (theme.platform == TargetPlatform.iOS)
+                  AdaptiveSegmentedControl(
+                    controller: _tabController,
+                    labels: const ['Payments', 'Subscribers'],
+                  ),
+
                 // Stats Summary
                 _buildStatsSummary(state),
 
