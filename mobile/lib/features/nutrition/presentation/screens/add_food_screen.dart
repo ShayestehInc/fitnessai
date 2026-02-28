@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../logging/presentation/providers/logging_provider.dart';
 import '../providers/nutrition_provider.dart';
 import '../providers/food_search_provider.dart';
@@ -456,22 +458,21 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
       );
 
       if (success && mounted) {
+        HapticService.success();
         // Refresh nutrition data
         ref.read(nutritionStateProvider.notifier).refreshDailySummary();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Added "$foodName" to Meal $mealNumber'),
-            backgroundColor: Colors.green,
-          ),
+        showAdaptiveToast(
+          context,
+          message: 'Added "$foodName" to Meal $mealNumber',
+          type: ToastType.success,
         );
         context.pop();
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to save food entry'),
-            backgroundColor: Colors.red,
-          ),
+        showAdaptiveToast(
+          context,
+          message: 'Failed to save food entry',
+          type: ToastType.error,
         );
       }
     } finally {
@@ -756,20 +757,11 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     // Check if AI actually parsed any food items
     if (parsedData.nutrition.meals.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text('No food items detected. Please describe what you ate with quantities.'),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.orange[700],
-          duration: const Duration(seconds: 4),
-        ),
+      showAdaptiveToast(
+        context,
+        message: 'No food items detected. Please describe what you ate with quantities.',
+        type: ToastType.warning,
+        duration: const Duration(seconds: 4),
       );
       return;
     }
@@ -781,40 +773,21 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
 
     if (success && mounted) {
       ref.read(nutritionStateProvider.notifier).refreshDailySummary();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('Food logged successfully'),
-            ],
-          ),
-          backgroundColor: Colors.green[700],
-          duration: const Duration(seconds: 2),
-        ),
+      showAdaptiveToast(
+        context,
+        message: 'Food logged successfully',
+        type: ToastType.success,
+        duration: const Duration(seconds: 2),
       );
       context.pop();
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.error_outline, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text('Failed to save food entry. Please check your connection and try again.'),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red[700],
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: () => _confirmAiEntry(),
-          ),
-        ),
+      showAdaptiveToastWithAction(
+        context,
+        message: 'Failed to save food entry. Please check your connection and try again.',
+        type: ToastType.error,
+        actionLabel: 'Retry',
+        onAction: () => _confirmAiEntry(),
+        duration: const Duration(seconds: 4),
       );
     }
   }
@@ -1345,19 +1318,17 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
       ref.read(nutritionStateProvider.notifier).refreshDailySummary();
       ref.read(foodSearchProvider.notifier).clearSearch();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Added "${food.name}" to Meal $mealNumber'),
-          backgroundColor: Colors.green,
-        ),
+      showAdaptiveToast(
+        context,
+        message: 'Added "${food.name}" to Meal $mealNumber',
+        type: ToastType.success,
       );
       context.pop();
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to add food'),
-          backgroundColor: Colors.red,
-        ),
+      showAdaptiveToast(
+        context,
+        message: 'Failed to add food',
+        type: ToastType.error,
       );
     }
   }

@@ -6,6 +6,8 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/calendar_connection_model.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/calendar_event_tile.dart';
+import '../widgets/calendar_no_connection_view.dart';
+import '../widgets/calendar_provider_filter.dart';
 
 class CalendarEventsScreen extends ConsumerStatefulWidget {
   const CalendarEventsScreen({super.key});
@@ -21,18 +23,22 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(calendarProvider.notifier).loadConnections();
       ref.read(calendarProvider.notifier).loadEvents();
     });
   }
 
   Future<void> _syncAndReload() async {
     final state = ref.read(calendarProvider);
-    // Sync all connected providers
+    final futures = <Future<void>>[];
     if (state.hasGoogleConnected) {
-      await ref.read(calendarProvider.notifier).syncCalendar('google');
+      futures.add(ref.read(calendarProvider.notifier).syncCalendar('google'));
     }
     if (state.hasMicrosoftConnected) {
-      await ref.read(calendarProvider.notifier).syncCalendar('microsoft');
+      futures.add(ref.read(calendarProvider.notifier).syncCalendar('microsoft'));
+    }
+    if (futures.isNotEmpty) {
+      await Future.wait(futures);
     }
     await ref.read(calendarProvider.notifier).loadEvents(provider: _providerFilter);
   }
@@ -42,7 +48,6 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
     final state = ref.watch(calendarProvider);
     final theme = Theme.of(context);
 
-    // Listen for error/success messages
     ref.listen<CalendarState>(calendarProvider, (previous, next) {
       if (next.error != null && next.error != previous?.error) {
         showAdaptiveToast(context, message: next.error!, type: ToastType.error);
@@ -55,11 +60,12 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
     });
 
     if (!state.hasAnyConnection && !state.isLoading) {
-      return _buildNoConnection(context, theme);
+      return CalendarNoConnectionView(onGoBack: () => context.pop());
     }
 
     final events = state.events;
     final grouped = _groupByDate(events);
+    final dateKeys = grouped.keys.toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -71,67 +77,54 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
       ),
       body: Column(
         children: [
-          // Provider filter chips
           if (state.hasGoogleConnected && state.hasMicrosoftConnected)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  _FilterChip(
-                    label: 'All',
-                    selected: _providerFilter == null,
-                    onSelected: () => _setFilter(null),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChip(
-                    label: 'Google',
-                    selected: _providerFilter == 'google',
-                    onSelected: () => _setFilter('google'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChip(
-                    label: 'Microsoft',
-                    selected: _providerFilter == 'microsoft',
-                    onSelected: () => _setFilter('microsoft'),
-                  ),
-                ],
-              ),
+            CalendarProviderFilter(
+              selected: _providerFilter,
+              onChanged: _setFilter,
             ),
-          // Content
           Expanded(
             child: state.isLoading && events.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : events.isEmpty
-                    ? _buildEmpty(theme)
-                    : RefreshIndicator(
-                        onRefresh: _syncAndReload,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: grouped.length,
-                          itemBuilder: (context, index) {
-                            final date = grouped.keys.elementAt(index);
-                            final dayEvents = grouped[date]!;
-                            return _buildDateSection(theme, date, dayEvents);
-                          },
-                        ),
-                      ),
+                : RefreshIndicator(
+                    onRefresh: _syncAndReload,
+                    child: events.isEmpty
+                        ? _buildEmpty(theme)
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: dateKeys.length,
+                            itemBuilder: (context, index) {
+                              final date = dateKeys[index];
+                              final dayEvents = grouped[date]!;
+                              return _buildDateSection(theme, date, dayEvents);
+                            },
+                          ),
+                  ),
           ),
         ],
       ),
     );
   }
 
-  void _setFilter(String? provider) {
+  Future<void> _setFilter(String? provider) async {
+    final previous = _providerFilter;
     setState(() => _providerFilter = provider);
-    ref.read(calendarProvider.notifier).loadEvents(provider: provider);
+    await ref.read(calendarProvider.notifier).loadEvents(provider: provider);
+    final state = ref.read(calendarProvider);
+    if (state.error != null && mounted) {
+      setState(() => _providerFilter = previous);
+    }
   }
 
   Map<String, List<CalendarEventModel>> _groupByDate(
       List<CalendarEventModel> events) {
-    final map = <String, List<CalendarEventModel>>{};  // insertion-ordered
+    final map = <String, List<CalendarEventModel>>{};
     for (final event in events) {
       final key = DateFormat('yyyy-MM-dd').format(event.startTime);
       map.putIfAbsent(key, () => []).add(event);
+    }
+    // Sort events within each group by start time
+    for (final list in map.values) {
+      list.sort((a, b) => a.startTime.compareTo(b.startTime));
     }
     return map;
   }
@@ -165,89 +158,26 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
   }
 
   Widget _buildEmpty(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.event_busy, size: 64, color: theme.colorScheme.onSurface.withOpacity(0.3)),
-          const SizedBox(height: 16),
-          Text('No upcoming events', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            'Pull down to sync your calendar',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.5),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Scaffold _buildNoConnection(BuildContext context, ThemeData theme) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Calendar Events'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.calendar_month, size: 64,
-                color: theme.colorScheme.onSurface.withOpacity(0.3)),
-            const SizedBox(height: 16),
-            Text('Connect a calendar first', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () => context.pop(),
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Go to Calendar Settings'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onSelected,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected
-              ? theme.colorScheme.primary.withOpacity(0.15)
-              : theme.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.dividerColor,
-          ),
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: selected ? theme.colorScheme.primary : null,
-            fontWeight: selected ? FontWeight.w600 : null,
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.6,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.event_busy, size: 64,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
+              const SizedBox(height: 16),
+              Text('No upcoming events', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(
+                'Pull down to sync your calendar',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
           ),
         ),
       ),

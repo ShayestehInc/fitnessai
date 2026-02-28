@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/calendar_connection_model.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/availability_slot_editor.dart';
+import '../widgets/availability_slot_tile.dart';
 
 class TrainerAvailabilityScreen extends ConsumerStatefulWidget {
   const TrainerAvailabilityScreen({super.key});
@@ -45,6 +46,7 @@ class _TrainerAvailabilityScreenState
 
     final slots = state.availability;
     final grouped = _groupByDay(slots);
+    final dayKeys = grouped.keys.toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -67,9 +69,9 @@ class _TrainerAvailabilityScreenState
                       ref.read(calendarProvider.notifier).loadAvailability(),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: grouped.length,
+                    itemCount: dayKeys.length,
                     itemBuilder: (context, index) {
-                      final day = grouped.keys.elementAt(index);
+                      final day = dayKeys[index];
                       final daySlots = grouped[day]!;
                       return _buildDaySection(theme, day, daySlots);
                     },
@@ -84,7 +86,6 @@ class _TrainerAvailabilityScreenState
     for (final slot in slots) {
       map.putIfAbsent(slot.dayOfWeek, () => []).add(slot);
     }
-    // Sort by day of week
     return Map.fromEntries(
       map.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
     );
@@ -92,10 +93,9 @@ class _TrainerAvailabilityScreenState
 
   Widget _buildDaySection(
       ThemeData theme, int day, List<TrainerAvailabilityModel> slots) {
-    const dayNames = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-    ];
-    final dayName = day >= 0 && day < 7 ? dayNames[day] : 'Unknown';
+    final dayName = day >= 0 && day < calendarDayNames.length
+        ? calendarDayNames[day]
+        : 'Unknown';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,79 +104,34 @@ class _TrainerAvailabilityScreenState
           padding: const EdgeInsets.only(top: 8, bottom: 8),
           child: Text(
             dayName,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
-        ...slots.map((slot) => _buildSlotTile(theme, slot)),
+        ...slots.map((slot) => Dismissible(
+              key: ValueKey(slot.id),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 16),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.delete, color: Colors.red),
+              ),
+              confirmDismiss: (_) => _confirmDelete(slot.id),
+              child: AvailabilitySlotTile(
+                slot: slot,
+                onToggle: (v) => ref
+                    .read(calendarProvider.notifier)
+                    .toggleAvailability(slot.id, v),
+                onEdit: () => _showEditor(context, slot: slot),
+              ),
+            )),
         const SizedBox(height: 8),
       ],
-    );
-  }
-
-  Widget _buildSlotTile(ThemeData theme, TrainerAvailabilityModel slot) {
-    final start = _formatTimeString(slot.startTime);
-    final end = _formatTimeString(slot.endTime);
-
-    return Dismissible(
-      key: ValueKey(slot.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Icon(Icons.delete, color: Colors.red),
-      ),
-      confirmDismiss: (_) => _confirmDelete(slot.id),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.access_time,
-              size: 20,
-              color: slot.isActive
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface.withOpacity(0.3),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                '$start – $end',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: slot.isActive
-                      ? null
-                      : theme.colorScheme.onSurface.withOpacity(0.4),
-                  decoration: slot.isActive ? null : TextDecoration.lineThrough,
-                ),
-              ),
-            ),
-            Switch.adaptive(
-              value: slot.isActive,
-              onChanged: (v) =>
-                  ref.read(calendarProvider.notifier).toggleAvailability(slot.id, v),
-            ),
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 20),
-              onPressed: () => _showEditor(context, slot: slot),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -189,8 +144,9 @@ class _TrainerAvailabilityScreenState
       isDestructive: true,
     );
     if (confirmed == true) {
-      ref.read(calendarProvider.notifier).deleteAvailability(id);
-      return true;
+      await ref.read(calendarProvider.notifier).deleteAvailability(id);
+      final state = ref.read(calendarProvider);
+      return state.error == null;
     }
     return false;
   }
@@ -200,9 +156,15 @@ class _TrainerAvailabilityScreenState
     TimeOfDay? endTime;
     if (slot != null) {
       final sp = slot.startTime.split(':');
-      startTime = TimeOfDay(hour: int.parse(sp[0]), minute: int.parse(sp[1]));
+      startTime = TimeOfDay(
+        hour: int.tryParse(sp.isNotEmpty ? sp[0] : '') ?? 0,
+        minute: int.tryParse(sp.length > 1 ? sp[1] : '') ?? 0,
+      );
       final ep = slot.endTime.split(':');
-      endTime = TimeOfDay(hour: int.parse(ep[0]), minute: int.parse(ep[1]));
+      endTime = TimeOfDay(
+        hour: int.tryParse(ep.isNotEmpty ? ep[0] : '') ?? 0,
+        minute: int.tryParse(ep.length > 1 ? ep[1] : '') ?? 0,
+      );
     }
 
     showModalBottomSheet(
@@ -241,28 +203,18 @@ class _TrainerAvailabilityScreenState
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.access_time, size: 64,
-              color: theme.colorScheme.onSurface.withOpacity(0.3)),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
           const SizedBox(height: 16),
           Text('No availability set', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
             'Tap + to add your first time slot',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.5),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _formatTimeString(String time) {
-    final parts = time.split(':');
-    final hour = int.parse(parts[0]);
-    final minute = int.parse(parts[1]);
-    final t = TimeOfDay(hour: hour, minute: minute);
-    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:${minute.toString().padLeft(2, '0')} $period';
   }
 }

@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/providers/database_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'delete_account_screen.dart';
@@ -45,22 +48,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _removeImage() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Profile Picture'),
-        content: const Text('Are you sure you want to remove your profile picture?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+      title: 'Remove Profile Picture',
+      message: 'Are you sure you want to remove your profile picture?',
+      confirmText: 'Remove',
     );
 
     if (confirmed != true) return;
@@ -83,40 +75,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final user = ref.read(authStateProvider).user;
     final hasImage = user?.profileImage != null;
 
-    showModalBottomSheet(
+    showAdaptiveActionSheet(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickAndUploadImage();
-              },
-            ),
-            if (hasImage)
-              ListTile(
-                leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-                title: Text(
-                  'Remove Photo',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _removeImage();
-                },
-              ),
-            ListTile(
-              leading: const Icon(Icons.close),
-              title: const Text('Cancel'),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
+      actions: [
+        AdaptiveAction(
+          label: 'Choose from Gallery',
+          icon: Icons.photo_library,
+          onPressed: _pickAndUploadImage,
         ),
-      ),
+        if (hasImage)
+          AdaptiveAction(
+            label: 'Remove Photo',
+            icon: Icons.delete,
+            isDestructive: true,
+            onPressed: _removeImage,
+          ),
+      ],
     );
   }
 
@@ -172,7 +146,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ),
                     child: _isUploadingImage
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const Center(child: AdaptiveSpinner())
                         : profileImage != null
                             ? ClipOval(
                                 child: Image.network(
@@ -747,29 +721,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
 
     if (unsyncedCount > 0) {
-      final confirmed = await showDialog<bool>(
+      final confirmed = await showAdaptiveConfirmDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Unsynced Data'),
-          content: Text(
-            'You have $unsyncedCount unsynced item${unsyncedCount == 1 ? '' : 's'} '
+        title: 'Unsynced Data',
+        message: 'You have $unsyncedCount unsynced item${unsyncedCount == 1 ? '' : 's'} '
             'that will be lost if you log out. '
             'Are you sure you want to continue?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(ctx).colorScheme.error,
-              ),
-              child: const Text('Logout Anyway'),
-            ),
-          ],
-        ),
+        confirmText: 'Logout Anyway',
+        isDestructive: true,
       );
 
       if (confirmed != true || !mounted) return;
@@ -782,6 +741,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     }
 
+    HapticService.heavyTap();
     await ref.read(authStateProvider.notifier).logout();
     if (mounted) {
       context.go('/login');

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/haptic_service.dart';
 
 class AmbassadorNavigationShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -59,6 +60,7 @@ class AmbassadorNavigationShell extends ConsumerWidget {
   }
 
   void _onTap(BuildContext context, int index) {
+    HapticService.lightTap();
     navigationShell.goBranch(
       index,
       initialLocation: index == navigationShell.currentIndex,

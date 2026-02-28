@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
 
@@ -455,43 +456,20 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
     );
   }
 
-  void _showCancelDialog(TraineeSubscriptionModel subscription) {
-    final theme = Theme.of(context);
-    showDialog(
+  void _showCancelDialog(TraineeSubscriptionModel subscription) async {
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: Text(
-          'Cancel Subscription',
-          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
-        ),
-        content: Text(
-          'Are you sure you want to cancel your subscription with ${subscription.trainerName ?? subscription.trainerEmail}? You will lose access at the end of your current billing period.',
-          style: TextStyle(color: theme.textTheme.bodySmall?.color),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Keep Subscription',
-              style: TextStyle(color: theme.textTheme.bodySmall?.color),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await ref
-                  .read(traineeSubscriptionProvider.notifier)
-                  .cancelSubscription(subscription.id);
-            },
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: theme.colorScheme.error),
-            ),
-          ),
-        ],
-      ),
+      title: 'Cancel Subscription',
+      message: 'Are you sure you want to cancel your subscription with ${subscription.trainerName ?? subscription.trainerEmail}? You will lose access at the end of your current billing period.',
+      confirmText: 'Cancel',
+      cancelText: 'Keep Subscription',
+      isDestructive: true,
     );
+    if (confirmed == true) {
+      await ref
+          .read(traineeSubscriptionProvider.notifier)
+          .cancelSubscription(subscription.id);
+    }
   }
 
   String _formatDate(String dateString) {

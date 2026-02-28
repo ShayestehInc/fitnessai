@@ -17,7 +17,7 @@ class CalendarEventTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -44,7 +44,7 @@ class CalendarEventTile extends StatelessWidget {
                       Text(
                         DateFormat.jm().format(event.endTime),
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -71,7 +71,7 @@ class CalendarEventTile extends StatelessWidget {
                       Icon(
                         Icons.location_on_outlined,
                         size: 14,
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                       const SizedBox(width: 2),
                       Expanded(
@@ -80,7 +80,7 @@ class CalendarEventTile extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.5),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
                         ),
                       ),
@@ -90,7 +90,42 @@ class CalendarEventTile extends StatelessWidget {
               ],
             ),
           ),
+          // Provider badge
+          if (event.provider != null) _ProviderBadge(provider: event.provider!),
         ],
+      ),
+    );
+  }
+}
+
+class _ProviderBadge extends StatelessWidget {
+  final String provider;
+
+  const _ProviderBadge({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    final isGoogle = provider == 'google';
+    final color = isGoogle ? Colors.blue : Colors.orange;
+    final label = isGoogle ? 'G' : 'M';
+
+    return Container(
+      width: 24,
+      height: 24,
+      margin: const EdgeInsets.only(left: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }

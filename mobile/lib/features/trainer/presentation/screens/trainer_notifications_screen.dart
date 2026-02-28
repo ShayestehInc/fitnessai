@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/loading_shimmer.dart';
 import '../../data/models/trainer_notification_model.dart';
 import '../providers/notification_provider.dart';
@@ -226,22 +227,11 @@ class _TrainerNotificationsScreenState
     final messenger = ScaffoldMessenger.of(context);
     final errorColor = Theme.of(context).colorScheme.error;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Mark All as Read'),
-        content: const Text('Mark all notifications as read?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
+      title: 'Mark All as Read',
+      message: 'Mark all notifications as read?',
+      confirmText: 'Confirm',
     );
     if (confirmed != true) return;
 

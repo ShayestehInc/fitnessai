@@ -36,8 +36,8 @@ class CalendarCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: isConnected
-              ? Colors.green.withOpacity(0.5)
-              : theme.colorScheme.outline.withOpacity(0.3),
+              ? Colors.green.withValues(alpha:0.5)
+              : theme.colorScheme.outline.withValues(alpha:0.3),
           width: isConnected ? 2 : 1,
         ),
       ),
@@ -51,7 +51,7 @@ class CalendarCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
+                    color: iconColor.withValues(alpha:0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: iconColor),
@@ -71,7 +71,7 @@ class CalendarCard extends StatelessWidget {
                         Text(
                           connection!.calendarEmail!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha:0.6),
                           ),
                         ),
                     ],
@@ -81,7 +81,7 @@ class CalendarCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha:0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -107,7 +107,7 @@ class CalendarCard extends StatelessWidget {
                 Text(
                   'Last synced: ${_formatDate(connection!.lastSyncedAt!)}',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    color: theme.colorScheme.onSurface.withValues(alpha:0.5),
                   ),
                 ),
               const SizedBox(height: 12),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../data/models/chat_models.dart';
 import '../providers/ai_chat_provider.dart';
 import '../widgets/chat_message_bubble.dart';
@@ -91,33 +92,17 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Clear conversation',
-              onPressed: () {
-                showDialog(
+              onPressed: () async {
+                final confirmed = await showAdaptiveConfirmDialog(
                   context: context,
-                  builder: (context) => AlertDialog(
-                    backgroundColor: theme.cardColor,
-                    title: const Text('Clear Conversation'),
-                    content: const Text(
-                      'Are you sure you want to clear the conversation history?',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          ref.read(aiChatProvider.notifier).clearConversation();
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                        ),
-                        child: const Text('Clear'),
-                      ),
-                    ],
-                  ),
+                  title: 'Clear Conversation',
+                  message: 'Are you sure you want to clear the conversation history?',
+                  confirmText: 'Clear',
+                  isDestructive: true,
                 );
+                if (confirmed == true) {
+                  ref.read(aiChatProvider.notifier).clearConversation();
+                }
               },
             ),
         ],

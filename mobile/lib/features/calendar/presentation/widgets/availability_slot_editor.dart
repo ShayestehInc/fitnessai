@@ -1,5 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
+import '../../data/models/calendar_connection_model.dart';
+import 'time_tile.dart';
 
 /// Bottom sheet for creating or editing an availability slot.
 class AvailabilitySlotEditor extends StatefulWidget {
@@ -25,9 +28,7 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
   late TimeOfDay _start;
   late TimeOfDay _end;
 
-  static const _dayNames = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-  ];
+  // Use shared calendarDayNames from calendar_connection_model.dart
 
   @override
   void initState() {
@@ -134,14 +135,14 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
           const SizedBox(height: 20),
           // Day picker
           DropdownButtonFormField<int>(
-            value: _day,
+            initialValue: _day,
             decoration: const InputDecoration(
               labelText: 'Day of Week',
               border: OutlineInputBorder(),
             ),
             items: List.generate(7, (i) => DropdownMenuItem(
               value: i,
-              child: Text(_dayNames[i]),
+              child: Text(calendarDayNames[i]),
             )),
             onChanged: (v) {
               if (v != null) setState(() => _day = v);
@@ -152,7 +153,7 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
           Row(
             children: [
               Expanded(
-                child: _TimeTile(
+                child: TimeTile(
                   label: 'Start',
                   value: _formatTimeDisplay(_start),
                   onTap: () => _pickTime(true),
@@ -160,7 +161,7 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _TimeTile(
+                child: TimeTile(
                   label: 'End',
                   value: _formatTimeDisplay(_end),
                   onTap: () => _pickTime(false),
@@ -174,9 +175,9 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
               final startMinutes = _start.hour * 60 + _start.minute;
               final endMinutes = _end.hour * 60 + _end.minute;
               if (endMinutes <= startMinutes) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('End time must be after start time')),
-                );
+                showAdaptiveToast(context,
+                    message: 'End time must be after start time',
+                    type: ToastType.error);
                 return;
               }
               widget.onSave(_day, _formatTime(_start), _formatTime(_end));
@@ -193,38 +194,3 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
   }
 }
 
-class _TimeTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-
-  const _TimeTile({required this.label, required this.value, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.5)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.5),
-            )),
-            const SizedBox(height: 4),
-            Text(value, style: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w500,
-            )),
-          ],
-        ),
-      ),
-    );
-  }
-}

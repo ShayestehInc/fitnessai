@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/offline_banner.dart';
 import '../../data/models/nutrition_models.dart';
 import '../providers/nutrition_provider.dart';
@@ -496,11 +497,10 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                               .read(nutritionStateProvider.notifier)
                               .applyPreset(preset);
                           if (success && mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Applied "${preset.name}" preset'),
-                                backgroundColor: Colors.green,
-                              ),
+                            showAdaptiveToast(
+                              context,
+                              message: 'Applied "${preset.name}" preset',
+                              type: ToastType.success,
                             );
                           }
                         },
@@ -727,9 +727,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
       final logResult = await ref.read(nutritionStateProvider.notifier).getDailyLogId(dateStr);
       if (logResult == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No log found for this date')),
-          );
+          showAdaptiveToast(context, message: 'No log found for this date');
         }
         return;
       }
@@ -750,16 +748,17 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
       if (!mounted) return;
 
       if (result['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Food entry updated')),
+        showAdaptiveToast(
+          context,
+          message: 'Food entry updated',
+          type: ToastType.success,
         );
         ref.read(nutritionStateProvider.notifier).refreshDailySummary();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['error'] as String? ?? 'Failed to update'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        showAdaptiveToast(
+          context,
+          message: result['error'] as String? ?? 'Failed to update',
+          type: ToastType.error,
         );
       }
     } finally {
@@ -778,9 +777,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
       final logResult = await ref.read(nutritionStateProvider.notifier).getDailyLogId(dateStr);
       if (logResult == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No log found for this date')),
-          );
+          showAdaptiveToast(context, message: 'No log found for this date');
         }
         return;
       }
@@ -794,16 +791,17 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
       if (!mounted) return;
 
       if (result['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Food entry deleted')),
+        showAdaptiveToast(
+          context,
+          message: 'Food entry deleted',
+          type: ToastType.success,
         );
         ref.read(nutritionStateProvider.notifier).refreshDailySummary();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['error'] as String? ?? 'Failed to delete'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        showAdaptiveToast(
+          context,
+          message: result['error'] as String? ?? 'Failed to delete',
+          type: ToastType.error,
         );
       }
     } finally {

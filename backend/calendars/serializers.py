@@ -26,14 +26,17 @@ class CalendarConnectionSerializer(serializers.ModelSerializer[CalendarConnectio
 class CalendarEventSerializer(serializers.ModelSerializer[CalendarEvent]):
     """Serializer for calendar events."""
 
+    provider = serializers.CharField(source='connection.provider', read_only=True)
+
     class Meta:
         model = CalendarEvent
         fields = [
             'id', 'external_id', 'title', 'description', 'location',
             'start_time', 'end_time', 'all_day', 'timezone',
-            'event_type', 'external_link', 'is_recurring', 'synced_at'
+            'event_type', 'external_link', 'is_recurring', 'synced_at',
+            'provider',
         ]
-        read_only_fields = ['id', 'external_id', 'synced_at']
+        read_only_fields = ['id', 'external_id', 'synced_at', 'provider']
 
 
 class TrainerAvailabilitySerializer(serializers.ModelSerializer[TrainerAvailability]):

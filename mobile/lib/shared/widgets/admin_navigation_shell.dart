@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/services/haptic_service.dart';
 
 class AdminNavigationShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -81,7 +82,10 @@ class _NavItem extends StatelessWidget {
     final mutedColor = theme.textTheme.bodySmall?.color ?? Colors.grey;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticService.lightTap();
+        onTap();
+      },
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),

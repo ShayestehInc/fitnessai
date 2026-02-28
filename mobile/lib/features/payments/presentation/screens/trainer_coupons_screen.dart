@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../providers/payment_provider.dart';
 
 class TrainerCouponsScreen extends ConsumerStatefulWidget {
@@ -655,7 +656,7 @@ class _CouponDialogState extends State<_CouponDialog> {
   }
 
   Future<void> _selectDate() async {
-    final picked = await showDatePicker(
+    final picked = await showAdaptiveDatePicker(
       context: context,
       initialDate: _validUntil ?? DateTime.now().add(const Duration(days: 30)),
       firstDate: DateTime.now(),

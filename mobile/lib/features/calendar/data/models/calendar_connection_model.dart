@@ -1,3 +1,8 @@
+/// Shared day names constant used across calendar feature.
+const calendarDayNames = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+];
+
 class CalendarConnectionModel {
   final int id;
   final String provider;
@@ -53,6 +58,7 @@ class CalendarEventModel {
   final bool isAllDay;
   final String? externalEventId;
   final DateTime? syncedAt;
+  final String? provider;
 
   CalendarEventModel({
     required this.id,
@@ -65,6 +71,7 @@ class CalendarEventModel {
     required this.isAllDay,
     this.externalEventId,
     this.syncedAt,
+    this.provider,
   });
 
   factory CalendarEventModel.fromJson(Map<String, dynamic> json) {
@@ -77,10 +84,11 @@ class CalendarEventModel {
       location: json['location'] as String?,
       eventType: json['event_type'] as String,
       isAllDay: json['all_day'] as bool? ?? false,
-      externalEventId: json['external_event_id'] as String?,
+      externalEventId: json['external_id'] as String?,
       syncedAt: json['synced_at'] != null
           ? DateTime.parse(json['synced_at'] as String)
           : null,
+      provider: json['provider'] as String?,
     );
   }
 }
@@ -119,10 +127,25 @@ class TrainerAvailabilityModel {
     };
   }
 
+  TrainerAvailabilityModel copyWith({
+    int? id,
+    int? dayOfWeek,
+    String? startTime,
+    String? endTime,
+    bool? isActive,
+  }) {
+    return TrainerAvailabilityModel(
+      id: id ?? this.id,
+      dayOfWeek: dayOfWeek ?? this.dayOfWeek,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+
   String get dayName {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    if (dayOfWeek >= 0 && dayOfWeek < 7) {
-      return days[dayOfWeek];
+    if (dayOfWeek >= 0 && dayOfWeek < calendarDayNames.length) {
+      return calendarDayNames[dayOfWeek];
     }
     return 'Unknown';
   }

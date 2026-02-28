@@ -5,6 +5,9 @@ import '../../../../core/providers/database_provider.dart';
 import '../../../../core/providers/health_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/sync_status.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/health_card.dart';
 import '../../../../shared/widgets/health_permission_sheet.dart';
 import '../../../../shared/widgets/offline_banner.dart';
@@ -85,7 +88,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     }
                 },
                 child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  physics: adaptiveAlwaysScrollablePhysics(context),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -303,29 +306,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (!mounted) return;
 
     if (unsyncedCount > 0) {
-      final confirmed = await showDialog<bool>(
+      final confirmed = await showAdaptiveConfirmDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Unsynced Data'),
-          content: Text(
-            'You have $unsyncedCount unsynced item${unsyncedCount == 1 ? '' : 's'} '
+        title: 'Unsynced Data',
+        message: 'You have $unsyncedCount unsynced item${unsyncedCount == 1 ? '' : 's'} '
             'that will be lost if you log out. '
             'Are you sure you want to continue?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(ctx).colorScheme.error,
-              ),
-              child: const Text('Logout Anyway'),
-            ),
-          ],
-        ),
+        confirmText: 'Logout Anyway',
+        isDestructive: true,
       );
 
       if (confirmed != true || !mounted) return;
@@ -877,20 +865,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: _PendingWorkoutCard(
               displayData: pending,
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Row(
-                      children: [
-                        Icon(
-                          Icons.cloud_off,
-                          size: 16,
-                          color: Color(0xFFF59E0B),
-                        ),
-                        SizedBox(width: 8),
-                        Text('This workout is waiting to sync.'),
-                      ],
-                    ),
-                  ),
+                showAdaptiveToast(
+                  context,
+                  message: 'This workout is waiting to sync.',
+                  type: ToastType.warning,
                 );
               },
             ),

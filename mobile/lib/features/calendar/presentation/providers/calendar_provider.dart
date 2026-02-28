@@ -3,6 +3,16 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/calendar_connection_model.dart';
 import '../../data/repositories/calendar_repository.dart';
 
+class SyncResult {
+  final int syncedCount;
+
+  const SyncResult({required this.syncedCount});
+
+  factory SyncResult.fromJson(Map<String, dynamic> json) {
+    return SyncResult(syncedCount: json['synced_count'] as int? ?? 0);
+  }
+}
+
 final calendarRepositoryProvider = Provider<CalendarRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return CalendarRepository(apiClient);
@@ -184,12 +194,11 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
   Future<void> syncCalendar(String provider) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final result = await _repository.syncCalendar(provider);
-      final syncedCount = result['synced_count'] ?? 0;
+      final result = SyncResult.fromJson(await _repository.syncCalendar(provider));
       await loadConnections();
       state = state.copyWith(
         isLoading: false,
-        successMessage: 'Synced $syncedCount events',
+        successMessage: 'Synced ${result.syncedCount} events',
       );
     } catch (e) {
       state = state.copyWith(
@@ -288,15 +297,7 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     // Optimistic update
     final previousList = state.availability;
     final optimisticList = previousList
-        .map((a) => a.id == id
-            ? TrainerAvailabilityModel(
-                id: a.id,
-                dayOfWeek: a.dayOfWeek,
-                startTime: a.startTime,
-                endTime: a.endTime,
-                isActive: isActive,
-              )
-            : a)
+        .map((a) => a.id == id ? a.copyWith(isActive: isActive) : a)
         .toList();
     state = state.copyWith(availability: optimisticList);
 

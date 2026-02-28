@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/classic_workout_layout.dart';
 import '../widgets/minimal_workout_layout.dart';
@@ -383,27 +384,17 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     setState(() => _phase = WorkoutPhase.postSurvey);
   }
 
-  void _showExitConfirmation(BuildContext context) {
-    showDialog(
+  void _showExitConfirmation(BuildContext context) async {
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Exit Workout?'),
-        content: const Text('Your progress will not be saved.'),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              context.pop();
-              context.pop();
-            },
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
+      title: 'Exit Workout?',
+      message: 'Your progress will not be saved.',
+      confirmText: 'Exit',
+      isDestructive: true,
     );
+    if (confirmed == true && context.mounted) {
+      context.pop();
+    }
   }
 
   /// Client ID generated once per workout submission for idempotency.

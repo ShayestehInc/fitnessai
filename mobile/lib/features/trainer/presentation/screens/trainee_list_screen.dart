@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../providers/trainer_provider.dart';
 import '../widgets/trainee_card.dart';
 import '../../data/models/trainee_model.dart';
@@ -330,23 +331,13 @@ class TraineeListScreen extends ConsumerWidget {
   }
 
   void _cancelInvitation(BuildContext context, WidgetRef ref, int invitationId) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Invitation?'),
-        content: const Text('This will cancel the pending invitation. The trainee will no longer be able to join using this invite.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Cancel Invitation'),
-          ),
-        ],
-      ),
+      title: 'Cancel Invitation?',
+      message: 'This will cancel the pending invitation. The trainee will no longer be able to join using this invite.',
+      confirmText: 'Cancel Invitation',
+      cancelText: 'Keep',
+      isDestructive: true,
     );
 
     if (confirmed == true) {

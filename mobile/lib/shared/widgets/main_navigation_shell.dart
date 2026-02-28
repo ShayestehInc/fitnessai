@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/services/haptic_service.dart';
 import '../../features/trainer/presentation/providers/trainer_provider.dart';
 import '../../features/trainer/presentation/widgets/impersonation_banner.dart';
 import '../../features/messaging/presentation/providers/messaging_provider.dart';
@@ -98,6 +99,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   }
 
   void _onTap(BuildContext context, int index) {
+    HapticService.lightTap();
     widget.navigationShell.goBranch(
       index,
       initialLocation: index == widget.navigationShell.currentIndex,

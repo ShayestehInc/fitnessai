@@ -6,7 +6,9 @@ import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/calendar_provider.dart';
 import '../../data/models/calendar_connection_model.dart';
+import '../widgets/calendar_actions_section.dart';
 import '../widgets/calendar_card.dart';
+import '../widgets/calendar_connection_header.dart';
 
 class CalendarConnectionScreen extends ConsumerStatefulWidget {
   const CalendarConnectionScreen({super.key});
@@ -54,7 +56,7 @@ class _CalendarConnectionScreenState
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('Complete $providerName Connection'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -84,7 +86,11 @@ class _CalendarConnectionScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              codeController.dispose();
+              stateController.dispose();
+            },
             child: const Text('Cancel'),
           ),
           FilledButton(
@@ -92,12 +98,14 @@ class _CalendarConnectionScreenState
               final code = codeController.text.trim();
               final state = stateController.text.trim();
               if (code.isEmpty || state.isEmpty) {
-                showAdaptiveToast(context,
+                showAdaptiveToast(dialogContext,
                     message: 'Please enter both code and state',
                     type: ToastType.warning);
                 return;
               }
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
+              codeController.dispose();
+              stateController.dispose();
               final notifier = ref.read(calendarProvider.notifier);
               final success = provider == 'google'
                   ? await notifier.completeGoogleCallback(code, state)
@@ -135,7 +143,6 @@ class _CalendarConnectionScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(calendarProvider);
-    final theme = Theme.of(context);
 
     ref.listen<CalendarState>(calendarProvider, (previous, next) {
       if (next.error != null && next.error != previous?.error) {
@@ -166,7 +173,7 @@ class _CalendarConnectionScreenState
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildHeader(theme),
+                  const CalendarConnectionHeader(),
                   const SizedBox(height: 24),
                   CalendarCard(
                     provider: 'google',
@@ -205,86 +212,11 @@ class _CalendarConnectionScreenState
                   ),
                   const SizedBox(height: 32),
                   if (state.hasAnyConnection) ...[
-                    _buildActionsSection(theme),
+                    const CalendarActionsSection(),
                   ],
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _buildHeader(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.calendar_month,
-                  color: theme.colorScheme.primary, size: 28),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Connect Your Calendar',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Sync your Google or Microsoft calendar to manage appointments and availability.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionsSection(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Synced Events',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            TextButton.icon(
-              onPressed: () => context.push('/trainer/calendar/events'),
-              icon: const Icon(Icons.event, size: 18),
-              label: const Text('View All'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Your calendar events are synced automatically. You can also set your availability for clients.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
-          ),
-        ),
-        const SizedBox(height: 16),
-        OutlinedButton.icon(
-          onPressed: () => context.push('/trainer/calendar/availability'),
-          icon: const Icon(Icons.access_time),
-          label: const Text('Manage Availability'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 48),
-          ),
-        ),
-      ],
     );
   }
 }
