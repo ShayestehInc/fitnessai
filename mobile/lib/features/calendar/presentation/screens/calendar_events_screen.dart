@@ -22,8 +22,8 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(calendarProvider.notifier).loadConnections();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(calendarProvider.notifier).loadConnections();
       ref.read(calendarProvider.notifier).loadEvents();
     });
   }

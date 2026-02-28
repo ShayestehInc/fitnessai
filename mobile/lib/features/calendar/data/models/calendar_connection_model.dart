@@ -1,3 +1,14 @@
+/// Typed result from calendar sync API.
+class SyncResult {
+  final int syncedCount;
+
+  const SyncResult({required this.syncedCount});
+
+  factory SyncResult.fromJson(Map<String, dynamic> json) {
+    return SyncResult(syncedCount: json['synced_count'] as int? ?? 0);
+  }
+}
+
 /// Shared day names constant used across calendar feature.
 const calendarDayNames = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',

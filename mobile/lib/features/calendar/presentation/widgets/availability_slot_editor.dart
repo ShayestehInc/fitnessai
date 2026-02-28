@@ -135,7 +135,7 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
           const SizedBox(height: 20),
           // Day picker
           DropdownButtonFormField<int>(
-            initialValue: _day,
+            value: _day,
             decoration: const InputDecoration(
               labelText: 'Day of Week',
               border: OutlineInputBorder(),

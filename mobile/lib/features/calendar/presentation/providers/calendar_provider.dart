@@ -3,16 +3,6 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/calendar_connection_model.dart';
 import '../../data/repositories/calendar_repository.dart';
 
-class SyncResult {
-  final int syncedCount;
-
-  const SyncResult({required this.syncedCount});
-
-  factory SyncResult.fromJson(Map<String, dynamic> json) {
-    return SyncResult(syncedCount: json['synced_count'] as int? ?? 0);
-  }
-}
-
 final calendarRepositoryProvider = Provider<CalendarRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return CalendarRepository(apiClient);
@@ -194,7 +184,7 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
   Future<void> syncCalendar(String provider) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final result = SyncResult.fromJson(await _repository.syncCalendar(provider));
+      final result = await _repository.syncCalendar(provider);
       await loadConnections();
       state = state.copyWith(
         isLoading: false,

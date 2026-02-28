@@ -62,9 +62,9 @@ class CalendarRepository {
   }
 
   /// Sync calendar events
-  Future<Map<String, dynamic>> syncCalendar(String provider) async {
+  Future<SyncResult> syncCalendar(String provider) async {
     final response = await _apiClient.dio.post(ApiConstants.calendarSync(provider));
-    return response.data as Map<String, dynamic>;
+    return SyncResult.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Get calendar events
@@ -87,7 +87,7 @@ class CalendarRepository {
   }
 
   /// Create a calendar event
-  Future<Map<String, dynamic>> createEvent({
+  Future<CalendarEventModel> createEvent({
     required String title,
     required DateTime startTime,
     required DateTime endTime,
@@ -109,7 +109,7 @@ class CalendarRepository {
           'attendee_emails': attendeeEmails,
       },
     );
-    return response.data as Map<String, dynamic>;
+    return CalendarEventModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Get trainer availability slots

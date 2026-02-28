@@ -309,7 +309,9 @@ class CalendarEventsView(generics.ListAPIView[CalendarEvent]):
             status=CalendarConnection.Status.CONNECTED
         )
 
-        queryset = CalendarEvent.objects.filter(connection__in=connections)
+        queryset = CalendarEvent.objects.filter(
+            connection__in=connections,
+        ).select_related('connection')
 
         # Filter by provider if specified
         provider = self.request.query_params.get('provider')
