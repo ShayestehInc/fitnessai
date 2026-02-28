@@ -11,6 +11,7 @@ class CalendarConnectionAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_filter = ['provider', 'status', 'sync_enabled']
     search_fields = ['user__email', 'calendar_email']
     readonly_fields = ['created_at', 'updated_at', 'last_synced_at']
+    exclude = ['_access_token', '_refresh_token']
 
 
 @admin.register(CalendarEvent)

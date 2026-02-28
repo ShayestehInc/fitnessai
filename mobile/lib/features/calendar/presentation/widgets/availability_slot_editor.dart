@@ -122,12 +122,24 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 16,
+        16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Drag handle for discoverability
+          Center(
+            child: Container(
+              width: 32,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
           Text(
             isEditing ? 'Edit Availability' : 'Add Availability',
             style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -135,7 +147,7 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
           const SizedBox(height: 20),
           // Day picker
           DropdownButtonFormField<int>(
-            value: _day,
+            initialValue: _day,
             decoration: const InputDecoration(
               labelText: 'Day of Week',
               border: OutlineInputBorder(),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/calendar_provider.dart';
 import '../../data/models/calendar_connection_model.dart';
@@ -34,16 +35,29 @@ class _CalendarConnectionScreenState
         ? await notifier.getGoogleAuthUrl()
         : await notifier.getMicrosoftAuthUrl();
 
-    if (authUrl != null && mounted) {
-      final uri = Uri.parse(authUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        if (mounted) _showCallbackDialog(provider);
-      } else {
-        if (mounted) {
-          showAdaptiveToast(context,
-              message: 'Could not open browser', type: ToastType.error);
-        }
+    if (!mounted) return;
+
+    if (authUrl == null) {
+      // Error toast is already shown via the listener for state.error,
+      // but if the notifier returned null without setting an error,
+      // show a fallback message.
+      final state = ref.read(calendarProvider);
+      if (state.error == null) {
+        showAdaptiveToast(context,
+            message: 'Could not get authorization URL',
+            type: ToastType.error);
+      }
+      return;
+    }
+
+    final uri = Uri.parse(authUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (mounted) _showCallbackDialog(provider);
+    } else {
+      if (mounted) {
+        showAdaptiveToast(context,
+            message: 'Could not open browser', type: ToastType.error);
       }
     }
   }
@@ -73,6 +87,7 @@ class _CalendarConnectionScreenState
                 labelText: 'Authorization Code',
                 border: OutlineInputBorder(),
               ),
+              autofocus: true,
             ),
             const SizedBox(height: 12),
             TextField(
@@ -96,20 +111,20 @@ class _CalendarConnectionScreenState
           FilledButton(
             onPressed: () async {
               final code = codeController.text.trim();
-              final state = stateController.text.trim();
-              if (code.isEmpty || state.isEmpty) {
+              final stateParam = stateController.text.trim();
+              if (code.isEmpty || stateParam.isEmpty) {
                 showAdaptiveToast(dialogContext,
                     message: 'Please enter both code and state',
                     type: ToastType.warning);
                 return;
               }
               Navigator.pop(dialogContext);
-              codeController.dispose();
-              stateController.dispose();
               final notifier = ref.read(calendarProvider.notifier);
               final success = provider == 'google'
-                  ? await notifier.completeGoogleCallback(code, state)
-                  : await notifier.completeMicrosoftCallback(code, state);
+                  ? await notifier.completeGoogleCallback(code, stateParam)
+                  : await notifier.completeMicrosoftCallback(code, stateParam);
+              codeController.dispose();
+              stateController.dispose();
               if (mounted && success) {
                 showAdaptiveToast(context,
                     message: '$providerName Calendar connected!',
@@ -163,10 +178,11 @@ class _CalendarConnectionScreenState
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
+          tooltip: 'Go back',
         ),
       ),
       body: state.isLoading && state.connections.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : RefreshIndicator(
               onRefresh: () =>
                   ref.read(calendarProvider.notifier).loadConnections(),

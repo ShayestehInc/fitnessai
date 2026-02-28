@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
+import '../../../../shared/widgets/loading_shimmer.dart';
 import '../../data/models/calendar_connection_model.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/calendar_event_tile.dart';
@@ -24,23 +25,25 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(calendarProvider.notifier).loadConnections();
-      ref.read(calendarProvider.notifier).loadEvents();
+      final state = ref.read(calendarProvider);
+      if (state.hasAnyConnection) {
+        ref.read(calendarProvider.notifier).loadEvents();
+      }
     });
   }
 
   Future<void> _syncAndReload() async {
     final state = ref.read(calendarProvider);
-    final futures = <Future<void>>[];
+    final notifier = ref.read(calendarProvider.notifier);
+    // Run syncs sequentially to avoid concurrent state mutations
+    // that cause isLoading flickering.
     if (state.hasGoogleConnected) {
-      futures.add(ref.read(calendarProvider.notifier).syncCalendar('google'));
+      await notifier.syncCalendar('google');
     }
     if (state.hasMicrosoftConnected) {
-      futures.add(ref.read(calendarProvider.notifier).syncCalendar('microsoft'));
+      await notifier.syncCalendar('microsoft');
     }
-    if (futures.isNotEmpty) {
-      await Future.wait(futures);
-    }
-    await ref.read(calendarProvider.notifier).loadEvents(provider: _providerFilter);
+    await notifier.loadEvents(provider: _providerFilter);
   }
 
   @override
@@ -73,6 +76,7 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
+          tooltip: 'Back to Calendar Settings',
         ),
       ),
       body: Column(
@@ -84,7 +88,7 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
             ),
           Expanded(
             child: state.isLoading && events.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+                ? _buildLoadingShimmer()
                 : RefreshIndicator(
                     onRefresh: _syncAndReload,
                     child: events.isEmpty
@@ -107,10 +111,16 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
 
   Future<void> _setFilter(String? provider) async {
     final previous = _providerFilter;
+    final previousEvents = ref.read(calendarProvider).events;
     setState(() => _providerFilter = provider);
     await ref.read(calendarProvider.notifier).loadEvents(provider: provider);
-    final state = ref.read(calendarProvider);
-    if (state.error != null && mounted) {
+    if (!mounted) return;
+    // If events didn't change and there were events before, the load likely
+    // failed (the listener already showed the error toast). Revert the filter.
+    final currentState = ref.read(calendarProvider);
+    if (identical(currentState.events, previousEvents) &&
+        previousEvents.isNotEmpty &&
+        provider != previous) {
       setState(() => _providerFilter = previous);
     }
   }
@@ -163,23 +173,74 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.6,
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.event_busy, size: 64,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
-              const SizedBox(height: 16),
-              Text('No upcoming events', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Text(
-                'Pull down to sync your calendar',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+          child: Semantics(
+            label: 'No upcoming events. Pull down to sync your calendar.',
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.event_busy, size: 64,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    semanticLabel: 'No events'),
+                const SizedBox(height: 16),
+                Text('No upcoming events', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text(
+                  'Pull down to sync your calendar',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingShimmer() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const LoadingShimmer(width: 120, height: 16, borderRadius: 4),
+          const SizedBox(height: 12),
+          for (int i = 0; i < 3; i++) ...[
+            const Row(
+              children: [
+                LoadingShimmer(width: 56, height: 36, borderRadius: 6),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LoadingShimmer(height: 16, borderRadius: 4),
+                      SizedBox(height: 6),
+                      LoadingShimmer(width: 100, height: 12, borderRadius: 4),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 20),
+          const LoadingShimmer(width: 140, height: 16, borderRadius: 4),
+          const SizedBox(height: 12),
+          for (int i = 0; i < 2; i++) ...[
+            const Row(
+              children: [
+                LoadingShimmer(width: 56, height: 36, borderRadius: 6),
+                SizedBox(width: 12),
+                Expanded(
+                  child: LoadingShimmer(height: 16, borderRadius: 4),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
       ),
     );
   }

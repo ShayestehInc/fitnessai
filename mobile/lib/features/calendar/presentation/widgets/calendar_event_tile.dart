@@ -10,8 +10,15 @@ class CalendarEventTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final timeLabel = event.isAllDay
+        ? 'All day'
+        : '${DateFormat.jm().format(event.startTime)} to ${DateFormat.jm().format(event.endTime)}';
+    final semanticLabel =
+        '${event.title}, $timeLabel${event.location != null && event.location!.isNotEmpty ? ', at ${event.location}' : ''}';
 
-    return Container(
+    return Semantics(
+      label: semanticLabel,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -94,6 +101,7 @@ class CalendarEventTile extends StatelessWidget {
           if (event.provider != null) _ProviderBadge(provider: event.provider!),
         ],
       ),
+      ),
     );
   }
 }
@@ -106,24 +114,31 @@ class _ProviderBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isGoogle = provider == 'google';
-    final color = isGoogle ? Colors.blue : Colors.orange;
+    final color = isGoogle ? Colors.red : Colors.blue;
     final label = isGoogle ? 'G' : 'M';
+    final providerName = isGoogle ? 'Google Calendar' : 'Microsoft Outlook';
 
-    return Container(
-      width: 24,
-      height: 24,
-      margin: const EdgeInsets.only(left: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Center(
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
+    return Tooltip(
+      message: providerName,
+      child: Semantics(
+        label: providerName,
+        child: Container(
+          width: 24,
+          height: 24,
+          margin: const EdgeInsets.only(left: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
+import '../../../../shared/widgets/loading_shimmer.dart';
 import '../../data/models/calendar_connection_model.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/availability_slot_editor.dart';
@@ -54,14 +55,16 @@ class _TrainerAvailabilityScreenState
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
+          tooltip: 'Back to Calendar Settings',
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showEditor(context),
+        tooltip: 'Add availability slot',
         child: const Icon(Icons.add),
       ),
       body: state.isLoading && slots.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildLoadingShimmer()
           : RefreshIndicator(
               onRefresh: () =>
                   ref.read(calendarProvider.notifier).loadAvailability(),
@@ -145,26 +148,31 @@ class _TrainerAvailabilityScreenState
     );
     if (confirmed == true) {
       await ref.read(calendarProvider.notifier).deleteAvailability(id);
-      final state = ref.read(calendarProvider);
-      return state.error == null;
+      // Check if the slot was actually removed from state rather than
+      // checking state.error, which may already be cleared by the listener.
+      final currentState = ref.read(calendarProvider);
+      final wasDeleted = !currentState.availability.any((a) => a.id == id);
+      return wasDeleted;
     }
     return false;
+  }
+
+  /// Parses an HH:MM or HH:MM:SS time string into a TimeOfDay, clamping
+  /// values to valid ranges. Returns a fallback of midnight for malformed input.
+  TimeOfDay _parseTimeString(String time) {
+    if (time.isEmpty) return const TimeOfDay(hour: 0, minute: 0);
+    final parts = time.split(':');
+    final hour = (int.tryParse(parts.isNotEmpty ? parts[0] : '') ?? 0).clamp(0, 23);
+    final minute = (int.tryParse(parts.length > 1 ? parts[1] : '') ?? 0).clamp(0, 59);
+    return TimeOfDay(hour: hour, minute: minute);
   }
 
   void _showEditor(BuildContext context, {TrainerAvailabilityModel? slot}) {
     TimeOfDay? startTime;
     TimeOfDay? endTime;
     if (slot != null) {
-      final sp = slot.startTime.split(':');
-      startTime = TimeOfDay(
-        hour: int.tryParse(sp.isNotEmpty ? sp[0] : '') ?? 0,
-        minute: int.tryParse(sp.length > 1 ? sp[1] : '') ?? 0,
-      );
-      final ep = slot.endTime.split(':');
-      endTime = TimeOfDay(
-        hour: int.tryParse(ep.isNotEmpty ? ep[0] : '') ?? 0,
-        minute: int.tryParse(ep.length > 1 ? ep[1] : '') ?? 0,
-      );
+      startTime = _parseTimeString(slot.startTime);
+      endTime = _parseTimeString(slot.endTime);
     }
 
     showModalBottomSheet(
@@ -203,23 +211,47 @@ class _TrainerAvailabilityScreenState
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.6,
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.access_time, size: 64,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
-              const SizedBox(height: 16),
-              Text('No availability set', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Text(
-                'Tap + to add your first time slot',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+          child: Semantics(
+            label: 'No availability set. Tap the plus button to add your first time slot.',
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.access_time, size: 64,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    semanticLabel: 'No availability'),
+                const SizedBox(height: 16),
+                Text('No availability set', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text(
+                  'Tap + to add your first time slot',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingShimmer() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int day = 0; day < 3; day++) ...[
+            const LoadingShimmer(width: 100, height: 16, borderRadius: 4),
+            const SizedBox(height: 12),
+            for (int slot = 0; slot < 2; slot++) ...[
+              const LoadingShimmer(height: 48, borderRadius: 10),
+              const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 12),
+          ],
+        ],
       ),
     );
   }
