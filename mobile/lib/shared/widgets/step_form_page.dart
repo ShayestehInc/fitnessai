@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'adaptive/adaptive_progress_bar.dart';
 
 /// A reusable multi-step form page with progress indicator.
 ///
@@ -142,15 +143,12 @@ class _StepFormPageState extends State<StepFormPage> {
           ),
           const SizedBox(height: 12),
           // Progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
+          AdaptiveProgressBar(
               value: _progress,
               minHeight: 6,
               backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
-              valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
+              color: theme.colorScheme.primary,
             ),
-          ),
         ],
       ),
     );

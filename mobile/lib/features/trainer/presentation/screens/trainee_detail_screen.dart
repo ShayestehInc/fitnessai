@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
@@ -1739,15 +1740,12 @@ class _QuickStatCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
             const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
+            AdaptiveProgressBar(
                 value: progress,
                 backgroundColor: Colors.grey.withValues(alpha: 0.2),
-                valueColor: AlwaysStoppedAnimation(color),
+                color: color,
                 minHeight: 4,
               ),
-            ),
             const SizedBox(height: 4),
             Text(subLabel, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
           ],

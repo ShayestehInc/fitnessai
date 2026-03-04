@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../providers/workout_provider.dart';
 
 class ReadinessSurveyScreen extends ConsumerStatefulWidget {
@@ -303,7 +304,7 @@ class _ReadinessSurveyScreenState extends ConsumerState<ReadinessSurveyScreen> {
           children: [
             TextButton.icon(
               onPressed: () => _showSkipDialog(context),
-              icon: const Icon(Icons.arrow_back),
+              icon: Icon(AdaptiveIcons.back),
               label: const Text('Skip'),
             ),
             Text(

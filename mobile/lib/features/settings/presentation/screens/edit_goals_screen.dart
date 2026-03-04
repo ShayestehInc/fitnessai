@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../onboarding/data/models/user_profile_model.dart';
@@ -33,7 +35,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
+          icon: Icon(AdaptiveIcons.back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
         title: Text(
@@ -198,6 +200,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                       onPressed: state.isLoading
                           ? null
                           : () async {
+                              HapticService.mediumTap();
                               final success = await notifier.saveProfile();
                               if (success && context.mounted) {
                                 showAdaptiveToast(context, message: 'Goals updated! Macros recalculated.');

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/message_model.dart';
@@ -52,7 +53,10 @@ class MessageBubble extends StatelessWidget {
     return Semantics(
       label: semanticLabel,
       child: GestureDetector(
-        onLongPress: () => _showContextMenu(context),
+        onLongPress: () {
+          HapticService.mediumTap();
+          _showContextMenu(context);
+        },
         child: Align(
           alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
           child: ConstrainedBox(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 
 /// Shown when the user navigates to events but has no calendar connected.
 class CalendarNoConnectionView extends StatelessWidget {
@@ -14,7 +15,7 @@ class CalendarNoConnectionView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Calendar Events'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(AdaptiveIcons.back),
           onPressed: onGoBack,
           tooltip: 'Go back',
         ),

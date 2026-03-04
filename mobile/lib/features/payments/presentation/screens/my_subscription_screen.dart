@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -49,7 +50,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
           style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
+          icon: Icon(AdaptiveIcons.back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
         elevation: 0,

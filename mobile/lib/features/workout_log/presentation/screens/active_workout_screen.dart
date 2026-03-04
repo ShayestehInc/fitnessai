@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/classic_workout_layout.dart';
@@ -260,10 +261,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          LinearProgressIndicator(
+          AdaptiveProgressBar(
             value: progress,
             backgroundColor: theme.dividerColor,
-            borderRadius: BorderRadius.circular(4),
           ),
         ],
       ),

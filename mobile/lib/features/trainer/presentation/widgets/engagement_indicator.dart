@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 
 /// Horizontal progress bar with color gradient based on engagement value.
 class EngagementIndicator extends StatelessWidget {
@@ -22,14 +23,11 @@ class EngagementIndicator extends StatelessWidget {
         SizedBox(
           width: width,
           height: 6,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
+          child: AdaptiveProgressBar(
               value: clamped / 100.0,
               backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
+              color: color,
             ),
-          ),
         ),
         const SizedBox(width: 6),
         Text(

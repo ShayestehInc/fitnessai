@@ -6,6 +6,7 @@ import '../../../../core/providers/health_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/sync_status.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -577,13 +578,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               duration: const Duration(milliseconds: 600),
               curve: Curves.easeOut,
               builder: (context, value, _) {
-                return LinearProgressIndicator(
+                return AdaptiveProgressBar(
                   value: value.clamp(0.0, 1.0),
                   minHeight: 8,
                   backgroundColor: theme.dividerColor,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    theme.colorScheme.primary,
-                  ),
+                  color: theme.colorScheme.primary,
                 );
               },
             ),
@@ -659,11 +658,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         // Progress bar
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
+          child: AdaptiveProgressBar(
             value: state.programProgress / 100,
             minHeight: 8,
             backgroundColor: theme.dividerColor,
-            valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+            color: theme.colorScheme.primary,
           ),
         ),
         const SizedBox(height: 16),

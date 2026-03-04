@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/auth_provider.dart';
 
@@ -31,6 +33,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
+    HapticService.mediumTap();
     if (!_formKey.currentState!.validate()) return;
 
     if (_passwordController.text != _confirmPasswordController.text) {
@@ -66,7 +69,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       appBar: AppBar(
         title: const Text('Register'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(AdaptiveIcons.back),
           onPressed: () => context.go('/login'),
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/loading_shimmer.dart';
@@ -55,7 +56,7 @@ class _TrainerAvailabilityScreenState
       appBar: AppBar(
         title: const Text('Availability'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(AdaptiveIcons.back),
           onPressed: () => context.pop(),
           tooltip: 'Back to Calendar Settings',
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -280,12 +281,10 @@ class _AdminCouponDetailScreenState
                       ),
                       if (coupon.maxUses > 0) ...[
                         const SizedBox(height: 8),
-                        LinearProgressIndicator(
+                        AdaptiveProgressBar(
                           value: usagePercent,
                           backgroundColor: theme.dividerColor,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            usagePercent >= 0.9 ? Colors.red : theme.colorScheme.primary,
-                          ),
+                          color: usagePercent >= 0.9 ? Colors.red : theme.colorScheme.primary,
                         ),
                       ],
                     ],

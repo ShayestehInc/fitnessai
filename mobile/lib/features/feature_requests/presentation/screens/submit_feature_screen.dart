@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -168,6 +169,7 @@ class _SubmitFeatureScreenState extends ConsumerState<SubmitFeatureScreen> {
   }
 
   Future<void> _submit() async {
+    HapticService.mediumTap();
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);

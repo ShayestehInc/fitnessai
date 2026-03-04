@@ -617,12 +617,19 @@ class AppThemeBuilder {
         foregroundColor: foreground,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: false,
+        centerTitle: isIOS,
         titleTextStyle: const TextStyle(
           color: foreground,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
+      ),
+
+      // Divider theme — iOS: thinner inset dividers
+      dividerTheme: DividerThemeData(
+        thickness: isIOS ? 0.5 : 1,
+        indent: isIOS ? 16 : 0,
+        space: isIOS ? 0.5 : 1,
       ),
 
       // Card theme
@@ -853,13 +860,20 @@ class AppThemeBuilder {
         foregroundColor: foreground,
         elevation: 0,
         scrolledUnderElevation: 1,
-        centerTitle: false,
+        centerTitle: isIOS,
         titleTextStyle: const TextStyle(
           color: foreground,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
         systemOverlayStyle: SystemUiOverlayStyle.dark,
+      ),
+
+      // Divider theme — iOS: thinner inset dividers
+      dividerTheme: DividerThemeData(
+        thickness: isIOS ? 0.5 : 1,
+        indent: isIOS ? 16 : 0,
+        space: isIOS ? 0.5 : 1,
       ),
 
       // Card theme

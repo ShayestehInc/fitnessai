@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/payment_provider.dart';
@@ -69,7 +70,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
           style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
+          icon: Icon(AdaptiveIcons.back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
         elevation: 0,
@@ -376,6 +377,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
         onPressed: state.isSaving
             ? null
             : () async {
+                HapticService.mediumTap();
                 final monthlyPrice = double.tryParse(_monthlyPriceController.text);
                 final oneTimePrice = double.tryParse(_oneTimePriceController.text);
 

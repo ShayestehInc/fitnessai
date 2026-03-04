@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/program_week_model.dart';
@@ -192,7 +193,7 @@ class _ProgramGeneratorScreenState
       appBar: AppBar(
         title: const Text('Generate Program'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(AdaptiveIcons.back),
           onPressed: _onBack,
         ),
       ),

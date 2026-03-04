@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -1108,7 +1109,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             onPressed: () {
               ref.read(foodSearchProvider.notifier).clearSelection();
             },
-            icon: const Icon(Icons.arrow_back),
+            icon: Icon(AdaptiveIcons.back),
             label: const Text('Back to results'),
           ),
           const SizedBox(height: 16),

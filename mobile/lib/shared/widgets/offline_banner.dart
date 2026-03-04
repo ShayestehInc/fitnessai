@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'adaptive/adaptive_progress_bar.dart';
 
 import '../../core/providers/connectivity_provider.dart';
 import '../../core/providers/sync_provider.dart';
@@ -300,9 +301,9 @@ class _BannerContent extends StatelessWidget {
             SizedBox(
               width: 60,
               height: 2,
-              child: LinearProgressIndicator(
+              child: AdaptiveProgressBar(
                 backgroundColor: iconColor.withValues(alpha: 0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+                color: iconColor,
               ),
             ),
         ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/services/haptic_service.dart';
 import '../../data/models/chat_models.dart';
 
 class ChatMessageBubble extends StatelessWidget {
@@ -37,7 +38,12 @@ class ChatMessageBubble extends StatelessWidget {
                   isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 GestureDetector(
-                  onLongPress: onCopy,
+                  onLongPress: onCopy != null
+                      ? () {
+                          HapticService.mediumTap();
+                          onCopy!();
+                        }
+                      : null,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,

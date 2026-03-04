@@ -225,6 +225,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
   }
 
   Future<void> _saveCheckIn() async {
+    HapticService.mediumTap();
     final weight = double.tryParse(_weightController.text);
     if (weight == null) return;
 

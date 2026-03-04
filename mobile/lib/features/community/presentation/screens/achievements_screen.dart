@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../providers/achievement_provider.dart';
 import '../widgets/achievement_badge.dart';
@@ -221,15 +222,12 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
+          AdaptiveProgressBar(
               value: progress.clamp(0.0, 1.0),
               minHeight: 8,
               backgroundColor: theme.dividerColor,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              color: theme.colorScheme.primary,
             ),
-          ),
         ],
       ),
     );

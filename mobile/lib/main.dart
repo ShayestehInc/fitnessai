@@ -82,12 +82,17 @@ class FitnessAIApp extends ConsumerWidget {
       ],
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
-        // Apply smooth theme transitions
-        return AnimatedTheme(
-          data: Theme.of(context),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          child: child ?? const SizedBox(),
+        // Dismiss keyboard on tap outside (iOS convention, harmless on Android)
+        return GestureDetector(
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          behavior: HitTestBehavior.translucent,
+          // Apply smooth theme transitions
+          child: AnimatedTheme(
+            data: Theme.of(context),
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: child ?? const SizedBox(),
+          ),
         );
       },
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -667,15 +668,12 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         Row(
           children: [
             Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
+              child: AdaptiveProgressBar(
                   value: strengthValue,
                   backgroundColor: theme.dividerColor,
-                  valueColor: AlwaysStoppedAnimation(strengthColor),
+                  color: strengthColor,
                   minHeight: 6,
                 ),
-              ),
             ),
             const SizedBox(width: 12),
             Text(

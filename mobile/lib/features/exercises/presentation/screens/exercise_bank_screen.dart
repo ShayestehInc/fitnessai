@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -251,7 +252,10 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () => _showExerciseDetail(context, exercise),
-        onLongPress: () => _showExerciseQuickActions(context, exercise),
+        onLongPress: () {
+          HapticService.mediumTap();
+          _showExerciseQuickActions(context, exercise);
+        },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),

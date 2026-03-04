@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/loading_shimmer.dart';
@@ -75,7 +76,7 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
       appBar: AppBar(
         title: const Text('Calendar Events'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(AdaptiveIcons.back),
           onPressed: () => context.pop(),
           tooltip: 'Back to Calendar Settings',
         ),

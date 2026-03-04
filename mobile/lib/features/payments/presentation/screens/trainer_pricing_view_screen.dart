@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/payment_models.dart';
@@ -31,7 +32,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
           style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.textTheme.bodyLarge?.color),
+          icon: Icon(AdaptiveIcons.back, color: theme.textTheme.bodyLarge?.color),
           onPressed: () => context.pop(),
         ),
         elevation: 0,

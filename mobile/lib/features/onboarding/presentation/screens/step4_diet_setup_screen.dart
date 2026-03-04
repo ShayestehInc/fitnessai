@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/user_profile_model.dart';
 import '../providers/onboarding_provider.dart';
@@ -23,7 +24,7 @@ class Step4DietSetupScreen extends ConsumerWidget {
             onTap: () => notifier.goBack(),
             child: Row(
               children: [
-                Icon(Icons.arrow_back, color: theme.textTheme.bodySmall?.color),
+                Icon(AdaptiveIcons.back, color: theme.textTheme.bodySmall?.color),
                 const SizedBox(width: 8),
                 Text(
                   'Back',

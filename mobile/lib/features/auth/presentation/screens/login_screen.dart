@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../core/services/biometric_service.dart';
+import '../../../../core/services/haptic_service.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -86,6 +87,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _handleLogin() async {
+    HapticService.mediumTap();
     if (!_formKey.currentState!.validate()) return;
 
     await ref.read(authStateProvider.notifier).login(
