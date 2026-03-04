@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/payment_provider.dart';
 
 class TrainerPricingScreen extends ConsumerStatefulWidget {
@@ -54,12 +56,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
         _populateFields();
       }
       if (next.successMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.successMessage!),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAdaptiveToast(context, message: next.successMessage!, type: ToastType.success);
       }
     });
 
@@ -78,7 +75,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
         elevation: 0,
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -220,7 +217,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
                   ],
                 ),
               ),
-              Switch(
+              Switch.adaptive(
                 value: enabled,
                 onChanged: (value) {
                   HapticService.selectionTick();
@@ -398,14 +395,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
           ),
         ),
         child: state.isSaving
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: theme.colorScheme.onPrimary,
-                ),
-              )
+            ? const AdaptiveSpinner.small()
             : const Text(
                 'Save Pricing',
                 style: TextStyle(

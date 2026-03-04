@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/services/api_config_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/form_page.dart';
 
 /// Full-page server configuration screen.
@@ -40,9 +41,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     await ApiConfigService.setBaseUrl(url);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Server URL updated to: $url')),
-      );
+      showAdaptiveToast(context, message: 'Server URL updated to: $url');
       Navigator.of(context).pop(true);
     }
   }
@@ -53,9 +52,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
       _urlController.text = ApiConfigService.defaultBaseUrl;
     });
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reset to default URL')),
-      );
+      showAdaptiveToast(context, message: 'Reset to default URL');
     }
   }
 

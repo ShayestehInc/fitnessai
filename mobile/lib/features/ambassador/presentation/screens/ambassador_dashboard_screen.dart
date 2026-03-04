@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/ambassador_models.dart';
 import '../providers/ambassador_provider.dart';
 import '../widgets/monthly_earnings_chart.dart';
@@ -57,7 +59,7 @@ class _AmbassadorDashboardScreenState
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : state.error != null
               ? _buildErrorState(theme, state.error!)
               : state.data == null
@@ -507,12 +509,7 @@ class _AmbassadorDashboardScreenState
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Referral code copied!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      showAdaptiveToast(context, message: 'Referral code copied!', type: ToastType.success);
     }
   }
 
@@ -527,12 +524,7 @@ class _AmbassadorDashboardScreenState
       // platforms).
       await Clipboard.setData(ClipboardData(text: message));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Share message copied to clipboard!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAdaptiveToast(context, message: 'Share message copied to clipboard!', type: ToastType.success);
       }
     }
   }

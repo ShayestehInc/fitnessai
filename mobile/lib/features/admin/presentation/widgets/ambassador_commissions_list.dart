@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../ambassador/data/models/ambassador_models.dart';
 
 /// Displays a section header with bulk action buttons and a list of commissions.
@@ -47,11 +48,7 @@ class AmbassadorCommissionsList extends StatelessWidget {
               ),
             ),
             if (isBulkProcessing)
-              const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+              const AdaptiveSpinner.small()
             else ...[
               if (hasPending)
                 TextButton.icon(
@@ -211,11 +208,7 @@ class _CommissionTile extends StatelessWidget {
 
   Widget _buildActionButton(bool isProcessing) {
     if (isProcessing) {
-      return const SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
+      return const AdaptiveSpinner.small();
     }
 
     if (commission.status == 'PENDING') {

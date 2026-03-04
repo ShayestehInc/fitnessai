@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/admin_impersonation_provider.dart';
 
 /// Banner shown when admin is impersonating a trainer
@@ -115,19 +116,9 @@ class AdminImpersonationBanner extends ConsumerWidget {
       if (result['success'] == true) {
         // Navigate back to admin dashboard
         context.go('/admin');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Returned to admin account'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAdaptiveToast(context, message: 'Returned to admin account', type: ToastType.success);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['error'] ?? 'Failed to end session'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: result['error'] ?? 'Failed to end session', type: ToastType.error);
       }
     }
   }

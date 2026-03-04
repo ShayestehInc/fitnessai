@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 
 /// Logo upload/preview section for the branding screen.
@@ -38,7 +39,7 @@ class BrandingLogoSection extends StatelessWidget {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    const CircularProgressIndicator(),
+                    const AdaptiveSpinner(),
                     const SizedBox(height: 12),
                     Text(
                       'Uploading logo...',
@@ -67,15 +68,8 @@ class BrandingLogoSection extends StatelessWidget {
                         width: 96,
                         height: 96,
                         color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                        child: Center(
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
+                        child: const Center(
+                          child: AdaptiveSpinner.small(),
                         ),
                       );
                     },

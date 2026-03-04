@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/ambassador_provider.dart';
 
@@ -142,11 +144,7 @@ class _AmbassadorSettingsScreenState
                 ),
               ),
               if (dashState.isLoading)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                const AdaptiveSpinner.small(),
             ],
           ),
           const SizedBox(height: 12),
@@ -320,9 +318,9 @@ class _AmbassadorSettingsScreenState
                             errorText = null;
                           });
 
-                          // Capture messenger before the async gap so we don't
-                          // access the widget's context after a pop.
-                          final messenger = ScaffoldMessenger.of(this.context);
+                          // Capture parent context before the async gap so we
+                          // can show the toast after the dialog pops.
+                          final parentContext = this.context;
 
                           try {
                             await ref
@@ -331,12 +329,7 @@ class _AmbassadorSettingsScreenState
 
                             if (mounted) {
                               Navigator.pop(dialogContext);
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('Referral code updated to $code'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
+                              showAdaptiveToast(parentContext, message: 'Referral code updated to $code', type: ToastType.success);
                             }
                           } catch (e) {
                             final errStr = e.toString();
@@ -353,11 +346,7 @@ class _AmbassadorSettingsScreenState
                           }
                         },
                   child: isSaving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const AdaptiveSpinner.small()
                       : const Text('Save'),
                 ),
               ],

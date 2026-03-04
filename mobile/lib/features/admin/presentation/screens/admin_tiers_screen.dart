@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/tier_coupon_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -40,12 +42,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
                           .read(adminTiersProvider.notifier)
                           .seedDefaultTiers();
                       if (success && mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Default tiers created'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
+                        showAdaptiveToast(context, message: 'Default tiers created', type: ToastType.success);
                       }
                     },
               icon: const Icon(Icons.add_box),
@@ -58,7 +55,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
         ],
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : state.error != null
               ? Center(
                   child: Padding(
@@ -109,12 +106,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
                                   .read(adminTiersProvider.notifier)
                                   .seedDefaultTiers();
                               if (success && mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Default tiers created'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
+                                showAdaptiveToast(context, message: 'Default tiers created', type: ToastType.success);
                               }
                             },
                             icon: const Icon(Icons.add_box),
@@ -163,13 +155,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
 
           if (success && mounted) {
             Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content:
-                    Text(tier == null ? 'Tier created' : 'Tier updated'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            showAdaptiveToast(context, message: tier == null ? 'Tier created' : 'Tier updated', type: ToastType.success);
           }
         },
       ),
@@ -181,13 +167,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
         await ref.read(adminTiersProvider.notifier).toggleTierActive(tier.id);
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              tier.isActive ? 'Tier deactivated' : 'Tier activated'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      showAdaptiveToast(context, message: tier.isActive ? 'Tier deactivated' : 'Tier activated', type: ToastType.success);
     }
   }
 
@@ -220,12 +200,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
           await ref.read(adminTiersProvider.notifier).deleteTier(tier.id);
 
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tier deleted'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAdaptiveToast(context, message: 'Tier deleted', type: ToastType.success);
       }
     }
   }
@@ -642,7 +617,7 @@ class _TierDialogState extends State<_TierDialog> {
                   maxLines: 4,
                 ),
                 const SizedBox(height: 16),
-                SwitchListTile(
+                SwitchListTile.adaptive(
                   title: const Text('Active'),
                   subtitle:
                       const Text('Inactive tiers cannot be purchased'),
@@ -666,11 +641,7 @@ class _TierDialogState extends State<_TierDialog> {
                         backgroundColor: theme.colorScheme.primary,
                       ),
                       child: _isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : Text(isEditing ? 'Update' : 'Create'),
                     ),
                   ],

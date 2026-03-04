@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/offline_banner.dart';
 import '../../data/models/nutrition_models.dart';
@@ -46,7 +47,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
             const OfflineBanner(),
             Expanded(
               child: state.isLoading && state.dailySummary == null
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: AdaptiveSpinner())
                   : RefreshIndicator(
                       onRefresh: () =>
                           ref.read(nutritionStateProvider.notifier).loadInitialData(),

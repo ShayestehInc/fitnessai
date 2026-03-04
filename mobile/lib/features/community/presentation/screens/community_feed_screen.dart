@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/services/community_ws_service.dart';
 import '../providers/announcement_provider.dart';
 import '../providers/community_feed_provider.dart';
@@ -135,7 +136,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                         ? const Padding(
                             padding: EdgeInsets.all(16),
                             child:
-                                Center(child: CircularProgressIndicator()),
+                                Center(child: AdaptiveSpinner()),
                           )
                         : const SizedBox.shrink();
                   }

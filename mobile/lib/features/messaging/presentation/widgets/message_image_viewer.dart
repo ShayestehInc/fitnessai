@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 
 /// Full-screen image viewer with pinch-to-zoom for message images.
 class MessageImageViewer extends StatelessWidget {
@@ -51,7 +52,7 @@ class MessageImageViewer extends StatelessWidget {
         loadingBuilder: (_, child, progress) {
           if (progress == null) return child;
           return const Center(
-            child: CircularProgressIndicator(color: Colors.white),
+            child: AdaptiveSpinner(),
           );
         },
         errorBuilder: (_, __, ___) => _buildError(),

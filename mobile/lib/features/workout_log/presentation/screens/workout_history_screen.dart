@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../providers/workout_history_provider.dart';
 import 'workout_history_widgets.dart';
 
@@ -87,7 +88,7 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
           if (state.isLoadingMore) {
             return const Padding(
               padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: AdaptiveSpinner()),
             );
           }
           if (state.error != null && state.workouts.isNotEmpty) {

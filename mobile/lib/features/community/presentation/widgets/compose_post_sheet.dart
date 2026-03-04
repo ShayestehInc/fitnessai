@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/community_feed_provider.dart';
 
 /// Bottom sheet for composing a new text post with optional image.
@@ -100,14 +102,7 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
                 ),
               ),
               child: _isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
+                  ? AdaptiveSpinner.small()
                   : const Text('Post'),
             ),
           ),
@@ -201,9 +196,7 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
       final fileSize = await File(picked.path).length();
       if (fileSize > _maxImageSizeBytes) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image must be under 5MB.')),
-        );
+        showAdaptiveToast(context, message: 'Image must be under 5MB.', type: ToastType.error);
         return;
       }
       setState(() => _imagePath = picked.path);
@@ -228,16 +221,9 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
 
     if (success) {
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Posted!'),
-          duration: Duration(seconds: 4),
-        ),
-      );
+      showAdaptiveToast(context, message: 'Posted!', type: ToastType.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to create post. Please try again.')),
-      );
+      showAdaptiveToast(context, message: 'Failed to create post. Please try again.', type: ToastType.error);
     }
   }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'adaptive/adaptive_spinner.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/providers/database_provider.dart';
@@ -148,7 +149,7 @@ class _FailedSyncSheetState extends ConsumerState<FailedSyncSheet> {
               // Content
               Expanded(
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const Center(child: AdaptiveSpinner())
                     : _failedItems.isEmpty
                         ? _buildEmptyState(theme)
                         : ListView.separated(

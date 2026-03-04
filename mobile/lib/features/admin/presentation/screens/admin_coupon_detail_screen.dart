@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/tier_coupon_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -42,17 +44,16 @@ class _AdminCouponDetailScreenState
               tooltip: 'Copy code',
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: coupon.code));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Code copied to clipboard'),
-                  ),
+                showAdaptiveToast(
+                  context,
+                  message: 'Code copied to clipboard',
                 );
               },
             ),
         ],
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : state.error != null
               ? Center(
                   child: Padding(

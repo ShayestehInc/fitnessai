@@ -7,6 +7,7 @@ import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'delete_account_screen.dart';
@@ -41,9 +42,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _isUploadingImage = false);
 
     if (result['success'] != true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['error'] ?? 'Failed to upload image')),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to upload image', type: ToastType.error);
     }
   }
 
@@ -65,9 +64,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _isUploadingImage = false);
 
     if (result['success'] != true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['error'] ?? 'Failed to remove image')),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to remove image', type: ToastType.error);
     }
   }
 
@@ -749,9 +746,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon!')),
-    );
+    showAdaptiveToast(context, message: 'Coming soon!');
   }
 
   void _openDeleteAccountScreen(BuildContext context) {

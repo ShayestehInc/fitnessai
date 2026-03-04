@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/nutrition_provider.dart';
 
@@ -204,11 +205,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
                     ? null
                     : _saveCheckIn,
                 child: _isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const AdaptiveSpinner.small()
                     : const Text('Save Check-In'),
               ),
             ),

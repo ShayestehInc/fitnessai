@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
 
@@ -35,7 +37,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
         elevation: 0,
       ),
       body: pricingAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: AdaptiveSpinner()),
         error: (error, stack) => _buildErrorState(context, error.toString()),
         data: (pricing) {
           if (pricing == null) {
@@ -103,12 +105,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
                     .read(checkoutProvider.notifier)
                     .startSubscriptionCheckout(trainerId);
                 if (!success && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(checkoutState.error ?? 'Failed to start checkout'),
-                      backgroundColor: theme.colorScheme.error,
-                    ),
-                  );
+                  showAdaptiveToast(context, message: checkoutState.error ?? 'Failed to start checkout', type: ToastType.error);
                 }
               },
             ),
@@ -137,12 +134,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
                     .read(checkoutProvider.notifier)
                     .startOneTimeCheckout(trainerId);
                 if (!success && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(checkoutState.error ?? 'Failed to start checkout'),
-                      backgroundColor: theme.colorScheme.error,
-                    ),
-                  );
+                  showAdaptiveToast(context, message: checkoutState.error ?? 'Failed to start checkout', type: ToastType.error);
                 }
               },
             ),
@@ -368,14 +360,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
                 ),
               ),
               child: isLoading
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    )
+                  ? const AdaptiveSpinner.small()
                   : Text(
                       period.isEmpty ? 'Purchase' : 'Subscribe',
                       style: const TextStyle(

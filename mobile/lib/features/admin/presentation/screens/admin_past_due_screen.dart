@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../providers/admin_provider.dart';
@@ -55,7 +57,7 @@ class _AdminPastDueScreenState extends ConsumerState<AdminPastDueScreen> {
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : _error != null
               ? Center(
                   child: Column(
@@ -319,9 +321,7 @@ class _PastDueCard extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: () {
                         // TODO: Send reminder email
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Reminder sent')),
-                        );
+                        showAdaptiveToast(context, message: 'Reminder sent');
                       },
                       icon: const Icon(Icons.email, size: 18),
                       label: const Text('Send Reminder'),

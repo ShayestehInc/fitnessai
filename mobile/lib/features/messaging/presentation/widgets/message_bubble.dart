@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/message_model.dart';
 import 'message_context_menu.dart';
 import 'message_image_viewer.dart';
@@ -291,12 +292,8 @@ class MessageBubble extends StatelessWidget {
       height: 180,
       width: double.infinity,
       color: theme.colorScheme.surfaceContainerHighest,
-      child: const Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+      child: Center(
+        child: AdaptiveSpinner.small(),
       ),
     );
   }

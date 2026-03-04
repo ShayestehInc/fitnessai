@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../community/data/models/announcement_model.dart';
 import '../../../community/presentation/providers/announcement_provider.dart';
 
@@ -78,7 +80,7 @@ class _CreateAnnouncementScreenState
               ),
             ),
             const SizedBox(height: 16),
-            SwitchListTile(
+            SwitchListTile.adaptive(
               title: const Text('Pin Announcement'),
               subtitle: const Text('Pinned announcements appear at the top'),
               value: _isPinned,
@@ -99,11 +101,7 @@ class _CreateAnnouncementScreenState
                   ),
                 ),
                 child: _isSubmitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
+                    ? const AdaptiveSpinner.small()
                     : Text(_isEditing ? 'Update' : 'Publish'),
               ),
             ),
@@ -145,14 +143,11 @@ class _CreateAnnouncementScreenState
     if (success) {
       context.pop();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _isEditing
-                ? 'Failed to update announcement'
-                : 'Failed to create announcement',
-          ),
-        ),
+      showAdaptiveToast(
+        context,
+        message: _isEditing
+            ? 'Failed to update announcement'
+            : 'Failed to create announcement',
       );
     }
   }

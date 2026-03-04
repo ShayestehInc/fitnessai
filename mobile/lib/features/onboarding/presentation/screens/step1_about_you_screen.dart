@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../providers/onboarding_provider.dart';
 
 class Step1AboutYouScreen extends ConsumerStatefulWidget {
@@ -235,11 +236,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
                   ? () => notifier.saveStep1()
                   : null,
               child: state.isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const AdaptiveSpinner.small()
                   : const Text('Continue'),
             ),
           ),

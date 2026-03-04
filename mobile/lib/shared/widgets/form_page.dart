@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'adaptive/adaptive_spinner.dart';
 
 /// A full-page form screen for simple forms.
 ///
@@ -77,11 +78,7 @@ class FormPage extends StatelessWidget {
                   ),
                 ),
                 child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const AdaptiveSpinner.small()
                     : Text(submitButtonText),
               ),
             ),

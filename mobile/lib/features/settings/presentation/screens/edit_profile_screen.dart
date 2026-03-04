@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../onboarding/data/models/user_profile_model.dart';
 import '../providers/settings_provider.dart';
 
@@ -74,7 +76,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         elevation: 0,
       ),
       body: state.isLoading && state.profile == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -269,18 +271,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           : () async {
                               final success = await notifier.saveProfile();
                               if (success && context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Profile updated!')),
-                                );
+                                showAdaptiveToast(context, message: 'Profile updated!');
                                 context.pop();
                               }
                             },
                       child: state.isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : const Text('Save Changes'),
                     ),
                   ),

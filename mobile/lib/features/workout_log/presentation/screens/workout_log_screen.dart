@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/offline_banner.dart';
 import '../providers/workout_provider.dart';
 
@@ -58,7 +60,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
               ),
             Expanded(
               child: state.isLoading && state.programWeeks.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: AdaptiveSpinner())
                   : RefreshIndicator(
                       onRefresh: () =>
                           ref.read(workoutStateProvider.notifier).loadInitialData(),
@@ -497,16 +499,12 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     final programs = state.programs;
 
     if (programs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No programs available to switch to')),
-      );
+      showAdaptiveToast(context, message: 'No programs available to switch to');
       return;
     }
 
     if (programs.length == 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You only have one program assigned')),
-      );
+      showAdaptiveToast(context, message: 'You only have one program assigned');
       return;
     }
 
@@ -564,12 +562,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                       ref
                           .read(workoutStateProvider.notifier)
                           .switchProgram(program);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Switched to ${program.name}'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
+                      showAdaptiveToast(context, message: 'Switched to ${program.name}');
                     }
                     Navigator.of(context).pop();
                   },

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/comment_model.dart';
 import '../../data/repositories/community_feed_repository.dart';
 import '../providers/community_feed_provider.dart';
@@ -95,9 +97,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to post comment')),
-      );
+      showAdaptiveToast(context, message: 'Failed to post comment', type: ToastType.error);
     }
   }
 
@@ -151,7 +151,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
 
   Widget _buildBody(ThemeData theme) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AdaptiveSpinner());
     }
     if (_error != null) {
       return Center(
@@ -223,11 +223,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                       ? _submitComment
                       : null,
               icon: _isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? AdaptiveSpinner.small()
                   : Icon(
                       Icons.send,
                       color: _controller.text.trim().isNotEmpty
@@ -280,9 +276,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       setState(() => _comments.removeAt(index));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to delete comment')),
-      );
+      showAdaptiveToast(context, message: 'Failed to delete comment', type: ToastType.error);
     }
   }
 }

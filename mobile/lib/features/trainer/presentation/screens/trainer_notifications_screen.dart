@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/loading_shimmer.dart';
 import '../../data/models/trainer_notification_model.dart';
 import '../providers/notification_provider.dart';
@@ -98,11 +100,7 @@ class _TrainerNotificationsScreenState
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              child: AdaptiveSpinner.small(),
             ),
           );
         }
@@ -181,9 +179,7 @@ class _TrainerNotificationsScreenState
     if (traineeId != null) {
       context.push('/trainer/trainees/$traineeId');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Trainee no longer available')),
-      );
+      showAdaptiveToast(context, message: 'Trainee no longer available');
     }
   }
 
@@ -192,31 +188,25 @@ class _TrainerNotificationsScreenState
   Future<bool> _deleteNotificationWithUndo(
     TrainerNotificationModel notification,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
     final notifier = ref.read(notificationsProvider.notifier);
 
     final success = await notifier.deleteNotification(notification.id);
 
     if (!success && mounted) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Failed to delete notification')),
-      );
+      showAdaptiveToast(context, message: 'Failed to delete notification');
       return false;
     }
 
     if (mounted) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('Notification deleted'),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () {
-              // Re-fetch the full list to restore the deleted notification
-              ref.invalidate(notificationsProvider);
-              ref.invalidate(unreadNotificationCountProvider);
-            },
-          ),
-        ),
+      showAdaptiveToastWithAction(
+        context,
+        message: 'Notification deleted',
+        actionLabel: 'Undo',
+        onAction: () {
+          // Re-fetch the full list to restore the deleted notification
+          ref.invalidate(notificationsProvider);
+          ref.invalidate(unreadNotificationCountProvider);
+        },
       );
     }
 
@@ -224,9 +214,6 @@ class _TrainerNotificationsScreenState
   }
 
   Future<void> _markAllRead(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final errorColor = Theme.of(context).colorScheme.error;
-
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
       title: 'Mark All as Read',
@@ -238,15 +225,12 @@ class _TrainerNotificationsScreenState
     final success =
         await ref.read(notificationsProvider.notifier).markAllRead();
     if (mounted) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            success
-                ? 'All notifications marked as read'
-                : 'Failed to mark all as read',
-          ),
-          backgroundColor: success ? Colors.green : errorColor,
-        ),
+      showAdaptiveToast(
+        context,
+        message: success
+            ? 'All notifications marked as read'
+            : 'Failed to mark all as read',
+        type: success ? ToastType.success : ToastType.error,
       );
     }
   }

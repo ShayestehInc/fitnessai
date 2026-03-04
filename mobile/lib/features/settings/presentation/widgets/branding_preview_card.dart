@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 
 /// Preview card showing how branding will appear to trainees.
@@ -95,14 +96,7 @@ class BrandingPreviewCard extends StatelessWidget {
                 loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
                   return const Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    ),
+                    child: AdaptiveSpinner.small(),
                   );
                 },
                 errorBuilder: (_, __, ___) => const Icon(

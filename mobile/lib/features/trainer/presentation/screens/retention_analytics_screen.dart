@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/retention_model.dart';
 import '../providers/trainer_provider.dart';
 import '../widgets/retention_summary_card.dart';
@@ -53,7 +54,7 @@ class _RetentionAnalyticsScreenState
           loading: () => const Center(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
+              child: AdaptiveSpinner(),
             ),
           ),
           error: (e, _) => Center(

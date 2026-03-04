@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
 
@@ -64,7 +65,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
               ),
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : Column(
               children: [
                 if (theme.platform == TargetPlatform.iOS)

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/theme_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../settings/data/repositories/branding_repository.dart';
 
@@ -252,17 +253,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     right: 0,
                     child: FadeTransition(
                       opacity: _textOpacity,
-                      child: Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(
-                              theme.colorScheme.primary.withValues(alpha: 0.5),
-                            ),
-                          ),
-                        ),
+                      child: const Center(
+                        child: AdaptiveSpinner.small(),
                       ),
                     ),
                   ),
@@ -360,14 +352,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: const Center(
-                  child: SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: AdaptiveSpinner.small(),
                 ),
               );
             },

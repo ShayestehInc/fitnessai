@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/l10n/l10n_extension.dart';
 import '../../../../core/providers/locale_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -61,9 +63,7 @@ class _LanguageSettingsScreenState
     if (!mounted) return;
     setState(() => _isSaving = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.languageChanged)),
-    );
+    showAdaptiveToast(context, message: context.l10n.languageChanged);
   }
 
   @override
@@ -77,7 +77,7 @@ class _LanguageSettingsScreenState
         title: Text(l10n.settingsLanguageSelect),
       ),
       body: _isSaving
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _languages.length,

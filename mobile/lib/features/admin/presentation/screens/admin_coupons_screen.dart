@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/tier_coupon_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -90,7 +92,7 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
             ),
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: AdaptiveSpinner())
                 : state.error != null
                     ? Center(
                         child: Padding(
@@ -222,11 +224,10 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
 
           if (success && mounted) {
             Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Coupon created'),
-                backgroundColor: Colors.green,
-              ),
+            showAdaptiveToast(
+              context,
+              message: 'Coupon created',
+              type: ToastType.success,
             );
           }
         },
@@ -263,11 +264,10 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
           await ref.read(adminCouponsProvider.notifier).revokeCoupon(coupon.id);
 
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Coupon revoked'),
-            backgroundColor: Colors.green,
-          ),
+        showAdaptiveToast(
+          context,
+          message: 'Coupon revoked',
+          type: ToastType.success,
         );
       }
     }
@@ -279,11 +279,10 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
         .reactivateCoupon(coupon.id);
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Coupon reactivated'),
-          backgroundColor: Colors.green,
-        ),
+      showAdaptiveToast(
+        context,
+        message: 'Coupon reactivated',
+        type: ToastType.success,
       );
     }
   }
@@ -317,11 +316,10 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
           await ref.read(adminCouponsProvider.notifier).deleteCoupon(coupon.id);
 
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Coupon deleted'),
-            backgroundColor: Colors.green,
-          ),
+        showAdaptiveToast(
+          context,
+          message: 'Coupon deleted',
+          type: ToastType.success,
         );
       }
     }
@@ -831,11 +829,7 @@ class _CouponDialogState extends State<_CouponDialog> {
                         backgroundColor: theme.colorScheme.primary,
                       ),
                       child: _isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : const Text('Create'),
                     ),
                   ],

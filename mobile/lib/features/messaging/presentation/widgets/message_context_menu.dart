@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/message_model.dart';
 import 'edit_message_sheet.dart';
 
@@ -49,12 +50,7 @@ void showMessageContextMenu({
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: message.content));
                     Navigator.of(sheetContext).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Message copied'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
+                    showAdaptiveToast(context, message: 'Message copied');
                   },
                 ),
               if (isMine && !message.isDeleted) ...[

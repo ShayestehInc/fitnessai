@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/branding_model.dart';
@@ -112,20 +114,10 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
         _originalSecondaryColor = saved.secondaryColorValue;
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Branding updated successfully'),
-          backgroundColor: Color(0xFF10B981),
-        ),
-      );
+      showAdaptiveToast(context, message: 'Branding updated successfully', type: ToastType.success);
     } else {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.error ?? 'Failed to save branding'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      showAdaptiveToast(context, message: result.error ?? 'Failed to save branding', type: ToastType.error);
     }
   }
 
@@ -149,19 +141,9 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
 
     if (result.success && result.branding != null) {
       setState(() => _branding = result.branding);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Logo uploaded successfully'),
-          backgroundColor: Color(0xFF10B981),
-        ),
-      );
+      showAdaptiveToast(context, message: 'Logo uploaded successfully', type: ToastType.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.error ?? 'Failed to upload logo'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      showAdaptiveToast(context, message: result.error ?? 'Failed to upload logo', type: ToastType.error);
     }
   }
 
@@ -199,20 +181,10 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
     if (result.success && result.branding != null) {
       setState(() => _branding = result.branding);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Logo removed'),
-          backgroundColor: Color(0xFF10B981),
-        ),
-      );
+      showAdaptiveToast(context, message: 'Logo removed', type: ToastType.success);
     } else {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.error ?? 'Failed to remove logo'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      showAdaptiveToast(context, message: result.error ?? 'Failed to remove logo', type: ToastType.error);
     }
   }
 
@@ -331,7 +303,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
           ],
         ),
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: AdaptiveSpinner())
             : _error != null
                 ? _buildErrorState(theme)
                 : _buildContent(theme),
@@ -442,11 +414,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
               child: ElevatedButton(
                 onPressed: canSave ? _saveBranding : null,
                 child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
+                    ? const AdaptiveSpinner.small()
                     : const Text('Save Branding'),
               ),
             ),

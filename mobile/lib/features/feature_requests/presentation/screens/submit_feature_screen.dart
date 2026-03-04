@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/feature_request_model.dart';
 import '../providers/feature_request_provider.dart';
 
@@ -154,11 +156,7 @@ class _SubmitFeatureScreenState extends ConsumerState<SubmitFeatureScreen> {
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? AdaptiveSpinner.small()
                     : const Text('Submit Feature Request'),
               ),
             ),
@@ -184,20 +182,10 @@ class _SubmitFeatureScreenState extends ConsumerState<SubmitFeatureScreen> {
     setState(() => _isSubmitting = false);
 
     if (result['success']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Feature request submitted successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      showAdaptiveToast(context, message: 'Feature request submitted successfully!', type: ToastType.success);
       context.pop();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to submit feature request'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to submit feature request', type: ToastType.error);
     }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/program_week_model.dart';
 import '../providers/program_provider.dart';
 import '../widgets/split_type_card.dart';
@@ -467,7 +468,7 @@ class _ProgramGeneratorScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(),
+            const AdaptiveSpinner(),
             const SizedBox(height: 24),
             Text(
               'Generating your program...',

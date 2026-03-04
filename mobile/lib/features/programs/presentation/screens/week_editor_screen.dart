@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/program_week_model.dart';
 import '../../../exercises/data/models/exercise_model.dart';
 import '../widgets/exercise_picker_sheet.dart';
@@ -61,9 +62,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
 
   void _createSuperset() {
     if (_selectedExerciseIndices.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least 2 exercises to create a superset')),
-      );
+      showAdaptiveToast(context, message: 'Select at least 2 exercises to create a superset');
       return;
     }
 
@@ -170,9 +169,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       _selectedExerciseIndices.clear();
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Superset created for this week!'), backgroundColor: Colors.green),
-    );
+    showAdaptiveToast(context, message: 'Superset created for this week!', type: ToastType.success);
   }
 
   void _applySupersetToAllWeeks() {
@@ -203,9 +200,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     // Call parent to apply to all other weeks
     widget.onApplySupersetToAllWeeks?.call(_selectedDayIndex, exerciseNames, groupId);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Superset created for all weeks!'), backgroundColor: Colors.green),
-    );
+    showAdaptiveToast(context, message: 'Superset created for all weeks!', type: ToastType.success);
   }
 
   void _removeFromSuperset(int index) {
@@ -1119,9 +1114,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       _week = _week.copyWith(days: updatedDays);
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Converted to rest day for this week'), backgroundColor: Colors.green),
-    );
+    showAdaptiveToast(context, message: 'Converted to rest day for this week', type: ToastType.success);
   }
 
   void _showDeleteWeekDialog() {
@@ -1168,9 +1161,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     // Call parent to apply to all other weeks
     widget.onApplyRestDayToAllWeeks?.call(_selectedDayIndex, true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Converted to rest day for all weeks'), backgroundColor: Colors.green),
-    );
+    showAdaptiveToast(context, message: 'Converted to rest day for all weeks', type: ToastType.success);
   }
 
   void _convertToWorkoutDay() {
@@ -1263,9 +1254,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       _week = _week.copyWith(days: updatedDays);
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Converted to workout day for this week'), backgroundColor: Colors.green),
-    );
+    showAdaptiveToast(context, message: 'Converted to workout day for this week', type: ToastType.success);
   }
 
   void _applyWorkoutDayToAllWeeks() {
@@ -1283,9 +1272,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     // Call parent to apply to all other weeks (false means convert TO workout day)
     widget.onApplyRestDayToAllWeeks?.call(_selectedDayIndex, false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Converted to workout day for all weeks'), backgroundColor: Colors.green),
-    );
+    showAdaptiveToast(context, message: 'Converted to workout day for all weeks', type: ToastType.success);
   }
 
   void _clearExercises() {

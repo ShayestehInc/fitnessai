@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../trainer/presentation/providers/trainer_provider.dart';
 import '../../data/models/program_week_model.dart';
@@ -192,11 +194,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           _isSaving
               ? const Padding(
                   padding: EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  child: AdaptiveSpinner.small(),
                 )
               : IconButton(
                   onPressed: _saveProgram,
@@ -1283,9 +1281,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       _programState = _programState.copyWith(weeks: updatedWeeks);
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Added ${exerciseData['name']}')),
-    );
+    showAdaptiveToast(context, message: 'Added ${exerciseData['name']}');
   }
 
   void _replaceExercise(WorkoutExercise oldExercise, Map<String, dynamic> newExerciseData, int dayIndex) {
@@ -1317,9 +1313,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       _programState = _programState.copyWith(weeks: updatedWeeks);
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Replaced with ${newExerciseData['name']}')),
-    );
+    showAdaptiveToast(context, message: 'Replaced with ${newExerciseData['name']}');
   }
 
   void _removeExercise(WorkoutExercise exercise, int dayIndex) {
@@ -1351,9 +1345,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 _programState = _programState.copyWith(weeks: updatedWeeks);
               });
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Removed ${exercise.exerciseName}')),
-              );
+              showAdaptiveToast(context, message: 'Removed ${exercise.exerciseName}');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -1387,9 +1379,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       _programState = _programState.copyWith(weeks: updatedWeeks);
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Updated for this week')),
-    );
+    showAdaptiveToast(context, message: 'Updated for this week');
   }
 
   void _applyToAllWeeks(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
@@ -1411,9 +1401,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       _programState = _programState.copyWith(weeks: updatedWeeks);
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Updated for all weeks')),
-    );
+    showAdaptiveToast(context, message: 'Updated for all weeks');
   }
 
   void _applyProgressiveOverload(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
@@ -1453,9 +1441,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       _programState = _programState.copyWith(weeks: updatedWeeks);
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Applied progressive overload across all weeks')),
-    );
+    showAdaptiveToast(context, message: 'Applied progressive overload across all weeks');
   }
 
   void _copyToAllWeeks(ProgramWeek sourceWeek) {
@@ -1482,9 +1468,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 _programState = _programState.copyWith(weeks: updatedWeeks);
               });
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Copied to all weeks')),
-              );
+              showAdaptiveToast(context, message: 'Copied to all weeks');
             },
             child: const Text('Copy'),
           ),
@@ -1511,9 +1495,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       _programState = _programState.copyWith(weeks: updatedWeeks);
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(increase ? 'Added 1 set to all exercises' : 'Removed 1 set from all exercises')),
-    );
+    showAdaptiveToast(context, message: increase ? 'Added 1 set to all exercises' : 'Removed 1 set from all exercises');
   }
 
   void _toggleDeload(ProgramWeek week) {
@@ -1619,9 +1601,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               }
             });
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Week deleted'), backgroundColor: Colors.green),
-            );
+            showAdaptiveToast(context, message: 'Week deleted', type: ToastType.success);
           },
         ),
       ),
@@ -1659,12 +1639,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           ref.invalidate(traineesProvider);
           ref.invalidate(trainerProgramsProvider);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Program updated successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          showAdaptiveToast(context, message: 'Program updated successfully!', type: ToastType.success);
 
           // Pop back
           Navigator.of(context).pop();
@@ -1819,12 +1794,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           ref.invalidate(trainerStatsProvider);
           ref.invalidate(trainerProgramsProvider);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Program saved and assigned successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          showAdaptiveToast(context, message: 'Program saved and assigned successfully!', type: ToastType.success);
 
           // Pop back to trainee detail screen (pop twice: builder -> assign -> detail)
           final navigator = Navigator.of(context);
@@ -1838,23 +1808,13 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           ref.invalidate(programTemplatesProvider);
           ref.invalidate(myTemplatesProvider);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Program template saved successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          showAdaptiveToast(context, message: 'Program template saved successfully!', type: ToastType.success);
           Navigator.of(context).pop(true);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save program: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: 'Failed to save program: ${e.toString()}', type: ToastType.error);
       }
     } finally {
       if (mounted) {

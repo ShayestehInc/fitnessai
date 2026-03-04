@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
 import '../../data/models/trainee_model.dart';
@@ -49,7 +51,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           }
           return _buildContent(context, trainee, activityAsync);
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: AdaptiveSpinner()),
         error: (error, _) => Center(child: Text('Error: $error')),
       ),
     );
@@ -401,7 +403,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           },
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: AdaptiveSpinner()),
       error: (e, _) => Center(child: Text('Error: $e')),
     );
   }
@@ -692,9 +694,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             label: 'Message',
             color: Colors.green,
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Messaging coming soon')),
-              );
+              showAdaptiveToast(context, message: 'Messaging coming soon');
             },
           ),
         ),
@@ -705,9 +705,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             label: 'Schedule',
             color: Colors.orange,
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Scheduling coming soon')),
-              );
+              showAdaptiveToast(context, message: 'Scheduling coming soon');
             },
           ),
         ),
@@ -1070,12 +1068,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
 
           Future<void> savePreset() async {
             if (name.trim().isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Please enter a preset name'),
-                  backgroundColor: Colors.red,
-                ),
-              );
+              showAdaptiveToast(context, message: 'Please enter a preset name', type: ToastType.error);
               return;
             }
 
@@ -1116,22 +1109,12 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
               if (mounted) {
                 Navigator.pop(dialogContext);
                 onSaved();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isEditing ? 'Preset updated' : 'Preset created'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                showAdaptiveToast(context, message: isEditing ? 'Preset updated' : 'Preset created', type: ToastType.success);
               }
             } catch (e) {
               setModalState(() => isSaving = false);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to save: ${e.toString()}'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                showAdaptiveToast(context, message: 'Failed to save: ${e.toString()}', type: ToastType.error);
               }
             }
           }
@@ -1148,22 +1131,12 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
               if (mounted) {
                 Navigator.pop(dialogContext);
                 onSaved();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Preset deleted'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
+                showAdaptiveToast(context, message: 'Preset deleted', type: ToastType.warning);
               }
             } catch (e) {
               setModalState(() => isDeleting = false);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to delete: ${e.toString()}'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                showAdaptiveToast(context, message: 'Failed to delete: ${e.toString()}', type: ToastType.error);
               }
             }
           }
@@ -1310,7 +1283,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                   ),
                   const SizedBox(height: 16),
                   // Default toggle
-                  SwitchListTile(
+                  SwitchListTile.adaptive(
                     title: const Text('Set as Default'),
                     subtitle: const Text('Show as primary option'),
                     value: isDefault,
@@ -1446,14 +1419,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                             child: isDeleting
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.red,
-                                    ),
-                                  )
+                                ? const AdaptiveSpinner.small()
                                 : const Text('Delete'),
                           ),
                         ),
@@ -1466,11 +1432,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                           child: isSaving
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
+                              ? const AdaptiveSpinner.small()
                               : Text(isEditing ? 'Save Changes' : 'Create Preset'),
                         ),
                       ),
@@ -1648,12 +1610,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
     final result = await ref.read(impersonationProvider.notifier).startImpersonation(widget.traineeId);
 
     if (!result['success'] && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to start session'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to start session', type: ToastType.error);
     } else if (context.mounted) {
       context.go('/home');
     }
@@ -1917,22 +1874,12 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
               if (mounted) {
                 Navigator.pop(dialogContext);
                 _loadPresets();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Imported ${selectedPresetIds.length} preset(s)'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                showAdaptiveToast(context, message: 'Imported ${selectedPresetIds.length} preset(s)', type: ToastType.success);
               }
             } catch (e) {
               setModalState(() => isLoading = false);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to import: ${e.toString()}'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                showAdaptiveToast(context, message: 'Failed to import: ${e.toString()}', type: ToastType.error);
               }
             }
           }
@@ -1996,7 +1943,7 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
                 // Content
                 Expanded(
                   child: isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(child: AdaptiveSpinner())
                       : error != null
                           ? Center(
                               child: Text(
@@ -2197,7 +2144,7 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
     final theme = Theme.of(context);
 
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AdaptiveSpinner());
     }
 
     if (_error != null) {
@@ -2550,21 +2497,11 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
 
     if (result['success'] == true) {
       final label = _layoutLabel(layoutType);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Layout updated to $label'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      showAdaptiveToast(context, message: 'Layout updated to $label');
     } else {
       // Revert to previous value on failure
       setState(() => _selectedLayout = previousLayout);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] as String? ?? 'Failed to update layout'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] as String? ?? 'Failed to update layout', type: ToastType.error);
     }
   }
 
@@ -2594,7 +2531,7 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
         ),
         child: const Padding(
           padding: EdgeInsets.all(24),
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          child: const Center(child: AdaptiveSpinner()),
         ),
       );
     }
@@ -2689,11 +2626,7 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
               const Padding(
                 padding: EdgeInsets.only(top: 12),
                 child: Center(
-                  child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  child: AdaptiveSpinner.small(),
                 ),
               ),
           ],

@@ -4,6 +4,7 @@ import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/logging_provider.dart';
 import '../widgets/draft_log_card.dart';
@@ -155,7 +156,7 @@ class _AICommandCenterScreenState
                     const Center(
                       child: Padding(
                         padding: EdgeInsets.all(24),
-                        child: CircularProgressIndicator(),
+                        child: AdaptiveSpinner(),
                       ),
                     ),
                   if (loggingState.error != null)

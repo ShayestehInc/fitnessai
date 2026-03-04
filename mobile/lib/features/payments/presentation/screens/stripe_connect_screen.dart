@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../providers/payment_provider.dart';
 
 class StripeConnectScreen extends ConsumerStatefulWidget {
@@ -40,7 +41,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
         elevation: 0,
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'adaptive/adaptive_spinner.dart';
 
 /// A full-page confirmation screen for destructive or important actions.
 ///
@@ -161,14 +162,7 @@ class ConfirmationPage extends StatelessWidget {
                         ),
                       ),
                       child: isLoading
-                          ? SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: isDestructive ? Colors.white : null,
-                              ),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : Text(confirmButtonText),
                     ),
                   ),

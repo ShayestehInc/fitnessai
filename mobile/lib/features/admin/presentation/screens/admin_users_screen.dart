@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -166,7 +167,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           // Users list
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: AdaptiveSpinner())
                 : _error != null
                     ? Center(
                         child: Padding(

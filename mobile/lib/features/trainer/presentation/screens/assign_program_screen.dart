@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../programs/data/models/program_model.dart';
 import '../../../programs/presentation/providers/program_provider.dart';
@@ -879,7 +881,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
             const SizedBox(height: 16),
             Expanded(
               child: existingPrograms.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: AdaptiveSpinner()),
                 error: (error, stack) => Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1200,23 +1202,13 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                       await ref.refresh(traineeDetailProvider(widget.traineeId).future);
 
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('"${program.name}" assigned successfully!'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
+                        showAdaptiveToast(context, message: '"${program.name}" assigned successfully!', type: ToastType.success);
                         context.pop(); // Go back to trainee detail
                       }
                     }
                   } catch (e) {
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Failed to assign program: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      showAdaptiveToast(context, message: 'Failed to assign program: ${e.toString()}', type: ToastType.error);
                     }
                   }
                 },

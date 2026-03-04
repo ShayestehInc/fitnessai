@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/calendar_connection_model.dart';
 
 class CalendarCard extends StatelessWidget {
@@ -117,11 +118,7 @@ class CalendarCard extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: isLoading ? null : onSync,
                       icon: isLoading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : const Icon(Icons.sync, size: 18),
                       label: const Text('Sync Now'),
                     ),
@@ -140,14 +137,7 @@ class CalendarCard extends StatelessWidget {
               FilledButton.icon(
                 onPressed: isLoading ? null : onConnect,
                 icon: isLoading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
+                    ? const AdaptiveSpinner.small()
                     : const Icon(Icons.add_link),
                 label: Text('Connect $title'),
                 style: FilledButton.styleFrom(

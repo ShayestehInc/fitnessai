@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../logging/presentation/providers/logging_provider.dart';
 import '../providers/nutrition_provider.dart';
@@ -320,14 +321,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                 backgroundColor: theme.colorScheme.primary,
               ),
               child: _isManualSaving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
-                      ),
-                    )
+                  ? const AdaptiveSpinner.small()
                   : const Text(
                       'Add Food',
                       style: TextStyle(
@@ -682,11 +676,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: loggingState.isSaving
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const AdaptiveSpinner.small()
                         : const Text(
                             'Confirm & Save',
                             style: TextStyle(fontWeight: FontWeight.w600),
@@ -717,14 +707,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          ),
+                          const AdaptiveSpinner.small(),
                           const SizedBox(width: 12),
                           Text(
                             'Processing...',
@@ -954,11 +937,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                   suffixIcon: searchState.isSearching
                       ? const Padding(
                           padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
+                          child: AdaptiveSpinner.small(),
                         )
                       : _searchController.text.isNotEmpty
                           ? IconButton(

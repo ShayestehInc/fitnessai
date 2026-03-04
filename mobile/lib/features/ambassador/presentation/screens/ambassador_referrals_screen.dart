@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/ambassador_models.dart';
 import '../providers/ambassador_provider.dart';
 
@@ -44,7 +45,7 @@ class _AmbassadorReferralsScreenState
           _buildFilterChips(theme),
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: AdaptiveSpinner())
                 : state.error != null
                     ? _buildErrorState(theme, state.error!)
                     : state.referrals.isEmpty

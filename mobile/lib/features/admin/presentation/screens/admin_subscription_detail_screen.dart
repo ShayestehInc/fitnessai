@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -51,7 +53,7 @@ class _AdminSubscriptionDetailScreenState
         ],
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : sub == null
               ? const Center(child: Text('Subscription not found'))
               : RefreshIndicator(
@@ -706,9 +708,7 @@ class _AdminSubscriptionDetailScreenState
                   .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
                   .changeTier(selectedTier, reason: reasonController.text);
               if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Tier updated successfully')),
-                );
+                showAdaptiveToast(context, message: 'Tier updated successfully');
               }
             },
             child: const Text('Save'),
@@ -768,9 +768,7 @@ class _AdminSubscriptionDetailScreenState
                   .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
                   .changeStatus(selectedStatus, reason: reasonController.text);
               if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Status updated successfully')),
-                );
+                showAdaptiveToast(context, message: 'Status updated successfully');
               }
             },
             child: const Text('Save'),
@@ -828,9 +826,7 @@ class _AdminSubscriptionDetailScreenState
                     description: descriptionController.text,
                   );
               if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Payment recorded successfully')),
-                );
+                showAdaptiveToast(context, message: 'Payment recorded successfully');
               }
             },
             child: const Text('Record'),
@@ -869,9 +865,7 @@ class _AdminSubscriptionDetailScreenState
                   .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
                   .updateNotes(notesController.text);
               if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Notes updated successfully')),
-                );
+                showAdaptiveToast(context, message: 'Notes updated successfully');
               }
             },
             child: const Text('Save'),
@@ -903,9 +897,7 @@ class _AdminSubscriptionDetailScreenState
                   .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
                   .recordPayment(sub.pastDueAmount, description: 'Past due cleared');
               if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Past due cleared successfully')),
-                );
+                showAdaptiveToast(context, message: 'Past due cleared successfully');
               }
             },
             child: const Text('Clear'),

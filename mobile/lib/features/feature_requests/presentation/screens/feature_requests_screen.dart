@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/feature_request_model.dart';
 import '../providers/feature_request_provider.dart';
 
@@ -52,7 +54,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
               },
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: AdaptiveSpinner()),
           error: (e, _) => Center(child: Text('Error: $e')),
         ),
       ),
@@ -270,12 +272,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
       ref.invalidate(featureRequestsProvider(params));
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['error'] ?? 'Failed to vote'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: result['error'] ?? 'Failed to vote', type: ToastType.error);
       }
     }
   }

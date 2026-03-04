@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'adaptive/adaptive_spinner.dart';
 
 /// A shimmer loading effect widget that provides better UX than a spinner
 class LoadingShimmer extends StatefulWidget {
@@ -190,15 +191,8 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
                       color: color.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Center(
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation(color),
-                        ),
-                      ),
+                    child: const Center(
+                      child: AdaptiveSpinner.small(),
                     ),
                   ),
                 ),

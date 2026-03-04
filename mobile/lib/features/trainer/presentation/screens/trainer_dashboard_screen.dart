@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../exercises/presentation/providers/exercise_provider.dart';
 import '../../../exercises/data/models/exercise_model.dart';
 import '../../../programs/presentation/providers/program_provider.dart';
@@ -885,9 +886,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open video')),
-          );
+          showAdaptiveToast(context, message: 'Could not open video');
         }
       }
     }
@@ -1258,12 +1257,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
 
     if (!result['success']) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['error'] ?? 'Failed to start session'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: result['error'] ?? 'Failed to start session', type: ToastType.error);
       }
     } else if (context.mounted) {
       // Navigate directly to trainee home

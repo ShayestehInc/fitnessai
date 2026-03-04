@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../ambassador/data/models/ambassador_models.dart';
 import '../../../ambassador/presentation/providers/ambassador_provider.dart';
 
@@ -97,7 +98,7 @@ class _AdminAmbassadorsScreenState
           ),
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: AdaptiveSpinner())
                 : state.error != null
                     ? Center(
                         child: Padding(

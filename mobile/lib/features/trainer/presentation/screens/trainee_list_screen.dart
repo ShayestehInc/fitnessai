@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/trainer_provider.dart';
 import '../widgets/trainee_card.dart';
 import '../../data/models/trainee_model.dart';
@@ -52,7 +54,7 @@ class TraineeListScreen extends ConsumerWidget {
 
     // Handle loading state
     if (traineesAsync.isLoading && invitationsAsync.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AdaptiveSpinner());
     }
 
     // Handle error state
@@ -296,12 +298,7 @@ class TraineeListScreen extends ConsumerWidget {
     final result = await ref.read(impersonationProvider.notifier).startImpersonation(traineeId);
 
     if (!result['success'] && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to start session'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to start session', type: ToastType.error);
     } else if (context.mounted) {
       // Navigate to trainee home view (with impersonation banner showing)
       context.go('/');
@@ -313,19 +310,9 @@ class TraineeListScreen extends ConsumerWidget {
 
     if (context.mounted) {
       if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invitation resent successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAdaptiveToast(context, message: 'Invitation resent successfully', type: ToastType.success);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['error'] ?? 'Failed to resend invitation'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: result['error'] ?? 'Failed to resend invitation', type: ToastType.error);
       }
     }
   }
@@ -346,16 +333,9 @@ class TraineeListScreen extends ConsumerWidget {
       if (context.mounted) {
         if (result['success']) {
           ref.invalidate(invitationsProvider);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invitation cancelled')),
-          );
+          showAdaptiveToast(context, message: 'Invitation cancelled');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error'] ?? 'Failed to cancel invitation'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showAdaptiveToast(context, message: result['error'] ?? 'Failed to cancel invitation', type: ToastType.error);
         }
       }
     }

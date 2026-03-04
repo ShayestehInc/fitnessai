@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class EditNameScreen extends ConsumerStatefulWidget {
@@ -50,14 +52,10 @@ class _EditNameScreenState extends ConsumerState<EditNameScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated!')),
-      );
+      showAdaptiveToast(context, message: 'Profile updated!');
       context.pop();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['error'] ?? 'Failed to update profile')),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to update profile', type: ToastType.error);
     }
   }
 
@@ -188,11 +186,7 @@ class _EditNameScreenState extends ConsumerState<EditNameScreen> {
                   ),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const AdaptiveSpinner.small()
                     : const Text('Save Changes'),
               ),
             ),

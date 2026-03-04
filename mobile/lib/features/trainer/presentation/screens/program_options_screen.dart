@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../programs/data/models/program_week_model.dart';
 import '../../../programs/presentation/screens/program_builder_screen.dart';
@@ -216,7 +218,7 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (context) => const Center(child: AdaptiveSpinner()),
     );
 
     try {
@@ -244,9 +246,7 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
       Navigator.pop(context); // Close loading dialog
 
       if (weeks.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No program schedule found')),
-        );
+        showAdaptiveToast(context, message: 'No program schedule found');
         return;
       }
 
@@ -263,9 +263,7 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load program: ${e.toString()}')),
-      );
+      showAdaptiveToast(context, message: 'Failed to load program: ${e.toString()}');
     }
   }
 
@@ -312,12 +310,7 @@ class _EndProgramScreenState extends ConsumerState<EndProgramScreen> {
         await ref.refresh(traineeDetailProvider(widget.traineeId).future);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Program ended successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          showAdaptiveToast(context, message: 'Program ended successfully', type: ToastType.success);
 
           // Pop back twice: once from EndProgramScreen, once from ProgramOptionsScreen
           // This brings us back to the trainee detail screen
@@ -328,12 +321,7 @@ class _EndProgramScreenState extends ConsumerState<EndProgramScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to end program: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: 'Failed to end program: ${e.toString()}', type: ToastType.error);
       }
     }
   }
@@ -419,10 +407,7 @@ class _EndProgramScreenState extends ConsumerState<EndProgramScreen> {
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
+                              child: AdaptiveSpinner.small(),
                             )
                           : const Text('End Program'),
                     ),
@@ -527,7 +512,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit Program')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(child: AdaptiveSpinner()),
       );
     }
 
@@ -572,7 +557,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
           _isSaving
               ? const Padding(
                   padding: EdgeInsets.all(16),
-                  child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: AdaptiveSpinner.small(),
                 )
               : IconButton(onPressed: _saveChanges, icon: const Icon(Icons.check), tooltip: 'Save'),
         ],
@@ -1455,9 +1440,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
       days[dayIndex] = day.copyWith(name: newName);
       _weeks[_selectedWeekIndex] = week.copyWith(days: days);
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Renamed to "$newName"')),
-    );
+    showAdaptiveToast(context, message: 'Renamed to "$newName"');
   }
 
   void _updateDayNameAllWeeks(int dayIndex, String oldName, String newName) {
@@ -1477,9 +1460,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
         }
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Renamed to "$newName" in all weeks')),
-    );
+    showAdaptiveToast(context, message: 'Renamed to "$newName" in all weeks');
   }
 
   /// Parse a reps string (e.g. "8-10" or "12") into an integer for slider UI.
@@ -1523,9 +1504,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
         _weeks[weekIndex] = week.copyWith(days: days);
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Updated in all weeks')),
-    );
+    showAdaptiveToast(context, message: 'Updated in all weeks');
   }
 
   void _replaceExerciseInWeek(WorkoutExercise oldExercise, WorkoutExercise newExercise, int dayIndex) {
@@ -1539,9 +1518,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
       days[dayIndex] = day.copyWith(exercises: updated);
       _weeks[_selectedWeekIndex] = week.copyWith(days: days);
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Replaced with ${newExercise.exerciseName}')),
-    );
+    showAdaptiveToast(context, message: 'Replaced with ${newExercise.exerciseName}');
   }
 
   void _replaceExerciseAllWeeks(WorkoutExercise oldExercise, WorkoutExercise newExercise, int dayIndex) {
@@ -1561,9 +1538,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
         _weeks[weekIndex] = week.copyWith(days: days);
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Replaced with ${newExercise.exerciseName} in all weeks')),
-    );
+    showAdaptiveToast(context, message: 'Replaced with ${newExercise.exerciseName} in all weeks');
   }
 
   void _addExercise(Map<String, dynamic> data, int dayIndex, int sets, int reps) {
@@ -1581,7 +1556,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
       days[dayIndex] = day.copyWith(exercises: [...day.exercises, newEx]);
       _weeks[_selectedWeekIndex] = week.copyWith(days: days);
     });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${data['name']}')));
+    showAdaptiveToast(context, message: 'Added ${data['name']}');
   }
 
   void _addExerciseAllWeeks(Map<String, dynamic> data, int dayIndex, int sets, int reps) {
@@ -1605,9 +1580,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
         _weeks[weekIndex] = week.copyWith(days: days);
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Added ${data['name']} to all weeks')),
-    );
+    showAdaptiveToast(context, message: 'Added ${data['name']} to all weeks');
   }
 
   void _removeExercise(WorkoutExercise exercise, int dayIndex) {
@@ -1664,7 +1637,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                         days[dayIndex] = day.copyWith(exercises: day.exercises.where((e) => e.exerciseName != exercise.exerciseName).toList());
                         _weeks[_selectedWeekIndex] = week.copyWith(days: days);
                       });
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Removed ${exercise.exerciseName} from this week')));
+                      showAdaptiveToast(context, message: 'Removed ${exercise.exerciseName} from this week');
                     },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1690,7 +1663,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                           _weeks[weekIndex] = week.copyWith(days: days);
                         }
                       });
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Removed ${exercise.exerciseName} from all weeks')));
+                      showAdaptiveToast(context, message: 'Removed ${exercise.exerciseName} from all weeks');
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1725,7 +1698,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
         // Force refresh trainee data and wait for it to complete
         await ref.refresh(traineeDetailProvider(widget.traineeId).future);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Program updated successfully'), backgroundColor: Colors.green));
+          showAdaptiveToast(context, message: 'Program updated successfully', type: ToastType.success);
           Navigator.pop(context);
           Navigator.pop(context);
         }
@@ -1733,7 +1706,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save: $e'), backgroundColor: Colors.red));
+        showAdaptiveToast(context, message: 'Failed to save: $e', type: ToastType.error);
       }
     }
   }

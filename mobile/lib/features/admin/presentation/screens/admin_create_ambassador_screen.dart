@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../ambassador/presentation/providers/ambassador_provider.dart';
 
 class AdminCreateAmbassadorScreen extends ConsumerStatefulWidget {
@@ -49,21 +51,19 @@ class _AdminCreateAmbassadorScreenState
     setState(() => _isSubmitting = false);
 
     if (result != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ambassador created! Referral code: ${result.referralCode}'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
-        ),
+      showAdaptiveToast(
+        context,
+        message: 'Ambassador created! Referral code: ${result.referralCode}',
+        type: ToastType.success,
+        duration: const Duration(seconds: 4),
       );
       context.pop();
     } else {
       final error = ref.read(adminAmbassadorsProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error ?? 'Failed to create ambassador. Please try again.'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      showAdaptiveToast(
+        context,
+        message: error ?? 'Failed to create ambassador. Please try again.',
+        type: ToastType.error,
       );
     }
   }
@@ -189,11 +189,7 @@ class _AdminCreateAmbassadorScreenState
                     child: ElevatedButton(
                       onPressed: _isSubmitting ? null : _submit,
                       child: _isSubmitting
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : const Text('Create Ambassador'),
                     ),
                   ),

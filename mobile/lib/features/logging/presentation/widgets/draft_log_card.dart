@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/parsed_log_model.dart';
 
 /// Draft Log Card - Shows parsed data before confirmation
@@ -67,11 +68,7 @@ class DraftLogCard extends StatelessWidget {
                 ElevatedButton(
                   onPressed: isSaving ? null : onConfirm,
                   child: isSaving
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const AdaptiveSpinner.small()
                       : const Text('Confirm'),
                 ),
               ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/feature_request_model.dart';
 import '../providers/feature_request_provider.dart';
 
@@ -42,7 +44,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
           }
           return _buildContent(feature, commentsAsync);
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: AdaptiveSpinner()),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
     );
@@ -242,7 +244,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
                     children: comments.map((comment) => _buildCommentCard(comment)).toList(),
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: AdaptiveSpinner()),
                 error: (e, _) => Text('Error loading comments: $e'),
               ),
             ],
@@ -276,11 +278,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
                 IconButton(
                   onPressed: _isSubmittingComment ? null : _submitComment,
                   icon: _isSubmittingComment
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? AdaptiveSpinner.small()
                       : const Icon(Icons.send),
                 ),
               ],
@@ -468,12 +466,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
       ref.invalidate(featureRequestDetailProvider(widget.featureId));
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['error'] ?? 'Failed to vote'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: result['error'] ?? 'Failed to vote', type: ToastType.error);
       }
     }
   }
@@ -498,12 +491,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
       ref.invalidate(featureCommentsProvider(widget.featureId));
       ref.invalidate(featureRequestDetailProvider(widget.featureId));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to add comment'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to add comment', type: ToastType.error);
     }
   }
 }

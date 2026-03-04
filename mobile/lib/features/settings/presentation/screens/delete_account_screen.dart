@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// Full-page delete account confirmation screen.
@@ -35,12 +37,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       context.go('/login');
     } else {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to delete account'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to delete account', type: ToastType.error);
     }
   }
 
@@ -178,14 +175,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                         ),
                       ),
                       child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : const Text('Delete My Account'),
                     ),
                   ),

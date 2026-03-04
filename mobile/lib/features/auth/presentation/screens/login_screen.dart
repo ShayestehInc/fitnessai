@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../core/services/biometric_service.dart';
 import '../../../../core/theme/theme_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../settings/data/repositories/branding_repository.dart';
 import '../../data/models/user_model.dart';
 import '../providers/auth_provider.dart';
@@ -106,12 +108,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
       await _navigateBasedOnRole(authState.user!);
     } else if (authState.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authState.error!),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: authState.error!, type: ToastType.error);
     }
   }
 
@@ -161,12 +158,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } else if (authState.error != null) {
       // Don't show snackbar for cancelled sign-in
       if (authState.error != 'Sign-in cancelled') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authState.error!),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: authState.error!, type: ToastType.error);
       }
     }
   }
@@ -183,12 +175,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } else if (authState.error != null) {
       // Don't show snackbar for cancelled sign-in
       if (authState.error != 'Sign-in cancelled') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authState.error!),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: authState.error!, type: ToastType.error);
       }
     }
   }
@@ -523,14 +510,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
         ),
         child: authState.isLoading
-            ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
-                ),
-              )
+            ? const AdaptiveSpinner.small()
             : Text(
                 'Log In',
                 style: TextStyle(
@@ -547,14 +527,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       child: TextButton.icon(
         onPressed: _isAuthenticating ? null : _handleBiometricLogin,
         icon: _isAuthenticating
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: accentColor,
-                ),
-              )
+            ? const AdaptiveSpinner.small()
             : Icon(
                 _biometricName == 'Face ID' ? Icons.face : Icons.fingerprint,
                 color: accentColor,

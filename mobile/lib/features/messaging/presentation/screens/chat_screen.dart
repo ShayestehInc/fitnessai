@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/services/messaging_ws_service.dart';
 import '../providers/messaging_provider.dart';
 import '../widgets/chat_input.dart';
@@ -100,13 +102,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // Show snackbar when an error occurs (edit/delete failures)
       if (next.error != null &&
           (prev == null || prev.error != next.error)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.error!),
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showAdaptiveToast(context, message: next.error!, type: ToastType.error);
         // Clear the error so it doesn't re-display on unrelated state changes
         ref
             .read(chatProvider(widget.conversationId).notifier)
@@ -229,14 +225,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       itemBuilder: (context, index) {
         // Loading more indicator at top
         if (chatState.isLoadingMore && index == 0) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              child: AdaptiveSpinner.small(),
             ),
           );
         }

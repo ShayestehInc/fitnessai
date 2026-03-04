@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/user_profile_model.dart';
 import '../providers/onboarding_provider.dart';
 
@@ -196,11 +197,7 @@ class Step4DietSetupScreen extends ConsumerWidget {
                   ? () => notifier.saveStep4AndComplete()
                   : null,
               child: state.isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const AdaptiveSpinner.small()
                   : const Text('Complete Setup'),
             ),
           ),

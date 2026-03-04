@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -95,20 +97,10 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
     setState(() => _isSaving = false);
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('User updated successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      showAdaptiveToast(context, message: 'User updated successfully', type: ToastType.success);
       Navigator.of(context).pop(true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to update user'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to update user', type: ToastType.error);
     }
   }
 
@@ -178,20 +170,10 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
     setState(() => _isDeleting = false);
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('User deleted successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      showAdaptiveToast(context, message: 'User deleted successfully', type: ToastType.success);
       Navigator.of(context).pop(true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to delete user'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to delete user', type: ToastType.error);
     }
   }
 
@@ -202,7 +184,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit User')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(child: AdaptiveSpinner()),
       );
     }
 
@@ -239,11 +221,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
         actions: [
           IconButton(
             icon: _isDeleting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const AdaptiveSpinner.small()
                 : const Icon(Icons.delete_outline, color: Colors.red),
             tooltip: 'Delete User',
             onPressed: _isDeleting || _isSaving ? null : _deleteUser,
@@ -369,7 +347,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
                       ],
                     ),
                   ),
-                  Switch(
+                  Switch.adaptive(
                     value: _isActive,
                     onChanged: (value) {
                       HapticService.selectionTick();
@@ -431,11 +409,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
                   ),
                 ),
                 child: _isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const AdaptiveSpinner.small()
                     : const Text('Save Changes'),
               ),
             ),

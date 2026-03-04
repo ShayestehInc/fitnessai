@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../community/data/models/announcement_model.dart';
 import '../../../community/presentation/providers/announcement_provider.dart';
 
@@ -177,9 +178,7 @@ class _TrainerAnnouncementsScreenState
       final success =
           await ref.read(trainerAnnouncementProvider.notifier).deleteAnnouncement(id);
       if (!success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to delete announcement')),
-        );
+        showAdaptiveToast(context, message: 'Failed to delete announcement');
       }
     }
   }

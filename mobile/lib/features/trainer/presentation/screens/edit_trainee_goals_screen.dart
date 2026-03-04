@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/trainee_model.dart';
 import '../providers/trainer_provider.dart';
 import '../../../../shared/widgets/step_form_page.dart';
@@ -97,20 +98,10 @@ class _EditTraineeGoalsScreenState extends ConsumerState<EditTraineeGoalsScreen>
 
     if (result['success'] == true) {
       ref.invalidate(traineeDetailProvider(widget.trainee.id));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Goals updated successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      showAdaptiveToast(context, message: 'Goals updated successfully', type: ToastType.success);
       Navigator.of(context).pop();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to update goals'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to update goals', type: ToastType.error);
     }
   }
 

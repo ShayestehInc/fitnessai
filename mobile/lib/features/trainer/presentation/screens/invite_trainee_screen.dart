@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/invitation_model.dart';
 import '../providers/trainer_provider.dart';
 
@@ -92,11 +94,7 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _isLoading ? null : _sendInvitation,
                           icon: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
+                              ? const AdaptiveSpinner.small()
                               : const Icon(Icons.send),
                           label: Text(_isLoading ? 'Sending...' : 'Send Invitation'),
                         ),
@@ -154,7 +152,7 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
                   },
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: AdaptiveSpinner()),
               error: (e, _) => Text('Error: $e'),
             ),
           ],
@@ -280,9 +278,7 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
     // In a real app, this would be a deep link to the app
     final link = 'https://fitnessai.app/invite/${invitation.invitationCode}';
     Clipboard.setData(ClipboardData(text: link));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invite link copied to clipboard')),
-    );
+    showAdaptiveToast(context, message: 'Invite link copied to clipboard');
   }
 
   Future<void> _sendInvitation() async {
@@ -306,21 +302,11 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
       _messageController.clear();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invitation sent successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAdaptiveToast(context, message: 'Invitation sent successfully!', type: ToastType.success);
       }
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['error'] ?? 'Failed to send invitation'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: result['error'] ?? 'Failed to send invitation', type: ToastType.error);
       }
     }
   }
@@ -331,18 +317,11 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
     if (result['success']) {
       ref.invalidate(invitationsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invitation resent')),
-        );
+        showAdaptiveToast(context, message: 'Invitation resent');
       }
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['error'] ?? 'Failed to resend'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: result['error'] ?? 'Failed to resend', type: ToastType.error);
       }
     }
   }
@@ -373,9 +352,7 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
       if (result['success']) {
         ref.invalidate(invitationsProvider);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invitation cancelled')),
-          );
+          showAdaptiveToast(context, message: 'Invitation cancelled');
         }
       }
     }

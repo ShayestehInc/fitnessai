@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/exercise_model.dart';
 import '../providers/exercise_provider.dart';
 
@@ -89,7 +91,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
           // Exercise list
           Expanded(
             child: exercisesAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: AdaptiveSpinner()),
               error: (error, stack) => Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -473,7 +475,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                     return Container(
                       color: Colors.grey[300],
                       child: const Center(
-                        child: CircularProgressIndicator(),
+                        child: AdaptiveSpinner(),
                       ),
                     );
                   },
@@ -733,11 +735,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                         : () async {
                             final name = nameController.text.trim();
                             if (name.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Please enter an exercise name'),
-                                ),
-                              );
+                              showAdaptiveToast(context, message: 'Please enter an exercise name');
                               return;
                             }
 
@@ -767,31 +765,17 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               Navigator.pop(context);
                               // Refresh the exercise list
                               ref.invalidate(exercisesProvider);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Exercise "$name" created'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
+                              showAdaptiveToast(context, message: 'Exercise "$name" created', type: ToastType.success);
                             } else {
                               setDialogState(() => isLoading = false);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(result['error'] ?? 'Failed to create exercise'),
-                                  backgroundColor: theme.colorScheme.error,
-                                ),
-                              );
+                              showAdaptiveToast(context, message: result['error'] ?? 'Failed to create exercise', type: ToastType.error);
                             }
                           },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const AdaptiveSpinner.small()
                         : const Text('Create Exercise'),
                   ),
                 ),
@@ -809,9 +793,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open video')),
-        );
+        showAdaptiveToast(context, message: 'Could not open video', type: ToastType.error);
       }
     }
   }
@@ -949,7 +931,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                                 if (loadingProgress == null) return child;
                                 return Container(
                                   color: theme.colorScheme.surfaceContainerHighest,
-                                  child: const Center(child: CircularProgressIndicator()),
+                                  child: const Center(child: AdaptiveSpinner()),
                                 );
                               },
                               errorBuilder: (_, __, ___) => Container(
@@ -1022,31 +1004,14 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               if (result['success'] == true) {
                                 Navigator.pop(context);
                                 ref.invalidate(exercisesProvider);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Image uploaded successfully'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
+                                showAdaptiveToast(context, message: 'Image uploaded successfully', type: ToastType.success);
                               } else {
                                 setDialogState(() => isUploading = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(result['error'] ?? 'Failed to upload image'),
-                                    backgroundColor: theme.colorScheme.error,
-                                  ),
-                                );
+                                showAdaptiveToast(context, message: result['error'] ?? 'Failed to upload image', type: ToastType.error);
                               }
                             },
                       icon: isUploading
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : const Icon(Icons.cloud_upload),
                       label: Text(isUploading ? 'Uploading...' : 'Upload Image'),
                     ),
@@ -1151,28 +1116,14 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                                 if (result['success'] == true) {
                                   Navigator.pop(context);
                                   ref.invalidate(exercisesProvider);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Image updated'),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
+                                  showAdaptiveToast(context, message: 'Image updated', type: ToastType.success);
                                 } else {
                                   setDialogState(() => isLoading = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(result['error'] ?? 'Failed to update image'),
-                                      backgroundColor: theme.colorScheme.error,
-                                    ),
-                                  );
+                                  showAdaptiveToast(context, message: result['error'] ?? 'Failed to update image', type: ToastType.error);
                                 }
                               },
                         child: isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
+                            ? const AdaptiveSpinner.small()
                             : const Text('Save URL'),
                       ),
                     ),
@@ -1342,31 +1293,14 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               if (result['success'] == true) {
                                 Navigator.pop(context);
                                 ref.invalidate(exercisesProvider);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Video uploaded successfully'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
+                                showAdaptiveToast(context, message: 'Video uploaded successfully', type: ToastType.success);
                               } else {
                                 setDialogState(() => isUploading = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(result['error'] ?? 'Failed to upload video'),
-                                    backgroundColor: theme.colorScheme.error,
-                                  ),
-                                );
+                                showAdaptiveToast(context, message: result['error'] ?? 'Failed to upload video', type: ToastType.error);
                               }
                             },
                       icon: isUploading
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : const Icon(Icons.cloud_upload),
                       label: Text(isUploading ? 'Uploading...' : 'Upload Video'),
                     ),
@@ -1422,9 +1356,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               if (videoId != null) {
                                 setDialogState(() => previewVideoId = videoId);
                               } else if (url.isNotEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Invalid YouTube URL')),
-                                );
+                                showAdaptiveToast(context, message: 'Invalid YouTube URL', type: ToastType.error);
                               }
                             }
                           : null,
@@ -1479,28 +1411,14 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                                 if (result['success'] == true) {
                                   Navigator.pop(context);
                                   ref.invalidate(exercisesProvider);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Video URL updated'),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
+                                  showAdaptiveToast(context, message: 'Video URL updated', type: ToastType.success);
                                 } else {
                                   setDialogState(() => isLoading = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(result['error'] ?? 'Failed to update video'),
-                                      backgroundColor: theme.colorScheme.error,
-                                    ),
-                                  );
+                                  showAdaptiveToast(context, message: result['error'] ?? 'Failed to update video', type: ToastType.error);
                                 }
                               },
                         child: isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
+                            ? const AdaptiveSpinner.small()
                             : const Text('Save URL'),
                       ),
                     ),

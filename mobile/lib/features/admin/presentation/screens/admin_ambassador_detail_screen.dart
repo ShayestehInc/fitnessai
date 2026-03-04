@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../ambassador/data/models/ambassador_models.dart';
 import '../../../ambassador/presentation/providers/ambassador_provider.dart';
 import '../widgets/ambassador_commissions_list.dart';
@@ -105,19 +107,17 @@ class _AdminAmbassadorDetailScreenState
     if (success) {
       await _loadDetail();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(newActive ? 'Ambassador activated' : 'Ambassador deactivated'),
-            backgroundColor: newActive ? Colors.green : Colors.orange,
-          ),
+        showAdaptiveToast(
+          context,
+          message: newActive ? 'Ambassador activated' : 'Ambassador deactivated',
+          type: newActive ? ToastType.success : ToastType.warning,
         );
       }
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to $actionLabel ambassador. Please try again.'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      showAdaptiveToast(
+        context,
+        message: 'Failed to $actionLabel ambassador. Please try again.',
+        type: ToastType.error,
       );
     }
   }
@@ -182,11 +182,10 @@ class _AdminAmbassadorDetailScreenState
       if (success) {
         await _loadDetail();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Commission rate updated to ${(result * 100).toStringAsFixed(0)}%'),
-              backgroundColor: Colors.green,
-            ),
+          showAdaptiveToast(
+            context,
+            message: 'Commission rate updated to ${(result * 100).toStringAsFixed(0)}%',
+            type: ToastType.success,
           );
         }
       }
@@ -223,21 +222,19 @@ class _AdminAmbassadorDetailScreenState
       await repo.approveCommission(widget.ambassadorId, commission.id);
       await _loadDetail();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Commission approved'),
-            backgroundColor: Colors.green,
-          ),
+        showAdaptiveToast(
+          context,
+          message: 'Commission approved',
+          type: ToastType.success,
         );
       }
     } catch (e) {
       if (mounted) {
         final errorMsg = _parseErrorMessage(e, 'Failed to approve commission. Please try again.');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMsg),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        showAdaptiveToast(
+          context,
+          message: errorMsg,
+          type: ToastType.error,
         );
       }
     } finally {
@@ -278,21 +275,19 @@ class _AdminAmbassadorDetailScreenState
       await repo.payCommission(widget.ambassadorId, commission.id);
       await _loadDetail();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Commission marked as paid'),
-            backgroundColor: Colors.green,
-          ),
+        showAdaptiveToast(
+          context,
+          message: 'Commission marked as paid',
+          type: ToastType.success,
         );
       }
     } catch (e) {
       if (mounted) {
         final errorMsg = _parseErrorMessage(e, 'Failed to mark commission as paid. Please try again.');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMsg),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        showAdaptiveToast(
+          context,
+          message: errorMsg,
+          type: ToastType.error,
         );
       }
     } finally {
@@ -345,20 +340,18 @@ class _AdminAmbassadorDetailScreenState
         final message = approvedCount > 0
             ? '$approvedCount commission(s) approved'
             : 'No pending commissions to approve.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: approvedCount > 0 ? Colors.green : Colors.orange,
-          ),
+        showAdaptiveToast(
+          context,
+          message: message,
+          type: approvedCount > 0 ? ToastType.success : ToastType.warning,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to bulk approve commissions. Please try again.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        showAdaptiveToast(
+          context,
+          message: 'Failed to bulk approve commissions. Please try again.',
+          type: ToastType.error,
         );
       }
     } finally {
@@ -412,20 +405,18 @@ class _AdminAmbassadorDetailScreenState
         final message = paidCount > 0
             ? '$paidCount commission(s) marked as paid'
             : 'No approved commissions to pay.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: paidCount > 0 ? Colors.green : Colors.orange,
-          ),
+        showAdaptiveToast(
+          context,
+          message: message,
+          type: paidCount > 0 ? ToastType.success : ToastType.warning,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to bulk pay commissions. Please try again.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        showAdaptiveToast(
+          context,
+          message: 'Failed to bulk pay commissions. Please try again.',
+          type: ToastType.error,
         );
       }
     } finally {
@@ -467,11 +458,7 @@ class _AdminAmbassadorDetailScreenState
             _isToggling
                 ? const Padding(
                     padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
+                    child: AdaptiveSpinner.small(),
                   )
                 : IconButton(
                     icon: Icon(
@@ -485,7 +472,7 @@ class _AdminAmbassadorDetailScreenState
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : _error != null
               ? _buildErrorState(theme)
               : RefreshIndicator(

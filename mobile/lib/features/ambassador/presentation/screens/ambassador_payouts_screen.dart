@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// Screen showing ambassador payout history and Stripe Connect status.
 class AmbassadorPayoutsScreen extends ConsumerStatefulWidget {
@@ -72,21 +74,13 @@ class _AmbassadorPayoutsScreenState
           await apiClient.dio.post(ApiConstants.ambassadorConnectOnboard);
       final url = (resp.data as Map<String, dynamic>)['onboarding_url'] as String?;
       if (url != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-                'Opening Stripe onboarding... Complete setup in browser.'),
-            duration: const Duration(seconds: 6),
-          ),
-        );
+        showAdaptiveToast(context, message: 'Opening Stripe onboarding... Complete setup in browser.', duration: const Duration(seconds: 6));
         // In a real app, launch the URL in the browser:
         // launchUrl(Uri.parse(url));
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to start Stripe onboarding')),
-      );
+      showAdaptiveToast(context, message: 'Failed to start Stripe onboarding');
     } finally {
       if (mounted) setState(() => _isOnboarding = false);
     }
@@ -103,7 +97,7 @@ class _AmbassadorPayoutsScreenState
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : _error != null
               ? _buildErrorState(theme)
               : RefreshIndicator(
@@ -218,12 +212,7 @@ class _AmbassadorPayoutsScreenState
               child: ElevatedButton(
                 onPressed: _isOnboarding ? null : _startOnboarding,
                 child: _isOnboarding
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
+                    ? const AdaptiveSpinner.small()
                     : Text(hasAccount
                         ? 'Complete Verification'
                         : 'Connect Stripe Account'),

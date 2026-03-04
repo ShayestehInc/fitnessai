@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/classic_workout_layout.dart';
 import '../widgets/minimal_workout_layout.dart';
@@ -437,23 +438,12 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       readinessSurvey: _readinessSurveyData?.toJson(),
     );
 
-    // If saved offline, show a snackbar to inform the user
+    // If saved offline, show a toast to inform the user
     if (result.offline && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.cloud_off, color: Color(0xFFF59E0B), size: 18),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Workout saved locally. It will sync when you\'re back online.',
-                ),
-              ),
-            ],
-          ),
-          duration: Duration(seconds: 4),
-        ),
+      showAdaptiveToast(
+        context,
+        message: 'Workout saved locally. It will sync when you\'re back online.',
+        type: ToastType.warning,
       );
     }
 

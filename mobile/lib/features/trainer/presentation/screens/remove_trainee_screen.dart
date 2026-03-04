@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/trainer_provider.dart';
 
 /// Full-page confirmation screen to remove a trainee.
@@ -34,22 +36,12 @@ class _RemoveTraineeScreenState extends ConsumerState<RemoveTraineeScreen> {
     if (result['success'] == true) {
       HapticService.heavyTap();
       ref.invalidate(traineesProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Trainee removed successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      showAdaptiveToast(context, message: 'Trainee removed successfully', type: ToastType.success);
       // Go back to trainer dashboard
       context.go('/trainer');
     } else {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to remove trainee'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to remove trainee', type: ToastType.error);
     }
   }
 
@@ -174,14 +166,7 @@ class _RemoveTraineeScreenState extends ConsumerState<RemoveTraineeScreen> {
                         ),
                       ),
                       child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : const Text('Remove Trainee'),
                     ),
                   ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/chat_models.dart';
 import '../providers/ai_chat_provider.dart';
 import '../widgets/chat_message_bubble.dart';
@@ -157,12 +159,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
                           Clipboard.setData(
                             ClipboardData(text: message.content),
                           );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Copied to clipboard'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
+                          showAdaptiveToast(context, message: 'Copied to clipboard', duration: const Duration(seconds: 1));
                         },
                       );
                     },
@@ -298,14 +295,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
               ),
               child: IconButton(
                 icon: state.isLoading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(Colors.white),
-                        ),
-                      )
+                    ? const AdaptiveSpinner.small()
                     : const Icon(Icons.send, color: Colors.white),
                 onPressed: state.isLoading ? null : _sendMessage,
               ),

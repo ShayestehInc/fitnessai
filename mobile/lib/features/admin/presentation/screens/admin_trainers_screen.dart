@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../providers/admin_impersonation_provider.dart';
@@ -75,7 +77,7 @@ class _AdminTrainersScreenState extends ConsumerState<AdminTrainersScreen> {
           // Trainers list
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: AdaptiveSpinner())
                 : state.trainers.isEmpty
                     ? Center(
                         child: Text(
@@ -147,19 +149,9 @@ class _TrainerCard extends ConsumerWidget {
     if (result['success'] == true && context.mounted) {
       // Navigate to trainer dashboard
       context.go('/trainer');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Logged in as ${trainer.displayName}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      showAdaptiveToast(context, message: 'Logged in as ${trainer.displayName}', type: ToastType.success);
     } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to impersonate trainer'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to impersonate trainer', type: ToastType.error);
     }
   }
 

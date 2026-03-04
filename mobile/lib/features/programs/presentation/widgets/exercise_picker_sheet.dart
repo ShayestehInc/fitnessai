@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../exercises/data/models/exercise_model.dart';
 import '../../../exercises/presentation/providers/exercise_provider.dart';
 
@@ -146,7 +147,7 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
+                  AdaptiveSpinner(),
                   SizedBox(height: 16),
                   Text('Loading exercises...'),
                 ],

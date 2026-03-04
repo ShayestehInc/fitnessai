@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 
 /// Admin notification preferences screen
 class AdminNotificationsScreen extends ConsumerStatefulWidget {
@@ -64,7 +65,7 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Notifications')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(child: AdaptiveSpinner()),
       );
     }
 
@@ -252,7 +253,7 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor),
       ),
-      child: SwitchListTile(
+      child: SwitchListTile.adaptive(
         title: Text(
           title,
           style: theme.textTheme.titleMedium?.copyWith(
@@ -288,7 +289,7 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
       ),
-      child: SwitchListTile(
+      child: SwitchListTile.adaptive(
         title: Text(
           title,
           style: theme.textTheme.bodyLarge,

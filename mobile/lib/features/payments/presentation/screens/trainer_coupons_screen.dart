@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/payment_provider.dart';
 
 class TrainerCouponsScreen extends ConsumerStatefulWidget {
@@ -113,7 +115,7 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
 
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: AdaptiveSpinner())
                 : state.error != null
                     ? Center(
                         child: Padding(
@@ -253,20 +255,10 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
 
           if (success && mounted) {
             Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Coupon created'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            showAdaptiveToast(context, message: 'Coupon created', type: ToastType.success);
           } else if (mounted) {
             final error = ref.read(trainerCouponsProvider).error;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(error ?? 'Failed to create coupon'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showAdaptiveToast(context, message: error ?? 'Failed to create coupon', type: ToastType.error);
           }
         },
       ),
@@ -303,12 +295,7 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
           .revokeCoupon(coupon.id);
 
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Coupon revoked'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAdaptiveToast(context, message: 'Coupon revoked', type: ToastType.success);
       }
     }
   }
@@ -319,12 +306,7 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
         .reactivateCoupon(coupon.id);
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Coupon reactivated'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      showAdaptiveToast(context, message: 'Coupon reactivated', type: ToastType.success);
     }
   }
 
@@ -358,12 +340,7 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
           .deleteCoupon(coupon.id);
 
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Coupon deleted'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAdaptiveToast(context, message: 'Coupon deleted', type: ToastType.success);
       }
     }
   }
@@ -825,11 +802,7 @@ class _CouponDialogState extends State<_CouponDialog> {
                         backgroundColor: theme.colorScheme.primary,
                       ),
                       child: _isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : const Text('Create'),
                     ),
                   ],

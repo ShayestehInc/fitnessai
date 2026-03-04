@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// Admin security settings screen
@@ -422,12 +424,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Signed out from all other devices'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              showAdaptiveToast(context, message: 'Signed out from all other devices', type: ToastType.success);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -458,14 +455,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    isEnabled ? '2FA disabled' : '2FA setup coming soon',
-                  ),
-                  backgroundColor: isEnabled ? Colors.orange : Colors.blue,
-                ),
-              );
+              showAdaptiveToast(context, message: isEnabled ? '2FA disabled' : '2FA setup coming soon', type: isEnabled ? ToastType.warning : ToastType.info);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: isEnabled ? Colors.red : Theme.of(context).colorScheme.primary,
@@ -549,19 +539,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('Password changed successfully'),
-            ],
-          ),
-          backgroundColor: Colors.green[700],
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      showAdaptiveToast(context, message: 'Password changed successfully', type: ToastType.success);
       Navigator.of(context).pop();
     } else {
       final errorMsg = result['error'] as String? ?? 'Failed to change password';
@@ -569,20 +547,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         _errorMessage = errorMsg;
       });
 
-      // Also show snackbar for better visibility
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(child: Text(errorMsg)),
-            ],
-          ),
-          backgroundColor: Colors.red[700],
-          duration: const Duration(seconds: 4),
-        ),
-      );
+      // Also show toast for better visibility
+      showAdaptiveToast(context, message: errorMsg, type: ToastType.error);
     }
   }
 
@@ -674,14 +640,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                   disabledBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.4),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(Colors.white),
-                        ),
-                      )
+                    ? const AdaptiveSpinner.small()
                     : const Text(
                         'Change Password',
                         style: TextStyle(

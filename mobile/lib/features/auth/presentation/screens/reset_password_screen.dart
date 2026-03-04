@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/auth_provider.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
@@ -89,12 +91,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     if (result['success'] == true) {
       setState(() => _resetSuccess = true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] as String? ?? 'Reset failed'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      showAdaptiveToast(context, message: result['error'] as String? ?? 'Reset failed', type: ToastType.error);
     }
   }
 
@@ -290,14 +287,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 ),
               ),
               child: _isLoading
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
-                      ),
-                    )
+                  ? const AdaptiveSpinner.small()
                   : const Text(
                       'Reset Password',
                       style: TextStyle(

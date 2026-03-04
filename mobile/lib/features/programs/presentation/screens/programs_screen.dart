@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/program_model.dart';
 import '../../data/models/program_week_model.dart';
 import '../providers/program_provider.dart';
@@ -482,7 +484,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
           draftsAsync.when(
             loading: () => const Padding(
               padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: AdaptiveSpinner()),
             ),
             error: (error, stack) => Padding(
               padding: const EdgeInsets.all(16),
@@ -542,7 +544,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             loading: () => const Center(
               child: Padding(
                 padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(),
+                child: AdaptiveSpinner(),
               ),
             ),
             error: (error, stack) => Center(
@@ -728,19 +730,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
         if (context.mounted) {
           if (result['success'] == true) {
             ref.invalidate(myTemplatesProvider);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('"${draft.name}" deleted'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            showAdaptiveToast(context, message: '"${draft.name}" deleted', type: ToastType.success);
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result['error'] ?? 'Failed to delete'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showAdaptiveToast(context, message: result['error'] ?? 'Failed to delete', type: ToastType.error);
           }
         }
       },
@@ -1319,12 +1311,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             onPressed: () async {
               final newName = controller.text.trim();
               if (newName.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Name cannot be empty'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                showAdaptiveToast(context, message: 'Name cannot be empty', type: ToastType.error);
                 return;
               }
 
@@ -1345,19 +1332,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                   // Refresh the lists
                   ref.invalidate(myTemplatesProvider);
                   ref.invalidate(trainerProgramsProvider);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Renamed to "$newName"'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                  showAdaptiveToast(context, message: 'Renamed to "$newName"', type: ToastType.success);
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(result['error'] ?? 'Failed to rename'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  showAdaptiveToast(context, message: result['error'] ?? 'Failed to rename', type: ToastType.error);
                 }
               }
             },
@@ -1441,7 +1418,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                 if (loadingProgress == null) return child;
                                 return Container(
                                   color: theme.colorScheme.surfaceContainerHighest,
-                                  child: const Center(child: CircularProgressIndicator()),
+                                  child: const Center(child: AdaptiveSpinner()),
                                 );
                               },
                               errorBuilder: (_, __, ___) => Container(
@@ -1516,31 +1493,14 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                 Navigator.pop(context);
                                 ref.invalidate(myTemplatesProvider);
                                 ref.invalidate(trainerProgramsProvider);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Image uploaded successfully'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
+                                showAdaptiveToast(context, message: 'Image uploaded successfully', type: ToastType.success);
                               } else {
                                 setDialogState(() => isUploading = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(result['error'] ?? 'Failed to upload image'),
-                                    backgroundColor: theme.colorScheme.error,
-                                  ),
-                                );
+                                showAdaptiveToast(context, message: result['error'] ?? 'Failed to upload image', type: ToastType.error);
                               }
                             },
                       icon: isUploading
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                          ? const AdaptiveSpinner.small()
                           : const Icon(Icons.cloud_upload),
                       label: Text(isUploading ? 'Uploading...' : 'Upload Image'),
                     ),
@@ -1649,28 +1609,14 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                   Navigator.pop(context);
                                   ref.invalidate(myTemplatesProvider);
                                   ref.invalidate(trainerProgramsProvider);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Image updated'),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
+                                  showAdaptiveToast(context, message: 'Image updated', type: ToastType.success);
                                 } else {
                                   setDialogState(() => isLoading = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(result['error'] ?? 'Failed to update image'),
-                                      backgroundColor: theme.colorScheme.error,
-                                    ),
-                                  );
+                                  showAdaptiveToast(context, message: result['error'] ?? 'Failed to update image', type: ToastType.error);
                                 }
                               },
                         child: isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
+                            ? const AdaptiveSpinner.small()
                             : const Text('Save URL'),
                       ),
                     ),
@@ -1931,7 +1877,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                 // Trainee list
                 Expanded(
                   child: traineesAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () => const Center(child: AdaptiveSpinner()),
                     error: (error, stack) => Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,

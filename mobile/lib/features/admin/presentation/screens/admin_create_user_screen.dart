@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/step_form_page.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -65,11 +66,10 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
 
   Future<void> _createUser() async {
     if (!_canProceed()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fix the errors before continuing'),
-          backgroundColor: Colors.red,
-        ),
+      showAdaptiveToast(
+        context,
+        message: 'Please fix the errors before continuing',
+        type: ToastType.error,
       );
       return;
     }
@@ -92,19 +92,17 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_selectedRole == 'ADMIN' ? 'Admin' : 'Trainer'} account created successfully'),
-          backgroundColor: Colors.green,
-        ),
+      showAdaptiveToast(
+        context,
+        message: '${_selectedRole == 'ADMIN' ? 'Admin' : 'Trainer'} account created successfully',
+        type: ToastType.success,
       );
       Navigator.of(context).pop(true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Failed to create user'),
-          backgroundColor: Colors.red,
-        ),
+      showAdaptiveToast(
+        context,
+        message: result['error'] ?? 'Failed to create user',
+        type: ToastType.error,
       );
     }
   }

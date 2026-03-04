@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/community_post_model.dart';
 import '../providers/community_feed_provider.dart';
 import 'comments_sheet.dart';
@@ -161,11 +163,10 @@ class _PostAuthorRow extends ConsumerWidget {
         final success =
             await ref.read(communityFeedProvider.notifier).deletePost(post.id);
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Post deleted' : 'Failed to delete post'),
-            duration: const Duration(seconds: 4),
-          ),
+        showAdaptiveToast(
+          context,
+          message: success ? 'Post deleted' : 'Failed to delete post',
+          type: success ? ToastType.success : ToastType.error,
         );
       }
     });
@@ -267,7 +268,7 @@ class _PostImage extends StatelessWidget {
                 color: Theme.of(context).dividerColor,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Center(child: CircularProgressIndicator()),
+              child: const Center(child: AdaptiveSpinner()),
             );
           },
           errorBuilder: (context, error, stackTrace) {
@@ -468,7 +469,7 @@ class _FullImageScreen extends StatelessWidget {
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
               return const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+                child: AdaptiveSpinner(),
               );
             },
             errorBuilder: (context, error, stackTrace) {

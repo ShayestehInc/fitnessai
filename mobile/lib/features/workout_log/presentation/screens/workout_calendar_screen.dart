@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../programs/data/models/program_week_model.dart';
 
 /// A calendar item representing a single day in the program
@@ -283,16 +285,12 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
         _hasChanges = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Changes saved successfully')),
-        );
+        showAdaptiveToast(context, message: 'Changes saved successfully', type: ToastType.success);
       }
     } catch (e) {
       setState(() => _isSaving = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: ${e.toString()}')),
-        );
+        showAdaptiveToast(context, message: 'Failed to save: ${e.toString()}', type: ToastType.error);
       }
     }
   }
@@ -311,7 +309,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
             _isSaving
                 ? const Padding(
                     padding: EdgeInsets.all(16),
-                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: AdaptiveSpinner.small(),
                   )
                 : IconButton(
                     icon: const Icon(Icons.save),
@@ -327,7 +325,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AdaptiveSpinner())
           : _error != null
               ? Center(
                   child: Padding(
@@ -1112,25 +1110,17 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       await _loadProgram();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              action == 'push'
-                  ? 'Day marked as missed. All workouts pushed by 1 day.'
-                  : 'Day marked as missed.',
-            ),
-            backgroundColor: Colors.orange,
-          ),
+        showAdaptiveToast(
+          context,
+          message: action == 'push'
+              ? 'Day marked as missed. All workouts pushed by 1 day.'
+              : 'Day marked as missed.',
+          type: ToastType.warning,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to mark day as missed: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAdaptiveToast(context, message: 'Failed to mark day as missed: ${e.toString()}', type: ToastType.error);
       }
     }
   }
@@ -1494,9 +1484,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       _hasChanges = true;
       _buildCalendarDays();
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Renamed to "$newName"')),
-    );
+    showAdaptiveToast(context, message: 'Renamed to "$newName"');
   }
 
   void _updateDayNameAllWeeks(int weekIndex, int dayIndex, String oldName, String newName) {
@@ -1516,9 +1504,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       _hasChanges = true;
       _buildCalendarDays();
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Renamed to "$newName" in all weeks')),
-    );
+    showAdaptiveToast(context, message: 'Renamed to "$newName" in all weeks');
   }
 
   void _showAddExerciseDialog(int weekIndex, int dayIndex) {
@@ -1741,7 +1727,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       _hasChanges = true;
     });
     _buildCalendarDays();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Updated in all weeks')));
+    showAdaptiveToast(context, message: 'Updated in all weeks');
   }
 
   void _replaceExerciseInWeek(WorkoutExercise oldExercise, WorkoutExercise newExercise, int weekIndex, int dayIndex) {
@@ -1755,7 +1741,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       _hasChanges = true;
     });
     _buildCalendarDays();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Replaced with ${newExercise.exerciseName}')));
+    showAdaptiveToast(context, message: 'Replaced with ${newExercise.exerciseName}');
   }
 
   void _replaceExerciseAllWeeks(WorkoutExercise oldExercise, WorkoutExercise newExercise, int dayIndex) {
@@ -1773,7 +1759,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       _hasChanges = true;
     });
     _buildCalendarDays();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Replaced with ${newExercise.exerciseName} in all weeks')));
+    showAdaptiveToast(context, message: 'Replaced with ${newExercise.exerciseName} in all weeks');
   }
 
   void _addExercise(Map<String, dynamic> data, int weekIndex, int dayIndex, int sets, int reps) {
@@ -1793,7 +1779,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       _hasChanges = true;
     });
     _buildCalendarDays();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${data['name']}')));
+    showAdaptiveToast(context, message: 'Added ${data['name']}');
   }
 
   void _addExerciseAllWeeks(Map<String, dynamic> data, int dayIndex, int sets, int reps) {
@@ -1816,7 +1802,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       _hasChanges = true;
     });
     _buildCalendarDays();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added ${data['name']} to all weeks')));
+    showAdaptiveToast(context, message: 'Added ${data['name']} to all weeks');
   }
 
   /// Parse a reps string (e.g. "8-10" or "12") into an integer for slider UI.
@@ -1885,7 +1871,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                         _hasChanges = true;
                       });
                       _buildCalendarDays();
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Removed ${exercise.exerciseName} from this week')));
+                      showAdaptiveToast(context, message: 'Removed ${exercise.exerciseName} from this week');
                     },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1912,7 +1898,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                         _hasChanges = true;
                       });
                       _buildCalendarDays();
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Removed ${exercise.exerciseName} from all weeks')));
+                      showAdaptiveToast(context, message: 'Removed ${exercise.exerciseName} from all weeks');
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
