@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -250,13 +251,9 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     String difficulty = 'intermediate';
     String goal = 'build_muscle';
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
           padding: EdgeInsets.only(
@@ -485,13 +482,9 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
       ),
     ];
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.85,
         minChildSize: 0.5,
@@ -649,13 +642,9 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
   void _showTemplatePreview(BuildContext context, _ProgramTemplate template) {
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.75,
         minChildSize: 0.5,
@@ -841,13 +830,9 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     final theme = Theme.of(context);
     final existingPrograms = ref.read(programTemplatesProvider);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         minChildSize: 0.5,

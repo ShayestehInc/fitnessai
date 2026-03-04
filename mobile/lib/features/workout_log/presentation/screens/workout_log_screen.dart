@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -439,12 +440,8 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
 
   void _showProgramOptions(BuildContext context) {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -509,12 +506,8 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
       return;
     }
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),

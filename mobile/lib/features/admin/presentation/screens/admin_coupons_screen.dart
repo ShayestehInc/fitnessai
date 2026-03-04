@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/tier_coupon_models.dart';
 import '../providers/admin_provider.dart';
@@ -728,22 +729,13 @@ class _CouponDialogState extends State<_CouponDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
+                AdaptiveDropdown<String>(
                   value: _couponType,
                   decoration: const InputDecoration(labelText: 'Discount Type'),
                   items: const [
-                    DropdownMenuItem(
-                      value: 'percent',
-                      child: Text('Percentage Off'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'fixed',
-                      child: Text('Fixed Amount Off'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'free_trial',
-                      child: Text('Free Trial Days'),
-                    ),
+                    AdaptiveDropdownItem(value: 'percent', label: 'Percentage Off'),
+                    AdaptiveDropdownItem(value: 'fixed', label: 'Fixed Amount Off'),
+                    AdaptiveDropdownItem(value: 'free_trial', label: 'Free Trial Days'),
                   ],
                   onChanged: (v) => setState(() => _couponType = v!),
                 ),
@@ -775,22 +767,13 @@ class _CouponDialogState extends State<_CouponDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
+                AdaptiveDropdown<String>(
                   value: _appliesTo,
                   decoration: const InputDecoration(labelText: 'Applies To'),
                   items: const [
-                    DropdownMenuItem(
-                      value: 'both',
-                      child: Text('All (Trainers & Trainees)'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'trainer',
-                      child: Text('Trainer Subscriptions Only'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'trainee',
-                      child: Text('Trainee Coaching Only'),
-                    ),
+                    AdaptiveDropdownItem(value: 'both', label: 'All (Trainers & Trainees)'),
+                    AdaptiveDropdownItem(value: 'trainer', label: 'Trainer Subscriptions Only'),
+                    AdaptiveDropdownItem(value: 'trainee', label: 'Trainee Coaching Only'),
                   ],
                   onChanged: (v) => setState(() => _appliesTo = v!),
                 ),

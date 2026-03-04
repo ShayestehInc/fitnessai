@@ -28,6 +28,18 @@ class DashboardScreen extends ConsumerWidget {
               }
             },
           ),
+          if (Theme.of(context).platform == TargetPlatform.iOS)
+            TextButton.icon(
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('AI Command'),
+              onPressed: () {
+                Navigator.of(context).push(
+                  adaptivePageRoute(
+                    builder: (context) => const AICommandCenterScreen(),
+                  ),
+                );
+              },
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -100,17 +112,19 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            adaptivePageRoute(
-              builder: (context) => const AICommandCenterScreen(),
+      floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.of(context).push(
+                  adaptivePageRoute(
+                    builder: (context) => const AICommandCenterScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('AI Command'),
             ),
-          );
-        },
-        icon: const Icon(Icons.chat_bubble_outline),
-        label: const Text('AI Command'),
-      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -76,6 +77,12 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
               onPressed: () => context.push('/community/announcements'),
               tooltip: 'Announcements',
             ),
+          if (Theme.of(context).platform == TargetPlatform.iOS)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: _showComposeSheet,
+              tooltip: 'New post',
+            ),
         ],
       ),
       body: AdaptiveRefreshIndicator(
@@ -87,12 +94,14 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
         },
         child: _buildBody(theme, feedState, announcementState),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showComposeSheet,
-        backgroundColor: theme.colorScheme.primary,
-        tooltip: 'New post',
-        child: const Icon(Icons.edit),
-      ),
+      floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
+          ? null
+          : FloatingActionButton(
+              onPressed: _showComposeSheet,
+              backgroundColor: theme.colorScheme.primary,
+              tooltip: 'New post',
+              child: const Icon(Icons.edit),
+            ),
     );
   }
 
@@ -314,12 +323,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   }
 
   void _showComposeSheet() {
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
       builder: (ctx) => const ComposePostSheet(),
     );
   }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
@@ -698,16 +699,16 @@ class _AdminSubscriptionDetailScreenState
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DropdownButtonFormField<String>(
+            AdaptiveDropdown<String>(
               value: selectedTier,
               decoration: const InputDecoration(
                 labelText: 'New Tier',
                 border: OutlineInputBorder(),
               ),
               items: SubscriptionTier.values.map((tier) {
-                return DropdownMenuItem(
+                return AdaptiveDropdownItem(
                   value: tier.value,
-                  child: Text('${tier.displayName} (\$${tier.price}/mo)'),
+                  label: '${tier.displayName} (\$${tier.price}/mo)',
                 );
               }).toList(),
               onChanged: (value) => selectedTier = value!,
@@ -758,16 +759,16 @@ class _AdminSubscriptionDetailScreenState
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DropdownButtonFormField<String>(
+            AdaptiveDropdown<String>(
               value: selectedStatus,
               decoration: const InputDecoration(
                 labelText: 'New Status',
                 border: OutlineInputBorder(),
               ),
               items: SubscriptionStatus.values.map((status) {
-                return DropdownMenuItem(
+                return AdaptiveDropdownItem(
                   value: status.value,
-                  child: Text(status.displayName),
+                  label: status.displayName,
                 );
               }).toList(),
               onChanged: (value) => selectedStatus = value!,

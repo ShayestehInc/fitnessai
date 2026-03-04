@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -37,6 +38,12 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilterDialog,
           ),
+          if (Theme.of(context).platform == TargetPlatform.iOS)
+            TextButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Request'),
+              onPressed: () => context.push('/feature-requests/submit'),
+            ),
         ],
       ),
       body: AdaptiveRefreshIndicator(
@@ -61,11 +68,13 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
           error: (e, _) => Center(child: Text('Error: $e')),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/feature-requests/submit'),
-        icon: const Icon(Icons.add),
-        label: const Text('Request Feature'),
-      ),
+      floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.push('/feature-requests/submit'),
+              icon: const Icon(Icons.add),
+              label: const Text('Request Feature'),
+            ),
     );
   }
 
@@ -281,7 +290,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
   }
 
   void _showFilterDialog() {
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       builder: (context) => Padding(
         padding: const EdgeInsets.all(16),

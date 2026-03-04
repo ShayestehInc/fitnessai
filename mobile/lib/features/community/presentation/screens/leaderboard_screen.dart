@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -87,7 +88,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
   }
 
   Widget _buildMetricSelector(ThemeData theme) {
-    return DropdownButtonFormField<String>(
+    return AdaptiveDropdown<String>(
       value: _metricType,
       decoration: InputDecoration(
         labelText: 'Metric',
@@ -97,8 +98,8 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
         isDense: true,
       ),
       items: const [
-        DropdownMenuItem(value: 'workout_count', child: Text('Workouts')),
-        DropdownMenuItem(value: 'current_streak', child: Text('Streak')),
+        AdaptiveDropdownItem(value: 'workout_count', label: 'Workouts'),
+        AdaptiveDropdownItem(value: 'current_streak', label: 'Streak'),
       ],
       onChanged: (val) {
         if (val != null && val != _metricType) {
@@ -110,7 +111,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
   }
 
   Widget _buildPeriodSelector(ThemeData theme) {
-    return DropdownButtonFormField<String>(
+    return AdaptiveDropdown<String>(
       value: _timePeriod,
       decoration: InputDecoration(
         labelText: 'Period',
@@ -120,8 +121,8 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
         isDense: true,
       ),
       items: const [
-        DropdownMenuItem(value: 'weekly', child: Text('This Week')),
-        DropdownMenuItem(value: 'monthly', child: Text('This Month')),
+        AdaptiveDropdownItem(value: 'weekly', label: 'This Week'),
+        AdaptiveDropdownItem(value: 'monthly', label: 'This Month'),
       ],
       onChanged: (val) {
         if (val != null && val != _timePeriod) {

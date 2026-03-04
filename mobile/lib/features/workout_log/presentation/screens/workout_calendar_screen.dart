@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../programs/data/models/program_week_model.dart';
@@ -670,13 +671,9 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
     final weekIndex = item.weekNumber - 1;
     final dayIndex = item.dayInWeek;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (sheetContext, setSheetState) {
@@ -995,12 +992,8 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
     final theme = Theme.of(context);
     final dateStr = '${item.date.year}-${item.date.month.toString().padLeft(2, '0')}-${item.date.day.toString().padLeft(2, '0')}';
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => Padding(
         padding: EdgeInsets.only(
           left: 24,
@@ -1132,22 +1125,18 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
     bool applyToAllWeeks = true;
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
       isDismissible: false,
       enableDrag: false,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setModalState) {
           final bottomPadding = MediaQuery.of(dialogContext).viewInsets.bottom + MediaQuery.of(dialogContext).padding.bottom + 24;
 
           void showReplacePicker() {
             String search = '';
-            showModalBottomSheet(
+            showAdaptiveBottomSheet(
               context: dialogContext,
               isScrollControlled: true,
               builder: (pickerContext) => StatefulBuilder(
@@ -1332,13 +1321,9 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
     final controller = TextEditingController(text: day.name);
     bool applyToAllWeeks = true;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setModalState) {
           final bottomPadding = MediaQuery.of(dialogContext).viewInsets.bottom + MediaQuery.of(dialogContext).padding.bottom + 24;
@@ -1509,7 +1494,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
 
   void _showAddExerciseDialog(int weekIndex, int dayIndex) {
     String search = '';
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (pickerContext) => StatefulBuilder(
@@ -1559,15 +1544,11 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
     bool applyToAllWeeks = true;
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
       isDismissible: false,
       enableDrag: false,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setModalState) {
           final bottomPadding = MediaQuery.of(dialogContext).viewInsets.bottom + MediaQuery.of(dialogContext).padding.bottom + 24;
@@ -1817,12 +1798,8 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
 
   void _removeExercise(WorkoutExercise exercise, int weekIndex, int dayIndex) {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => Padding(
         padding: EdgeInsets.only(
           left: 24,

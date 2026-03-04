@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'adaptive/adaptive_dropdown.dart';
 import 'adaptive/adaptive_spinner.dart';
 
 /// A full-page form screen for simple forms.
@@ -176,7 +177,7 @@ class FormPageTextField extends StatelessWidget {
 class FormPageDropdown<T> extends StatelessWidget {
   final String label;
   final T? value;
-  final List<DropdownMenuItem<T>> items;
+  final List<AdaptiveDropdownItem<T>> items;
   final void Function(T?)? onChanged;
   final String? hint;
 
@@ -203,10 +204,11 @@ class FormPageDropdown<T> extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<T>(
+        AdaptiveDropdown<T>(
           value: value,
           items: items,
-          onChanged: onChanged,
+          onChanged: onChanged ?? (_) {},
+          hintText: hint,
           decoration: InputDecoration(
             hintText: hint,
             filled: true,

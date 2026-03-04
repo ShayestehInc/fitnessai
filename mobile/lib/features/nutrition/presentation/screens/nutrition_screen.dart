@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -387,12 +388,8 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
   void _showPresetDetail(BuildContext context, MacroPresetModel preset, bool isActive) {
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -708,12 +705,9 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
   Future<void> _handleEditEntry(int entryIndex, MealEntry entry) async {
     if (_isEditingEntry) return;
 
-    final edited = await showModalBottomSheet<MealEntry>(
+    final edited = await showAdaptiveBottomSheet<MealEntry>(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (ctx) => EditFoodEntrySheet(
         entry: entry,
         onDelete: () => _handleDeleteEntry(entryIndex),

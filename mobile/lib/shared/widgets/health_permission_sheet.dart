@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 
-/// Shows a Material bottom sheet explaining why the app needs health data access.
+import 'adaptive/adaptive_bottom_sheet.dart';
+
+/// Shows a platform-adaptive bottom sheet explaining why the app needs health data access.
 ///
 /// Returns `true` if the user tapped "Connect Health",
 /// `false` if they tapped "Not Now" or dismissed the sheet.
 Future<bool> showHealthPermissionSheet(BuildContext context) async {
-  final result = await showModalBottomSheet<bool>(
+  final result = await showAdaptiveBottomSheet<bool>(
     context: context,
-    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
     isDismissible: true,
     builder: (ctx) => const _HealthPermissionSheetContent(),
   );

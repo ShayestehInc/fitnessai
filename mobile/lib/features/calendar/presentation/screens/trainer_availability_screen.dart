@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -58,12 +59,22 @@ class _TrainerAvailabilityScreenState
           onPressed: () => context.pop(),
           tooltip: 'Back to Calendar Settings',
         ),
+        actions: [
+          if (Theme.of(context).platform == TargetPlatform.iOS)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => _showEditor(context),
+              tooltip: 'Add availability slot',
+            ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showEditor(context),
-        tooltip: 'Add availability slot',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
+          ? null
+          : FloatingActionButton(
+              onPressed: () => _showEditor(context),
+              tooltip: 'Add availability slot',
+              child: const Icon(Icons.add),
+            ),
       body: state.isLoading && slots.isEmpty
           ? _buildLoadingShimmer()
           : AdaptiveRefreshIndicator(
@@ -176,12 +187,9 @@ class _TrainerAvailabilityScreenState
       endTime = _parseTimeString(slot.endTime);
     }
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
       builder: (_) => AvailabilitySlotEditor(
         initialDay: slot?.dayOfWeek,
         initialStart: startTime,

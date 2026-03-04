@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
@@ -203,6 +204,12 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                   icon: const Icon(Icons.check),
                   tooltip: 'Save',
                 ),
+          if (Theme.of(context).platform == TargetPlatform.iOS)
+            TextButton.icon(
+              icon: const Icon(Icons.edit),
+              label: const Text('Edit Week'),
+              onPressed: () => _editWeek(_programState.weeks[_selectedWeekIndex]),
+            ),
         ],
       ),
       body: Column(
@@ -219,11 +226,13 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _editWeek(_programState.weeks[_selectedWeekIndex]),
-        icon: const Icon(Icons.edit),
-        label: const Text('Edit Week'),
-      ),
+      floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _editWeek(_programState.weeks[_selectedWeekIndex]),
+              icon: const Icon(Icons.edit),
+              label: const Text('Edit Week'),
+            ),
     );
   }
 
@@ -796,13 +805,9 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     int reps = _parseRepsToInt(exercise.reps);
     int restSeconds = exercise.restSeconds ?? 60;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
           padding: EdgeInsets.only(
@@ -1123,13 +1128,9 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
 
     final muscles = ['chest', 'back', 'shoulders', 'legs', 'arms', 'core'];
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           final filteredExercises = _exerciseLibrary.where((e) {

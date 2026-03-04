@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/calendar_connection_model.dart';
 import 'time_tile.dart';
@@ -146,15 +147,15 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
           ),
           const SizedBox(height: 20),
           // Day picker
-          DropdownButtonFormField<int>(
-            initialValue: _day,
+          AdaptiveDropdown<int>(
+            value: _day,
             decoration: const InputDecoration(
               labelText: 'Day of Week',
               border: OutlineInputBorder(),
             ),
-            items: List.generate(7, (i) => DropdownMenuItem(
+            items: List.generate(7, (i) => AdaptiveDropdownItem(
               value: i,
-              child: Text(calendarDayNames[i]),
+              label: calendarDayNames[i],
             )),
             onChanged: (v) {
               if (v != null) setState(() => _day = v);

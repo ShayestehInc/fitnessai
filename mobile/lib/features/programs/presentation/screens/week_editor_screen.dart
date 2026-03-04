@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/program_week_model.dart';
@@ -78,12 +79,8 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
         .map((i) => day.exercises[i].exerciseName)
         .toList();
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => Padding(
         padding: EdgeInsets.only(
           left: 24,
@@ -295,6 +292,22 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
               icon: const Icon(Icons.check),
               tooltip: 'Save',
             ),
+          // iOS: show FAB actions in AppBar instead
+          if (Theme.of(context).platform == TargetPlatform.iOS &&
+              !currentDay.isRestDay)
+            _isSelectionMode
+                ? TextButton.icon(
+                    icon: const Icon(Icons.link),
+                    label: const Text('Superset'),
+                    onPressed: _selectedExerciseIndices.length >= 2
+                        ? _createSuperset
+                        : null,
+                  )
+                : TextButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Exercise'),
+                    onPressed: () => _showAddExerciseSheet(context),
+                  ),
         ],
       ),
       body: Column(
@@ -320,22 +333,24 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
           ),
         ],
       ),
-      floatingActionButton: currentDay.isRestDay
+      floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
           ? null
-          : _isSelectionMode
-              ? FloatingActionButton.extended(
-                  onPressed: _selectedExerciseIndices.length >= 2 ? _createSuperset : null,
-                  backgroundColor: _selectedExerciseIndices.length >= 2
-                      ? theme.colorScheme.primary
-                      : Colors.grey,
-                  icon: const Icon(Icons.link),
-                  label: const Text('Create Superset'),
-                )
-              : FloatingActionButton.extended(
-                  onPressed: () => _showAddExerciseSheet(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Exercise'),
-                ),
+          : currentDay.isRestDay
+              ? null
+              : _isSelectionMode
+                  ? FloatingActionButton.extended(
+                      onPressed: _selectedExerciseIndices.length >= 2 ? _createSuperset : null,
+                      backgroundColor: _selectedExerciseIndices.length >= 2
+                          ? theme.colorScheme.primary
+                          : Colors.grey,
+                      icon: const Icon(Icons.link),
+                      label: const Text('Create Superset'),
+                    )
+                  : FloatingActionButton.extended(
+                      onPressed: () => _showAddExerciseSheet(context),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Exercise'),
+                    ),
     );
   }
 
@@ -735,13 +750,9 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
   void _showAddExerciseSheet(BuildContext context) {
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.9,
         minChildSize: 0.5,
@@ -821,13 +832,9 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     int reps = _parseRepsToInt(exercise.reps);
     int restSeconds = exercise.restSeconds ?? 60;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setModalState) {
           final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
@@ -1073,12 +1080,8 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     final dayName = dayNames[_selectedDayIndex];
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => Padding(
         padding: EdgeInsets.only(
           left: 24,
@@ -1201,12 +1204,8 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     final dayName = dayNames[_selectedDayIndex];
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => Padding(
         padding: EdgeInsets.only(
           left: 24,

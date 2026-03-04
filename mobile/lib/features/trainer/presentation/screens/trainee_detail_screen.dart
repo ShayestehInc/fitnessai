@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
@@ -1088,15 +1090,11 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
     // Calculate calories from macros: P*4 + C*4 + F*9
     int calculateCalories() => (protein * 4) + (carbs * 4) + (fat * 9);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: parentContext,
       isScrollControlled: true,
       isDismissible: false,
       enableDrag: false,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setModalState) {
           final bottomPadding = MediaQuery.of(dialogContext).viewInsets.bottom +
@@ -1295,7 +1293,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                   ),
                   const SizedBox(height: 16),
                   // Frequency dropdown
-                  DropdownButtonFormField<int?>(
+                  AdaptiveDropdown<int?>(
                     value: frequencyPerWeek,
                     decoration: InputDecoration(
                       labelText: 'Frequency (optional)',
@@ -1304,15 +1302,9 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                       ),
                     ),
                     items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('Not specified'),
-                      ),
+                      const AdaptiveDropdownItem<int?>(value: null, label: 'Not specified'),
                       ...List.generate(7, (i) => i + 1).map(
-                        (i) => DropdownMenuItem(
-                          value: i,
-                          child: Text('$i× per week'),
-                        ),
+                        (i) => AdaptiveDropdownItem<int?>(value: i, label: '$i× per week'),
                       ),
                     ],
                     onChanged: (v) => setModalState(() => frequencyPerWeek = v),
@@ -1867,13 +1859,9 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
     String? error;
     Set<int> selectedPresetIds = {};
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setModalState) {
           // Load all presets on first build

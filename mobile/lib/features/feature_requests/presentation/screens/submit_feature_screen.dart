@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/feature_request_model.dart';
@@ -71,16 +72,16 @@ class _SubmitFeatureScreenState extends ConsumerState<SubmitFeatureScreen> {
             const SizedBox(height: 16),
 
             // Category dropdown
-            DropdownButtonFormField<FeatureCategory>(
+            AdaptiveDropdown<FeatureCategory>(
               value: _selectedCategory,
               decoration: const InputDecoration(
                 labelText: 'Category',
                 border: OutlineInputBorder(),
               ),
               items: FeatureCategory.values.map((category) {
-                return DropdownMenuItem(
+                return AdaptiveDropdownItem(
                   value: category,
-                  child: Text(category.display),
+                  label: category.display,
                 );
               }).toList(),
               onChanged: (value) {

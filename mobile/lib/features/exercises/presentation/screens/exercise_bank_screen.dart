@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/exercise_model.dart';
@@ -327,13 +329,9 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     // Capture the parent context before showing the bottom sheet
     final parentContext = context;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         minChildSize: 0.5,
@@ -612,13 +610,9 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     String selectedMuscleGroup = MuscleGroups.chest;
     bool isLoading = false;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Padding(
           padding: EdgeInsets.only(
@@ -664,16 +658,16 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 const SizedBox(height: 16),
 
                 // Muscle group dropdown
-                DropdownButtonFormField<String>(
+                AdaptiveDropdown<String>(
                   value: selectedMuscleGroup,
                   decoration: const InputDecoration(
                     labelText: 'Muscle Group *',
                     prefixIcon: Icon(Icons.category),
                   ),
                   items: MuscleGroups.all.map((group) {
-                    return DropdownMenuItem(
+                    return AdaptiveDropdownItem(
                       value: group,
-                      child: Text(MuscleGroups.displayName(group)),
+                      label: MuscleGroups.displayName(group),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -803,12 +797,8 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     // Capture the parent context before showing the bottom sheet
     final parentContext = context;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -866,13 +856,9 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     String? previewUrl;
     File? selectedImageFile;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Padding(
           padding: EdgeInsets.only(
@@ -1150,13 +1136,9 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
       previewVideoId = _extractYouTubeVideoId(exercise.videoUrl!);
     }
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Padding(
           padding: EdgeInsets.only(

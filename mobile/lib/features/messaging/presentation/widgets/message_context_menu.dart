@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/message_model.dart';
 import 'edit_message_sheet.dart';
@@ -20,11 +21,8 @@ void showMessageContextMenu({
   final canDelete = isMine && !message.isDeleted;
   final canCopy = message.content.isNotEmpty && !message.isDeleted;
 
-  showModalBottomSheet<void>(
+  showAdaptiveBottomSheet<void>(
     context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
     builder: (sheetContext) {
       return SafeArea(
         child: Padding(
@@ -125,12 +123,9 @@ void _showEditSheet({
   required MessageModel message,
   void Function(String newContent)? onEdit,
 }) {
-  showModalBottomSheet<void>(
+  showAdaptiveBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
     builder: (sheetContext) {
       return EditMessageSheet(
         initialContent: message.content,

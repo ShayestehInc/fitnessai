@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -393,12 +394,9 @@ class _PostActions extends StatelessWidget {
   }
 
   void _openComments(BuildContext context) {
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
       builder: (_) => CommentsSheet(postId: post.id),
     );
   }

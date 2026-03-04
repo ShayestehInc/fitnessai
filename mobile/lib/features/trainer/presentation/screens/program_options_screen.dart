@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -850,15 +851,11 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     bool applyToAllWeeks = true; // Default to all weeks
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
       isDismissible: false,
       enableDrag: false,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setModalState) {
           final bottomPadding = MediaQuery.of(dialogContext).viewInsets.bottom + MediaQuery.of(dialogContext).padding.bottom + 24;
@@ -866,7 +863,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
           // Function to show replace picker without closing this dialog
           void showReplacePicker() {
             String search = '';
-            showModalBottomSheet(
+            showAdaptiveBottomSheet(
               context: dialogContext,
               isScrollControlled: true,
               builder: (pickerContext) => StatefulBuilder(
@@ -1060,15 +1057,11 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     bool applyToAllWeeks = true;
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
       isDismissible: false,
       enableDrag: false,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setModalState) {
           final bottomPadding = MediaQuery.of(dialogContext).viewInsets.bottom + MediaQuery.of(dialogContext).padding.bottom + 24;
@@ -1250,7 +1243,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
 
   void _showExercisePicker({required String title, required void Function(Map<String, dynamic>) onSelect}) {
     String search = '';
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) => StatefulBuilder(
@@ -1291,13 +1284,9 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     final controller = TextEditingController(text: day.name);
     bool applyToAllWeeks = true;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setModalState) {
           final bottomPadding = MediaQuery.of(dialogContext).viewInsets.bottom + MediaQuery.of(dialogContext).padding.bottom + 24;
@@ -1586,12 +1575,8 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
 
   void _removeExercise(WorkoutExercise exercise, int dayIndex) {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => Padding(
         padding: EdgeInsets.only(
           left: 24,

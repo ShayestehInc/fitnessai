@@ -37,11 +37,13 @@ class TraineeListScreen extends ConsumerWidget {
         },
         child: _buildBody(context, ref, traineesAsync, invitationsAsync),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/trainer/invite'),
-        icon: const Icon(Icons.person_add),
-        label: const Text('Invite'),
-      ),
+      floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.push('/trainer/invite'),
+              icon: const Icon(Icons.person_add),
+              label: const Text('Invite'),
+            ),
     );
   }
 

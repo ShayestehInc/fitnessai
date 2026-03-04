@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/auth_provider.dart';
 
@@ -98,14 +99,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
+              AdaptiveDropdown<String>(
                 value: _selectedRole,
                 decoration: const InputDecoration(
                   labelText: 'Role',
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'TRAINEE', child: Text('Trainee')),
-                  DropdownMenuItem(value: 'TRAINER', child: Text('Trainer')),
+                  AdaptiveDropdownItem(value: 'TRAINEE', label: 'Trainee'),
+                  AdaptiveDropdownItem(value: 'TRAINER', label: 'Trainer'),
                 ],
                 onChanged: (value) {
                   if (value != null) {

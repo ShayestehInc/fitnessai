@@ -160,12 +160,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/ai-command'),
-        backgroundColor: theme.colorScheme.primary,
-        icon: const Icon(Icons.mic),
-        label: const Text('Log'),
-      ),
+      floatingActionButton: theme.platform == TargetPlatform.iOS
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.push('/ai-command'),
+              backgroundColor: theme.colorScheme.primary,
+              icon: const Icon(Icons.mic),
+              label: const Text('Log'),
+            ),
     );
   }
 
@@ -248,6 +250,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         Row(
           children: [
+            if (Theme.of(context).platform == TargetPlatform.iOS)
+              TextButton.icon(
+                icon: const Icon(Icons.mic),
+                label: const Text('Log'),
+                onPressed: () => context.push('/ai-command'),
+              ),
             _buildAnnouncementBell(theme),
             Theme.of(context).platform == TargetPlatform.iOS
                 ? IconButton(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -219,12 +220,8 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
 
   void _showFilterSheet(BuildContext context) {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
           padding: const EdgeInsets.all(20),

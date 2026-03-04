@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../data/models/chat_models.dart';
 import '../providers/ai_chat_provider.dart';
 
@@ -118,12 +119,8 @@ class TraineeSelector extends ConsumerWidget {
   ) {
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
       builder: (context) => _TraineeBottomSheet(trainees: trainees),
     );
   }

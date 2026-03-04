@@ -37,6 +37,14 @@ class _TrainerAnnouncementsScreenState
       appBar: AppBar(
         title: const Text('Announcements'),
         elevation: 0,
+        actions: [
+          if (Theme.of(context).platform == TargetPlatform.iOS)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => context.push('/trainer/announcements/create'),
+              tooltip: 'New announcement',
+            ),
+        ],
       ),
       body: AdaptiveRefreshIndicator(
         onRefresh: () async {
@@ -44,12 +52,14 @@ class _TrainerAnnouncementsScreenState
         },
         child: _buildBody(theme, state),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/trainer/announcements/create'),
-        backgroundColor: theme.colorScheme.primary,
-        tooltip: 'New announcement',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
+          ? null
+          : FloatingActionButton(
+              onPressed: () => context.push('/trainer/announcements/create'),
+              backgroundColor: theme.colorScheme.primary,
+              tooltip: 'New announcement',
+              child: const Icon(Icons.add),
+            ),
     );
   }
 

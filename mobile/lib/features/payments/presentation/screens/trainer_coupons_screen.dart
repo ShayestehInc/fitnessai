@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -712,22 +713,13 @@ class _CouponDialogState extends State<_CouponDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
+                AdaptiveDropdown<String>(
                   value: _couponType,
                   decoration: const InputDecoration(labelText: 'Discount Type'),
                   items: const [
-                    DropdownMenuItem(
-                      value: 'percent',
-                      child: Text('Percentage Off'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'fixed',
-                      child: Text('Fixed Amount Off'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'free_trial',
-                      child: Text('Free Trial Days'),
-                    ),
+                    AdaptiveDropdownItem(value: 'percent', label: 'Percentage Off'),
+                    AdaptiveDropdownItem(value: 'fixed', label: 'Fixed Amount Off'),
+                    AdaptiveDropdownItem(value: 'free_trial', label: 'Free Trial Days'),
                   ],
                   onChanged: (v) => setState(() => _couponType = v!),
                 ),

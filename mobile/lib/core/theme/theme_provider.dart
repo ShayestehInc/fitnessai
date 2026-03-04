@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -585,9 +586,15 @@ class AppThemeBuilder {
     const foreground = Color(0xFFFAFAFA);
     const mutedForeground = Color(0xFFA1A1AA);
 
+    final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      // iOS: suppress Material ripple, use subtle highlight instead
+      splashFactory: isIOS ? NoSplash.splashFactory : null,
+      splashColor: isIOS ? Colors.transparent : null,
+      highlightColor: isIOS ? Colors.white.withValues(alpha: 0.05) : null,
       colorScheme: ColorScheme.dark(
         primary: primary,
         onPrimary: Colors.white,
@@ -815,9 +822,15 @@ class AppThemeBuilder {
     const foreground = Color(0xFF09090B);
     const mutedForeground = Color(0xFF71717A);
 
+    final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      // iOS: suppress Material ripple, use subtle highlight instead
+      splashFactory: isIOS ? NoSplash.splashFactory : null,
+      splashColor: isIOS ? Colors.transparent : null,
+      highlightColor: isIOS ? Colors.black.withValues(alpha: 0.04) : null,
       colorScheme: ColorScheme.light(
         primary: primary,
         onPrimary: Colors.white,

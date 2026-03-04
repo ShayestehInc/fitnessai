@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
@@ -1403,13 +1404,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     String? previewUrl = currentImageUrl;
     File? selectedImageFile;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Padding(
           padding: EdgeInsets.only(
@@ -1685,13 +1682,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     // Capture the parent context before showing the bottom sheet
     final parentContext = context;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.8,
         minChildSize: 0.5,
@@ -1878,13 +1871,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     // Capture the parent context before showing the bottom sheet
     final parentContext = context;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.6,
         minChildSize: 0.4,
@@ -2027,12 +2016,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     // Capture the parent context before showing the bottom sheet
     final parentContext = context;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetContext) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -2183,13 +2168,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     // Capture the parent context before showing the bottom sheet
     final parentContext = context;
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetContext) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         minChildSize: 0.5,
@@ -2322,13 +2303,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     String difficulty = 'intermediate';
     String goal = 'build_muscle';
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetContext) => StatefulBuilder(
         builder: (stateContext, setModalState) => Padding(
           padding: EdgeInsets.only(

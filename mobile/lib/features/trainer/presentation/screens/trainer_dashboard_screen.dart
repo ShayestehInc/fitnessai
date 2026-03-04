@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
@@ -229,11 +230,13 @@ class TrainerDashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/trainer/invite'),
-        icon: const Icon(Icons.person_add),
-        label: const Text('Invite'),
-      ),
+      floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.push('/trainer/invite'),
+              icon: const Icon(Icons.person_add),
+              label: const Text('Invite'),
+            ),
     );
   }
 
@@ -378,13 +381,9 @@ class TrainerDashboardScreen extends ConsumerWidget {
   void _showProgramDetail(BuildContext context, ProgramTemplateModel program) {
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.6,
         minChildSize: 0.4,
@@ -538,13 +537,9 @@ class TrainerDashboardScreen extends ConsumerWidget {
   void _showAssignToTraineeDialog(BuildContext context, ProgramTemplateModel program) {
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.6,
         minChildSize: 0.4,
@@ -804,13 +799,9 @@ class TrainerDashboardScreen extends ConsumerWidget {
 
   void _showExerciseDetail(BuildContext context, ExerciseModel exercise) {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.6,
         minChildSize: 0.4,
