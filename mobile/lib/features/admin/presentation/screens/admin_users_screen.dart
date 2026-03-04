@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -201,9 +203,10 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                               ],
                             ),
                           )
-                        : RefreshIndicator(
+                        : AdaptiveRefreshIndicator(
                             onRefresh: _loadUsers,
                             child: ListView.builder(
+                              physics: adaptiveAlwaysScrollablePhysics(context),
                               padding: const EdgeInsets.all(16),
                               itemCount: _users.length,
                               itemBuilder: (context, index) => _buildUserCard(_users[index]),

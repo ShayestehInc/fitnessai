@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/leaderboard_model.dart';
 import '../../data/repositories/community_feed_repository.dart';
@@ -223,9 +225,10 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
       );
     }
 
-    return RefreshIndicator(
+    return AdaptiveRefreshIndicator(
       onRefresh: _loadLeaderboard,
       child: ListView.builder(
+        physics: adaptiveAlwaysScrollablePhysics(context),
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: data.entries.length + (data.myRank != null ? 1 : 0),
         itemBuilder: (context, index) {

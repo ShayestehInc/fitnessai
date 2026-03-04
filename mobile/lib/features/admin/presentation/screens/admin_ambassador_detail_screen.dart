@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../ambassador/data/models/ambassador_models.dart';
@@ -407,7 +408,7 @@ class _AdminAmbassadorDetailScreenState
           ? const Center(child: AdaptiveSpinner())
           : _error != null
               ? _buildErrorState(theme)
-              : RefreshIndicator(
+              : AdaptiveRefreshIndicator(
                   onRefresh: _loadDetail,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),

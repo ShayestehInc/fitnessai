@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
@@ -163,9 +165,10 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
                               style: TextStyle(color: theme.textTheme.bodySmall?.color),
                             ),
                           )
-                        : RefreshIndicator(
+                        : AdaptiveRefreshIndicator(
                         onRefresh: () async => _applyFilters(),
                         child: ListView.builder(
+                          physics: adaptiveAlwaysScrollablePhysics(context),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: state.subscriptions.length,
                           itemBuilder: (context, index) {

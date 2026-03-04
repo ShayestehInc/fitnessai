@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
@@ -42,22 +43,47 @@ class _AdminSubscriptionDetailScreenState
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           if (sub != null)
-            PopupMenuButton<String>(
-              onSelected: (value) => _handleAction(value, sub),
-              itemBuilder: (context) => [
-                const PopupMenuItem(value: 'change_tier', child: Text('Change Tier')),
-                const PopupMenuItem(value: 'change_status', child: Text('Change Status')),
-                const PopupMenuItem(value: 'record_payment', child: Text('Record Payment')),
-                const PopupMenuItem(value: 'edit_notes', child: Text('Edit Notes')),
-              ],
-            ),
+            Theme.of(context).platform == TargetPlatform.iOS
+                ? IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () => showAdaptiveActionSheet(
+                      context: context,
+                      actions: [
+                        AdaptiveAction(
+                          label: 'Change Tier',
+                          onPressed: () => _handleAction('change_tier', sub),
+                        ),
+                        AdaptiveAction(
+                          label: 'Change Status',
+                          onPressed: () => _handleAction('change_status', sub),
+                        ),
+                        AdaptiveAction(
+                          label: 'Record Payment',
+                          onPressed: () => _handleAction('record_payment', sub),
+                        ),
+                        AdaptiveAction(
+                          label: 'Edit Notes',
+                          onPressed: () => _handleAction('edit_notes', sub),
+                        ),
+                      ],
+                    ),
+                  )
+                : PopupMenuButton<String>(
+                    onSelected: (value) => _handleAction(value, sub),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(value: 'change_tier', child: Text('Change Tier')),
+                      const PopupMenuItem(value: 'change_status', child: Text('Change Status')),
+                      const PopupMenuItem(value: 'record_payment', child: Text('Record Payment')),
+                      const PopupMenuItem(value: 'edit_notes', child: Text('Edit Notes')),
+                    ],
+                  ),
         ],
       ),
       body: state.isLoading
           ? const Center(child: AdaptiveSpinner())
           : sub == null
               ? const Center(child: Text('Subscription not found'))
-              : RefreshIndicator(
+              : AdaptiveRefreshIndicator(
                   onRefresh: () => ref
                       .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
                       .loadSubscription(),

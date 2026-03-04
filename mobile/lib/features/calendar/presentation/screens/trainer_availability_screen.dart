@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/loading_shimmer.dart';
 import '../../data/models/calendar_connection_model.dart';
@@ -65,7 +66,7 @@ class _TrainerAvailabilityScreenState
       ),
       body: state.isLoading && slots.isEmpty
           ? _buildLoadingShimmer()
-          : RefreshIndicator(
+          : AdaptiveRefreshIndicator(
               onRefresh: () =>
                   ref.read(calendarProvider.notifier).loadAvailability(),
               child: slots.isEmpty

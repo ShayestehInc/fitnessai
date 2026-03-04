@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../data/models/trainee_model.dart';
 
 class TraineeCard extends StatelessWidget {
@@ -121,25 +122,39 @@ class TraineeCard extends StatelessWidget {
               ),
 
               // Actions
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'login_as') {
-                    onLoginAs?.call();
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'login_as',
-                    child: Row(
-                      children: [
-                        Icon(Icons.visibility, size: 20),
-                        SizedBox(width: 8),
-                        Text('View as Trainee'),
+              Theme.of(context).platform == TargetPlatform.iOS
+                ? IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () => showAdaptiveActionSheet(
+                      context: context,
+                      actions: [
+                        AdaptiveAction(
+                          label: 'View as Trainee',
+                          icon: Icons.visibility,
+                          onPressed: () => onLoginAs?.call(),
+                        ),
                       ],
                     ),
+                  )
+                : PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'login_as') {
+                        onLoginAs?.call();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'login_as',
+                        child: Row(
+                          children: [
+                            Icon(Icons.visibility, size: 20),
+                            SizedBox(width: 8),
+                            Text('View as Trainee'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
             ],
           ),
         ),

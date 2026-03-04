@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../providers/announcement_provider.dart';
 import '../../data/models/announcement_model.dart';
 
@@ -33,7 +34,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
         title: const Text('Announcements'),
         elevation: 0,
       ),
-      body: RefreshIndicator(
+      body: AdaptiveRefreshIndicator(
         onRefresh: () async {
           await ref.read(announcementProvider.notifier).loadAnnouncements();
         },

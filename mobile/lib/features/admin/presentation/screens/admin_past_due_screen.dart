@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
@@ -102,7 +103,7 @@ class _AdminPastDueScreenState extends ConsumerState<AdminPastDueScreen> {
                         ],
                       ),
                     )
-                  : RefreshIndicator(
+                  : AdaptiveRefreshIndicator(
                       onRefresh: _loadPastDue,
                       child: Column(
                         children: [

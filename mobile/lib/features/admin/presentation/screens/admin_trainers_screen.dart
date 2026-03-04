@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
@@ -86,11 +88,12 @@ class _AdminTrainersScreenState extends ConsumerState<AdminTrainersScreen> {
                           style: TextStyle(color: theme.textTheme.bodySmall?.color),
                         ),
                       )
-                    : RefreshIndicator(
+                    : AdaptiveRefreshIndicator(
                         onRefresh: () => ref
                             .read(adminTrainersProvider.notifier)
                             .loadTrainers(search: _searchController.text),
                         child: ListView.builder(
+                          physics: adaptiveAlwaysScrollablePhysics(context),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: state.trainers.length,
                           itemBuilder: (context, index) {
@@ -199,39 +202,57 @@ class _TrainerCard extends ConsumerWidget {
                     ),
                   ),
                   // Login as trainer button
-                  PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, color: theme.textTheme.bodySmall?.color),
-                    onSelected: (value) {
-                      if (value == 'impersonate') {
-                        _impersonateTrainer(context, ref);
-                      } else if (value == 'subscription' && sub?.id != null) {
-                        context.push('/admin/subscriptions/${sub!.id}');
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'impersonate',
-                        child: Row(
-                          children: [
-                            Icon(Icons.login, size: 20),
-                            SizedBox(width: 8),
-                            Text('Login as Trainer'),
-                          ],
-                        ),
-                      ),
-                      if (sub?.id != null)
-                        const PopupMenuItem(
-                          value: 'subscription',
-                          child: Row(
-                            children: [
-                              Icon(Icons.credit_card, size: 20),
-                              SizedBox(width: 8),
-                              Text('View Subscription'),
+                  Theme.of(context).platform == TargetPlatform.iOS
+                      ? IconButton(
+                          icon: Icon(Icons.more_vert, color: theme.textTheme.bodySmall?.color),
+                          onPressed: () => showAdaptiveActionSheet(
+                            context: context,
+                            actions: [
+                              AdaptiveAction(
+                                label: 'Login as Trainer',
+                                onPressed: () => _impersonateTrainer(context, ref),
+                              ),
+                              if (sub?.id != null)
+                                AdaptiveAction(
+                                  label: 'View Subscription',
+                                  onPressed: () => context.push('/admin/subscriptions/${sub!.id}'),
+                                ),
                             ],
                           ),
+                        )
+                      : PopupMenuButton<String>(
+                          icon: Icon(Icons.more_vert, color: theme.textTheme.bodySmall?.color),
+                          onSelected: (value) {
+                            if (value == 'impersonate') {
+                              _impersonateTrainer(context, ref);
+                            } else if (value == 'subscription' && sub?.id != null) {
+                              context.push('/admin/subscriptions/${sub!.id}');
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'impersonate',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.login, size: 20),
+                                  SizedBox(width: 8),
+                                  Text('Login as Trainer'),
+                                ],
+                              ),
+                            ),
+                            if (sub?.id != null)
+                              const PopupMenuItem(
+                                value: 'subscription',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.credit_card, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('View Subscription'),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
                   if (!trainer.isActive)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

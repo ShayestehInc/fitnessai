@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -141,22 +143,40 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           onPressed: () => _startImpersonation(context),
           tooltip: 'View as Trainee',
         ),
-        PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'message') {
-              _openMessageTrainee(context, trainee);
-            } else if (value == 'remove') {
-              _openRemoveTrainee(context, trainee);
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'message', child: Text('Send Message')),
-            const PopupMenuItem(
-              value: 'remove',
-              child: Text('Remove Trainee', style: TextStyle(color: Colors.red)),
+        Theme.of(context).platform == TargetPlatform.iOS
+          ? IconButton(
+              icon: const Icon(Icons.more_vert),
+              onPressed: () => showAdaptiveActionSheet(
+                context: context,
+                actions: [
+                  AdaptiveAction(
+                    label: 'Send Message',
+                    onPressed: () => _openMessageTrainee(context, trainee),
+                  ),
+                  AdaptiveAction(
+                    label: 'Remove Trainee',
+                    onPressed: () => _openRemoveTrainee(context, trainee),
+                    isDestructive: true,
+                  ),
+                ],
+              ),
+            )
+          : PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'message') {
+                  _openMessageTrainee(context, trainee);
+                } else if (value == 'remove') {
+                  _openRemoveTrainee(context, trainee);
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'message', child: Text('Send Message')),
+                const PopupMenuItem(
+                  value: 'remove',
+                  child: Text('Remove Trainee', style: TextStyle(color: Colors.red)),
+                ),
+              ],
             ),
-          ],
-        ),
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
@@ -2181,7 +2201,7 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
       );
     }
 
-    return RefreshIndicator(
+    return AdaptiveRefreshIndicator(
       onRefresh: _loadPresets,
       child: ListView(
         padding: const EdgeInsets.all(16),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/tier_coupon_models.dart';
@@ -119,7 +120,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
                         ],
                       ),
                     )
-                  : RefreshIndicator(
+                  : AdaptiveRefreshIndicator(
                       onRefresh: () =>
                           ref.read(adminTiersProvider.notifier).loadTiers(),
                       child: ReorderableListView.builder(

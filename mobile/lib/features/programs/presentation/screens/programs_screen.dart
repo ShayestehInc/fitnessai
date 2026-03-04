@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -177,11 +179,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
   Widget _buildTemplatesTab(BuildContext context) {
     final theme = Theme.of(context);
-    return RefreshIndicator(
+    return AdaptiveRefreshIndicator(
       onRefresh: () async {
         ref.invalidate(programTemplatesProvider);
       },
       child: ListView(
+        physics: adaptiveAlwaysScrollablePhysics(context),
         padding: const EdgeInsets.all(16),
         children: [
           // Header
@@ -463,12 +466,13 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     final programsAsync = ref.watch(trainerProgramsProvider);
     final draftsAsync = ref.watch(myTemplatesProvider);
 
-    return RefreshIndicator(
+    return AdaptiveRefreshIndicator(
       onRefresh: () async {
         ref.invalidate(trainerProgramsProvider);
         ref.invalidate(myTemplatesProvider);
       },
       child: ListView(
+        physics: adaptiveAlwaysScrollablePhysics(context),
         padding: const EdgeInsets.all(16),
         children: [
           // Draft Programs Section (unassigned)
@@ -823,64 +827,94 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                           color: Colors.black.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
-                          tooltip: 'More options',
-                          onSelected: (value) {
-                            switch (value) {
-                              case 'edit':
-                                _editDraftProgram(context, draft);
-                                break;
-                              case 'rename':
-                                _showRenameProgramDialog(context, draft.id, draft.name, isTemplate: true);
-                                break;
-                              case 'edit_image':
-                                _showEditProgramImageDialog(context, draft.id, draft.name, draft.imageUrl, isTemplate: true);
-                                break;
-                              case 'assign':
-                                _showTraineeSelectionForDraft(context, draft);
-                                break;
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: ListTile(
-                                leading: Icon(Icons.edit_outlined),
-                                title: Text('Edit'),
-                                contentPadding: EdgeInsets.zero,
-                                dense: true,
+                        child: Theme.of(context).platform == TargetPlatform.iOS
+                          ? IconButton(
+                              icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+                              tooltip: 'More options',
+                              onPressed: () => showAdaptiveActionSheet(
+                                context: context,
+                                actions: [
+                                  AdaptiveAction(
+                                    label: 'Edit',
+                                    icon: Icons.edit_outlined,
+                                    onPressed: () => _editDraftProgram(context, draft),
+                                  ),
+                                  AdaptiveAction(
+                                    label: 'Rename',
+                                    icon: Icons.drive_file_rename_outline,
+                                    onPressed: () => _showRenameProgramDialog(context, draft.id, draft.name, isTemplate: true),
+                                  ),
+                                  AdaptiveAction(
+                                    label: 'Edit Image',
+                                    icon: Icons.image_outlined,
+                                    onPressed: () => _showEditProgramImageDialog(context, draft.id, draft.name, draft.imageUrl, isTemplate: true),
+                                  ),
+                                  AdaptiveAction(
+                                    label: 'Assign to Trainee',
+                                    icon: Icons.person_add_outlined,
+                                    onPressed: () => _showTraineeSelectionForDraft(context, draft),
+                                  ),
+                                ],
                               ),
+                            )
+                          : PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+                              tooltip: 'More options',
+                              onSelected: (value) {
+                                switch (value) {
+                                  case 'edit':
+                                    _editDraftProgram(context, draft);
+                                    break;
+                                  case 'rename':
+                                    _showRenameProgramDialog(context, draft.id, draft.name, isTemplate: true);
+                                    break;
+                                  case 'edit_image':
+                                    _showEditProgramImageDialog(context, draft.id, draft.name, draft.imageUrl, isTemplate: true);
+                                    break;
+                                  case 'assign':
+                                    _showTraineeSelectionForDraft(context, draft);
+                                    break;
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: ListTile(
+                                    leading: Icon(Icons.edit_outlined),
+                                    title: Text('Edit'),
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'rename',
+                                  child: ListTile(
+                                    leading: Icon(Icons.drive_file_rename_outline),
+                                    title: Text('Rename'),
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'edit_image',
+                                  child: ListTile(
+                                    leading: Icon(Icons.image_outlined),
+                                    title: Text('Edit Image'),
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'assign',
+                                  child: ListTile(
+                                    leading: Icon(Icons.person_add_outlined, color: theme.colorScheme.primary),
+                                    title: const Text('Assign to Trainee'),
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const PopupMenuItem(
-                              value: 'rename',
-                              child: ListTile(
-                                leading: Icon(Icons.drive_file_rename_outline),
-                                title: Text('Rename'),
-                                contentPadding: EdgeInsets.zero,
-                                dense: true,
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'edit_image',
-                              child: ListTile(
-                                leading: Icon(Icons.image_outlined),
-                                title: Text('Edit Image'),
-                                contentPadding: EdgeInsets.zero,
-                                dense: true,
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'assign',
-                              child: ListTile(
-                                leading: Icon(Icons.person_add_outlined, color: theme.colorScheme.primary),
-                                title: const Text('Assign to Trainee'),
-                                contentPadding: EdgeInsets.zero,
-                                dense: true,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],
@@ -1121,52 +1155,77 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                         color: Colors.black.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
-                        tooltip: 'More options',
-                        onSelected: (value) {
-                          switch (value) {
-                            case 'edit':
-                              _editProgram(context, program);
-                              break;
-                            case 'rename':
-                              _showRenameProgramDialog(context, program.id, program.name, isTemplate: false);
-                              break;
-                            case 'edit_image':
-                              _showEditProgramImageDialog(context, program.id, program.name, program.imageUrl, isTemplate: false);
-                              break;
-                          }
-                        },
-                        itemBuilder: (context) => const [
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: ListTile(
-                              leading: Icon(Icons.edit_outlined),
-                              title: Text('Edit'),
-                              contentPadding: EdgeInsets.zero,
-                              dense: true,
+                      child: Theme.of(context).platform == TargetPlatform.iOS
+                        ? IconButton(
+                            icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+                            tooltip: 'More options',
+                            onPressed: () => showAdaptiveActionSheet(
+                              context: context,
+                              actions: [
+                                AdaptiveAction(
+                                  label: 'Edit',
+                                  icon: Icons.edit_outlined,
+                                  onPressed: () => _editProgram(context, program),
+                                ),
+                                AdaptiveAction(
+                                  label: 'Rename',
+                                  icon: Icons.drive_file_rename_outline,
+                                  onPressed: () => _showRenameProgramDialog(context, program.id, program.name, isTemplate: false),
+                                ),
+                                AdaptiveAction(
+                                  label: 'Edit Image',
+                                  icon: Icons.image_outlined,
+                                  onPressed: () => _showEditProgramImageDialog(context, program.id, program.name, program.imageUrl, isTemplate: false),
+                                ),
+                              ],
                             ),
+                          )
+                        : PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+                            tooltip: 'More options',
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'edit':
+                                  _editProgram(context, program);
+                                  break;
+                                case 'rename':
+                                  _showRenameProgramDialog(context, program.id, program.name, isTemplate: false);
+                                  break;
+                                case 'edit_image':
+                                  _showEditProgramImageDialog(context, program.id, program.name, program.imageUrl, isTemplate: false);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => const [
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: ListTile(
+                                  leading: Icon(Icons.edit_outlined),
+                                  title: Text('Edit'),
+                                  contentPadding: EdgeInsets.zero,
+                                  dense: true,
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'rename',
+                                child: ListTile(
+                                  leading: Icon(Icons.drive_file_rename_outline),
+                                  title: Text('Rename'),
+                                  contentPadding: EdgeInsets.zero,
+                                  dense: true,
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'edit_image',
+                                child: ListTile(
+                                  leading: Icon(Icons.image_outlined),
+                                  title: Text('Edit Image'),
+                                  contentPadding: EdgeInsets.zero,
+                                  dense: true,
+                                ),
+                              ),
+                            ],
                           ),
-                          PopupMenuItem(
-                            value: 'rename',
-                            child: ListTile(
-                              leading: Icon(Icons.drive_file_rename_outline),
-                              title: Text('Rename'),
-                              contentPadding: EdgeInsets.zero,
-                              dense: true,
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'edit_image',
-                            child: ListTile(
-                              leading: Icon(Icons.image_outlined),
-                              title: Text('Edit Image'),
-                              contentPadding: EdgeInsets.zero,
-                              dense: true,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                 ],

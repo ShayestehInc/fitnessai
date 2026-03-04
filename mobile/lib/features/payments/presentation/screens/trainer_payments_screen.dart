@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/payment_models.dart';
@@ -168,7 +169,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
       );
     }
 
-    return RefreshIndicator(
+    return AdaptiveRefreshIndicator(
       onRefresh: () async {
         await ref.read(trainerPaymentsProvider.notifier).loadData();
       },
@@ -279,7 +280,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
       );
     }
 
-    return RefreshIndicator(
+    return AdaptiveRefreshIndicator(
       onRefresh: () async {
         await ref.read(trainerPaymentsProvider.notifier).loadData();
       },

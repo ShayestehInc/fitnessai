@@ -239,35 +239,53 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
               onPressed: _toggleSelectionMode,
             ),
           if (!_isSelectionMode)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              tooltip: 'More options',
-              onSelected: (value) {
-                if (value == 'delete') {
-                  _showDeleteWeekDialog();
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'delete',
-                  enabled: widget.canDelete,
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.delete_outline,
-                      color: widget.canDelete ? Colors.red : Colors.grey,
-                    ),
-                    title: Text(
-                      'Delete Week',
-                      style: TextStyle(
-                        color: widget.canDelete ? Colors.red : Colors.grey,
+            Theme.of(context).platform == TargetPlatform.iOS
+              ? IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  tooltip: 'More options',
+                  onPressed: widget.canDelete
+                    ? () => showAdaptiveActionSheet(
+                        context: context,
+                        actions: [
+                          AdaptiveAction(
+                            label: 'Delete Week',
+                            icon: Icons.delete_outline,
+                            onPressed: () => _showDeleteWeekDialog(),
+                            isDestructive: true,
+                          ),
+                        ],
+                      )
+                    : null,
+                )
+              : PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  tooltip: 'More options',
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      _showDeleteWeekDialog();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'delete',
+                      enabled: widget.canDelete,
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.delete_outline,
+                          color: widget.canDelete ? Colors.red : Colors.grey,
+                        ),
+                        title: Text(
+                          'Delete Week',
+                          style: TextStyle(
+                            color: widget.canDelete ? Colors.red : Colors.grey,
+                          ),
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
                       ),
                     ),
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                  ),
+                  ],
                 ),
-              ],
-            ),
           if (!_isSelectionMode)
             IconButton(
               onPressed: () {
@@ -470,53 +488,78 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
               ],
             ),
           ),
-          PopupMenuButton(
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'rename',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit, size: 18),
-                    SizedBox(width: 8),
-                    Text('Rename Day'),
+          Theme.of(context).platform == TargetPlatform.iOS
+            ? IconButton(
+                icon: const Icon(Icons.more_vert),
+                onPressed: () => showAdaptiveActionSheet(
+                  context: context,
+                  actions: [
+                    AdaptiveAction(
+                      label: 'Rename Day',
+                      icon: Icons.edit,
+                      onPressed: () => _showRenameDayDialog(),
+                    ),
+                    AdaptiveAction(
+                      label: 'Convert to Rest Day',
+                      icon: Icons.bed,
+                      onPressed: () => _convertToRestDay(),
+                    ),
+                    AdaptiveAction(
+                      label: 'Clear All Exercises',
+                      icon: Icons.clear_all,
+                      onPressed: () => _clearExercises(),
+                      isDestructive: true,
+                    ),
                   ],
                 ),
+              )
+            : PopupMenuButton(
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'rename',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 18),
+                        SizedBox(width: 8),
+                        Text('Rename Day'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'rest',
+                    child: Row(
+                      children: [
+                        Icon(Icons.bed, size: 18),
+                        SizedBox(width: 8),
+                        Text('Convert to Rest Day'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'clear',
+                    child: Row(
+                      children: [
+                        Icon(Icons.clear_all, size: 18, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Clear All Exercises', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
+                onSelected: (value) {
+                  switch (value) {
+                    case 'rename':
+                      _showRenameDayDialog();
+                      break;
+                    case 'rest':
+                      _convertToRestDay();
+                      break;
+                    case 'clear':
+                      _clearExercises();
+                      break;
+                  }
+                },
               ),
-              const PopupMenuItem(
-                value: 'rest',
-                child: Row(
-                  children: [
-                    Icon(Icons.bed, size: 18),
-                    SizedBox(width: 8),
-                    Text('Convert to Rest Day'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'clear',
-                child: Row(
-                  children: [
-                    Icon(Icons.clear_all, size: 18, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Clear All Exercises', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
-            onSelected: (value) {
-              switch (value) {
-                case 'rename':
-                  _showRenameDayDialog();
-                  break;
-                case 'rest':
-                  _convertToRestDay();
-                  break;
-                case 'clear':
-                  _clearExercises();
-                  break;
-              }
-            },
-          ),
         ],
       ),
     );

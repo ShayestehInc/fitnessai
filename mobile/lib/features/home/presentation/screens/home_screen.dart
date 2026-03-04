@@ -6,6 +6,7 @@ import '../../../../core/providers/health_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/sync_status.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/health_card.dart';
@@ -75,7 +76,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             const OfflineBanner(),
             Expanded(
-              child: RefreshIndicator(
+              child: AdaptiveRefreshIndicator(
                 onRefresh: () async {
                     await ref.read(homeStateProvider.notifier).loadDashboardData();
                     // Refresh health data in parallel (non-blocking)
@@ -248,52 +249,79 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         Row(
           children: [
             _buildAnnouncementBell(theme),
-            PopupMenuButton(
-              icon: CircleAvatar(
-                radius: 18,
-                backgroundColor: theme.colorScheme.primary,
-                backgroundImage: user?.profileImage != null
-                    ? NetworkImage(user!.profileImage!)
-                    : null,
-                child: user?.profileImage == null
-                    ? const Icon(Icons.person, color: Colors.white, size: 20)
-                    : null,
-              ),
-              color: theme.cardColor,
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  child: Row(
-                    children: [
-                      Icon(Icons.settings, color: theme.textTheme.bodyLarge?.color),
-                      const SizedBox(width: 8),
-                      Text('Settings',
-                          style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+            Theme.of(context).platform == TargetPlatform.iOS
+                ? IconButton(
+                    icon: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: theme.colorScheme.primary,
+                      backgroundImage: user?.profileImage != null
+                          ? NetworkImage(user!.profileImage!)
+                          : null,
+                      child: user?.profileImage == null
+                          ? const Icon(Icons.person, color: Colors.white, size: 20)
+                          : null,
+                    ),
+                    onPressed: () => showAdaptiveActionSheet(
+                      context: context,
+                      actions: [
+                        AdaptiveAction(
+                          label: 'Settings',
+                          onPressed: () => context.push('/settings'),
+                        ),
+                        AdaptiveAction(
+                          label: 'Logout',
+                          isDestructive: true,
+                          onPressed: () => _handleLogout(),
+                        ),
+                      ],
+                    ),
+                  )
+                : PopupMenuButton(
+                    icon: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: theme.colorScheme.primary,
+                      backgroundImage: user?.profileImage != null
+                          ? NetworkImage(user!.profileImage!)
+                          : null,
+                      child: user?.profileImage == null
+                          ? const Icon(Icons.person, color: Colors.white, size: 20)
+                          : null,
+                    ),
+                    color: theme.cardColor,
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        child: Row(
+                          children: [
+                            Icon(Icons.settings, color: theme.textTheme.bodyLarge?.color),
+                            const SizedBox(width: 8),
+                            Text('Settings',
+                                style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+                          ],
+                        ),
+                        onTap: () {
+                          Future.delayed(Duration.zero, () {
+                            context.push('/settings');
+                          });
+                        },
+                      ),
+                      PopupMenuItem(
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout, color: theme.colorScheme.error),
+                            const SizedBox(width: 8),
+                            Text('Logout',
+                                style: TextStyle(color: theme.colorScheme.error)),
+                          ],
+                        ),
+                        onTap: () async {
+                          // Delay to allow popup menu to close first
+                          await Future.delayed(Duration.zero);
+                          if (!mounted) return;
+                          await _handleLogout();
+                        },
+                      ),
                     ],
                   ),
-                  onTap: () {
-                    Future.delayed(Duration.zero, () {
-                      context.push('/settings');
-                    });
-                  },
-                ),
-                PopupMenuItem(
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout, color: theme.colorScheme.error),
-                      const SizedBox(width: 8),
-                      Text('Logout',
-                          style: TextStyle(color: theme.colorScheme.error)),
-                    ],
-                  ),
-                  onTap: () async {
-                    // Delay to allow popup menu to close first
-                    await Future.delayed(Duration.zero);
-                    if (!mounted) return;
-                    await _handleLogout();
-                  },
-                ),
-              ],
-            ),
           ],
         ),
       ],

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/loading_shimmer.dart';
@@ -71,7 +73,7 @@ class _TrainerNotificationsScreenState
           if (notifications.isEmpty) {
             return _buildEmptyState(theme);
           }
-          return RefreshIndicator(
+          return AdaptiveRefreshIndicator(
             onRefresh: () async {
               ref.invalidate(notificationsProvider);
               ref.invalidate(unreadNotificationCountProvider);
@@ -91,7 +93,7 @@ class _TrainerNotificationsScreenState
 
     return ListView.builder(
       controller: _scrollController,
-      physics: const AlwaysScrollableScrollPhysics(),
+      physics: adaptiveAlwaysScrollablePhysics(context),
       // +1 for the loading-more indicator at the bottom
       itemCount: notifier.hasMore ? grouped.length + 1 : grouped.length,
       itemBuilder: (context, index) {
@@ -237,7 +239,7 @@ class _TrainerNotificationsScreenState
 
   /// Empty state wrapped in a scrollable view so pull-to-refresh works.
   Widget _buildEmptyState(ThemeData theme) {
-    return RefreshIndicator(
+    return AdaptiveRefreshIndicator(
       onRefresh: () async {
         ref.invalidate(notificationsProvider);
         ref.invalidate(unreadNotificationCountProvider);
@@ -245,7 +247,7 @@ class _TrainerNotificationsScreenState
       child: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: adaptiveAlwaysScrollablePhysics(context),
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Center(
@@ -320,7 +322,7 @@ class _TrainerNotificationsScreenState
   }
 
   Widget _buildErrorState(ThemeData theme, Object error) {
-    return RefreshIndicator(
+    return AdaptiveRefreshIndicator(
       onRefresh: () async {
         ref.invalidate(notificationsProvider);
         ref.invalidate(unreadNotificationCountProvider);
@@ -328,7 +330,7 @@ class _TrainerNotificationsScreenState
       child: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: adaptiveAlwaysScrollablePhysics(context),
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Center(

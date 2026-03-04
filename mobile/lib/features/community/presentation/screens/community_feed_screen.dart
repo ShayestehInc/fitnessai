@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/services/community_ws_service.dart';
 import '../providers/announcement_provider.dart';
@@ -76,7 +78,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
             ),
         ],
       ),
-      body: RefreshIndicator(
+      body: AdaptiveRefreshIndicator(
         onRefresh: () async {
           await Future.wait([
             ref.read(communityFeedProvider.notifier).loadFeed(),
@@ -109,7 +111,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
 
     return CustomScrollView(
       controller: _scrollController,
-      physics: const AlwaysScrollableScrollPhysics(),
+      physics: adaptiveAlwaysScrollablePhysics(context),
       slivers: [
         // Pinned announcements banner
         if (announcementState.announcements

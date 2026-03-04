@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/calendar_provider.dart';
@@ -183,7 +184,7 @@ class _CalendarConnectionScreenState
       ),
       body: state.isLoading && state.connections.isEmpty
           ? const Center(child: AdaptiveSpinner())
-          : RefreshIndicator(
+          : AdaptiveRefreshIndicator(
               onRefresh: () =>
                   ref.read(calendarProvider.notifier).loadConnections(),
               child: ListView(

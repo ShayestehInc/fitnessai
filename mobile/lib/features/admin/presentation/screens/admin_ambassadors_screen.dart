@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../ambassador/data/models/ambassador_models.dart';
 import '../../../ambassador/presentation/providers/ambassador_provider.dart';
@@ -76,23 +79,59 @@ class _AdminAmbassadorsScreenState
                   ),
                 ),
                 const SizedBox(width: 8),
-                PopupMenuButton<bool?>(
-                  icon: Icon(
-                    Icons.filter_list,
-                    color: _activeFilter != null
-                        ? theme.colorScheme.primary
-                        : theme.textTheme.bodySmall?.color,
-                  ),
-                  onSelected: (value) {
-                    setState(() => _activeFilter = value);
-                    _search();
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(value: null, child: Text('All')),
-                    const PopupMenuItem(value: true, child: Text('Active')),
-                    const PopupMenuItem(value: false, child: Text('Inactive')),
-                  ],
-                ),
+                Theme.of(context).platform == TargetPlatform.iOS
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.filter_list,
+                          color: _activeFilter != null
+                              ? theme.colorScheme.primary
+                              : theme.textTheme.bodySmall?.color,
+                        ),
+                        onPressed: () => showAdaptiveActionSheet(
+                          context: context,
+                          title: 'Filter',
+                          actions: [
+                            AdaptiveAction(
+                              label: 'All',
+                              onPressed: () {
+                                setState(() => _activeFilter = null);
+                                _search();
+                              },
+                            ),
+                            AdaptiveAction(
+                              label: 'Active',
+                              onPressed: () {
+                                setState(() => _activeFilter = true);
+                                _search();
+                              },
+                            ),
+                            AdaptiveAction(
+                              label: 'Inactive',
+                              onPressed: () {
+                                setState(() => _activeFilter = false);
+                                _search();
+                              },
+                            ),
+                          ],
+                        ),
+                      )
+                    : PopupMenuButton<bool?>(
+                        icon: Icon(
+                          Icons.filter_list,
+                          color: _activeFilter != null
+                              ? theme.colorScheme.primary
+                              : theme.textTheme.bodySmall?.color,
+                        ),
+                        onSelected: (value) {
+                          setState(() => _activeFilter = value);
+                          _search();
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(value: null, child: Text('All')),
+                          const PopupMenuItem(value: true, child: Text('Active')),
+                          const PopupMenuItem(value: false, child: Text('Inactive')),
+                        ],
+                      ),
               ],
             ),
           ),
@@ -150,7 +189,7 @@ class _AdminAmbassadorsScreenState
                               ],
                             ),
                           )
-                        : RefreshIndicator(
+                        : AdaptiveRefreshIndicator(
                             onRefresh: () => ref
                                 .read(adminAmbassadorsProvider.notifier)
                                 .loadAmbassadors(
@@ -160,6 +199,7 @@ class _AdminAmbassadorsScreenState
                                   isActive: _activeFilter,
                                 ),
                             child: ListView.builder(
+                              physics: adaptiveAlwaysScrollablePhysics(context),
                               padding: const EdgeInsets.symmetric(horizontal: 16),
                               itemCount: state.ambassadors.length,
                               itemBuilder: (context, index) =>

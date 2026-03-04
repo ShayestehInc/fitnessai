@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/ambassador_models.dart';
 import '../providers/ambassador_provider.dart';
@@ -50,7 +51,7 @@ class _AmbassadorReferralsScreenState
                     ? _buildErrorState(theme, state.error!)
                     : state.referrals.isEmpty
                         ? _buildEmptyState(theme)
-                        : RefreshIndicator(
+                        : AdaptiveRefreshIndicator(
                             onRefresh: () => ref
                                 .read(ambassadorReferralsProvider.notifier)
                                 .loadReferrals(status: _statusFilter),

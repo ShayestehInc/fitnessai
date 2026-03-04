@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/services/haptic_service.dart';
+
 /// A platform-adaptive tab switcher that works with an existing [TabController].
 ///
 /// iOS: [CupertinoSlidingSegmentedControl] synced with [controller].
@@ -106,6 +108,7 @@ class _CupertinoSegmentState extends State<_CupertinoSegment> {
           },
           onValueChanged: (value) {
             if (value != null) {
+              HapticService.selectionTick();
               widget.controller.animateTo(value);
             }
           },

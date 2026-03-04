@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/trainer_provider.dart';
@@ -14,7 +16,6 @@ class TraineeListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final traineesAsync = ref.watch(traineesProvider);
     final invitationsAsync = ref.watch(invitationsProvider);
 
@@ -29,7 +30,7 @@ class TraineeListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: AdaptiveRefreshIndicator(
         onRefresh: () async {
           ref.invalidate(traineesProvider);
           ref.invalidate(invitationsProvider);
@@ -116,6 +117,7 @@ class TraineeListScreen extends ConsumerWidget {
     }
 
     return ListView(
+      physics: adaptiveAlwaysScrollablePhysics(context),
       padding: const EdgeInsets.all(16),
       children: [
         // Pending Invitations Section
@@ -239,37 +241,57 @@ class TraineeListScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'resend') {
-                  _resendInvitation(context, ref, invitation.id);
-                } else if (value == 'cancel') {
-                  _cancelInvitation(context, ref, invitation.id);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'resend',
-                  child: Row(
-                    children: [
-                      Icon(Icons.refresh, size: 20),
-                      SizedBox(width: 8),
-                      Text('Resend'),
+            Theme.of(context).platform == TargetPlatform.iOS
+              ? IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () => showAdaptiveActionSheet(
+                    context: context,
+                    actions: [
+                      AdaptiveAction(
+                        label: 'Resend',
+                        icon: Icons.refresh,
+                        onPressed: () => _resendInvitation(context, ref, invitation.id),
+                      ),
+                      AdaptiveAction(
+                        label: 'Cancel',
+                        icon: Icons.cancel_outlined,
+                        onPressed: () => _cancelInvitation(context, ref, invitation.id),
+                        isDestructive: true,
+                      ),
                     ],
                   ),
+                )
+              : PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'resend') {
+                      _resendInvitation(context, ref, invitation.id);
+                    } else if (value == 'cancel') {
+                      _cancelInvitation(context, ref, invitation.id);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'resend',
+                      child: Row(
+                        children: [
+                          Icon(Icons.refresh, size: 20),
+                          SizedBox(width: 8),
+                          Text('Resend'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'cancel',
+                      child: Row(
+                        children: [
+                          Icon(Icons.cancel_outlined, size: 20, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Cancel', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const PopupMenuItem(
-                  value: 'cancel',
-                  child: Row(
-                    children: [
-                      Icon(Icons.cancel_outlined, size: 20, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Cancel', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),

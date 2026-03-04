@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../providers/workout_history_provider.dart';
 import 'workout_history_widgets.dart';
@@ -67,11 +69,11 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
       return _buildEmptyState(theme);
     }
 
-    return RefreshIndicator(
+    return AdaptiveRefreshIndicator(
       onRefresh: () => ref.read(workoutHistoryProvider.notifier).refresh(),
       child: ListView.builder(
         controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: adaptiveAlwaysScrollablePhysics(context),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: state.workouts.length + 1,
         itemBuilder: (context, index) {

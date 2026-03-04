@@ -4,6 +4,8 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/services/haptic_service.dart';
+
 /// The semantic type of a toast message, used to determine color and icon.
 enum ToastType { success, error, warning, info }
 
@@ -17,6 +19,15 @@ void showAdaptiveToast(
   ToastType type = ToastType.info,
   Duration duration = const Duration(seconds: 3),
 }) {
+  // Haptic feedback for error/warning toasts.
+  if (type == ToastType.error) {
+    HapticService.error();
+  } else if (type == ToastType.warning) {
+    HapticService.mediumTap();
+  } else if (type == ToastType.success) {
+    HapticService.success();
+  }
+
   final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
 
   if (isIOS) {

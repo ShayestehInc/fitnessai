@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../providers/achievement_provider.dart';
 import '../widgets/achievement_badge.dart';
 
@@ -30,7 +31,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
         title: const Text('Achievements'),
         elevation: 0,
       ),
-      body: RefreshIndicator(
+      body: AdaptiveRefreshIndicator(
         onRefresh: () async {
           await ref.read(achievementProvider.notifier).loadAchievements();
         },

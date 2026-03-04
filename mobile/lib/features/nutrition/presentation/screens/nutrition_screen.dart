@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/offline_banner.dart';
@@ -48,7 +50,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
             Expanded(
               child: state.isLoading && state.dailySummary == null
                   ? const Center(child: AdaptiveSpinner())
-                  : RefreshIndicator(
+                  : AdaptiveRefreshIndicator(
                       onRefresh: () =>
                           ref.read(nutritionStateProvider.notifier).loadInitialData(),
                       child: SingleChildScrollView(
@@ -1062,33 +1064,54 @@ class _MealSection extends StatelessWidget {
                   ),
                 ),
               ),
-              PopupMenuButton(
-                icon: Icon(
-                  Icons.more_horiz,
-                  color: theme.textTheme.bodySmall?.color,
-                ),
-                color: theme.cardColor,
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    child: Row(
-                      children: [
-                        Icon(Icons.copy, color: theme.textTheme.bodyLarge?.color, size: 18),
-                        const SizedBox(width: 8),
-                        Text('Copy Meal', style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+              Theme.of(context).platform == TargetPlatform.iOS
+                  ? IconButton(
+                      icon: Icon(
+                        Icons.more_horiz,
+                        color: theme.textTheme.bodySmall?.color,
+                      ),
+                      onPressed: () => showAdaptiveActionSheet(
+                        context: context,
+                        actions: [
+                          AdaptiveAction(
+                            label: 'Copy Meal',
+                            onPressed: () {},
+                          ),
+                          AdaptiveAction(
+                            label: 'Clear Meal',
+                            isDestructive: true,
+                            onPressed: () {},
+                          ),
+                        ],
+                      ),
+                    )
+                  : PopupMenuButton(
+                      icon: Icon(
+                        Icons.more_horiz,
+                        color: theme.textTheme.bodySmall?.color,
+                      ),
+                      color: theme.cardColor,
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          child: Row(
+                            children: [
+                              Icon(Icons.copy, color: theme.textTheme.bodyLarge?.color, size: 18),
+                              const SizedBox(width: 8),
+                              Text('Copy Meal', style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline, color: theme.colorScheme.error, size: 18),
+                              const SizedBox(width: 8),
+                              Text('Clear Meal', style: TextStyle(color: theme.colorScheme.error)),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                  PopupMenuItem(
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, color: theme.colorScheme.error, size: 18),
-                        const SizedBox(width: 8),
-                        Text('Clear Meal', style: TextStyle(color: theme.colorScheme.error)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),

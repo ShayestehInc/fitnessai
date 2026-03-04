@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/offline_banner.dart';
@@ -61,7 +62,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
             Expanded(
               child: state.isLoading && state.programWeeks.isEmpty
                   ? const Center(child: AdaptiveSpinner())
-                  : RefreshIndicator(
+                  : AdaptiveRefreshIndicator(
                       onRefresh: () =>
                           ref.read(workoutStateProvider.notifier).loadInitialData(),
                       child: CustomScrollView(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/ambassador_models.dart';
@@ -64,7 +65,7 @@ class _AmbassadorDashboardScreenState
               ? _buildErrorState(theme, state.error!)
               : state.data == null
                   ? _buildEmptyState(theme)
-                  : RefreshIndicator(
+                  : AdaptiveRefreshIndicator(
                       onRefresh: () => ref
                           .read(ambassadorDashboardProvider.notifier)
                           .loadDashboard(),

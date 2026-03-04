@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/messaging_provider.dart';
 import '../widgets/conversation_tile.dart';
@@ -63,10 +65,11 @@ class _ConversationListScreenState
     // Conversation list
     return Semantics(
       label: 'Conversation list',
-      child: RefreshIndicator(
+      child: AdaptiveRefreshIndicator(
       onRefresh: () =>
           ref.read(conversationListProvider.notifier).loadConversations(),
       child: ListView.separated(
+        physics: adaptiveAlwaysScrollablePhysics(context),
         itemCount: state.conversations.length,
         separatorBuilder: (_, __) => Divider(
           height: 1,

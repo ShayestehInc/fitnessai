@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/retention_model.dart';
 import '../providers/trainer_provider.dart';
@@ -36,7 +37,7 @@ class _RetentionAnalyticsScreenState
           const SizedBox(width: 8),
         ],
       ),
-      body: RefreshIndicator(
+      body: AdaptiveRefreshIndicator(
         onRefresh: () async {
           ref.invalidate(retentionAnalyticsProvider(_days));
         },

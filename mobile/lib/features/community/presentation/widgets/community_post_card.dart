@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -109,32 +110,50 @@ class _PostAuthorRow extends ConsumerWidget {
           ),
         ),
         if (isAuthor)
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_horiz,
-              color: theme.textTheme.bodySmall?.color,
-              size: 20,
-            ),
-            onSelected: (value) {
-              if (value == 'delete') {
-                _confirmDelete(context, ref);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline,
-                        color: theme.colorScheme.error, size: 20),
-                    const SizedBox(width: 8),
-                    Text('Delete',
-                        style: TextStyle(color: theme.colorScheme.error)),
+          Theme.of(context).platform == TargetPlatform.iOS
+              ? IconButton(
+                  icon: Icon(
+                    Icons.more_horiz,
+                    color: theme.textTheme.bodySmall?.color,
+                    size: 20,
+                  ),
+                  onPressed: () => showAdaptiveActionSheet(
+                    context: context,
+                    actions: [
+                      AdaptiveAction(
+                        label: 'Delete',
+                        isDestructive: true,
+                        onPressed: () => _confirmDelete(context, ref),
+                      ),
+                    ],
+                  ),
+                )
+              : PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_horiz,
+                    color: theme.textTheme.bodySmall?.color,
+                    size: 20,
+                  ),
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      _confirmDelete(context, ref);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline,
+                              color: theme.colorScheme.error, size: 20),
+                          const SizedBox(width: 8),
+                          Text('Delete',
+                              style: TextStyle(color: theme.colorScheme.error)),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ],
-          ),
       ],
     );
   }

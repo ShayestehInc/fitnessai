@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/invitation_model.dart';
@@ -215,49 +216,74 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
                 ],
               ),
             ),
-            PopupMenuButton<String>(
-              onSelected: (value) async {
-                if (value == 'copy') {
-                  _copyInviteLink(invitation);
-                } else if (value == 'resend') {
-                  await _resendInvitation(invitation);
-                } else if (value == 'cancel') {
-                  await _cancelInvitation(invitation);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'copy',
-                  child: Row(
-                    children: [
-                      Icon(Icons.copy, size: 20),
-                      SizedBox(width: 8),
-                      Text('Copy Link'),
+            Theme.of(context).platform == TargetPlatform.iOS
+              ? IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () => showAdaptiveActionSheet(
+                    context: context,
+                    actions: [
+                      AdaptiveAction(
+                        label: 'Copy Link',
+                        icon: Icons.copy,
+                        onPressed: () => _copyInviteLink(invitation),
+                      ),
+                      AdaptiveAction(
+                        label: 'Resend',
+                        icon: Icons.refresh,
+                        onPressed: () => _resendInvitation(invitation),
+                      ),
+                      AdaptiveAction(
+                        label: 'Cancel',
+                        icon: Icons.cancel,
+                        onPressed: () => _cancelInvitation(invitation),
+                        isDestructive: true,
+                      ),
                     ],
                   ),
+                )
+              : PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'copy') {
+                      _copyInviteLink(invitation);
+                    } else if (value == 'resend') {
+                      await _resendInvitation(invitation);
+                    } else if (value == 'cancel') {
+                      await _cancelInvitation(invitation);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'copy',
+                      child: Row(
+                        children: [
+                          Icon(Icons.copy, size: 20),
+                          SizedBox(width: 8),
+                          Text('Copy Link'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'resend',
+                      child: Row(
+                        children: [
+                          Icon(Icons.refresh, size: 20),
+                          SizedBox(width: 8),
+                          Text('Resend'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'cancel',
+                      child: Row(
+                        children: [
+                          Icon(Icons.cancel, size: 20, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Cancel', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const PopupMenuItem(
-                  value: 'resend',
-                  child: Row(
-                    children: [
-                      Icon(Icons.refresh, size: 20),
-                      SizedBox(width: 8),
-                      Text('Resend'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'cancel',
-                  child: Row(
-                    children: [
-                      Icon(Icons.cancel, size: 20, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Cancel', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),

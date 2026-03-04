@@ -233,32 +233,47 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
           elevation: 0,
           actions: [
             if (!_isLoading && _error == null)
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'reset') {
-                    _resetToDefaults();
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem<String>(
-                    value: 'reset',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.restart_alt,
-                          size: 20,
-                          color: theme.colorScheme.error,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Reset to Defaults',
-                          style: TextStyle(color: theme.colorScheme.error),
+              Theme.of(context).platform == TargetPlatform.iOS
+                ? IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () => showAdaptiveActionSheet(
+                      context: context,
+                      actions: [
+                        AdaptiveAction(
+                          label: 'Reset to Defaults',
+                          icon: Icons.restart_alt,
+                          onPressed: () => _resetToDefaults(),
+                          isDestructive: true,
                         ),
                       ],
                     ),
+                  )
+                : PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'reset') {
+                        _resetToDefaults();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem<String>(
+                        value: 'reset',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.restart_alt,
+                              size: 20,
+                              color: theme.colorScheme.error,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Reset to Defaults',
+                              style: TextStyle(color: theme.colorScheme.error),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
           ],
         ),
         body: _isLoading

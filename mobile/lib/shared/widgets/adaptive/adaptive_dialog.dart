@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/services/haptic_service.dart';
+
 /// Shows a platform-adaptive confirmation dialog.
 ///
 /// iOS: [CupertinoAlertDialog] via [showCupertinoDialog].
@@ -15,6 +17,13 @@ Future<bool?> showAdaptiveConfirmDialog({
   String cancelText = 'Cancel',
   bool isDestructive = false,
 }) {
+  // Haptic feedback when dialog appears.
+  if (isDestructive) {
+    HapticService.heavyTap();
+  } else {
+    HapticService.mediumTap();
+  }
+
   final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
 
   if (isIOS) {
@@ -87,6 +96,8 @@ Future<void> showAdaptiveActionSheet({
   String? title,
   String cancelText = 'Cancel',
 }) {
+  HapticService.lightTap();
+
   final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
 
   if (isIOS) {

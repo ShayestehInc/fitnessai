@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../community/data/models/announcement_model.dart';
 import '../../../community/presentation/providers/announcement_provider.dart';
@@ -35,7 +38,7 @@ class _TrainerAnnouncementsScreenState
         title: const Text('Announcements'),
         elevation: 0,
       ),
-      body: RefreshIndicator(
+      body: AdaptiveRefreshIndicator(
         onRefresh: () async {
           await ref.read(trainerAnnouncementProvider.notifier).loadAnnouncements();
         },
@@ -100,7 +103,7 @@ class _TrainerAnnouncementsScreenState
     }
 
     return ListView.separated(
-      physics: const AlwaysScrollableScrollPhysics(),
+      physics: adaptiveAlwaysScrollablePhysics(context),
       padding: const EdgeInsets.all(16),
       itemCount: state.announcements.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -226,20 +229,38 @@ class _TrainerAnnouncementTile extends StatelessWidget {
                   ),
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: theme.textTheme.bodySmall?.color, size: 20),
-                onSelected: (value) {
-                  if (value == 'edit') onEdit();
-                  if (value == 'delete') onDelete();
-                },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete', style: TextStyle(color: theme.colorScheme.error)),
+              Theme.of(context).platform == TargetPlatform.iOS
+                ? IconButton(
+                    icon: Icon(Icons.more_vert, color: theme.textTheme.bodySmall?.color, size: 20),
+                    onPressed: () => showAdaptiveActionSheet(
+                      context: context,
+                      actions: [
+                        AdaptiveAction(
+                          label: 'Edit',
+                          onPressed: () => onEdit(),
+                        ),
+                        AdaptiveAction(
+                          label: 'Delete',
+                          onPressed: () => onDelete(),
+                          isDestructive: true,
+                        ),
+                      ],
+                    ),
+                  )
+                : PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert, color: theme.textTheme.bodySmall?.color, size: 20),
+                    onSelected: (value) {
+                      if (value == 'edit') onEdit();
+                      if (value == 'delete') onDelete();
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete', style: TextStyle(color: theme.colorScheme.error)),
+                      ),
+                    ],
                   ),
-                ],
-              ),
             ],
           ),
           const SizedBox(height: 6),

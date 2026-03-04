@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/loading_shimmer.dart';
 import '../../data/models/calendar_connection_model.dart';
@@ -89,7 +90,7 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
           Expanded(
             child: state.isLoading && events.isEmpty
                 ? _buildLoadingShimmer()
-                : RefreshIndicator(
+                : AdaptiveRefreshIndicator(
                     onRefresh: _syncAndReload,
                     child: events.isEmpty
                         ? _buildEmpty(theme)

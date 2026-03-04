@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/tier_coupon_models.dart';
@@ -38,35 +40,80 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
         title: const Text('Coupons'),
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
-          PopupMenuButton<String?>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (status) {
-              setState(() => _statusFilter = status);
-              ref.read(adminCouponsProvider.notifier).loadCoupons(status: status);
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: null,
-                child: Text('All'),
-              ),
-              const PopupMenuItem(
-                value: 'active',
-                child: Text('Active'),
-              ),
-              const PopupMenuItem(
-                value: 'revoked',
-                child: Text('Revoked'),
-              ),
-              const PopupMenuItem(
-                value: 'expired',
-                child: Text('Expired'),
-              ),
-              const PopupMenuItem(
-                value: 'exhausted',
-                child: Text('Exhausted'),
-              ),
-            ],
-          ),
+          Theme.of(context).platform == TargetPlatform.iOS
+              ? IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: () => showAdaptiveActionSheet(
+                    context: context,
+                    title: 'Filter by Status',
+                    actions: [
+                      AdaptiveAction(
+                        label: 'All',
+                        onPressed: () {
+                          setState(() => _statusFilter = null);
+                          ref.read(adminCouponsProvider.notifier).loadCoupons(status: null);
+                        },
+                      ),
+                      AdaptiveAction(
+                        label: 'Active',
+                        onPressed: () {
+                          setState(() => _statusFilter = 'active');
+                          ref.read(adminCouponsProvider.notifier).loadCoupons(status: 'active');
+                        },
+                      ),
+                      AdaptiveAction(
+                        label: 'Revoked',
+                        onPressed: () {
+                          setState(() => _statusFilter = 'revoked');
+                          ref.read(adminCouponsProvider.notifier).loadCoupons(status: 'revoked');
+                        },
+                      ),
+                      AdaptiveAction(
+                        label: 'Expired',
+                        onPressed: () {
+                          setState(() => _statusFilter = 'expired');
+                          ref.read(adminCouponsProvider.notifier).loadCoupons(status: 'expired');
+                        },
+                      ),
+                      AdaptiveAction(
+                        label: 'Exhausted',
+                        onPressed: () {
+                          setState(() => _statusFilter = 'exhausted');
+                          ref.read(adminCouponsProvider.notifier).loadCoupons(status: 'exhausted');
+                        },
+                      ),
+                    ],
+                  ),
+                )
+              : PopupMenuButton<String?>(
+                  icon: const Icon(Icons.filter_list),
+                  onSelected: (status) {
+                    setState(() => _statusFilter = status);
+                    ref.read(adminCouponsProvider.notifier).loadCoupons(status: status);
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: null,
+                      child: Text('All'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'active',
+                      child: Text('Active'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'revoked',
+                      child: Text('Revoked'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'expired',
+                      child: Text('Expired'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'exhausted',
+                      child: Text('Exhausted'),
+                    ),
+                  ],
+                ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showCouponDialog(context),
@@ -150,11 +197,12 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
                               ],
                             ),
                           )
-                        : RefreshIndicator(
+                        : AdaptiveRefreshIndicator(
                             onRefresh: () => ref
                                 .read(adminCouponsProvider.notifier)
                                 .loadCoupons(status: _statusFilter),
                             child: ListView.builder(
+                              physics: adaptiveAlwaysScrollablePhysics(context),
                               padding: const EdgeInsets.all(16),
                               itemCount: state.coupons.length,
                               itemBuilder: (context, index) {
