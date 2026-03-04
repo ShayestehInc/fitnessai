@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -368,7 +369,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
+                      adaptivePageRoute(
                         builder: (context) => ProgramBuilderScreen(
                           traineeId: widget.traineeId,
                           templateName: programName,
@@ -785,7 +786,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
+                          adaptivePageRoute(
                             builder: (context) => ProgramBuilderScreen(
                               traineeId: widget.traineeId,
                               templateName: template.name,

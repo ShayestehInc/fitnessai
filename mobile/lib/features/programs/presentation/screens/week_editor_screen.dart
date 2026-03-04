@@ -554,7 +554,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
             children: [
               // Selection checkbox or drag handle
               if (_isSelectionMode)
-                Checkbox(
+                Checkbox.adaptive(
                   value: isSelected,
                   onChanged: (_) => _toggleExerciseSelection(index),
                 )

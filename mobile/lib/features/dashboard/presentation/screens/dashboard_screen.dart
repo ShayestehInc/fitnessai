@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../logging/presentation/screens/ai_command_center_screen.dart';
 
@@ -102,7 +103,7 @@ class DashboardScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
+            adaptivePageRoute(
               builder: (context) => const AICommandCenterScreen(),
             ),
           );

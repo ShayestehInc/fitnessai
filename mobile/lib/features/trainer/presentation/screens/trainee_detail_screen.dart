@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
+import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -62,6 +64,8 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
     TraineeDetailModel trainee,
     AsyncValue<List<ActivitySummary>> activityAsync,
   ) {
+    final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+
     return NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) {
         return [
@@ -69,33 +73,45 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           SliverToBoxAdapter(
             child: _buildQuickStats(trainee, activityAsync),
           ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _SliverTabBarDelegate(
-              TabBar(
-                controller: _tabController,
-                labelColor: Theme.of(context).colorScheme.primary,
-                unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
-                indicatorColor: Theme.of(context).colorScheme.primary,
-                tabs: const [
-                  Tab(text: 'Overview'),
-                  Tab(text: 'Analytics'),
-                  Tab(text: 'Nutrition'),
-                  Tab(text: 'Activity'),
-                ],
+          if (!isIOS)
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _SliverTabBarDelegate(
+                TabBar(
+                  controller: _tabController,
+                  labelColor: Theme.of(context).colorScheme.primary,
+                  unselectedLabelColor: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+                  indicatorColor: Theme.of(context).colorScheme.primary,
+                  tabs: const [
+                    Tab(text: 'Overview'),
+                    Tab(text: 'Analytics'),
+                    Tab(text: 'Nutrition'),
+                    Tab(text: 'Activity'),
+                  ],
+                ),
+                Theme.of(context).cardColor,
               ),
-              Theme.of(context).cardColor,
             ),
-          ),
         ];
       },
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildOverviewTab(trainee),
-          _buildAnalyticsTab(trainee, activityAsync),
-          _buildNutritionTab(trainee),
-          _buildActivityTab(activityAsync),
+          if (isIOS)
+            AdaptiveSegmentedControl(
+              controller: _tabController,
+              labels: const ['Overview', 'Analytics', 'Nutrition', 'Activity'],
+            ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildOverviewTab(trainee),
+                _buildAnalyticsTab(trainee, activityAsync),
+                _buildNutritionTab(trainee),
+                _buildActivityTab(activityAsync),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -676,7 +692,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
 
   void _openProgramOptions(TraineeDetailModel trainee, ProgramSummary program) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (context) => ProgramOptionsScreen(
           traineeId: trainee.id,
           program: program,
@@ -1618,7 +1634,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
 
   void _openEditGoals(BuildContext context, TraineeDetailModel trainee) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (context) => EditTraineeGoalsScreen(trainee: trainee),
       ),
     );
@@ -1629,7 +1645,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
     final displayName = name.isEmpty ? trainee.email.split('@').first : name;
 
     Navigator.of(context).push(
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (context) => RemoveTraineeScreen(
           traineeId: trainee.id,
           traineeName: displayName,
@@ -2061,7 +2077,7 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
                                                 padding: const EdgeInsets.all(12),
                                                 child: Row(
                                                   children: [
-                                                    Checkbox(
+                                                    Checkbox.adaptive(
                                                       value: isSelected,
                                                       onChanged: (v) {
                                                         setModalState(() {

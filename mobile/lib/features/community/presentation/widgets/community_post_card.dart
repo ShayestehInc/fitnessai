@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/community_post_model.dart';
@@ -291,7 +292,7 @@ class _PostImage extends StatelessWidget {
 
   void _showFullImage(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (_) => _FullImageScreen(imageUrl: imageUrl),
       ),
     );

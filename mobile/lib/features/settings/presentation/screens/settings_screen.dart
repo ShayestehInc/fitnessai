@@ -6,6 +6,7 @@ import '../../../../core/providers/database_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
@@ -751,7 +752,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _openDeleteAccountScreen(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (context) => const DeleteAccountScreen(),
       ),
     );

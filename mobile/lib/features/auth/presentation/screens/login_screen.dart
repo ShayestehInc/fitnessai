@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../core/services/biometric_service.dart';
 import '../../../../core/theme/theme_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../settings/data/repositories/branding_repository.dart';
@@ -209,7 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   void _openServerConfig() {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (context) => const ServerConfigScreen(),
       ),
     );

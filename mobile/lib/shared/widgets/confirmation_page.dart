@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'adaptive/adaptive_route.dart';
 import 'adaptive/adaptive_spinner.dart';
 
 /// A full-page confirmation screen for destructive or important actions.
@@ -189,7 +190,7 @@ Future<bool> showConfirmationPage(
   Widget? additionalContent,
 }) async {
   final result = await Navigator.of(context).push<bool>(
-    MaterialPageRoute(
+    adaptivePageRoute<bool>(
       builder: (context) => ConfirmationPage(
         title: title,
         message: message,

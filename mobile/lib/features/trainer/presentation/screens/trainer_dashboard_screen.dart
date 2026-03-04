@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -469,7 +470,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                         // Navigate to program builder to edit
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
+                          adaptivePageRoute(
                             builder: (context) => ProgramBuilderScreen(
                               templateName: program.name,
                               durationWeeks: program.durationWeeks,
@@ -643,7 +644,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                                 // Navigate to program builder with trainee ID
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
+                                  adaptivePageRoute(
                                     builder: (context) => ProgramBuilderScreen(
                                       traineeId: trainee.id,
                                       templateName: program.name,

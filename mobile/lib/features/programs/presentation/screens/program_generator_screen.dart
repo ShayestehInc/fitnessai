@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/program_week_model.dart';
 import '../providers/program_provider.dart';
@@ -170,7 +171,7 @@ class _ProgramGeneratorScreenState
 
     Navigator.push(
       context,
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (context) => ProgramBuilderScreen(
           templateName: data['name'] as String? ?? 'Generated Program',
           templateDescription: data['description'] as String?,

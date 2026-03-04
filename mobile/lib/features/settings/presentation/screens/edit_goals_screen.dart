@@ -79,7 +79,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                         ),
                         child: Row(
                           children: [
-                            Radio<String>(
+                            Radio<String>.adaptive(
                               value: level,
                               groupValue: state.profile?.activityLevel,
                               onChanged: (value) {
@@ -150,7 +150,7 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                         ),
                         child: Row(
                           children: [
-                            Radio<String>(
+                            Radio<String>.adaptive(
                               value: goal,
                               groupValue: state.profile?.goal,
                               onChanged: (value) {

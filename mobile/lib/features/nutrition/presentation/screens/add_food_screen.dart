@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../logging/presentation/providers/logging_provider.dart';
@@ -80,24 +81,37 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
               ? 'Add to Meal ${widget.mealNumber}'
               : 'Add Food',
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Manual'),
-            Tab(text: 'AI Entry'),
-            Tab(text: 'Search'),
-          ],
-          indicatorColor: theme.colorScheme.primary,
-          labelColor: theme.colorScheme.primary,
-          unselectedLabelColor: theme.textTheme.bodySmall?.color,
-        ),
+        bottom: theme.platform == TargetPlatform.iOS
+            ? null
+            : TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'Manual'),
+                  Tab(text: 'AI Entry'),
+                  Tab(text: 'Search'),
+                ],
+                indicatorColor: theme.colorScheme.primary,
+                labelColor: theme.colorScheme.primary,
+                unselectedLabelColor: theme.textTheme.bodySmall?.color,
+              ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildManualEntry(theme),
-          _buildAIQuickEntry(loggingState, theme),
-          _buildFoodSearch(theme),
+          if (theme.platform == TargetPlatform.iOS)
+            AdaptiveSegmentedControl(
+              controller: _tabController,
+              labels: const ['Manual', 'AI Entry', 'Search'],
+            ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildManualEntry(theme),
+                _buildAIQuickEntry(loggingState, theme),
+                _buildFoodSearch(theme),
+              ],
+            ),
+          ),
         ],
       ),
     );

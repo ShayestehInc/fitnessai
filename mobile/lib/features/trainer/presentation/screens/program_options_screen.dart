@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -251,7 +252,7 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
       }
 
       Navigator.of(context).push(
-        MaterialPageRoute(
+        adaptivePageRoute(
           builder: (context) => ProgramBuilderScreen(
             traineeId: widget.traineeId,
             templateName: widget.program.name,
@@ -269,7 +270,7 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
 
   void _navigateToEndProgram(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (context) => EndProgramScreen(
           traineeId: widget.traineeId,
           program: widget.program,

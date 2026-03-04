@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/message_model.dart';
 import 'message_context_menu.dart';
@@ -271,7 +272,7 @@ class MessageBubble extends StatelessWidget {
         final url = imageUrl ?? localPath;
         if (url != null) {
           Navigator.of(context).push(
-            MaterialPageRoute<void>(
+            adaptivePageRoute<void>(
               builder: (_) => MessageImageViewer(
                 imageUrl: imageUrl,
                 localPath: localPath,

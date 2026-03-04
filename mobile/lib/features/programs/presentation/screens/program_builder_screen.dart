@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -1495,7 +1496,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   void _editWeek(ProgramWeek week) {
     Navigator.push(
       context,
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (context) => WeekEditorScreen(
           week: week,
           onSave: (updatedWeek) {

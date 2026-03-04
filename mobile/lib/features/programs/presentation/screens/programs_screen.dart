@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -978,7 +979,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
     Navigator.push(
       context,
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (context) => ProgramBuilderScreen(
           templateName: draft.name,
           durationWeeks: draft.durationWeeks,
@@ -1018,7 +1019,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
+            adaptivePageRoute(
               builder: (context) => WorkoutCalendarScreen(
                 traineeId: program.traineeId,
                 programId: program.id,
@@ -1266,7 +1267,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     // Navigate to program builder with existing program data
     Navigator.push(
       context,
-      MaterialPageRoute(
+      adaptivePageRoute(
         builder: (context) => ProgramBuilderScreen(
           traineeId: program.traineeId,
           templateName: program.name,
@@ -1750,7 +1751,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                         if (parentContext.mounted) {
                           Navigator.push(
                             parentContext,
-                            MaterialPageRoute(
+                            adaptivePageRoute(
                               builder: (context) => ProgramBuilderScreen(
                                 templateName: template.name,
                                 durationWeeks: template.durationWeeks,
@@ -1934,7 +1935,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                 if (parentContext.mounted) {
                                   Navigator.push(
                                     parentContext,
-                                    MaterialPageRoute(
+                                    adaptivePageRoute(
                                       builder: (context) => ProgramBuilderScreen(
                                         traineeId: trainee.id,
                                         templateName: template.name,
@@ -2014,7 +2015,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                 if (parentContext.mounted) {
                   Navigator.push(
                     parentContext,
-                    MaterialPageRoute(
+                    adaptivePageRoute(
                       builder: (context) => const ProgramGeneratorScreen(),
                     ),
                   );
@@ -2195,7 +2196,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
           if (parentContext.mounted) {
             Navigator.push(
               parentContext,
-              MaterialPageRoute(
+              adaptivePageRoute(
                 builder: (context) => ProgramBuilderScreen(
                   templateName: template.name,
                   durationWeeks: template.durationWeeks,
@@ -2379,7 +2380,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                     if (parentContext.mounted) {
                       Navigator.push(
                         parentContext,
-                        MaterialPageRoute(
+                        adaptivePageRoute(
                           builder: (context) => ProgramBuilderScreen(
                             templateName: programName,
                             durationWeeks: durationWeeks,

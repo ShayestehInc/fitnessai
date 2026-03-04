@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
@@ -51,24 +52,37 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
           onPressed: () => context.pop(),
         ),
         elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: theme.colorScheme.primary,
-          labelColor: theme.textTheme.bodyLarge?.color,
-          unselectedLabelColor: theme.textTheme.bodySmall?.color,
-          tabs: const [
-            Tab(text: 'Subscriptions'),
-            Tab(text: 'Payment History'),
-          ],
-        ),
+        bottom: theme.platform == TargetPlatform.iOS
+            ? null
+            : TabBar(
+                controller: _tabController,
+                indicatorColor: theme.colorScheme.primary,
+                labelColor: theme.textTheme.bodyLarge?.color,
+                unselectedLabelColor: theme.textTheme.bodySmall?.color,
+                tabs: const [
+                  Tab(text: 'Subscriptions'),
+                  Tab(text: 'Payment History'),
+                ],
+              ),
       ),
       body: state.isLoading
           ? const Center(child: AdaptiveSpinner())
-          : TabBarView(
-              controller: _tabController,
+          : Column(
               children: [
-                _buildSubscriptionsTab(state),
-                _buildPaymentHistoryTab(state),
+                if (theme.platform == TargetPlatform.iOS)
+                  AdaptiveSegmentedControl(
+                    controller: _tabController,
+                    labels: const ['Subscriptions', 'Payment History'],
+                  ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildSubscriptionsTab(state),
+                      _buildPaymentHistoryTab(state),
+                    ],
+                  ),
+                ),
               ],
             ),
     );
