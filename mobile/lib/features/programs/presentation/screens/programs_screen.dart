@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -704,23 +705,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       confirmDismiss: (direction) async {
-        return await showDialog<bool>(
+        return await showAdaptiveConfirmDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Delete Draft?'),
-            content: Text('Are you sure you want to delete "${draft.name}"? This cannot be undone.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
+          title: 'Delete Draft?',
+          message: 'Are you sure you want to delete "${draft.name}"? This cannot be undone.',
+          confirmText: 'Delete',
+          isDestructive: true,
         ) ?? false;
       },
       onDismissed: (direction) async {
@@ -2321,7 +2311,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
               // Duration slider
               Text('Duration: $durationWeeks weeks'),
-              Slider(
+              Slider.adaptive(
                 value: durationWeeks.toDouble(),
                 min: 1,
                 max: 16,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -875,7 +876,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 children: [
                   const SizedBox(width: 60, child: Text('Sets:')),
                   Expanded(
-                    child: Slider(
+                    child: Slider.adaptive(
                       value: sets.toDouble(),
                       min: 1,
                       max: 8,
@@ -902,7 +903,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 children: [
                   const SizedBox(width: 60, child: Text('Reps:')),
                   Expanded(
-                    child: Slider(
+                    child: Slider.adaptive(
                       value: reps.toDouble(),
                       min: 1,
                       max: 30,
@@ -929,7 +930,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 children: [
                   const SizedBox(width: 60, child: Text('Rest:')),
                   Expanded(
-                    child: Slider(
+                    child: Slider.adaptive(
                       value: restSeconds.toDouble(),
                       min: 15,
                       max: 300,
@@ -1316,46 +1317,33 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     showAdaptiveToast(context, message: 'Replaced with ${newExerciseData['name']}');
   }
 
-  void _removeExercise(WorkoutExercise exercise, int dayIndex) {
-    showDialog(
+  Future<void> _removeExercise(WorkoutExercise exercise, int dayIndex) async {
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Exercise'),
-        content: Text('Remove "${exercise.exerciseName}" from this workout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                final weekIndex = _selectedWeekIndex;
-                final updatedWeeks = List<ProgramWeek>.from(_programState.weeks);
-                final week = updatedWeeks[weekIndex];
-                final day = week.days[dayIndex];
-
-                final updatedDays = List<WorkoutDay>.from(week.days);
-                updatedDays[dayIndex] = day.copyWith(
-                  exercises: day.exercises.where((e) => e.exerciseId != exercise.exerciseId).toList(),
-                );
-
-                updatedWeeks[weekIndex] = week.copyWith(days: updatedDays);
-                _programState = _programState.copyWith(weeks: updatedWeeks);
-              });
-
-              showAdaptiveToast(context, message: 'Removed ${exercise.exerciseName}');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+      title: 'Remove Exercise',
+      message: 'Remove "${exercise.exerciseName}" from this workout?',
+      confirmText: 'Remove',
+      isDestructive: true,
     );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      final weekIndex = _selectedWeekIndex;
+      final updatedWeeks = List<ProgramWeek>.from(_programState.weeks);
+      final week = updatedWeeks[weekIndex];
+      final day = week.days[dayIndex];
+
+      final updatedDays = List<WorkoutDay>.from(week.days);
+      updatedDays[dayIndex] = day.copyWith(
+        exercises: day.exercises.where((e) => e.exerciseId != exercise.exerciseId).toList(),
+      );
+
+      updatedWeeks[weekIndex] = week.copyWith(days: updatedDays);
+      _programState = _programState.copyWith(weeks: updatedWeeks);
+    });
+
+    showAdaptiveToast(context, message: 'Removed ${exercise.exerciseName}');
   }
 
   void _applyToThisWeek(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
@@ -1444,37 +1432,27 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     showAdaptiveToast(context, message: 'Applied progressive overload across all weeks');
   }
 
-  void _copyToAllWeeks(ProgramWeek sourceWeek) {
-    showDialog(
+  Future<void> _copyToAllWeeks(ProgramWeek sourceWeek) async {
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Copy Week'),
-        content: const Text('Copy this week\'s workout structure to all other weeks? This will overwrite existing exercises.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                final updatedWeeks = _programState.weeks.map((week) {
-                  if (week.weekNumber == sourceWeek.weekNumber) return week;
-                  return week.copyWith(
-                    days: sourceWeek.days,
-                    isDeload: week.isDeload, // Preserve deload status
-                  );
-                }).toList();
-                _programState = _programState.copyWith(weeks: updatedWeeks);
-              });
-              Navigator.pop(context);
-              showAdaptiveToast(context, message: 'Copied to all weeks');
-            },
-            child: const Text('Copy'),
-          ),
-        ],
-      ),
+      title: 'Copy Week',
+      message: 'Copy this week\'s workout structure to all other weeks? This will overwrite existing exercises.',
+      confirmText: 'Copy',
     );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      final updatedWeeks = _programState.weeks.map((week) {
+        if (week.weekNumber == sourceWeek.weekNumber) return week;
+        return week.copyWith(
+          days: sourceWeek.days,
+          isDeload: week.isDeload, // Preserve deload status
+        );
+      }).toList();
+      _programState = _programState.copyWith(weeks: updatedWeeks);
+    });
+    showAdaptiveToast(context, message: 'Copied to all weeks');
   }
 
   void _adjustVolume(ProgramWeek week, {required bool increase}) {

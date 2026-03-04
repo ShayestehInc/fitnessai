@@ -374,7 +374,7 @@ class _ProgramGeneratorScreenState
             ),
           ],
         ),
-        Slider(
+        Slider.adaptive(
           value: _durationWeeks.toDouble(),
           min: 1,
           max: 52,
@@ -432,7 +432,7 @@ class _ProgramGeneratorScreenState
             ),
           ],
         ),
-        Slider(
+        Slider.adaptive(
           value: _trainingDaysPerWeek.toDouble(),
           min: 2,
           max: 7,

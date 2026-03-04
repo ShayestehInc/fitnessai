@@ -254,7 +254,7 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                           thumbColor: theme.colorScheme.primary,
                           overlayColor: theme.colorScheme.primary.withValues(alpha: 0.2),
                         ),
-                        child: Slider(
+                        child: Slider.adaptive(
                           value: (state.profile?.mealsPerDay ?? 4).toDouble(),
                           min: 2,
                           max: 6,

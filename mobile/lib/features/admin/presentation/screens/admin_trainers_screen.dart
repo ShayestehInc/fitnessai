@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
@@ -110,31 +111,13 @@ class _TrainerCard extends ConsumerWidget {
   const _TrainerCard({required this.trainer});
 
   Future<void> _impersonateTrainer(BuildContext context, WidgetRef ref) async {
-    final theme = Theme.of(context);
     // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: const Text('Login as Trainer'),
-        content: Text(
-          'You will be logged in as ${trainer.displayName} (${trainer.email}). '
+      title: 'Login as Trainer',
+      message: 'You will be logged in as ${trainer.displayName} (${trainer.email}). '
           'Click "Exit" in the orange banner to return to your admin account.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.colorScheme.primary,
-            ),
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
+      confirmText: 'Continue',
     );
 
     if (confirmed != true) return;

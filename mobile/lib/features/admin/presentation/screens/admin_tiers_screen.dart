@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/tier_coupon_models.dart';
@@ -172,27 +173,12 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
   }
 
   Future<void> _confirmDelete(SubscriptionTierModel tier) async {
-    final theme = Theme.of(context);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: const Text('Delete Tier'),
-        content: Text(
-          'Are you sure you want to delete "${tier.displayName}"? This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Tier',
+      message: 'Are you sure you want to delete "${tier.displayName}"? This cannot be undone.',
+      confirmText: 'Delete',
+      isDestructive: true,
     );
 
     if (confirmed == true) {

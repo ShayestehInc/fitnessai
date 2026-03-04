@@ -948,8 +948,8 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                   ],
                 ),
                 const SizedBox(height: 24),
-                Row(children: [const SizedBox(width: 60, child: Text('Sets:')), Expanded(child: Slider(value: sets.toDouble(), min: 1, max: 8, divisions: 7, onChanged: (v) => setModalState(() => sets = v.round()))), SizedBox(width: 40, child: Text('$sets', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
-                Row(children: [const SizedBox(width: 60, child: Text('Reps:')), Expanded(child: Slider(value: reps.toDouble(), min: 1, max: 30, divisions: 29, onChanged: (v) => setModalState(() => reps = v.round()))), SizedBox(width: 40, child: Text('$reps', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
+                Row(children: [const SizedBox(width: 60, child: Text('Sets:')), Expanded(child: Slider.adaptive(value: sets.toDouble(), min: 1, max: 8, divisions: 7, onChanged: (v) => setModalState(() => sets = v.round()))), SizedBox(width: 40, child: Text('$sets', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
+                Row(children: [const SizedBox(width: 60, child: Text('Reps:')), Expanded(child: Slider.adaptive(value: reps.toDouble(), min: 1, max: 30, divisions: 29, onChanged: (v) => setModalState(() => reps = v.round()))), SizedBox(width: 40, child: Text('$reps', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
                 const SizedBox(height: 24),
                 // This Week / All Weeks toggle buttons
                 Row(
@@ -1123,7 +1123,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                   children: [
                     const SizedBox(width: 60, child: Text('Sets:')),
                     Expanded(
-                      child: Slider(
+                      child: Slider.adaptive(
                         value: sets.toDouble(),
                         min: 1,
                         max: 8,
@@ -1145,7 +1145,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                   children: [
                     const SizedBox(width: 60, child: Text('Reps:')),
                     Expanded(
-                      child: Slider(
+                      child: Slider.adaptive(
                         value: reps.toDouble(),
                         min: 1,
                         max: 30,

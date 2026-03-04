@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../ambassador/data/models/ambassador_models.dart';
@@ -67,28 +68,13 @@ class _AdminAmbassadorDetailScreenState
     final actionLabel = newActive ? 'activate' : 'deactivate';
     final displayName = _profile!.user.displayName;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${newActive ? 'Activate' : 'Deactivate'} Ambassador'),
-        content: Text(
-          'Are you sure you want to $actionLabel $displayName? '
+      title: '${newActive ? 'Activate' : 'Deactivate'} Ambassador',
+      message: 'Are you sure you want to $actionLabel $displayName? '
           '${newActive ? 'They will be able to earn commissions again.' : 'They will no longer earn commissions on new referrals.'}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: newActive ? Colors.green : Colors.orange,
-            ),
-            child: Text(newActive ? 'Activate' : 'Deactivate'),
-          ),
-        ],
-      ),
+      confirmText: newActive ? 'Activate' : 'Deactivate',
+      isDestructive: !newActive,
     );
 
     if (confirmed != true || !mounted) return;
@@ -143,7 +129,7 @@ class _AdminAmbassadorDetailScreenState
                     style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  Slider(
+                  Slider.adaptive(
                     value: newRate,
                     min: 0.05,
                     max: 0.50,
@@ -193,24 +179,11 @@ class _AdminAmbassadorDetailScreenState
   }
 
   Future<void> _approveCommission(AmbassadorCommission commission) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Approve Commission'),
-        content: Text(
-          'Approve \$${commission.commissionAmount} commission for ${commission.trainerEmail}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Approve'),
-          ),
-        ],
-      ),
+      title: 'Approve Commission',
+      message: 'Approve \$${commission.commissionAmount} commission for ${commission.trainerEmail}?',
+      confirmText: 'Approve',
     );
 
     if (confirmed != true || !mounted) return;
@@ -245,25 +218,11 @@ class _AdminAmbassadorDetailScreenState
   }
 
   Future<void> _payCommission(AmbassadorCommission commission) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Mark Commission as Paid'),
-        content: Text(
-          'Mark \$${commission.commissionAmount} commission for ${commission.trainerEmail} as paid?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Mark Paid'),
-          ),
-        ],
-      ),
+      title: 'Mark Commission as Paid',
+      message: 'Mark \$${commission.commissionAmount} commission for ${commission.trainerEmail} as paid?',
+      confirmText: 'Mark Paid',
     );
 
     if (confirmed != true || !mounted) return;
@@ -306,24 +265,11 @@ class _AdminAmbassadorDetailScreenState
       (sum, c) => sum + (double.tryParse(c.commissionAmount) ?? 0.0),
     );
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Approve All Pending'),
-        content: Text(
-          'Approve ${pendingCommissions.length} pending commission(s) totaling \$${totalAmount.toStringAsFixed(2)}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Approve All'),
-          ),
-        ],
-      ),
+      title: 'Approve All Pending',
+      message: 'Approve ${pendingCommissions.length} pending commission(s) totaling \$${totalAmount.toStringAsFixed(2)}?',
+      confirmText: 'Approve All',
     );
 
     if (confirmed != true || !mounted) return;
@@ -370,25 +316,11 @@ class _AdminAmbassadorDetailScreenState
       (sum, c) => sum + (double.tryParse(c.commissionAmount) ?? 0.0),
     );
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Pay All Approved'),
-        content: Text(
-          'Mark ${approvedCommissions.length} approved commission(s) totaling \$${totalAmount.toStringAsFixed(2)} as paid?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Pay All'),
-          ),
-        ],
-      ),
+      title: 'Pay All Approved',
+      message: 'Mark ${approvedCommissions.length} approved commission(s) totaling \$${totalAmount.toStringAsFixed(2)} as paid?',
+      confirmText: 'Pay All',
     );
 
     if (confirmed != true || !mounted) return;

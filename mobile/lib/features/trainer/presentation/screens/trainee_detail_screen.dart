@@ -1188,7 +1188,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                     overlayColor: color.withValues(alpha: 0.1),
                     trackHeight: 4,
                   ),
-                  child: Slider(
+                  child: Slider.adaptive(
                     value: value.toDouble(),
                     min: min.toDouble(),
                     max: max.toDouble(),

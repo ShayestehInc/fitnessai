@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/payment_provider.dart';
@@ -266,27 +267,12 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
   }
 
   Future<void> _revokeCoupon(TrainerCoupon coupon) async {
-    final theme = Theme.of(context);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: const Text('Revoke Coupon'),
-        content: Text(
-          'Are you sure you want to revoke "${coupon.code}"? It will no longer be usable by your trainees.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
-            child: const Text('Revoke'),
-          ),
-        ],
-      ),
+      title: 'Revoke Coupon',
+      message: 'Are you sure you want to revoke "${coupon.code}"? It will no longer be usable by your trainees.',
+      confirmText: 'Revoke',
+      isDestructive: true,
     );
 
     if (confirmed == true) {
@@ -311,27 +297,12 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
   }
 
   Future<void> _confirmDelete(TrainerCoupon coupon) async {
-    final theme = Theme.of(context);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: const Text('Delete Coupon'),
-        content: Text(
-          'Are you sure you want to delete "${coupon.code}"? This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Coupon',
+      message: 'Are you sure you want to delete "${coupon.code}"? This cannot be undone.',
+      confirmText: 'Delete',
+      isDestructive: true,
     );
 
     if (confirmed == true) {

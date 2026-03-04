@@ -981,7 +981,7 @@ class _ColorWheelState extends State<_ColorWheel> {
               color: theme.textTheme.labelMedium?.color,
             ),
             Expanded(
-              child: Slider(
+              child: Slider.adaptive(
                 value: _lightness,
                 min: 0.2,
                 max: 0.8,

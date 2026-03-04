@@ -301,7 +301,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
 
               // Duration slider
               Text('Duration: $durationWeeks weeks'),
-              Slider(
+              Slider.adaptive(
                 value: durationWeeks.toDouble(),
                 min: 1,
                 max: 16,

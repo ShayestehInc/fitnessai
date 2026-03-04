@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/program_week_model.dart';
 import '../../../exercises/data/models/exercise_model.dart';
@@ -1117,33 +1118,21 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     showAdaptiveToast(context, message: 'Converted to rest day for this week', type: ToastType.success);
   }
 
-  void _showDeleteWeekDialog() {
+  void _showDeleteWeekDialog() async {
     if (!widget.canDelete) return;
 
-    showDialog(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Week?'),
-        content: Text(
-          'Are you sure you want to delete Week ${_week.weekNumber}? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              Navigator.pop(dialogContext); // Close dialog
-              Navigator.pop(context); // Close week editor
-              widget.onDeleteWeek?.call();
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Week?',
+      message: 'Are you sure you want to delete Week ${_week.weekNumber}? This action cannot be undone.',
+      confirmText: 'Delete',
+      isDestructive: true,
     );
+
+    if (confirmed == true && mounted) {
+      Navigator.pop(context); // Close week editor
+      widget.onDeleteWeek?.call();
+    }
   }
 
   void _applyRestDayToAllWeeks() {
@@ -1275,34 +1264,24 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     showAdaptiveToast(context, message: 'Converted to workout day for all weeks', type: ToastType.success);
   }
 
-  void _clearExercises() {
-    showDialog(
+  void _clearExercises() async {
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear All Exercises'),
-        content: const Text('Are you sure you want to remove all exercises from this day?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              setState(() {
-                final updatedDays = List<WorkoutDay>.from(_week.days);
-                updatedDays[_selectedDayIndex] = updatedDays[_selectedDayIndex].copyWith(
-                  exercises: [],
-                );
-                _week = _week.copyWith(days: updatedDays);
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+      title: 'Clear All Exercises',
+      message: 'Are you sure you want to remove all exercises from this day?',
+      confirmText: 'Clear',
+      isDestructive: true,
     );
+
+    if (confirmed == true && mounted) {
+      setState(() {
+        final updatedDays = List<WorkoutDay>.from(_week.days);
+        updatedDays[_selectedDayIndex] = updatedDays[_selectedDayIndex].copyWith(
+          exercises: [],
+        );
+        _week = _week.copyWith(days: updatedDays);
+      });
+    }
   }
 }
 

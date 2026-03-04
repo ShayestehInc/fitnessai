@@ -168,7 +168,7 @@ class _AdminCreateAmbassadorScreenState
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        Slider(
+                        Slider.adaptive(
                           value: _commissionRate,
                           min: 0.05,
                           max: 0.50,

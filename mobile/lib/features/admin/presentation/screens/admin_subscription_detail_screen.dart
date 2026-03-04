@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
@@ -875,36 +876,22 @@ class _AdminSubscriptionDetailScreenState
     );
   }
 
-  void _clearPastDue(AdminSubscription sub) {
-    final theme = Theme.of(context);
-    showDialog(
+  Future<void> _clearPastDue(AdminSubscription sub) async {
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: const Text('Clear Past Due'),
-        content: Text(
-          'This will record a payment of \$${sub.pastDueAmount} and clear the past due status. Continue?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final success = await ref
-                  .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
-                  .recordPayment(sub.pastDueAmount, description: 'Past due cleared');
-              if (success && mounted) {
-                showAdaptiveToast(context, message: 'Past due cleared successfully');
-              }
-            },
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+      title: 'Clear Past Due',
+      message: 'This will record a payment of \$${sub.pastDueAmount} and clear the past due status. Continue?',
+      confirmText: 'Clear',
     );
+
+    if (confirmed != true || !mounted) return;
+
+    final success = await ref
+        .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
+        .recordPayment(sub.pastDueAmount, description: 'Past due cleared');
+    if (success && mounted) {
+      showAdaptiveToast(context, message: 'Past due cleared successfully');
+    }
   }
 
   Color _getTierColor(String tier) {

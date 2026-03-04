@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
@@ -148,25 +149,12 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
   }
 
   Future<void> _removeLogo() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Logo'),
-        content: const Text('Are you sure you want to remove your logo?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+      title: 'Remove Logo',
+      message: 'Are you sure you want to remove your logo?',
+      confirmText: 'Remove',
+      isDestructive: true,
     );
 
     if (confirmed != true) return;
@@ -189,28 +177,13 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
   }
 
   Future<void> _resetToDefaults() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Branding'),
-        content: const Text(
-          'This will reset your app name, colors, and remove your logo. '
+      title: 'Reset Branding',
+      message: 'This will reset your app name, colors, and remove your logo. '
           'Your trainees will see the default FitnessAI branding.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
+      confirmText: 'Reset',
+      isDestructive: true,
     );
 
     if (confirmed != true) return;
@@ -242,27 +215,13 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
       canPop: !_hasUnsavedChanges,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        final shouldDiscard = await showDialog<bool>(
+        final shouldDiscard = await showAdaptiveConfirmDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Unsaved Changes'),
-            content: const Text(
-              'You have unsaved branding changes. Discard them?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Keep Editing'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
-                ),
-                child: const Text('Discard'),
-              ),
-            ],
-          ),
+          title: 'Unsaved Changes',
+          message: 'You have unsaved branding changes. Discard them?',
+          confirmText: 'Discard',
+          cancelText: 'Keep Editing',
+          isDestructive: true,
         );
         if (shouldDiscard == true && mounted) {
           Navigator.of(context).pop();

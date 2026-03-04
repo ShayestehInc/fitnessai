@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -408,64 +409,34 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
     );
   }
 
-  void _confirmSignOutAll(BuildContext context) {
-    showDialog(
+  void _confirmSignOutAll(BuildContext context) async {
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out All Devices'),
-        content: const Text(
-          'This will sign you out from all devices except this one. You will need to sign in again on other devices.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              showAdaptiveToast(context, message: 'Signed out from all other devices', type: ToastType.success);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Sign Out All'),
-          ),
-        ],
-      ),
+      title: 'Sign Out All Devices',
+      message: 'This will sign you out from all devices except this one. You will need to sign in again on other devices.',
+      confirmText: 'Sign Out All',
+      isDestructive: true,
     );
+
+    if (confirmed == true && mounted) {
+      showAdaptiveToast(context, message: 'Signed out from all other devices', type: ToastType.success);
+    }
   }
 
-  void _show2FASetupDialog(BuildContext context, bool isEnabled) {
-    showDialog(
+  void _show2FASetupDialog(BuildContext context, bool isEnabled) async {
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEnabled ? 'Disable 2FA' : 'Enable 2FA'),
-        content: Text(
-          isEnabled
-              ? 'Are you sure you want to disable two-factor authentication? This will make your account less secure.'
-              : 'Two-factor authentication adds an extra layer of security. You will need an authenticator app to complete setup.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              showAdaptiveToast(context, message: isEnabled ? '2FA disabled' : '2FA setup coming soon', type: isEnabled ? ToastType.warning : ToastType.info);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isEnabled ? Colors.red : Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(isEnabled ? 'Disable' : 'Continue'),
-          ),
-        ],
-      ),
+      title: isEnabled ? 'Disable 2FA' : 'Enable 2FA',
+      message: isEnabled
+          ? 'Are you sure you want to disable two-factor authentication? This will make your account less secure.'
+          : 'Two-factor authentication adds an extra layer of security. You will need an authenticator app to complete setup.',
+      confirmText: isEnabled ? 'Disable' : 'Continue',
+      isDestructive: isEnabled,
     );
+
+    if (confirmed == true && mounted) {
+      showAdaptiveToast(context, message: isEnabled ? '2FA disabled' : '2FA setup coming soon', type: isEnabled ? ToastType.warning : ToastType.info);
+    }
   }
 }
 

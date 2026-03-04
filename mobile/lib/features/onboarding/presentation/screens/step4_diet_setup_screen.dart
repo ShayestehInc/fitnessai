@@ -321,7 +321,7 @@ class _MealsSlider extends StatelessWidget {
             thumbColor: theme.colorScheme.primary,
             overlayColor: theme.colorScheme.primary.withValues(alpha: 0.2),
           ),
-          child: Slider(
+          child: Slider.adaptive(
             value: value.toDouble(),
             min: 2,
             max: 6,
