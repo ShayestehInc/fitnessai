@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-02-27 (Pipeline 41: Calendar Integration Completion)
+> Last updated: 2026-03-04 (Pipeline 42: Notification Preferences, Local Reminders & Dead UI Cleanup)
 
 ---
 
@@ -307,6 +307,10 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | TV mode | ❌ Placeholder | Screen exists but empty |
 | Community feed (replaces Forums) | ✅ Done | Shipped 2026-02-16: Trainer-scoped feed with text posts, reactions (fire/thumbs_up/heart), auto-posts for workouts and achievements, optimistic updates, infinite scroll, image attachments, markdown, comments, real-time WebSocket updates |
 | Offline-first with local DB | ✅ Done | Shipped 2026-02-15: Drift (SQLite) local database, sync queue with FIFO/exponential backoff, connectivity monitoring with 2s debounce, offline-aware repositories for workouts/nutrition/weight, program caching, 409 conflict detection, UI banners (offline/syncing/synced/failed), failed sync bottom sheet, logout warning |
+| Notification preferences | ✅ Done | Shipped 2026-03-04 (Pipeline 42): Backend NotificationPreference model with 9 per-category boolean toggles, GET/PATCH API, preference checking before FCM push (single + group), mobile screen with role-based categories and optimistic toggle updates |
+| Local reminders | ✅ Done | Shipped 2026-03-04 (Pipeline 42): ReminderService singleton using flutter_local_notifications, timezone-aware scheduling for workout/meal/weight reminders, notification tap payload routing |
+| Help & Support screen | ✅ Done | Shipped 2026-03-04 (Pipeline 42): FAQ accordion, contact card, dynamic app version display |
+| Dead UI cleanup (Settings) | ✅ Done | Shipped 2026-03-04 (Pipeline 42): 7 dead "Coming Soon" buttons wired to real screens, dead Message/Schedule buttons on trainee detail made functional |
 
 ### 3.13 Internationalization (i18n)
 | Feature | Status | Notes |
@@ -897,6 +901,35 @@ Full mobile responsiveness for the admin web dashboard, completing the three-par
 **Pipeline Results:**
 - All three web responsive pipelines now complete: P36 (Trainee Portal), P37 (Trainer Dashboard), P38 (Admin Dashboard)
 - Quality Score: 9/10 SHIP
+
+### 4.28 Notification Preferences, Local Reminders & Dead UI Cleanup (Pipeline 42) -- COMPLETED (2026-03-04)
+
+Notification preference controls, local reminder scheduling, help & support screen, and cleanup of 7+ dead UI elements across Settings and trainee detail screens.
+
+**What was built:**
+
+**Backend**
+- `NotificationPreference` model with 9 per-category boolean toggles (workout_reminders, meal_reminders, weight_reminders, trainer_messages, program_updates, announcements, achievements, community, marketing)
+- GET/PATCH API endpoint for notification preferences (`/api/users/notification-preferences/`)
+- Preference checking before sending FCM push notifications (single + group), with `category` parameter for opt-out filtering
+- `send_push_to_group` supports category-based opt-out with batch query
+
+**Mobile**
+- `NotificationPreferencesScreen` with role-based categories and optimistic toggle updates
+- `RemindersScreen` for local workout, meal, and weight check-in reminders
+- `HelpSupportScreen` with FAQ accordion, contact card, and dynamic app version
+- `ReminderService` singleton using `flutter_local_notifications` with timezone-aware scheduling
+- Notification tap handling with payload routing
+- Help & Support tile in trainee settings
+- 7 dead "Coming Soon" buttons in Settings wired to real screens
+- Dead Message and Schedule buttons on trainee detail screen made functional
+- Removed ~30 debug `print()` statements from `api_client.dart` and `admin_repository.dart`
+- Fixed broken `widget_test.dart` (was testing non-existent counter app)
+- Fixed trainee "Check-in Days" routing from `/edit-diet` to `/reminders`
+- Fixed duplicate notification icon on adjacent settings tiles
+
+**Pipeline Results:**
+- Quality Score: SHIP
 
 ### 4.15 Acceptance Criteria
 

@@ -4,6 +4,33 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-04] — Pipeline 42: Notification Preferences, Local Reminders & Dead UI Cleanup
+
+### Added
+- Backend `NotificationPreference` model with 9 per-category boolean toggles
+- GET/PATCH API endpoint for notification preferences (`/api/users/notification-preferences/`)
+- Preference checking before sending FCM push notifications (single + group)
+- `NotificationPreferencesScreen` with role-based categories and optimistic toggle updates
+- `RemindersScreen` for local workout, meal, and weight check-in reminders
+- `HelpSupportScreen` with FAQ accordion, contact card, and dynamic app version
+- `ReminderService` singleton using `flutter_local_notifications` with timezone-aware scheduling
+- Notification tap handling with payload routing
+- Help & Support tile in trainee settings
+
+### Fixed
+- 7 dead "Coming Soon" buttons in Settings now navigate to real screens
+- Dead Message and Schedule buttons on trainee detail screen now functional
+- Removed ~30 debug `print()` statements from `api_client.dart` and `admin_repository.dart`
+- Fixed broken `widget_test.dart` (was testing non-existent counter app)
+- Trainee "Check-in Days" was routing to `/edit-diet` instead of `/reminders`
+- Duplicate notification icon on adjacent settings tiles
+
+### Changed
+- All backend notification callers now pass `category` parameter for preference filtering
+- `send_push_to_group` supports category-based opt-out with batch query
+
+---
+
 ## [2026-02-27] — Pipeline 41: Calendar Integration Completion
 
 ### Added
