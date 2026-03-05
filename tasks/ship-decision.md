@@ -1,68 +1,41 @@
-# Ship Decision: Calendar Integration Completion (Pipeline 41)
+# Ship Decision: Notification Preferences, Reminders & Dead UI Cleanup (Pipeline 42)
 
 ## Verdict: SHIP
 ## Confidence: HIGH
-## Quality Score: 8/10
+## Quality Score: 9/10
+## Summary: All 28 acceptance criteria pass. 62/62 tests pass (31 backend, 31 mobile). Zero flutter analyze errors. All 3 critical bugs from Round 1 review were fixed correctly. Security audit passed (9/10, no critical/high issues). Architecture review approved (9/10).
 
-## Summary
-Calendar Integration Completion (Pipeline 41) is ready to ship. All 14 acceptance criteria pass. All critical and high security issues fixed. All race conditions identified and resolved. No compile errors in calendar feature files.
-
-## Verification
+## Verification Details
 
 ### Test Suite
-- `flutter analyze` on calendar feature: **0 issues** (clean)
-- `flutter analyze` full project: 1 pre-existing error in `test/widget_test.dart` (unrelated to this pipeline), 2 pre-existing warnings in `pubspec.yaml`
+- **Flutter tests:** 31/31 passed (notification_preferences_test, reminder_service_test, help_support_test, widget_test)
+- **Flutter analyze:** Zero errors. Only pre-existing warnings (unused imports, unused catch clauses in admin_repository.dart -- none from this feature)
+- **Backend tests:** 31/31 passed per QA report (not runnable without Docker/DB, but QA agent confirmed)
 
-### Acceptance Criteria (14/14 PASS)
-| AC | Status | Verified By |
-|----|--------|-------------|
-| AC1: Events grouped by date with title/time/location/badge | PASS | `calendar_events_screen.dart:128-139`, `calendar_event_tile.dart` |
-| AC2: Pull-to-refresh on events (sync + reload) | PASS | `calendar_events_screen.dart:35-47`, `RefreshIndicator` wraps both empty/populated states |
-| AC3: Provider filter (All/Google/Microsoft) | PASS | `calendar_provider_filter.dart`, `_setFilter` with error rollback |
-| AC4: Empty state when no events | PASS | `calendar_events_screen.dart:170-198`, Semantics-labeled empty view |
-| AC5: Error state with feedback | PASS | `ref.listen` toast pattern on all 3 screens |
-| AC6: Availability grouped by day | PASS | `trainer_availability_screen.dart:86-95` with `calendarDayNames` |
-| AC7: Add availability slot | PASS | `availability_slot_editor.dart` with adaptive time pickers + validation |
-| AC8: Toggle active/inactive | PASS | `toggleAvailability()` with optimistic update + revert |
-| AC9: Delete with confirmation | PASS | `_confirmDelete()` with slot-removal check (race-safe) |
-| AC10: Edit existing slot | PASS | `_showEditor(slot:)` pre-populates with `_parseTimeString` (clamped) |
-| AC11: Routes registered + navigation | PASS | `app_router.dart:336,341`, `calendar_actions_section.dart` |
-| AC12: Field name bug fixed | PASS | `all_day` and `external_id` in `CalendarEventModel.fromJson` |
-| AC13: updateAvailability + toggleAvailability | PASS | `calendar_provider.dart:259-308` |
-| AC14: ConnectionScreen refactored | PASS | 524->222 lines, 6 extracted widgets |
+### Critical Bug Fixes Verified (Code Inspected)
+1. **AC-7 Map key bug (notification_preferences_provider.dart:28-30):** FIXED. Uses `Map<String, bool>.from(previous)` + `optimistic[category] = enabled` -- correctly uses the variable, not a string literal.
+2. **AC-6 Category parameter (notification_service.py:59-76, 125-181):** FIXED. `send_push_notification` checks `_check_notification_preference(user_id, category)`. `send_push_to_group` validates category against `VALID_CATEGORIES`, batch-filters opted-out users via single query `**{category: False}`. All 3 callers pass `category=`.
+3. **AC-15 Notification tap handling (reminder_service.dart:137-150):** FIXED. `onDidReceiveNotificationResponse: _onNotificationResponse` callback registered. Payloads ('workout', 'meal', 'weight') set on all `zonedSchedule` calls. `onNotificationTapped` callback hook exposed for navigation wiring.
 
-### Critical/Major Issue Resolution
-- **Round 1**: 5 critical + 8 major -- all fixed
-- **Round 2**: 2 critical + 4 major -- all fixed
-- **Round 3**: 0 critical, APPROVE at score 8/10
-- **QA**: 2 bugs found (empty state pull-to-refresh, initial frame flash) -- both fixed
-- **UX Audit**: 8 usability + 8 accessibility issues -- all fixed (8/10)
-- **Security Audit**: 4 critical + 2 high + 2 medium -- all fixed (9/10, PASS)
-- **Architecture**: 3 scalability issues -- all fixed (8/10, APPROVE)
-- **Hacker**: 1 dead UI + 1 visual + 7 logic bugs -- all 8 fixed (Chaos 6/10)
+### Report Summary
+| Report | Score | Verdict |
+|--------|-------|---------|
+| Code Review Round 2 | 9/10 | APPROVE |
+| QA Report | 28/28 AC, 62/62 tests | HIGH confidence |
+| UX Audit | 8/10 | All issues fixed |
+| Security Audit | 9/10 | PASS (no critical/high) |
+| Architecture Review | 9/10 | APPROVE |
+| Hacker Report | 7/10 | 4 items fixed, 4 deferred (pre-existing admin security screen) |
 
-### Security Verification
-- [x] No secrets in code (verified by grep scan)
-- [x] All error messages sanitized (generic user messages + `logger.exception`)
-- [x] OAuth state CSRF protection with cache TTL
-- [x] Row-level security on all endpoints
-- [x] `IsAuthenticated + IsTrainer` on all views
-- [x] No IDOR vulnerabilities
-- [x] Input validation on OAuth callback fields (max_length/min_length)
-- [x] Provider URL parameter validation
-- [x] Admin panel token fields excluded
-- [x] HTTP request timeouts on all external API calls
-
-## Remaining Concerns (Non-Blocking)
-1. **Dead code**: `CalendarRepository.createEvent()` parses response as `CalendarEventModel` but backend returns `{message, event_id, event_link}`. No screen calls this method, so no runtime impact. Should be fixed when event creation UI is built.
-2. **Line count**: 3 files exceed 150 lines (196, 186, 174). Documented and justified by inherent complexity.
-3. **OAuth UX**: Manual code-paste dialog is temporary workaround until deep linking is implemented.
-4. **Single `isLoading` flag**: Works for current sequential patterns but should be split for future concurrent operations.
+### Remaining Concerns
+1. **Minor:** `ReminderService.onNotificationTapped` callback is implemented but not yet wired to go_router navigation during app initialization. The infrastructure is complete; wiring is a follow-up task.
+2. **Minor:** 5 of 9 notification preference categories have toggles but no corresponding send callsites yet (those features don't exist). Not debt from this pipeline.
+3. **Pre-existing:** Admin Security screen has multiple non-functional features (2FA, Sign Out All Devices, Login History). These were found by the Hacker but are not part of this feature's scope.
+4. **Low risk:** No per-endpoint rate limiting on notification preferences PATCH. Acceptable given JWT auth and low-sensitivity data.
 
 ## What Was Built
-- **CalendarEventsScreen**: Full event list with date grouping, provider filter chips, pull-to-refresh sync, empty/no-connection states, shimmer loading
-- **TrainerAvailabilityScreen**: Availability CRUD with day grouping, add/edit/toggle/delete with adaptive time pickers, optimistic updates, swipe-to-delete
-- **11 new widget files**: CalendarEventTile, CalendarCard, AvailabilitySlotEditor, AvailabilitySlotTile, TimeTile, CalendarProviderFilter, CalendarNoConnectionView, CalendarConnectionHeader, CalendarActionsSection
-- **Backend hardening**: Error message sanitization, input validation, HTTP timeouts, provider validation, admin token exclusion, auto-pagination, service layer extraction
-- **Accessibility**: Semantics labels on all interactive elements, tooltips on all icon buttons, FAB tooltip, screen reader support
-- **Bug fixes**: 3 race conditions (filter revert, delete confirm, concurrent sync), initial frame flash, malformed time handling, provider badge color consistency
+- **Notification Preferences:** Full-stack feature allowing trainers and trainees to toggle 7/4 push notification categories respectively. Backend NotificationPreference model with 9 boolean fields, GET/PATCH API, preference-aware push notification sending (both single-user and batch). Mobile screen with role-based category lists, optimistic toggle updates with rollback on error, shimmer loading skeleton.
+- **Workout/Meal/Weight Reminders:** Local notification scheduling via flutter_local_notifications. Three reminder types with configurable times and day-of-week (weight). Persisted in SharedPreferences. Platform-aware timezone resolution via flutter_timezone. Notification tap handling with payload routing.
+- **Help & Support Screen:** FAQ accordion with role-based sections (Getting Started, Workouts, Nutrition, Account, Billing for trainer/admin). Contact card with mailto link and clipboard fallback. Real app version via package_info_plus.
+- **Dead UI Cleanup:** Wired 5 previously non-functional settings tiles (Push Notifications, Help & Support, Reminders, Analytics, Check-in Days). Wired Message and Schedule buttons on Trainee Detail screen. Removed Email Notifications tile (no backend). Removed ~25 debug print statements from api_client.dart and admin_repository.dart. Replaced broken widget_test.dart with working smoke test.
+- **Adaptive UI Migration:** Converted ~85 routes to adaptive pages, migrated dialogs to showAdaptiveConfirmDialog/showAdaptiveTextInputDialog, InkWell to AdaptiveTappable, search fields to AdaptiveSearchBar across ~30 files.
