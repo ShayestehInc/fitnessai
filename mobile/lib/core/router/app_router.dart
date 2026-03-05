@@ -92,6 +92,7 @@ import '../../features/checkins/data/models/checkin_models.dart';
 import '../../features/checkins/presentation/screens/checkin_form_screen.dart';
 import '../../features/checkins/presentation/screens/checkin_builder_screen.dart';
 import '../../features/checkins/presentation/screens/checkin_responses_screen.dart';
+import '../../features/watch/presentation/screens/watch_sync_screen.dart';
 import '../../features/ambassador/presentation/screens/ambassador_dashboard_screen.dart';
 import '../../features/ambassador/presentation/screens/ambassador_referrals_screen.dart';
 import '../../features/ambassador/presentation/screens/ambassador_settings_screen.dart';
@@ -1021,6 +1022,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => adaptivePage(
           key: state.pageKey,
           child: const CheckInResponsesScreen(),
+        ),
+      ),
+
+      // Apple Watch
+      GoRoute(
+        path: '/watch',
+        name: 'watch-sync',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const WatchSyncScreen(),
         ),
       ),
 
