@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../screens/active_workout_screen.dart';
 
 /// Minimal workout layout: compact collapsible list with quick-complete.
@@ -116,7 +117,7 @@ class _MinimalWorkoutLayoutState extends State<MinimalWorkoutLayout> {
             child: Column(
               children: [
                 // Collapsed header — always visible
-                InkWell(
+                AdaptiveTappable(
                   borderRadius: BorderRadius.circular(12),
                   onTap: () {
                     setState(() {

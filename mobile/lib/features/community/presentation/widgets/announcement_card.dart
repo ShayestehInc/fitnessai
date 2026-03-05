@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/announcement_model.dart';
 
 /// Compact announcement banner displayed at the top of the community feed.
@@ -21,20 +22,18 @@ class AnnouncementBanner extends StatelessWidget {
       button: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-        child: Material(
-          color: theme.colorScheme.primary.withValues(alpha: 0.1),
+        child: AdaptiveTappable(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.3),
               ),
+            ),
         child: Row(
           children: [
             Icon(
@@ -78,7 +77,6 @@ class AnnouncementBanner extends StatelessWidget {
             ),
           ],
         ),
-            ),
           ),
         ),
       ),

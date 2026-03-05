@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/payment_provider.dart';
 
@@ -286,8 +288,9 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
   }
 
   void _showCouponDialog(BuildContext context) {
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) => _CouponDialog(
         onSave: (data) async {
           final success = await ref
@@ -658,11 +661,8 @@ class _CouponDialogState extends State<_CouponDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Dialog(
-      backgroundColor: theme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 400,
+    return SafeArea(
+      child: Padding(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
@@ -763,7 +763,7 @@ class _CouponDialogState extends State<_CouponDialog> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                InkWell(
+                AdaptiveTappable(
                   onTap: _selectDate,
                   child: InputDecorator(
                     decoration: InputDecoration(

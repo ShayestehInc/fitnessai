@@ -285,3 +285,77 @@ class DeviceToken(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.email}: {self.platform} ({'active' if self.is_active else 'inactive'})"
+
+
+class NotificationPreference(models.Model):
+    """
+    Per-user push notification category preferences.
+    Auto-created with all categories enabled on first access.
+    """
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notification_preference',
+    )
+
+    # Trainer notification categories
+    trainee_workout = models.BooleanField(
+        default=True,
+        help_text="Notify when a trainee completes a workout",
+    )
+    trainee_weight_checkin = models.BooleanField(
+        default=True,
+        help_text="Notify when a trainee logs a weight check-in",
+    )
+    trainee_started_workout = models.BooleanField(
+        default=True,
+        help_text="Notify when a trainee starts a workout",
+    )
+    trainee_finished_workout = models.BooleanField(
+        default=True,
+        help_text="Notify when a trainee finishes a workout",
+    )
+    churn_alert = models.BooleanField(
+        default=True,
+        help_text="Notify about at-risk trainees",
+    )
+
+    # Trainee notification categories
+    trainer_announcement = models.BooleanField(
+        default=True,
+        help_text="Notify on new trainer announcements",
+    )
+    achievement_earned = models.BooleanField(
+        default=True,
+        help_text="Notify when a new badge is earned",
+    )
+
+    # Shared categories (both roles)
+    new_message = models.BooleanField(
+        default=True,
+        help_text="Notify on new direct messages",
+    )
+    community_activity = models.BooleanField(
+        default=True,
+        help_text="Notify on community post reactions and comments",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'notification_preferences'
+
+    def __str__(self) -> str:
+        return f"Notification preferences for {self.user.email}"
+
+    @classmethod
+    def get_or_create_for_user(cls, user: User) -> 'NotificationPreference':
+        """Get or create notification preferences for a user."""
+        pref, _ = cls.objects.get_or_create(user=user)
+        return pref
+
+    def is_category_enabled(self, category: str) -> bool:
+        """Check if a notification category is enabled."""
+        return bool(getattr(self, category, True))

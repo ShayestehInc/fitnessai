@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_search_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
@@ -50,29 +52,14 @@ class _AdminTrainersScreenState extends ConsumerState<AdminTrainersScreen> {
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16),
-            child: TextField(
+            child: AdaptiveSearchBar(
               controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search trainers...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          ref.read(adminTrainersProvider.notifier).loadTrainers();
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: theme.cardColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: theme.dividerColor),
-                ),
-              ),
+              placeholder: 'Search trainers...',
               onSubmitted: (value) {
                 ref.read(adminTrainersProvider.notifier).loadTrainers(search: value);
+              },
+              onClear: () {
+                ref.read(adminTrainersProvider.notifier).loadTrainers();
               },
             ),
           ),
@@ -93,6 +80,7 @@ class _AdminTrainersScreenState extends ConsumerState<AdminTrainersScreen> {
                             .read(adminTrainersProvider.notifier)
                             .loadTrainers(search: _searchController.text),
                         child: ListView.builder(
+                          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                           physics: adaptiveAlwaysScrollablePhysics(context),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: state.trainers.length,
@@ -155,7 +143,7 @@ class _TrainerCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: theme.dividerColor),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: sub?.id != null
             ? () => context.push('/admin/subscriptions/${sub!.id}')
             : null,

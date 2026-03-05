@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/tier_coupon_models.dart';
 import '../providers/admin_provider.dart';
@@ -265,8 +267,9 @@ class _AdminCouponsScreenState extends ConsumerState<AdminCouponsScreen> {
   }
 
   void _showCouponDialog(BuildContext context) {
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) => _CouponDialog(
         onSave: (data) async {
           final success =
@@ -374,7 +377,7 @@ class _CouponCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: theme.dividerColor),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -682,11 +685,8 @@ class _CouponDialogState extends State<_CouponDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Dialog(
-      backgroundColor: theme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 400,
+    return SafeArea(
+      child: Padding(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
@@ -790,7 +790,7 @@ class _CouponDialogState extends State<_CouponDialog> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                InkWell(
+                AdaptiveTappable(
                   onTap: _selectDate,
                   child: InputDecorator(
                     decoration: InputDecoration(

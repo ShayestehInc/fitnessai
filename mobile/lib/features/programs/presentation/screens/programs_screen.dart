@@ -9,6 +9,7 @@ import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/program_model.dart';
 import '../../data/models/program_week_model.dart';
@@ -301,7 +302,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () => _showTemplateDetail(context, template),
         borderRadius: BorderRadius.circular(12),
         child: Column(
@@ -735,7 +736,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
+        child: AdaptiveTappable(
           onTap: () => _editDraftProgram(context, draft),
           borderRadius: BorderRadius.circular(12),
           child: Column(
@@ -1050,7 +1051,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () {
           Navigator.push(
             context,
@@ -1337,63 +1338,38 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
     );
   }
 
-  void _showRenameProgramDialog(BuildContext context, int programId, String currentName, {required bool isTemplate}) {
-    final controller = TextEditingController(text: currentName);
-
-    showDialog(
+  Future<void> _showRenameProgramDialog(BuildContext context, int programId, String currentName, {required bool isTemplate}) async {
+    final newName = await showAdaptiveTextInputDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename Program'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Program Name',
-            hintText: 'Enter new name',
-          ),
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final newName = controller.text.trim();
-              if (newName.isEmpty) {
-                showAdaptiveToast(context, message: 'Name cannot be empty', type: ToastType.error);
-                return;
-              }
-
-              Navigator.pop(context);
-
-              // Call API to rename
-              final repository = ref.read(programRepositoryProvider);
-              Map<String, dynamic> result;
-
-              if (isTemplate) {
-                result = await repository.renameTemplate(programId, newName);
-              } else {
-                result = await repository.renameProgram(programId, newName);
-              }
-
-              if (context.mounted) {
-                if (result['success'] == true) {
-                  // Refresh the lists
-                  ref.invalidate(myTemplatesProvider);
-                  ref.invalidate(trainerProgramsProvider);
-                  showAdaptiveToast(context, message: 'Renamed to "$newName"', type: ToastType.success);
-                } else {
-                  showAdaptiveToast(context, message: result['error'] ?? 'Failed to rename', type: ToastType.error);
-                }
-              }
-            },
-            child: const Text('Rename'),
-          ),
-        ],
-      ),
+      title: 'Rename Program',
+      initialValue: currentName,
+      placeholder: 'Enter new name',
+      confirmText: 'Rename',
     );
+
+    if (newName == null || newName.isEmpty) return;
+    if (!context.mounted) return;
+
+    // Call API to rename
+    final repository = ref.read(programRepositoryProvider);
+    Map<String, dynamic> result;
+
+    if (isTemplate) {
+      result = await repository.renameTemplate(programId, newName);
+    } else {
+      result = await repository.renameProgram(programId, newName);
+    }
+
+    if (context.mounted) {
+      if (result['success'] == true) {
+        // Refresh the lists
+        ref.invalidate(myTemplatesProvider);
+        ref.invalidate(trainerProgramsProvider);
+        showAdaptiveToast(context, message: 'Renamed to "$newName"', type: ToastType.success);
+      } else {
+        showAdaptiveToast(context, message: result['error'] ?? 'Failed to rename', type: ToastType.error);
+      }
+    }
   }
 
   void _showEditProgramImageDialog(BuildContext context, int programId, String programName, String? currentImageUrl, {required bool isTemplate}) {
@@ -2115,7 +2091,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
   }) {
     final theme = Theme.of(context);
 
-    return InkWell(
+    return AdaptiveTappable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -2229,7 +2205,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () {
           Navigator.pop(sheetContext);
           // Navigate to builder with template pre-filled
@@ -2249,9 +2225,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
           }
         },
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
+        padding: const EdgeInsets.all(16),
+        child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
@@ -2289,7 +2264,6 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
             ],
           ),
-        ),
       ),
     );
   }

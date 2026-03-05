@@ -5,6 +5,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../programs/data/models/program_week_model.dart';
 
@@ -514,12 +515,11 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
               width: item.isMissed ? 2 : (item.isToday ? 2 : 1),
             ),
           ),
-          child: InkWell(
+          child: AdaptiveTappable(
             onTap: () => _showDayDetail(item),
             borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
+            padding: const EdgeInsets.all(12),
+            child: Row(
                 children: [
                   // Date column
                   Container(
@@ -659,7 +659,6 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                   ),
                 ],
               ),
-            ),
           ),
         ),
       ],
@@ -809,7 +808,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                                     (index == exercises.length - 1 || exercises[index + 1].supersetGroupId != exercise.supersetGroupId);
                                 final isMiddleInSuperset = isInSuperset && !isFirstInSuperset && !isLastInSuperset;
 
-                                return InkWell(
+                                return AdaptiveTappable(
                                   onTap: _isTrainerMode
                                       ? () {
                                           Navigator.pop(sheetContext);

@@ -7,6 +7,8 @@ import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_search_bar.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/exercise_model.dart';
 import '../providers/exercise_provider.dart';
@@ -53,22 +55,11 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16),
-            child: TextField(
+            child: AdaptiveSearchBar(
               controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search exercises...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {});
-                        },
-                      )
-                    : null,
-              ),
+              placeholder: 'Search exercises...',
               onChanged: (value) => setState(() {}),
+              onClear: () => setState(() {}),
             ),
           ),
 
@@ -175,6 +166,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     if (_selectedMuscleGroup != null) {
       // Show flat list when filtered
       return ListView.builder(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: exercises.length,
         itemBuilder: (context, index) {
@@ -186,6 +178,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
     // Show grouped list
     final sortedKeys = grouped.keys.toList()..sort();
     return ListView.builder(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: sortedKeys.length,
       itemBuilder: (context, index) {
@@ -250,16 +243,15 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () => _showExerciseDetail(context, exercise),
         onLongPress: () {
           HapticService.mediumTap();
           _showExerciseQuickActions(context, exercise);
         },
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+        padding: const EdgeInsets.all(12),
+        child: Row(
             children: [
               // Exercise thumbnail image
               ClipRRect(
@@ -305,7 +297,6 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
               Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color),
             ],
           ),
-        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../data/models/branding_model.dart';
 
@@ -167,63 +168,77 @@ class BrandingColorSection extends StatelessWidget {
     required String title,
     required ValueChanged<Color> onSelected,
   }) {
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: SizedBox(
-            width: 280,
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: _presetColors.map((color) {
-                final isSelected = color == currentColor;
-                final indicator = _indicatorColor(color);
-                return Semantics(
-                  button: true,
-                  selected: isSelected,
-                  label: 'Color ${BrandingModel.colorToHex(color)}',
-                  child: GestureDetector(
-                    onTap: () {
-                      onSelected(color);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected ? indicator : Colors.transparent,
-                          width: 3,
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: color.withValues(alpha: 0.5),
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: isSelected
-                          ? Icon(Icons.check, color: indicator, size: 20)
-                          : null,
-                    ),
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                );
-              }).toList(),
+                ),
+                const SizedBox(height: 24),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: _presetColors.map((color) {
+                    final isSelected = color == currentColor;
+                    final indicator = _indicatorColor(color);
+                    return Semantics(
+                      button: true,
+                      selected: isSelected,
+                      label: 'Color ${BrandingModel.colorToHex(color)}',
+                      child: GestureDetector(
+                        onTap: () {
+                          onSelected(color);
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected ? indicator : Colors.transparent,
+                              width: 3,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: color.withValues(alpha: 0.5),
+                                      blurRadius: 8,
+                                      spreadRadius: 2,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: isSelected
+                              ? Icon(Icons.check, color: indicator, size: 20)
+                              : null,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-          ],
         );
       },
     );

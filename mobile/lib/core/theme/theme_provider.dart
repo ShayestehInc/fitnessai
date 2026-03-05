@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -595,6 +596,13 @@ class AppThemeBuilder {
       splashFactory: isIOS ? NoSplash.splashFactory : null,
       splashColor: isIOS ? Colors.transparent : null,
       highlightColor: isIOS ? Colors.white.withValues(alpha: 0.05) : null,
+      // Bridge brand colors into Cupertino widgets (pickers, dialogs, etc.)
+      cupertinoOverrideTheme: CupertinoThemeData(
+        brightness: Brightness.dark,
+        primaryColor: primary,
+        scaffoldBackgroundColor: background,
+        barBackgroundColor: background.withValues(alpha: 0.85),
+      ),
       colorScheme: ColorScheme.dark(
         primary: primary,
         onPrimary: Colors.white,
@@ -611,9 +619,9 @@ class AppThemeBuilder {
       cardColor: card,
       dividerColor: border,
 
-      // AppBar theme
+      // AppBar theme — semi-transparent on iOS for frosted-glass feel
       appBarTheme: AppBarTheme(
-        backgroundColor: background,
+        backgroundColor: isIOS ? background.withValues(alpha: 0.85) : background,
         foregroundColor: foreground,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -838,6 +846,13 @@ class AppThemeBuilder {
       splashFactory: isIOS ? NoSplash.splashFactory : null,
       splashColor: isIOS ? Colors.transparent : null,
       highlightColor: isIOS ? Colors.black.withValues(alpha: 0.04) : null,
+      // Bridge brand colors into Cupertino widgets (pickers, dialogs, etc.)
+      cupertinoOverrideTheme: CupertinoThemeData(
+        brightness: Brightness.light,
+        primaryColor: primary,
+        scaffoldBackgroundColor: background,
+        barBackgroundColor: background.withValues(alpha: 0.85),
+      ),
       colorScheme: ColorScheme.light(
         primary: primary,
         onPrimary: Colors.white,
@@ -854,9 +869,9 @@ class AppThemeBuilder {
       cardColor: card,
       dividerColor: border,
 
-      // AppBar theme
+      // AppBar theme — semi-transparent on iOS for frosted-glass feel
       appBarTheme: AppBarTheme(
-        backgroundColor: background,
+        backgroundColor: isIOS ? background.withValues(alpha: 0.85) : background,
         foregroundColor: foreground,
         elevation: 0,
         scrolledUnderElevation: 1,

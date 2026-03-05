@@ -1,8 +1,8 @@
-# Focus: Pipeline 41
+# Focus: Pipeline 42
 
-## Pipeline 41: Calendar Integration Completion (Mobile)
-- Build CalendarEventsScreen (list synced Google/Microsoft calendar events)
-- Build TrainerAvailabilityScreen (CRUD availability slots)
-- Register missing routes in app_router.dart
-- Fix navigation from calendar_connection_screen.dart
-- Wire up calendar providers and repository (already exist)
+## Pipeline 42: Social Auth (Apple & Google Sign-In) — Mobile
+- Wire Apple Sign-In and Google Sign-In on mobile (Flutter)
+- Backend already has Djoser social auth configured
+- Integrate with existing JWT auth flow
+- Support all user roles (trainer, trainee, ambassador)
+- Handle existing account linking (email match)

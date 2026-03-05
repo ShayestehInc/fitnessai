@@ -784,3 +784,24 @@ As a [user type], I want to [action] so that [benefit].
 8. **Focus override:** If the user specifies what to work on, create `tasks/focus.md` with that focus and use it instead of the default priorities.
 9. **Audit agents fix things.** UX, Security, Architect, and Hacker agents don't just report — they implement fixes and then document what they changed.
 10. **After SHIP verdict:** update `PRODUCT_SPEC.md`, write `CHANGELOG.md`, merge to main.
+
+
+## Context Management
+Context is your most important resource.
+Proactively use subagents (Task tool) to keep exploration, research, and verbose operations out of the main conversation.
+
+**Default to spawning agents for:**
+- Codebase exploration
+(reading 3+ files to answer a question)
+- Research tasks
+(web searches, doc lookups, investigating how something works)
+- Code review or analysis (produces verbose output)
+- Any investigation where only the summary matters
+
+**Stay in main context for:**
+- Direct file edits the user requested
+- Short, targeted reads (1-2 files)
+- Conversations requiring back-and-forth
+- Tasks where user needs intermediate steps
+
+**Rule of thumb:** If a task will read more than ~3 files or produce output the user doesn't need to see verbatim, delegate it to a subagent and return a

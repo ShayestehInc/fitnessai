@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/retention_model.dart';
 import 'engagement_indicator.dart';
 import 'risk_tier_badge.dart';
@@ -20,7 +21,7 @@ class AtRiskTraineeTile extends StatelessWidget {
 
     return Card(
       margin: EdgeInsets.zero,
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(

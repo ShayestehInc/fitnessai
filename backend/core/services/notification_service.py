@@ -56,18 +56,53 @@ def _ensure_firebase_initialized() -> bool:
         return False
 
 
+def _check_notification_preference(user_id: int, category: str | None) -> bool:
+    """
+    Check if the user has enabled the given notification category.
+    Returns True if no category specified or if the category is enabled.
+    """
+    if not category:
+        return True
+
+    try:
+        from users.models import NotificationPreference
+        pref = NotificationPreference.objects.filter(user_id=user_id).first()
+        if pref is None:
+            return True  # Default: all enabled
+        return pref.is_category_enabled(category)
+    except Exception:
+        logger.warning("Failed to check notification preference for user %d", user_id)
+        return True  # Fail open: send the notification
+
+
 def send_push_notification(
     user_id: int,
     title: str,
     body: str,
     data: dict[str, str] | None = None,
+    category: str | None = None,
 ) -> bool:
     """
     Send push notification to all active device tokens for a user.
 
+    Args:
+        user_id: Target user ID.
+        title: Notification title.
+        body: Notification body.
+        data: Optional extra data payload.
+        category: Optional notification category to check user preference.
+                  Must match a field name on NotificationPreference model.
+
     Returns True if at least one message was delivered successfully.
     Never raises -- returns False on complete failure.
     """
+    if not _check_notification_preference(user_id, category):
+        logger.debug(
+            "Push notification suppressed for user %d (category=%s disabled)",
+            user_id, category,
+        )
+        return False
+
     if not _ensure_firebase_initialized():
         return False
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'adaptive/adaptive_tappable.dart';
 
 /// A full-page filter/sort screen.
 ///
@@ -201,7 +202,7 @@ class FilterRadioGroup<T> extends StatelessWidget {
     return Column(
       children: options.map((option) {
         final isSelected = selected == option.value;
-        return InkWell(
+        return AdaptiveTappable(
           onTap: () => onChanged(option.value),
           borderRadius: BorderRadius.circular(12),
           child: Container(

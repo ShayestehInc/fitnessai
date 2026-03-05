@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/conversation_model.dart';
 import 'messaging_utils.dart';
 
@@ -30,7 +31,7 @@ class ConversationTile extends StatelessWidget {
     return Semantics(
       label: semanticLabel,
       button: true,
-      child: InkWell(
+      child: AdaptiveTappable(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

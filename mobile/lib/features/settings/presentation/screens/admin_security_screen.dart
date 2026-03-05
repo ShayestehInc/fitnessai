@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -124,7 +126,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
   }) {
     final color = isDestructive ? Colors.red : theme.colorScheme.primary;
 
-    return InkWell(
+    return AdaptiveTappable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -376,37 +378,50 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
   }
 
   void _showActiveSessionsDialog(BuildContext context) {
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Active Sessions'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.phone_iphone),
-              title: const Text('iPhone 15 Pro'),
-              subtitle: const Text('Current session'),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Active',
-                  style: TextStyle(color: Colors.green, fontSize: 12),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Active Sessions',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.phone_iphone),
+                title: const Text('iPhone 15 Pro'),
+                subtitle: const Text('Current session'),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Active',
+                    style: TextStyle(color: Colors.green, fontSize: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

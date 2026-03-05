@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
 import '../../data/repositories/admin_repository.dart';
@@ -201,7 +202,7 @@ class _PastDueCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () => context.push('/admin/subscriptions/${subscription.id}'),
         borderRadius: BorderRadius.circular(12),
         child: Padding(

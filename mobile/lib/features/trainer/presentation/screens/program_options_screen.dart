@@ -5,6 +5,7 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../programs/data/models/program_week_model.dart';
@@ -142,7 +143,7 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
-    return InkWell(
+    return AdaptiveTappable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(

@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/haptic_service.dart';
 import '../../features/admin/presentation/widgets/admin_impersonation_banner.dart';
 import '../../features/messaging/presentation/providers/messaging_provider.dart';
+import 'adaptive/adaptive_icons.dart';
 
 class TrainerNavigationShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -38,7 +40,10 @@ class _TrainerNavigationShellState
         decoration: BoxDecoration(
           color: theme.cardColor,
           border: Border(
-            top: BorderSide(color: theme.dividerColor, width: 1),
+            top: BorderSide(
+              color: theme.dividerColor,
+              width: defaultTargetPlatform == TargetPlatform.iOS ? 0.5 : 1,
+            ),
           ),
         ),
         child: SafeArea(
@@ -48,37 +53,37 @@ class _TrainerNavigationShellState
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _NavItem(
-                  icon: Icons.dashboard_outlined,
-                  activeIcon: Icons.dashboard,
+                  icon: AdaptiveIcons.dashboardOutlined,
+                  activeIcon: AdaptiveIcons.dashboard,
                   label: 'Dashboard',
                   isSelected: widget.navigationShell.currentIndex == 0,
                   onTap: () => _onTap(context, 0),
                 ),
                 _NavItem(
-                  icon: Icons.people_outline,
-                  activeIcon: Icons.people,
+                  icon: AdaptiveIcons.communityOutlined,
+                  activeIcon: AdaptiveIcons.community,
                   label: 'Trainees',
                   isSelected: widget.navigationShell.currentIndex == 1,
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
-                  icon: Icons.chat_bubble_outline,
-                  activeIcon: Icons.chat_bubble,
+                  icon: AdaptiveIcons.messagesOutlined,
+                  activeIcon: AdaptiveIcons.messages,
                   label: 'Messages',
                   isSelected: widget.navigationShell.currentIndex == 2,
                   onTap: () => _onTap(context, 2),
                   badgeCount: unreadCount,
                 ),
                 _NavItem(
-                  icon: Icons.calendar_month_outlined,
-                  activeIcon: Icons.calendar_month,
+                  icon: AdaptiveIcons.programsOutlined,
+                  activeIcon: AdaptiveIcons.programs,
                   label: 'Programs',
                   isSelected: widget.navigationShell.currentIndex == 3,
                   onTap: () => _onTap(context, 3),
                 ),
                 _NavItem(
-                  icon: Icons.settings_outlined,
-                  activeIcon: Icons.settings,
+                  icon: AdaptiveIcons.settingsOutlined,
+                  activeIcon: AdaptiveIcons.settingsFilled,
                   label: 'Settings',
                   isSelected: widget.navigationShell.currentIndex == 4,
                   onTap: () => _onTap(context, 4),

@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/theme_provider.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -754,40 +756,22 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
     );
   }
 
-  void _showResetDialog(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
-    showDialog(
+  Future<void> _showResetDialog(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Reset to Defaults?'),
-        content: const Text(
-          'This will reset all color customizations back to the default Indigo theme.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: theme.textTheme.labelMedium?.color),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(themeProvider.notifier).resetToDefaults();
-              Navigator.pop(context);
-              setState(() {
-                _showOtherColors = false;
-                _showAdvancedColors = false;
-              });
-            },
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
+      title: 'Reset to Defaults?',
+      message: 'This will reset all color customizations back to the default Indigo theme.',
+      confirmText: 'Reset',
+      cancelText: 'Cancel',
+      isDestructive: true,
     );
+    if (confirmed == true) {
+      ref.read(themeProvider.notifier).resetToDefaults();
+      setState(() {
+        _showOtherColors = false;
+        _showAdvancedColors = false;
+      });
+    }
   }
 }
 
@@ -1291,7 +1275,7 @@ class _AdvancedColorRow extends StatelessWidget {
   }
 
   void _showColorPickerDialog(BuildContext context) {
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
       builder: (context) => _ColorPickerDialog(
         initialColor: color,
@@ -1335,15 +1319,20 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AlertDialog(
-      backgroundColor: theme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('Select Color'),
-      content: SizedBox(
-        width: 300,
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'Select Color',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 24),
             _ColorWheel(
               selectedColor: _selectedColor,
               onColorSelected: (color) {
@@ -1375,25 +1364,30 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: theme.textTheme.labelMedium?.color),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    widget.onColorSelected(_selectedColor);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Apply'),
+                ),
+              ],
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(
-            'Cancel',
-            style: TextStyle(color: theme.textTheme.labelMedium?.color),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            widget.onColorSelected(_selectedColor);
-            Navigator.pop(context);
-          },
-          child: const Text('Apply'),
-        ),
-      ],
     );
   }
 }

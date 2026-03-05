@@ -88,6 +88,10 @@ import '../../features/community/presentation/screens/leaderboard_screen.dart';
 import '../../features/messaging/presentation/screens/conversation_list_screen.dart';
 import '../../features/messaging/presentation/screens/chat_screen.dart';
 import '../../features/messaging/presentation/screens/new_conversation_screen.dart';
+import '../../features/settings/presentation/screens/notification_preferences_screen.dart';
+import '../../features/settings/presentation/screens/reminders_screen.dart';
+import '../../features/settings/presentation/screens/help_support_screen.dart';
+import 'adaptive_page.dart';
 
 // Navigation keys for branches
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -107,34 +111,49 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/splash',
         name: 'splash',
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const SplashScreen(),
+        ),
       ),
 
       // Auth routes (outside shell)
       GoRoute(
         path: '/login',
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+        ),
       ),
       GoRoute(
         path: '/register',
         name: 'register',
-        builder: (context, state) => const RegisterScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const RegisterScreen(),
+        ),
       ),
 
       // Password reset routes
       GoRoute(
         path: '/forgot-password',
         name: 'forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const ForgotPasswordScreen(),
+        ),
       ),
       GoRoute(
         path: '/reset-password/:uid/:token',
         name: 'reset-password',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final uid = state.pathParameters['uid']!;
           final token = state.pathParameters['token']!;
-          return ResetPasswordScreen(uid: uid, token: token);
+          return adaptivePage(
+            key: state.pageKey,
+            child: ResetPasswordScreen(uid: uid, token: token),
+          );
         },
       ),
 
@@ -142,7 +161,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding',
         name: 'onboarding',
-        builder: (context, state) => const OnboardingWizardScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const OnboardingWizardScreen(),
+        ),
       ),
 
       // Trainer Shell - separate navigation for trainers
@@ -212,38 +234,50 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/trainer/exercises',
         name: 'trainer-exercises',
-        builder: (context, state) => const ExerciseBankScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const ExerciseBankScreen(),
+        ),
       ),
 
       // Messaging routes (outside shell, used by both trainers and trainees)
       GoRoute(
         path: '/messages',
         name: 'messages',
-        builder: (context, state) => const ConversationListScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const ConversationListScreen(),
+        ),
       ),
       GoRoute(
         path: '/messages/new-conversation',
         name: 'new-conversation',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final traineeId = int.parse(
             state.uri.queryParameters['trainee_id'] ?? '0',
           );
           final name = state.uri.queryParameters['name'];
-          return NewConversationScreen(
-            traineeId: traineeId,
-            traineeName: name,
+          return adaptivePage(
+            key: state.pageKey,
+            child: NewConversationScreen(
+              traineeId: traineeId,
+              traineeName: name,
+            ),
           );
         },
       ),
       GoRoute(
         path: '/messages/:id',
         name: 'chat',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
           final name = state.uri.queryParameters['name'];
-          return ChatScreen(
-            conversationId: id,
-            otherPartyName: name,
+          return adaptivePage(
+            key: state.pageKey,
+            child: ChatScreen(
+              conversationId: id,
+              otherPartyName: name,
+            ),
           );
         },
       ),
@@ -252,27 +286,39 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/trainer/trainees/:id',
         name: 'trainee-detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-          return TraineeDetailScreen(traineeId: id);
+          return adaptivePage(
+            key: state.pageKey,
+            child: TraineeDetailScreen(traineeId: id),
+          );
         },
       ),
       GoRoute(
         path: '/trainer/notifications',
         name: 'trainer-notifications',
-        builder: (context, state) => const TrainerNotificationsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const TrainerNotificationsScreen(),
+        ),
       ),
       GoRoute(
         path: '/trainer/invite',
         name: 'trainer-invite',
-        builder: (context, state) => const InviteTraineeScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const InviteTraineeScreen(),
+        ),
       ),
       GoRoute(
         path: '/trainer/programs/assign/:id',
         name: 'assign-program',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final traineeId = int.parse(state.pathParameters['id']!);
-          return AssignProgramScreen(traineeId: traineeId);
+          return adaptivePage(
+            key: state.pageKey,
+            child: AssignProgramScreen(traineeId: traineeId),
+          );
         },
       ),
 
@@ -280,41 +326,59 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/trainer/stripe-connect',
         name: 'stripe-connect',
-        builder: (context, state) => const StripeConnectScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const StripeConnectScreen(),
+        ),
       ),
       GoRoute(
         path: '/trainer/pricing',
         name: 'trainer-pricing',
-        builder: (context, state) => const TrainerPricingScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const TrainerPricingScreen(),
+        ),
       ),
       GoRoute(
         path: '/trainer/payments',
         name: 'trainer-payments',
-        builder: (context, state) => const TrainerPaymentsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const TrainerPaymentsScreen(),
+        ),
       ),
       GoRoute(
         path: '/trainer/coupons',
         name: 'trainer-coupons',
-        builder: (context, state) => const TrainerCouponsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const TrainerCouponsScreen(),
+        ),
       ),
 
       // Trainer subscription (for platform subscription management)
       GoRoute(
         path: '/trainer/subscription',
         name: 'trainer-subscription',
-        builder: (context, state) => const MySubscriptionScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const MySubscriptionScreen(),
+        ),
       ),
 
       // AI Chat for trainers
       GoRoute(
         path: '/trainer/ai-chat',
         name: 'trainer-ai-chat',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final traineeId = state.uri.queryParameters['trainee_id'];
           final traineeName = state.uri.queryParameters['trainee_name'];
-          return AIChatScreen(
-            initialTraineeId: traineeId != null ? int.tryParse(traineeId) : null,
-            initialTraineeName: traineeName,
+          return adaptivePage(
+            key: state.pageKey,
+            child: AIChatScreen(
+              initialTraineeId: traineeId != null ? int.tryParse(traineeId) : null,
+              initialTraineeName: traineeName,
+            ),
           );
         },
       ),
@@ -323,31 +387,46 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/trainer/retention',
         name: 'trainer-retention',
-        builder: (context, state) => const RetentionAnalyticsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const RetentionAnalyticsScreen(),
+        ),
       ),
 
       // Calendar integration for trainers
       GoRoute(
         path: '/trainer/calendar',
         name: 'trainer-calendar',
-        builder: (context, state) => const CalendarConnectionScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const CalendarConnectionScreen(),
+        ),
       ),
       GoRoute(
         path: '/trainer/calendar/events',
         name: 'trainer-calendar-events',
-        builder: (context, state) => const CalendarEventsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const CalendarEventsScreen(),
+        ),
       ),
       GoRoute(
         path: '/trainer/calendar/availability',
         name: 'trainer-calendar-availability',
-        builder: (context, state) => const TrainerAvailabilityScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const TrainerAvailabilityScreen(),
+        ),
       ),
 
       // Branding settings for trainers
       GoRoute(
         path: '/trainer/branding',
         name: 'trainer-branding',
-        builder: (context, state) => const BrandingScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const BrandingScreen(),
+        ),
       ),
 
       // Ambassador Shell - separate navigation for ambassadors
@@ -395,7 +474,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ambassador/payouts',
         name: 'ambassador-payouts',
-        builder: (context, state) => const AmbassadorPayoutsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AmbassadorPayoutsScreen(),
+        ),
       ),
 
       // Admin Shell - separate navigation for admin users
@@ -454,55 +536,82 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/users',
         name: 'admin-users',
-        builder: (context, state) => const AdminUsersScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdminUsersScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/users/create',
         name: 'admin-create-user',
-        builder: (context, state) => const AdminCreateUserScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdminCreateUserScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/users/:id/edit',
         name: 'admin-edit-user',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-          return AdminEditUserScreen(userId: id);
+          return adaptivePage(
+            key: state.pageKey,
+            child: AdminEditUserScreen(userId: id),
+          );
         },
       ),
       GoRoute(
         path: '/admin/subscriptions/:id',
         name: 'admin-subscription-detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-          return AdminSubscriptionDetailScreen(subscriptionId: id);
+          return adaptivePage(
+            key: state.pageKey,
+            child: AdminSubscriptionDetailScreen(subscriptionId: id),
+          );
         },
       ),
       GoRoute(
         path: '/admin/past-due',
         name: 'admin-past-due',
-        builder: (context, state) => const AdminPastDueScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdminPastDueScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/upcoming',
         name: 'admin-upcoming-payments',
-        builder: (context, state) => const AdminUpcomingPaymentsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdminUpcomingPaymentsScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/tiers',
         name: 'admin-tiers',
-        builder: (context, state) => const AdminTiersScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdminTiersScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/coupons',
         name: 'admin-coupons',
-        builder: (context, state) => const AdminCouponsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdminCouponsScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/coupons/:id',
         name: 'admin-coupon-detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-          return AdminCouponDetailScreen(couponId: id);
+          return adaptivePage(
+            key: state.pageKey,
+            child: AdminCouponDetailScreen(couponId: id),
+          );
         },
       ),
 
@@ -510,19 +619,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/ambassadors',
         name: 'admin-ambassadors',
-        builder: (context, state) => const AdminAmbassadorsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdminAmbassadorsScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/ambassadors/create',
         name: 'admin-create-ambassador',
-        builder: (context, state) => const AdminCreateAmbassadorScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdminCreateAmbassadorScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/ambassadors/:id',
         name: 'admin-ambassador-detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-          return AdminAmbassadorDetailScreen(ambassadorId: id);
+          return adaptivePage(
+            key: state.pageKey,
+            child: AdminAmbassadorDetailScreen(ambassadorId: id),
+          );
         },
       ),
 
@@ -593,31 +711,46 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/community/announcements',
         name: 'community-announcements',
-        builder: (context, state) => const AnnouncementsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AnnouncementsScreen(),
+        ),
       ),
       GoRoute(
         path: '/community/achievements',
         name: 'community-achievements',
-        builder: (context, state) => const AchievementsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AchievementsScreen(),
+        ),
       ),
       GoRoute(
         path: '/community/leaderboard',
         name: 'community-leaderboard',
-        builder: (context, state) => const LeaderboardScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const LeaderboardScreen(),
+        ),
       ),
 
       // Trainer announcement management
       GoRoute(
         path: '/trainer/announcements',
         name: 'trainer-announcements-screen',
-        builder: (context, state) => const TrainerAnnouncementsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const TrainerAnnouncementsScreen(),
+        ),
       ),
       GoRoute(
         path: '/trainer/announcements/create',
         name: 'trainer-create-announcement',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final existing = state.extra as AnnouncementModel?;
-          return CreateAnnouncementScreen(existing: existing);
+          return adaptivePage(
+            key: state.pageKey,
+            child: CreateAnnouncementScreen(existing: existing),
+          );
         },
       ),
 
@@ -625,19 +758,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/feature-requests',
         name: 'feature-requests',
-        builder: (context, state) => const FeatureRequestsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const FeatureRequestsScreen(),
+        ),
       ),
       GoRoute(
         path: '/feature-requests/submit',
         name: 'submit-feature',
-        builder: (context, state) => const SubmitFeatureScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const SubmitFeatureScreen(),
+        ),
       ),
       GoRoute(
         path: '/feature-requests/:id',
         name: 'feature-detail',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-          return FeatureDetailScreen(featureId: id);
+          return adaptivePage(
+            key: state.pageKey,
+            child: FeatureDetailScreen(featureId: id),
+          );
         },
       ),
 
@@ -645,49 +787,73 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ai-command',
         name: 'ai-command',
-        builder: (context, state) => const AICommandCenterScreen(),
+        pageBuilder: (context, state) => adaptiveFullscreenPage(
+          key: state.pageKey,
+          child: const AICommandCenterScreen(),
+        ),
       ),
       GoRoute(
         path: '/add-food',
         name: 'add-food',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final mealParam = state.uri.queryParameters['meal'];
           final mealNumber = mealParam != null ? int.tryParse(mealParam) : null;
-          return AddFoodScreen(mealNumber: mealNumber);
+          return adaptiveFullscreenPage(
+            key: state.pageKey,
+            child: AddFoodScreen(mealNumber: mealNumber),
+          );
         },
       ),
       GoRoute(
         path: '/weight-checkin',
         name: 'weight-checkin',
-        builder: (context, state) => const WeightCheckInScreen(),
+        pageBuilder: (context, state) => adaptiveFullscreenPage(
+          key: state.pageKey,
+          child: const WeightCheckInScreen(),
+        ),
       ),
       GoRoute(
         path: '/weight-trends',
         name: 'weight-trends',
-        builder: (context, state) => const WeightTrendsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const WeightTrendsScreen(),
+        ),
       ),
       GoRoute(
         path: '/workout-calendar',
         name: 'workout-calendar',
-        builder: (context, state) => const WorkoutCalendarScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const WorkoutCalendarScreen(),
+        ),
       ),
       GoRoute(
         path: '/active-workout',
         name: 'active-workout',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final workout = state.extra as ProgramWorkoutDay;
-          return ActiveWorkoutScreen(workout: workout);
+          return adaptiveFullscreenPage(
+            key: state.pageKey,
+            child: ActiveWorkoutScreen(workout: workout),
+          );
         },
       ),
       GoRoute(
         path: '/my-programs',
         name: 'my-programs',
-        builder: (context, state) => const MyProgramsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const MyProgramsScreen(),
+        ),
       ),
       GoRoute(
         path: '/workout-history',
         name: 'workout-history',
-        builder: (context, state) => const WorkoutHistoryScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const WorkoutHistoryScreen(),
+        ),
       ),
       GoRoute(
         path: '/workout-detail',
@@ -698,23 +864,29 @@ final routerProvider = Provider<GoRouter>((ref) {
           }
           return null;
         },
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final workout = state.extra! as WorkoutHistorySummary;
-          return WorkoutDetailScreen(workout: workout);
+          return adaptivePage(
+            key: state.pageKey,
+            child: WorkoutDetailScreen(workout: workout),
+          );
         },
       ),
       GoRoute(
         path: '/trainer/trainees/:id/calendar',
         name: 'trainee-calendar',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final traineeId = int.parse(state.pathParameters['id']!);
           final traineeName = state.uri.queryParameters['name'];
           final programIdStr = state.uri.queryParameters['program_id'];
           final programId = programIdStr != null ? int.tryParse(programIdStr) : null;
-          return WorkoutCalendarScreen(
-            traineeId: traineeId,
-            traineeName: traineeName,
-            programId: programId,
+          return adaptivePage(
+            key: state.pageKey,
+            child: WorkoutCalendarScreen(
+              traineeId: traineeId,
+              traineeName: traineeName,
+              programId: programId,
+            ),
           );
         },
       ),
@@ -723,64 +895,121 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         name: 'settings',
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const SettingsScreen(),
+        ),
       ),
       GoRoute(
         path: '/edit-profile',
         name: 'edit-profile',
-        builder: (context, state) => const EditProfileScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const EditProfileScreen(),
+        ),
       ),
       GoRoute(
         path: '/edit-name',
         name: 'edit-name',
-        builder: (context, state) => const EditNameScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const EditNameScreen(),
+        ),
       ),
       GoRoute(
         path: '/edit-goals',
         name: 'edit-goals',
-        builder: (context, state) => const EditGoalsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const EditGoalsScreen(),
+        ),
       ),
       GoRoute(
         path: '/edit-diet',
         name: 'edit-diet',
-        builder: (context, state) => const EditDietScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const EditDietScreen(),
+        ),
       ),
       GoRoute(
         path: '/theme-settings',
         name: 'theme-settings',
-        builder: (context, state) => const ThemeSettingsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const ThemeSettingsScreen(),
+        ),
       ),
       GoRoute(
         path: '/language-settings',
         name: 'language-settings',
-        builder: (context, state) => const LanguageSettingsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const LanguageSettingsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/notification-preferences',
+        name: 'notification-preferences',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const NotificationPreferencesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/reminders',
+        name: 'reminders',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const RemindersScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/help-support',
+        name: 'help-support',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const HelpSupportScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/notifications',
         name: 'admin-notifications',
-        builder: (context, state) => const AdminNotificationsScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdminNotificationsScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/security',
         name: 'admin-security',
-        builder: (context, state) => const AdminSecurityScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdminSecurityScreen(),
+        ),
       ),
 
       // Trainee subscription routes
       GoRoute(
         path: '/my-subscription',
         name: 'my-subscription',
-        builder: (context, state) => const MySubscriptionScreen(),
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const MySubscriptionScreen(),
+        ),
       ),
       GoRoute(
         path: '/trainer/:id/pricing',
         name: 'trainer-pricing-view',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final trainerId = int.parse(state.pathParameters['id']!);
           final trainerName = state.uri.queryParameters['name'];
-          return TrainerPricingViewScreen(
-            trainerId: trainerId,
-            trainerName: trainerName,
+          return adaptivePage(
+            key: state.pageKey,
+            child: TrainerPricingViewScreen(
+              trainerId: trainerId,
+              trainerName: trainerName,
+            ),
           );
         },
       ),

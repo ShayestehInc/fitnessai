@@ -226,6 +226,9 @@ class ApiConstants {
   // Leaderboard opt-in
   static String get leaderboardOptIn => '$apiBaseUrl/users/leaderboard-opt-in/';
 
+  // Notification preferences
+  static String get notificationPreferences => '$apiBaseUrl/users/notification-preferences/';
+
   // Ambassador Stripe Connect
   static String get ambassadorConnectStatus => '$apiBaseUrl/ambassador/connect/status/';
   static String get ambassadorConnectOnboard => '$apiBaseUrl/ambassador/connect/onboard/';

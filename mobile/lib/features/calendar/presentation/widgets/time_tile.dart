@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 
 /// Tappable time display tile used in the availability slot editor.
 class TimeTile extends StatelessWidget {
@@ -16,7 +17,7 @@ class TimeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
+    return AdaptiveTappable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(

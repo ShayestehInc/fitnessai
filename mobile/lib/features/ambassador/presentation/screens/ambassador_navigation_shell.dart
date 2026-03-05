@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 
 class AmbassadorNavigationShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -21,7 +24,10 @@ class AmbassadorNavigationShell extends ConsumerWidget {
         decoration: BoxDecoration(
           color: theme.cardColor,
           border: Border(
-            top: BorderSide(color: theme.dividerColor, width: 1),
+            top: BorderSide(
+              color: theme.dividerColor,
+              width: defaultTargetPlatform == TargetPlatform.iOS ? 0.5 : 1,
+            ),
           ),
         ),
         child: SafeArea(
@@ -31,22 +37,22 @@ class AmbassadorNavigationShell extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _NavItem(
-                  icon: Icons.dashboard_outlined,
-                  activeIcon: Icons.dashboard,
+                  icon: AdaptiveIcons.dashboardOutlined,
+                  activeIcon: AdaptiveIcons.dashboard,
                   label: 'Dashboard',
                   isSelected: navigationShell.currentIndex == 0,
                   onTap: () => _onTap(context, 0),
                 ),
                 _NavItem(
-                  icon: Icons.people_outline,
-                  activeIcon: Icons.people,
+                  icon: AdaptiveIcons.referrals,
+                  activeIcon: AdaptiveIcons.referralsFilled,
                   label: 'Referrals',
                   isSelected: navigationShell.currentIndex == 1,
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
-                  icon: Icons.settings_outlined,
-                  activeIcon: Icons.settings,
+                  icon: AdaptiveIcons.settingsOutlined,
+                  activeIcon: AdaptiveIcons.settingsFilled,
                   label: 'Settings',
                   isSelected: navigationShell.currentIndex == 2,
                   onTap: () => _onTap(context, 2),
@@ -93,7 +99,7 @@ class _NavItem extends StatelessWidget {
       label: label,
       button: true,
       selected: isSelected,
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: SizedBox(

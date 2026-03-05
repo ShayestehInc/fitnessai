@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
+import '../../../../shared/widgets/adaptive/adaptive_search_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../logging/presentation/providers/logging_provider.dart';
 import '../providers/nutrition_provider.dart';
@@ -538,7 +540,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                         button: true,
                         selected: isSelected,
                         label: 'Meal $mealNum',
-                        child: InkWell(
+                        child: AdaptiveTappable(
                           onTap: () => setState(() => _selectedMealNumber = mealNum),
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
@@ -944,37 +946,17 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           child: Column(
             children: [
               // Search input
-              TextField(
+              AdaptiveSearchBar(
                 controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search foods...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: searchState.isSearching
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: AdaptiveSpinner.small(),
-                        )
-                      : _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchController.clear();
-                                ref.read(foodSearchProvider.notifier).clearSearch();
-                              },
-                            )
-                          : null,
-                  filled: true,
-                  fillColor: theme.cardColor,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: theme.dividerColor),
-                  ),
-                ),
+                placeholder: 'Search foods...',
                 onChanged: (value) {
                   ref.read(foodSearchProvider.notifier).searchWithDebounce(value);
                 },
                 onSubmitted: (value) {
                   ref.read(foodSearchProvider.notifier).search(value);
+                },
+                onClear: () {
+                  ref.read(foodSearchProvider.notifier).clearSearch();
                 },
               ),
 
@@ -1083,6 +1065,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
 
   Widget _buildSearchResults(List<FoodSearchResult> results, ThemeData theme) {
     return ListView.builder(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: results.length,
       itemBuilder: (context, index) {
@@ -1348,12 +1331,11 @@ class _FoodSearchResultCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: theme.dividerColor),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+        padding: const EdgeInsets.all(12),
+        child: Row(
             children: [
               // Food icon
               Container(
@@ -1417,7 +1399,6 @@ class _FoodSearchResultCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
       ),
     );
   }

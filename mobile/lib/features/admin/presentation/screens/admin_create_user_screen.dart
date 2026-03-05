@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/step_form_page.dart';
 import '../../data/repositories/admin_repository.dart';
@@ -269,7 +270,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
     required Color color,
   }) {
     final isSelected = _selectedRole == role;
-    return InkWell(
+    return AdaptiveTappable(
       onTap: () => setState(() => _selectedRole = role),
       borderRadius: BorderRadius.circular(16),
       child: Container(

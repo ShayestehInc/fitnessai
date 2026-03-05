@@ -331,7 +331,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.bar_chart,
         title: 'Analytics',
         subtitle: 'View trainee progress analytics',
-        onTap: () => _showComingSoon(context),
+        onTap: () => context.push('/trainer/retention'),
         index: index++,
       ),
 
@@ -428,15 +428,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.notifications_outlined,
         title: 'Push Notifications',
         subtitle: 'Manage notification preferences',
-        onTap: () => _showComingSoon(context),
-        index: index++,
-      ),
-      _buildSettingsTile(
-        context: context,
-        icon: Icons.email_outlined,
-        title: 'Email Notifications',
-        subtitle: 'Configure email alerts',
-        onTap: () => _showComingSoon(context),
+        onTap: () => context.push('/notification-preferences'),
         index: index++,
       ),
 
@@ -457,7 +449,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.help_outline,
         title: 'Help & Support',
         subtitle: 'Get help with using the platform',
-        onTap: () => _showComingSoon(context),
+        onTap: () => context.push('/help-support'),
         index: index++,
       ),
 
@@ -546,7 +538,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         icon: Icons.notifications_outlined,
         title: 'Reminders',
         subtitle: 'Configure workout and meal reminders',
-        onTap: () => _showComingSoon(context),
+        onTap: () => context.push('/reminders'),
+        index: index++,
+      ),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.tune,
+        title: 'Push Notifications',
+        subtitle: 'Manage notification preferences',
+        onTap: () => context.push('/notification-preferences'),
         index: index++,
       ),
 
@@ -744,10 +744,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       context.go('/login');
     }
-  }
-
-  void _showComingSoon(BuildContext context) {
-    showAdaptiveToast(context, message: 'Coming soon!');
   }
 
   void _openDeleteAccountScreen(BuildContext context) {

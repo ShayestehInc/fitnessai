@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -687,218 +688,279 @@ class _AdminSubscriptionDetailScreenState
   }
 
   void _showChangeTierDialog(AdminSubscription sub) {
-    final theme = Theme.of(context);
     String selectedTier = sub.tier;
     final reasonController = TextEditingController();
 
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: const Text('Change Tier'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AdaptiveDropdown<String>(
-              value: selectedTier,
-              decoration: const InputDecoration(
-                labelText: 'New Tier',
-                border: OutlineInputBorder(),
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Change Tier',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              items: SubscriptionTier.values.map((tier) {
-                return AdaptiveDropdownItem(
-                  value: tier.value,
-                  label: '${tier.displayName} (\$${tier.price}/mo)',
-                );
-              }).toList(),
-              onChanged: (value) => selectedTier = value!,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              decoration: const InputDecoration(
-                labelText: 'Reason (optional)',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 24),
+              AdaptiveDropdown<String>(
+                value: selectedTier,
+                decoration: const InputDecoration(
+                  labelText: 'New Tier',
+                  border: OutlineInputBorder(),
+                ),
+                items: SubscriptionTier.values.map((tier) {
+                  return AdaptiveDropdownItem(
+                    value: tier.value,
+                    label: '${tier.displayName} (\$${tier.price}/mo)',
+                  );
+                }).toList(),
+                onChanged: (value) => selectedTier = value!,
               ),
-              maxLines: 2,
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Reason (optional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      final success = await ref
+                          .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
+                          .changeTier(selectedTier, reason: reasonController.text);
+                      if (success && mounted) {
+                        showAdaptiveToast(context, message: 'Tier updated successfully');
+                      }
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final success = await ref
-                  .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
-                  .changeTier(selectedTier, reason: reasonController.text);
-              if (success && mounted) {
-                showAdaptiveToast(context, message: 'Tier updated successfully');
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }
 
   void _showChangeStatusDialog(AdminSubscription sub) {
-    final theme = Theme.of(context);
     String selectedStatus = sub.status;
     final reasonController = TextEditingController();
 
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: const Text('Change Status'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AdaptiveDropdown<String>(
-              value: selectedStatus,
-              decoration: const InputDecoration(
-                labelText: 'New Status',
-                border: OutlineInputBorder(),
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Change Status',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              items: SubscriptionStatus.values.map((status) {
-                return AdaptiveDropdownItem(
-                  value: status.value,
-                  label: status.displayName,
-                );
-              }).toList(),
-              onChanged: (value) => selectedStatus = value!,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              decoration: const InputDecoration(
-                labelText: 'Reason (optional)',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 24),
+              AdaptiveDropdown<String>(
+                value: selectedStatus,
+                decoration: const InputDecoration(
+                  labelText: 'New Status',
+                  border: OutlineInputBorder(),
+                ),
+                items: SubscriptionStatus.values.map((status) {
+                  return AdaptiveDropdownItem(
+                    value: status.value,
+                    label: status.displayName,
+                  );
+                }).toList(),
+                onChanged: (value) => selectedStatus = value!,
               ),
-              maxLines: 2,
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Reason (optional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      final success = await ref
+                          .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
+                          .changeStatus(selectedStatus, reason: reasonController.text);
+                      if (success && mounted) {
+                        showAdaptiveToast(context, message: 'Status updated successfully');
+                      }
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final success = await ref
-                  .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
-                  .changeStatus(selectedStatus, reason: reasonController.text);
-              if (success && mounted) {
-                showAdaptiveToast(context, message: 'Status updated successfully');
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }
 
   void _showRecordPaymentDialog(AdminSubscription sub) {
-    final theme = Theme.of(context);
     final amountController = TextEditingController(text: sub.monthlyPrice);
     final descriptionController = TextEditingController();
 
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: const Text('Record Payment'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountController,
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                prefixText: '\$',
-                border: OutlineInputBorder(),
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Record Payment',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-                hintText: 'e.g., Manual payment via check',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 24),
+              TextField(
+                controller: amountController,
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: '\$',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description (optional)',
+                  hintText: 'e.g., Manual payment via check',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      final success = await ref
+                          .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
+                          .recordPayment(
+                            amountController.text,
+                            description: descriptionController.text,
+                          );
+                      if (success && mounted) {
+                        showAdaptiveToast(context, message: 'Payment recorded successfully');
+                      }
+                    },
+                    child: const Text('Record'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final success = await ref
-                  .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
-                  .recordPayment(
-                    amountController.text,
-                    description: descriptionController.text,
-                  );
-              if (success && mounted) {
-                showAdaptiveToast(context, message: 'Payment recorded successfully');
-              }
-            },
-            child: const Text('Record'),
-          ),
-        ],
       ),
     );
   }
 
   void _showEditNotesDialog(AdminSubscription sub) {
-    final theme = Theme.of(context);
     final notesController = TextEditingController(text: sub.adminNotes);
 
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: const Text('Edit Notes'),
-        content: TextField(
-          controller: notesController,
-          decoration: const InputDecoration(
-            hintText: 'Add notes about this subscription...',
-            border: OutlineInputBorder(),
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Edit Notes',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  hintText: 'Add notes about this subscription...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 4,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      final success = await ref
+                          .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
+                          .updateNotes(notesController.text);
+                      if (success && mounted) {
+                        showAdaptiveToast(context, message: 'Notes updated successfully');
+                      }
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ],
           ),
-          maxLines: 4,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final success = await ref
-                  .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
-                  .updateNotes(notesController.text);
-              if (success && mounted) {
-                showAdaptiveToast(context, message: 'Notes updated successfully');
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }

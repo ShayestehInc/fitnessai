@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
@@ -69,73 +70,96 @@ class _CalendarConnectionScreenState
     final stateController = TextEditingController();
     final providerName = provider == 'google' ? 'Google' : 'Microsoft';
 
-    showDialog(
+    showAdaptiveBottomSheet<void>(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Complete $providerName Connection'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'After authorizing in the browser, copy and paste the values here:',
-              style: TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: codeController,
-              decoration: const InputDecoration(
-                labelText: 'Authorization Code',
-                border: OutlineInputBorder(),
+      isScrollControlled: true,
+      isDismissible: false,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Complete $providerName Connection',
+                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: stateController,
-              decoration: const InputDecoration(
-                labelText: 'State Parameter',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              const Text(
+                'After authorizing in the browser, copy and paste the values here:',
+                style: TextStyle(fontSize: 14),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: codeController,
+                decoration: const InputDecoration(
+                  labelText: 'Authorization Code',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: stateController,
+                decoration: const InputDecoration(
+                  labelText: 'State Parameter',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        codeController.dispose();
+                        stateController.dispose();
+                      },
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        final code = codeController.text.trim();
+                        final stateParam = stateController.text.trim();
+                        if (code.isEmpty || stateParam.isEmpty) {
+                          showAdaptiveToast(sheetContext,
+                              message: 'Please enter both code and state',
+                              type: ToastType.warning);
+                          return;
+                        }
+                        Navigator.pop(sheetContext);
+                        final notifier = ref.read(calendarProvider.notifier);
+                        final success = provider == 'google'
+                            ? await notifier.completeGoogleCallback(code, stateParam)
+                            : await notifier.completeMicrosoftCallback(code, stateParam);
+                        codeController.dispose();
+                        stateController.dispose();
+                        if (mounted && success) {
+                          showAdaptiveToast(context,
+                              message: '$providerName Calendar connected!',
+                              type: ToastType.success);
+                        }
+                      },
+                      child: const Text('Connect'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              codeController.dispose();
-              stateController.dispose();
-            },
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final code = codeController.text.trim();
-              final stateParam = stateController.text.trim();
-              if (code.isEmpty || stateParam.isEmpty) {
-                showAdaptiveToast(dialogContext,
-                    message: 'Please enter both code and state',
-                    type: ToastType.warning);
-                return;
-              }
-              Navigator.pop(dialogContext);
-              final notifier = ref.read(calendarProvider.notifier);
-              final success = provider == 'google'
-                  ? await notifier.completeGoogleCallback(code, stateParam)
-                  : await notifier.completeMicrosoftCallback(code, stateParam);
-              codeController.dispose();
-              stateController.dispose();
-              if (mounted && success) {
-                showAdaptiveToast(context,
-                    message: '$providerName Calendar connected!',
-                    type: ToastType.success);
-              }
-            },
-            child: const Text('Connect'),
-          ),
-        ],
       ),
     );
   }
