@@ -124,7 +124,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
-    final color = isDestructive ? Colors.red : theme.colorScheme.primary;
+    final color = isDestructive ? theme.colorScheme.error : theme.colorScheme.primary;
 
     return AdaptiveTappable(
       onTap: onTap,
@@ -156,7 +156,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
                     title,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w500,
-                      color: isDestructive ? Colors.red : null,
+                      color: isDestructive ? theme.colorScheme.error : null,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -259,7 +259,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
             child: ElevatedButton(
               onPressed: () => _show2FASetupDialog(context, is2FAEnabled),
               style: ElevatedButton.styleFrom(
-                backgroundColor: is2FAEnabled ? Colors.red : theme.colorScheme.primary,
+                backgroundColor: is2FAEnabled ? theme.colorScheme.error : theme.colorScheme.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -452,7 +452,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
     );
 
     if (confirmed == true && mounted) {
-      showAdaptiveToast(context, message: isEnabled ? '2FA disabled' : '2FA setup coming soon', type: isEnabled ? ToastType.warning : ToastType.info);
+      showAdaptiveToast(context, message: isEnabled ? '2FA has been disabled.' : '2FA is not yet available. It will be enabled in a future update.', type: isEnabled ? ToastType.warning : ToastType.info);
     }
   }
 }
