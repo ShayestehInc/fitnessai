@@ -267,16 +267,23 @@ class _OsPermissionBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          AdaptiveTappable(
-            onTap: () async {
-              await FirebaseMessaging.instance.requestPermission();
-              onOpenSettings();
-            },
-            child: Text(
-              'Enable',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onErrorContainer,
-                fontWeight: FontWeight.w600,
+          Semantics(
+            button: true,
+            label: 'Enable notifications',
+            child: AdaptiveTappable(
+              onTap: () async {
+                await FirebaseMessaging.instance.requestPermission();
+                onOpenSettings();
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Text(
+                  'Enable',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onErrorContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ),
@@ -445,7 +452,7 @@ class _ErrorCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              message,
+              'Please check your connection and try again.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

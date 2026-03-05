@@ -543,7 +543,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
       _buildSettingsTile(
         context: context,
-        icon: Icons.tune,
+        icon: Icons.notifications_outlined,
         title: 'Push Notifications',
         subtitle: 'Manage notification preferences',
         onTap: () => context.push('/notification-preferences'),
@@ -580,6 +580,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       // Appearance
       _buildSectionHeader(context, 'APPEARANCE', index++),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.palette_outlined,
+        title: 'Appearance',
+        subtitle: 'Theme, colors, and display',
+        onTap: () => context.push('/theme-settings'),
+        index: index++,
+      ),
       _buildSettingsTile(
         context: context,
         icon: Icons.language,

@@ -204,7 +204,22 @@ class _RemindersScreenState extends State<RemindersScreen> {
         elevation: 0,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator.adaptive())
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator.adaptive(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading reminder settings...',
+                    style: TextStyle(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            )
           : ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
@@ -360,8 +375,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
               ),
             ),
             showCheckmark: false,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.padded,
           );
         }),
       ),
@@ -446,7 +460,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
     required String value,
     required VoidCallback onTap,
   }) {
-    return AdaptiveTappable(
+    return Semantics(
+      button: true,
+      label: 'Change $label to $value',
+      child: AdaptiveTappable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
@@ -483,6 +500,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

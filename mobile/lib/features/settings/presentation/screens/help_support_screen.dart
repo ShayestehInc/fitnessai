@@ -55,8 +55,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
           _appVersion = '${info.version} (${info.buildNumber})';
         });
       }
-    } catch (e) {
-      debugPrint('Failed to load package info: $e');
+    } catch (_) {
       if (mounted) {
         setState(() => _appVersion = 'Unknown');
       }
@@ -334,7 +333,10 @@ class _ContactCard extends StatelessWidget {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
 
-    return AdaptiveTappable(
+    return Semantics(
+      button: true,
+      label: 'Contact support via email at $_supportEmail',
+      child: AdaptiveTappable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -381,6 +383,7 @@ class _ContactCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }
