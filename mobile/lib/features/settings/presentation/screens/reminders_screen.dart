@@ -1,11 +1,11 @@
-import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/services/haptic_service.dart';
 import '../../../../core/services/reminder_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 
 /// Screen for configuring workout, meal, and weight check-in reminders.
@@ -165,7 +165,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 
   Future<void> _requestPermissionIfNeeded() async {
-    if (Platform.isIOS) {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
       final granted = await ReminderService.instance.requestIOSPermission();
       if (!granted && mounted) {
         showAdaptiveToast(
@@ -446,7 +446,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
     required String value,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return AdaptiveTappable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(

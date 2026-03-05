@@ -1,71 +1,95 @@
-# Dev Done: Calendar Integration Completion (Pipeline 41)
+# Dev Done: Notification Preferences, Reminders & Dead UI Cleanup (Pipeline 42)
 
-## Date
-2026-02-27
+## Date: 2026-03-04
 
-## Files Created (11)
-1. `mobile/lib/features/calendar/presentation/screens/calendar_events_screen.dart` — Events list screen with date grouping, provider filter chips, pull-to-refresh sync, empty/no-connection states
-2. `mobile/lib/features/calendar/presentation/screens/trainer_availability_screen.dart` — Availability CRUD screen with day grouping, active toggle (optimistic), swipe-to-delete with confirmation, FAB for adding, edit via bottom sheet
-3. `mobile/lib/features/calendar/presentation/widgets/calendar_event_tile.dart` — Event row widget with time/all-day display, title, location, provider badge
-4. `mobile/lib/features/calendar/presentation/widgets/calendar_card.dart` — Extracted from connection screen's `_buildCalendarCard()` method
-5. `mobile/lib/features/calendar/presentation/widgets/availability_slot_editor.dart` — Bottom sheet editor for create/edit with day dropdown, adaptive time pickers, start/end validation
-6. `mobile/lib/features/calendar/presentation/widgets/calendar_no_connection_view.dart` — Extracted no-connection empty state from events screen
-7. `mobile/lib/features/calendar/presentation/widgets/calendar_provider_filter.dart` — Extracted provider filter chips (All/Google/Microsoft)
-8. `mobile/lib/features/calendar/presentation/widgets/availability_slot_tile.dart` — Extracted slot tile with time display, active toggle, edit button
-9. `mobile/lib/features/calendar/presentation/widgets/time_tile.dart` — Extracted tappable time display tile from slot editor
-10. `mobile/lib/features/calendar/presentation/widgets/calendar_connection_header.dart` — Extracted header banner from connection screen
-11. `mobile/lib/features/calendar/presentation/widgets/calendar_actions_section.dart` — Extracted actions section (events link + availability button)
+## Files Changed (78 total)
 
-## Files Modified (5)
-1. `mobile/lib/core/router/app_router.dart` — Added 2 imports + 2 routes: `/trainer/calendar/events` and `/trainer/calendar/availability`
-2. `mobile/lib/features/calendar/presentation/screens/calendar_connection_screen.dart` — Full refactor: extracted CalendarCard + header + actions widgets, consolidated connect methods, converted SnackBars to adaptive toasts, converted disconnect dialog to adaptive, fixed availability nav path, TextEditingController disposal fixed, withOpacity→withValues
-3. `mobile/lib/features/calendar/data/models/calendar_connection_model.dart` — Fixed `CalendarEventModel.fromJson`: `is_all_day`→`all_day`, `external_event_id`→`external_id`. Added `provider` field. Added `copyWith` to TrainerAvailabilityModel. Added shared `calendarDayNames` constant.
-4. `mobile/lib/features/calendar/presentation/providers/calendar_provider.dart` — Added `updateAvailability()`, `toggleAvailability()` (uses copyWith), `SyncResult` typed model for sync response
-5. `backend/calendars/serializers.py` — Added `provider` field to CalendarEventSerializer (source='connection.provider')
+### Backend — New
+- `backend/users/models.py` — Added `NotificationPreference` model (9 boolean fields, OneToOne to User)
+- `backend/users/serializers.py` — Added `NotificationPreferenceSerializer`
+- `backend/users/views.py` — Added `NotificationPreferenceView` (GET/PATCH)
+- `backend/users/urls.py` — Added route
+- `backend/users/migrations/0008_add_notification_preference.py` — Migration
+- `backend/core/services/notification_service.py` — Added `_check_notification_preference()` + `category` param on `send_push_notification()`
 
-## Review Fixes Applied (Round 1)
-### Critical
-- C1+M8: Events screen now calls `loadConnections()` before `loadEvents()` in initState
-- C2: Empty state wrapped in `RefreshIndicator` + `SingleChildScrollView(physics: AlwaysScrollableScrollPhysics())` — pull-to-refresh now works on empty list
-- C3: `external_event_id` → `external_id` in CalendarEventModel.fromJson (matches backend serializer)
-- C4: `_setFilter` now reverts `_providerFilter` to previous value if loadEvents fails
-- C5: Added `provider` field to backend CalendarEventSerializer + CalendarEventModel + provider badge (G/M) in CalendarEventTile
+### Mobile — New Screens
+- `notification_preferences_screen.dart` — Role-based toggle list with optimistic updates
+- `reminders_screen.dart` — Local workout/meal/weight reminders with time pickers
+- `help_support_screen.dart` — FAQ accordion, contact card, version info
+- `notification_preferences_repository.dart` — API calls for preferences
+- `notification_preferences_provider.dart` — AsyncNotifier with optimistic toggle
+- `reminder_service.dart` — FlutterLocalNotifications wrapper with SharedPreferences persistence
 
-### Major
-- M1: Extracted 6 sub-widgets from 4 over-limit screens — files significantly reduced
-- M2: Created typed `SyncResult` model replacing raw `Map<String, dynamic>` access
-- M3: `_confirmDelete` now awaits `deleteAvailability()` and checks for error before returning true
-- M4: All `int.parse` for time strings replaced with `int.tryParse` with fallback defaults
-- M5: SnackBar in slot editor validation replaced with `showAdaptiveToast`
-- M6: Added `copyWith` to `TrainerAvailabilityModel`, used in `toggleAvailability`
-- M7: All 22 `withOpacity()` calls replaced with `withValues(alpha:)` across all calendar files
-- M8: Fixed by C1 — connections loaded before events/sync
+### Mobile — Adaptive Widgets (from prior plan phases)
+- `adaptive_tappable.dart` — iOS opacity fade vs Android ripple
+- `adaptive_search_bar.dart` — CupertinoSearchTextField vs Material TextField
+- `adaptive_page.dart` — CupertinoPage vs MaterialPage for go_router
+- `adaptive_dialog.dart` — Added `showAdaptiveTextInputDialog`
+- `adaptive_icons.dart` — Added nav-specific SF Symbols mappings
 
-### Minor
-- m1+m2: `grouped.keys.elementAt(index)` → pre-computed `toList()` in both screens
-- m6: TextEditingControllers in OAuth dialog now disposed on cancel and connect
-- m7: Events sorted within each date group by startTime
-- m8: Shared `calendarDayNames` constant extracted, used in model, screen, and editor
-- m9: Sequential calendar sync replaced with `Future.wait([...])` for parallel execution
+### Mobile — Dead UI Wired Up
+- `settings_screen.dart` — Removed 5 "Coming Soon" tiles, wired Push Notifications, Help & Support, Reminders
+- `trainee_detail_screen.dart` — Message button → existing chat, Schedule button → assign program
+
+### Mobile — Cleanup
+- `api_client.dart` — Removed all print() + LogInterceptor
+- `admin_repository.dart` — Removed ~25 debug print() statements
+- `widget_test.dart` — Replaced broken counter test with smoke test
+
+### Mobile — Router
+- `app_router.dart` — Added 3 new routes, converted ~85 routes to `adaptivePage`/`adaptiveFullscreenPage`
+
+### Mobile — Dialog/Widget Migrations (~30 files)
+- Converted showDialog → showAdaptiveConfirmDialog / showAdaptiveTextInputDialog
+- Converted InkWell → AdaptiveTappable in high-visibility screens
+- Converted search fields → AdaptiveSearchBar
+- Updated navigation shells with AdaptiveIcons
 
 ## Key Decisions
-- Events screen uses cached data from GET /events/ API, pull-to-refresh triggers sync first
-- Availability toggle uses optimistic update pattern (instant UI, revert on API failure)
-- OAuth callback flow kept as-is (manual code paste) — deep link fix deferred per ticket
-- Time pickers use platform-adaptive pattern (CupertinoDatePicker on iOS, showTimePicker on Android)
-- Delete confirmation uses showAdaptiveConfirmDialog for native iOS feel
-- Provider badge: compact letter badge (G=blue, M=orange) — lightweight visual indicator
+1. Backend fails open: if preference check fails, notification is still sent (safety)
+2. Reminders are local-only (SharedPreferences) — no server sync needed
+3. Help screen uses url_launcher mailto: for support contact
+4. Removed Email Notifications tile entirely (no backend for it)
+5. Schedule button on trainee detail navigates to assign program route
 
-## How to Manually Test
-1. Navigate to Trainer → Calendar (settings or dashboard link)
-2. Verify Google/Microsoft cards render correctly
-3. If connected: tap "View All" → CalendarEventsScreen with date-grouped events + provider badges
-4. If connected: tap "Manage Availability" → TrainerAvailabilityScreen
-5. Add a slot via FAB → bottom sheet with day/time pickers
-6. Toggle active/inactive → switch updates immediately
-7. Swipe left to delete → confirmation dialog, verify failed delete doesn't remove tile
-8. Edit slot → tap pencil icon → pre-filled bottom sheet
-9. Pull-to-refresh on events → syncs both providers in parallel then reloads
-10. Pull-to-refresh on EMPTY events list → verify it works (was broken before fix)
-11. Test with no connections → "Connect a calendar first" empty state
-12. Change provider filter → verify filter reverts on network error
+## Review Fixes Applied (Round 1)
+
+### Critical Fixes
+1. **notification_preferences_provider.dart** — Fixed Dart map key bug: `{...previous, category: enabled}` used string literal "category" as key instead of the variable value. Now uses `Map.from(previous)` with explicit `[category] = enabled`.
+2. **users/models.py** — Added `VALID_CATEGORIES` frozenset to `NotificationPreference` model. `is_category_enabled()` now validates category against the allowlist and raises `ValueError` for invalid categories.
+3. **notification_service.py** — `send_push_to_group()` now accepts a `category` parameter and filters out users who have disabled that notification category using a single batch query.
+
+### Major Fixes
+4. **notification_service.py** — Narrowed exception catch in `_check_notification_preference` from `Exception` to `(DatabaseError, ConnectionError)` so programming errors propagate.
+5. **reminder_service.dart** — Replaced brittle UTC-offset-to-IANA mapping with `flutter_timezone` package (^3.0.1). Now gets the actual platform timezone name.
+6. **reminder_service.dart** — Added `onDidReceiveNotificationResponse` callback to `_plugin.initialize()`. Added `payload` parameter to all `zonedSchedule` calls ('workout', 'meal', 'weight'). Added `onNotificationTapped` callback hook for navigation.
+7. **reminders_screen.dart** — Replaced `Platform.isIOS` (dart:io) with `defaultTargetPlatform == TargetPlatform.iOS`. Removed `dart:io` import.
+8. **notification_preferences_screen.dart** — Added `debugPrint` to the empty catch block in `_checkOsPermission`.
+9. **notification_preferences_repository.dart** — Added type validation: `if (data is! Map) throw FormatException(...)` before casting `response.data`.
+10. **help_support_screen.dart** — Replaced hardcoded `_appVersion = '1.0.0'` with `package_info_plus` (^8.2.1). Converted from `ConsumerWidget` to `ConsumerStatefulWidget` to load version asynchronously.
+11. **Callers of send_push_notification/send_push_to_group** — Added `category=` parameter:
+    - `messaging_service.py:648` → `category='new_message'`
+    - `community/views.py:783` → `category='community_activity'`
+    - `community/trainer_views.py:210` → `category='trainer_announcement'`
+
+### Minor Fixes
+12. **reminders_screen.dart** — Replaced `InkWell` with `AdaptiveTappable` in `_buildTimeRow`.
+13. **notification_preferences_screen.dart** — Removed unused `flutter/foundation.dart` import (kept since `debugPrint` re-exports from `material.dart`).
+14. **help_support_screen.dart** — `_launchSupportEmail` now copies email to clipboard and shows toast if `canLaunchUrl` returns false.
+15. **reminder_service.dart** — Added `payload` to all `zonedSchedule` calls (covered by fix #6).
+16. **settings_screen.dart** — Added Help & Support tile to `_buildTraineeSettings()` under new SUPPORT section.
+17. **notification_preferences_provider.dart** — Clarified comment on rethrow behavior; pattern is correct (AsyncData rollback, not AsyncError).
+
+### Additional Cleanup
+- Removed unused `dart:io` import from `reminder_service.dart`
+- Removed unused `package:dio/dio.dart` import from `notification_preferences_repository.dart`
+- Fixed unused `api_client.dart` import (was wrong import; `apiClientProvider` is defined in `auth_provider.dart`)
+
+## How to Test
+1. Settings → Push Notifications: toggle categories, verify API calls
+2. Settings → Reminders: set workout/meal times, verify local notifications schedule
+3. Settings → Help & Support: tap FAQ items, tap contact
+4. Trainer → Trainee Detail: tap Message (opens chat), tap Schedule (opens assign program)
+5. iOS: verify swipe-back gesture works on all pushed screens
+6. iOS: verify CupertinoAlertDialog on confirm actions
+7. Android: verify Material dialogs and ripple effects unchanged

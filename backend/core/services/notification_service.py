@@ -64,13 +64,14 @@ def _check_notification_preference(user_id: int, category: str | None) -> bool:
     if not category:
         return True
 
+    from django.db import DatabaseError
     try:
         from users.models import NotificationPreference
         pref = NotificationPreference.objects.filter(user_id=user_id).first()
         if pref is None:
             return True  # Default: all enabled
         return pref.is_category_enabled(category)
-    except Exception:
+    except (DatabaseError, ConnectionError):
         logger.warning("Failed to check notification preference for user %d", user_id)
         return True  # Fail open: send the notification
 
@@ -126,9 +127,18 @@ def send_push_to_group(
     title: str,
     body: str,
     data: dict[str, str] | None = None,
+    category: str | None = None,
 ) -> int:
     """
     Send push notification to all active device tokens for a group of users.
+
+    Args:
+        user_ids: Target user IDs.
+        title: Notification title.
+        body: Notification body.
+        data: Optional extra data payload.
+        category: Optional notification category to check user preferences.
+                  Must match a field name on NotificationPreference model.
 
     Returns count of users reached (at least one token per user succeeded).
     Never raises -- returns 0 on complete failure.
@@ -138,6 +148,37 @@ def send_push_to_group(
 
     if not user_ids:
         return 0
+
+    # Filter out users who have disabled this notification category
+    if category:
+        from django.db import DatabaseError
+        try:
+            from users.models import NotificationPreference
+            # Validate category before querying
+            if category not in NotificationPreference.VALID_CATEGORIES:
+                logger.warning(
+                    "Invalid notification category %r passed to send_push_to_group",
+                    category,
+                )
+            else:
+                opted_out_ids = set(
+                    NotificationPreference.objects.filter(
+                        user_id__in=user_ids,
+                        **{category: False},
+                    ).values_list('user_id', flat=True)
+                )
+                if opted_out_ids:
+                    user_ids = [uid for uid in user_ids if uid not in opted_out_ids]
+                    logger.debug(
+                        "Filtered %d users who opted out of category=%s",
+                        len(opted_out_ids), category,
+                    )
+                if not user_ids:
+                    return 0
+        except (DatabaseError, ConnectionError):
+            logger.warning(
+                "Failed to check notification preferences for group send, proceeding anyway"
+            )
 
     from users.models import DeviceToken
 

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 
 /// Data class representing a single FAQ entry.
 class _FaqItem {
@@ -27,10 +30,38 @@ class _FaqSection {
 }
 
 const String _supportEmail = 'support@shayestehinc.com';
-const String _appVersion = '1.0.0';
 
-class HelpSupportScreen extends ConsumerWidget {
+class HelpSupportScreen extends ConsumerStatefulWidget {
   const HelpSupportScreen({super.key});
+
+  @override
+  ConsumerState<HelpSupportScreen> createState() => _HelpSupportScreenState();
+}
+
+class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
+  String _appVersion = '...';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _appVersion = '${info.version} (${info.buildNumber})';
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load package info: $e');
+      if (mounted) {
+        setState(() => _appVersion = 'Unknown');
+      }
+    }
+  }
 
   static const List<_FaqSection> _commonSections = [
     _FaqSection(
@@ -141,11 +172,21 @@ class HelpSupportScreen extends ConsumerWidget {
     final uri = Uri(scheme: 'mailto', path: _supportEmail);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
+    } else {
+      // Copy email to clipboard as fallback
+      await Clipboard.setData(const ClipboardData(text: _supportEmail));
+      if (mounted) {
+        showAdaptiveToast(
+          context,
+          message: 'Could not open email app. Email copied to clipboard.',
+          type: ToastType.info,
+        );
+      }
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final role = authState.user?.role ?? 'TRAINEE';
     final sections = _sectionsForRole(role);

@@ -552,6 +552,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       const SizedBox(height: 24),
 
+      // Help & Support
+      _buildSectionHeader(context, 'SUPPORT', index++),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.help_outline,
+        title: 'Help & Support',
+        subtitle: 'Get help with using the platform',
+        onTap: () => context.push('/help-support'),
+        index: index++,
+      ),
+
+      const SizedBox(height: 24),
+
       // Achievements
       _buildSectionHeader(context, 'ACHIEVEMENTS', index++),
       _buildSettingsTile(

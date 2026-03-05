@@ -1,6 +1,4 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -158,8 +156,9 @@ class _NotificationPreferencesScreenState
       if (mounted) {
         setState(() => _osNotificationsEnabled = enabled);
       }
-    } catch (_) {
+    } catch (e) {
       // If firebase_messaging is unavailable (e.g. simulator), assume enabled.
+      debugPrint('Failed to check OS notification permission: $e');
     }
   }
 

@@ -1,6 +1,6 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -104,6 +104,12 @@ class ReminderService {
   // Initialization
   // ---------------------------------------------------------------------------
 
+  /// Callback invoked when a user taps on a notification.
+  ///
+  /// Subclasses or callers can override [onNotificationTapped] to handle
+  /// navigation based on the payload.
+  void Function(String? payload)? onNotificationTapped;
+
   /// Initializes the notification plugin and timezone database.
   ///
   /// Safe to call multiple times; subsequent calls are no-ops.
@@ -111,7 +117,8 @@ class ReminderService {
     if (_initialized) return;
 
     tz_data.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation(_resolveLocalTimezone()));
+    final timezoneName = await _resolveLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timezoneName));
 
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -127,9 +134,19 @@ class ReminderService {
       iOS: iosSettings,
     );
 
-    await _plugin.initialize(initSettings);
+    await _plugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationResponse,
+    );
 
     _initialized = true;
+  }
+
+  void _onNotificationResponse(NotificationResponse response) {
+    final callback = onNotificationTapped;
+    if (callback != null) {
+      callback(response.payload);
+    }
   }
 
   /// Requests notification permission on iOS.
@@ -137,7 +154,7 @@ class ReminderService {
   /// Returns `true` if permission was granted.
   /// On Android this is a no-op and always returns `true`.
   Future<bool> requestIOSPermission() async {
-    if (!Platform.isIOS) return true;
+    if (defaultTargetPlatform != TargetPlatform.iOS) return true;
 
     final iosPlugin = _plugin
         .resolvePlatformSpecificImplementation<
@@ -219,6 +236,7 @@ class ReminderService {
         body: 'Time to get your workout in! Stay consistent.',
         hour: settings.workoutHour,
         minute: settings.workoutMinute,
+        payload: 'workout',
       );
     }
 
@@ -229,6 +247,7 @@ class ReminderService {
         body: 'Don\'t forget to log your meals today.',
         hour: settings.mealHour,
         minute: settings.mealMinute,
+        payload: 'meal',
       );
     }
 
@@ -240,6 +259,7 @@ class ReminderService {
         day: settings.weightDay,
         hour: settings.weightHour,
         minute: settings.weightMinute,
+        payload: 'weight',
       );
     }
   }
@@ -250,6 +270,7 @@ class ReminderService {
     required String body,
     required int hour,
     required int minute,
+    required String payload,
   }) async {
     final notificationDetails = _buildNotificationDetails();
     final scheduledDate = _nextInstanceOfTime(hour, minute);
@@ -264,6 +285,7 @@ class ReminderService {
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
+      payload: payload,
     );
   }
 
@@ -274,6 +296,7 @@ class ReminderService {
     required int day,
     required int hour,
     required int minute,
+    required String payload,
   }) async {
     final notificationDetails = _buildNotificationDetails();
     final scheduledDate = _nextInstanceOfWeekday(day, hour, minute);
@@ -288,6 +311,7 @@ class ReminderService {
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+      payload: payload,
     );
   }
 
@@ -355,42 +379,15 @@ class ReminderService {
     return scheduled;
   }
 
-  /// Best-effort resolution of the local IANA timezone name.
+  /// Resolves the local IANA timezone name using the platform.
   ///
   /// Falls back to UTC when the platform timezone cannot be determined.
-  String _resolveLocalTimezone() {
+  Future<String> _resolveLocalTimezone() async {
     try {
-      final offset = DateTime.now().timeZoneOffset;
-      // Attempt common mappings; a production app should use
-      // flutter_timezone or similar for accurate IANA lookup.
-      final hours = offset.inHours;
-      final knownMappings = <int, String>{
-        -12: 'Etc/GMT+12',
-        -11: 'Pacific/Pago_Pago',
-        -10: 'Pacific/Honolulu',
-        -9: 'America/Anchorage',
-        -8: 'America/Los_Angeles',
-        -7: 'America/Denver',
-        -6: 'America/Chicago',
-        -5: 'America/New_York',
-        -4: 'America/Halifax',
-        -3: 'America/Sao_Paulo',
-        0: 'Europe/London',
-        1: 'Europe/Paris',
-        2: 'Europe/Helsinki',
-        3: 'Europe/Moscow',
-        4: 'Asia/Dubai',
-        5: 'Asia/Karachi',
-        6: 'Asia/Dhaka',
-        7: 'Asia/Bangkok',
-        8: 'Asia/Shanghai',
-        9: 'Asia/Tokyo',
-        10: 'Australia/Sydney',
-        12: 'Pacific/Auckland',
-      };
-
-      return knownMappings[hours] ?? 'UTC';
-    } catch (_) {
+      final timezoneName = await FlutterTimezone.getLocalTimezone();
+      return timezoneName;
+    } catch (e) {
+      debugPrint('Failed to get local timezone, falling back to UTC: $e');
       return 'UTC';
     }
   }

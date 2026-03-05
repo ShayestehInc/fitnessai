@@ -344,6 +344,18 @@ class NotificationPreference(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    VALID_CATEGORIES: frozenset[str] = frozenset({
+        'trainee_workout',
+        'trainee_weight_checkin',
+        'trainee_started_workout',
+        'trainee_finished_workout',
+        'churn_alert',
+        'trainer_announcement',
+        'achievement_earned',
+        'new_message',
+        'community_activity',
+    })
+
     class Meta:
         db_table = 'notification_preferences'
 
@@ -357,5 +369,13 @@ class NotificationPreference(models.Model):
         return pref
 
     def is_category_enabled(self, category: str) -> bool:
-        """Check if a notification category is enabled."""
+        """Check if a notification category is enabled.
+
+        Raises ValueError if category is not in VALID_CATEGORIES.
+        """
+        if category not in self.VALID_CATEGORIES:
+            raise ValueError(
+                f"Invalid notification category: {category!r}. "
+                f"Valid categories: {sorted(self.VALID_CATEGORIES)}"
+            )
         return bool(getattr(self, category, True))

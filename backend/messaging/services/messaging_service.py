@@ -654,6 +654,7 @@ def send_message_push_notification(
                 'conversation_id': str(conversation_id),
                 'sender_id': str(sender.id),
             },
+            category='new_message',
         )
     except (ConnectionError, TimeoutError, OSError) as exc:
         logger.warning(
