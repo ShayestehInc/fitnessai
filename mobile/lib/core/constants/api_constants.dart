@@ -268,6 +268,33 @@ class ApiConstants {
   static String wsMessaging(int conversationId) =>
       '$wsBaseUrl/messaging/$conversationId/';
 
+  // Quick-log & workout template endpoints
+  static String get workoutTemplates => '$apiBaseUrl/workouts/workout-templates/';
+  static String get quickLog => '$apiBaseUrl/workouts/daily-logs/quick-log/';
+  static String get completeRestDay => '$apiBaseUrl/workouts/daily-logs/complete-rest-day/';
+  static String get barcodeLookup => '$apiBaseUrl/workouts/daily-logs/barcode-lookup/';
+  static String shareCard(int logId) => '$apiBaseUrl/workouts/daily-logs/$logId/share-card/';
+  static String progressionSuggestions(int programId) => '$apiBaseUrl/workouts/programs/$programId/progression-suggestions/';
+  static String deloadCheck(int programId) => '$apiBaseUrl/workouts/programs/$programId/deload-check/';
+  static String applyDeload(int programId) => '$apiBaseUrl/workouts/programs/$programId/apply-deload/';
+  static String exportPdf(int programId) => '$apiBaseUrl/workouts/programs/$programId/export-pdf/';
+
+  // Progress photo endpoints
+  static String get progressPhotos => '$apiBaseUrl/workouts/progress-photos/';
+  static String get progressPhotosCompare => '$apiBaseUrl/workouts/progress-photos/compare/';
+
+  // Habit tracking endpoints
+  static String get habits => '$apiBaseUrl/workouts/habits/';
+  static String get habitToggle => '$apiBaseUrl/workouts/habits/toggle/';
+  static String get habitStreaks => '$apiBaseUrl/workouts/habits/streaks/';
+  static String get habitDaily => '$apiBaseUrl/workouts/habits/daily/';
+
+  // Check-in template endpoints
+  static String get checkinTemplates => '$apiBaseUrl/workouts/checkin-templates/';
+  static String checkinTemplateAssign(int templateId) => '$apiBaseUrl/workouts/checkin-templates/$templateId/assign/';
+  static String get checkinResponses => '$apiBaseUrl/workouts/checkin-responses/';
+  static String get checkinResponsesPending => '$apiBaseUrl/workouts/checkin-responses/pending/';
+
   // Headers (these can stay const)
   static const String contentType = 'application/json';
   static const String authorization = 'Authorization';

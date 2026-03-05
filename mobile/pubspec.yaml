@@ -67,6 +67,9 @@ dependencies:
   # Share
   share_plus: ^10.0.0
 
+  # Video player
+  video_player: ^2.8.6
+
   # Markdown rendering
   flutter_markdown: ^0.7.4
 
@@ -84,6 +87,12 @@ dependencies:
 
   # App version info
   package_info_plus: ^8.2.1
+
+  # Barcode scanning
+  mobile_scanner: ^5.1.1
+
+  # Image gallery saving
+  image_gallery_saver_plus: ^3.0.5
 
 dev_dependencies:
   flutter_test:

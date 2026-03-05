@@ -25,26 +25,62 @@ from typing import Any, cast
 from core.permissions import IsTrainee
 
 from users.models import User
-from .models import Exercise, Program, DailyLog, NutritionGoal, WeightCheckIn, MacroPreset
+from .models import (
+    CheckInAssignment,
+    CheckInResponse,
+    CheckInTemplate,
+    DailyLog,
+    Exercise,
+    Habit,
+    HabitLog,
+    MacroPreset,
+    NutritionGoal,
+    Program,
+    ProgressionSuggestion,
+    ProgressPhoto,
+    WeightCheckIn,
+    WorkoutTemplate,
+)
 from rest_framework.pagination import PageNumberPagination
 
 from .serializers import (
-    ExerciseSerializer,
-    ProgramSerializer,
-    DailyLogSerializer,
-    NaturalLanguageLogInputSerializer,
-    NaturalLanguageLogResponseSerializer,
+    CheckInAssignmentSerializer,
+    CheckInAssignSerializer,
+    CheckInResponseCreateSerializer,
+    CheckInResponseSerializer,
+    CheckInTemplateSerializer,
     ConfirmLogSaveSerializer,
+    DailyLogSerializer,
+    DeloadCheckSerializer,
     DeleteMealEntrySerializer,
     EditMealEntrySerializer,
+    ExerciseSerializer,
+    ExerciseVideoUploadSerializer,
+    FoodLookupSerializer,
+    HabitCreateSerializer,
+    HabitLogSerializer,
+    HabitSerializer,
+    HabitStreakSerializer,
+    HabitToggleSerializer,
+    MacroPresetCreateSerializer,
+    MacroPresetSerializer,
+    NaturalLanguageLogInputSerializer,
+    NaturalLanguageLogResponseSerializer,
     NutritionGoalSerializer,
+    ProgressionSuggestionSerializer,
+    ProgressPhotoSerializer,
+    ProgramSerializer,
+    QuickLogSerializer,
+    RestDayCompleteSerializer,
+    ShareCardSerializer,
     TrainerAdjustGoalSerializer,
     WeightCheckInSerializer,
-    MacroPresetSerializer,
-    MacroPresetCreateSerializer,
-    WorkoutHistorySummarySerializer,
     WorkoutDetailSerializer,
+    WorkoutHistorySummarySerializer,
+    WorkoutTemplateSerializer,
 )
+from core.permissions import IsTrainer as IsTrainerPerm
+
 from .services.daily_log_service import DailyLogService
 from .services.natural_language_parser import NaturalLanguageParserService
 
@@ -399,6 +435,103 @@ class ProgramViewSet(viewsets.ModelViewSet[Program]):
             'programs_by_id_count': programs_by_id.count(),
             'queryset_returned': list(self.get_queryset().values('id', 'name', 'trainee_id', 'is_active')),
         })
+
+    # --- Phase 3: Progression & Deload Actions ---
+
+    @action(detail=True, methods=['get'], url_path='progression-suggestions')
+    def progression_suggestions(self, request: Request, pk: int = None) -> Response:
+        """
+        Generate and return progression suggestions for a program.
+        GET /api/workouts/programs/{id}/progression-suggestions/
+        """
+        from .services.progression_service import generate_suggestions
+
+        program = self.get_object()
+        suggestions = generate_suggestions(program)
+        existing = ProgressionSuggestion.objects.filter(
+            program=program,
+            status=ProgressionSuggestion.Status.PENDING,
+        ).select_related('exercise', 'trainee')
+
+        serializer = ProgressionSuggestionSerializer(existing, many=True)
+        return Response({
+            'suggestions': serializer.data,
+            'new_suggestions_generated': len(suggestions),
+        })
+
+    @action(detail=True, methods=['get'], url_path='deload-check')
+    def deload_check(self, request: Request, pk: int = None) -> Response:
+        """
+        Check if a trainee needs a deload week.
+        GET /api/workouts/programs/{id}/deload-check/
+        """
+        from .services.deload_detection_service import check_deload_needed
+
+        program = self.get_object()
+        recommendation = check_deload_needed(program)
+
+        serializer = DeloadCheckSerializer({
+            'needs_deload': recommendation.needs_deload,
+            'confidence': recommendation.confidence,
+            'rationale': recommendation.rationale,
+            'suggested_intensity_modifier': recommendation.suggested_intensity_modifier,
+            'suggested_volume_modifier': recommendation.suggested_volume_modifier,
+            'weekly_volume_trend': recommendation.weekly_volume_trend,
+            'fatigue_signals': recommendation.fatigue_signals,
+        })
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='apply-deload')
+    def apply_deload(self, request: Request, pk: int = None) -> Response:
+        """
+        Apply deload to a specific week of the program.
+        POST /api/workouts/programs/{id}/apply-deload/
+        Body: {week_number: int}
+        """
+        from .services.deload_detection_service import apply_deload
+
+        program = self.get_object()
+        week_number = request.data.get('week_number')
+        if not week_number or not isinstance(week_number, int):
+            return Response(
+                {'error': 'week_number is required and must be an integer'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            week = apply_deload(program, week_number)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'success': True,
+            'week_number': week.week_number,
+            'is_deload': week.is_deload,
+            'intensity_modifier': week.intensity_modifier,
+            'volume_modifier': week.volume_modifier,
+        })
+
+    @action(detail=True, methods=['get'], url_path='export-pdf')
+    def export_pdf(self, request: Request, pk: int = None) -> Response:
+        """
+        Export program as PDF.
+        GET /api/workouts/programs/{id}/export-pdf/
+        """
+        from django.http import HttpResponse as DjangoHttpResponse
+
+        from .services.pdf_export_service import export_program_pdf
+
+        program = self.get_object()
+
+        try:
+            pdf_bytes = export_program_pdf(program)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        response = DjangoHttpResponse(pdf_bytes, content_type='application/pdf')
+        filename = f"{program.name.replace(' ', '_')}_program.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
 
 class WorkoutHistoryPagination(PageNumberPagination):
@@ -1047,6 +1180,171 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
             ),
         }
 
+    # --- Phase 1 Actions ---
+
+    @action(detail=False, methods=['post'], url_path='quick-log')
+    def quick_log(self, request: Request) -> Response:
+        """
+        Quick-log a non-program workout (cardio, sports, etc.).
+        POST /api/workouts/daily-logs/quick-log/
+        """
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can quick-log workouts'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = QuickLogSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        log_date = serializer.validated_data.get('date', date.today())
+        daily_log, _ = DailyLog.objects.get_or_create(
+            trainee=user,
+            date=log_date,
+        )
+
+        # Append quick-log session to workout_data
+        workout_data = daily_log.workout_data or {}
+        sessions = workout_data.get('sessions', [])
+        if not isinstance(sessions, list):
+            sessions = []
+
+        sessions.append({
+            'type': 'quick_log',
+            'activity_name': serializer.validated_data['activity_name'],
+            'category': serializer.validated_data.get('category', 'other'),
+            'duration_minutes': serializer.validated_data['duration_minutes'],
+            'calories_burned': serializer.validated_data.get('calories_burned', 0),
+            'notes': serializer.validated_data.get('notes', ''),
+            'template_id': serializer.validated_data.get('template_id'),
+            'timestamp': timezone.now().isoformat(),
+        })
+
+        workout_data['sessions'] = sessions
+        if not workout_data.get('workout_name'):
+            workout_data['workout_name'] = serializer.validated_data['activity_name']
+
+        daily_log.workout_data = workout_data
+        daily_log.save(update_fields=['workout_data', 'updated_at'])
+
+        return Response(
+            DailyLogSerializer(daily_log).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=['post'], url_path='complete-rest-day')
+    def complete_rest_day(self, request: Request) -> Response:
+        """
+        Mark a rest day as completed with optional recovery exercises.
+        POST /api/workouts/daily-logs/complete-rest-day/
+        """
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can complete rest days'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = RestDayCompleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        log_date = serializer.validated_data.get('date', date.today())
+        daily_log, _ = DailyLog.objects.get_or_create(
+            trainee=user,
+            date=log_date,
+        )
+
+        workout_data = daily_log.workout_data or {}
+        workout_data['day_type'] = 'rest'
+        workout_data['rest_day_completed'] = True
+        workout_data['completed_recovery_exercises'] = serializer.validated_data.get(
+            'completed_exercises', [],
+        )
+        workout_data['workout_name'] = 'Rest Day'
+        if serializer.validated_data.get('notes'):
+            daily_log.notes = serializer.validated_data['notes']
+
+        daily_log.workout_data = workout_data
+        daily_log.save(update_fields=['workout_data', 'notes', 'updated_at'])
+
+        return Response(DailyLogSerializer(daily_log).data)
+
+    # --- Phase 2 Actions ---
+
+    @action(detail=False, methods=['get'], url_path='barcode-lookup')
+    def barcode_lookup(self, request: Request) -> Response:
+        """
+        Look up food by barcode.
+        GET /api/workouts/daily-logs/barcode-lookup/?barcode=...
+        """
+        barcode = request.query_params.get('barcode')
+        if not barcode:
+            return Response(
+                {'error': 'barcode query parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from .services.food_lookup_service import lookup_barcode
+        import requests as http_requests
+
+        try:
+            result = lookup_barcode(barcode)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except http_requests.RequestException as e:
+            return Response(
+                {'error': f'Food database lookup failed: {str(e)}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        serializer = FoodLookupSerializer({
+            'barcode': result.barcode,
+            'product_name': result.product_name,
+            'brand': result.brand,
+            'serving_size': result.serving_size,
+            'calories': result.calories,
+            'protein': result.protein,
+            'carbs': result.carbs,
+            'fat': result.fat,
+            'fiber': result.fiber,
+            'sugar': result.sugar,
+            'image_url': result.image_url,
+            'found': result.found,
+        })
+        return Response(serializer.data)
+
+    # --- Phase 3 Actions ---
+
+    @action(detail=True, methods=['get'], url_path='share-card')
+    def share_card(self, request: Request, pk: int = None) -> Response:
+        """
+        Get share card data for a workout.
+        GET /api/workouts/daily-logs/{id}/share-card/
+        """
+        daily_log = self.get_object()
+
+        from .services.share_card_service import generate_share_card
+
+        try:
+            card_data = generate_share_card(daily_log)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = ShareCardSerializer({
+            'workout_name': card_data.workout_name,
+            'date': card_data.date,
+            'exercise_count': card_data.exercise_count,
+            'total_sets': card_data.total_sets,
+            'total_volume': card_data.total_volume,
+            'volume_unit': card_data.volume_unit,
+            'duration': card_data.duration,
+            'exercises': card_data.exercises,
+            'trainee_name': card_data.trainee_name,
+            'trainer_branding': card_data.trainer_branding,
+        })
+        return Response(serializer.data)
+
 
 class NutritionGoalViewSet(viewsets.ModelViewSet[NutritionGoal]):
     """
@@ -1447,3 +1745,516 @@ class MacroPresetViewSet(viewsets.ModelViewSet[MacroPreset]):
             MacroPresetSerializer(new_preset).data,
             status=status.HTTP_201_CREATED
         )
+
+
+# ============================================================
+# Phase 1: Exercise Videos, Quick-Log, Rest Days
+# ============================================================
+
+
+class WorkoutTemplateViewSet(viewsets.ModelViewSet[WorkoutTemplate]):
+    """
+    ViewSet for WorkoutTemplate CRUD operations.
+    Trainers can create custom templates; all users see public templates.
+    """
+    serializer_class = WorkoutTemplateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[WorkoutTemplate]:
+        """Return public templates + trainer's custom templates."""
+        user = cast(User, self.request.user)
+
+        if user.is_trainer():
+            return WorkoutTemplate.objects.filter(
+                is_public=True
+            ) | WorkoutTemplate.objects.filter(
+                created_by=user
+            )
+        elif user.is_admin():
+            return WorkoutTemplate.objects.all()
+        else:
+            return WorkoutTemplate.objects.filter(is_public=True)
+
+    def perform_create(self, serializer: BaseSerializer[WorkoutTemplate]) -> None:
+        """Set created_by to current trainer."""
+        user = cast(User, self.request.user)
+        if user.is_trainer():
+            serializer.save(created_by=user, is_public=False)
+        else:
+            serializer.save(is_public=True)
+
+
+# ============================================================
+# Phase 2: Progress Photos, Barcode Scanner, Habits
+# ============================================================
+
+
+class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
+    """
+    ViewSet for progress photo CRUD.
+    Trainees manage their own photos.
+    """
+    serializer_class = ProgressPhotoSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self) -> QuerySet[ProgressPhoto]:
+        """Return photos for the current trainee."""
+        user = cast(User, self.request.user)
+        if user.is_trainee():
+            return ProgressPhoto.objects.filter(trainee=user).select_related('trainee')
+        elif user.is_trainer():
+            trainee_id = self.request.query_params.get('trainee_id')
+            if trainee_id:
+                return ProgressPhoto.objects.filter(
+                    trainee_id=trainee_id,
+                    trainee__parent_trainer=user,
+                ).select_related('trainee')
+            return ProgressPhoto.objects.filter(
+                trainee__parent_trainer=user,
+            ).select_related('trainee')
+        return ProgressPhoto.objects.none()
+
+    def perform_create(self, serializer: BaseSerializer[ProgressPhoto]) -> None:
+        """Set trainee to current user."""
+        serializer.save(trainee=self.request.user)
+
+    @action(detail=False, methods=['get'], url_path='compare')
+    def compare(self, request: Request) -> Response:
+        """
+        Compare two progress photos side by side.
+        GET /api/workouts/progress-photos/compare/?photo1=ID&photo2=ID
+        """
+        photo1_id = request.query_params.get('photo1')
+        photo2_id = request.query_params.get('photo2')
+
+        if not photo1_id or not photo2_id:
+            return Response(
+                {'error': 'Both photo1 and photo2 query parameters are required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        queryset = self.get_queryset()
+        try:
+            photo1 = queryset.get(id=photo1_id)
+            photo2 = queryset.get(id=photo2_id)
+        except ProgressPhoto.DoesNotExist:
+            return Response(
+                {'error': 'One or both photos not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = ProgressPhotoSerializer(
+            [photo1, photo2], many=True, context={'request': request},
+        )
+        return Response({'photos': serializer.data})
+
+
+class HabitViewSet(viewsets.ModelViewSet[Habit]):
+    """
+    ViewSet for Habit CRUD.
+    Trainers create and manage habits for their trainees.
+    """
+    serializer_class = HabitSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[Habit]:
+        """Return habits based on user role."""
+        user = cast(User, self.request.user)
+        if user.is_trainee():
+            return Habit.objects.filter(
+                trainee=user, is_active=True,
+            ).select_related('trainer', 'trainee')
+        elif user.is_trainer():
+            trainee_id = self.request.query_params.get('trainee_id')
+            if trainee_id:
+                return Habit.objects.filter(
+                    trainer=user, trainee_id=trainee_id,
+                ).select_related('trainer', 'trainee')
+            return Habit.objects.filter(
+                trainer=user,
+            ).select_related('trainer', 'trainee')
+        return Habit.objects.none()
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Create a habit for a trainee."""
+        user = cast(User, request.user)
+        if not user.is_trainer():
+            return Response(
+                {'error': 'Only trainers can create habits'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = HabitCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        trainee_id = serializer.validated_data['trainee_id']
+        try:
+            trainee = User.objects.get(
+                id=trainee_id, role=User.Role.TRAINEE, parent_trainer=user,
+            )
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Trainee not found or not assigned to you'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        habit = Habit.objects.create(
+            trainer=user,
+            trainee=trainee,
+            name=serializer.validated_data['name'],
+            description=serializer.validated_data.get('description', ''),
+            icon=serializer.validated_data.get('icon', 'check_circle'),
+            frequency=serializer.validated_data.get('frequency', 'daily'),
+            custom_days=serializer.validated_data.get('custom_days', []),
+        )
+
+        return Response(
+            HabitSerializer(habit).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=['post'], url_path='toggle')
+    def toggle(self, request: Request) -> Response:
+        """
+        Toggle habit completion for a date.
+        POST /api/workouts/habits/toggle/
+        Body: {habit_id: int, date: "YYYY-MM-DD"}
+        """
+        serializer = HabitToggleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = cast(User, request.user)
+        habit_id = serializer.validated_data['habit_id']
+        target_date = serializer.validated_data.get('date', date.today())
+
+        try:
+            habit = Habit.objects.get(id=habit_id, trainee=user, is_active=True)
+        except Habit.DoesNotExist:
+            return Response(
+                {'error': 'Habit not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        log, created = HabitLog.objects.get_or_create(
+            habit=habit,
+            date=target_date,
+            defaults={'trainee': user, 'completed': True},
+        )
+        if not created:
+            log.completed = not log.completed
+            log.save(update_fields=['completed'])
+
+        return Response({
+            'habit_id': habit.id,
+            'date': str(target_date),
+            'completed': log.completed,
+        })
+
+    @action(detail=False, methods=['get'], url_path='streaks')
+    def streaks(self, request: Request) -> Response:
+        """
+        Get streak data for all active habits.
+        GET /api/workouts/habits/streaks/
+        """
+        from .services.habit_service import calculate_streak
+
+        user = cast(User, request.user)
+        if user.is_trainee():
+            habits = Habit.objects.filter(trainee=user, is_active=True)
+        elif user.is_trainer():
+            trainee_id = request.query_params.get('trainee_id')
+            if not trainee_id:
+                return Response(
+                    {'error': 'trainee_id query parameter required'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            habits = Habit.objects.filter(
+                trainer=user, trainee_id=trainee_id, is_active=True,
+            )
+        else:
+            return Response({'streaks': []})
+
+        streaks = [calculate_streak(habit) for habit in habits]
+        serializer = HabitStreakSerializer(
+            [
+                {
+                    'habit_id': s.habit_id,
+                    'habit_name': s.habit_name,
+                    'current_streak': s.current_streak,
+                    'longest_streak': s.longest_streak,
+                    'completion_rate_30d': s.completion_rate_30d,
+                }
+                for s in streaks
+            ],
+            many=True,
+        )
+        return Response({'streaks': serializer.data})
+
+    @action(detail=False, methods=['get'], url_path='daily')
+    def daily(self, request: Request) -> Response:
+        """
+        Get today's habits with completion status.
+        GET /api/workouts/habits/daily/?date=YYYY-MM-DD
+        """
+        from .services.habit_service import get_daily_habits
+
+        user = cast(User, request.user)
+        date_str = request.query_params.get('date')
+        target_date = date.fromisoformat(date_str) if date_str else date.today()
+
+        if user.is_trainee():
+            trainee_id = user.id
+        elif user.is_trainer():
+            trainee_id_param = request.query_params.get('trainee_id')
+            if not trainee_id_param:
+                return Response(
+                    {'error': 'trainee_id required'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            trainee_id = int(trainee_id_param)
+        else:
+            return Response({'habits': []})
+
+        habits = get_daily_habits(trainee_id, target_date)
+        return Response({'habits': habits, 'date': str(target_date)})
+
+
+# ============================================================
+# Phase 3: Supersets, Smart Progression, Deload Detection
+# ============================================================
+
+
+class ProgressionSuggestionViewSet(viewsets.ReadOnlyModelViewSet[ProgressionSuggestion]):
+    """
+    ViewSet for viewing and managing progression suggestions.
+    Read-only list/detail + custom actions for approve/dismiss/apply.
+    """
+    serializer_class = ProgressionSuggestionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[ProgressionSuggestion]:
+        """Return suggestions for trainee's programs or trainer's trainees."""
+        user = cast(User, self.request.user)
+        if user.is_trainee():
+            return ProgressionSuggestion.objects.filter(
+                trainee=user,
+            ).select_related('exercise', 'trainee', 'program', 'reviewed_by')
+        elif user.is_trainer():
+            return ProgressionSuggestion.objects.filter(
+                trainee__parent_trainer=user,
+            ).select_related('exercise', 'trainee', 'program', 'reviewed_by')
+        return ProgressionSuggestion.objects.none()
+
+    @action(detail=True, methods=['post'], url_path='approve')
+    def approve(self, request: Request, pk: int = None) -> Response:
+        """Approve a progression suggestion."""
+        suggestion = self.get_object()
+        if suggestion.status != ProgressionSuggestion.Status.PENDING:
+            return Response(
+                {'error': f'Cannot approve suggestion with status {suggestion.status}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        suggestion.status = ProgressionSuggestion.Status.APPROVED
+        suggestion.reviewed_by = request.user
+        suggestion.save(update_fields=['status', 'reviewed_by', 'updated_at'])
+        return Response(ProgressionSuggestionSerializer(suggestion).data)
+
+    @action(detail=True, methods=['post'], url_path='dismiss')
+    def dismiss(self, request: Request, pk: int = None) -> Response:
+        """Dismiss a progression suggestion."""
+        suggestion = self.get_object()
+        suggestion.status = ProgressionSuggestion.Status.DISMISSED
+        suggestion.reviewed_by = request.user
+        suggestion.save(update_fields=['status', 'reviewed_by', 'updated_at'])
+        return Response(ProgressionSuggestionSerializer(suggestion).data)
+
+    @action(detail=True, methods=['post'], url_path='apply')
+    def apply_suggestion(self, request: Request, pk: int = None) -> Response:
+        """Apply a progression suggestion to the program schedule."""
+        from .services.progression_service import apply_suggestion
+
+        suggestion = self.get_object()
+        user = cast(User, request.user)
+
+        try:
+            apply_suggestion(suggestion, user.id)
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(ProgressionSuggestionSerializer(suggestion).data)
+
+
+# ============================================================
+# Phase 4: Check-In Forms
+# ============================================================
+
+
+class CheckInTemplateViewSet(viewsets.ModelViewSet[CheckInTemplate]):
+    """
+    ViewSet for check-in template CRUD.
+    Trainers create and manage check-in forms.
+    """
+    serializer_class = CheckInTemplateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[CheckInTemplate]:
+        """Return templates created by the current trainer."""
+        user = cast(User, self.request.user)
+        if user.is_trainer():
+            return CheckInTemplate.objects.filter(trainer=user).select_related('trainer')
+        return CheckInTemplate.objects.none()
+
+    def perform_create(self, serializer: BaseSerializer[CheckInTemplate]) -> None:
+        """Set trainer to current user."""
+        serializer.save(trainer=self.request.user)
+
+    @action(detail=True, methods=['post'], url_path='assign')
+    def assign(self, request: Request, pk: int = None) -> Response:
+        """
+        Assign a check-in template to a trainee.
+        POST /api/workouts/checkin-templates/{id}/assign/
+        Body: {trainee_id: int, next_due_date: "YYYY-MM-DD"}
+        """
+        template = self.get_object()
+        serializer = CheckInAssignSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = cast(User, request.user)
+        trainee_id = serializer.validated_data['trainee_id']
+
+        try:
+            trainee = User.objects.get(
+                id=trainee_id, role=User.Role.TRAINEE, parent_trainer=user,
+            )
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Trainee not found or not assigned to you'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        assignment = CheckInAssignment.objects.create(
+            template=template,
+            trainee=trainee,
+            next_due_date=serializer.validated_data['next_due_date'],
+        )
+
+        return Response(
+            CheckInAssignmentSerializer(assignment).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CheckInResponseViewSet(viewsets.ModelViewSet[CheckInResponse]):
+    """
+    ViewSet for check-in responses.
+    Trainees submit responses; trainers view and add notes.
+    """
+    serializer_class = CheckInResponseSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[CheckInResponse]:
+        """Return responses based on user role."""
+        user = cast(User, self.request.user)
+        if user.is_trainee():
+            return CheckInResponse.objects.filter(
+                trainee=user,
+            ).select_related('trainee', 'assignment__template')
+        elif user.is_trainer():
+            trainee_id = self.request.query_params.get('trainee_id')
+            qs = CheckInResponse.objects.filter(
+                assignment__template__trainer=user,
+            ).select_related('trainee', 'assignment__template')
+            if trainee_id:
+                qs = qs.filter(trainee_id=trainee_id)
+            return qs
+        return CheckInResponse.objects.none()
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Submit a check-in response."""
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can submit check-in responses'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = CheckInResponseCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        assignment_id = serializer.validated_data['assignment_id']
+        try:
+            assignment = CheckInAssignment.objects.select_related('template').get(
+                id=assignment_id, trainee=user, is_active=True,
+            )
+        except CheckInAssignment.DoesNotExist:
+            return Response(
+                {'error': 'Check-in assignment not found or inactive'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        response_obj = CheckInResponse.objects.create(
+            assignment=assignment,
+            trainee=user,
+            responses=serializer.validated_data['responses'],
+        )
+
+        # Advance the next due date based on frequency
+        freq = assignment.template.frequency
+        if freq == CheckInTemplate.CheckInFrequency.WEEKLY:
+            assignment.next_due_date += timedelta(days=7)
+        elif freq == CheckInTemplate.CheckInFrequency.BIWEEKLY:
+            assignment.next_due_date += timedelta(days=14)
+        elif freq == CheckInTemplate.CheckInFrequency.MONTHLY:
+            assignment.next_due_date += timedelta(days=30)
+        assignment.save(update_fields=['next_due_date', 'updated_at'])
+
+        return Response(
+            CheckInResponseSerializer(response_obj).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['post'], url_path='add-notes')
+    def add_notes(self, request: Request, pk: int = None) -> Response:
+        """
+        Trainer adds notes to a check-in response.
+        POST /api/workouts/checkin-responses/{id}/add-notes/
+        Body: {trainer_notes: "text"}
+        """
+        user = cast(User, request.user)
+        if not user.is_trainer():
+            return Response(
+                {'error': 'Only trainers can add notes'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        response_obj = self.get_object()
+        notes = request.data.get('trainer_notes', '')
+        response_obj.trainer_notes = notes
+        response_obj.save(update_fields=['trainer_notes', 'updated_at'])
+
+        return Response(CheckInResponseSerializer(response_obj).data)
+
+    @action(detail=False, methods=['get'], url_path='pending')
+    def pending(self, request: Request) -> Response:
+        """
+        Get pending check-in assignments for a trainee.
+        GET /api/workouts/checkin-responses/pending/
+        """
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response({'assignments': []})
+
+        today = date.today()
+        assignments = CheckInAssignment.objects.filter(
+            trainee=user,
+            is_active=True,
+            next_due_date__lte=today,
+        ).select_related('template')
+
+        return Response({
+            'assignments': CheckInAssignmentSerializer(assignments, many=True).data,
+        })

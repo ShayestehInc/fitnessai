@@ -7,7 +7,22 @@ from typing import Any
 
 from rest_framework import serializers
 
-from .models import DailyLog, Exercise, MacroPreset, NutritionGoal, Program, WeightCheckIn
+from .models import (
+    CheckInAssignment,
+    CheckInResponse,
+    CheckInTemplate,
+    DailyLog,
+    Exercise,
+    Habit,
+    HabitLog,
+    MacroPreset,
+    NutritionGoal,
+    Program,
+    ProgressionSuggestion,
+    ProgressPhoto,
+    WeightCheckIn,
+    WorkoutTemplate,
+)
 
 
 class ExerciseSerializer(serializers.ModelSerializer[Exercise]):
@@ -405,3 +420,306 @@ class WorkoutDetailSerializer(serializers.ModelSerializer[DailyLog]):
         model = DailyLog
         fields = ['id', 'date', 'workout_data', 'notes']
         read_only_fields = ['id', 'date', 'workout_data', 'notes']
+
+
+# --- Phase 1: Exercise Videos, Quick-Log, Rest Days ---
+
+class ExerciseVideoUploadSerializer(serializers.Serializer[dict[str, Any]]):
+    """Validates exercise video file upload."""
+
+    video = serializers.FileField(required=True)
+
+    ALLOWED_TYPES = {'video/mp4', 'video/quicktime', 'video/webm'}
+    MAX_SIZE_MB = 100
+
+    def validate_video(self, value: Any) -> Any:
+        """Validate video file type and size."""
+        if value.content_type not in self.ALLOWED_TYPES:
+            raise serializers.ValidationError(
+                f"Invalid file type '{value.content_type}'. Allowed: mp4, mov, webm."
+            )
+        max_bytes = self.MAX_SIZE_MB * 1024 * 1024
+        if value.size > max_bytes:
+            raise serializers.ValidationError(
+                f"File too large ({value.size / 1024 / 1024:.1f}MB). Max: {self.MAX_SIZE_MB}MB."
+            )
+        return value
+
+
+class WorkoutTemplateSerializer(serializers.ModelSerializer[WorkoutTemplate]):
+    """Serializer for WorkoutTemplate model."""
+
+    created_by_email = serializers.CharField(source='created_by.email', read_only=True, allow_null=True)
+
+    class Meta:
+        model = WorkoutTemplate
+        fields = [
+            'id', 'name', 'category', 'description',
+            'estimated_duration_minutes', 'default_calories_per_minute',
+            'is_public', 'created_by', 'created_by_email',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_by', 'created_at', 'updated_at']
+
+
+class QuickLogSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for quick-logging a non-program workout."""
+
+    template_id = serializers.IntegerField(required=False, allow_null=True)
+    activity_name = serializers.CharField(max_length=255, required=True)
+    category = serializers.ChoiceField(
+        choices=WorkoutTemplate.Category.choices,
+        required=False,
+        default='other',
+    )
+    duration_minutes = serializers.IntegerField(min_value=1, max_value=600, required=True)
+    calories_burned = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    date = serializers.DateField(required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Calculate calories if not provided."""
+        if not attrs.get('calories_burned') and attrs.get('template_id'):
+            template = WorkoutTemplate.objects.filter(id=attrs['template_id']).first()
+            if template:
+                attrs['calories_burned'] = int(
+                    template.default_calories_per_minute * attrs['duration_minutes']
+                )
+        if not attrs.get('calories_burned'):
+            attrs['calories_burned'] = int(5.0 * attrs['duration_minutes'])
+        return attrs
+
+
+class RestDayCompleteSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for completing a rest day."""
+
+    date = serializers.DateField(required=False)
+    completed_exercises = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        default=list,
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+# --- Phase 2: Progress Photos, Barcode Scanner, Habits ---
+
+class ProgressPhotoSerializer(serializers.ModelSerializer[ProgressPhoto]):
+    """Serializer for ProgressPhoto model."""
+
+    trainee_email = serializers.CharField(source='trainee.email', read_only=True)
+    photo_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProgressPhoto
+        fields = [
+            'id', 'trainee', 'trainee_email', 'photo', 'photo_url',
+            'category', 'date', 'measurements', 'notes',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['trainee', 'created_at', 'updated_at']
+
+    def get_photo_url(self, obj: ProgressPhoto) -> str | None:
+        """Return full URL for the photo."""
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None
+
+
+class FoodLookupSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for barcode food lookup response."""
+
+    barcode = serializers.CharField()
+    product_name = serializers.CharField()
+    brand = serializers.CharField()
+    serving_size = serializers.CharField()
+    calories = serializers.FloatField()
+    protein = serializers.FloatField()
+    carbs = serializers.FloatField()
+    fat = serializers.FloatField()
+    fiber = serializers.FloatField()
+    sugar = serializers.FloatField()
+    image_url = serializers.CharField()
+    found = serializers.BooleanField()
+
+
+class HabitSerializer(serializers.ModelSerializer[Habit]):
+    """Serializer for Habit model."""
+
+    trainer_email = serializers.CharField(source='trainer.email', read_only=True)
+    trainee_email = serializers.CharField(source='trainee.email', read_only=True)
+
+    class Meta:
+        model = Habit
+        fields = [
+            'id', 'trainer', 'trainer_email', 'trainee', 'trainee_email',
+            'name', 'description', 'icon', 'frequency', 'custom_days',
+            'is_active', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['trainer', 'created_at', 'updated_at']
+
+
+class HabitCreateSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for creating a habit."""
+
+    trainee_id = serializers.IntegerField(required=True)
+    name = serializers.CharField(max_length=200, required=True)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+    icon = serializers.CharField(max_length=50, required=False, default='check_circle')
+    frequency = serializers.ChoiceField(
+        choices=Habit.Frequency.choices,
+        required=False,
+        default='daily',
+    )
+    custom_days = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+    )
+
+
+class HabitLogSerializer(serializers.ModelSerializer[HabitLog]):
+    """Serializer for HabitLog model."""
+
+    habit_name = serializers.CharField(source='habit.name', read_only=True)
+
+    class Meta:
+        model = HabitLog
+        fields = ['id', 'habit', 'habit_name', 'trainee', 'date', 'completed', 'created_at']
+        read_only_fields = ['trainee', 'created_at']
+
+
+class HabitToggleSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for toggling habit completion."""
+
+    habit_id = serializers.IntegerField(required=True)
+    date = serializers.DateField(required=False)
+
+
+class HabitStreakSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for habit streak response."""
+
+    habit_id = serializers.IntegerField()
+    habit_name = serializers.CharField()
+    current_streak = serializers.IntegerField()
+    longest_streak = serializers.IntegerField()
+    completion_rate_30d = serializers.FloatField()
+
+
+# --- Phase 3: Supersets, Smart Progression, Deload Detection ---
+
+class ProgressionSuggestionSerializer(serializers.ModelSerializer[ProgressionSuggestion]):
+    """Serializer for ProgressionSuggestion model."""
+
+    exercise_name = serializers.CharField(source='exercise.name', read_only=True)
+    trainee_email = serializers.CharField(source='trainee.email', read_only=True)
+    reviewed_by_email = serializers.CharField(
+        source='reviewed_by.email', read_only=True, allow_null=True,
+    )
+
+    class Meta:
+        model = ProgressionSuggestion
+        fields = [
+            'id', 'program', 'trainee', 'trainee_email',
+            'exercise', 'exercise_name', 'suggestion_data',
+            'status', 'reviewed_by', 'reviewed_by_email',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class DeloadCheckSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for deload check response."""
+
+    needs_deload = serializers.BooleanField()
+    confidence = serializers.FloatField()
+    rationale = serializers.CharField()
+    suggested_intensity_modifier = serializers.FloatField()
+    suggested_volume_modifier = serializers.FloatField()
+    weekly_volume_trend = serializers.ListField(child=serializers.FloatField())
+    fatigue_signals = serializers.ListField(child=serializers.CharField())
+
+
+# --- Phase 4: Social Sharing, PDF Export, Check-In Forms ---
+
+class ShareCardSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for share card response."""
+
+    workout_name = serializers.CharField()
+    date = serializers.CharField()
+    exercise_count = serializers.IntegerField()
+    total_sets = serializers.IntegerField()
+    total_volume = serializers.FloatField()
+    volume_unit = serializers.CharField()
+    duration = serializers.CharField()
+    exercises = serializers.ListField(child=serializers.DictField())
+    trainee_name = serializers.CharField()
+    trainer_branding = serializers.DictField()
+
+
+class CheckInTemplateSerializer(serializers.ModelSerializer[CheckInTemplate]):
+    """Serializer for CheckInTemplate model."""
+
+    trainer_email = serializers.CharField(source='trainer.email', read_only=True)
+
+    class Meta:
+        model = CheckInTemplate
+        fields = [
+            'id', 'trainer', 'trainer_email', 'name', 'frequency',
+            'fields', 'is_active', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['trainer', 'created_at', 'updated_at']
+
+
+class CheckInAssignmentSerializer(serializers.ModelSerializer[CheckInAssignment]):
+    """Serializer for CheckInAssignment model."""
+
+    template_name = serializers.CharField(source='template.name', read_only=True)
+    trainee_email = serializers.CharField(source='trainee.email', read_only=True)
+    template_fields = serializers.JSONField(source='template.fields', read_only=True)
+    template_frequency = serializers.CharField(source='template.frequency', read_only=True)
+
+    class Meta:
+        model = CheckInAssignment
+        fields = [
+            'id', 'template', 'template_name', 'template_fields', 'template_frequency',
+            'trainee', 'trainee_email', 'next_due_date',
+            'is_active', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class CheckInAssignSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for assigning a check-in template to a trainee."""
+
+    template_id = serializers.IntegerField(required=True)
+    trainee_id = serializers.IntegerField(required=True)
+    next_due_date = serializers.DateField(required=True)
+
+
+class CheckInResponseSerializer(serializers.ModelSerializer[CheckInResponse]):
+    """Serializer for CheckInResponse model."""
+
+    trainee_email = serializers.CharField(source='trainee.email', read_only=True)
+    template_name = serializers.CharField(source='assignment.template.name', read_only=True)
+
+    class Meta:
+        model = CheckInResponse
+        fields = [
+            'id', 'assignment', 'trainee', 'trainee_email', 'template_name',
+            'responses', 'trainer_notes', 'submitted_at', 'updated_at',
+        ]
+        read_only_fields = ['trainee', 'submitted_at', 'updated_at']
+
+
+class CheckInResponseCreateSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for submitting a check-in response."""
+
+    assignment_id = serializers.IntegerField(required=True)
+    responses = serializers.ListField(
+        child=serializers.DictField(),
+        required=True,
+    )

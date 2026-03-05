@@ -77,6 +77,21 @@ import '../../shared/widgets/main_navigation_shell.dart';
 import '../../shared/widgets/trainer_navigation_shell.dart';
 import '../../shared/widgets/admin_navigation_shell.dart';
 import '../../features/ambassador/presentation/screens/ambassador_navigation_shell.dart';
+// New features
+import '../../features/quick_log/presentation/screens/quick_log_screen.dart';
+import '../../features/workout_log/presentation/screens/rest_day_screen.dart';
+import '../../features/progress_photos/presentation/screens/photo_gallery_screen.dart';
+import '../../features/progress_photos/presentation/screens/add_photo_screen.dart';
+import '../../features/progress_photos/presentation/screens/comparison_screen.dart';
+import '../../features/barcode_scanner/presentation/screens/barcode_scan_screen.dart';
+import '../../features/habits/presentation/screens/habit_checklist_screen.dart';
+import '../../features/progression/presentation/screens/progression_screen.dart';
+import '../../features/progression/presentation/screens/deload_screen.dart';
+import '../../features/sharing/presentation/screens/share_preview_screen.dart';
+import '../../features/checkins/data/models/checkin_models.dart';
+import '../../features/checkins/presentation/screens/checkin_form_screen.dart';
+import '../../features/checkins/presentation/screens/checkin_builder_screen.dart';
+import '../../features/checkins/presentation/screens/checkin_responses_screen.dart';
 import '../../features/ambassador/presentation/screens/ambassador_dashboard_screen.dart';
 import '../../features/ambassador/presentation/screens/ambassador_referrals_screen.dart';
 import '../../features/ambassador/presentation/screens/ambassador_settings_screen.dart';
@@ -889,6 +904,124 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           );
         },
+      ),
+
+      // --- New Feature Routes ---
+      GoRoute(
+        path: '/quick-log',
+        name: 'quick-log',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const QuickLogScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/rest-day',
+        name: 'rest-day',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const RestDayScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/progress-photos',
+        name: 'progress-photos',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const PhotoGalleryScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/progress-photos/add',
+        name: 'add-progress-photo',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AddPhotoScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/progress-photos/compare',
+        name: 'compare-photos',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const ComparisonScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/barcode-scan',
+        name: 'barcode-scan',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const BarcodeScanScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/habits',
+        name: 'habits',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const HabitChecklistScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/progression/:programId',
+        name: 'progression',
+        pageBuilder: (context, state) {
+          final programId = int.parse(state.pathParameters['programId']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: ProgressionScreen(programId: programId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/deload/:programId',
+        name: 'deload',
+        pageBuilder: (context, state) {
+          final programId = int.parse(state.pathParameters['programId']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: DeloadScreen(programId: programId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/share-workout/:logId',
+        name: 'share-workout',
+        pageBuilder: (context, state) {
+          final logId = int.parse(state.pathParameters['logId']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: SharePreviewScreen(logId: logId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/checkin',
+        name: 'checkin-form',
+        pageBuilder: (context, state) {
+          final assignment = state.extra! as CheckInAssignmentModel;
+          return adaptivePage(
+            key: state.pageKey,
+            child: CheckInFormScreen(assignment: assignment),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/trainer/checkin-builder',
+        name: 'checkin-builder',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const CheckInBuilderScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/trainer/checkin-responses',
+        name: 'checkin-responses',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const CheckInResponsesScreen(),
+        ),
       ),
 
       // Settings routes

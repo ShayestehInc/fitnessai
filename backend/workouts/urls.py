@@ -1,12 +1,18 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    ExerciseViewSet,
-    ProgramViewSet,
+    CheckInResponseViewSet,
+    CheckInTemplateViewSet,
     DailyLogViewSet,
-    NutritionGoalViewSet,
-    WeightCheckInViewSet,
+    ExerciseViewSet,
+    HabitViewSet,
     MacroPresetViewSet,
+    NutritionGoalViewSet,
+    ProgressionSuggestionViewSet,
+    ProgressPhotoViewSet,
+    ProgramViewSet,
+    WeightCheckInViewSet,
+    WorkoutTemplateViewSet,
 )
 from .survey_views import ReadinessSurveyView, PostWorkoutSurveyView, MyLayoutConfigView
 
@@ -17,6 +23,12 @@ router.register(r'daily-logs', DailyLogViewSet, basename='dailylog')
 router.register(r'nutrition-goals', NutritionGoalViewSet, basename='nutritiongoal')
 router.register(r'weight-checkins', WeightCheckInViewSet, basename='weightcheckin')
 router.register(r'macro-presets', MacroPresetViewSet, basename='macropreset')
+router.register(r'workout-templates', WorkoutTemplateViewSet, basename='workouttemplate')
+router.register(r'progress-photos', ProgressPhotoViewSet, basename='progressphoto')
+router.register(r'habits', HabitViewSet, basename='habit')
+router.register(r'progression-suggestions', ProgressionSuggestionViewSet, basename='progressionsuggestion')
+router.register(r'checkin-templates', CheckInTemplateViewSet, basename='checkintemplate')
+router.register(r'checkin-responses', CheckInResponseViewSet, basename='checkinresponse')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -412,3 +412,54 @@ IMPORTANT:
 - Use ONLY exercise IDs and names from the exercise bank above
 - reps can be a number string ("12") or range string ("8-10")
 - Return ONLY the JSON, no markdown fences, no commentary"""
+
+
+def get_progression_suggestion_prompt(
+    exercise_name: str,
+    history: dict[str, Any],
+) -> str:
+    """
+    Generate prompt for AI-powered progression suggestions.
+
+    Args:
+        exercise_name: Name of the exercise.
+        history: Aggregated exercise history with sessions, trend, averages.
+
+    Returns:
+        Formatted prompt string for OpenAI.
+    """
+    sessions_text = ""
+    for session in history.get("sessions", []):
+        sessions_text += (
+            f"  - {session.get('date')}: {session.get('max_weight')}lbs × "
+            f"{session.get('avg_reps'):.0f} reps, {session.get('sets')} sets\n"
+        )
+
+    return f"""You are an expert strength coach analyzing training data for progressive overload.
+
+Exercise: {exercise_name}
+Current trend: {history.get('trend', 'unknown')}
+Average weight: {history.get('avg_weight', 0)}lbs
+Max weight: {history.get('max_weight', 0)}lbs
+Average reps: {history.get('avg_reps', 0):.1f}
+Total sessions analyzed: {len(history.get('sessions', []))}
+
+Recent session history:
+{sessions_text}
+
+Based on this data, provide a progression recommendation in JSON:
+{{
+  "recommendation": "increase_weight" | "increase_reps" | "increase_sets" | "maintain" | "deload",
+  "suggested_weight": <number>,
+  "suggested_reps": <number>,
+  "rationale": "<2-3 sentence explanation>",
+  "confidence": <0.0-1.0>
+}}
+
+Rules:
+- Only suggest weight increases of 5lbs (or 2.5kg) at a time.
+- If reps are consistently above target range (10+), suggest weight increase.
+- If weight/reps are declining, suggest maintaining or deloading.
+- If plateau for 3+ sessions, suggest a small increase to break through.
+- Be conservative — better to under-suggest than over-suggest.
+"""

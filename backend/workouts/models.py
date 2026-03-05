@@ -698,3 +698,364 @@ class WeeklyNutritionPlan(models.Model):
             'fat': self.fat_goal,
             'calories': self.calories_goal - carb_calorie_diff
         }
+
+
+class WorkoutTemplate(models.Model):
+    """
+    Pre-defined workout templates for quick-logging non-program activities
+    (e.g., cardio, sports, outdoor, flexibility).
+    """
+
+    class Category(models.TextChoices):
+        CARDIO = 'cardio', 'Cardio'
+        SPORTS = 'sports', 'Sports'
+        OUTDOOR = 'outdoor', 'Outdoor'
+        FLEXIBILITY = 'flexibility', 'Flexibility'
+        OTHER = 'other', 'Other'
+
+    name = models.CharField(max_length=255)
+    category = models.CharField(
+        max_length=20,
+        choices=Category.choices,
+        default=Category.OTHER,
+    )
+    description = models.TextField(blank=True)
+    estimated_duration_minutes = models.PositiveIntegerField(default=30)
+    default_calories_per_minute = models.FloatField(
+        default=5.0,
+        validators=[MinValueValidator(0.1), MaxValueValidator(50.0)],
+    )
+    is_public = models.BooleanField(
+        default=False,
+        help_text="True for system defaults, False for trainer-created templates",
+    )
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_workout_templates',
+        limit_choices_to={'role': 'TRAINER'},
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'workout_templates'
+        ordering = ['category', 'name']
+        indexes = [
+            models.Index(fields=['category']),
+            models.Index(fields=['is_public']),
+            models.Index(fields=['created_by']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.get_category_display()})"
+
+
+class ProgressPhoto(models.Model):
+    """
+    Progress photo entries for body composition tracking.
+    Supports front/side/back photos with optional body measurements.
+    """
+
+    class PhotoCategory(models.TextChoices):
+        FRONT = 'front', 'Front'
+        SIDE = 'side', 'Side'
+        BACK = 'back', 'Back'
+        OTHER = 'other', 'Other'
+
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='progress_photos',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    photo = models.ImageField(upload_to='progress_photos/%Y/%m/')
+    category = models.CharField(
+        max_length=10,
+        choices=PhotoCategory.choices,
+        default=PhotoCategory.FRONT,
+    )
+    date = models.DateField()
+    measurements = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Body measurements: {waist_cm, chest_cm, arms_cm, hips_cm, thighs_cm}",
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'progress_photos'
+        ordering = ['-date', '-created_at']
+        indexes = [
+            models.Index(fields=['trainee', 'date']),
+            models.Index(fields=['trainee', 'category']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.trainee.email} - {self.date} ({self.get_category_display()})"
+
+
+class Habit(models.Model):
+    """
+    Trackable habits assigned by trainers to trainees.
+    Supports daily, weekday-only, or custom day schedules.
+    """
+
+    class Frequency(models.TextChoices):
+        DAILY = 'daily', 'Daily'
+        WEEKDAYS = 'weekdays', 'Weekdays'
+        CUSTOM = 'custom', 'Custom'
+
+    trainer = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='created_habits',
+        limit_choices_to={'role': 'TRAINER'},
+    )
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='habits',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, default='check_circle')
+    frequency = models.CharField(
+        max_length=20,
+        choices=Frequency.choices,
+        default=Frequency.DAILY,
+    )
+    custom_days = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of day names for custom frequency, e.g. ['Monday', 'Wednesday', 'Friday']",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'habits'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['trainee', 'is_active']),
+            models.Index(fields=['trainer']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} - {self.trainee.email}"
+
+
+class HabitLog(models.Model):
+    """
+    Daily completion log for a habit.
+    One entry per habit per date.
+    """
+
+    habit = models.ForeignKey(
+        Habit,
+        on_delete=models.CASCADE,
+        related_name='logs',
+    )
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='habit_logs',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    date = models.DateField()
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'habit_logs'
+        unique_together = [['habit', 'date']]
+        ordering = ['-date']
+        indexes = [
+            models.Index(fields=['trainee', 'date']),
+            models.Index(fields=['habit', 'date']),
+        ]
+
+    def __str__(self) -> str:
+        status = 'Done' if self.completed else 'Missed'
+        return f"{self.habit.name} - {self.date} ({status})"
+
+
+class ProgressionSuggestion(models.Model):
+    """
+    AI-generated progression suggestions for exercises within a program.
+    Trainers can approve, dismiss, or auto-apply suggestions.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        APPROVED = 'approved', 'Approved'
+        DISMISSED = 'dismissed', 'Dismissed'
+        APPLIED = 'applied', 'Applied'
+
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.CASCADE,
+        related_name='progression_suggestions',
+    )
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='progression_suggestions',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name='progression_suggestions',
+    )
+    suggestion_data = models.JSONField(
+        help_text=(
+            "Suggestion details: {current_weight, suggested_weight, current_reps, "
+            "suggested_reps, current_sets, suggested_sets, rationale, confidence}"
+        ),
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    reviewed_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_progressions',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'progression_suggestions'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['program', 'status']),
+            models.Index(fields=['trainee', 'status']),
+        ]
+
+    def __str__(self) -> str:
+        return f"Progression: {self.exercise.name} for {self.trainee.email} ({self.get_status_display()})"
+
+
+class CheckInTemplate(models.Model):
+    """
+    Custom check-in form templates created by trainers.
+    Supports multiple field types for flexible client check-ins.
+    """
+
+    class CheckInFrequency(models.TextChoices):
+        WEEKLY = 'weekly', 'Weekly'
+        BIWEEKLY = 'biweekly', 'Biweekly'
+        MONTHLY = 'monthly', 'Monthly'
+
+    trainer = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='checkin_templates',
+        limit_choices_to={'role': 'TRAINER'},
+    )
+    name = models.CharField(max_length=200)
+    frequency = models.CharField(
+        max_length=20,
+        choices=CheckInFrequency.choices,
+        default=CheckInFrequency.WEEKLY,
+    )
+    fields = models.JSONField(
+        help_text=(
+            "Form field definitions: [{id, type: text|number|scale|multi_choice|photo, "
+            "label, required, options}]"
+        ),
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'checkin_templates'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['trainer']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.get_frequency_display()})"
+
+
+class CheckInAssignment(models.Model):
+    """
+    Assignment of a check-in template to a trainee.
+    Tracks next due date for automatic scheduling.
+    """
+
+    template = models.ForeignKey(
+        CheckInTemplate,
+        on_delete=models.CASCADE,
+        related_name='assignments',
+    )
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='checkin_assignments',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    next_due_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'checkin_assignments'
+        ordering = ['next_due_date']
+        indexes = [
+            models.Index(fields=['trainee', 'is_active']),
+            models.Index(fields=['next_due_date']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.template.name} → {self.trainee.email} (due {self.next_due_date})"
+
+
+class CheckInResponse(models.Model):
+    """
+    Trainee's response to a check-in form.
+    Stores responses as JSON matching the template's field definitions.
+    """
+
+    assignment = models.ForeignKey(
+        CheckInAssignment,
+        on_delete=models.CASCADE,
+        related_name='responses',
+    )
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='checkin_responses',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    responses = models.JSONField(
+        help_text="Completed form responses: [{field_id, value}]",
+    )
+    trainer_notes = models.TextField(blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'checkin_responses'
+        ordering = ['-submitted_at']
+        indexes = [
+            models.Index(fields=['trainee', '-submitted_at']),
+            models.Index(fields=['assignment']),
+        ]
+
+    def __str__(self) -> str:
+        return f"Check-in response by {self.trainee.email} on {self.submitted_at}"
