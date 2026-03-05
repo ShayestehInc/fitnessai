@@ -106,3 +106,70 @@
 The feature structure is well-organized and follows existing codebase patterns nicely. The new screens have proper loading/error/empty states. The Dead UI cleanup is well-executed with Message and Schedule buttons properly wired. However, there are three critical bugs that make the core notification preferences feature non-functional: (1) the optimistic update Dart map key bug means the UI doesn't reflect toggles correctly, (2) no existing callers pass the `category` parameter so preferences are never actually checked, and (3) `send_push_to_group` bypasses preference checks entirely. Additionally, AC-15 (notification tap routing) is completely unimplemented. These are not edge cases — they affect the primary value proposition of the feature.
 
 ## Recommendation: REQUEST CHANGES
+
+---
+
+## Round 2 Review
+
+**Review Date:** 2026-03-04
+
+**Files Reviewed in Round 2:**
+- `mobile/lib/features/settings/data/providers/notification_preferences_provider.dart`
+- `backend/users/models.py`
+- `backend/core/services/notification_service.py`
+- `mobile/lib/core/services/reminder_service.dart`
+- `mobile/lib/features/settings/presentation/screens/reminders_screen.dart`
+- `mobile/lib/features/settings/presentation/screens/notification_preferences_screen.dart`
+- `mobile/lib/features/settings/data/repositories/notification_preferences_repository.dart`
+- `mobile/lib/features/settings/presentation/screens/help_support_screen.dart`
+- `backend/messaging/services/messaging_service.py` (diff)
+- `backend/community/views.py` (diff)
+- `backend/community/trainer_views.py` (diff)
+- `mobile/lib/features/settings/presentation/screens/settings_screen.dart`
+
+### Verified Fixes
+
+- [x] **Critical #1:** Optimistic update map key bug fixed. Lines 28-30 of `notification_preferences_provider.dart` now use `Map<String, bool>.from(previous)` and `optimistic[category] = enabled` -- correctly uses the variable, not a string literal. Verified correct.
+- [x] **Critical #2:** `VALID_CATEGORIES` frozenset added to `NotificationPreference` model (lines 347-357 of `users/models.py`). `is_category_enabled()` validates against the allowlist and raises `ValueError` for invalid categories (lines 371-381). Verified correct.
+- [x] **Critical #3:** `send_push_to_group` now accepts a `category` parameter (line 130 of `notification_service.py`). It filters opted-out users with a single batch query using `**{category: False}` (lines 153-177). Also validates category against `VALID_CATEGORIES` before querying. Uses `(DatabaseError, ConnectionError)` catch with fail-open. Verified correct.
+- [x] **Major #4:** Exception catch in `_check_notification_preference` narrowed from `except Exception` to `except (DatabaseError, ConnectionError)` (line 74). Programming errors now propagate. Verified correct.
+- [x] **Major #5:** Timezone resolution replaced with `flutter_timezone` package (line 3 import, lines 385-393 of `reminder_service.dart`). Uses `FlutterTimezone.getLocalTimezone()` to get the actual platform IANA timezone name. Falls back to UTC on failure with `debugPrint` logging. Verified correct.
+- [x] **Major #6:** `onDidReceiveNotificationResponse` callback added to `_plugin.initialize()` (line 139). `_onNotificationResponse` method delegates to the `onNotificationTapped` callback hook (lines 145-150). All `zonedSchedule` calls now include `payload` parameter ('workout', 'meal', 'weight'). Verified correct.
+- [x] **Major #7:** `dart:io` import removed from `reminders_screen.dart`. `Platform.isIOS` replaced with `defaultTargetPlatform == TargetPlatform.iOS` (line 168 uses `Theme.of(context).platform == TargetPlatform.iOS`). Verified correct.
+- [x] **Major #8:** Empty catch block in `_checkOsPermission` now logs with `debugPrint('Failed to check OS notification permission: $e')` (line 161 of `notification_preferences_screen.dart`). Verified correct.
+- [x] **Major #9:** Type validation added to `notification_preferences_repository.dart`. Both `getPreferences()` (line 12) and `updatePreference()` (line 25) now check `if (data is! Map) throw FormatException(...)` before casting. Verified correct.
+- [x] **Major #10:** Hardcoded version replaced with `package_info_plus`. `HelpSupportScreen` converted to `ConsumerStatefulWidget` with `_loadVersion()` in `initState()` (lines 50-63). Displays "..." while loading, actual version with build number on success, "Unknown" on failure. Error is logged via `debugPrint`. Verified correct.
+- [x] **Major #11:** All three callers now pass `category` parameter: `messaging_service.py` passes `category='new_message'`, `community/views.py` passes `category='community_activity'`, `community/trainer_views.py` passes `category='trainer_announcement'`. Verified via git diff -- all correct.
+- [x] **Minor #12:** `InkWell` replaced with `AdaptiveTappable` in `_buildTimeRow` (line 449 of `reminders_screen.dart`). Verified correct.
+- [x] **Minor #13:** `flutter/foundation.dart` import kept since `debugPrint` is used (from fix #8). This is acceptable -- `debugPrint` is re-exported from `material.dart` but having the explicit import is not harmful. Verified acceptable.
+- [x] **Minor #14:** `_launchSupportEmail` now copies email to clipboard and shows toast when `canLaunchUrl` returns false (lines 176-184 of `help_support_screen.dart`). Uses `Clipboard.setData` and `showAdaptiveToast` with `ToastType.info`. Verified correct.
+- [x] **Minor #15:** Covered by fix #6. All `zonedSchedule` calls now have `payload` parameters. Verified correct.
+- [x] **Minor #16:** Help & Support tile added to `_buildTraineeSettings()` under a new "SUPPORT" section (lines 555-564 of `settings_screen.dart`). Routes to `/help-support`. Verified correct.
+- [x] **Minor #17:** Provider comment clarified (lines 37-40 of `notification_preferences_provider.dart`). The pattern is sound: state is set to `AsyncData(previous)` on rollback (not `AsyncError`), so watchers only see the rollback. The rethrow allows the caller's try/catch to show a toast. No double-display risk. Verified acceptable.
+
+### New Issues Found
+
+| # | Severity | File:Line | Issue | Suggested Fix |
+|---|----------|-----------|-------|---------------|
+| - | - | - | No new issues found. | - |
+
+### Acceptance Criteria Re-Verification (previously failing items)
+
+| AC | Status | Notes |
+|----|--------|-------|
+| AC-6 | **PASS** | All callers now pass `category`; `send_push_to_group` filters opted-out users with batch query |
+| AC-7 | **PASS** | Optimistic update correctly uses variable key via `Map.from` + bracket assignment |
+| AC-14 | **PASS** | `flutter_timezone` package resolves actual platform IANA timezone |
+| AC-15 | **PASS** | `onDidReceiveNotificationResponse` callback wired; payloads set; `onNotificationTapped` hook exposed |
+| AC-19 | **PASS** | Help & Support tile added to trainee settings |
+| AC-25 | **PASS** | `package_info_plus` reads real version at runtime |
+
+### Flutter Analyze
+
+No errors. 201 issues found (all pre-existing warnings and infos unrelated to this feature). Zero new issues introduced.
+
+### Quality Score: 9/10
+
+All 17 issues from Round 1 have been fixed correctly and thoroughly. The fixes are clean, follow existing codebase patterns, and introduce no regressions. The notification preference check is now end-to-end functional: model validation with `VALID_CATEGORIES`, batch filtering in `send_push_to_group`, and all callers passing the `category` parameter. The mobile fixes are equally solid: proper timezone resolution via `flutter_timezone`, notification tap handling with payloads, real app version via `package_info_plus`, and type-safe response validation. The one point deducted is for the existing performance concern (per-notification DB query in `_check_notification_preference`) which is acceptable for current scale but worth monitoring.
+
+### Recommendation: APPROVE
