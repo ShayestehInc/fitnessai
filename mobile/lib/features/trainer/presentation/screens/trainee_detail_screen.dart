@@ -726,24 +726,69 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
   }
 
   Widget _buildQuickActions(TraineeDetailModel trainee) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _ActionButton(
-            icon: Icons.message,
-            label: 'Message',
-            color: Colors.green,
-            onTap: () => _openMessageTrainee(context, trainee),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.message,
+                label: 'Message',
+                color: Colors.green,
+                onTap: () => _openMessageTrainee(context, trainee),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.calendar_month,
+                label: 'Schedule',
+                color: Colors.orange,
+                onTap: () => _openTraineeSchedule(context, trainee),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _ActionButton(
-            icon: Icons.calendar_month,
-            label: 'Schedule',
-            color: Colors.orange,
-            onTap: () => _openTraineeSchedule(context, trainee),
-          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.assignment_add,
+                label: 'Send Check-In',
+                color: Colors.teal,
+                onTap: () => context.push('/trainer/checkin-builder'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.playlist_add_check,
+                label: 'Manage Habits',
+                color: Colors.purple,
+                onTap: () => context.push(
+                  '/trainer/trainees/${trainee.id}/habits',
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.photo_library,
+                label: 'Progress Photos',
+                color: Colors.indigo,
+                onTap: () => context.push(
+                  '/progress-photos?trainee_id=${trainee.id}',
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: SizedBox()),
+          ],
         ),
       ],
     );

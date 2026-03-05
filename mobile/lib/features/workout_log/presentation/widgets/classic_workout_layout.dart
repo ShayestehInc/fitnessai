@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/active_workout_screen.dart';
+import '../../../../features/exercises/presentation/widgets/exercise_video_player.dart';
 
 /// Classic workout layout: all exercises in a scrollable list with full sets tables.
 /// Best for experienced lifters who want an overview of their entire workout.
@@ -134,6 +135,13 @@ class _ClassicWorkoutLayoutState extends State<ClassicWorkoutLayout> {
                         ],
                       ),
                     ),
+                    ExerciseVideoThumbnail(
+                      videoUrl: exercise.videoUrl,
+                      exerciseName: exercise.name,
+                      size: 40,
+                    ),
+                    if (exercise.videoUrl != null && exercise.videoUrl!.isNotEmpty)
+                      const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),

@@ -228,7 +228,9 @@ class WorkoutRepository {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return {'success': true};
+        final responseData = response.data;
+        final logId = responseData is Map ? responseData['log_id'] as int? : null;
+        return {'success': true, if (logId != null) 'log_id': logId};
       }
 
       return {'success': false, 'error': 'Failed to submit survey'};

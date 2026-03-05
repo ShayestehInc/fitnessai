@@ -10,6 +10,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/classic_workout_layout.dart';
 import '../widgets/minimal_workout_layout.dart';
+import '../../../exercises/presentation/widgets/exercise_video_player.dart';
 import 'readiness_survey_screen.dart';
 import 'post_workout_survey_screen.dart';
 
@@ -44,6 +45,11 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
   // Survey data
   ReadinessSurveyData? _readinessSurveyData;
+
+  /// Log ID returned by the server after a successful online workout save.
+  /// Populated in [_submitPostWorkoutSurvey] and forwarded to
+  /// [PostWorkoutSurveyScreen] so the celebration page can offer a share link.
+  int? _savedLogId;
 
   @override
   void initState() {
@@ -161,6 +167,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             0,
             (sum, log) => sum + log.sets.length,
           ),
+          logId: _savedLogId,
           onComplete: (data) {
             _submitPostWorkoutSurvey(data);
             context.pop();
@@ -438,6 +445,12 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       readinessSurvey: _readinessSurveyData?.toJson(),
     );
 
+    // Capture the server-assigned log ID so the post-survey celebration
+    // screen can offer a share link. Only available on successful online save.
+    if (result.logId != null && mounted) {
+      setState(() => _savedLogId = result.logId);
+    }
+
     // If saved offline, show a toast to inform the user
     if (result.offline && mounted) {
       showAdaptiveToast(
@@ -662,20 +675,26 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                     ),
                   ),
                 ),
-                // Play button
+                // Play button / video thumbnail
                 Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.play_arrow,
-                      size: 32,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
+                  child: exercise.videoUrl != null && exercise.videoUrl!.isNotEmpty
+                      ? ExerciseVideoThumbnail(
+                          videoUrl: exercise.videoUrl,
+                          exerciseName: exercise.name,
+                          size: 72,
+                        )
+                      : Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.play_arrow,
+                            size: 32,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
                 ),
                 // Muscle group badge
                 Positioned(

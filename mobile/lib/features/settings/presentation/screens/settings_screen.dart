@@ -549,6 +549,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         onTap: () => context.push('/notification-preferences'),
         index: index++,
       ),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.photo_library,
+        title: 'Progress Photos',
+        subtitle: 'Track your visual transformation over time',
+        onTap: () => context.push('/progress-photos'),
+        index: index++,
+      ),
+      _buildSettingsTile(
+        context: context,
+        icon: Icons.watch,
+        title: 'Apple Watch',
+        subtitle: 'Sync workouts and health data with your watch',
+        onTap: () => context.push('/watch'),
+        index: index++,
+      ),
 
       const SizedBox(height: 24),
 

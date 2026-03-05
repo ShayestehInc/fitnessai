@@ -18,7 +18,12 @@ import '../../../../shared/widgets/sync_status_badge.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../community/presentation/providers/announcement_provider.dart';
 import '../../../workout_log/data/models/workout_history_model.dart';
+import '../../../workout_log/presentation/widgets/rest_day_card.dart';
 import '../providers/home_provider.dart';
+import '../widgets/habits_summary_card.dart';
+import '../widgets/pending_checkin_banner.dart';
+import '../widgets/progression_alert_card.dart';
+import '../widgets/quick_log_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -99,6 +104,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         // Header
                         _buildHeader(user?.displayName ?? 'User'),
+                  const SizedBox(height: 16),
+
+                  // Pending check-ins banner
+                  const PendingCheckinBanner(),
+
+                  // Progression suggestions alert
+                  if (homeState.activeProgram != null)
+                    ProgressionAlertCard(
+                      programId: homeState.activeProgram!.id,
+                    ),
+
+                  // Quick Log card
+                  const QuickLogCard(),
+
+                  // Rest Day card (when today is a rest day)
+                  if (homeState.todayIsRestDay && homeState.activeProgram != null)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: RestDayCard(),
+                    ),
+
+                  // Habits summary
+                  const HabitsSummaryCard(),
+
                   const SizedBox(height: 24),
 
                   // Nutrition section

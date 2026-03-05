@@ -35,4 +35,7 @@ class OfflineSaveResult {
       : success = false,
         offline = false,
         data = null;
+
+  /// Convenience accessor for the server-assigned daily-log ID, if present.
+  int? get logId => data?['log_id'] as int?;
 }

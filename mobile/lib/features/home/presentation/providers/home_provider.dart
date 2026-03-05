@@ -110,6 +110,7 @@ class HomeState {
   final String? recentWorkoutsError;
   final int programProgress; // 0-100
   final WeeklyProgressData? weeklyProgress;
+  final bool todayIsRestDay;
   final bool isLoading;
   final String? error;
 
@@ -124,6 +125,7 @@ class HomeState {
     this.recentWorkoutsError,
     this.programProgress = 0,
     this.weeklyProgress,
+    this.todayIsRestDay = false,
     this.isLoading = false,
     this.error,
   });
@@ -140,6 +142,7 @@ class HomeState {
     bool clearRecentWorkoutsError = false,
     int? programProgress,
     WeeklyProgressData? weeklyProgress,
+    bool? todayIsRestDay,
     bool? isLoading,
     String? error,
   }) {
@@ -156,6 +159,7 @@ class HomeState {
           : (recentWorkoutsError ?? this.recentWorkoutsError),
       programProgress: programProgress ?? this.programProgress,
       weeklyProgress: weeklyProgress ?? this.weeklyProgress,
+      todayIsRestDay: todayIsRestDay ?? this.todayIsRestDay,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -234,6 +238,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
       NextWorkout? nextWorkout;
       int programProgress = 0;
       WeeklyProgressData? weeklyProgress;
+      bool todayIsRestDay = false;
 
       if (programResult['success'] == true) {
         program = programResult['program'] as ProgramModel;
@@ -242,6 +247,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
         final progressData = _calculateProgramProgress(program);
         programProgress = progressData['progress'] as int;
         nextWorkout = progressData['nextWorkout'] as NextWorkout?;
+        todayIsRestDay = progressData['todayIsRestDay'] as bool? ?? false;
       }
 
       // Parse weekly progress from API
@@ -286,6 +292,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
         nextWorkout: nextWorkout,
         programProgress: programProgress,
         weeklyProgress: weeklyProgress,
+        todayIsRestDay: todayIsRestDay,
         recentWorkouts: recentWorkouts,
         pendingWorkouts: pendingWorkouts,
         recentWorkoutsError: recentWorkoutsError,
@@ -385,10 +392,29 @@ class HomeNotifier extends StateNotifier<HomeState> {
     // programProgress here is set to 0; the real data comes from the API.
     int progress = 0;
 
+    // Determine if today is a rest day
+    bool todayIsRestDay = false;
+
     // Find next workout (skip rest days)
     NextWorkout? nextWorkout;
 
     if (weeks != null && weeks.isNotEmpty) {
+      // Check if today's scheduled day is a rest day
+      final todayWeekIndex = (currentWeek - 1).clamp(0, weeks.length - 1);
+      final todayWeekData = weeks[todayWeekIndex];
+      if (todayWeekData is Map<String, dynamic>) {
+        final todayDays = todayWeekData['days'] as List?;
+        if (todayDays != null && currentDayOfWeek < todayDays.length) {
+          final todayDayData = todayDays[currentDayOfWeek];
+          if (todayDayData is Map<String, dynamic>) {
+            final isRest = todayDayData['is_rest_day'] as bool? ?? false;
+            final dayName = todayDayData['name'] as String? ?? '';
+            todayIsRestDay =
+                isRest || dayName.toLowerCase().contains('rest');
+          }
+        }
+      }
+
       // Start from current week and day, find the next non-rest workout
       int weekIndex = (currentWeek - 1).clamp(0, weeks.length - 1);
       int dayIndex = currentDayOfWeek;
@@ -445,6 +471,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
     return {
       'progress': progress,
       'nextWorkout': nextWorkout,
+      'todayIsRestDay': todayIsRestDay,
     };
   }
 

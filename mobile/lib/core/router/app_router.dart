@@ -85,6 +85,7 @@ import '../../features/progress_photos/presentation/screens/add_photo_screen.dar
 import '../../features/progress_photos/presentation/screens/comparison_screen.dart';
 import '../../features/barcode_scanner/presentation/screens/barcode_scan_screen.dart';
 import '../../features/habits/presentation/screens/habit_checklist_screen.dart';
+import '../../features/habits/presentation/screens/habit_manager_screen.dart';
 import '../../features/progression/presentation/screens/progression_screen.dart';
 import '../../features/progression/presentation/screens/deload_screen.dart';
 import '../../features/sharing/presentation/screens/share_preview_screen.dart';
@@ -903,6 +904,17 @@ final routerProvider = Provider<GoRouter>((ref) {
               traineeName: traineeName,
               programId: programId,
             ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/trainer/trainees/:id/habits',
+        name: 'trainee-habits',
+        pageBuilder: (context, state) {
+          final traineeId = int.parse(state.pathParameters['id']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: HabitManagerScreen(traineeId: traineeId),
           );
         },
       ),

@@ -52,7 +52,13 @@ class OfflineWorkoutRepository {
           readinessSurvey: readinessSurvey,
         );
         if (result['success'] == true) {
-          return const OfflineSaveResult.onlineSuccess();
+          // Carry server response data (e.g., log_id) through so callers can
+          // surface features like the post-workout share button.
+          final responseData = Map<String, dynamic>.from(result)
+            ..remove('success');
+          return OfflineSaveResult.onlineSuccess(
+            data: responseData.isNotEmpty ? responseData : null,
+          );
         }
         return OfflineSaveResult.failure(
           result['error']?.toString() ?? 'Failed to save workout',

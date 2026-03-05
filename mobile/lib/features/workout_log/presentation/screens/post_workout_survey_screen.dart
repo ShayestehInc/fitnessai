@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/workout_provider.dart';
 
 class PostWorkoutSurveyScreen extends ConsumerStatefulWidget {
@@ -9,6 +10,10 @@ class PostWorkoutSurveyScreen extends ConsumerStatefulWidget {
   final int totalSets;
   final Function(PostWorkoutSurveyData)? onComplete;
 
+  /// The daily-log ID returned by the server after saving the workout.
+  /// When non-null, a "Share Workout" button is shown on the completion screen.
+  final int? logId;
+
   const PostWorkoutSurveyScreen({
     super.key,
     required this.workout,
@@ -16,6 +21,7 @@ class PostWorkoutSurveyScreen extends ConsumerStatefulWidget {
     required this.setsCompleted,
     required this.totalSets,
     this.onComplete,
+    this.logId,
   });
 
   @override
@@ -191,6 +197,20 @@ class _PostWorkoutSurveyScreenState extends ConsumerState<PostWorkoutSurveyScree
               style: TextStyle(color: theme.textTheme.bodySmall?.color),
             ),
           ),
+          if (widget.logId != null) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => context.push('/share-workout/${widget.logId}'),
+              icon: const Icon(Icons.share, size: 18),
+              label: const Text('Share Workout'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

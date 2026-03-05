@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/workout_history_model.dart';
 import '../../data/repositories/workout_repository.dart';
@@ -65,6 +66,13 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
         ),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'Share workout',
+            onPressed: () => context.push('/share-workout/${workout.id}'),
+          ),
+        ],
       ),
       backgroundColor: theme.scaffoldBackgroundColor,
       body: _buildBody(theme, workout),

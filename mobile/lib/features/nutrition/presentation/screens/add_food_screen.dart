@@ -41,7 +41,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     // Default to the meal number passed in, or meal 1
     _selectedMealNumber = widget.mealNumber ?? 1;
   }
@@ -92,6 +92,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                   Tab(text: 'Manual'),
                   Tab(text: 'AI Entry'),
                   Tab(text: 'Search'),
+                  Tab(icon: Icon(Icons.qr_code_scanner, size: 18), text: 'Scan'),
                 ],
                 indicatorColor: theme.colorScheme.primary,
                 labelColor: theme.colorScheme.primary,
@@ -103,7 +104,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           if (theme.platform == TargetPlatform.iOS)
             AdaptiveSegmentedControl(
               controller: _tabController,
-              labels: const ['Manual', 'AI Entry', 'Search'],
+              labels: const ['Manual', 'AI Entry', 'Search', 'Scan'],
             ),
           Expanded(
             child: TabBarView(
@@ -112,10 +113,69 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                 _buildManualEntry(theme),
                 _buildAIQuickEntry(loggingState, theme),
                 _buildFoodSearch(theme),
+                _buildScanTab(theme),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildScanTab(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.qr_code_scanner,
+                size: 48,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Scan Barcode',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Point your camera at a food barcode to instantly look up nutrition info.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => context.push('/barcode-scan'),
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Open Scanner'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
