@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,7 @@ import '../../core/services/haptic_service.dart';
 import '../../features/trainer/presentation/providers/trainer_provider.dart';
 import '../../features/trainer/presentation/widgets/impersonation_banner.dart';
 import '../../features/messaging/presentation/providers/messaging_provider.dart';
+import 'adaptive/adaptive_icons.dart';
 
 class MainNavigationShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -45,7 +47,10 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
         decoration: BoxDecoration(
           color: theme.cardColor,
           border: Border(
-            top: BorderSide(color: theme.dividerColor, width: 1),
+            top: BorderSide(
+              color: theme.dividerColor,
+              width: defaultTargetPlatform == TargetPlatform.iOS ? 0.5 : 1,
+            ),
           ),
         ),
         child: SafeArea(
@@ -55,36 +60,36 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _NavItem(
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home,
+                  icon: AdaptiveIcons.homeOutlined,
+                  activeIcon: AdaptiveIcons.home,
                   label: 'Home',
                   isSelected: widget.navigationShell.currentIndex == 0,
                   onTap: () => _onTap(context, 0),
                 ),
                 _NavItem(
-                  icon: Icons.restaurant_outlined,
-                  activeIcon: Icons.restaurant,
+                  icon: AdaptiveIcons.dietOutlined,
+                  activeIcon: AdaptiveIcons.diet,
                   label: 'Diet',
                   isSelected: widget.navigationShell.currentIndex == 1,
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
-                  icon: Icons.fitness_center_outlined,
-                  activeIcon: Icons.fitness_center,
+                  icon: AdaptiveIcons.workoutOutlined,
+                  activeIcon: AdaptiveIcons.workout,
                   label: 'Logbook',
                   isSelected: widget.navigationShell.currentIndex == 2,
                   onTap: () => _onTap(context, 2),
                 ),
                 _NavItem(
-                  icon: Icons.people_outlined,
-                  activeIcon: Icons.people,
+                  icon: AdaptiveIcons.communityOutlined,
+                  activeIcon: AdaptiveIcons.community,
                   label: 'Community',
                   isSelected: widget.navigationShell.currentIndex == 3,
                   onTap: () => _onTap(context, 3),
                 ),
                 _NavItem(
-                  icon: Icons.chat_bubble_outline,
-                  activeIcon: Icons.chat_bubble,
+                  icon: AdaptiveIcons.messagesOutlined,
+                  activeIcon: AdaptiveIcons.messages,
                   label: 'Messages',
                   isSelected: widget.navigationShell.currentIndex == 4,
                   onTap: () => _onTap(context, 4),

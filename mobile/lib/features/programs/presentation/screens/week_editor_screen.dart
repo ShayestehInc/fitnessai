@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/program_week_model.dart';
 import '../../../exercises/data/models/exercise_model.dart';
@@ -603,12 +604,11 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
           width: isInSuperset ? 2 : 1,
         ),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: _isSelectionMode ? () => _toggleExerciseSelection(index) : null,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+        padding: const EdgeInsets.all(12),
+        child: Row(
             children: [
               // Selection checkbox or drag handle
               if (_isSelectionMode)
@@ -707,7 +707,6 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
               ],
             ],
           ),
-        ),
       ),
     );
   }
@@ -1037,42 +1036,23 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     return '${seconds}s';
   }
 
-  void _showRenameDayDialog() {
-    final controller = TextEditingController(text: _week.days[_selectedDayIndex].name);
-
-    showDialog(
+  Future<void> _showRenameDayDialog() async {
+    final newName = await showAdaptiveTextInputDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename Day'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Day Name',
-            hintText: 'e.g., Push, Pull, Upper',
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                final updatedDays = List<WorkoutDay>.from(_week.days);
-                updatedDays[_selectedDayIndex] = updatedDays[_selectedDayIndex].copyWith(
-                  name: controller.text,
-                );
-                _week = _week.copyWith(days: updatedDays);
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      title: 'Rename Day',
+      initialValue: _week.days[_selectedDayIndex].name,
+      placeholder: 'e.g., Push, Pull, Upper',
     );
+
+    if (newName != null) {
+      setState(() {
+        final updatedDays = List<WorkoutDay>.from(_week.days);
+        updatedDays[_selectedDayIndex] = updatedDays[_selectedDayIndex].copyWith(
+          name: newName,
+        );
+        _week = _week.copyWith(days: updatedDays);
+      });
+    }
   }
 
   void _convertToRestDay() {

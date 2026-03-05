@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -145,8 +146,9 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
   }
 
   void _showTierDialog(BuildContext context, {SubscriptionTierModel? tier}) {
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) => _TierDialog(
         tier: tier,
         onSave: (data) async {
@@ -500,11 +502,8 @@ class _TierDialogState extends State<_TierDialog> {
     final theme = Theme.of(context);
     final isEditing = widget.tier != null;
 
-    return Dialog(
-      backgroundColor: theme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 400,
+    return SafeArea(
+      child: Padding(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,

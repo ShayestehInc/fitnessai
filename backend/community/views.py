@@ -788,6 +788,7 @@ def _notify_post_comment(post: CommunityPost, commenter: User) -> None:
                 'type': 'community_comment',
                 'post_id': str(post.id),
             },
+            category='community_activity',
         )
     except Exception:
         logger.warning("Failed to send comment notification", exc_info=True)

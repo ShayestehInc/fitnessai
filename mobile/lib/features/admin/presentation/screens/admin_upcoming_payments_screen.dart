@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/admin_models.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../providers/admin_provider.dart';
@@ -267,7 +268,7 @@ class _UpcomingPaymentCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: theme.dividerColor),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () => context.push('/admin/subscriptions/${subscription.id}'),
         borderRadius: BorderRadius.circular(12),
         child: Padding(

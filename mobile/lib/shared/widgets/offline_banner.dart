@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'adaptive/adaptive_bottom_sheet.dart';
 import 'adaptive/adaptive_progress_bar.dart';
 
 import '../../core/providers/connectivity_provider.dart';
@@ -228,7 +229,7 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner> {
   }
 
   void _showFailedSyncSheet(BuildContext context) {
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) => const FailedSyncSheet(),

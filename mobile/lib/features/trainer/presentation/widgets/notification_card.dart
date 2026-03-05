@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/trainer_notification_model.dart';
 
 /// Individual notification card with type-based icon, unread indicator,
@@ -46,7 +47,7 @@ class NotificationCard extends StatelessWidget {
             ],
           ),
         ),
-        child: InkWell(
+        child: AdaptiveTappable(
           onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

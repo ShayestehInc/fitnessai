@@ -1,102 +1,92 @@
-# Hacker Report: Calendar Integration (Pipeline 41)
+# Hacker Report: Pipeline 42 — Notification Preferences, Reminders, Help & Support
 
-## Date: 2026-02-27
+## Date: 2026-03-04
 
 ## Files Audited
-### Screens:
-- `mobile/lib/features/calendar/presentation/screens/calendar_connection_screen.dart`
-- `mobile/lib/features/calendar/presentation/screens/calendar_events_screen.dart`
-- `mobile/lib/features/calendar/presentation/screens/trainer_availability_screen.dart`
+### New Screens:
+- `mobile/lib/features/settings/presentation/screens/notification_preferences_screen.dart`
+- `mobile/lib/features/settings/presentation/screens/reminders_screen.dart`
+- `mobile/lib/features/settings/presentation/screens/help_support_screen.dart`
 
-### Widgets:
-- `mobile/lib/features/calendar/presentation/widgets/availability_slot_editor.dart`
-- `mobile/lib/features/calendar/presentation/widgets/availability_slot_tile.dart`
-- `mobile/lib/features/calendar/presentation/widgets/calendar_actions_section.dart`
-- `mobile/lib/features/calendar/presentation/widgets/calendar_card.dart`
-- `mobile/lib/features/calendar/presentation/widgets/calendar_connection_header.dart`
-- `mobile/lib/features/calendar/presentation/widgets/calendar_event_tile.dart`
-- `mobile/lib/features/calendar/presentation/widgets/calendar_no_connection_view.dart`
-- `mobile/lib/features/calendar/presentation/widgets/calendar_provider_filter.dart`
-- `mobile/lib/features/calendar/presentation/widgets/time_tile.dart`
+### Modified Screens:
+- `mobile/lib/features/settings/presentation/screens/settings_screen.dart`
+- `mobile/lib/features/settings/presentation/screens/admin_security_screen.dart`
+- `mobile/lib/features/trainer/presentation/screens/trainee_detail_screen.dart`
 
-### Provider:
-- `mobile/lib/features/calendar/presentation/providers/calendar_provider.dart`
+### Data Layer:
+- `mobile/lib/features/settings/data/providers/notification_preferences_provider.dart`
+- `mobile/lib/features/settings/data/repositories/notification_preferences_repository.dart`
+- `mobile/lib/core/services/reminder_service.dart`
 
-### Data:
-- `mobile/lib/features/calendar/data/models/calendar_connection_model.dart`
-- `mobile/lib/features/calendar/data/repositories/calendar_repository.dart`
+### Router:
+- `mobile/lib/core/router/app_router.dart`
 
 ---
 
 ## Dead Buttons & Non-Functional UI
 | # | Severity | Screen/Component | Element | Expected | Actual |
 |---|----------|-----------------|---------|----------|--------|
-| 1 | Medium | CalendarConnectionScreen | "Connect Google Calendar" / "Connect Microsoft Outlook" button when auth URL fetch returns null without an error | User sees feedback that the connection attempt failed | Nothing happened. User tapped Connect and the app went silent. **FIXED**: Added fallback toast when authUrl is null but no error was set on state. |
+| 1 | Medium | AdminSecurityScreen | "Enable 2FA" button | Should initiate 2FA setup flow (authenticator app pairing, QR code, etc.) | Shows confirmation dialog, then displays a toast saying "2FA setup coming soon" -- no actual functionality. **FIXED**: Changed message to "2FA is not yet available. It will be enabled in a future update." for transparency. |
+| 2 | Medium | AdminSecurityScreen | "Sign Out All Devices" button | Should invalidate all sessions server-side via API call | Shows confirmation dialog, shows success toast "Signed out from all other devices", but never calls any backend endpoint. Sessions are not actually revoked. |
+| 3 | Low | AdminSecurityScreen | Login History section | Should show real login history from backend | Shows hardcoded mock data (iPhone 15 Pro, MacBook Pro, Chrome on Windows). Labeled "PREVIEW ONLY" which is honest, but still non-functional. |
+| 4 | Low | AdminSecurityScreen | "Active Sessions" bottom sheet | Should show real active sessions from backend | Shows hardcoded single mock session (iPhone 15 Pro). |
+| 5 | Medium | AdminPastDueScreen (line 325) | "Send Reminder" button | Should send a reminder email to past-due user | Has `// TODO: Send reminder email` comment and shows fake "Reminder sent" toast without calling any API. |
 
 ---
 
 ## Visual Misalignments & Layout Bugs
 | # | Severity | Screen/Component | Issue | Fix |
 |---|----------|-----------------|-------|-----|
-| 1 | Medium | CalendarEventTile / _ProviderBadge | Google provider badge used `Colors.blue`, but CalendarCard uses `Colors.red` for Google. Microsoft badge used `Colors.orange`, but CalendarCard uses `Colors.blue` for Microsoft. Colors were inconsistent across the same feature for the same providers. | **FIXED**: Changed `_ProviderBadge` to use `Colors.red` for Google and `Colors.blue` for Microsoft, matching `CalendarCard` icon colors. |
+| 1 | Medium | SettingsScreen (Trainee) lines 538-549 | "Reminders" and "Push Notifications" tiles both use `Icons.notifications_outlined` -- visually identical, making them indistinguishable at a glance. | **FIXED**: Changed Reminders icon to `Icons.alarm` to differentiate from Push Notifications. |
+| 2 | Medium | AdminSecurityScreen | Extensive use of hardcoded colors (`Colors.red`, `Colors.green`, `Colors.orange`, `Colors.white`) instead of theme-based colors. Will render incorrectly with custom themes or high-contrast accessibility modes. | **PARTIALLY FIXED**: Replaced `Colors.red` with `theme.colorScheme.error` for destructive actions (3 instances on lines 127, 159, 262). The `Colors.green` and `Colors.orange` for 2FA status badges are semantic status colors and acceptable for now. |
+| 3 | Low | AdminSecurityScreen line 183 | `const bool is2FAEnabled = false` with `// TODO: Implement actual 2FA status check`. Hardcoded dead state -- the 2FA card always shows "Not Enabled" regardless of actual account state. | Not fixed -- requires backend 2FA implementation. |
 
 ---
 
 ## Broken Flows & Logic Bugs
 | # | Severity | Flow | Steps to Reproduce | Expected | Actual |
 |---|----------|------|--------------------|---------|----|
-| 1 | Major | CalendarEventsScreen._setFilter race condition | 1. Have both Google and Microsoft connected with events. 2. Tap a provider filter chip. 3. `loadEvents` API call fails (network error). | Filter reverts to previous value so user sees the original events. | The `ref.listen` listener clears `state.error` via `clearMessages()` before `_setFilter` reaches the `if (state.error != null)` check. Filter stays on the new value while showing stale data from the previous filter. **FIXED**: Changed to compare event list identity instead of checking error state. |
-| 2 | Major | CalendarEventsScreen._syncAndReload concurrent state mutations | 1. Have both Google and Microsoft connected. 2. Pull to refresh. | Smooth sync with consistent loading state. | `syncCalendar('google')` and `syncCalendar('microsoft')` ran concurrently via `Future.wait`. Both set `isLoading = true` then `isLoading = false` on shared state. The internal `loadConnections()` call inside `syncCalendar` also toggles `isLoading`. This creates flickering loading states and potential state corruption from interleaved state updates. **FIXED**: Changed to sequential sync execution. |
-| 3 | Major | TrainerAvailabilityScreen._confirmDelete race condition | 1. Swipe to delete an availability slot. 2. Confirm deletion. 3. `deleteAvailability` API call fails (network error). | Dismissible stays in place (confirmDismiss returns false). | `state.error` is checked after `deleteAvailability()`, but the listener already cleared it via `clearMessages()`. `_confirmDelete` returns `true`, causing Dismissible to animate the slot away despite failed deletion. On next build, the slot reappears (jarring UX). **FIXED**: Check if the slot was removed from the availability list instead of checking error state. |
-| 4 | Medium | CalendarEventsScreen.initState wasteful API call | 1. Navigate to events screen with no calendar connections. | Only `loadConnections` is called; screen shows "no connection" view. | `loadEvents()` is always called after `loadConnections()`, even when `hasAnyConnection` is false. Fires an unnecessary API request that returns empty results. **FIXED**: Added guard `if (state.hasAnyConnection)` before calling `loadEvents`. |
-| 5 | Medium | CalendarConnectionScreen._showCallbackDialog controller lifecycle | 1. Tap Connect. 2. Complete OAuth flow. 3. Paste code/state. 4. Tap Connect button in dialog. | TextEditingControllers disposed after async operation completes. | Controllers were disposed immediately after `Navigator.pop()` (line 107-108) but BEFORE the `await notifier.completeGoogleCallback()` call. While the values were already extracted into local variables so no crash occurred, the dispose ordering was incorrect -- disposal should happen after the async work. **FIXED**: Moved `dispose()` calls after the async callback completes. Also added `autofocus: true` to the code field for better UX. |
-| 6 | Medium | AvailabilitySlotTile._formatTimeString malformed input | 1. Backend returns an availability slot with empty string for `startTime`. 2. Or returns non-numeric time like "abc:xyz". | Graceful display showing something meaningful. | Empty string produced "12:00 AM" silently (hour=0, minute=0 defaults). Non-numeric parts also defaulted to 0, showing "12:00 AM". Misleading to the user. **FIXED**: Added empty string check returning "--:--" and validation check returning the raw string for completely malformed input. |
-| 7 | Medium | TrainerAvailabilityScreen._showEditor time parsing | 1. Edit an availability slot whose time string has out-of-range values (e.g., "25:99:00"). | Safe parsing with clamped values. | `int.tryParse` with null-coalesce to 0 was used, but no clamping was applied. An hour of 25 or minute of 99 could create an invalid `TimeOfDay`, potentially causing assertion errors in debug mode. **FIXED**: Extracted `_parseTimeString` helper method with `.clamp(0, 23)` for hours and `.clamp(0, 59)` for minutes. |
+| 1 | Medium | Trainee Settings > Check-in Days | 1. Log in as trainee. 2. Go to Settings. 3. Under TRACKING, tap "Check-in Days". | Should navigate to weigh-in schedule configuration (the Reminders screen has a weight check-in day picker). | Was routing to `/edit-diet` (Diet Preferences screen), identical to the "Diet Preferences" tile in the PROFILE section above. Two different tiles going to the same screen is confusing. **FIXED**: Changed route to `/reminders` where the weight check-in day selection actually lives. |
+| 2 | Low | ReminderService timezone | 1. Enable a reminder. 2. Travel to new timezone (or change device timezone). 3. Wait for reminder. | Reminder fires at the correct local time in the new timezone. | `_resolveLocalTimezone()` is called only once during `initialize()`. If the user changes timezone while the app is running, reminders use the old timezone until the next app restart. Minor edge case since app restarts are frequent. |
 
 ---
 
 ## Product Improvement Suggestions
 | # | Impact | Area | Suggestion | Rationale |
 |---|--------|------|------------|-----------|
-| 1 | High | CalendarConnectionScreen | Replace the manual code/state paste dialog with a deep link callback flow. Having users manually copy OAuth authorization codes from a browser into the app is extremely friction-heavy and error-prone. | Modern OAuth flows use redirect URIs back to the app via deep links or universal links. The current UX is a developer-facing workaround, not a production-ready flow. This is the single biggest UX improvement needed. |
-| 2 | Medium | CalendarEventsScreen | Add date range controls or a mini calendar/date picker to navigate to past or future events. Currently only shows whatever the API returns (presumably upcoming). | Users may want to review past appointments or look further ahead than the default range. |
-| 3 | Medium | TrainerAvailabilityScreen | Add a bulk-copy feature: "Copy Monday's schedule to Tuesday-Friday." Setting up availability for 7 days one slot at a time is tedious. | Trainers typically have similar hours across weekdays. One-tap copy would save significant time. |
-| 4 | Medium | CalendarEventsScreen | Show an inline sync-in-progress indicator (e.g., linear progress bar below the app bar) instead of relying solely on the RefreshIndicator spinner. | When sync is triggered programmatically rather than via pull-to-refresh, there is no visual feedback that syncing is in progress. |
-| 5 | Low | AvailabilitySlotEditor | Add a "Repeat for weekdays" or "Apply to multiple days" checkbox when creating a new slot. | Reduces repetitive slot creation from 5 separate operations to 1. |
-| 6 | Low | CalendarCard | Display `connection.calendarName` alongside the email when connected, if available. The field exists on the model but is never shown. | Gives the user more context about which calendar is connected, especially if they have multiple Google calendars. |
-| 7 | Low | CalendarProviderFilter | Replace custom `GestureDetector`-based `_Chip` with Flutter's built-in `ChoiceChip` or `FilterChip`. | The custom chip lacks keyboard navigation, focus indicators, and proper semantics. Material chip widgets provide these for free. |
+| 1 | High | Trainee Settings | The TRACKING section has 3 tiles: "Check-in Days", "Reminders", and "Push Notifications". "Check-in Days" now routes to Reminders (after fix), making it redundant. Consider removing the "Check-in Days" tile entirely, or adding a deep-link parameter to scroll directly to the weight check-in section of the Reminders screen. | Reduces redundancy and user confusion. Three notification/reminder tiles in a row is overwhelming. |
+| 2 | Medium | Reminders Screen | Add a "Test Notification" button for each reminder type so users can verify notifications work before waiting until the scheduled time. | Users often wonder "will this actually work?" -- immediate feedback builds trust in the feature. |
+| 3 | Medium | Help & Support Screen | Add a search/filter bar at the top to filter FAQ items by keyword. As more sections are added over time, scrolling through all FAQs becomes tedious. | Better UX scalability as content grows. |
+| 4 | Medium | Admin Security | Add "PREVIEW ONLY" badges to the 2FA section and Active Sessions, matching the existing Login History badge. Currently only Login History is honest about being non-functional. | Consistency in communicating real vs. preview features. Users should not have to discover functionality is fake by tapping buttons. |
+| 5 | Low | Reminders Screen | When all 3 reminders are disabled (the default state), the screen shows 3 collapsed cards with no encouragement. Consider adding a brief prompt at the top like "Enable reminders to stay on track with your fitness goals." | Empty states should guide the user toward engagement. |
+| 6 | Low | Trainer Settings | Trainer settings has a "Push Notifications" tile but no "Reminders" tile. Trainers might benefit from scheduled reminders too (e.g., "Review trainee check-ins" or "Post weekly update"). | Feature parity consideration for future. |
+| 7 | Low | Notification Preferences | The provider correctly does optimistic update + rollback on failure, but the screen catches the error silently except for the toast. Consider adding structured error logging (not just debugPrint) for production observability. | Helps debug notification preference sync issues in production. |
 
 ---
 
-## Items Not Fixed (Need Design Decisions / Backend Changes)
+## Items Not Fixed (Need Backend / Design Decisions)
 | # | Issue | Why Not Fixed | Suggested Approach |
 |---|-------|---------------|-------------------|
-| 1 | OAuth callback requires manual code pasting | Requires backend deep link / redirect URI configuration and Flutter deep link setup. Cannot be fixed in UI alone. | Implement app deep link handling for OAuth redirect URI. Configure redirect_uri in Google/Microsoft OAuth settings to use a custom scheme (e.g., `fitnessai://calendar/callback`) or universal links. Handle the redirect in `go_router` to extract code/state automatically. |
-| 2 | All three screens duplicate the same `ref.listen` toast pattern | Code duplication across CalendarConnectionScreen, CalendarEventsScreen, and TrainerAvailabilityScreen. Each has identical 10-line blocks for error/success toast handling. | Extract a shared mixin (e.g., `CalendarToastListenerMixin`) or a utility method that handles the standard error/success toast listener pattern. |
-| 3 | CalendarProviderFilter uses GestureDetector instead of Material chips | Low priority but affects accessibility. No focus ring, no keyboard interaction, no ripple feedback. | Replace `_Chip` with Flutter's built-in `ChoiceChip` widget for proper semantics, focus handling, and keyboard support. |
-| 4 | No createEvent UI exists despite repository having `createEvent` method | The repository has a `createEvent` method but no screen or widget calls it. Users can only view synced events, not create new ones from the app. | Add a "Create Event" FAB or button on the CalendarEventsScreen. Build a form for title, time, description, location. Wire it to the existing repository method. |
+| 1 | Admin Security: 2FA is fully non-functional | Requires backend 2FA implementation (TOTP setup, QR code generation, verification endpoint) | Implement TOTP-based 2FA on backend, then wire up the existing UI to call real endpoints. |
+| 2 | Admin Security: "Sign Out All Devices" does nothing | Requires backend endpoint to invalidate JWT tokens for all sessions | Add `POST /api/auth/logout-all/` endpoint that blacklists all refresh tokens for the user. |
+| 3 | Admin Security: Login History and Active Sessions are mock data | Requires backend session tracking | Track login events and active sessions in the database, expose via API. |
+| 4 | Admin Past Due: "Send Reminder" button is fake | Requires backend email sending integration | Wire button to `POST /api/admin/users/{id}/send-reminder/` endpoint. |
 
 ---
 
 ## Summary
-- Dead UI elements found: 1
-- Visual bugs found: 1
-- Logic bugs found: 7
+- Dead UI elements found: 5 (2FA button, Sign Out All, Login History, Active Sessions, Send Reminder)
+- Visual bugs found: 3 (duplicate icon, hardcoded colors, hardcoded 2FA state)
+- Logic bugs found: 2 (Check-in Days wrong route, timezone edge case)
 - Improvements suggested: 7
-- Items fixed by hacker: 8
-- Items needing design decisions: 4
+- Items fixed by hacker: 4
 
 ### Files Changed by Hacker
-1. **`mobile/lib/features/calendar/presentation/screens/calendar_connection_screen.dart`** -- Added fallback toast for null authUrl without error; fixed controller disposal ordering; added autofocus to code field
-2. **`mobile/lib/features/calendar/presentation/screens/calendar_events_screen.dart`** -- Fixed `_setFilter` race condition (compare event lists instead of error state); fixed `_syncAndReload` concurrent mutation (sequential execution); added `hasAnyConnection` guard before loading events
-3. **`mobile/lib/features/calendar/presentation/screens/trainer_availability_screen.dart`** -- Fixed `_confirmDelete` race condition (check slot removal instead of error state); extracted `_parseTimeString` helper with value clamping
-4. **`mobile/lib/features/calendar/presentation/widgets/availability_slot_tile.dart`** -- Fixed `_formatTimeString` to handle empty and malformed time strings gracefully
-5. **`mobile/lib/features/calendar/presentation/widgets/calendar_event_tile.dart`** -- Fixed `_ProviderBadge` color inconsistency (Google: red, Microsoft: blue)
+1. **`mobile/lib/features/settings/presentation/screens/settings_screen.dart`** -- Changed Reminders icon from `Icons.notifications_outlined` to `Icons.alarm`; changed "Check-in Days" route from `/edit-diet` to `/reminders`.
+2. **`mobile/lib/features/settings/presentation/screens/admin_security_screen.dart`** -- Replaced 3 instances of `Colors.red` with `theme.colorScheme.error` for destructive actions; changed "2FA setup coming soon" toast to more transparent wording.
 
-## Chaos Score: 6/10
+## Chaos Score: 7/10
 
-The calendar feature works correctly on the happy path but has several lurking race conditions in the state management layer. The root cause is a design pattern where `ref.listen` clears error/success messages immediately upon receiving them, which means any code that checks `state.error` after an async operation races against the listener. This pattern caused three separate bugs (filter revert, delete dismiss, and confirm-delete). All three have been fixed with approaches that don't depend on `state.error` being present.
+The three new screens (Notification Preferences, Reminders, Help & Support) are well-built. They have proper loading/error/success states, correct use of adaptive widgets, good accessibility with Semantics wrappers, and sensible architecture (repository pattern for notification prefs, service singleton for reminders). The notification preferences provider correctly implements optimistic updates with rollback. The reminder service properly handles timezone resolution, daily vs. weekly scheduling, and iOS permission requests.
 
-The malformed-time-string handling was silently producing misleading "12:00 AM" values for empty or garbage input -- now it shows fallback values. The provider color inconsistency (blue vs red for Google across two widgets in the same feature) has been corrected.
-
-The biggest product concern is the OAuth code-paste dialog, which requires users to manually copy authorization codes from a browser. This is a significant friction point that needs a backend/deep-link solution.
+The main issues are in the *adjacent* code -- the Admin Security screen has multiple non-functional features disguised as real ones (2FA, session management, login history), and the settings screen had a routing bug where two tiles went to the same destination. The fixes applied address the most user-facing issues: visual differentiation of settings tiles, correct routing for check-in days, theme-consistent colors for destructive actions, and honest messaging for unimplemented features.

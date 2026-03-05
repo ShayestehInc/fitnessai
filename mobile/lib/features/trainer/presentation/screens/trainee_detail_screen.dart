@@ -10,6 +10,7 @@ import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/trainer_provider.dart';
@@ -602,7 +603,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
       }
     }
 
-    return InkWell(
+    return AdaptiveTappable(
       onTap: () => _openProgramOptions(trainee, program),
       borderRadius: BorderRadius.circular(16),
       child: Card(
@@ -660,7 +661,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                   ),
                   Row(
                     children: [
-                      InkWell(
+                      AdaptiveTappable(
                         onTap: () {
                           final name = '${trainee.firstName ?? ''} ${trainee.lastName ?? ''}'.trim();
                           final displayName = name.isEmpty ? trainee.email.split('@').first : name;
@@ -732,9 +733,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             icon: Icons.message,
             label: 'Message',
             color: Colors.green,
-            onTap: () {
-              showAdaptiveToast(context, message: 'Messaging coming soon');
-            },
+            onTap: () => _openMessageTrainee(context, trainee),
           ),
         ),
         const SizedBox(width: 12),
@@ -743,13 +742,15 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             icon: Icons.calendar_month,
             label: 'Schedule',
             color: Colors.orange,
-            onTap: () {
-              showAdaptiveToast(context, message: 'Scheduling coming soon');
-            },
+            onTap: () => _openTraineeSchedule(context, trainee),
           ),
         ),
       ],
     );
+  }
+
+  void _openTraineeSchedule(BuildContext context, TraineeDetailModel trainee) {
+    context.push('/trainer/programs/assign/${trainee.id}');
   }
 
   Widget _buildWeeklyChart(List<ActivitySummary> activities) {
@@ -1415,32 +1416,18 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                           child: OutlinedButton(
                             onPressed: isDeleting || isSaving
                                 ? null
-                                : () {
-                                    showDialog(
+                                : () async {
+                                    final confirmed = await showAdaptiveConfirmDialog(
                                       context: dialogContext,
-                                      builder: (ctx) => AlertDialog(
-                                        title: const Text('Delete Preset?'),
-                                        content: Text(
-                                          'Are you sure you want to delete "${existingPreset?['name']}"?',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(ctx),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.pop(ctx);
-                                              deletePreset();
-                                            },
-                                            child: const Text(
-                                              'Delete',
-                                              style: TextStyle(color: Colors.red),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                      title: 'Delete Preset?',
+                                      message: 'Are you sure you want to delete "${existingPreset?['name']}"?',
+                                      confirmText: 'Delete',
+                                      cancelText: 'Cancel',
+                                      isDestructive: true,
                                     );
+                                    if (confirmed == true) {
+                                      deletePreset();
+                                    }
                                   },
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.red,
@@ -1770,7 +1757,7 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return AdaptiveTappable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -2068,7 +2055,7 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
                                                 width: isSelected ? 2 : 1,
                                               ),
                                             ),
-                                            child: InkWell(
+                                            child: AdaptiveTappable(
                                               onTap: () {
                                                 setModalState(() {
                                                   if (isSelected) {
@@ -2079,9 +2066,8 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
                                                 });
                                               },
                                               borderRadius: BorderRadius.circular(12),
-                                              child: Padding(
-                                                padding: const EdgeInsets.all(12),
-                                                child: Row(
+                                              padding: const EdgeInsets.all(12),
+                                              child: Row(
                                                   children: [
                                                     Checkbox.adaptive(
                                                       value: isSelected,
@@ -2118,7 +2104,6 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
                                                     ),
                                                   ],
                                                 ),
-                                              ),
                                             ),
                                           );
                                         }),
@@ -2318,14 +2303,13 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
           width: isDefault ? 2 : 1,
         ),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () {
           widget.onEditPreset(preset, _loadPresets);
         },
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
+        padding: const EdgeInsets.all(20),
+        child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header row
@@ -2418,7 +2402,6 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
               ),
             ],
           ),
-        ),
       ),
     );
   }

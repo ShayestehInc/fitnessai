@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/services/haptic_service.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
+import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -196,50 +198,48 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: theme.dividerColor),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: theme.colorScheme.primary),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
+              child: Icon(icon, color: theme.colorScheme.primary),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 13,
-                      ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 13,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Icon(
-                Icons.chevron_right,
-                color: Colors.grey[400],
-              ),
-            ],
-          ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.grey[400],
+            ),
+          ],
         ),
       ),
     );
@@ -545,65 +545,63 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: theme.dividerColor),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () {
           Navigator.pop(context);
           _showTemplatePreview(context, template);
         },
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  template.icon,
+                  style: const TextStyle(fontSize: 24),
                 ),
-                child: Center(
-                  child: Text(
-                    template.icon,
-                    style: const TextStyle(fontSize: 24),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    template.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  Text(
+                    template.description,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _buildMiniTag('${template.durationWeeks}w', Colors.blue),
+                      const SizedBox(width: 6),
+                      _buildMiniTag('${template.daysPerWeek}x/wk', Colors.green),
+                      const SizedBox(width: 6),
+                      _buildMiniTag(template.difficulty, _getDifficultyColor(template.difficulty)),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      template.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      template.description,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        _buildMiniTag('${template.durationWeeks}w', Colors.blue),
-                        const SizedBox(width: 6),
-                        _buildMiniTag('${template.daysPerWeek}x/wk', Colors.green),
-                        const SizedBox(width: 6),
-                        _buildMiniTag(template.difficulty, _getDifficultyColor(template.difficulty)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: Colors.grey[400]),
-            ],
-          ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey[400]),
+          ],
         ),
       ),
     );
@@ -941,56 +939,54 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: theme.dividerColor),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () => _assignExistingProgram(context, program),
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.calendar_month, color: theme.colorScheme.primary),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      program.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
+              child: Icon(Icons.calendar_month, color: theme.colorScheme.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    program.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        _buildMiniTag('${program.durationWeeks}w', Colors.blue),
-                        const SizedBox(width: 6),
-                        _buildMiniTag(program.difficultyDisplay, _getDifficultyColor(program.difficultyLevel)),
-                        const SizedBox(width: 6),
-                        _buildMiniTag(program.goalTypeDisplay, Colors.purple),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _buildMiniTag('${program.durationWeeks}w', Colors.blue),
+                      const SizedBox(width: 6),
+                      _buildMiniTag(program.difficultyDisplay, _getDifficultyColor(program.difficultyLevel)),
+                      const SizedBox(width: 6),
+                      _buildMiniTag(program.goalTypeDisplay, Colors.purple),
+                    ],
+                  ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: () => _assignExistingProgram(context, program),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                ),
-                child: const Text('Assign'),
+            ),
+            ElevatedButton(
+              onPressed: () => _assignExistingProgram(context, program),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               ),
-            ],
-          ),
+              child: const Text('Assign'),
+            ),
+          ],
         ),
       ),
     );
@@ -1000,208 +996,160 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
     DateTime selectedStartDate = DateTime.now();
     final theme = Theme.of(context);
 
-    showDialog(
+    showAdaptiveBottomSheet<void>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) {
-          return AlertDialog(
-            title: const Text('Assign Program'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Assign "${program.name}" to this trainee?'),
-                const SizedBox(height: 20),
-                // Start date picker
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Assign Program',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(height: 16),
+                  Text('Assign "${program.name}" to this trainee?'),
+                  const SizedBox(height: 20),
+                  // Start date picker
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Start Date',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatDate(selectedStartDate),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            final picked = await showAdaptiveDatePicker(
+                              context: sheetContext,
+                              initialDate: selectedStartDate,
+                              firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (picked != null) {
+                              setSheetState(() => selectedStartDate = picked);
+                            }
+                          },
+                          child: const Text('Change'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Start Date',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatDate(selectedStartDate),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: const Text('Cancel'),
+                        ),
                       ),
-                      TextButton(
-                        onPressed: () async {
-                          final picked = await showAdaptiveDatePicker(
-                            context: dialogContext,
-                            initialDate: selectedStartDate,
-                            firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (picked != null) {
-                            setDialogState(() => selectedStartDate = picked);
-                          }
-                        },
-                        child: const Text('Change'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final trainee = ref.read(traineeDetailProvider(widget.traineeId)).valueOrNull;
+                            final hasActiveProgram = trainee != null &&
+                                trainee.programs.any((p) => p.isActive);
+
+                            // If trainee has active program, show confirmation dialog
+                            if (hasActiveProgram) {
+                              final currentProgram = trainee!.programs.firstWhere((p) => p.isActive);
+                              final confirmed = await showAdaptiveConfirmDialog(
+                                context: sheetContext,
+                                title: 'Replace Active Program?',
+                                message: 'This trainee already has an active program. '
+                                    'Assigning a new program will end "${currentProgram.name}" '
+                                    'and start "${program.name}".',
+                                confirmText: 'Replace Program',
+                              );
+
+                              if (confirmed != true) return;
+                            }
+
+                            Navigator.pop(sheetContext); // Close sheet
+                            Navigator.pop(context); // Close outer sheet
+
+                            try {
+                              final apiClient = ref.read(apiClientProvider);
+
+                              // End current active program if one exists (set is_active = false)
+                              if (trainee != null && trainee.programs.any((p) => p.isActive)) {
+                                final currentProgram = trainee.programs.firstWhere((p) => p.isActive);
+                                await apiClient.dio.patch(
+                                  ApiConstants.programDetail(currentProgram.id),
+                                  data: {'is_active': false},
+                                );
+                              }
+
+                              // Assign the new program
+                              await apiClient.dio.post(
+                                ApiConstants.assignProgramTemplate(program.id),
+                                data: {
+                                  'trainee_id': widget.traineeId,
+                                  'start_date': '${selectedStartDate.year}-${selectedStartDate.month.toString().padLeft(2, '0')}-${selectedStartDate.day.toString().padLeft(2, '0')}',
+                                },
+                              );
+
+                              if (mounted) {
+                                HapticService.success();
+                                // Invalidate providers to refresh data across all screens
+                                ref.invalidate(traineesProvider);
+                                ref.invalidate(trainerStatsProvider);
+                                ref.invalidate(trainerProgramsProvider);
+
+                                // Force refresh trainee detail and wait for it to complete
+                                // This ensures fresh data is loaded before we navigate back
+                                await ref.refresh(traineeDetailProvider(widget.traineeId).future);
+
+                                if (mounted) {
+                                  showAdaptiveToast(context, message: '"${program.name}" assigned successfully!', type: ToastType.success);
+                                  context.pop(); // Go back to trainee detail
+                                }
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                showAdaptiveToast(context, message: 'Failed to assign program: ${e.toString()}', type: ToastType.error);
+                              }
+                            }
+                          },
+                          child: const Text('Assign'),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final trainee = ref.read(traineeDetailProvider(widget.traineeId)).valueOrNull;
-                  final hasActiveProgram = trainee != null &&
-                      trainee.programs.any((p) => p.isActive);
-
-                  // If trainee has active program, show confirmation dialog
-                  if (hasActiveProgram) {
-                    final currentProgram = trainee!.programs.firstWhere((p) => p.isActive);
-                    final confirmed = await showDialog<bool>(
-                      context: dialogContext,
-                      builder: (confirmContext) => AlertDialog(
-                        title: Row(
-                          children: [
-                            Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
-                            const SizedBox(width: 8),
-                            const Text('Replace Active Program?'),
-                          ],
-                        ),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'This trainee already has an active program. Assigning a new program will:',
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.stop_circle_outlined, color: Colors.red, size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'End "${currentProgram.name}"',
-                                      style: const TextStyle(color: Colors.red),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.play_circle_outlined, color: Colors.green, size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Start "${program.name}"',
-                                      style: const TextStyle(color: Colors.green),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(confirmContext, false),
-                            child: const Text('Cancel'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () => Navigator.pop(confirmContext, true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                            ),
-                            child: const Text('Replace Program'),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (confirmed != true) return;
-                  }
-
-                  Navigator.pop(dialogContext); // Close dialog
-                  Navigator.pop(context); // Close sheet
-
-                  try {
-                    final apiClient = ref.read(apiClientProvider);
-
-                    // End current active program if one exists (set is_active = false)
-                    if (trainee != null && trainee.programs.any((p) => p.isActive)) {
-                      final currentProgram = trainee.programs.firstWhere((p) => p.isActive);
-                      await apiClient.dio.patch(
-                        ApiConstants.programDetail(currentProgram.id),
-                        data: {'is_active': false},
-                      );
-                    }
-
-                    // Assign the new program
-                    await apiClient.dio.post(
-                      ApiConstants.assignProgramTemplate(program.id),
-                      data: {
-                        'trainee_id': widget.traineeId,
-                        'start_date': '${selectedStartDate.year}-${selectedStartDate.month.toString().padLeft(2, '0')}-${selectedStartDate.day.toString().padLeft(2, '0')}',
-                      },
-                    );
-
-                    if (mounted) {
-                      HapticService.success();
-                      // Invalidate providers to refresh data across all screens
-                      ref.invalidate(traineesProvider);
-                      ref.invalidate(trainerStatsProvider);
-                      ref.invalidate(trainerProgramsProvider);
-
-                      // Force refresh trainee detail and wait for it to complete
-                      // This ensures fresh data is loaded before we navigate back
-                      await ref.refresh(traineeDetailProvider(widget.traineeId).future);
-
-                      if (mounted) {
-                        showAdaptiveToast(context, message: '"${program.name}" assigned successfully!', type: ToastType.success);
-                        context.pop(); // Go back to trainee detail
-                      }
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      showAdaptiveToast(context, message: 'Failed to assign program: ${e.toString()}', type: ToastType.error);
-                    }
-                  }
-                },
-                child: const Text('Assign'),
-              ),
-            ],
           );
         },
       ),

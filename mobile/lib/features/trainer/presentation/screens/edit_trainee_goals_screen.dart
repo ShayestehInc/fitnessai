@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/trainee_model.dart';
 import '../providers/trainer_provider.dart';
@@ -139,7 +140,7 @@ class _EditTraineeGoalsScreenState extends ConsumerState<EditTraineeGoalsScreen>
                 final isSelected = _selectedGoal == goal;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: InkWell(
+                  child: AdaptiveTappable(
                     onTap: () => setState(() => _selectedGoal = goal),
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
@@ -238,7 +239,7 @@ class _EditTraineeGoalsScreenState extends ConsumerState<EditTraineeGoalsScreen>
                 final isSelected = _selectedActivityLevel == level;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: InkWell(
+                  child: AdaptiveTappable(
                     onTap: () => setState(() => _selectedActivityLevel = level),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(

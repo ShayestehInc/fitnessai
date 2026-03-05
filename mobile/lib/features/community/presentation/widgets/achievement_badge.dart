@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/achievement_model.dart';
 
 /// Map of Material icon name strings to IconData.
@@ -39,7 +41,7 @@ class AchievementBadge extends StatelessWidget {
           ? '${achievement.name}, earned'
           : '${achievement.name}, locked',
       button: true,
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () => _showDetail(context),
         borderRadius: BorderRadius.circular(12),
         child: Column(
@@ -93,51 +95,64 @@ class AchievementBadge extends StatelessWidget {
     final earned = achievement.earned;
     final iconData = _iconMap[achievement.iconName] ?? Icons.emoji_events;
 
-    showDialog(
+    showAdaptiveBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              iconData,
-              color: earned
-                  ? theme.colorScheme.primary
-                  : theme.textTheme.bodySmall?.color,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(achievement.name)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(achievement.description),
-            if (earned && achievement.earnedAt != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Earned on ${DateFormat('MMM d, yyyy').format(achievement.earnedAt!)}',
-                style: TextStyle(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w500,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    iconData,
+                    color: earned
+                        ? theme.colorScheme.primary
+                        : theme.textTheme.bodySmall?.color,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      achievement.name,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(achievement.description),
+              if (earned && achievement.earnedAt != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Earned on ${DateFormat('MMM d, yyyy').format(achievement.earnedAt!)}',
+                  style: TextStyle(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+              if (!earned) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Not yet earned',
+                  style: TextStyle(color: theme.textTheme.bodySmall?.color),
+                ),
+              ],
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('OK'),
                 ),
               ),
             ],
-            if (!earned) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Not yet earned',
-                style: TextStyle(color: theme.textTheme.bodySmall?.color),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
           ),
-        ],
+        ),
       ),
     );
   }

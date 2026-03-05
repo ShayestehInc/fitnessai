@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/haptic_service.dart';
+import 'adaptive/adaptive_icons.dart';
 
 class AdminNavigationShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -20,7 +22,10 @@ class AdminNavigationShell extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.cardColor,
           border: Border(
-            top: BorderSide(color: theme.dividerColor, width: 1),
+            top: BorderSide(
+              color: theme.dividerColor,
+              width: defaultTargetPlatform == TargetPlatform.iOS ? 0.5 : 1,
+            ),
           ),
         ),
         child: SafeArea(
@@ -30,25 +35,25 @@ class AdminNavigationShell extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _NavItem(
-                  icon: Icons.dashboard,
+                  icon: AdaptiveIcons.dashboard,
                   label: 'Dashboard',
                   isSelected: navigationShell.currentIndex == 0,
                   onTap: () => navigationShell.goBranch(0),
                 ),
                 _NavItem(
-                  icon: Icons.people,
+                  icon: AdaptiveIcons.trainers,
                   label: 'Trainers',
                   isSelected: navigationShell.currentIndex == 1,
                   onTap: () => navigationShell.goBranch(1),
                 ),
                 _NavItem(
-                  icon: Icons.subscriptions,
+                  icon: AdaptiveIcons.subscriptions,
                   label: 'Subscriptions',
                   isSelected: navigationShell.currentIndex == 2,
                   onTap: () => navigationShell.goBranch(2),
                 ),
                 _NavItem(
-                  icon: Icons.settings,
+                  icon: AdaptiveIcons.settingsFilled,
                   label: 'Settings',
                   isSelected: navigationShell.currentIndex == 3,
                   onTap: () => navigationShell.goBranch(3),

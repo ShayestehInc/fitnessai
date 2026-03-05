@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 
 /// Filter chips for selecting calendar provider (All / Google / Microsoft).
 class CalendarProviderFilter extends StatelessWidget {
@@ -42,12 +43,10 @@ class _Chip extends StatelessWidget {
       button: true,
       selected: selected,
       label: 'Filter by $label',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
+      child: AdaptiveTappable(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: selected
@@ -58,12 +57,11 @@ class _Chip extends StatelessWidget {
                 color: selected ? theme.colorScheme.primary : theme.dividerColor,
               ),
             ),
-            child: Text(
-              label,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: selected ? theme.colorScheme.primary : null,
-                fontWeight: selected ? FontWeight.w600 : null,
-              ),
+          child: Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: selected ? theme.colorScheme.primary : null,
+              fontWeight: selected ? FontWeight.w600 : null,
             ),
           ),
         ),

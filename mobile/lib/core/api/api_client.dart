@@ -20,16 +20,6 @@ class ApiClient {
       ),
     );
 
-    // Add logging interceptor for debugging
-    _dio.interceptors.add(LogInterceptor(
-      requestHeader: true,
-      requestBody: true,
-      responseHeader: false,
-      responseBody: true,
-      error: true,
-      logPrint: (object) => print('API: $object'),
-    ));
-
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -43,16 +33,12 @@ class ApiClient {
           if (savedLocale != null) {
             options.headers['Accept-Language'] = savedLocale;
           }
-          print('API Request: ${options.method} ${options.path}');
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          print('API Response: ${response.statusCode} for ${response.requestOptions.path}');
           return handler.next(response);
         },
         onError: (error, handler) async {
-          print('API Error: ${error.response?.statusCode} for ${error.requestOptions.path}');
-          print('API Error message: ${error.message}');
 
           // Don't try to refresh token for auth endpoints (login, register, refresh)
           final path = error.requestOptions.path;

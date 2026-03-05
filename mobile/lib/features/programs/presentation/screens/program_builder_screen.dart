@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_date_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
@@ -493,15 +494,16 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   }) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: (color ?? theme.colorScheme.primary).withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
+    return Container(
+      decoration: BoxDecoration(
+        color: (color ?? theme.colorScheme.primary).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: AdaptiveTappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          child: Column(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        child: Column(
             children: [
               Icon(icon, color: color ?? theme.colorScheme.primary, size: 20),
               const SizedBox(height: 4),
@@ -516,7 +518,6 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               ),
             ],
           ),
-        ),
       ),
     );
   }
@@ -761,42 +762,19 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     );
   }
 
-  void _showEditProgramNameDialog() {
-    final controller = TextEditingController(text: _programState.name);
-
-    showDialog(
+  Future<void> _showEditProgramNameDialog() async {
+    final newName = await showAdaptiveTextInputDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Program Name'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Program Name',
-            hintText: 'e.g., Full Body 3x/Week',
-          ),
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty) {
-                setState(() {
-                  _programState = _programState.copyWith(name: newName);
-                });
-              }
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      title: 'Edit Program Name',
+      initialValue: _programState.name,
+      placeholder: 'e.g., Full Body 3x/Week',
     );
+
+    if (newName != null && newName.isNotEmpty) {
+      setState(() {
+        _programState = _programState.copyWith(name: newName);
+      });
+    }
   }
 
   void _showEditExerciseDialog(WorkoutExercise exercise, int dayIndex) {
@@ -1671,79 +1649,13 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
         // If trainee has active program, show confirmation dialog
         if (hasActiveProgram && mounted) {
           final currentProgram = trainee!.programs.firstWhere((p) => p.isActive);
-          final confirmed = await showDialog<bool>(
+          final confirmed = await showAdaptiveConfirmDialog(
             context: context,
-            builder: (confirmContext) => AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
-                  const SizedBox(width: 8),
-                  const Text('Replace Active Program?'),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'This trainee already has an active program. Saving this program will:',
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.stop_circle_outlined, color: Colors.red, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'End "${currentProgram.name}"',
-                            style: const TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.play_circle_outlined, color: Colors.green, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Start "${_programState.name}"',
-                            style: const TextStyle(color: Colors.green),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(confirmContext, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(confirmContext, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                  ),
-                  child: const Text('Replace Program'),
-                ),
-              ],
-            ),
+            title: 'Replace Active Program?',
+            message: 'This trainee already has an active program. '
+                'Saving this program will end "${currentProgram.name}" '
+                'and start "${_programState.name}".',
+            confirmText: 'Replace Program',
           );
 
           if (confirmed != true) {

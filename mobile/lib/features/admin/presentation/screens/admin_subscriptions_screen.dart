@@ -5,6 +5,7 @@ import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
 
@@ -359,7 +360,7 @@ class _SubscriptionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: theme.dividerColor),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () => context.push('/admin/subscriptions/${subscription.id}'),
         borderRadius: BorderRadius.circular(12),
         child: Padding(

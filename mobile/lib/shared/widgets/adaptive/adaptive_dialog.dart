@@ -161,3 +161,99 @@ Future<void> showAdaptiveActionSheet({
     ),
   );
 }
+
+/// Shows a platform-adaptive single-field text input dialog.
+///
+/// iOS: [CupertinoAlertDialog] with a [CupertinoTextField].
+/// Android: [AlertDialog] with a [TextField].
+///
+/// Returns the entered text if confirmed, `null` if cancelled.
+Future<String?> showAdaptiveTextInputDialog({
+  required BuildContext context,
+  required String title,
+  String? message,
+  String? initialValue,
+  String? placeholder,
+  String confirmText = 'Save',
+  String cancelText = 'Cancel',
+  TextInputType keyboardType = TextInputType.text,
+  int? maxLength,
+}) {
+  HapticService.mediumTap();
+
+  final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+  final controller = TextEditingController(text: initialValue);
+
+  if (isIOS) {
+    return showCupertinoDialog<String>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (message != null) ...[
+              const SizedBox(height: 4),
+              Text(message),
+            ],
+            const SizedBox(height: 12),
+            CupertinoTextField(
+              controller: controller,
+              placeholder: placeholder,
+              autofocus: true,
+              keyboardType: keyboardType,
+              maxLength: maxLength,
+              clearButtonMode: OverlayVisibilityMode.editing,
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: Text(cancelText),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: Text(confirmText),
+          ),
+        ],
+      ),
+    );
+  }
+
+  return showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (message != null) ...[
+            Text(message),
+            const SizedBox(height: 12),
+          ],
+          TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: keyboardType,
+            maxLength: maxLength,
+            decoration: InputDecoration(
+              hintText: placeholder,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(null),
+          child: Text(cancelText),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(controller.text),
+          child: Text(confirmText),
+        ),
+      ],
+    ),
+  );
+}

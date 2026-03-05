@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/workout_history_model.dart';
 
 /// Card widget for a single workout history item.
@@ -24,67 +25,64 @@ class WorkoutHistoryCard extends StatelessWidget {
             '${workout.exerciseCount} exercises, '
             '${workout.totalSets} sets, '
             '${workout.durationDisplay}',
-        child: Material(
-          color: theme.cardColor,
+        child: AdaptiveTappable(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.dividerColor),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Date
-                  Text(
-                    workout.formattedDate,
-                    style: TextStyle(
-                      color: theme.textTheme.bodySmall?.color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Date
+                Text(
+                  workout.formattedDate,
+                  style: TextStyle(
+                    color: theme.textTheme.bodySmall?.color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // Workout name
+                Text(
+                  workout.workoutName,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+                // Stats row — Wrap prevents overflow on narrow screens
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: [
+                    StatChip(
+                      icon: Icons.fitness_center,
+                      label: '${workout.exerciseCount} exercises',
+                      theme: theme,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  // Workout name
-                  Text(
-                    workout.workoutName,
-                    style: TextStyle(
-                      color: theme.textTheme.bodyLarge?.color,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                    StatChip(
+                      icon: Icons.repeat,
+                      label: '${workout.totalSets} sets',
+                      theme: theme,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 12),
-                  // Stats row — Wrap prevents overflow on narrow screens
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 8,
-                    children: [
-                      StatChip(
-                        icon: Icons.fitness_center,
-                        label: '${workout.exerciseCount} exercises',
-                        theme: theme,
-                      ),
-                      StatChip(
-                        icon: Icons.repeat,
-                        label: '${workout.totalSets} sets',
-                        theme: theme,
-                      ),
-                      StatChip(
-                        icon: Icons.timer_outlined,
-                        label: workout.durationDisplay,
-                        theme: theme,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    StatChip(
+                      icon: Icons.timer_outlined,
+                      label: workout.durationDisplay,
+                      theme: theme,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -92,6 +90,7 @@ class WorkoutHistoryCard extends StatelessWidget {
     );
   }
 }
+
 
 /// Small icon + label chip used in history card stats row.
 class StatChip extends StatelessWidget {

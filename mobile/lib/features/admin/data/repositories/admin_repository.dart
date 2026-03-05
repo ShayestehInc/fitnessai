@@ -12,10 +12,7 @@ class AdminRepository {
   /// Get admin dashboard statistics
   Future<Map<String, dynamic>> getDashboardStats() async {
     try {
-      print('AdminRepository: Fetching dashboard stats from ${ApiConstants.adminDashboard}');
       final response = await _apiClient.dio.get(ApiConstants.adminDashboard);
-      print('AdminRepository: Dashboard response status: ${response.statusCode}');
-      print('AdminRepository: Dashboard response data: ${response.data}');
       if (response.statusCode == 200) {
         return {
           'success': true,
@@ -24,14 +21,11 @@ class AdminRepository {
       }
       return {'success': false, 'error': 'Failed to load dashboard'};
     } on DioException catch (e) {
-      print('AdminRepository: Dashboard error: ${e.message}');
-      print('AdminRepository: Dashboard error response: ${e.response?.data}');
       return {
         'success': false,
         'error': e.response?.data?['detail'] ?? e.response?.data?['error'] ?? 'Failed to load dashboard: ${e.message}',
       };
     } catch (e) {
-      print('AdminRepository: Unexpected error: $e');
       return {
         'success': false,
         'error': 'Unexpected error: $e',
@@ -81,12 +75,10 @@ class AdminRepository {
       if (upcomingDays != null) queryParams['upcoming_days'] = upcomingDays.toString();
       if (search != null) queryParams['search'] = search;
 
-      print('AdminRepository: Fetching subscriptions from ${ApiConstants.adminSubscriptions}');
       final response = await _apiClient.dio.get(
         ApiConstants.adminSubscriptions,
         queryParameters: queryParams.isNotEmpty ? queryParams : null,
       );
-      print('AdminRepository: Subscriptions response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         // Handle paginated response (DRF returns {count, results, next, previous})
@@ -107,13 +99,11 @@ class AdminRepository {
       }
       return {'success': false, 'error': 'Failed to load subscriptions'};
     } on DioException catch (e) {
-      print('AdminRepository: Subscriptions error: ${e.message}');
       return {
         'success': false,
         'error': e.response?.data?['detail'] ?? e.response?.data?['error'] ?? 'Failed to load subscriptions',
       };
     } catch (e) {
-      print('AdminRepository: Unexpected error: $e');
       return {'success': false, 'error': 'Unexpected error: $e'};
     }
   }
@@ -284,7 +274,6 @@ class AdminRepository {
       final List<dynamic> data = response.data is Map ? response.data['results'] ?? [] : response.data;
       return data.map((json) => SubscriptionTierModel.fromJson(json)).toList();
     } on DioException catch (e) {
-      print('Error getting tiers: ${e.message}');
       return [];
     }
   }
@@ -296,7 +285,6 @@ class AdminRepository {
       final List<dynamic> data = response.data;
       return data.map((json) => SubscriptionTierModel.fromJson(json)).toList();
     } on DioException catch (e) {
-      print('Error getting public tiers: ${e.message}');
       return [];
     }
   }
@@ -326,7 +314,6 @@ class AdminRepository {
       );
       return SubscriptionTierModel.fromJson(response.data);
     } on DioException catch (e) {
-      print('Error creating tier: ${e.message}');
       return null;
     }
   }
@@ -358,7 +345,6 @@ class AdminRepository {
       );
       return SubscriptionTierModel.fromJson(response.data);
     } on DioException catch (e) {
-      print('Error updating tier: ${e.message}');
       return null;
     }
   }
@@ -369,7 +355,6 @@ class AdminRepository {
       await _apiClient.dio.delete('${ApiConstants.adminTiers}$id/');
       return true;
     } on DioException catch (e) {
-      print('Error deleting tier: ${e.message}');
       return false;
     }
   }
@@ -382,7 +367,6 @@ class AdminRepository {
       );
       return SubscriptionTierModel.fromJson(response.data);
     } on DioException catch (e) {
-      print('Error toggling tier: ${e.message}');
       return null;
     }
   }
@@ -396,7 +380,6 @@ class AdminRepository {
       final List<dynamic> data = response.data;
       return data.map((json) => SubscriptionTierModel.fromJson(json)).toList();
     } on DioException catch (e) {
-      print('Error seeding tiers: ${e.message}');
       return [];
     }
   }
@@ -424,7 +407,6 @@ class AdminRepository {
       final List<dynamic> data = response.data is Map ? response.data['results'] ?? [] : response.data;
       return data.map((json) => CouponListItemModel.fromJson(json)).toList();
     } on DioException catch (e) {
-      print('Error getting coupons: ${e.message}');
       return [];
     }
   }
@@ -435,7 +417,6 @@ class AdminRepository {
       final response = await _apiClient.dio.get('${ApiConstants.adminCoupons}$id/');
       return CouponModel.fromJson(response.data);
     } on DioException catch (e) {
-      print('Error getting coupon: ${e.message}');
       return null;
     }
   }
@@ -478,7 +459,6 @@ class AdminRepository {
       );
       return CouponModel.fromJson(response.data);
     } on DioException catch (e) {
-      print('Error creating coupon: ${e.message}');
       return null;
     }
   }
@@ -510,7 +490,6 @@ class AdminRepository {
       );
       return CouponModel.fromJson(response.data);
     } on DioException catch (e) {
-      print('Error updating coupon: ${e.message}');
       return null;
     }
   }
@@ -523,7 +502,6 @@ class AdminRepository {
       );
       return CouponModel.fromJson(response.data);
     } on DioException catch (e) {
-      print('Error revoking coupon: ${e.message}');
       return null;
     }
   }
@@ -536,7 +514,6 @@ class AdminRepository {
       );
       return CouponModel.fromJson(response.data);
     } on DioException catch (e) {
-      print('Error reactivating coupon: ${e.message}');
       return null;
     }
   }
@@ -547,7 +524,6 @@ class AdminRepository {
       await _apiClient.dio.delete('${ApiConstants.adminCoupons}$id/');
       return true;
     } on DioException catch (e) {
-      print('Error deleting coupon: ${e.message}');
       return false;
     }
   }
@@ -561,7 +537,6 @@ class AdminRepository {
       final List<dynamic> data = response.data;
       return data.map((json) => CouponUsageModel.fromJson(json)).toList();
     } on DioException catch (e) {
-      print('Error getting coupon usages: ${e.message}');
       return [];
     }
   }

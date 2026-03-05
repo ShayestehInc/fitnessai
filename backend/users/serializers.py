@@ -9,7 +9,7 @@ from djoser.serializers import UserCreateSerializer as BaseUserCreateSerializer
 from djoser.serializers import UserSerializer as BaseUserSerializer
 from rest_framework import serializers
 
-from .models import User, UserProfile
+from .models import NotificationPreference, User, UserProfile
 
 
 class UserCreateSerializer(BaseUserCreateSerializer):  # type: ignore[misc]
@@ -128,3 +128,21 @@ class OnboardingStepSerializer(serializers.Serializer[dict[str, Any]]):
     check_in_days = serializers.ListField(child=serializers.CharField(), required=False)
     diet_type = serializers.ChoiceField(choices=UserProfile.DietType.choices, required=False)
     meals_per_day = serializers.IntegerField(min_value=2, max_value=6, required=False)
+
+
+class NotificationPreferenceSerializer(serializers.ModelSerializer[NotificationPreference]):
+    """Serializer for notification preferences."""
+
+    class Meta:
+        model = NotificationPreference
+        fields = [
+            'trainee_workout',
+            'trainee_weight_checkin',
+            'trainee_started_workout',
+            'trainee_finished_workout',
+            'churn_alert',
+            'trainer_announcement',
+            'achievement_earned',
+            'new_message',
+            'community_activity',
+        ]

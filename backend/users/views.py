@@ -14,8 +14,13 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import QuerySet
 
-from .models import DeviceToken, User, UserProfile
-from .serializers import UserProfileSerializer, OnboardingStepSerializer, UserSerializer
+from .models import DeviceToken, NotificationPreference, User, UserProfile
+from .serializers import (
+    NotificationPreferenceSerializer,
+    OnboardingStepSerializer,
+    UserProfileSerializer,
+    UserSerializer,
+)
 from .social_auth import verify_google_token, verify_apple_token, SocialAuthError
 from core.permissions import IsTrainee
 from trainer.models import TrainerBranding
@@ -513,3 +518,26 @@ class LeaderboardOptInView(APIView):
         profile.save(update_fields=['leaderboard_opt_in', 'updated_at'])
 
         return Response({'leaderboard_opt_in': profile.leaderboard_opt_in})
+
+
+class NotificationPreferenceView(APIView):
+    """
+    GET  /api/users/notification-preferences/ — get current preferences.
+    PATCH /api/users/notification-preferences/ — update preferences.
+    Body: { "new_message": false, "community_activity": true, ... }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        pref = NotificationPreference.get_or_create_for_user(user)
+        serializer = NotificationPreferenceSerializer(pref)
+        return Response(serializer.data)
+
+    def patch(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        pref = NotificationPreference.get_or_create_for_user(user)
+        serializer = NotificationPreferenceSerializer(pref, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

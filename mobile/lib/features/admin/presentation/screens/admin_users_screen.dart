@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
+import '../../../../shared/widgets/adaptive/adaptive_search_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -137,20 +139,11 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
             child: Column(
               children: [
                 // Search field
-                TextField(
+                AdaptiveSearchBar(
                   controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search by name or email...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: theme.cardColor,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
+                  placeholder: 'Search by name or email...',
                   onSubmitted: (_) => _loadUsers(),
+                  onClear: () => _loadUsers(),
                 ),
                 const SizedBox(height: 12),
                 // Role filter chips
@@ -206,6 +199,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         : AdaptiveRefreshIndicator(
                             onRefresh: _loadUsers,
                             child: ListView.builder(
+                              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                               physics: adaptiveAlwaysScrollablePhysics(context),
                               padding: const EdgeInsets.all(16),
                               itemCount: _users.length,
@@ -258,7 +252,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor),
       ),
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: () async {
           final result = await context.push('/admin/users/${user.id}/edit');
           if (result == true) _loadUsers();

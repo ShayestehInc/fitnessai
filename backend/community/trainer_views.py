@@ -215,6 +215,7 @@ def _notify_trainees_announcement(
                     'type': 'announcement',
                     'announcement_id': str(announcement.id),
                 },
+                category='trainer_announcement',
             )
     except Exception:
         logger.warning("Failed to send announcement push notifications", exc_info=True)

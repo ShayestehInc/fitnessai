@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 
 class GoalTypeOption {
   final String key;
@@ -74,9 +75,7 @@ class GoalTypeCard extends StatelessWidget {
       button: true,
       selected: selected,
       label: '${option.label}. ${option.description}',
-      child: Material(
-      color: Colors.transparent,
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: AnimatedContainer(
@@ -131,7 +130,6 @@ class GoalTypeCard extends StatelessWidget {
           ),
         ),
       ),
-    ),
     );
   }
 }

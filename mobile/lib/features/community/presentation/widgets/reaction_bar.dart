@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/community_post_model.dart';
 import '../providers/community_feed_provider.dart';
 
@@ -78,9 +79,7 @@ class _ReactionButton extends StatelessWidget {
     return Semantics(
       label: semanticLabel,
       button: true,
-      child: Material(
-      color: Colors.transparent,
-      child: InkWell(
+      child: AdaptiveTappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: ConstrainedBox(
@@ -119,7 +118,6 @@ class _ReactionButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
       ),
     );
   }

@@ -1,94 +1,113 @@
-# Architecture Review: Calendar Integration Completion (Pipeline 41)
+# Architecture Review: Notification Preferences, Reminders & Dead UI Cleanup (Pipeline 42)
 
 ## Review Date
-2026-02-27
+2026-03-04
 
 ## Files Reviewed
 ### Backend
-- `backend/calendars/models.py`
-- `backend/calendars/serializers.py`
-- `backend/calendars/services.py`
-- `backend/calendars/views.py`
-- `backend/calendars/urls.py`
+- `backend/users/models.py` — NotificationPreference model
+- `backend/users/views.py` — NotificationPreferenceView
+- `backend/users/serializers.py` — NotificationPreferenceSerializer
+- `backend/users/urls.py` — Route registration
+- `backend/users/migrations/0008_add_notification_preference.py` — Migration
+- `backend/core/services/notification_service.py` — Preference checking + FCM sending
 
 ### Mobile
-- `mobile/lib/features/calendar/data/models/calendar_connection_model.dart`
-- `mobile/lib/features/calendar/data/repositories/calendar_repository.dart`
-- `mobile/lib/features/calendar/presentation/providers/calendar_provider.dart`
-- `mobile/lib/features/calendar/presentation/screens/calendar_connection_screen.dart`
-- `mobile/lib/features/calendar/presentation/screens/calendar_events_screen.dart`
-- `mobile/lib/features/calendar/presentation/screens/trainer_availability_screen.dart`
-- `mobile/lib/features/calendar/presentation/widgets/*.dart` (9 files)
-- `mobile/lib/core/router/app_router.dart`
-- `mobile/lib/core/constants/api_constants.dart`
+- `mobile/lib/features/settings/data/providers/notification_preferences_provider.dart`
+- `mobile/lib/features/settings/data/repositories/notification_preferences_repository.dart`
+- `mobile/lib/core/services/reminder_service.dart`
+- `mobile/lib/core/router/app_router.dart` — New routes and adaptive page pattern
+- `mobile/lib/core/constants/api_constants.dart` — API endpoint constant
 
 ---
 
 ## Architectural Alignment
 - [x] Follows existing layered architecture (Provider -> Repository -> ApiClient)
-- [x] Models/schemas in correct locations (`data/models/`, `data/repositories/`)
-- [x] Consistent with existing feature-first folder structure
-- [x] Row-level security enforced (every view filters by authenticated user)
+- [x] Models/schemas in correct locations
+- [x] No business logic in routers/views
+- [x] Consistent with existing patterns
 - [x] Routes registered in `app_router.dart`
 - [x] API constants centralized in `api_constants.dart`
-- [x] FIXED: Business logic was in `CreateCalendarEventView` (dispatching to Google vs Microsoft). Moved to `CalendarSyncService.create_external_event()`.
-- [x] FIXED: `DisconnectCalendarView` and `SyncCalendarView` accepted arbitrary `provider` URL parameters without validation. Added `_validate_provider()` guard.
-- [x] FIXED: `CalendarEventsView.get_queryset()` now validates the `provider` query param before filtering.
+- [x] Row-level security: `NotificationPreferenceView` is scoped to the authenticated user via `get_or_create_for_user(request.user)`
+
+### Details
+
+**Backend layering is correct.** `NotificationPreferenceView` is a thin GET/PATCH handler that delegates to the model's `get_or_create_for_user` classmethod and the DRF serializer. The notification-filtering business logic lives in `notification_service.py` via `_check_notification_preference()` (single-user) and batch filtering in `send_push_to_group()`. This matches the project convention of keeping business logic in `services/`.
+
+**Mobile follows repository pattern.** Screen -> Provider (AsyncNotifier) -> Repository -> ApiClient. The `NotificationPreferencesNotifier` handles optimistic updates with rollback. `NotificationPreferencesRepository` handles API calls with response validation. `ReminderService` is appropriately placed in `core/services/` as a platform-level singleton wrapping `flutter_local_notifications`.
+
+**Riverpod usage is correct.** `AsyncNotifierProvider` is the right choice for server-synced state. Optimistic update pattern (set AsyncData, revert on error, rethrow for UI toast) is well-implemented.
+
+**Router changes are consistent.** All 3 new routes (`/notification-preferences`, `/reminders`, `/help-support`) use `adaptivePage()` helper, matching the ~85 existing routes converted in this pipeline.
 
 ## Data Model Assessment
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | PASS | No breaking changes. `CalendarConnection`, `CalendarEvent`, `TrainerAvailability` models are clean and well-structured. |
-| Encryption at rest for tokens | PASS | `_access_token` / `_refresh_token` use Fernet encryption with property getters/setters. |
-| Indexes for new queries | NOTE | `CalendarEvent` queries filter by `connection` + `start_time`. The `connection` FK already has an index. `start_time` is used in ordering. Consider adding `index_together = [['connection', 'start_time']]` if event counts per connection grow large. Not blocking. |
-| No N+1 query patterns | PASS | `CalendarEventsView` uses `select_related('connection')`. `TrainerAvailability` views are single-table queries. |
-| Mobile models match backend serializer output | PASS | All field names and types align. `provider_display` fallback in `CalendarConnectionModel.fromJson` is defensive. |
-| Unique constraints | PASS | `CalendarConnection` has `unique_together = [['user', 'provider']]`. `CalendarEvent` has `unique_together = [['connection', 'external_id']]`. |
+| Schema changes backward-compatible | PASS | New table only; no existing column changes. All boolean fields default to `True`, so existing users with no row behave as "all enabled" (code checks `pref is None -> True`). |
+| Migrations reversible | PASS | `CreateModel` is auto-reversible (Django drops the table). `RenameIndex` is also reversible. |
+| Indexes added for new queries | PASS | OneToOne FK to User provides implicit unique index. `send_push_to_group` queries filter by `user_id__in` + specific boolean field, which is fine at current scale (one row per user). |
+| No N+1 query patterns | PASS | `send_push_notification` does a single query for one user's preference. `send_push_to_group` does a single batch query filtering opted-out users. No loops over individual preference checks. |
+
+### Model design decision: individual boolean fields vs JSONField
+
+The ticket spec suggested a JSONField for categories. The implementation uses individual boolean fields instead. This is the **better choice** because:
+1. Database-level filtering works natively (`NotificationPreference.objects.filter(new_message=False)`) -- essential for `send_push_to_group` batch filtering.
+2. Schema-enforced validation -- no runtime parsing of JSON structure needed.
+3. `VALID_CATEGORIES` frozenset provides a single source of truth for validation.
+4. Adding new categories requires a migration but also forces explicit handling everywhere.
 
 ## Scalability Concerns
-
-| # | Area | Issue | Status | Recommendation |
-|---|------|-------|--------|----------------|
-| 1 | Mobile events fetch | `getEvents()` fetched only first page of paginated results (backend default PAGE_SIZE=20), silently truncating event lists for active calendars. | FIXED | Added auto-pagination in `CalendarRepository.getEvents()` with a `maxPages=10` safety bound (~200 events max). |
-| 2 | Backend HTTP timeouts | All `requests.get/post` calls in `GoogleCalendarService` and `MicrosoftCalendarService` had no timeout, risking indefinite hangs if Google/Microsoft APIs are slow. | FIXED | Added `_REQUEST_TIMEOUT = (10, 30)` (connect=10s, read=30s) to all external HTTP calls. |
-| 3 | Sync batch size | `CalendarSyncService.sync_events()` calls `update_or_create` in a loop for each event (N queries for N events). | NOT FIXED | For typical trainer calendars (< 200 events in 30 days), this is acceptable. If event volumes grow, consider `bulk_create` with `update_conflicts=True` (Django 4.1+). Not blocking. |
-| 4 | Single isLoading flag | `CalendarNotifier` uses one `isLoading` boolean for all operations. Concurrent `loadConnections()` + `loadEvents()` creates ambiguous UI state. | NOTE | Not blocking but worth refactoring to per-operation loading flags (e.g., `isLoadingConnections`, `isLoadingEvents`, `isSyncing`) in a future iteration. Current usage patterns are sequential so the impact is minimal. |
+| # | Area | Issue | Recommendation |
+|---|------|-------|----------------|
+| 1 | `get_or_create_for_user` on every request | Called on every GET/PATCH to the preferences endpoint. At current scale this is fine. If it becomes a hot path, consider creating the row during user registration. | Low priority. No action needed now. |
+| 2 | `send_push_to_group` category filtering | Single query with `user_id__in` + boolean filter. Efficient at any reasonable scale. | No action needed. |
+| 3 | `ReminderService` singleton | Singleton with lazy initialization. Thread-safe for Dart's single-isolate model. `SharedPreferences` batch write via `Future.wait`. | No action needed. |
+| 4 | `NotificationPreferenceSerializer` response size | Returns all 9 boolean fields. Constant size, no pagination concern. | No action needed. |
 
 ## Technical Debt Introduced
-
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| 1 | `CalendarConnectionScreen._showCallbackDialog` requires manual copy-paste of OAuth code and state from browser. This is a temporary UX workaround until deep linking is implemented. | Low | Implement deep link / custom URL scheme callback handler. The current approach works but is clunky. |
-| 2 | `apiClientProvider` is defined in both `auth_provider.dart` and `payment_provider.dart`. The calendar feature imports from `auth_provider.dart`, which is correct. The duplicate in payments is pre-existing tech debt, not introduced by this PR. | Low | Consolidate to a single `apiClientProvider` in a shared location. |
-| 3 | Backend `CalendarSyncService` raises a generic `Exception` with string message when token refresh fails. | Low | Consider a custom `CalendarTokenExpiredError` exception class for cleaner error handling upstream. |
+| 1 | Forward-looking preference fields without send callsites | Low | 5 of the 9 preference categories (`trainee_workout`, `trainee_weight_checkin`, `trainee_started_workout`, `trainee_finished_workout`, `churn_alert`, `achievement_earned`) have toggles but no existing notification send calls in the codebase. This is not debt from Pipeline 42 -- those notification triggers don't exist yet. When they are built, they must use the `category=` parameter. |
+| 2 | `ReminderService.onNotificationTapped` callback not wired to navigation | Low | The callback hook and payloads ('workout', 'meal', 'weight') are in place but not connected to go_router navigation during app initialization. This completes the infrastructure; wiring to navigation is a separate task (AC-15 partially addressed). |
+| 3 | `NotificationPreferenceSerializer` uses standard DRF `ModelSerializer` | Low | Project rules specify `rest_framework_dataclasses` for API responses. However, the entire codebase (58 usages across 11 files) uses standard DRF serializers. Changing just this one serializer would be inconsistent. This is a codebase-wide concern, not a Pipeline 42 issue. No action taken. |
 
-## Validation Gaps (Fixed)
+## Technical Debt Reduced
+- Removed ~25 `print()` statements from `admin_repository.dart`
+- Removed all `print()` and `LogInterceptor` from `api_client.dart`
+- Replaced broken `widget_test.dart` with a working smoke test
+- Wired 5 dead UI buttons to actual destinations
+- Standardized ~85 routes to use `adaptivePage`/`adaptiveFullscreenPage` for consistent iOS/Android navigation
 
-| # | Area | Issue | Status |
-|---|------|-------|--------|
-| 1 | `CreateEventSerializer` | No cross-field validation: `end_time` could be before `start_time`. | FIXED - Added `validate()` method. |
-| 2 | `OAuthCallbackSerializer` | `code` and `state` fields had no max_length, allowing arbitrarily large payloads. | FIXED - Added `max_length` and `min_length` constraints. |
-| 3 | `DisconnectCalendarView` | `provider` URL parameter not validated against `Provider.choices`. | FIXED - Added `_validate_provider()`. |
-| 4 | `SyncCalendarView` | Same `provider` URL parameter issue. | FIXED - Added `_validate_provider()`. |
+## API Design Assessment
+
+The `NotificationPreferenceView` endpoint is RESTful and consistent:
+- `GET /api/users/notification-preferences/` -- returns current state
+- `PATCH /api/users/notification-preferences/` -- partial update
+- `IsAuthenticated` permission -- correct, since both trainers and trainees have preferences
+- Serializer excludes `user`, `created_at`, `updated_at` from writable fields
+- Auto-creates preference row on first access -- matches `UserProfile.get_or_create` pattern used elsewhere
+- Consistent with existing endpoint patterns at `/api/users/leaderboard-opt-in/` and `/api/users/device-token/`
 
 ## Positive Architectural Observations
 
-1. **Token encryption**: The `CalendarConnection` model properly encrypts OAuth tokens at rest using Fernet, with clean property-based access. This is a security-conscious design.
+1. **Fail-open design**: `_check_notification_preference` returns `True` on `DatabaseError`/`ConnectionError`, ensuring notifications are never silently dropped due to infrastructure issues. The exception scope is deliberately narrow (not bare `except`).
 
-2. **Service layer separation**: `GoogleCalendarService`, `MicrosoftCalendarService`, and `CalendarSyncService` properly separate OAuth mechanics, API calls, and sync logic. After the fix, event creation also routes through the service layer.
+2. **Batch filtering in `send_push_to_group`**: Rather than checking preferences one-by-one in a loop, the implementation does a single `filter(user_id__in=..., category=False)` query to find opted-out users, then excludes them from the send list. This is O(1) queries regardless of group size.
 
-3. **CSRF protection on OAuth**: State tokens are generated server-side, stored in cache with TTL, and verified on callback. This prevents CSRF attacks on the OAuth flow.
+3. **Category validation**: `VALID_CATEGORIES` frozenset on the model serves as a single source of truth. `is_category_enabled()` raises `ValueError` for invalid categories (catching bugs early). `send_push_to_group` logs a warning for invalid categories but doesn't crash (resilient in production).
 
-4. **Optimistic updates**: The `toggleAvailability` method in `CalendarNotifier` uses optimistic update with rollback on failure. This is the right UX pattern for toggle operations.
+4. **Optimistic updates with proper rollback**: The `NotificationPreferencesNotifier` sets `AsyncData(previous)` on failure (not `AsyncError`), so the UI shows the reverted state without flashing an error widget. The error is rethrown so the screen can show a toast.
 
-5. **Widget extraction**: All screens stay under 230 lines. Reusable widgets (`CalendarCard`, `CalendarEventTile`, `AvailabilitySlotTile`, `TimeTile`, etc.) are properly extracted. Consistent with codebase conventions.
+5. **ReminderSettings is immutable**: Uses `copyWith` pattern. Clean separation between data (ReminderSettings), persistence (SharedPreferences), and scheduling (FlutterLocalNotificationsPlugin).
 
-6. **Defensive JSON parsing**: Mobile models use null-safe parsing with fallback defaults (`as int? ?? 0`, `as String? ?? json['provider']`), protecting against backend API changes.
+6. **Timezone handling**: Uses `flutter_timezone` package to get the actual IANA timezone name from the platform, with UTC fallback. This is correct for `zonedSchedule` which requires a named timezone.
 
-7. **Row-level security**: Every backend view filters by authenticated user. No IDOR vulnerabilities. `limit_choices_to={'role': 'TRAINER'}` on model FKs adds defense-in-depth.
+## No Architectural Fixes Required
 
-## Architecture Score: 8/10
+After thorough review, no architectural issues were found that warrant code changes. The implementation is well-layered, the data model is sound, the API design is consistent, and scalability patterns are appropriate for the current and foreseeable scale.
 
-The calendar feature follows the established architecture well. The Provider -> Repository -> ApiClient pattern on mobile is correct. The backend properly separates concerns between services, serializers, and views. The primary issues were: (a) business logic leaked into `CreateCalendarEventView` (now fixed), (b) missing input validation on provider URL params and serializer cross-field checks (now fixed), and (c) missing HTTP timeouts on external API calls (now fixed). The remaining items (single isLoading flag, manual OAuth callback UX) are minor and do not warrant blocking.
-
+## Architecture Score: 9/10
 ## Recommendation: APPROVE
+
+### Rationale
+The implementation makes sound architectural decisions throughout. The data model design (individual boolean fields over JSONField) enables efficient batch queries. Backend layering is correct with business logic in the service layer. The mobile side follows the repository pattern with proper Riverpod state management. The notification service handles both single-user and group filtering efficiently with no N+1 queries. The only deductions are for the unwired notification tap callback and the forward-looking preference fields without corresponding send callsites, both of which are minor and intentional infrastructure-first decisions.

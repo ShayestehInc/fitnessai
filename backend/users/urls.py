@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     UserProfileViewSet, GoogleLoginView, AppleLoginView,
     UploadProfileImageView, UpdateUserProfileView, MyBrandingView,
-    DeviceTokenView, LeaderboardOptInView,
+    DeviceTokenView, LeaderboardOptInView, NotificationPreferenceView,
 )
 
 app_name = 'users'
@@ -20,4 +20,5 @@ urlpatterns = [
     path('my-branding/', MyBrandingView.as_view(), name='my-branding'),
     path('device-token/', DeviceTokenView.as_view(), name='device-token'),
     path('leaderboard-opt-in/', LeaderboardOptInView.as_view(), name='leaderboard-opt-in'),
+    path('notification-preferences/', NotificationPreferenceView.as_view(), name='notification-preferences'),
 ]
