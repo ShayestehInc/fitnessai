@@ -1850,27 +1850,35 @@ class _NutritionTemplateSection extends ConsumerWidget {
         ref.watch(traineeActiveAssignmentProvider(traineeId));
 
     return assignmentAsync.when(
-      loading: () => const Card(
+      loading: () => Card(
         child: Padding(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Center(
-            child: SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+            child: Semantics(
+              label: 'Loading nutrition template assignment',
+              child: const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ),
           ),
         ),
       ),
-      error: (_, __) => Card(
+      error: (error, __) => Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
               Icon(Icons.error_outline, color: theme.colorScheme.error, size: 20),
               const SizedBox(width: 8),
-              const Expanded(
-                child: Text('Failed to load template assignment'),
+              Expanded(
+                child: Text(
+                  'Could not load nutrition template',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
               ),
               TextButton(
                 onPressed: () => ref.invalidate(
@@ -1891,20 +1899,23 @@ class _NutritionTemplateSection extends ConsumerWidget {
   }
 
   Widget _buildAssignButton(BuildContext context, WidgetRef ref, ThemeData theme) {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.3),
+    return Semantics(
+      button: true,
+      label: 'Assign nutrition template to trainee',
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.3),
+          ),
         ),
-      ),
-      child: InkWell(
-        onTap: () async {
-          await context.push('/nutrition/template-assignment/$traineeId');
-          ref.invalidate(traineeActiveAssignmentProvider(traineeId));
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
+        child: InkWell(
+          onTap: () async {
+            await context.push('/nutrition/template-assignment/$traineeId');
+            ref.invalidate(traineeActiveAssignmentProvider(traineeId));
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
@@ -1943,6 +1954,7 @@ class _NutritionTemplateSection extends ConsumerWidget {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -1952,7 +1964,9 @@ class _NutritionTemplateSection extends ConsumerWidget {
     ThemeData theme,
     NutritionTemplateAssignmentModel assignment,
   ) {
-    return Card(
+    return Semantics(
+      label: 'Active nutrition template: ${assignment.templateName}',
+      child: Card(
       color: theme.colorScheme.primaryContainer.withValues(alpha: 0.15),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -1987,10 +2001,10 @@ class _NutritionTemplateSection extends ConsumerWidget {
               runSpacing: 4,
               children: [
                 if (assignment.fatMode != 'total_fat')
-                  _infoChip(theme, 'Fat: ${assignment.fatMode}'),
+                  _infoChip(theme, 'Fat: ${_humanFatMode(assignment.fatMode)}'),
                 _infoChip(
                   theme,
-                  'Since ${assignment.createdAt?.split('T').first ?? 'Unknown'}',
+                  'Since ${_formatDate(assignment.createdAt)}',
                 ),
               ],
             ),
@@ -2000,6 +2014,28 @@ class _NutritionTemplateSection extends ConsumerWidget {
               children: [
                 TextButton(
                   onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Reassign Template?'),
+                        content: const Text(
+                          'This will replace the current nutrition template. '
+                          'The trainee\'s macro targets will be recalculated.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: const Text('Reassign'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return;
+                    if (!context.mounted) return;
                     await context
                         .push('/nutrition/template-assignment/$traineeId');
                     ref.invalidate(traineeActiveAssignmentProvider(traineeId));
@@ -2010,6 +2046,7 @@ class _NutritionTemplateSection extends ConsumerWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -2028,6 +2065,28 @@ class _NutritionTemplateSection extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _humanFatMode(String fatMode) {
+    switch (fatMode) {
+      case 'total_fat':
+        return 'Total Fat';
+      case 'added_fat':
+        return 'Added Fat';
+      default:
+        return fatMode;
+    }
+  }
+
+  String _formatDate(String? isoDate) {
+    if (isoDate == null || isoDate.isEmpty) return 'Unknown';
+    final parsed = DateTime.tryParse(isoDate);
+    if (parsed == null) return isoDate.split('T').first;
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
   }
 }
 

@@ -33,7 +33,9 @@ final traineeActiveAssignmentProvider = FutureProvider.autoDispose.family<
 );
 
 /// Day plan for a specific date.
-final dayPlanProvider = FutureProvider.family<NutritionDayPlanModel?, String>(
+/// Uses autoDispose to prevent unbounded memory growth as users browse dates.
+final dayPlanProvider =
+    FutureProvider.autoDispose.family<NutritionDayPlanModel?, String>(
   (ref, date) async {
     final repo = ref.watch(nutritionTemplateRepositoryProvider);
     return repo.getDayPlan(date);
@@ -41,8 +43,9 @@ final dayPlanProvider = FutureProvider.family<NutritionDayPlanModel?, String>(
 );
 
 /// Week of day plans starting from a date.
+/// Uses autoDispose to prevent unbounded memory growth as users browse dates.
 final weekPlansProvider =
-    FutureProvider.family<List<NutritionDayPlanModel>, String>(
+    FutureProvider.autoDispose.family<List<NutritionDayPlanModel>, String>(
   (ref, startDate) async {
     final repo = ref.watch(nutritionTemplateRepositoryProvider);
     return repo.getWeekPlans(startDate);
