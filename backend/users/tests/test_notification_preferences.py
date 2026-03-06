@@ -86,13 +86,14 @@ class ValidCategoriesTests(TestCase):
             'churn_alert',
             'trainer_announcement',
             'achievement_earned',
+            'community_event',
             'new_message',
             'community_activity',
         }
         self.assertEqual(NotificationPreference.VALID_CATEGORIES, expected)
 
     def test_valid_categories_count(self) -> None:
-        self.assertEqual(len(NotificationPreference.VALID_CATEGORIES), 9)
+        self.assertEqual(len(NotificationPreference.VALID_CATEGORIES), 10)
 
     def test_valid_categories_is_frozenset(self) -> None:
         self.assertIsInstance(NotificationPreference.VALID_CATEGORIES, frozenset)
