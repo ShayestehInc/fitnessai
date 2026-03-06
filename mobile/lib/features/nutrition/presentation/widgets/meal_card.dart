@@ -147,7 +147,9 @@ class _EntryRow extends StatelessWidget {
         return true; // Deletion handled with undo snackbar by parent
       },
       onDismissed: (_) => onDelete(),
-      child: Padding(
+      child: Semantics(
+        label: '${entry.displayName}, ${entry.calories} calories. Swipe left to delete.',
+        child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
@@ -190,6 +192,7 @@ class _EntryRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
