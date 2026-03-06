@@ -68,6 +68,8 @@ class ApiConstants {
       '$apiBaseUrl/workouts/nutrition-template-assignments/';
   static String nutritionTemplateAssignmentDetail(int id) =>
       '$apiBaseUrl/workouts/nutrition-template-assignments/$id/';
+  static String nutritionTemplateAssignmentRecalculate(int id) =>
+      '$apiBaseUrl/workouts/nutrition-template-assignments/$id/recalculate/';
   static String get nutritionDayPlans =>
       '$apiBaseUrl/workouts/nutrition-day-plans/';
   static String get nutritionDayPlansWeek =>

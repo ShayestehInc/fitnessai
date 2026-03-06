@@ -48,6 +48,8 @@ import '../../features/trainer/presentation/screens/trainee_detail_screen.dart';
 import '../../features/trainer/presentation/screens/invite_trainee_screen.dart';
 import '../../features/trainer/presentation/screens/assign_program_screen.dart';
 import '../../features/nutrition/presentation/screens/template_assignment_screen.dart';
+import '../../features/nutrition/presentation/screens/day_plan_screen.dart';
+import '../../features/nutrition/presentation/screens/week_plan_screen.dart';
 import '../../features/trainer/presentation/screens/trainer_notifications_screen.dart';
 import '../../features/trainer/presentation/screens/retention_analytics_screen.dart';
 import '../../features/exercises/presentation/screens/exercise_bank_screen.dart';
@@ -356,6 +358,29 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: TemplateAssignmentScreen(traineeId: traineeId),
           );
         },
+      ),
+
+      // Nutrition day plan (trainee)
+      GoRoute(
+        path: '/nutrition/day-plan',
+        name: 'day-plan',
+        pageBuilder: (context, state) {
+          final dateParam = state.uri.queryParameters['date'];
+          return adaptivePage(
+            key: state.pageKey,
+            child: DayPlanScreen(initialDate: dateParam),
+          );
+        },
+      ),
+
+      // Nutrition week plan (trainee)
+      GoRoute(
+        path: '/nutrition/week-plan',
+        name: 'week-plan',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const WeekPlanScreen(),
+        ),
       ),
 
       // Trainer payment routes
