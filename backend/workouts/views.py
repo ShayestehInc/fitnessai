@@ -2805,25 +2805,9 @@ class FoodItemViewSet(viewsets.ModelViewSet[FoodItem]):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Get distinct food_item IDs from recent MealLogEntries
-        recent_entry_ids = (
-            MealLogEntry.objects.filter(
-                meal_log__trainee=user,
-                food_item__isnull=False,
-            )
-            .order_by('-created_at')
-            .values_list('food_item_id', flat=True)[:50]
-        )
+        from workouts.services.meal_log_service import get_recent_food_item_ids
 
-        # Deduplicate while preserving order
-        seen: set[int] = set()
-        unique_ids: list[int] = []
-        for fid in recent_entry_ids:
-            if fid not in seen:
-                seen.add(fid)
-                unique_ids.append(fid)
-            if len(unique_ids) >= 20:
-                break
+        unique_ids = get_recent_food_item_ids(trainee=user, limit=20)
 
         food_items = FoodItem.objects.filter(
             id__in=unique_ids,
@@ -2871,10 +2855,12 @@ class MealLogViewSet(
             trainee_id = self.request.query_params.get('trainee_id')
             if trainee_id:
                 qs = qs.filter(trainee_id=trainee_id)
-        else:
+        elif user.is_admin():
             trainee_id = self.request.query_params.get('trainee_id')
             if trainee_id:
                 qs = qs.filter(trainee_id=trainee_id)
+        else:
+            return qs.none()
 
         # Date filter
         date_str = self.request.query_params.get('date')
@@ -2937,34 +2923,12 @@ class MealLogViewSet(
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-        from django.db.models import Sum, Count
+        from dataclasses import asdict
 
-        aggregation = MealLogEntry.objects.filter(
-            meal_log__trainee=trainee,
-            meal_log__date=target_date,
-        ).aggregate(
-            total_calories=Sum('calories'),
-            total_protein=Sum('protein'),
-            total_carbs=Sum('carbs'),
-            total_fat=Sum('fat'),
-            entry_count=Count('id'),
-        )
+        from workouts.services.meal_log_service import get_daily_summary
 
-        meal_count = MealLog.objects.filter(
-            trainee=trainee, date=target_date,
-        ).count()
-
-        data = {
-            'date': target_date.isoformat(),
-            'total_calories': aggregation['total_calories'] or 0,
-            'total_protein': round(aggregation['total_protein'] or 0, 1),
-            'total_carbs': round(aggregation['total_carbs'] or 0, 1),
-            'total_fat': round(aggregation['total_fat'] or 0, 1),
-            'meal_count': meal_count,
-            'entry_count': aggregation['entry_count'] or 0,
-        }
-
-        return Response(MealLogSummarySerializer(data).data)
+        summary = get_daily_summary(trainee=trainee, target_date=target_date)
+        return Response(MealLogSummarySerializer(asdict(summary)).data)
 
     @action(detail=False, methods=['post'], url_path='quick-add')
     def quick_add(self, request: Request) -> Response:
@@ -2979,69 +2943,41 @@ class MealLogViewSet(
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        from workouts.services.meal_log_service import (
+            FoodItemNotFoundError,
+            quick_add_entry,
+        )
+
         serializer = QuickAddEntrySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        target_date = data['date']
-        meal_number = data['meal_number']
-
-        # Get or create the MealLog for this meal slot
-        meal_log, _ = MealLog.objects.get_or_create(
-            trainee=user,
-            date=target_date,
-            meal_number=meal_number,
-            defaults={'meal_name': data.get('meal_name', '')},
-        )
-
-        # Resolve food item if provided (with access control)
-        food_item: FoodItem | None = None
-        food_item_id = data.get('food_item_id')
-        if food_item_id:
-            from django.db.models import Q
-            try:
-                food_item = FoodItem.objects.get(
-                    Q(is_public=True) | Q(created_by=user.parent_trainer),
-                    pk=food_item_id,
-                )
-            except FoodItem.DoesNotExist:
-                return Response(
-                    {'error': 'Food item not found.'},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-        # Calculate macros from food item * quantity, or use manual values
-        quantity = data.get('quantity', 1.0)
-        if food_item:
-            entry_calories = int(food_item.calories * quantity)
-            entry_protein = round(food_item.protein * quantity, 1)
-            entry_carbs = round(food_item.carbs * quantity, 1)
-            entry_fat = round(food_item.fat * quantity, 1)
-            custom_name = ''
-        else:
-            entry_calories = data.get('calories', 0)
-            entry_protein = data.get('protein', 0)
-            entry_carbs = data.get('carbs', 0)
-            entry_fat = data.get('fat', 0)
-            custom_name = data.get('custom_name', '')
-
-        entry = MealLogEntry.objects.create(
-            meal_log=meal_log,
-            food_item=food_item,
-            custom_name=custom_name,
-            quantity=quantity,
-            serving_unit=data.get('serving_unit', FoodItem.ServingUnit.SERVING),
-            calories=entry_calories,
-            protein=entry_protein,
-            carbs=entry_carbs,
-            fat=entry_fat,
-            fat_mode=data.get('fat_mode', MealLogEntry.FatMode.TOTAL_FAT),
-        )
+        try:
+            result = quick_add_entry(
+                trainee=user,
+                target_date=data['date'],
+                meal_number=data['meal_number'],
+                meal_name=data.get('meal_name', ''),
+                food_item_id=data.get('food_item_id'),
+                custom_name=data.get('custom_name', ''),
+                quantity=data.get('quantity', 1.0),
+                serving_unit=data.get('serving_unit', FoodItem.ServingUnit.SERVING),
+                calories=data.get('calories', 0),
+                protein=data.get('protein', 0),
+                carbs=data.get('carbs', 0),
+                fat=data.get('fat', 0),
+                fat_mode=data.get('fat_mode', MealLogEntry.FatMode.TOTAL_FAT),
+            )
+        except FoodItemNotFoundError:
+            return Response(
+                {'error': 'Food item not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         # Return the full meal log with all entries
         meal_log_refreshed = MealLog.objects.prefetch_related(
             'entries', 'entries__food_item',
-        ).get(pk=meal_log.pk)
+        ).get(pk=result.meal_log.pk)
 
         return Response(
             MealLogSerializer(meal_log_refreshed).data,
