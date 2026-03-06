@@ -448,6 +448,15 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
     }
 
     final fileSize = await File(picked.path).length();
+    if (fileSize == 0) {
+      if (!mounted) return;
+      showAdaptiveToast(
+        context,
+        message: 'Video file is empty.',
+        type: ToastType.error,
+      );
+      return;
+    }
     if (fileSize > _maxVideoSizeBytes) {
       if (!mounted) return;
       showAdaptiveToast(

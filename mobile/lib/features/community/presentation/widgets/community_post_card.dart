@@ -60,14 +60,11 @@ class CommunityPostCard extends ConsumerWidget {
           ],
           if (post.hasVideo) ...[
             const SizedBox(height: 10),
-            ...post.videos.map(
-              (video) => Padding(
-                padding: EdgeInsets.only(
-                  top: post.videos.indexOf(video) > 0 ? 8 : 0,
-                ),
-                child: VideoPlayerCard(video: video),
+            for (int i = 0; i < post.videos.length; i++)
+              Padding(
+                padding: EdgeInsets.only(top: i > 0 ? 8 : 0),
+                child: VideoPlayerCard(video: post.videos[i]),
               ),
-            ),
           ],
           const SizedBox(height: 12),
           _PostActions(post: post),
