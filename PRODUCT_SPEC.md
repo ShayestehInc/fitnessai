@@ -933,6 +933,37 @@ Notification preference controls, local reminder scheduling, help & support scre
 **Pipeline Results:**
 - Quality Score: SHIP
 
+### 4.30 Nutrition Phase 3: LBM Formula Engine & SHREDDED/MASSIVE Templates (Pipeline 44) -- COMPLETED (2026-03-05)
+
+LBM-based macro calculation engine replacing placeholder rulesets with real formula-driven day plans.
+
+**What was built:**
+
+**Backend**
+- `MacroCalculatorService` LBM engine: `calculate_shredded_macros()`, `calculate_massive_macros()`, `estimate_body_fat()` (Boer fallback), `_distribute_meals()` with front-loaded carbs
+- Frozen dataclasses: `ShreddedMacroResult`, `MassiveMacroResult`, `MealMacros`
+- `NutritionPlanService`: `_apply_shredded_ruleset()`, `_apply_massive_ruleset()`, `_enrich_with_profile()` for auto-pulling UserProfile fields
+- `recalculate` endpoint on `NutritionTemplateAssignmentViewSet` (regenerates 7 days)
+- Migration 0017: updates SHREDDED/MASSIVE system templates with formula-driven rulesets
+- 40 unit tests covering all formula functions and edge cases
+
+**Mobile**
+- `DayPlanScreen` with date navigation, daily totals card, per-meal MealPlanCards, all UX states
+- `WeekPlanScreen` with 7-day overview, today highlight, day type badges, macro summaries
+- `DayTypeBadge` widget (color-coded: training/rest/high_carb/medium_carb/low_carb/refeed)
+- `MealPlanCard` widget with meal name, macro bars, calorie totals
+- Typed repository returns (no raw Map), proper error propagation to providers
+
+**Security Fixes**
+- IDOR prevention on NutritionDayPlanViewSet list/week endpoints (trainer ownership check)
+
+**Pipeline Results:**
+- Code Review: 8/10 APPROVE
+- QA: 14/14 AC pass, HIGH confidence
+- Security: 9/10 PASS (2 IDOR vulnerabilities found and fixed)
+- Architecture: 8/10 APPROVE
+- Quality Score: 8/10 SHIP
+
 ### 4.29 Nutrition Phase 2: FoodItem, MealLog, Fat Mode (Pipeline 43) -- COMPLETED (2026-03-05)
 
 Structured meal logging infrastructure replacing JSON blobs with relational FoodItem + MealLog/MealLogEntry models.

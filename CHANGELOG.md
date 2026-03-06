@@ -4,6 +4,34 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 44: Nutrition Phase 3 — LBM Formula Engine & SHREDDED/MASSIVE Templates
+
+### Added
+- LBM-based macro calculation engine with `calculate_shredded_macros()` and `calculate_massive_macros()`
+- SHREDDED template: 22% caloric deficit, 1.3g protein/lb LBM, 3 day types (low/medium/high carb)
+- MASSIVE template: 12% caloric surplus, 1.1g protein/lb LBM, 2 day types (training/rest)
+- Boer formula fallback for body fat estimation when not measured
+- Per-meal macro distribution with front-loaded carbs and exact remainder handling
+- Profile enrichment auto-pulling sex/height/age/activity from UserProfile
+- `recalculate` endpoint on NutritionTemplateAssignment (regenerates 7 days)
+- `DayPlanScreen` with date navigation, daily totals, per-meal cards, all UX states
+- `WeekPlanScreen` with 7-day overview, today highlight, day type badges
+- `DayTypeBadge` widget (color-coded for each day type)
+- `MealPlanCard` widget with macro bars and calorie totals
+- Migration 0017 updating SHREDDED/MASSIVE templates with formula-driven rulesets
+- 40 unit tests for all formula functions and edge cases
+
+### Fixed
+- 2 IDOR vulnerabilities on NutritionDayPlanViewSet list/week endpoints (trainer ownership check)
+- Provider error silencing — providers now throw on API errors instead of returning null/empty
+- Repository returns typed values instead of raw `Map<String, dynamic>`
+
+### Security
+- Added trainer ownership validation on day plan list and week endpoints
+- Fixed error propagation chain: repository → provider → UI error state
+
+---
+
 ## [2026-03-05] — Pipeline 43: Nutrition Phase 2 — FoodItem, MealLog, Fat Mode
 
 ### Added
