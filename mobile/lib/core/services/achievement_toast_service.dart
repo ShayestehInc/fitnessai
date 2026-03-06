@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 
@@ -70,9 +71,39 @@ class AchievementToastService {
     return Overlay.of(context);
   }
 
+  /// Clear any queued achievements that haven't been shown yet.
+  void cancelAll() {
+    _queue.clear();
+  }
+
   double _getTopPadding() {
     final context = rootNavigatorKey.currentContext;
     if (context == null) return 44.0;
     return MediaQuery.of(context).padding.top;
+  }
+}
+
+/// Convenience function to parse raw achievement JSON from an API response
+/// and show celebration toasts. This is the single entry point used by all
+/// screens that trigger achievements (workout, nutrition, weight check-in).
+///
+/// [rawAchievements] is the `new_achievements` list from the API response,
+/// typically `List<dynamic>` containing `Map<String, dynamic>` entries.
+void showAchievementToastsFromRaw(List<dynamic>? rawAchievements) {
+  if (rawAchievements == null || rawAchievements.isEmpty) return;
+  try {
+    final achievements = rawAchievements
+        .whereType<Map<String, dynamic>>()
+        .map((json) => NewAchievementModel.fromJson(json))
+        .toList();
+    if (achievements.isNotEmpty) {
+      AchievementToastService.instance.showAchievements(achievements);
+    }
+  } catch (e) {
+    developer.log(
+      'Failed to parse achievement data for toast display',
+      error: e,
+      name: 'AchievementToastService',
+    );
   }
 }

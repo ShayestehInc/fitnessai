@@ -1506,14 +1506,14 @@ class WeightCheckInViewSet(viewsets.ModelViewSet[WeightCheckIn]):
         else:
             serializer.save()
 
-        response_data = serializer.data
+        response_data = dict(serializer.data)
         if new_achievements:
             from community.serializers import NewAchievementSerializer
             response_data['new_achievements'] = NewAchievementSerializer(
                 new_achievements, many=True,
             ).data
 
-        headers = self.get_success_headers(serializer.data)
+        headers = self.get_success_headers(response_data)
         return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(detail=False, methods=['get'], url_path='latest')

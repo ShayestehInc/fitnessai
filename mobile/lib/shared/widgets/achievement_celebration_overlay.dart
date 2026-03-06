@@ -47,7 +47,9 @@ Future<void> showAchievementCelebration({
       topPadding: topPadding,
       displayDuration: displayDuration,
       onDismissed: () {
-        entry.remove();
+        if (entry.mounted) {
+          entry.remove();
+        }
         if (!completer.isCompleted) {
           completer.complete();
         }
@@ -162,6 +164,13 @@ class _AchievementCelebrationWidgetState
 
   @override
   void dispose() {
+    // If the widget is disposed before the overlay was dismissed (e.g., user
+    // navigated away), ensure the onDismissed callback fires so the
+    // AchievementToastService's Completer completes and the queue doesn't hang.
+    if (!_dismissed) {
+      _dismissed = true;
+      widget.onDismissed();
+    }
     _entranceController.dispose();
     _pulseController.dispose();
     super.dispose();

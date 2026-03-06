@@ -10,7 +10,6 @@ import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
-import '../../../community/data/models/achievement_model.dart';
 import '../../../logging/presentation/providers/logging_provider.dart';
 import '../providers/nutrition_provider.dart';
 import '../providers/food_search_provider.dart';
@@ -1377,19 +1376,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
 
   void _showAchievementToastsFromLogging() {
     final loggingState = ref.read(loggingStateProvider);
-    final rawAchievements = loggingState.newAchievements;
-    if (rawAchievements == null || rawAchievements.isEmpty) return;
-    try {
-      final achievements = rawAchievements
-          .whereType<Map<String, dynamic>>()
-          .map((json) => NewAchievementModel.fromJson(json))
-          .toList();
-      if (achievements.isNotEmpty) {
-        AchievementToastService.instance.showAchievements(achievements);
-      }
-    } catch (_) {
-      // Malformed achievement data — skip silently.
-    }
+    showAchievementToastsFromRaw(loggingState.newAchievements);
   }
 }
 

@@ -7,7 +7,6 @@ import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
-import '../../../community/data/models/achievement_model.dart';
 import '../providers/logging_provider.dart';
 import '../widgets/draft_log_card.dart';
 
@@ -76,7 +75,7 @@ class _AICommandCenterScreenState
           type: ToastType.success,
         );
         // Show achievement celebrations for any newly earned badges.
-        _showAchievementToasts(loggingState.newAchievements);
+        showAchievementToastsFromRaw(loggingState.newAchievements);
       }
       Navigator.of(context).pop();
     } else if (mounted) {
@@ -91,21 +90,6 @@ class _AICommandCenterScreenState
 
   void _handleCancel() {
     ref.read(loggingStateProvider.notifier).clearState();
-  }
-
-  void _showAchievementToasts(List<dynamic>? rawAchievements) {
-    if (rawAchievements == null || rawAchievements.isEmpty) return;
-    try {
-      final achievements = rawAchievements
-          .whereType<Map<String, dynamic>>()
-          .map((json) => NewAchievementModel.fromJson(json))
-          .toList();
-      if (achievements.isNotEmpty) {
-        AchievementToastService.instance.showAchievements(achievements);
-      }
-    } catch (_) {
-      // Malformed achievement data — skip silently.
-    }
   }
 
   @override

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/achievement_toast_service.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../community/data/models/achievement_model.dart';
 import '../../data/models/food_lookup_model.dart';
 import '../providers/barcode_provider.dart';
 import '../widgets/macro_info_row.dart';
@@ -52,21 +51,9 @@ class _FoodResultScreenState extends ConsumerState<FoodResultScreen> {
       // Show achievement celebrations for any newly earned badges.
       final responseData = result['data'];
       if (responseData is Map) {
-        final rawAchievements =
-            responseData['new_achievements'] as List<dynamic>?;
-        if (rawAchievements != null && rawAchievements.isNotEmpty) {
-          try {
-            final achievements = rawAchievements
-                .whereType<Map<String, dynamic>>()
-                .map((json) => NewAchievementModel.fromJson(json))
-                .toList();
-            if (achievements.isNotEmpty) {
-              AchievementToastService.instance.showAchievements(achievements);
-            }
-          } catch (_) {
-            // Malformed data — skip.
-          }
-        }
+        showAchievementToastsFromRaw(
+          responseData['new_achievements'] as List<dynamic>?,
+        );
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
