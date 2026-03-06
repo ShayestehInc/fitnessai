@@ -108,6 +108,12 @@ const _traineeSections = [
         subtitle: 'When you earn a new achievement',
         icon: Icons.emoji_events_outlined,
       ),
+      _CategoryMeta(
+        key: 'community_event',
+        label: 'Community Events',
+        subtitle: 'New events, updates, cancellations, and reminders',
+        icon: Icons.event_outlined,
+      ),
     ],
   ),
   _Section(

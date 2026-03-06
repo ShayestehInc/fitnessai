@@ -339,6 +339,12 @@ class NotificationPreference(models.Model):
         help_text="Notify when a new badge is earned",
     )
 
+    # Trainee notification categories (continued)
+    community_event = models.BooleanField(
+        default=True,
+        help_text="Notify on community event creation, updates, cancellation, and reminders",
+    )
+
     # Shared categories (both roles)
     new_message = models.BooleanField(
         default=True,
@@ -360,6 +366,7 @@ class NotificationPreference(models.Model):
         'churn_alert',
         'trainer_announcement',
         'achievement_earned',
+        'community_event',
         'new_message',
         'community_activity',
     })

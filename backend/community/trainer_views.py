@@ -505,6 +505,11 @@ class TrainerEventListCreateView(generics.ListCreateAPIView[CommunityEvent]):
             is_recurring=data.get('is_recurring', False),
             recurrence_rule=data.get('recurrence_rule', {}),
         )
+
+        # Send push notification to all trainees (fire-and-forget)
+        from .services.event_service import EventService
+        EventService.notify_event_created(event)
+
         response_serializer = CommunityEventSerializer(
             event, context={'request': request},
         )
@@ -547,6 +552,11 @@ class TrainerEventDetailView(views.APIView):
         serializer = CommunityEventCreateSerializer(data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
+        # Track whether time/location changed for notification
+        notify_fields = {'starts_at', 'ends_at', 'meeting_url'}
+        changed_fields = set(serializer.validated_data.keys())
+        should_notify = bool(changed_fields & notify_fields)
+
         update_fields: list[str] = ['updated_at']
         for field in ('title', 'description', 'event_type', 'starts_at', 'ends_at',
                        'meeting_url', 'max_attendees', 'is_recurring', 'recurrence_rule'):
@@ -555,6 +565,12 @@ class TrainerEventDetailView(views.APIView):
                 update_fields.append(field)
 
         event.save(update_fields=update_fields)
+
+        # Notify RSVP'd users if time/location changed (fire-and-forget)
+        if should_notify and event.status == CommunityEvent.EventStatus.SCHEDULED:
+            from .services.event_service import EventService
+            EventService.notify_event_updated(event)
+
         response_serializer = CommunityEventSerializer(event, context={'request': request})
         return Response(response_serializer.data)
 
@@ -567,6 +583,10 @@ class TrainerEventDetailView(views.APIView):
 
         from .services.event_service import EventService
         EventService.transition_status(event, CommunityEvent.EventStatus.CANCELLED)
+
+        # Notify RSVP'd users about cancellation (fire-and-forget)
+        EventService.notify_event_cancelled(event)
+
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -594,6 +614,11 @@ class TrainerEventStatusView(views.APIView):
 
         from .services.event_service import EventService
         EventService.transition_status(event, new_status)
+
+        # Notify RSVP'd users if event was cancelled via status transition
+        if new_status == CommunityEvent.EventStatus.CANCELLED:
+            EventService.notify_event_cancelled(event)
+
         serializer = CommunityEventSerializer(event, context={'request': request})
         return Response(serializer.data)
 

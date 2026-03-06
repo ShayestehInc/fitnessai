@@ -102,3 +102,144 @@ class EventService:
             ],
             ends_at__gte=timezone.now(),
         ).order_by('starts_at')[:limit]
+
+    @staticmethod
+    def notify_event_created(event: CommunityEvent) -> None:
+        """Push notification to all trainer's trainees about a new event."""
+        try:
+            from core.services.notification_service import send_push_to_group
+
+            trainee_ids = list(
+                User.objects.filter(
+                    parent_trainer=event.trainer,
+                    role=User.Role.TRAINEE,
+                    is_active=True,
+                ).values_list('id', flat=True)
+            )
+            if not trainee_ids:
+                return
+
+            send_push_to_group(
+                user_ids=trainee_ids,
+                title='New Event',
+                body=event.title,
+                data={
+                    'type': 'community_event_created',
+                    'event_id': str(event.id),
+                },
+                category='community_event',
+            )
+        except Exception:
+            logger.warning("Failed to send event created notifications", exc_info=True)
+
+    @staticmethod
+    def notify_event_updated(event: CommunityEvent) -> None:
+        """Push notification to RSVP'd users (going/maybe) about an event update."""
+        try:
+            from core.services.notification_service import send_push_to_group
+
+            rsvpd_user_ids = list(
+                EventRSVP.objects.filter(
+                    event=event,
+                    status__in=[
+                        EventRSVP.RSVPStatus.GOING,
+                        EventRSVP.RSVPStatus.MAYBE,
+                    ],
+                ).values_list('user_id', flat=True)
+            )
+            if not rsvpd_user_ids:
+                return
+
+            send_push_to_group(
+                user_ids=rsvpd_user_ids,
+                title='Event Updated',
+                body=event.title,
+                data={
+                    'type': 'community_event_updated',
+                    'event_id': str(event.id),
+                },
+                category='community_event',
+            )
+        except Exception:
+            logger.warning("Failed to send event updated notifications", exc_info=True)
+
+    @staticmethod
+    def notify_event_cancelled(event: CommunityEvent) -> None:
+        """Push notification to RSVP'd users (going/maybe) that an event was cancelled."""
+        try:
+            from core.services.notification_service import send_push_to_group
+
+            rsvpd_user_ids = list(
+                EventRSVP.objects.filter(
+                    event=event,
+                    status__in=[
+                        EventRSVP.RSVPStatus.GOING,
+                        EventRSVP.RSVPStatus.MAYBE,
+                    ],
+                ).values_list('user_id', flat=True)
+            )
+            if not rsvpd_user_ids:
+                return
+
+            send_push_to_group(
+                user_ids=rsvpd_user_ids,
+                title='Event Cancelled',
+                body=event.title,
+                data={
+                    'type': 'community_event_cancelled',
+                    'event_id': str(event.id),
+                },
+                category='community_event',
+            )
+        except Exception:
+            logger.warning("Failed to send event cancelled notifications", exc_info=True)
+
+    @staticmethod
+    def send_event_reminders() -> int:
+        """
+        Send push notifications to users with 'going' RSVP for events
+        starting within the next 15 minutes.
+
+        Returns the number of events for which reminders were sent.
+        Designed to be called by a management command on a cron schedule.
+        """
+        now = timezone.now()
+        reminder_window_end = now + timezone.timedelta(minutes=15)
+
+        events = CommunityEvent.objects.filter(
+            status=CommunityEvent.EventStatus.SCHEDULED,
+            starts_at__gt=now,
+            starts_at__lte=reminder_window_end,
+        ).select_related('trainer')
+
+        reminded_count = 0
+        for event in events:
+            try:
+                from core.services.notification_service import send_push_to_group
+
+                going_user_ids = list(
+                    EventRSVP.objects.filter(
+                        event=event,
+                        status=EventRSVP.RSVPStatus.GOING,
+                    ).values_list('user_id', flat=True)
+                )
+                if not going_user_ids:
+                    continue
+
+                send_push_to_group(
+                    user_ids=going_user_ids,
+                    title='Event Reminder',
+                    body=f'{event.title} starts soon',
+                    data={
+                        'type': 'community_event_reminder',
+                        'event_id': str(event.id),
+                    },
+                    category='community_event',
+                )
+                reminded_count += 1
+            except Exception:
+                logger.warning(
+                    "Failed to send reminder for event %d", event.id, exc_info=True,
+                )
+
+        return reminded_count

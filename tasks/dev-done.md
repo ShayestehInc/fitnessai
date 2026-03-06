@@ -1,30 +1,59 @@
-# Dev Done: Community Events — Trainer Create & Trainee RSVP (Mobile)
+# Dev Done: Wire FCM Push Notifications End-to-End for Community Events
 
 ## Date: 2026-03-05
 
 ## Files Created
-- `features/community/data/models/event_model.dart` — CommunityEventModel with fromJson, copyWith, computed getters (isPast, isHappeningNow, isAtCapacity, canJoinVirtual, eventTypeLabel). RsvpStatus enum with apiValue/fromApi/label.
-- `features/community/data/repositories/event_repository.dart` — Full CRUD: getEvents, getEventDetail, rsvp (trainee); getTrainerEvents, createEvent, updateEvent, deleteEvent, updateEventStatus (trainer).
-- `features/community/presentation/providers/event_provider.dart` — TraineeEventNotifier (loadEvents, optimistic rsvp with rollback), TrainerEventNotifier (loadEvents, createEvent, updateEvent, deleteEvent, cancelEvent). Both autoDispose.
-- `features/community/presentation/widgets/event_type_badge.dart` — EventTypeBadge and EventStatusBadge (live/cancelled/completed/scheduled).
-- `features/community/presentation/widgets/rsvp_button.dart` — Three-way SegmentedButton (Going/Interested/Can't Go) with capacity-aware disabling and Semantics.
-- `features/community/presentation/widgets/event_card.dart` — Reusable card with title, date/time, location, attendee counts, badges, RSVP indicator. Dimmed for past/cancelled.
-- `features/community/presentation/screens/event_list_screen.dart` — Trainee event list with date-grouped sections (Today/Tomorrow/This Week/Later), Past/Cancelled sections, pull-to-refresh, empty/error/loading states.
-- `features/community/presentation/screens/event_detail_screen.dart` — Detail view with full info, RSVP button, "Join Meeting" for virtual events within 15min window, cancelled/past banners.
-- `features/community/presentation/screens/trainer_event_list_screen.dart` — Trainer event management list with FAB to create, upcoming/cancelled/past grouping, edit on tap.
-- `features/community/presentation/screens/trainer_event_form_screen.dart` — Create/edit form with title, description, event type dropdown, date/time pickers, virtual toggle, meeting URL, max attendees. Cancel/delete with confirmation dialogs. PopScope during submission.
+- `backend/users/migrations/0010_add_community_event_notification_pref.py` — Migration adding `community_event` boolean field to NotificationPreference model
+- `backend/community/management/commands/send_event_reminders.py` — Management command for sending 15-min reminders to RSVP'd users. Run via cron: `*/5 * * * *`
 
 ## Files Modified
-- `core/router/app_router.dart` — Added 5 routes: community-events, community-event-detail, trainer-events, trainer-event-create, trainer-event-edit.
-- `features/community/presentation/screens/school_home_screen.dart` — Added Events icon button in app bar actions.
-- `features/trainer/presentation/screens/trainer_dashboard_screen.dart` — Added "Manage Events" card in dashboard between Announcements and Check-In Forms.
+
+### Backend
+- `backend/users/models.py` — Added `community_event` field to NotificationPreference model and added it to VALID_CATEGORIES frozenset
+- `backend/community/services/event_service.py` — Added 4 notification methods to EventService:
+  - `notify_event_created()` — Pushes to all trainer's trainees
+  - `notify_event_updated()` — Pushes to RSVP'd users (going/maybe)
+  - `notify_event_cancelled()` — Pushes to RSVP'd users (going/maybe)
+  - `send_event_reminders()` — Class method for cron, finds events starting within 15 min, pushes to going users
+- `backend/community/trainer_views.py` — Wired notification triggers:
+  - `TrainerEventListCreateView.create()` — Calls `notify_event_created()` after event creation
+  - `TrainerEventDetailView._update()` — Calls `notify_event_updated()` when time/location changes on scheduled events
+  - `TrainerEventDetailView.delete()` — Calls `notify_event_cancelled()` after status transition
+  - `TrainerEventStatusView.patch()` — Calls `notify_event_cancelled()` when status set to CANCELLED
+- `backend/example.env` — Added `FIREBASE_CREDENTIALS_PATH` entry
+
+### Mobile
+- `mobile/lib/core/services/push_notification_service.dart` — Full rewrite:
+  - Added `flutter_local_notifications` integration for foreground message display
+  - Android notification channel creation on init
+  - Foreground handler shows local notification with title/body
+  - Notification tap handler (both local and FCM) navigates via go_router
+  - Deep link routing: community_event_* → event detail, announcement → announcements, community_* → community feed
+  - `getInitialMessage()` check for terminated-state notification taps
+  - Payload encoding/decoding for local notification payloads
+- `mobile/lib/features/auth/presentation/providers/auth_provider.dart` — Wired push notifications into auth lifecycle:
+  - `login()`, `register()`, `loginWithGoogle()`, `loginWithApple()`, `setTokensAndLoadUser()` — All call `_pushService.initialize()` after success
+  - `logout()` — Calls `_pushService.deactivateToken()` before clearing auth state
+  - AuthNotifier now takes PushNotificationService as a dependency
+- `mobile/lib/features/settings/presentation/screens/notification_preferences_screen.dart` — Added "Community Events" toggle in trainee Updates section
 
 ## Key Decisions
-1. Optimistic RSVP with rollback — matches existing reaction toggle pattern in CommunityFeedNotifier
-2. Date grouping uses local timezone — backend stores UTC, we convert with .toLocal()
-3. EventCard dimmed (opacity 0.55) for past/cancelled events
-4. "Join Meeting" button only shows within 15-min pre-start window and during event
-5. TrainerEventFormScreen doubles as create and edit — `eventId` param determines mode
-6. Cancel and Delete are separate actions — cancel sets status, delete removes entirely
-7. Both event providers use autoDispose to release memory when screens are popped
-8. Used SegmentedButton for RSVP instead of custom chip group — follows Material 3 guidelines
+1. **Fire-and-forget notifications** — All notification dispatch follows the existing `_notify_trainees_announcement()` pattern: try/except with logging, never raises, never blocks the response
+2. **Update notifications only for time/location changes** — Description-only edits don't trigger push notifications to avoid spam. Checks intersection of changed fields with `{starts_at, ends_at, meeting_url}`
+3. **Reminder window is 15 minutes** — Management command queries events with `starts_at > now AND starts_at <= now + 15min`, only for `going` RSVP status
+4. **Local notifications for foreground** — Used `flutter_local_notifications` to show a banner when FCM message arrives while app is open. Tapping navigates to event detail.
+5. **Deep linking via go_router** — PushNotificationService reads the `routerProvider` to navigate. Routes to `/community-event-detail/{id}` for event notifications.
+6. **Push init on every auth success** — `PushNotificationService.initialize()` is idempotent (guarded by `_initialized` flag), so calling it on login/register/social/impersonation is safe.
+
+## How to Manually Test
+1. Set `FIREBASE_CREDENTIALS_PATH` in `.env` to a valid Firebase service account JSON
+2. Login on mobile → should request notification permission and register device token
+3. As trainer, create an event → trainee should receive "New Event" push notification
+4. Tap the notification → should navigate to event detail screen
+5. As trainee, RSVP "Going" to an event
+6. As trainer, update the event time → trainee should receive "Event Updated" notification
+7. As trainer, cancel the event → trainee should receive "Event Cancelled" notification
+8. Run `python manage.py send_event_reminders` with an event starting within 15 min → going users get "Event Reminder"
+9. Open notification preferences → "Community Events" toggle should appear for trainees
+10. Toggle it off → no more event push notifications for that user
+11. Logout → device token should be deactivated

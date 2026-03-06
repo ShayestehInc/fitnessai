@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/api_client.dart';
+import '../../../../core/services/push_notification_service.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/models/user_model.dart';
 
@@ -12,7 +13,8 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);
-  return AuthNotifier(repository);
+  final pushService = ref.watch(pushNotificationServiceProvider);
+  return AuthNotifier(repository, pushService);
 });
 
 class AuthState {
@@ -41,19 +43,22 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
+  final PushNotificationService _pushService;
 
-  AuthNotifier(this._repository) : super(AuthState());
+  AuthNotifier(this._repository, this._pushService) : super(AuthState());
 
   Future<void> login(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     final result = await _repository.login(email, password);
-    
+
     if (result['success'] == true) {
       state = state.copyWith(
         user: result['user'] as UserModel,
         isLoading: false,
       );
+      // Register device for push notifications after successful login
+      _pushService.initialize();
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -76,12 +81,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
       role: role,
       referralCode: referralCode,
     );
-    
+
     if (result['success'] == true) {
       state = state.copyWith(
         user: result['user'] as UserModel,
         isLoading: false,
       );
+      _pushService.initialize();
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -91,6 +97,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    await _pushService.deactivateToken();
     await _repository.logout();
     state = AuthState();
   }
@@ -148,6 +155,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         isLoading: false,
       );
+      _pushService.initialize();
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -178,6 +186,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         isLoading: false,
       );
+      _pushService.initialize();
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -197,6 +206,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         isLoading: false,
       );
+      _pushService.initialize();
     } else {
       state = state.copyWith(
         isLoading: false,
