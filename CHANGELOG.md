@@ -4,6 +4,29 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 53: TV Mode Gym Display
+
+### Added
+- Mobile: Full TV Mode gym display replacing placeholder screen
+- Mobile: `tv_mode_provider.dart` — Riverpod StateNotifier for TV mode state (exercise tracking, set completion, rest timer, elapsed time)
+- Mobile: `tv_mode_screen.dart` — Main screen with loading/empty/error/rest-day/complete/active states
+- Mobile: `tv_exercise_card.dart` — Large exercise cards with completion status, muscle group, last weight
+- Mobile: `tv_rest_timer.dart` — Circular countdown timer with configurable duration (30s/60s/90s/120s/180s)
+- Mobile: `tv_progress_bar.dart` — Workout progress bar (sets completed / total)
+- Mobile: `tv_workout_header.dart` — Header with program name, day, elapsed timer, exit button
+- Mobile: `tv_empty_states.dart` — Loading, empty, complete, and exit button widgets
+- Mobile: TV mode icon button added to home screen header
+- Mobile: `/tv-mode` route added to app_router.dart
+- Mobile: `wakelock_plus` package for keeping screen on during TV mode
+- Mobile: Immersive sticky system UI mode for maximum screen real estate
+- Mobile: Landscape-preferred orientation (supports portrait too)
+
+### Changed
+- Mobile: `tv_screen.dart` converted from placeholder to barrel re-export
+- PRODUCT_SPEC: TV mode marked as Done
+
+---
+
 ## [2026-03-05] — Pipeline 52: i18n String Extraction (Phase B)
 
 ### Added
