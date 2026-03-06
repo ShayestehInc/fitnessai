@@ -149,6 +149,68 @@ class TrainerDashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
 
+                    // Events quick-access
+                    _buildSectionHeader(
+                      context,
+                      'Events',
+                      onViewAll: () => context.push('/trainer/events'),
+                    ),
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () => context.push('/trainer/events'),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.dividerColor),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.event,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Manage Events',
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyLarge?.color,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Schedule sessions, workshops, and Q&As',
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodySmall?.color,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              color: theme.textTheme.bodySmall?.color,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
                     // Check-In Forms quick-access
                     _buildSectionHeader(
                       context,

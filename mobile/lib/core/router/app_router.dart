@@ -27,6 +27,10 @@ import '../../features/community/presentation/screens/space_list_screen.dart';
 import '../../features/community/presentation/screens/space_detail_screen.dart';
 import '../../features/community/presentation/screens/space_create_screen.dart';
 import '../../features/community/presentation/screens/saved_items_screen.dart';
+import '../../features/community/presentation/screens/event_list_screen.dart';
+import '../../features/community/presentation/screens/event_detail_screen.dart';
+import '../../features/community/presentation/screens/trainer_event_list_screen.dart';
+import '../../features/community/presentation/screens/trainer_event_form_screen.dart';
 import '../../features/community/data/models/announcement_model.dart';
 import '../../features/trainer/presentation/screens/trainer_announcements_screen.dart';
 import '../../features/trainer/presentation/screens/create_announcement_screen.dart';
@@ -826,6 +830,54 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => adaptivePage(
           key: state.pageKey,
           child: const SavedItemsScreen(),
+        ),
+      ),
+
+      // Community events
+      GoRoute(
+        path: '/community/events',
+        name: 'community-events',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const EventListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/community/events/:id',
+        name: 'community-event-detail',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: EventDetailScreen(
+            eventId: int.parse(state.pathParameters['id']!),
+          ),
+        ),
+      ),
+
+      // Trainer event management
+      GoRoute(
+        path: '/trainer/events',
+        name: 'trainer-events',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const TrainerEventListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/trainer/events/create',
+        name: 'trainer-event-create',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const TrainerEventFormScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/trainer/events/:id/edit',
+        name: 'trainer-event-edit',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: TrainerEventFormScreen(
+            eventId: int.parse(state.pathParameters['id']!),
+          ),
         ),
       ),
 

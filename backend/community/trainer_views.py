@@ -532,13 +532,19 @@ class TrainerEventDetailView(views.APIView):
         return Response(serializer.data)
 
     def put(self, request: Request, pk: int) -> Response:
+        return self._update(request, pk, partial=False)
+
+    def patch(self, request: Request, pk: int) -> Response:
+        return self._update(request, pk, partial=True)
+
+    def _update(self, request: Request, pk: int, *, partial: bool) -> Response:
         user = cast(User, request.user)
         try:
             event = CommunityEvent.objects.get(id=pk, trainer=user)
         except CommunityEvent.DoesNotExist:
             return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = CommunityEventCreateSerializer(data=request.data, partial=True)
+        serializer = CommunityEventCreateSerializer(data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
         update_fields: list[str] = ['updated_at']
@@ -579,9 +585,10 @@ class TrainerEventStatusView(views.APIView):
             return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         new_status = request.data.get('status')
-        if new_status not in dict(CommunityEvent.EventStatus.choices):
+        valid_statuses = dict(CommunityEvent.EventStatus.choices)
+        if new_status not in valid_statuses:
             return Response(
-                {'error': f'Invalid status: {new_status}'},
+                {'error': f'Invalid status. Must be one of: {", ".join(valid_statuses.keys())}'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -712,7 +719,11 @@ class TrainerUnbanView(views.APIView):
     def delete(self, request: Request, user_id: int) -> Response:
         user = cast(User, request.user)
         try:
-            target_user = User.objects.get(id=user_id)
+            target_user = User.objects.get(
+                id=user_id,
+                parent_trainer=user,
+                role=User.Role.TRAINEE,
+            )
         except User.DoesNotExist:
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 

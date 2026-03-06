@@ -933,6 +933,22 @@ Notification preference controls, local reminder scheduling, help & support scre
 **Pipeline Results:**
 - Quality Score: SHIP
 
+### 4.33 Community Events — Trainer Create & Trainee RSVP (Pipeline 47) -- COMPLETED (2026-03-05)
+
+Full mobile implementation for community events. Backend was already complete.
+
+**What was built:**
+- 10 new Flutter files: models, repository, providers, 3 widgets, 4 screens
+- Trainee: event list with date-grouped sections (Today/Tomorrow/This Week/Next Week/Later), event detail with full info, 3-way RSVP (Going/Interested/Can't Go) with optimistic updates and rollback
+- Trainer: event management list, create/edit form with date/time pickers, cancel and delete with confirmation dialogs
+- Virtual events: "Join Meeting" button within 15-min pre-start window
+- Entry points: Events icon in Community tab, "Manage Events" card on trainer dashboard
+- All UX states: loading skeletons, empty states, error with retry, success snackbars
+- Deep link support: API fallback when provider state is empty
+
+**Pipeline Results:**
+- Quality Score: 8/10 SHIP
+
 ### 4.32 Nutrition Phase 5: Wire Template Assignment into Trainer Detail Screen (Pipeline 46) -- COMPLETED (2026-03-05)
 
 Wired the orphaned TemplateAssignmentScreen into the trainer's trainee detail screen Nutrition tab.

@@ -31,7 +31,14 @@ class EventService:
         """
         Create or update an RSVP for an event.
         Enforces max_attendees capacity for 'going' status.
+        Raises ValueError for cancelled/completed events.
         """
+        if event.status in (
+            CommunityEvent.EventStatus.CANCELLED,
+            CommunityEvent.EventStatus.COMPLETED,
+        ):
+            raise ValueError(f"Cannot RSVP to a {event.status} event.")
+
         if status == EventRSVP.RSVPStatus.GOING and event.max_attendees is not None:
             going_count = event.rsvps.filter(
                 status=EventRSVP.RSVPStatus.GOING,

@@ -1460,13 +1460,7 @@ class TraineeEventListView(generics.ListAPIView[CommunityEvent]):
         if not trainer:
             return CommunityEvent.objects.none()
         return (
-            CommunityEvent.objects.filter(
-                trainer=trainer,
-                status__in=[
-                    CommunityEvent.EventStatus.SCHEDULED,
-                    CommunityEvent.EventStatus.LIVE,
-                ],
-            )
+            CommunityEvent.objects.filter(trainer=trainer)
             .prefetch_related('rsvps')
             .order_by('starts_at')
         )
@@ -1534,9 +1528,21 @@ class TraineeEventRSVPView(views.APIView):
         serializer.is_valid(raise_exception=True)
 
         from .services.event_service import EventService
-        result = EventService.rsvp(event, user, serializer.validated_data['status'])
+        try:
+            result = EventService.rsvp(event, user, serializer.validated_data['status'])
+        except ValueError:
+            return Response(
+                {'error': 'This event is no longer accepting RSVPs.'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-        response_data: dict[str, Any] = {'status': result.rsvp.status}
+        # Refetch with rsvps prefetched so serializer can compute counts/my_rsvp
+        event.refresh_from_db()
+        event_qs = CommunityEvent.objects.prefetch_related('rsvps').get(id=event.id)
+        response_serializer = CommunityEventSerializer(
+            event_qs, context={'request': request},
+        )
+        response_data = response_serializer.data
         if result.at_capacity:
             response_data['warning'] = 'Event is at capacity. RSVP set to maybe.'
 

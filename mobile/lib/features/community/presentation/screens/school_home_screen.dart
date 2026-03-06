@@ -67,6 +67,11 @@ class _SchoolHomeScreenState extends ConsumerState<SchoolHomeScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.event_outlined),
+            onPressed: () => context.push('/community/events'),
+            tooltip: 'Events',
+          ),
+          IconButton(
             icon: const Icon(Icons.bookmark_border),
             onPressed: () => context.push('/community/saved'),
             tooltip: 'Saved',
