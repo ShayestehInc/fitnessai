@@ -288,6 +288,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 label: Text(context.l10n.homeLog),
                 onPressed: () => context.push('/ai-command'),
               ),
+            IconButton(
+              icon: const Icon(Icons.tv_rounded, size: 22),
+              tooltip: 'TV Mode',
+              onPressed: () => context.push('/tv-mode'),
+            ),
             _buildAnnouncementBell(theme),
             Theme.of(context).platform == TargetPlatform.iOS
                 ? IconButton(

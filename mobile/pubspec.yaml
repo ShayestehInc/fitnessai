@@ -94,6 +94,9 @@ dependencies:
   # Image gallery saving
   image_gallery_saver_plus: ^3.0.5
 
+  # Screen wakelock (keep screen on)
+  wakelock_plus: ^1.2.8
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
