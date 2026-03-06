@@ -14,21 +14,43 @@ class EventDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Try in-memory provider first
     final state = ref.watch(traineeEventProvider);
-    final event = state.events.where((e) => e.id == eventId).firstOrNull;
+    final cachedEvent =
+        state.events.where((e) => e.id == eventId).firstOrNull;
 
-    if (event == null) {
+    if (cachedEvent != null) {
       return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: Text('Event not found')),
+        appBar: AppBar(title: const Text('Event Details')),
+        body: _EventDetailBody(event: cachedEvent),
       );
     }
 
+    // Fallback to API fetch (deep links, stale provider state)
+    final detailAsync = ref.watch(eventDetailProvider(eventId));
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Event Details'),
+      appBar: AppBar(title: const Text('Event Details')),
+      body: detailAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, __) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline,
+                  size: 48, color: Theme.of(context).colorScheme.error),
+              const SizedBox(height: 16),
+              const Text('Event not found or no longer available'),
+              const SizedBox(height: 12),
+              FilledButton.tonal(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Go Back'),
+              ),
+            ],
+          ),
+        ),
+        data: (event) => _EventDetailBody(event: event),
       ),
-      body: _EventDetailBody(event: event),
     );
   }
 }
@@ -108,10 +130,13 @@ class _EventDetailBody extends ConsumerWidget {
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.only(left: 32),
-            child: FilledButton.icon(
-              onPressed: () => _launchUrl(event.meetingUrl),
-              icon: const Icon(Icons.videocam, size: 18),
-              label: const Text('Join Meeting'),
+            child: Semantics(
+              label: 'Join virtual meeting',
+              child: FilledButton.icon(
+                onPressed: () => _launchUrl(context, event.meetingUrl),
+                icon: const Icon(Icons.videocam, size: 18),
+                label: const Text('Join Meeting'),
+              ),
             ),
           ),
         ],
@@ -144,7 +169,7 @@ class _EventDetailBody extends ConsumerWidget {
         ],
 
         // RSVP
-        if (!event.isPast && !event.isCancelled) ...[
+        if (!event.isPast) ...[
           Text(
             'Your Response',
             style: theme.textTheme.titleSmall?.copyWith(
@@ -152,13 +177,16 @@ class _EventDetailBody extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          RsvpButton(
-            currentRsvp: event.myRsvp,
-            isAtCapacity: event.isAtCapacity,
-            disabled: false,
-            onChanged: (status) {
-              ref.read(traineeEventProvider.notifier).rsvp(event.id, status);
-            },
+          Opacity(
+            opacity: event.isCancelled ? 0.5 : 1.0,
+            child: RsvpButton(
+              currentRsvp: event.myRsvp,
+              isAtCapacity: event.isAtCapacity,
+              disabled: event.isCancelled,
+              onChanged: (status) {
+                ref.read(traineeEventProvider.notifier).rsvp(event.id, status);
+              },
+            ),
           ),
         ],
         if (event.isCancelled) ...[
@@ -216,10 +244,16 @@ class _EventDetailBody extends ConsumerWidget {
     return '${dateFmt.format(start)} ${timeFmt.format(start)}\nto ${dateFmt.format(end)} ${timeFmt.format(end)}';
   }
 
-  Future<void> _launchUrl(String url) async {
+  Future<void> _launchUrl(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
     if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open meeting link')),
+        );
+      }
     }
   }
 }

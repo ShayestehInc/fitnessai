@@ -102,7 +102,7 @@ class EventRepository {
       data['max_attendees'] = maxAttendees;
     }
 
-    final response = await _apiClient.dio.put(
+    final response = await _apiClient.dio.patch(
       ApiConstants.trainerEventDetail(eventId),
       data: data,
     );

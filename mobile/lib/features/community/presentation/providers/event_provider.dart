@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/event_model.dart';
@@ -40,7 +41,7 @@ class EventListState {
     ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
   List<CommunityEventModel> get past => events
-      .where((e) => e.isPast || e.isCompleted)
+      .where((e) => (e.isPast || e.isCompleted) && !e.isCancelled)
       .toList()
     ..sort((a, b) => b.startsAt.compareTo(a.startsAt));
 
@@ -67,6 +68,11 @@ class TraineeEventNotifier extends StateNotifier<EventListState> {
     try {
       final events = await _repo.getEvents();
       state = state.copyWith(events: events, isLoading: false);
+    } on DioException catch (e) {
+      final message = e.response?.statusCode == 401
+          ? 'Session expired. Please log in again.'
+          : 'Failed to load events';
+      state = state.copyWith(isLoading: false, error: message);
     } catch (_) {
       state = state.copyWith(
         isLoading: false,
@@ -101,8 +107,12 @@ class TraineeEventNotifier extends StateNotifier<EventListState> {
           return updated;
         }).toList(),
       );
+    } on DioException catch (e) {
+      final message = e.response?.statusCode == 409
+          ? 'Event is at capacity'
+          : 'Could not update RSVP. Try again.';
+      state = state.copyWith(events: previousEvents, error: message);
     } catch (_) {
-      // Rollback
       state = state.copyWith(
         events: previousEvents,
         error: 'Could not update RSVP. Try again.',
@@ -110,6 +120,16 @@ class TraineeEventNotifier extends StateNotifier<EventListState> {
     }
   }
 }
+
+// ── Single Event Detail (API fallback for deep links) ──
+
+final eventDetailProvider =
+    FutureProvider.autoDispose.family<CommunityEventModel, int>(
+  (ref, eventId) async {
+    final repo = ref.watch(eventRepositoryProvider);
+    return repo.getEventDetail(eventId);
+  },
+);
 
 // ── Trainer Event State ──
 
@@ -130,6 +150,11 @@ class TrainerEventNotifier extends StateNotifier<EventListState> {
     try {
       final events = await _repo.getTrainerEvents();
       state = state.copyWith(events: events, isLoading: false);
+    } on DioException catch (e) {
+      final message = e.response?.statusCode == 401
+          ? 'Session expired. Please log in again.'
+          : 'Failed to load events';
+      state = state.copyWith(isLoading: false, error: message);
     } catch (_) {
       state = state.copyWith(
         isLoading: false,

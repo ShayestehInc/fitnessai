@@ -52,16 +52,16 @@ class CommunityEventModel {
       description: json['description'] as String? ?? '',
       eventType: json['event_type'] as String? ?? 'other',
       status: json['status'] as String? ?? 'scheduled',
-      startsAt: DateTime.parse(json['starts_at'] as String),
-      endsAt: DateTime.parse(json['ends_at'] as String),
+      startsAt: DateTime.parse(json['starts_at'] as String? ?? ''),
+      endsAt: DateTime.parse(json['ends_at'] as String? ?? ''),
       meetingUrl: json['meeting_url'] as String? ?? '',
       maxAttendees: json['max_attendees'] as int?,
       isRecurring: json['is_recurring'] as bool? ?? false,
       spaceId: json['space'] as int?,
       attendeeCounts: counts,
       myRsvp: json['my_rsvp'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? '') ?? DateTime.now(),
     );
   }
 

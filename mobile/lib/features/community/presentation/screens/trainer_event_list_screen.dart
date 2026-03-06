@@ -18,9 +18,9 @@ class _TrainerEventListScreenState
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-      () => ref.read(trainerEventProvider.notifier).loadEvents(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(trainerEventProvider.notifier).loadEvents();
+    });
   }
 
   @override
@@ -31,10 +31,10 @@ class _TrainerEventListScreenState
       appBar: AppBar(title: const Text('Events')),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final created = await context.push<bool>(
+          final result = await context.push<String>(
             '/trainer/events/create',
           );
-          if (created == true) {
+          if (result == 'created') {
             ref.read(trainerEventProvider.notifier).loadEvents();
           }
         },
@@ -75,10 +75,10 @@ class _TrainerEventListScreenState
         onRefresh: () =>
             ref.read(trainerEventProvider.notifier).loadEvents(),
         onCreateFirst: () async {
-          final created = await context.push<bool>(
+          final result = await context.push<String>(
             '/trainer/events/create',
           );
-          if (created == true) {
+          if (result == 'created') {
             ref.read(trainerEventProvider.notifier).loadEvents();
           }
         },

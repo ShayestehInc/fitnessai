@@ -16,9 +16,9 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-      () => ref.read(traineeEventProvider.notifier).loadEvents(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(traineeEventProvider.notifier).loadEvents();
+    });
   }
 
   @override
@@ -83,7 +83,12 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
-    final endOfWeek = today.add(Duration(days: 7 - today.weekday));
+    // Monday-based: days until next Monday (handles Sunday correctly)
+    final daysUntilNextMonday = (8 - today.weekday) % 7;
+    final endOfWeek = today.add(Duration(
+      days: daysUntilNextMonday == 0 ? 7 : daysUntilNextMonday,
+    ));
+    final endOfNextWeek = endOfWeek.add(const Duration(days: 7));
 
     final groups = <String, List<CommunityEventModel>>{};
     for (final event in events) {
@@ -100,6 +105,8 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
         group = 'Tomorrow';
       } else if (day.isBefore(endOfWeek)) {
         group = 'This Week';
+      } else if (day.isBefore(endOfNextWeek)) {
+        group = 'Next Week';
       } else {
         group = 'Later';
       }
@@ -107,7 +114,8 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
     }
 
     final widgets = <Widget>[];
-    for (final label in ['Today', 'Tomorrow', 'This Week', 'Later']) {
+    for (final label
+        in ['Today', 'Tomorrow', 'This Week', 'Next Week', 'Later']) {
       final group = groups[label];
       if (group == null || group.isEmpty) continue;
       widgets.add(_SectionHeader(title: label));

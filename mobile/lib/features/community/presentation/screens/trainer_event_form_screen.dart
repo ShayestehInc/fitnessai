@@ -128,7 +128,6 @@ class _TrainerEventFormScreenState
       decoration: const InputDecoration(
         labelText: 'Title',
         border: OutlineInputBorder(),
-        counterText: '',
       ),
       validator: (v) =>
           (v == null || v.trim().isEmpty) ? 'Title is required' : null,
@@ -395,7 +394,7 @@ class _TrainerEventFormScreenState
           content: Text(_isEditing ? 'Event updated' : 'Event created'),
         ),
       );
-      context.pop(_isEditing ? 'updated' : true);
+      context.pop(_isEditing ? 'updated' : 'created');
     } on Exception {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
