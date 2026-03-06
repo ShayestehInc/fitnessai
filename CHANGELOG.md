@@ -4,6 +4,21 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 45: Nutrition Phase 4 — Wire Plan Screens into Navigation
+
+### Added
+- Meal plan card on trainee nutrition screen showing day type, template name, calorie target, P/C/F macros
+- Card tap navigates to DayPlanScreen with selected date
+- "View Week" button navigates to WeekPlanScreen
+- Card conditionally rendered only for trainees with active template assignments
+
+### Fixed
+- Future.wait type safety in nutrition provider for typed repository returns
+- Template name overflow in meal plan card (Flexible + ellipsis)
+- Removed unused import in template_assignment_screen
+
+---
+
 ## [2026-03-05] — Pipeline 44: Nutrition Phase 3 — LBM Formula Engine & SHREDDED/MASSIVE Templates
 
 ### Added

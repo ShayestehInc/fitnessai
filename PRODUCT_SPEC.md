@@ -933,6 +933,19 @@ Notification preference controls, local reminder scheduling, help & support scre
 **Pipeline Results:**
 - Quality Score: SHIP
 
+### 4.31 Nutrition Phase 4: Wire Plan Screens into Navigation (Pipeline 45) -- COMPLETED (2026-03-05)
+
+Connected the orphaned DayPlanScreen and WeekPlanScreen to the trainee nutrition screen via a meal plan card.
+
+**What was built:**
+- Meal plan card on nutrition screen showing DayTypeBadge, template name, calorie target, P/C/F macros
+- Card tap → DayPlanScreen, "View Week" → WeekPlanScreen
+- Card conditionally rendered only for trainees with active template assignments
+- Fixed Future.wait type safety for typed repository returns
+
+**Pipeline Results:**
+- Quality Score: 9/10 SHIP
+
 ### 4.30 Nutrition Phase 3: LBM Formula Engine & SHREDDED/MASSIVE Templates (Pipeline 44) -- COMPLETED (2026-03-05)
 
 LBM-based macro calculation engine replacing placeholder rulesets with real formula-driven day plans.
