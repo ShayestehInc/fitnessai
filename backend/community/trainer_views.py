@@ -549,6 +549,16 @@ class TrainerEventDetailView(views.APIView):
         except CommunityEvent.DoesNotExist:
             return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Prevent editing cancelled or completed events.
+        if event.status in (
+            CommunityEvent.EventStatus.CANCELLED,
+            CommunityEvent.EventStatus.COMPLETED,
+        ):
+            return Response(
+                {'error': f'Cannot update a {event.status} event.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         serializer = CommunityEventCreateSerializer(data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
@@ -586,7 +596,13 @@ class TrainerEventDetailView(views.APIView):
             return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         from .services.event_service import EventService
-        EventService.transition_status(event, CommunityEvent.EventStatus.CANCELLED)
+        try:
+            EventService.transition_status(event, CommunityEvent.EventStatus.CANCELLED)
+        except ValueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         # Notify RSVP'd users about cancellation (fire-and-forget)
         EventService.notify_event_cancelled(event)
@@ -618,7 +634,13 @@ class TrainerEventStatusView(views.APIView):
             )
 
         from .services.event_service import EventService
-        EventService.transition_status(event, new_status)
+        try:
+            EventService.transition_status(event, new_status)
+        except ValueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         # Notify RSVP'd users if event was cancelled via status transition
         if new_status == CommunityEvent.EventStatus.CANCELLED:

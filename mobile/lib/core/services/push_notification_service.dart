@@ -29,6 +29,12 @@ class PushNotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
+  /// Stream subscriptions that must be cancelled on deactivation to prevent
+  /// duplicate listeners after login -> logout -> login cycles.
+  StreamSubscription<String>? _tokenRefreshSub;
+  StreamSubscription<RemoteMessage>? _foregroundMessageSub;
+  StreamSubscription<RemoteMessage>? _messageOpenedSub;
+
   PushNotificationService(this._ref);
 
   /// Initialize FCM, local notifications, and register device token.
@@ -70,17 +76,23 @@ class PushNotificationService {
       await _registerToken(token);
     }
 
-    // Listen for token refresh
-    messaging.onTokenRefresh.listen((newToken) {
+    // Listen for token refresh (cancel previous subscription first to
+    // avoid duplicates after logout -> login cycles).
+    _tokenRefreshSub?.cancel();
+    _tokenRefreshSub = messaging.onTokenRefresh.listen((newToken) {
       _currentToken = newToken;
       _registerToken(newToken);
     });
 
     // Handle foreground messages
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    _foregroundMessageSub?.cancel();
+    _foregroundMessageSub =
+        FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
     // Handle background/terminated tap
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+    _messageOpenedSub?.cancel();
+    _messageOpenedSub =
+        FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
     // Check if app was opened from a terminated-state notification
     final initialMessage = await messaging.getInitialMessage();
@@ -136,8 +148,17 @@ class PushNotificationService {
   }
 
   /// Deactivate the current token on logout.
-  /// Resets _initialized so the next login re-registers the token.
+  /// Cancels stream subscriptions and resets _initialized so the next
+  /// login re-registers the token without creating duplicate listeners.
   Future<void> deactivateToken() async {
+    // Cancel stream subscriptions to prevent duplicate listeners on re-login.
+    _tokenRefreshSub?.cancel();
+    _tokenRefreshSub = null;
+    _foregroundMessageSub?.cancel();
+    _foregroundMessageSub = null;
+    _messageOpenedSub?.cancel();
+    _messageOpenedSub = null;
+
     if (_currentToken == null) {
       _initialized = false;
       return;
@@ -160,12 +181,18 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
+    final title = notification.title ?? '';
+    final body = notification.body ?? '';
+
+    // Don't show a blank notification -- nothing useful for the user.
+    if (title.isEmpty && body.isEmpty) return;
+
     final data = message.data;
 
     _localNotifications.show(
       message.hashCode,
-      notification.title ?? '',
-      notification.body ?? '',
+      title,
+      body,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
@@ -173,7 +200,11 @@ class PushNotificationService {
           importance: Importance.high,
           priority: Priority.high,
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
       ),
       payload: _buildPayload(data),
     );
@@ -212,7 +243,7 @@ class PushNotificationService {
           }
           break;
         case 'announcement':
-          router.push('/announcements');
+          router.push('/community/announcements');
           break;
         case 'community_comment':
         case 'community_activity':
@@ -221,8 +252,8 @@ class PushNotificationService {
         default:
           break;
       }
-    } catch (_) {
-      // Navigation may fail if router not ready; ignore
+    } catch (e) {
+      debugPrint('Notification deep-link navigation failed: $e');
     }
   }
 

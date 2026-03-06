@@ -140,12 +140,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Set tokens directly and load user (for admin impersonation)
+  /// Set tokens directly and load user (for admin/trainer impersonation).
+  /// Deactivates the current push token first so the device is not left
+  /// registered under the previous user, which would cause the impersonator
+  /// to receive the impersonated user's notifications after ending the session.
   Future<void> setTokensAndLoadUser(
     String accessToken,
     String refreshToken,
   ) async {
     state = state.copyWith(isLoading: true, error: null);
+
+    // Deactivate push token for the current user before switching identity.
+    await _pushService.deactivateToken();
 
     final result = await _repository.setTokensAndLoadUser(
       accessToken,

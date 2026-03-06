@@ -143,6 +143,7 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer[NotificationP
             'churn_alert',
             'trainer_announcement',
             'achievement_earned',
+            'community_event',
             'new_message',
             'community_activity',
         ]

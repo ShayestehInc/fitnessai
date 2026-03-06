@@ -80,9 +80,33 @@ class EventService:
             result[row['status']] = row['count']
         return result
 
+    # Valid state transitions: source -> set of allowed targets
+    _VALID_TRANSITIONS: dict[str, frozenset[str]] = {
+        CommunityEvent.EventStatus.SCHEDULED: frozenset({
+            CommunityEvent.EventStatus.LIVE,
+            CommunityEvent.EventStatus.CANCELLED,
+        }),
+        CommunityEvent.EventStatus.LIVE: frozenset({
+            CommunityEvent.EventStatus.COMPLETED,
+            CommunityEvent.EventStatus.CANCELLED,
+        }),
+        # Terminal states: no transitions allowed
+        CommunityEvent.EventStatus.COMPLETED: frozenset(),
+        CommunityEvent.EventStatus.CANCELLED: frozenset(),
+    }
+
     @staticmethod
     def transition_status(event: CommunityEvent, new_status: str) -> CommunityEvent:
-        """Transition an event's status (e.g. scheduled → live → completed)."""
+        """
+        Transition an event's status (e.g. scheduled -> live -> completed).
+        Raises ValueError if the transition is not allowed by the state machine.
+        """
+        allowed = EventService._VALID_TRANSITIONS.get(event.status, frozenset())
+        if new_status not in allowed:
+            raise ValueError(
+                f"Invalid status transition: {event.status!r} -> {new_status!r}. "
+                f"Allowed transitions from {event.status!r}: {sorted(allowed) or 'none (terminal state)'}."
+            )
         event.status = new_status
         event.save(update_fields=['status', 'updated_at'])
         logger.info("Event %s transitioned to %s", event.title, new_status)
@@ -161,7 +185,7 @@ class EventService:
                 category='community_event',
             )
         except Exception:
-            logger.warning("Failed to send event created notifications", exc_info=True)
+            logger.error("Failed to send event-created notifications for event %d", event.id, exc_info=True)
 
     @staticmethod
     def notify_event_updated(
@@ -195,7 +219,7 @@ class EventService:
                 category='community_event',
             )
         except Exception:
-            logger.warning("Failed to send event updated notifications", exc_info=True)
+            logger.error("Failed to send event-updated notifications for event %d", event.id, exc_info=True)
 
     @staticmethod
     def notify_event_cancelled(event: CommunityEvent) -> None:
@@ -218,7 +242,7 @@ class EventService:
                 category='community_event',
             )
         except Exception:
-            logger.warning("Failed to send event cancelled notifications", exc_info=True)
+            logger.error("Failed to send event-cancelled notifications for event %d", event.id, exc_info=True)
 
     @staticmethod
     def send_event_reminders() -> int:
