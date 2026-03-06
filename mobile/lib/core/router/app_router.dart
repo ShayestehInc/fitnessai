@@ -34,7 +34,7 @@ import '../../features/community/presentation/screens/trainer_event_form_screen.
 import '../../features/community/data/models/announcement_model.dart';
 import '../../features/trainer/presentation/screens/trainer_announcements_screen.dart';
 import '../../features/trainer/presentation/screens/create_announcement_screen.dart';
-import '../../features/tv/presentation/screens/tv_screen.dart';
+import '../../features/tv/presentation/screens/tv_mode_screen.dart';
 import '../../features/logging/presentation/screens/ai_command_center_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/settings/presentation/screens/edit_profile_screen.dart';
@@ -1052,6 +1052,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      // TV Mode — gym display
+      GoRoute(
+        path: '/tv-mode',
+        name: 'tv-mode',
+        pageBuilder: (context, state) => adaptiveFullscreenPage(
+          key: state.pageKey,
+          child: const TvModeScreen(),
+        ),
+      ),
       // --- New Feature Routes ---
       GoRoute(
         path: '/quick-log',

@@ -1,84 +1,80 @@
-# Feature: Achievement Toast on New Badge
+# Feature: TV Mode — Gym Display
 
 ## Priority
 High
 
 ## User Story
-As a trainee, I want to see a celebratory toast/overlay when I earn a new achievement badge so that I feel rewarded and motivated to continue my fitness journey.
+As a trainee, I want to display my current workout on a gym TV or tablet so that I can easily see my exercises, sets, reps, and rest timer at a distance while training.
 
 ## Acceptance Criteria
-- [ ] AC1: `NewAchievementModel` already exists in mobile — parse `new_achievements` from post-workout survey API response
-- [ ] AC2: Parse `new_achievements` from weight check-in API response (backend needs to include it)
-- [ ] AC3: Parse `new_achievements` from nutrition save API response (backend needs to include it)
-- [ ] AC4: Achievement celebration overlay widget shows achievement icon (mapped from icon_name), name, and description
-- [ ] AC5: Overlay has celebratory animation — scale-in with glow effect, pulsing badge icon
-- [ ] AC6: Overlay auto-dismisses after 4 seconds, or user can tap to dismiss early
-- [ ] AC7: If multiple achievements earned at once, show them sequentially (queue-based)
-- [ ] AC8: Haptic feedback (success pattern) on achievement display
-- [ ] AC9: Celebration overlay works from any screen (uses global overlay/navigator key)
-- [ ] AC10: Offline workout submissions show achievements when synced (deferred — no achievement data available offline)
+- [ ] TV mode screen shows today's workout from the active program
+- [ ] Each exercise is displayed with name, target sets x reps, and suggested weight (from last session)
+- [ ] Current exercise is visually highlighted; completed exercises are checked off
+- [ ] Rest timer with large countdown display (configurable: 30s, 60s, 90s, 120s, 180s)
+- [ ] Rest timer starts when user taps "Complete Set" and auto-advances
+- [ ] Overall workout progress bar (exercises completed / total)
+- [ ] Elapsed workout time displayed
+- [ ] Screen stays awake while TV mode is active (wakelock)
+- [ ] Fonts are large enough to read at 10+ feet (48pt+ for numbers, 24pt+ for labels)
+- [ ] High contrast dark theme for gym readability
+- [ ] Empty state when no active program or today is a rest day
+- [ ] Error state when program data fails to load
+- [ ] Loading state while fetching workout data
+- [ ] Back/exit button to leave TV mode
+- [ ] Route wired in app_router.dart and accessible from trainee navigation
 
 ## Edge Cases
-1. No achievements earned — no overlay shown, no errors
-2. Single achievement earned — overlay shown once, auto-dismisses
-3. Multiple achievements earned simultaneously — queued, shown one after another with brief delay
-4. User navigates away during overlay — overlay dismissed cleanly, no orphaned widgets
-5. Achievement icon_name not in icon map — falls back to default trophy icon (Icons.emoji_events)
-6. API response missing new_achievements key — treated as empty list, no overlay
-7. Achievement data malformed (missing name/description) — skip that achievement, log warning
-8. User on slow device — animations use hardware-accelerated transforms only
-9. Offline workout later syncs — sync handler does not have achievement data from server, skip toast
-10. Weight check-in and nutrition endpoints currently don't return new_achievements — backend needs update
+1. No active program assigned — show empty state with message
+2. Today is a rest day — show rest day message with next workout preview
+3. All exercises already completed — show completion celebration
+4. Timer reaches zero — visual/audio pulse, auto-stop
+5. User leaves TV mode mid-workout — timer stops, state preserved if they return
+6. Program schedule has no exercises for today's day index — show empty state
+7. Exercise has no previous weight data — show target reps/sets without weight suggestion
+8. Very long exercise names — truncate with ellipsis, still readable
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| API returns no new_achievements | Nothing | No overlay triggered |
-| Malformed achievement JSON | Nothing | Logs parse error, skips |
-| Icon name not found | Default trophy icon | Falls back gracefully |
-| User dismisses during animation | Overlay exits smoothly | Animation controller disposed |
-| Multiple rapid API calls with achievements | Sequential toasts | Queue prevents overlap |
+| No program | "No workout assigned" + icon | Show empty state |
+| Rest day | "Rest Day" + next workout info | Show rest state |
+| Network error loading | "Could not load workout" + retry | Show error with retry button |
+| All exercises done | "Workout Complete!" + stats | Show completion state |
 
 ## UX Requirements
-- **Celebration overlay**: Full-width card sliding down from top (like iOS toast but larger and more celebratory). Achievement icon in a glowing circle, achievement name in bold, description below. Gold/amber accent color for the glow effect.
-- **Animation**: Scale-up entrance (0 to 1 with elastic curve). Subtle pulsing glow around the icon. Slide-up exit.
-- **Haptic**: Success haptic pattern on show.
-- **Timing**: 4-second display, 300ms entrance, 300ms exit. Sequential achievements have 500ms gap between them.
-- **Dismiss**: Tap anywhere on the overlay to dismiss early. Swipe up to dismiss.
-- **Accessibility**: VoiceOver/TalkBack announces "Achievement earned: [name]. [description]".
-- **Theming**: Uses app theme colors. Gold accent for the badge glow (#FFD700 with opacity).
+- **Loading state:** Large centered spinner with "Loading workout..." text
+- **Empty state:** Icon + "No workout today" message + suggestion to check program
+- **Error state:** Icon + error message + retry button (large, tappable)
+- **Success feedback:** Set completion animates the exercise check, progress bar advances
+- **Mobile behavior:** Works in both portrait and landscape; landscape preferred for TV cast
 
 ## Technical Approach
 
-### Backend Changes (minor)
-- `backend/workouts/views.py`: Weight check-in `perform_create` and nutrition save should return `new_achievements` in their response, same pattern as post-workout survey.
+### Files to create:
+- `mobile/lib/features/tv/presentation/providers/tv_mode_provider.dart` — Riverpod provider for TV mode state (current exercise, completed sets, timer)
+- `mobile/lib/features/tv/presentation/screens/tv_mode_screen.dart` — Main TV mode screen (replaces tv_screen.dart)
+- `mobile/lib/features/tv/presentation/widgets/tv_exercise_card.dart` — Large exercise display card
+- `mobile/lib/features/tv/presentation/widgets/tv_rest_timer.dart` — Large countdown timer widget
+- `mobile/lib/features/tv/presentation/widgets/tv_progress_bar.dart` — Workout progress bar
+- `mobile/lib/features/tv/presentation/widgets/tv_workout_header.dart` — Header with program name, elapsed time
 
-### Mobile Changes
-- **New widget**: `achievement_celebration_overlay.dart` — the animated overlay widget
-- **New service**: `achievement_toast_service.dart` — singleton queue manager using a global overlay key. Accepts `List<NewAchievementModel>`, queues them, shows sequentially.
-- **Provider**: `achievement_toast_provider.dart` — Riverpod provider wrapping the service, exposed globally.
-- **Wiring in active_workout_screen.dart**: After `_submitPostWorkoutSurvey`, parse `new_achievements` from `OfflineSaveResult.data` and trigger the toast.
-- **Wiring in weight_checkin_screen.dart**: After successful check-in, parse `new_achievements` from response.
-- **Wiring in nutrition provider/screen**: After successful nutrition save, parse `new_achievements` from response.
-- **WorkoutRepository update**: `submitPostWorkoutSurvey` must forward `new_achievements` from response data.
-- **OfflineSaveResult**: Already carries arbitrary `data` map — achievements will flow through.
+### Files to modify:
+- `mobile/pubspec.yaml` — Add `wakelock_plus` package
+- `mobile/lib/core/router/app_router.dart` — Add TV mode route
+- `mobile/lib/features/tv/presentation/screens/tv_screen.dart` — Replace placeholder (or redirect to tv_mode_screen)
 
-### Files to create
-- `mobile/lib/shared/widgets/achievement_celebration_overlay.dart`
-- `mobile/lib/core/services/achievement_toast_service.dart`
+### Dependencies:
+- `wakelock_plus: ^1.2.8` — Keep screen awake
+- Existing: `flutter_riverpod`, `go_router`, workout_provider (for program data)
 
-### Files to modify
-- `backend/workouts/views.py` — add new_achievements to weight check-in and nutrition responses
-- `mobile/lib/features/workout_log/data/repositories/workout_repository.dart` — forward new_achievements from API
-- `mobile/lib/core/database/offline_workout_repository.dart` — already forwards data, may need new_achievements key
-- `mobile/lib/features/workout_log/presentation/screens/active_workout_screen.dart` — trigger achievement toast
-- `mobile/lib/features/nutrition/presentation/screens/weight_checkin_screen.dart` — trigger achievement toast
-- `mobile/lib/features/community/presentation/widgets/achievement_badge.dart` — reuse icon map
-- `mobile/lib/features/community/data/models/achievement_model.dart` — already has NewAchievementModel
+### Key Design Decisions:
+- Reuse `workoutStateProvider` to get active program and today's workout
+- TV mode manages its own set-completion and timer state via separate provider
+- Dark theme colors from AppTheme (already dark-mode-first)
+- No network calls for set logging — TV mode is display/timer only, workout logging happens in the regular active workout screen
 
 ## Out of Scope
-- Web dashboard achievement toasts
-- Push notification for achievements (separate feature)
-- Confetti particle system (keep it clean and professional)
-- Achievement sharing to social media
-- Offline achievement calculation
+- Casting/Chromecast integration (future)
+- Audio cues on timer completion (future, needs audio package)
+- Landscape-only forced orientation (support both, prefer landscape)
+- Syncing TV mode set completion with active workout screen
