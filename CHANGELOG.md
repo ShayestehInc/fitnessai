@@ -4,6 +4,33 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 47: Community Events — Trainer Create & Trainee RSVP
+
+### Added
+- CommunityEventModel and RsvpStatus enum with full fromJson, copyWith, computed getters
+- EventRepository with trainee (list, detail, RSVP) and trainer (CRUD, status transition) endpoints
+- TraineeEventNotifier with optimistic RSVP updates and error rollback
+- TrainerEventNotifier with create, update, delete, cancel operations
+- EventCard widget with date formatting, type/status badges, RSVP indicator, dimming for past/cancelled
+- EventTypeBadge and EventStatusBadge widgets (5 event types, 4 statuses)
+- RsvpButton — 3-way SegmentedButton with capacity-aware disabling
+- Event list screen with date-grouped sections (Today/Tomorrow/This Week/Next Week/Later)
+- Event detail screen with API fallback for deep links, Join Meeting button, RSVP error snackbar
+- Trainer event list with FAB, edit on tap, confirmation dialogs for cancel/delete
+- Trainer event form (create + edit) with date/time pickers, virtual toggle, validation
+- Loading skeleton for event list matching card layout
+- Events icon in Community tab app bar
+- "Manage Events" card on trainer dashboard
+- 5 new routes in app_router.dart
+
+### Fixed
+- DateTime.tryParse with fallback for corrupt backend data
+- PATCH instead of PUT for partial event updates
+- Negative count guard in RSVP optimistic update
+- End-time auto-correction when start-time is moved past end-time
+
+---
+
 ## [2026-03-05] — Pipeline 46: Nutrition Phase 5 — Wire Template Assignment into Trainer Detail Screen
 
 ### Added
