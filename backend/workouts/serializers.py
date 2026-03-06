@@ -954,7 +954,7 @@ class MealLogSerializer(serializers.ModelSerializer[MealLog]):
             'entries', 'total_calories', 'total_protein', 'total_carbs', 'total_fat',
             'logged_at',
         ]
-        read_only_fields = ['logged_at']
+        read_only_fields = ['trainee', 'logged_at']
 
     def _cached_entries(self, obj: MealLog) -> list[MealLogEntry]:
         if not hasattr(obj, '_cached_entry_list'):

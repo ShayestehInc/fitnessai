@@ -2662,6 +2662,11 @@ class FoodItemViewSet(viewsets.ModelViewSet[FoodItem]):
     permission_classes = [IsAuthenticated]
     pagination_class = FoodItemPagination
 
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
+        if self.action in ('create', 'update', 'partial_update'):
+            return FoodItemCreateSerializer
+        return FoodItemSerializer
+
     def get_queryset(self) -> QuerySet[FoodItem]:
         from django.db.models import Q
 
@@ -2744,7 +2749,14 @@ class FoodItemViewSet(viewsets.ModelViewSet[FoodItem]):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        return super().destroy(request, *args, **kwargs)
+        from django.db.models import ProtectedError
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {'error': 'Cannot delete this food item because it has been used in meal logs.'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
     @action(detail=False, methods=['get'], url_path=r'barcode/(?P<barcode>[^/.]+)')
     def barcode_lookup(self, request: Request, barcode: str = '') -> Response:
@@ -2758,7 +2770,7 @@ class FoodItemViewSet(viewsets.ModelViewSet[FoodItem]):
         from django.db.models import Q
 
         user = cast(User, request.user)
-        qs = FoodItem.objects.filter(barcode=barcode.strip())
+        qs = FoodItem.objects.filter(barcode=barcode.strip()).select_related('created_by')
 
         # Apply same visibility rules as get_queryset
         if user.is_trainer():
@@ -2830,9 +2842,15 @@ class MealLogPagination(PageNumberPagination):
     max_page_size = 50
 
 
-class MealLogViewSet(viewsets.ModelViewSet[MealLog]):
+class MealLogViewSet(
+    viewsets.mixins.ListModelMixin,
+    viewsets.mixins.RetrieveModelMixin,
+    viewsets.mixins.DestroyModelMixin,
+    viewsets.GenericViewSet[MealLog],
+):
     """
-    CRUD for MealLogs (meal containers with nested entries).
+    List/retrieve/destroy MealLogs with nested entries.
+    Creation is handled exclusively via the quick-add action.
     Trainees manage their own meals; trainers can view their trainees' meals.
     """
 
@@ -2875,7 +2893,10 @@ class MealLogViewSet(viewsets.ModelViewSet[MealLog]):
     def summary(self, request: Request) -> Response:
         """GET /api/workouts/meal-logs/summary/?date=YYYY-MM-DD
 
-        Returns aggregated daily macro totals from MealLog entries.
+        Returns aggregated daily macro totals from structured MealLog entries.
+        Note: Legacy DailyLog.nutrition_data is available separately via
+        the existing /daily-logs/nutrition-summary/ endpoint. The mobile client
+        can merge both sources if the trainee has data in both systems.
         """
         user = cast(User, request.user)
         date_str = request.query_params.get('date')
