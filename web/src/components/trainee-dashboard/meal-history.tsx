@@ -21,6 +21,7 @@ import {
 import { useDeleteMealEntry } from "@/hooks/use-trainee-nutrition";
 import { useTraineeTodayLog } from "@/hooks/use-trainee-dashboard";
 import type { NutritionMeal } from "@/types/trainee-view";
+import { useLocale } from "@/providers/locale-provider";
 
 interface MealHistoryProps {
   meals: NutritionMeal[];
@@ -28,6 +29,7 @@ interface MealHistoryProps {
 }
 
 export function MealHistory({ meals, date }: MealHistoryProps) {
+  const { t } = useLocale();
   // Store both the index and the name of the meal targeted for deletion.
   // Capturing the name at dialog-open time prevents stale-index issues if
   // the meals array is reordered by a background react-query refetch.
@@ -59,11 +61,11 @@ export function MealHistory({ meals, date }: MealHistoryProps) {
       { logId: dailyLogId, entry_index: deleteTarget.index },
       {
         onSuccess: () => {
-          toast.success("Meal removed");
+          toast.success(t("nutrition.mealRemoved"));
           setDeleteTarget(null);
         },
         onError: () => {
-          toast.error("Failed to remove meal.");
+          toast.error(t("nutrition.failedToRemoveMeal"));
           setDeleteTarget(null);
         },
       },

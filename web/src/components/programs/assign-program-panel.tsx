@@ -13,6 +13,7 @@ import { useAssignProgram } from "@/hooks/use-programs";
 import { useAllTrainees } from "@/hooks/use-trainees";
 import { getErrorMessage } from "@/lib/error-utils";
 import type { ProgramTemplate } from "@/types/program";
+import { useLocale } from "@/providers/locale-provider";
 
 function getLocalDateString(): string {
   const now = new Date();
@@ -31,6 +32,7 @@ export function AssignProgramPanel({
   program,
   trigger,
 }: AssignProgramPanelProps) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [selectedTraineeId, setSelectedTraineeId] = useState<number | "">("");
   const [startDate, setStartDate] = useState(getLocalDateString);
@@ -119,7 +121,7 @@ export function AssignProgramPanel({
       <SlideOverPanel
         open={open}
         onOpenChange={handleOpenChange}
-        title="Assign Program"
+        title={t("trainees.assignProgram")}
         description={`Assign \u201c${program.name}\u201d to a trainee. A new program will be created based on this template.`}
         width="sm"
         footer={footerContent}
@@ -144,7 +146,7 @@ export function AssignProgramPanel({
               <div className="mb-3 rounded-full bg-muted p-3">
                 <Users className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
               </div>
-              <p className="mb-1 text-sm font-medium">No trainees yet</p>
+              <p className="mb-1 text-sm font-medium">{t("trainees.noTraineesYet")}</p>
               <p className="mb-3 text-xs text-muted-foreground">
                 Invite a trainee before assigning programs.
               </p>

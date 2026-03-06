@@ -10,8 +10,10 @@ import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { Button } from "@/components/ui/button";
 import { InvitationTable } from "@/components/invitations/invitation-table";
 import { CreateInvitationPanel, CreateInvitationTrigger } from "@/components/invitations/create-invitation-panel";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function InvitationsPage() {
+  const { t } = useLocale();
   const [page, setPage] = useState(1);
   const [panelOpen, setPanelOpen] = useState(false);
   const { data, isLoading, isError, refetch } = useInvitations(page);
@@ -22,8 +24,8 @@ export default function InvitationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Invitations"
-        description="Manage trainee invitations"
+        title={t("nav.invitations")}
+        description={t("invitations.description")}
         actions={<CreateInvitationTrigger onClick={() => setPanelOpen(true)} />}
       />
 
@@ -37,8 +39,8 @@ export default function InvitationsPage() {
       ) : data && data.results.length === 0 && page === 1 ? (
         <EmptyState
           icon={Mail}
-          title="No invitations yet"
-          description="Send your first invitation to start onboarding trainees."
+          title={t("invitations.noInvitations")}
+          description={t("invitations.noInvitationsDesc")}
           action={<CreateInvitationTrigger onClick={() => setPanelOpen(true)} />}
         />
       ) : data ? (

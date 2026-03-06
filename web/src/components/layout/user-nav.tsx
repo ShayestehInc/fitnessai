@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings } from "lucide-react";
+import { useLocale } from "@/providers/locale-provider";
 
 const ROLE_LABELS: Record<string, string> = {
   [UserRole.TRAINER]: "Trainer",
@@ -23,6 +24,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export function UserNav() {
   const { user, logout } = useAuth();
+  const { t } = useLocale();
 
   const initials = user
     ? `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase() ||
@@ -82,13 +84,13 @@ export function UserNav() {
             className="cursor-pointer"
           >
             <Settings className="mr-2 h-4 w-4" />
-            Settings
+            {t("userNav.settings")}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout} className="cursor-pointer">
           <LogOut className="mr-2 h-4 w-4" />
-          Log out
+          {t("userNav.signOut")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

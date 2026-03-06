@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/error-utils";
+import { useLocale } from "@/providers/locale-provider";
 
 const PRESET_COLORS = [
   "#4f46e5", "#3b82f6", "#10b981", "#14b8a6", "#8b5cf6", "#ec4899",
@@ -20,6 +21,7 @@ const PRESET_COLORS = [
 const HEX_REGEX = /^#[0-9a-fA-F]{6}$/;
 
 export function BrandingSection() {
+  const { t } = useLocale();
   const { data: branding, isLoading } = useBranding();
   const updateMutation = useUpdateBranding();
   const uploadLogoMutation = useUploadLogo();
@@ -58,7 +60,7 @@ export function BrandingSection() {
       },
       {
         onSuccess: () => {
-          toast.success("Branding updated");
+          toast.success(t("toast.brandingUpdated"));
           setHasChanges(false);
         },
         onError: (err) => toast.error(getErrorMessage(err)),
@@ -72,18 +74,18 @@ export function BrandingSection() {
       if (!file) return;
 
       if (file.size > 5 * 1024 * 1024) {
-        toast.error("File must be under 5MB");
+        toast.error(t("error.fileTooLarge"));
         return;
       }
 
       const validTypes = ["image/jpeg", "image/png", "image/webp"];
       if (!validTypes.includes(file.type)) {
-        toast.error("Only JPEG, PNG, and WebP images are accepted");
+        toast.error(t("error.imageFormatJpgPngWebp"));
         return;
       }
 
       uploadLogoMutation.mutate(file, {
-        onSuccess: () => toast.success("Logo uploaded"),
+        onSuccess: () => toast.success(t("toast.logoUploaded")),
         onError: (err) => toast.error(getErrorMessage(err)),
       });
     },
@@ -92,7 +94,7 @@ export function BrandingSection() {
 
   const handleRemoveLogo = useCallback(() => {
     removeLogoMutation.mutate(undefined, {
-      onSuccess: () => toast.success("Logo removed"),
+      onSuccess: () => toast.success(t("toast.logoRemoved")),
       onError: (err) => toast.error(getErrorMessage(err)),
     });
   }, [removeLogoMutation]);
@@ -116,14 +118,14 @@ export function BrandingSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Branding</CardTitle>
-        <CardDescription>Customize your white-label branding</CardDescription>
+        <CardTitle>{t("settings.branding")}</CardTitle>
+        <CardDescription>{t("settings.brandingDesc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* App Name */}
         <div className="space-y-2">
           <div className="flex justify-between">
-            <Label htmlFor="app-name">App Name</Label>
+            <Label htmlFor="app-name">{t("settings.appName")}</Label>
             <span className="text-xs text-muted-foreground">{appName.length}/50</span>
           </div>
           <Input
@@ -140,7 +142,7 @@ export function BrandingSection() {
 
         {/* Primary Color */}
         <div className="space-y-2">
-          <Label>Primary Color</Label>
+          <Label>{t("settings.primaryColor")}</Label>
           <div className="flex flex-wrap gap-2">
             {PRESET_COLORS.map((color) => (
               <button
@@ -168,13 +170,13 @@ export function BrandingSection() {
             maxLength={7}
           />
           {primaryColor && !HEX_REGEX.test(primaryColor) && (
-            <p className="text-sm text-destructive">Enter a valid hex color</p>
+            <p className="text-sm text-destructive">{t("settings.invalidHexColor")}</p>
           )}
         </div>
 
         {/* Secondary Color */}
         <div className="space-y-2">
-          <Label>Secondary Color</Label>
+          <Label>{t("settings.secondaryColor")}</Label>
           <div className="flex flex-wrap gap-2">
             {PRESET_COLORS.map((color) => (
               <button
@@ -205,7 +207,7 @@ export function BrandingSection() {
 
         {/* Logo */}
         <div className="space-y-2">
-          <Label>Logo</Label>
+          <Label>{t("settings.logo")}</Label>
           {branding?.logo ? (
             <div className="flex items-center gap-3">
               <img
@@ -241,7 +243,7 @@ export function BrandingSection() {
 
         {/* Live Preview */}
         <div className="space-y-2">
-          <Label>Preview</Label>
+          <Label>{t("settings.preview")}</Label>
           <div className="rounded-lg border p-4">
             <div
               className="flex items-center gap-2 rounded-md p-3"

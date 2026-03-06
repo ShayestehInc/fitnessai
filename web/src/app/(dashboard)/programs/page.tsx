@@ -11,8 +11,10 @@ import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { ProgramList } from "@/components/programs/program-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function ProgramsPage() {
+  const { t } = useLocale();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -27,8 +29,8 @@ export default function ProgramsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Programs"
-        description="Create and manage workout program templates"
+        title={t("nav.programs")}
+        description={t("programs.description")}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
@@ -54,7 +56,7 @@ export default function ProgramsPage() {
             aria-hidden="true"
           />
           <Input
-            placeholder="Search programs..."
+            placeholder={t("programs.searchPlaceholder")}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -77,8 +79,8 @@ export default function ProgramsPage() {
       ) : isEmpty ? (
         <EmptyState
           icon={Dumbbell}
-          title="No program templates yet"
-          description="Create your first program to get started."
+          title={t("programs.noPrograms")}
+          description={t("programs.noProgramsDesc")}
           action={
             <Button asChild>
               <Link href="/programs/new">
@@ -92,7 +94,7 @@ export default function ProgramsPage() {
         <EmptyState
           icon={Search}
           title="No programs found"
-          description="Try adjusting your search term."
+          description={t("ambassador.tryAdjustingSearch")}
         />
       ) : data ? (
         <ProgramList

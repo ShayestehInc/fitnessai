@@ -27,12 +27,14 @@ import { useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement } f
 import { getErrorMessage } from "@/lib/error-utils";
 import { Megaphone } from "lucide-react";
 import type { Announcement } from "@/types/announcement";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AnnouncementListProps {
   announcements: Announcement[];
 }
 
 export function AnnouncementList({ announcements }: AnnouncementListProps) {
+  const { t } = useLocale();
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] =
@@ -67,8 +69,8 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
       <>
         <EmptyState
           icon={Megaphone}
-          title="No announcements yet"
-          description="Create your first announcement to broadcast to all trainees."
+          title={t("announcements.noAnnouncements")}
+          description={t("announcements.noAnnouncementsDesc")}
           action={
             <Button onClick={handleCreate}>
               <Plus className="mr-2 h-4 w-4" />
@@ -84,7 +86,7 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
           onSubmit={(data) => {
             createMutation.mutate(data, {
               onSuccess: () => {
-                toast.success("Announcement created");
+                toast.success(t("announcements.created"));
                 setFormOpen(false);
               },
               onError: (err) => toast.error(getErrorMessage(err)),
@@ -99,7 +101,7 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Announcements</CardTitle>
+          <CardTitle>{t("nav.announcements")}</CardTitle>
           <Button size="sm" onClick={handleCreate}>
             <Plus className="mr-2 h-4 w-4" />
             Create
@@ -111,11 +113,11 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8" />
-                  <TableHead>Title</TableHead>
-                  <TableHead>Preview</TableHead>
+                  <TableHead>{t("common.title")}</TableHead>
+                  <TableHead>{t("settings.preview")}</TableHead>
                   <TableHead>Format</TableHead>
                   <TableHead>Created</TableHead>
-                  <TableHead className="w-24">Actions</TableHead>
+                  <TableHead className="w-24">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -187,7 +189,7 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
           onSubmit={(data) => {
             createMutation.mutate(data, {
               onSuccess: () => {
-                toast.success("Announcement created");
+                toast.success(t("announcements.created"));
                 setFormOpen(false);
               },
               onError: (err) => toast.error(getErrorMessage(err)),
@@ -215,7 +217,7 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
           onConfirm={() => {
             deleteMutation.mutate(selectedAnnouncement.id, {
               onSuccess: () => {
-                toast.success("Announcement deleted");
+                toast.success(t("announcements.deleted"));
                 setDeleteOpen(false);
                 setSelectedAnnouncement(null);
               },
@@ -237,6 +239,7 @@ function EditAnnouncementWrapper({
   onOpenChange: (open: boolean) => void;
   announcement: Announcement;
 }) {
+  const { t } = useLocale();
   const updateMutation = useUpdateAnnouncement(announcement.id);
 
   return (
@@ -248,7 +251,7 @@ function EditAnnouncementWrapper({
       onSubmit={(data) => {
         updateMutation.mutate(data, {
           onSuccess: () => {
-            toast.success("Announcement updated");
+            toast.success(t("announcements.updated"));
             onOpenChange(false);
           },
           onError: (err) => toast.error(getErrorMessage(err)),

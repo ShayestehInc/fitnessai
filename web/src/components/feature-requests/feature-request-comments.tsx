@@ -14,6 +14,7 @@ import {
 } from "@/hooks/use-feature-requests";
 import { getErrorMessage } from "@/lib/error-utils";
 import type { FeatureComment } from "@/types/feature-request";
+import { useLocale } from "@/providers/locale-provider";
 
 interface FeatureRequestCommentsProps {
   featureId: number;
@@ -24,6 +25,7 @@ const MAX_COMMENT_LENGTH = 2000;
 export function FeatureRequestComments({
   featureId,
 }: FeatureRequestCommentsProps) {
+  const { t } = useLocale();
   const [content, setContent] = useState("");
   const { data, isLoading, isError } = useFeatureComments(featureId);
   const createComment = useCreateFeatureComment(featureId);
@@ -36,7 +38,7 @@ export function FeatureRequestComments({
     createComment.mutate(trimmed, {
       onSuccess: () => {
         setContent("");
-        toast.success("Comment posted");
+        toast.success(t("featureRequests.commentPosted"));
       },
       onError: (err) => toast.error(getErrorMessage(err)),
     });
@@ -69,8 +71,8 @@ export function FeatureRequestComments({
       {comments.length === 0 ? (
         <EmptyState
           icon={MessageSquare}
-          title="No comments yet"
-          description="Be the first to share your thoughts."
+          title={t("featureRequests.noComments")}
+          description={t("featureRequests.noCommentsDesc")}
         />
       ) : (
         <div className="space-y-3">
@@ -119,7 +121,7 @@ export function FeatureRequestComments({
           onChange={(e) => setContent(e.target.value)}
           maxLength={MAX_COMMENT_LENGTH}
           rows={3}
-          placeholder="Share your thoughts..."
+          placeholder={t("aiChat.shareThoughts")}
           className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
         />
         <div className="flex justify-end">

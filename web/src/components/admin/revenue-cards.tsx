@@ -9,18 +9,20 @@ import {
 import { StatCard } from "@/components/dashboard/stat-card";
 import { formatCurrency } from "@/lib/format-utils";
 import type { AdminDashboardStats } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 interface RevenueCardsProps {
   stats: AdminDashboardStats;
 }
 
 export function RevenueCards({ stats }: RevenueCardsProps) {
+  const { t } = useLocale();
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Revenue & Payments</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Total Past Due"
+          title={t("admin.totalPastDue")}
           value={formatCurrency(stats.total_past_due)}
           description={`${stats.past_due_count} past due accounts`}
           icon={AlertTriangle}
@@ -31,21 +33,21 @@ export function RevenueCards({ stats }: RevenueCardsProps) {
           }
         />
         <StatCard
-          title="Payments Due Today"
+          title={t("admin.paymentsDueToday")}
           value={stats.payments_due_today}
           description="Active subscriptions"
           icon={CalendarClock}
         />
         <StatCard
-          title="Due This Week"
+          title={t("admin.dueThisWeek")}
           value={stats.payments_due_this_week}
-          description="Next 7 days"
+          description={t("admin.next7Days")}
           icon={CalendarDays}
         />
         <StatCard
-          title="Due This Month"
+          title={t("admin.dueThisMonth")}
           value={stats.payments_due_this_month}
-          description="Next 30 days"
+          description={t("admin.next30Days")}
           icon={CalendarRange}
         />
       </div>

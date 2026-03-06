@@ -10,16 +10,18 @@ import { TierBreakdown } from "@/components/admin/tier-breakdown";
 import { PastDueAlerts } from "@/components/admin/past-due-alerts";
 import { AdminDashboardSkeleton } from "@/components/admin/admin-dashboard-skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function AdminDashboardPage() {
+  const { t } = useLocale();
   const dashboard = useAdminDashboard();
 
   if (dashboard.isLoading) {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Admin Dashboard"
-          description="Platform overview and management"
+          title={t("admin.dashboard")}
+          description={t("admin.dashboardDesc")}
         />
         <AdminDashboardSkeleton />
       </div>
@@ -30,11 +32,11 @@ export default function AdminDashboardPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Admin Dashboard"
-          description="Platform overview and management"
+          title={t("admin.dashboard")}
+          description={t("admin.dashboardDesc")}
         />
         <ErrorState
-          message="Failed to load dashboard data"
+          message={t("dashboard.failedToLoad")}
           onRetry={() => dashboard.refetch()}
         />
       </div>
@@ -47,8 +49,8 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Admin Dashboard"
-        description="Platform overview and management"
+        title={t("admin.dashboard")}
+        description={t("admin.dashboardDesc")}
         actions={
           stats.past_due_count > 0 ? (
             <Badge

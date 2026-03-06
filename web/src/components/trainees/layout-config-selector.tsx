@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error-utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocale } from "@/providers/locale-provider";
 
 interface LayoutConfigSelectorProps {
   traineeId: number;
@@ -39,6 +40,7 @@ const LAYOUT_OPTIONS = [
 ] as const;
 
 export function LayoutConfigSelector({ traineeId }: LayoutConfigSelectorProps) {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState("default");
 
@@ -62,7 +64,7 @@ export function LayoutConfigSelector({ traineeId }: LayoutConfigSelectorProps) {
       queryClient.invalidateQueries({
         queryKey: ["trainee-layout", traineeId],
       });
-      toast.success("Layout updated");
+      toast.success(t("trainees.layoutUpdated"));
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
@@ -96,7 +98,7 @@ export function LayoutConfigSelector({ traineeId }: LayoutConfigSelectorProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Workout Layout</CardTitle>
+        <CardTitle>{t("trainees.workoutLayout")}</CardTitle>
         <CardDescription>
           Choose how workouts appear for this trainee
         </CardDescription>

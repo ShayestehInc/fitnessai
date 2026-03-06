@@ -24,6 +24,7 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { tooltipContentStyle, CHART_COLORS } from "@/lib/chart-utils";
 import type { WeightEntry, VolumeEntry, AdherenceEntry } from "@/types/progress";
+import { useLocale } from "@/providers/locale-provider";
 
 function formatDate(dateStr: string): string {
   const d = parseISO(dateStr);
@@ -39,18 +40,19 @@ interface WeightChartProps {
 }
 
 export function WeightChart({ data }: WeightChartProps) {
+  const { t } = useLocale();
   if (data.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Weight Trend</CardTitle>
-          <CardDescription>Body weight over time</CardDescription>
+          <CardTitle className="text-base">{t("trainees.weightTrend")}</CardTitle>
+          <CardDescription>{t("trainees.weightTrendDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <EmptyState
             icon={Scale}
-            title="No weight data"
-            description="Weight check-ins will appear here once the trainee logs them."
+            title={t("trainees.noWeightData")}
+            description={t("trainees.weightCheckInsAppear")}
           />
         </CardContent>
       </Card>
@@ -65,7 +67,7 @@ export function WeightChart({ data }: WeightChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Weight Trend</CardTitle>
+        <CardTitle className="text-base">{t("trainees.weightTrend")}</CardTitle>
         <CardDescription>
           Last {data.length} check-in{data.length !== 1 ? "s" : ""}
         </CardDescription>
@@ -110,18 +112,19 @@ interface VolumeChartProps {
 }
 
 export function VolumeChart({ data }: VolumeChartProps) {
+  const { t } = useLocale();
   if (data.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Workout Volume</CardTitle>
-          <CardDescription>Total training volume over time</CardDescription>
+          <CardTitle className="text-base">{t("trainees.workoutVolume")}</CardTitle>
+          <CardDescription>{t("trainees.workoutVolumeDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <EmptyState
             icon={Dumbbell}
-            title="No workout data"
-            description="Workout volume will appear here once the trainee logs workouts."
+            title={t("trainees.noWorkoutData")}
+            description={t("trainees.workoutVolumeAppear")}
           />
         </CardContent>
       </Card>
@@ -136,8 +139,8 @@ export function VolumeChart({ data }: VolumeChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Workout Volume</CardTitle>
-        <CardDescription>Daily total volume (last 4 weeks)</CardDescription>
+        <CardTitle className="text-base">{t("trainees.workoutVolume")}</CardTitle>
+        <CardDescription>{t("trainees.workoutVolumeDaily")}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[250px]">
@@ -181,18 +184,19 @@ interface AdherenceChartProps {
 }
 
 export function AdherenceChart({ data }: AdherenceChartProps) {
+  const { t } = useLocale();
   if (data.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Adherence</CardTitle>
-          <CardDescription>Daily tracking compliance</CardDescription>
+          <CardTitle className="text-base">{t("trainees.adherence")}</CardTitle>
+          <CardDescription>{t("trainees.adherenceDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <EmptyState
             icon={CalendarCheck}
-            title="No activity data"
-            description="Adherence data will appear here once the trainee starts tracking."
+            title={t("trainees.noActivityData")}
+            description={t("trainees.adherenceAppear")}
           />
         </CardContent>
       </Card>
@@ -209,8 +213,8 @@ export function AdherenceChart({ data }: AdherenceChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Adherence</CardTitle>
-        <CardDescription>Daily tracking (last 4 weeks)</CardDescription>
+        <CardTitle className="text-base">{t("trainees.adherence")}</CardTitle>
+        <CardDescription>{t("trainees.adherenceDaily")}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[250px]">

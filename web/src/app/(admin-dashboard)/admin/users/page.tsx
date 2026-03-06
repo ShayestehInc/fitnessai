@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SELECT_CLASSES } from "@/lib/admin-constants";
 import type { AdminUser } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 const ROLE_OPTIONS = [
   { value: "", label: "All Roles" },
@@ -22,6 +23,7 @@ const ROLE_OPTIONS = [
 ];
 
 export default function AdminUsersPage() {
+  const { t } = useLocale();
   const [searchInput, setSearchInput] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -54,8 +56,8 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Users"
-        description="Manage admin and trainer accounts"
+        title={t("admin.users")}
+        description={t("admin.usersDesc")}
         actions={
           <Button onClick={handleCreate}>
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -66,7 +68,7 @@ export default function AdminUsersPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input
-          placeholder="Search by name or email..."
+          placeholder={t("admin.searchByNameOrEmail")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="w-full sm:max-w-sm"
@@ -105,7 +107,7 @@ export default function AdminUsersPage() {
       {users.data && users.data.length === 0 && (
         <EmptyState
           icon={UserCog}
-          title="No users found"
+          title={t("admin.noUsers")}
           description={
             debouncedSearch || roleFilter
               ? "No users match your search criteria."
@@ -113,7 +115,7 @@ export default function AdminUsersPage() {
           }
           action={
             !debouncedSearch && !roleFilter ? (
-              <Button onClick={handleCreate}>Create User</Button>
+              <Button onClick={handleCreate}>{t("admin.createUser")}</Button>
             ) : undefined
           }
         />

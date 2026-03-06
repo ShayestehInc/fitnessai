@@ -16,8 +16,10 @@ import {
   useMarkAnnouncementRead,
 } from "@/hooks/use-trainee-announcements";
 import { toast } from "sonner";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function AnnouncementsPage() {
+  const { t } = useLocale();
   const { data: announcements, isLoading, isError, refetch } =
     useAnnouncements();
   const { data: unreadData } = useAnnouncementUnreadCount();
@@ -29,10 +31,10 @@ export default function AnnouncementsPage() {
   const handleMarkAllRead = () => {
     markAllRead.mutate(undefined, {
       onSuccess: () => {
-        toast.success("All announcements marked as read");
+        toast.success(t("announcements.allMarkedRead"));
       },
       onError: () => {
-        toast.error("Failed to mark announcements as read");
+        toast.error(t("announcements.failedToMarkRead"));
       },
     });
   };
@@ -50,8 +52,8 @@ export default function AnnouncementsPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Announcements"
-          description="Updates from your trainer"
+          title={t("nav.announcements")}
+          description={t("announcements.updatesFromTrainer")}
         />
         <LoadingSpinner label="Loading announcements..." />
       </div>
@@ -62,8 +64,8 @@ export default function AnnouncementsPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Announcements"
-          description="Updates from your trainer"
+          title={t("nav.announcements")}
+          description={t("announcements.updatesFromTrainer")}
         />
         <ErrorState
           message="Failed to load announcements. Please try again."
@@ -78,8 +80,8 @@ export default function AnnouncementsPage() {
       <div className="space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <PageHeader
-            title="Announcements"
-            description="Updates from your trainer"
+            title={t("nav.announcements")}
+            description={t("announcements.updatesFromTrainer")}
           />
           {unreadCount > 0 && (
             <Button
@@ -107,8 +109,8 @@ export default function AnnouncementsPage() {
         {!announcements?.length ? (
           <EmptyState
             icon={Megaphone}
-            title="No announcements yet"
-            description="Your trainer hasn't posted any announcements yet. Check back later!"
+            title={t("announcements.noAnnouncements")}
+            description={t("announcements.noAnnouncementsTrainee")}
           />
         ) : (
           <AnnouncementsList

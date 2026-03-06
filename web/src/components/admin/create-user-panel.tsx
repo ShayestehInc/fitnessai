@@ -15,6 +15,7 @@ import {
 } from "@/hooks/use-admin-users";
 import { SELECT_CLASSES_FULL_WIDTH } from "@/lib/admin-constants";
 import type { AdminUser, UpdateUserPayload } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 interface CreateUserPanelProps {
   user: AdminUser | null;
@@ -50,6 +51,7 @@ export function CreateUserPanel({
   open,
   onOpenChange,
 }: CreateUserPanelProps) {
+  const { t } = useLocale();
   const isEdit = user !== null;
   const createUser = useCreateAdminUser();
   const updateUser = useUpdateAdminUser();
@@ -94,7 +96,7 @@ export function CreateUserPanel({
         };
         if (password) payload.password = password;
         await updateUser.mutateAsync({ id: user.id, data: payload });
-        toast.success("User updated");
+        toast.success(t("admin.userUpdated"));
       } else {
         await createUser.mutateAsync({
           email: email.trim().toLowerCase(),
@@ -103,7 +105,7 @@ export function CreateUserPanel({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
         });
-        toast.success("User created");
+        toast.success(t("admin.userCreated"));
       }
       onOpenChange(false);
     } catch (error) {
@@ -166,7 +168,7 @@ export function CreateUserPanel({
       <form id="create-user-form" onSubmit={handleSubmit} className="space-y-4">
         {!isEdit && (
           <div className="space-y-1">
-            <Label htmlFor="user-email">Email</Label>
+            <Label htmlFor="user-email">{t("settings.email")}</Label>
             <Input
               id="user-email"
               type="email"
@@ -235,7 +237,7 @@ export function CreateUserPanel({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <Label htmlFor="user-first-name">First Name</Label>
+            <Label htmlFor="user-first-name">{t("settings.firstName")}</Label>
             <Input
               id="user-first-name"
               value={firstName}
@@ -244,7 +246,7 @@ export function CreateUserPanel({
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="user-last-name">Last Name</Label>
+            <Label htmlFor="user-last-name">{t("settings.lastName")}</Label>
             <Input
               id="user-last-name"
               value={lastName}

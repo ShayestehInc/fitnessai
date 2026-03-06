@@ -10,6 +10,7 @@ import { SlideOverPanel } from "@/components/ui/slide-over-panel";
 import { useUpdateTraineeGoals } from "@/hooks/use-trainee-goals";
 import { getErrorMessage } from "@/lib/error-utils";
 import type { NutritionGoal } from "@/types/trainer";
+import { useLocale } from "@/providers/locale-provider";
 
 interface EditGoalsPanelProps {
   traineeId: number;
@@ -26,6 +27,7 @@ export function EditGoalsPanel({
   open,
   onOpenChange,
 }: EditGoalsPanelProps) {
+  const { t } = useLocale();
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
   const [carbs, setCarbs] = useState("");
@@ -82,7 +84,7 @@ export function EditGoalsPanel({
         },
         {
           onSuccess: () => {
-            toast.success("Nutrition goals updated");
+            toast.success(t("trainees.goalsUpdated"));
             onOpenChange(false);
           },
           onError: (err) => toast.error(getErrorMessage(err)),
@@ -96,7 +98,7 @@ export function EditGoalsPanel({
     <SlideOverPanel
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit Nutrition Goals"
+      title={t("trainees.editGoals")}
       description={`Adjust daily macro targets for ${traineeName}`}
       width="md"
       footer={
@@ -123,7 +125,7 @@ export function EditGoalsPanel({
     >
       <form id="edit-goals-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="goal-calories">Calories (kcal)</Label>
+          <Label htmlFor="goal-calories">{t("trainees.caloriesKcal")}</Label>
           <Input
             id="goal-calories"
             type="number"
@@ -144,7 +146,7 @@ export function EditGoalsPanel({
 
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="goal-protein">Protein (g)</Label>
+            <Label htmlFor="goal-protein">{t("trainees.proteinG")}</Label>
             <Input
               id="goal-protein"
               type="number"
@@ -164,7 +166,7 @@ export function EditGoalsPanel({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="goal-carbs">Carbs (g)</Label>
+            <Label htmlFor="goal-carbs">{t("trainees.carbsG")}</Label>
             <Input
               id="goal-carbs"
               type="number"
@@ -184,7 +186,7 @@ export function EditGoalsPanel({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="goal-fat">Fat (g)</Label>
+            <Label htmlFor="goal-fat">{t("trainees.fatG")}</Label>
             <Input
               id="goal-fat"
               type="number"

@@ -12,12 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { MacroPresetsSection } from "./macro-presets-section";
 import type { TraineeDetail } from "@/types/trainer";
+import { useLocale } from "@/providers/locale-provider";
 
 interface TraineeOverviewTabProps {
   trainee: TraineeDetail;
 }
 
 export function TraineeOverviewTab({ trainee }: TraineeOverviewTabProps) {
+  const { t } = useLocale();
   const { profile, nutrition_goal, programs } = trainee;
   const displayName =
     `${trainee.first_name} ${trainee.last_name}`.trim() || trainee.email;
@@ -28,11 +30,11 @@ export function TraineeOverviewTab({ trainee }: TraineeOverviewTabProps) {
         {/* Profile Info */}
         <Card>
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Personal information and goals</CardDescription>
+            <CardTitle>{t("settings.profile")}</CardTitle>
+            <CardDescription>{t("trainees.profileDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <InfoRow label="Email" value={trainee.email} />
+            <InfoRow label={t("settings.email")} value={trainee.email} />
             <InfoRow label="Phone" value={trainee.phone_number ?? "Not set"} />
             {profile ? (
               <>
@@ -49,13 +51,13 @@ export function TraineeOverviewTab({ trainee }: TraineeOverviewTabProps) {
                   }
                 />
                 <InfoRow
-                  label="Weight"
+                  label={t("workout.weight")}
                   value={
                     profile.weight_kg ? `${profile.weight_kg} kg` : "Not set"
                   }
                 />
                 <Separator />
-                <InfoRow label="Goal" value={formatLabel(profile.goal)} />
+                <InfoRow label={t("nutrition.goal")} value={formatLabel(profile.goal)} />
                 <InfoRow
                   label="Activity Level"
                   value={formatLabel(profile.activity_level)}
@@ -78,7 +80,7 @@ export function TraineeOverviewTab({ trainee }: TraineeOverviewTabProps) {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Nutrition Goals</CardTitle>
+              <CardTitle>{t("trainees.nutritionGoals")}</CardTitle>
               <CardDescription>
                 {nutrition_goal?.is_trainer_adjusted
                   ? "Adjusted by trainer"
@@ -89,22 +91,22 @@ export function TraineeOverviewTab({ trainee }: TraineeOverviewTabProps) {
               {nutrition_goal ? (
                 <div className="grid grid-cols-2 gap-4">
                   <MacroCard
-                    label="Calories"
+                    label={t("nutrition.calories")}
                     value={nutrition_goal.calories_goal}
                     unit="kcal"
                   />
                   <MacroCard
-                    label="Protein"
+                    label={t("nutrition.protein")}
                     value={nutrition_goal.protein_goal}
                     unit="g"
                   />
                   <MacroCard
-                    label="Carbs"
+                    label={t("nutrition.carbs")}
                     value={nutrition_goal.carbs_goal}
                     unit="g"
                   />
                   <MacroCard
-                    label="Fat"
+                    label={t("nutrition.fat")}
                     value={nutrition_goal.fat_goal}
                     unit="g"
                   />
@@ -120,7 +122,7 @@ export function TraineeOverviewTab({ trainee }: TraineeOverviewTabProps) {
           {/* Programs */}
           <Card>
             <CardHeader>
-              <CardTitle>Programs</CardTitle>
+              <CardTitle>{t("nav.programs")}</CardTitle>
             </CardHeader>
             <CardContent>
               {programs.length === 0 ? (

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { TIER_COLORS } from "@/lib/admin-constants";
 import type { AdminSubscriptionTier } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 function formatPrice(price: string | number): string {
   const num = typeof price === "string" ? parseFloat(price) : price;
@@ -24,13 +25,14 @@ function formatPrice(price: string | number): string {
 }
 
 export default function AmbassadorTiersPage() {
+  const { t } = useLocale();
   const tiers = useAmbassadorAdminTiers();
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Subscription Tiers"
-        description="Available platform subscription tiers (read-only)"
+        title={t("admin.tiers")}
+        description={t("ambassador.tiersDesc")}
       />
 
       {tiers.isLoading && (
@@ -52,8 +54,8 @@ export default function AmbassadorTiersPage() {
       {tiers.data && tiers.data.length === 0 && (
         <EmptyState
           icon={Layers}
-          title="No tiers available"
-          description="No subscription tiers have been configured yet."
+          title={t("subscription.noTiers")}
+          description={t("subscription.noTiersDesc")}
         />
       )}
 
@@ -62,11 +64,11 @@ export default function AmbassadorTiersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Trainee Limit</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Features</TableHead>
+                <TableHead>{t("common.name")}</TableHead>
+                <TableHead>{t("admin.price")}</TableHead>
+                <TableHead>{t("admin.traineeLimit")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
+                <TableHead>{t("admin.features")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

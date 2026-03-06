@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { ambassadorNavLinks, ambassadorManageLinks } from "./ambassador-nav-links";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AmbassadorSidebarMobileProps {
   open: boolean;
@@ -21,6 +22,7 @@ export function AmbassadorSidebarMobile({
   open,
   onOpenChange,
 }: AmbassadorSidebarMobileProps) {
+  const { t } = useLocale();
   const pathname = usePathname();
 
   return (
@@ -50,7 +52,7 @@ export function AmbassadorSidebarMobile({
                 )}
               >
                 <link.icon className="h-4 w-4" aria-hidden="true" />
-                {link.label}
+                {t(link.label)}
               </Link>
             );
           })}
@@ -79,7 +81,7 @@ export function AmbassadorSidebarMobile({
                 )}
               >
                 <link.icon className="h-4 w-4" aria-hidden="true" />
-                {link.label}
+                {t(link.label)}
               </Link>
             );
           })}

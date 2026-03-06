@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocale } from "@/providers/locale-provider";
 
 function AdminSettingsSkeleton() {
   return (
@@ -31,12 +32,13 @@ function AdminSettingsSkeleton() {
 }
 
 export default function AdminSettingsPage() {
+  const { t } = useLocale();
   const { user, isLoading, refreshUser } = useAuth();
 
   if (isLoading) {
     return (
       <div className="max-w-2xl space-y-6">
-        <PageHeader title="Admin Settings" description="Platform configuration and account" />
+        <PageHeader title={t("admin.settings")} description={t("admin.settingsDesc")} />
         <AdminSettingsSkeleton />
       </div>
     );
@@ -45,7 +47,7 @@ export default function AdminSettingsPage() {
   if (!user) {
     return (
       <div className="max-w-2xl space-y-6">
-        <PageHeader title="Admin Settings" description="Platform configuration and account" />
+        <PageHeader title={t("admin.settings")} description={t("admin.settingsDesc")} />
         <ErrorState
           message="Failed to load settings"
           onRetry={() => refreshUser()}
@@ -57,26 +59,26 @@ export default function AdminSettingsPage() {
   return (
     <PageTransition>
       <div className="max-w-2xl space-y-6">
-        <PageHeader title="Admin Settings" description="Platform configuration and account" />
+        <PageHeader title={t("admin.settings")} description={t("admin.settingsDesc")} />
 
         {/* Platform Config */}
         <Card>
           <CardHeader>
-            <CardTitle>Platform Configuration</CardTitle>
+            <CardTitle>{t("admin.platformConfig")}</CardTitle>
             <CardDescription>
               Global settings that affect all trainers and trainees
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Platform Name</Label>
+              <Label>{t("admin.platformName")}</Label>
               <Input defaultValue="FitnessAI" disabled placeholder="FitnessAI" />
               <p className="text-xs text-muted-foreground">
                 Contact support to change the platform name
               </p>
             </div>
             <div className="space-y-2">
-              <Label>Support Email</Label>
+              <Label>{t("admin.supportEmail")}</Label>
               <Input defaultValue="support@fitnessai.com" disabled />
             </div>
           </CardContent>
@@ -85,7 +87,7 @@ export default function AdminSettingsPage() {
         {/* Security Notice */}
         <Card>
           <CardHeader>
-            <CardTitle>Security</CardTitle>
+            <CardTitle>{t("settings.security")}</CardTitle>
             <CardDescription>
               Admin security and audit settings
             </CardDescription>

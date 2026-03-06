@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SELECT_CLASSES } from "@/lib/admin-constants";
 import type { AdminSubscriptionListItem } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Status" },
@@ -40,6 +41,7 @@ const UPCOMING_OPTIONS = [
 ];
 
 export default function AdminSubscriptionsPage() {
+  const { t } = useLocale();
   const searchParams = useSearchParams();
   const initialPastDue = searchParams.get("past_due") === "true";
 
@@ -74,13 +76,13 @@ export default function AdminSubscriptionsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Subscriptions"
-        description="Manage trainer subscriptions"
+        title={t("admin.subscriptions")}
+        description={t("admin.subscriptionsDesc")}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input
-          placeholder="Search by email..."
+          placeholder={t("admin.searchByEmail")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="w-full sm:max-w-sm"
@@ -143,7 +145,7 @@ export default function AdminSubscriptionsPage() {
       {subscriptions.data && subscriptions.data.length === 0 && (
         <EmptyState
           icon={CreditCard}
-          title="No subscriptions found"
+          title={t("admin.noSubscriptions")}
           description={
             debouncedSearch || statusFilter || tierFilter || upcomingFilter
               ? "No subscriptions match your filters."

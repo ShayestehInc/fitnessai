@@ -30,35 +30,35 @@ export interface NavGroup {
 export const navGroups: NavGroup[] = [
   {
     links: [
-      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { label: "Trainees", href: "/trainees", icon: Users },
-      { label: "Messages", href: "/messages", icon: MessageSquare },
-      { label: "Programs", href: "/programs", icon: Dumbbell },
+      { label: "nav.dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { label: "nav.trainees", href: "/trainees", icon: Users },
+      { label: "nav.messages", href: "/messages", icon: MessageSquare },
+      { label: "nav.programs", href: "/programs", icon: Dumbbell },
     ],
   },
   {
-    label: "Tools",
+    label: "nav.tools",
     links: [
-      { label: "AI Chat", href: "/ai-chat", icon: BrainCircuit },
-      { label: "Exercises", href: "/exercises", icon: Library },
-      { label: "Analytics", href: "/analytics", icon: BarChart3 },
+      { label: "nav.aiChat", href: "/ai-chat", icon: BrainCircuit },
+      { label: "nav.exercises", href: "/exercises", icon: Library },
+      { label: "nav.analytics", href: "/analytics", icon: BarChart3 },
     ],
   },
   {
-    label: "Communication",
+    label: "nav.communication",
     links: [
-      { label: "Invitations", href: "/invitations", icon: Mail },
-      { label: "Announcements", href: "/announcements", icon: Megaphone },
-      { label: "Notifications", href: "/notifications", icon: Bell },
-      { label: "Feature Requests", href: "/feature-requests", icon: Lightbulb },
+      { label: "nav.invitations", href: "/invitations", icon: Mail },
+      { label: "nav.announcements", href: "/announcements", icon: Megaphone },
+      { label: "nav.notifications", href: "/notifications", icon: Bell },
+      { label: "nav.featureRequests", href: "/feature-requests", icon: Lightbulb },
     ],
   },
   {
-    label: "Account",
+    label: "nav.account",
     links: [
-      { label: "Subscription", href: "/subscription", icon: CreditCard },
-      { label: "Calendar", href: "/calendar", icon: CalendarDays },
-      { label: "Settings", href: "/settings", icon: Settings },
+      { label: "nav.subscription", href: "/subscription", icon: CreditCard },
+      { label: "nav.calendar", href: "/calendar", icon: CalendarDays },
+      { label: "nav.settings", href: "/settings", icon: Settings },
     ],
   },
 ];

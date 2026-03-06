@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { useWeightCheckIns } from "@/hooks/use-trainee-view";
 import type { TraineeWeightCheckIn } from "@/types/trainee-view";
+import { useLocale } from "@/providers/locale-provider";
 
 function kgToLbs(kg: number): number {
   return kg * 2.20462;
@@ -29,6 +30,7 @@ function getTrendIcon(checkIns: TraineeWeightCheckIn[]) {
 }
 
 export function WeightCard() {
+  const { t } = useLocale();
   const { data: checkIns, isLoading, isError, refetch } = useWeightCheckIns();
 
   if (isLoading) {
@@ -74,7 +76,7 @@ export function WeightCard() {
               className="mb-2 h-8 w-8 text-muted-foreground"
               aria-hidden="true"
             />
-            <p className="text-sm text-muted-foreground">No weight data</p>
+            <p className="text-sm text-muted-foreground">{t("trainees.noWeightData")}</p>
           </div>
         </CardContent>
       </Card>

@@ -13,6 +13,7 @@ import {
 } from "@/hooks/use-macro-presets";
 import { getErrorMessage } from "@/lib/error-utils";
 import type { MacroPreset } from "@/types/trainer";
+import { useLocale } from "@/providers/locale-provider";
 
 const FREQUENCY_OPTIONS = [
   { value: "", label: "None" },
@@ -51,6 +52,7 @@ export function PresetFormPanel({
   open,
   onOpenChange,
 }: PresetFormPanelProps) {
+  const { t } = useLocale();
   const isEdit = preset !== null;
 
   const [name, setName] = useState("");
@@ -245,7 +247,7 @@ export function PresetFormPanel({
     >
       <form id="preset-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="preset-name">Name</Label>
+          <Label htmlFor="preset-name">{t("common.name")}</Label>
           <Input
             id="preset-name"
             type="text"
@@ -272,7 +274,7 @@ export function PresetFormPanel({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="preset-calories">Calories (kcal)</Label>
+          <Label htmlFor="preset-calories">{t("trainees.caloriesKcal")}</Label>
           <Input
             id="preset-calories"
             type="number"
@@ -304,7 +306,7 @@ export function PresetFormPanel({
 
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="preset-protein">Protein (g)</Label>
+            <Label htmlFor="preset-protein">{t("trainees.proteinG")}</Label>
             <Input
               id="preset-protein"
               type="number"
@@ -335,7 +337,7 @@ export function PresetFormPanel({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="preset-carbs">Carbs (g)</Label>
+            <Label htmlFor="preset-carbs">{t("trainees.carbsG")}</Label>
             <Input
               id="preset-carbs"
               type="number"
@@ -366,7 +368,7 @@ export function PresetFormPanel({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="preset-fat">Fat (g)</Label>
+            <Label htmlFor="preset-fat">{t("trainees.fatG")}</Label>
             <Input
               id="preset-fat"
               type="number"
@@ -399,7 +401,7 @@ export function PresetFormPanel({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="preset-frequency">Frequency</Label>
+            <Label htmlFor="preset-frequency">{t("trainees.presetFrequency")}</Label>
             <select
               id="preset-frequency"
               value={frequency}

@@ -11,6 +11,7 @@ import { useAllTrainees } from "@/hooks/use-trainees";
 import { useCopyMacroPreset } from "@/hooks/use-macro-presets";
 import { getErrorMessage } from "@/lib/error-utils";
 import type { MacroPreset } from "@/types/trainer";
+import { useLocale } from "@/providers/locale-provider";
 
 interface CopyPresetPanelProps {
   traineeId: number;
@@ -25,6 +26,7 @@ export function CopyPresetPanel({
   open,
   onOpenChange,
 }: CopyPresetPanelProps) {
+  const { t } = useLocale();
   const [targetTraineeId, setTargetTraineeId] = useState("");
   const { data: allTrainees, isLoading: isLoadingTrainees } = useAllTrainees();
   const copyMutation = useCopyMacroPreset(traineeId);
@@ -80,7 +82,7 @@ export function CopyPresetPanel({
     <SlideOverPanel
       open={open}
       onOpenChange={handleOpenChange}
-      title="Copy Preset"
+      title={t("trainees.copyPreset")}
       description={`Copy \u201c${preset.name}\u201d to another trainee`}
       width="sm"
       footer={
@@ -116,11 +118,11 @@ export function CopyPresetPanel({
     >
       <form id="copy-preset-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="copy-target-trainee">Select Trainee</Label>
+          <Label htmlFor="copy-target-trainee">{t("aiChat.selectTrainee")}</Label>
           {isLoadingTrainees ? (
             <div className="space-y-2">
               <Skeleton className="h-9 w-full rounded-md" />
-              <p className="text-xs text-muted-foreground">Loading trainees...</p>
+              <p className="text-xs text-muted-foreground">{t("trainees.loadingTrainees")}</p>
             </div>
           ) : otherTrainees.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-4 text-center">
@@ -138,7 +140,7 @@ export function CopyPresetPanel({
               aria-label="Select target trainee for preset copy"
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="">Choose a trainee...</option>
+              <option value="">{t("trainees.chooseTrainee")}</option>
               {otherTrainees.map((t) => {
                 const label =
                   `${t.first_name} ${t.last_name}`.trim() || t.email;

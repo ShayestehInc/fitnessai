@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { SlideOverPanel } from "@/components/ui/slide-over-panel";
 import { Loader2, Plus } from "lucide-react";
 import { ApiError } from "@/lib/api-client";
+import { useLocale } from "@/providers/locale-provider";
 
 const invitationSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -31,6 +32,7 @@ export function CreateInvitationPanel({
   open,
   onOpenChange,
 }: CreateInvitationPanelProps) {
+  const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [expiresInDays, setExpiresInDays] = useState("7");
@@ -87,8 +89,8 @@ export function CreateInvitationPanel({
     <SlideOverPanel
       open={open}
       onOpenChange={handleOpenChange}
-      title="Invite a Trainee"
-      description="Send an invitation to a new trainee. They'll receive a code to sign up."
+      title={t("invitations.createInvitation")}
+      description={t("invitations.sendInvitation")}
       width="sm"
       footer={
         <>
@@ -128,7 +130,7 @@ export function CreateInvitationPanel({
           </div>
         )}
         <div className="space-y-2">
-          <Label htmlFor="invite-email">Email</Label>
+          <Label htmlFor="invite-email">{t("settings.email")}</Label>
           <Input
             id="invite-email"
             type="email"

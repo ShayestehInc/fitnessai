@@ -18,8 +18,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { SubscriptionSkeleton } from "@/components/subscription/subscription-skeleton";
 import { getErrorMessage } from "@/lib/error-utils";
 import { formatCurrency } from "@/lib/format-utils";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function SubscriptionPage() {
+  const { t } = useLocale();
   const connectStatus = useStripeConnectStatus();
   const pricing = useTrainerPricing();
   const onboardMutation = useStripeConnectOnboard();
@@ -40,7 +42,7 @@ export default function SubscriptionPage() {
     return (
       <PageTransition>
         <div className="space-y-6">
-          <PageHeader title="Subscription" description="Manage your subscription and payments" />
+          <PageHeader title={t("nav.subscription")} description={t("subscription.description")} />
           <SubscriptionSkeleton />
         </div>
       </PageTransition>
@@ -51,7 +53,7 @@ export default function SubscriptionPage() {
     return (
       <PageTransition>
         <div className="space-y-6">
-          <PageHeader title="Subscription" description="Manage your subscription and payments" />
+          <PageHeader title={t("nav.subscription")} description={t("subscription.description")} />
           <ErrorState
             message="Failed to load subscription data"
             onRetry={() => {
@@ -72,14 +74,14 @@ export default function SubscriptionPage() {
   return (
     <PageTransition>
       <div className="space-y-6">
-        <PageHeader title="Subscription" description="Manage your subscription and payments" />
+        <PageHeader title={t("nav.subscription")} description={t("subscription.description")} />
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Plan overview */}
           <Card>
             <CardHeader>
-              <CardTitle>Current Plan</CardTitle>
-              <CardDescription>Your subscription details</CardDescription>
+              <CardTitle>{t("subscription.currentPlan")}</CardTitle>
+              <CardDescription>{t("subscription.details")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {plan ? (
@@ -109,8 +111,8 @@ export default function SubscriptionPage() {
               ) : (
                 <EmptyState
                   icon={CreditCard}
-                  title="No active subscription"
-                  description="Set up your subscription to accept payments."
+                  title={t("subscription.noSubscription")}
+                  description={t("subscription.noSubscriptionDesc")}
                 />
               )}
             </CardContent>
@@ -119,8 +121,8 @@ export default function SubscriptionPage() {
           {/* Stripe Connect */}
           <Card>
             <CardHeader>
-              <CardTitle>Stripe Connect</CardTitle>
-              <CardDescription>Accept payments from trainees</CardDescription>
+              <CardTitle>{t("subscription.stripeConnect")}</CardTitle>
+              <CardDescription>{t("subscription.acceptPayments")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {isConnected ? (

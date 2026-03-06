@@ -21,6 +21,7 @@ import { getTodayString, addDays, formatDisplayDate } from "@/lib/schedule-utils
 import { MealLogInput } from "./meal-log-input";
 import { MealHistory } from "./meal-history";
 import { MacroPresetChips } from "./macro-preset-chips";
+import { useLocale } from "@/providers/locale-provider";
 
 function MacrosSkeleton() {
   return (
@@ -62,6 +63,7 @@ function MealHistorySkeleton() {
 }
 
 export function NutritionPage() {
+  const { t } = useLocale();
   const [selectedDate, setSelectedDate] = useState(getTodayString);
   const isToday = selectedDate === getTodayString();
 
@@ -206,26 +208,26 @@ export function NutritionPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <MacroBar
-              label="Calories"
+              label={t("nutrition.calories")}
               consumed={consumed.calories}
               goal={goals.calories}
               color="hsl(var(--chart-1))"
               unit=" kcal"
             />
             <MacroBar
-              label="Protein"
+              label={t("nutrition.protein")}
               consumed={consumed.protein}
               goal={goals.protein}
               color="hsl(var(--chart-2))"
             />
             <MacroBar
-              label="Carbs"
+              label={t("nutrition.carbs")}
               consumed={consumed.carbs}
               goal={goals.carbs}
               color="hsl(var(--chart-3))"
             />
             <MacroBar
-              label="Fat"
+              label={t("nutrition.fat")}
               consumed={consumed.fat}
               goal={goals.fat}
               color="hsl(var(--chart-4))"

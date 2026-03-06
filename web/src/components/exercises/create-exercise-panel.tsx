@@ -13,6 +13,7 @@ import { API_URLS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error-utils";
 import { MUSCLE_GROUP_LABELS } from "@/types/program";
 import { FileUploadField } from "./file-upload-field";
+import { useLocale } from "@/providers/locale-provider";
 
 interface CreateExercisePanelProps {
   open: boolean;
@@ -23,6 +24,7 @@ export function CreateExercisePanel({
   open,
   onOpenChange,
 }: CreateExercisePanelProps) {
+  const { t } = useLocale();
   const [name, setName] = useState("");
   const [muscleGroup, setMuscleGroup] = useState("");
   const [description, setDescription] = useState("");
@@ -118,7 +120,7 @@ export function CreateExercisePanel({
     <SlideOverPanel
       open={open}
       onOpenChange={onOpenChange}
-      title="Create Exercise"
+      title={t("exercises.createExercise")}
       description="Add a new custom exercise to your library."
       width="md"
       footer={
@@ -142,7 +144,7 @@ export function CreateExercisePanel({
       <form id="create-exercise-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <div className="flex justify-between">
-            <Label htmlFor="ex-name">Name</Label>
+            <Label htmlFor="ex-name">{t("common.name")}</Label>
             <span className="text-xs text-muted-foreground">
               {name.length}/100
             </span>
@@ -155,7 +157,7 @@ export function CreateExercisePanel({
               setErrors((prev) => ({ ...prev, name: "" }));
             }}
             maxLength={100}
-            placeholder="Exercise name"
+            placeholder={t("exercises.exerciseName")}
             aria-invalid={Boolean(errors.name)}
           />
           {errors.name && (
@@ -188,14 +190,14 @@ export function CreateExercisePanel({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="ex-desc">Description (optional)</Label>
+          <Label htmlFor="ex-desc">{t("common.descriptionOptional")}</Label>
           <textarea
             id="ex-desc"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             maxLength={500}
             rows={3}
-            placeholder="Exercise description"
+            placeholder={t("exercises.exerciseDesc")}
             className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           />
         </div>

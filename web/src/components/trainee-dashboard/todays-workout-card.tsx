@@ -18,6 +18,7 @@ import {
   useTraineeTodayLog,
 } from "@/hooks/use-trainee-dashboard";
 import { findTodaysWorkout, getTodayString } from "@/lib/schedule-utils";
+import { useLocale } from "@/providers/locale-provider";
 
 function CardSkeleton() {
   return (
@@ -36,6 +37,7 @@ function CardSkeleton() {
 }
 
 export function TodaysWorkoutCard() {
+  const { t } = useLocale();
   const { data: programs, isLoading, isError, refetch } =
     useTraineeDashboardPrograms();
   const todayStr = getTodayString();
@@ -88,8 +90,8 @@ export function TodaysWorkoutCard() {
         <CardContent>
           <EmptyState
             icon={Dumbbell}
-            title="No program assigned"
-            description="Your trainer hasn't assigned a program yet."
+            title={t("workout.noProgram")}
+            description={t("workout.noProgramTrainee")}
           />
         </CardContent>
       </Card>
@@ -144,7 +146,7 @@ export function TodaysWorkoutCard() {
               aria-hidden="true"
             />
             <div>
-              <p className="font-medium">No exercises scheduled</p>
+              <p className="font-medium">{t("workout.noExercisesScheduled")}</p>
               <p className="text-sm text-muted-foreground">
                 This day has no exercises assigned yet.
               </p>

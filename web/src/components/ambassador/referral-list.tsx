@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { useAmbassadorReferrals } from "@/hooks/use-ambassador";
 import { formatCurrency } from "@/lib/format-utils";
 import type { AmbassadorSelfReferral } from "@/types/ambassador";
+import { useLocale } from "@/providers/locale-provider";
 
 const STATUS_TABS = [
   { label: "All", value: "" },
@@ -76,6 +77,7 @@ function ReferralListSkeleton() {
 }
 
 export function ReferralList() {
+  const { t } = useLocale();
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -150,7 +152,7 @@ export function ReferralList() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search within results..."
+          placeholder={t("messages.searchWithinResults")}
           aria-label="Search referrals by name or email"
           className="pl-9"
         />
@@ -160,8 +162,8 @@ export function ReferralList() {
       {isError && (
         <EmptyState
           icon={Users}
-          title="Failed to load referrals"
-          description="Something went wrong. Please try again."
+          title={t("ambassador.failedToLoadReferrals")}
+          description={t("common.errorTryAgain")}
         />
       )}
 
@@ -171,20 +173,20 @@ export function ReferralList() {
           {noReferralsAtAll ? (
             <EmptyState
               icon={Users}
-              title="No referrals yet"
-              description="Share your referral code to start earning commissions."
+              title={t("ambassador.noReferrals")}
+              description={t("ambassador.noReferralsDesc")}
             />
           ) : noFilterResults ? (
             <EmptyState
               icon={Users}
-              title="No referrals match this filter"
-              description="Try selecting a different status filter."
+              title={t("ambassador.noReferralsMatch")}
+              description={t("ambassador.trySelectingStatus")}
             />
           ) : filtered.length === 0 && search ? (
             <EmptyState
               icon={Users}
-              title="No referrals match your search"
-              description="Try adjusting your search query."
+              title={t("ambassador.noReferralsSearch")}
+              description={t("messages.tryAdjustingSearch")}
             />
           ) : (
             <div

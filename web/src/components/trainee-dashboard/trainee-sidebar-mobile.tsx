@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sheet";
 import { BrandLogo } from "./brand-logo";
 import { traineeNavLinks } from "./trainee-nav-links";
+import { useLocale } from "@/providers/locale-provider";
 
 interface TraineeSidebarMobileProps {
   open: boolean;
@@ -26,6 +27,7 @@ export function TraineeSidebarMobile({
   open,
   onOpenChange,
 }: TraineeSidebarMobileProps) {
+  const { t } = useLocale();
   const pathname = usePathname();
   const counts = useTraineeBadgeCounts();
   const { branding, isLoading: brandingLoading } = useTraineeBranding();
@@ -88,7 +90,7 @@ export function TraineeSidebarMobile({
                       : undefined
                   }
                 />
-                <span className="flex-1 truncate">{link.label}</span>
+                <span className="flex-1 truncate">{t(link.label)}</span>
                 {badgeCount > 0 && (
                   <Badge
                     variant="destructive"

@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { useProgressAnalytics } from "@/hooks/use-analytics";
 import type { TraineeProgressEntry } from "@/types/analytics";
+import { useLocale } from "@/providers/locale-provider";
 
 const GOAL_LABELS: Record<string, string> = {
   weight_loss: "Weight Loss",
@@ -123,6 +124,7 @@ function ProgressSkeleton() {
 }
 
 export function ProgressSection() {
+  const { t } = useLocale();
   const router = useRouter();
   const { data, isLoading, isError, isFetching, refetch } = useProgressAnalytics();
 
@@ -145,11 +147,11 @@ export function ProgressSection() {
       ) : isEmpty ? (
         <EmptyState
           icon={Scale}
-          title="No progress data"
+          title={t("progress.noProgressData")}
           description="Trainees will appear here once they start tracking their weight."
           action={
             <Button asChild>
-              <Link href="/invitations">Invite Trainee</Link>
+              <Link href="/invitations">{t("trainer.inviteTrainee")}</Link>
             </Button>
           }
         />

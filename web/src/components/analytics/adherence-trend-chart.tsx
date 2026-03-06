@@ -18,6 +18,7 @@ import { TrendingUp } from "lucide-react";
 import { tooltipContentStyle, CHART_COLORS } from "@/lib/chart-utils";
 import { useAdherenceTrends } from "@/hooks/use-analytics";
 import type { AdherencePeriod, AdherenceTrendPoint } from "@/types/analytics";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AdherenceTrendChartProps {
   days: AdherencePeriod;
@@ -103,6 +104,7 @@ function TrendChartSkeleton() {
 }
 
 export function AdherenceTrendChart({ days }: AdherenceTrendChartProps) {
+  const { t } = useLocale();
   const { data, isLoading, isError, isFetching, refetch } =
     useAdherenceTrends(days);
 
@@ -135,8 +137,8 @@ export function AdherenceTrendChart({ days }: AdherenceTrendChartProps) {
         <CardContent>
           <EmptyState
             icon={TrendingUp}
-            title="No trend data yet"
-            description="Daily adherence trends will appear here once trainees start logging."
+            title={t("traineeView.noTrendData")}
+            description={t("analytics.adherenceTrend")}
           />
         </CardContent>
       </Card>

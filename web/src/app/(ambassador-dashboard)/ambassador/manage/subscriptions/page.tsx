@@ -11,6 +11,7 @@ import { SubscriptionList } from "@/components/admin/subscription-list";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SELECT_CLASSES } from "@/lib/admin-constants";
+import { useLocale } from "@/providers/locale-provider";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Status" },
@@ -30,6 +31,7 @@ const TIER_OPTIONS = [
 ];
 
 export default function AmbassadorSubscriptionsPage() {
+  const { t } = useLocale();
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [tierFilter, setTierFilter] = useState("");
@@ -50,13 +52,13 @@ export default function AmbassadorSubscriptionsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Subscriptions"
-        description="View subscriptions for your trainers"
+        title={t("admin.subscriptions")}
+        description={t("ambassador.subscriptionsDesc")}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input
-          placeholder="Search by email..."
+          placeholder={t("admin.searchByEmail")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="max-w-sm"
@@ -111,7 +113,7 @@ export default function AmbassadorSubscriptionsPage() {
       {subscriptions.data && subscriptions.data.length === 0 && (
         <EmptyState
           icon={CreditCard}
-          title="No subscriptions found"
+          title={t("admin.noSubscriptions")}
           description={
             debouncedSearch || statusFilter || tierFilter
               ? "No subscriptions match your filters."

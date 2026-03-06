@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RISK_TIER_COLORS } from "@/lib/chart-utils";
 import type { RetentionSummary } from "@/types/retention";
+import { useLocale } from "@/providers/locale-provider";
 
 interface RiskDistributionChartProps {
   summary: RetentionSummary;
@@ -18,6 +19,7 @@ const SEGMENTS: { key: keyof typeof RISK_TIER_COLORS; label: string }[] = [
 export function RiskDistributionChart({
   summary,
 }: RiskDistributionChartProps) {
+  const { t } = useLocale();
   const total = summary.total_trainees;
   if (total === 0) return null;
 
@@ -31,7 +33,7 @@ export function RiskDistributionChart({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Risk Distribution</CardTitle>
+        <CardTitle className="text-base">{t("analytics.riskDistribution")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Stacked bar */}

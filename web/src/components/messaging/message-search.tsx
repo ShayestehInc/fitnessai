@@ -10,6 +10,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useSearchMessages } from "@/hooks/use-messaging";
 import { SearchResultItem } from "./search-result-item";
 import type { SearchMessageResult } from "@/types/messaging";
+import { useLocale } from "@/providers/locale-provider";
 
 interface MessageSearchProps {
   onResultClick: (result: SearchMessageResult) => void;
@@ -17,6 +18,7 @@ interface MessageSearchProps {
 }
 
 export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +78,7 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
           ref={inputRef}
           value={query}
           onChange={handleQueryChange}
-          placeholder="Search messages..."
+          placeholder={t("messages.searchPlaceholder")}
           className="h-8 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
           aria-label="Search messages"
           aria-describedby={showHint ? "search-hint" : undefined}
@@ -151,8 +153,8 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
           <div className="p-4" role="alert" aria-live="assertive">
             <EmptyState
               icon={Search}
-              title="Search failed"
-              description="Something went wrong. Please try again."
+              title={t("error.searchFailed")}
+              description={t("common.errorTryAgain")}
               action={
                 <Button variant="outline" size="sm" onClick={() => refetch()}>
                   Try again
@@ -165,8 +167,8 @@ export function MessageSearch({ onResultClick, onClose }: MessageSearchProps) {
         {showResults && !isLoading && !isError && !hasResults && (
           <EmptyState
             icon={Search}
-            title="No messages match your search"
-            description="Try a different search term."
+            title={t("messages.noMessagesMatch")}
+            description={t("messages.tryDifferentSearch")}
           />
         )}
 

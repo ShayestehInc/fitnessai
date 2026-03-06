@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { useNutritionSummary } from "@/hooks/use-trainee-view";
+import { useLocale } from "@/providers/locale-provider";
 
 function formatToday(): string {
   const now = new Date();
@@ -56,6 +57,7 @@ function MacroBar({ label, consumed, goal, unit = "g" }: MacroBarProps) {
 }
 
 export function NutritionCard() {
+  const { t } = useLocale();
   const today = useMemo(() => formatToday(), []);
   const { data: summary, isLoading, isError, refetch } =
     useNutritionSummary(today);
@@ -117,23 +119,23 @@ export function NutritionCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <MacroBar
-          label="Calories"
+          label={t("nutrition.calories")}
           consumed={summary.consumed.calories}
           goal={summary.goals.calories}
           unit="kcal"
         />
         <MacroBar
-          label="Protein"
+          label={t("nutrition.protein")}
           consumed={summary.consumed.protein}
           goal={summary.goals.protein}
         />
         <MacroBar
-          label="Carbs"
+          label={t("nutrition.carbs")}
           consumed={summary.consumed.carbs}
           goal={summary.goals.carbs}
         />
         <MacroBar
-          label="Fat"
+          label={t("nutrition.fat")}
           consumed={summary.consumed.fat}
           goal={summary.goals.fat}
         />

@@ -31,6 +31,7 @@ import {
   useTraineeWorkoutHistory,
   useTraineeWeeklyProgress,
 } from "@/hooks/use-trainee-dashboard";
+import { useLocale } from "@/providers/locale-provider";
 
 function formatDate(dateStr: string): string {
   const d = parseISO(dateStr);
@@ -76,6 +77,7 @@ interface WeightTrendChartProps {
 }
 
 export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
+  const { t } = useLocale();
   const isMobile = useIsMobile();
   const { data: checkIns, isLoading, isError, refetch } =
     useTraineeWeightHistory();
@@ -86,7 +88,7 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Weight Trend</CardTitle>
+          <CardTitle className="text-base">{t("trainees.weightTrend")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ErrorState
@@ -102,14 +104,14 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Weight Trend</CardTitle>
+          <CardTitle className="text-base">{t("trainees.weightTrend")}</CardTitle>
           <CardDescription>Track your body weight over time</CardDescription>
         </CardHeader>
         <CardContent>
           <EmptyState
             icon={Scale}
-            title="No weight data yet"
-            description="Log your first weight check-in to see your trend."
+            title={t("traineeView.noWeightData")}
+            description={t("traineeView.logFirstWeight")}
             action={
               <Button size="sm" onClick={onOpenLogWeight}>
                 <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
@@ -133,7 +135,7 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Weight Trend</CardTitle>
+        <CardTitle className="text-base">{t("trainees.weightTrend")}</CardTitle>
         <CardDescription>
           Last {recentCheckIns.length} check-in{recentCheckIns.length !== 1 ? "s" : ""}
         </CardDescription>
@@ -185,6 +187,7 @@ export function WeightTrendChart({ onOpenLogWeight }: WeightTrendChartProps) {
 }
 
 export function WorkoutVolumeChart() {
+  const { t } = useLocale();
   const isMobile = useIsMobile();
   const { data, isLoading, isError, refetch } = useTraineeWorkoutHistory(1);
 
@@ -194,7 +197,7 @@ export function WorkoutVolumeChart() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Workout Volume</CardTitle>
+          <CardTitle className="text-base">{t("trainees.workoutVolume")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ErrorState
@@ -211,14 +214,14 @@ export function WorkoutVolumeChart() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Workout Volume</CardTitle>
+          <CardTitle className="text-base">{t("trainees.workoutVolume")}</CardTitle>
           <CardDescription>Total training volume per session</CardDescription>
         </CardHeader>
         <CardContent>
           <EmptyState
             icon={Dumbbell}
-            title="No workout data yet"
-            description="Complete your first workout to see volume trends."
+            title={t("workout.noWorkoutData")}
+            description={t("progress.workoutLogFirst")}
           />
         </CardContent>
       </Card>
@@ -235,7 +238,7 @@ export function WorkoutVolumeChart() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Workout Volume</CardTitle>
+        <CardTitle className="text-base">{t("trainees.workoutVolume")}</CardTitle>
         <CardDescription>
           Total volume per session (last {results.length} workouts)
         </CardDescription>
@@ -290,6 +293,7 @@ export function WorkoutVolumeChart() {
 }
 
 export function WeeklyAdherenceCard() {
+  const { t } = useLocale();
   const { data, isLoading, isError, refetch } = useTraineeWeeklyProgress();
 
   if (isLoading) return <ChartSkeleton />;
@@ -322,8 +326,8 @@ export function WeeklyAdherenceCard() {
         <CardContent>
           <EmptyState
             icon={CalendarCheck}
-            title="No training schedule"
-            description="Your weekly adherence will appear here once you have an assigned program."
+            title={t("workout.noTrainingSchedule")}
+            description={t("workout.weeklyProgressAppear")}
           />
         </CardContent>
       </Card>

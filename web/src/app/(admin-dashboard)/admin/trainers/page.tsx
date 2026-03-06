@@ -13,8 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AdminTrainerListItem } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function AdminTrainersPage() {
+  const { t } = useLocale();
   const [searchInput, setSearchInput] = useState("");
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(
     undefined,
@@ -43,13 +45,13 @@ export default function AdminTrainersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Trainers"
-        description="Manage platform trainers"
+        title={t("admin.trainers")}
+        description={t("admin.trainersDesc")}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input
-          placeholder="Search by name or email..."
+          placeholder={t("admin.searchByNameOrEmail")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="w-full sm:max-w-sm"
@@ -105,7 +107,7 @@ export default function AdminTrainersPage() {
       {trainers.data && trainers.data.length === 0 && (
         <EmptyState
           icon={Users}
-          title="No trainers found"
+          title={t("admin.noTrainers")}
           description={
             debouncedSearch
               ? "No trainers match your search criteria."

@@ -13,6 +13,7 @@ import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format-utils";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/providers/locale-provider";
 
 interface PastDueItem {
   id: number;
@@ -39,6 +40,7 @@ function getSeverityBadge(daysOverdue: number): string {
 }
 
 export function PastDueFullList() {
+  const { t } = useLocale();
   const { data, isLoading, isError, refetch } = useQuery<PastDueItem[]>({
     queryKey: ["admin-past-due"],
     queryFn: () => apiClient.get<PastDueItem[]>(API_URLS.ADMIN_PAST_DUE),
@@ -69,8 +71,8 @@ export function PastDueFullList() {
     return (
       <EmptyState
         icon={AlertTriangle}
-        title="No past due payments"
-        description="All trainers are current with their subscriptions."
+        title={t("admin.noPastDue")}
+        description={t("admin.allTrainersCurrent")}
       />
     );
   }

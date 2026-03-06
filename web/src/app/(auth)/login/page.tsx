@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Dumbbell, Loader2 } from "lucide-react";
 import { LoginHero } from "@/components/auth/login-hero";
+import { useLocale } from "@/providers/locale-provider";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -25,6 +26,7 @@ const loginSchema = z.object({
 });
 
 export default function LoginPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
@@ -91,7 +93,7 @@ export default function LoginPage() {
                 />
               </motion.div>
               <CardTitle className="text-2xl">FitnessAI</CardTitle>
-              <CardDescription>Sign in to your dashboard</CardDescription>
+              <CardDescription>{t("auth.loginSubtitleDashboard")}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -107,7 +109,7 @@ export default function LoginPage() {
                   </motion.div>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t("settings.email")}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -121,7 +123,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t("auth.passwordLabel")}</Label>
                   <Input
                     id="password"
                     type="password"

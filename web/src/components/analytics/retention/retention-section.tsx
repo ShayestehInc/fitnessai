@@ -10,6 +10,7 @@ import { RiskDistributionChart } from "./risk-distribution-chart";
 import { RetentionTrendChart } from "./retention-trend-chart";
 import { AtRiskTraineeTable } from "./at-risk-trainee-table";
 import type { RetentionPeriod, TraineeEngagement } from "@/types/retention";
+import { useLocale } from "@/providers/locale-provider";
 
 const PERIODS: RetentionPeriod[] = [7, 14, 30];
 
@@ -99,6 +100,7 @@ function RetentionSkeleton() {
 }
 
 export function RetentionSection() {
+  const { t } = useLocale();
   const [days, setDays] = useState<RetentionPeriod>(14);
   const { data, isLoading, isFetching } = useRetentionAnalytics(days);
   const router = useRouter();
@@ -112,7 +114,7 @@ export function RetentionSection() {
 
   if (isLoading) {
     return (
-      <section aria-label="Retention Analytics">
+      <section aria-label={t("trainer.retentionAnalytics")}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Retention & Churn Risk</h2>
           <RetentionPeriodSelector
@@ -128,7 +130,7 @@ export function RetentionSection() {
 
   if (!data || data.summary.total_trainees === 0) {
     return (
-      <section aria-label="Retention Analytics">
+      <section aria-label={t("trainer.retentionAnalytics")}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Retention & Churn Risk</h2>
           <RetentionPeriodSelector value={days} onChange={setDays} />
@@ -144,7 +146,7 @@ export function RetentionSection() {
   }
 
   return (
-    <section aria-label="Retention Analytics">
+    <section aria-label={t("trainer.retentionAnalytics")}>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Retention & Churn Risk</h2>
         <RetentionPeriodSelector

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { CustomDayConfigurator } from "./custom-day-config";
+import { useLocale } from "@/providers/locale-provider";
 
 const SHORT_DAY_LABELS: Record<string, string> = {
   Monday: "Mon",
@@ -52,6 +53,7 @@ export function ConfigStep({
   onTrainingDaysChange,
   onCustomDayConfigChange,
 }: ConfigStepProps) {
+  const { t } = useLocale();
   const difficulties = Object.values(DifficultyLevel);
   const goals = Object.values(GoalType);
 
@@ -67,7 +69,7 @@ export function ConfigStep({
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold">Configure your program</h3>
+      <h3 className="text-lg font-semibold">{t("programGenerator.configureProgram")}</h3>
 
       {/* Difficulty */}
       <fieldset className="space-y-2">

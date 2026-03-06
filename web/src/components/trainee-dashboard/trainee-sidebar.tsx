@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 import { BrandLogo } from "./brand-logo";
 import { traineeNavLinks } from "./trainee-nav-links";
+import { useLocale } from "@/providers/locale-provider";
 
 interface TraineeSidebarProps {
   collapsed: boolean;
@@ -24,6 +25,7 @@ interface TraineeSidebarProps {
 }
 
 export function TraineeSidebar({ collapsed, onToggle }: TraineeSidebarProps) {
+  const { t } = useLocale();
   const pathname = usePathname();
   const counts = useTraineeBadgeCounts();
   const { branding, isLoading: brandingLoading } = useTraineeBranding();
@@ -142,7 +144,7 @@ export function TraineeSidebar({ collapsed, onToggle }: TraineeSidebarProps) {
                   </span>
                   {!collapsed && (
                     <>
-                      <span className="flex-1 truncate">{link.label}</span>
+                      <span className="flex-1 truncate">{t(link.label)}</span>
                       {showBadge && (
                         <Badge
                           variant="destructive"
@@ -161,7 +163,7 @@ export function TraineeSidebar({ collapsed, onToggle }: TraineeSidebarProps) {
                   <Tooltip key={link.href}>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
                     <TooltipContent side="right" sideOffset={8}>
-                      {link.label}
+                      {t(link.label)}
                       {showBadge && ` (${badgeCount})`}
                     </TooltipContent>
                   </Tooltip>

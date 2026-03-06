@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { useTraineeWorkoutDetail } from "@/hooks/use-trainee-dashboard";
 import type { WorkoutData, WorkoutExerciseLog } from "@/types/trainee-dashboard";
+import { useLocale } from "@/providers/locale-provider";
 
 interface WorkoutDetailPanelProps {
   open: boolean;
@@ -52,6 +53,7 @@ export function WorkoutDetailPanel({
   onOpenChange,
   workoutId,
 }: WorkoutDetailPanelProps) {
+  const { t } = useLocale();
   const { data, isLoading, isError, refetch } =
     useTraineeWorkoutDetail(workoutId);
 
@@ -157,7 +159,7 @@ export function WorkoutDetailPanel({
 
       {data?.notes && (
         <div className="border-t pt-3 mt-4">
-          <p className="text-xs font-medium text-muted-foreground">Notes</p>
+          <p className="text-xs font-medium text-muted-foreground">{t("common.notes")}</p>
           <p className="mt-1 text-sm">{data.notes}</p>
         </div>
       )}

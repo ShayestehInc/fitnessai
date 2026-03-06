@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { Message } from "@/types/messaging";
 import { ImageModal } from "./image-modal";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/providers/locale-provider";
 
 interface MessageBubbleProps {
   message: Message;
@@ -22,6 +23,7 @@ export function MessageBubble({
   onEdit,
   onDelete,
 }: MessageBubbleProps) {
+  const { t } = useLocale();
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -295,7 +297,7 @@ export function MessageBubble({
               ) : (
                 <Check
                   className="h-3 w-3 text-primary-foreground/70"
-                  aria-label="Sent"
+                  aria-label={t("invitations.sentAt")}
                 />
               ))}
           </div>

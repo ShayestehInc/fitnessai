@@ -26,8 +26,10 @@ import {
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 import type { AdminSubscriptionTier } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function AdminTiersPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const tiers = useAdminTiers();
   const toggleActive = useToggleTierActive();
@@ -51,7 +53,7 @@ export default function AdminTiersPage() {
     setTogglingId(id);
     try {
       await toggleActive.mutateAsync(id);
-      toast.success("Tier status updated");
+      toast.success(t("admin.tierStatusUpdated"));
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -74,7 +76,7 @@ export default function AdminTiersPage() {
   async function handleSeedDefaults() {
     try {
       await seedDefaults.mutateAsync();
-      toast.success("Default tiers created");
+      toast.success(t("admin.defaultTiersCreated"));
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
@@ -83,8 +85,8 @@ export default function AdminTiersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Subscription Tiers"
-        description="Manage platform subscription tiers"
+        title={t("admin.tiers")}
+        description={t("admin.tiersDesc")}
         actions={
           <Button onClick={handleCreate}>
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -112,8 +114,8 @@ export default function AdminTiersPage() {
       {tiers.data && tiers.data.length === 0 && (
         <EmptyState
           icon={Layers}
-          title="No subscription tiers configured"
-          description="Create tiers to define subscription plans for trainers."
+          title={t("admin.noTiers")}
+          description={t("admin.noTiersDesc")}
           action={
             <Button onClick={handleSeedDefaults} disabled={seedDefaults.isPending}>
               {seedDefaults.isPending && (
@@ -150,7 +152,7 @@ export default function AdminTiersPage() {
       >
         <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Delete Tier</DialogTitle>
+            <DialogTitle>{t("admin.deleteTier")}</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete &quot;{deleteTarget?.display_name}&quot;?
               This action cannot be undone.

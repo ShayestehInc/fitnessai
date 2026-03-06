@@ -21,10 +21,12 @@ import {
   getNotificationTraineeId,
 } from "@/components/notifications/notification-item";
 import type { Notification } from "@/types/notification";
+import { useLocale } from "@/providers/locale-provider";
 
 type Filter = "all" | "unread";
 
 export default function NotificationsPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(1);
@@ -43,22 +45,22 @@ export default function NotificationsPage() {
 
     if (!n.is_read) {
       markAsRead.mutate(n.id, {
-        onError: () => toast.error("Failed to mark notification as read"),
+        onError: () => toast.error(t("error.failedToMarkNotification")),
       });
     }
 
     if (traineeId !== null) {
       router.push(`/trainees/${traineeId}`);
     } else if (!n.is_read) {
-      toast.success("Marked as read");
+      toast.success(t("notifications.markedRead"));
     }
   };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notifications"
-        description="Stay updated on trainee activity"
+        title={t("nav.notifications")}
+        description={t("notifications.description")}
         actions={
           hasUnread ? (
             <Button
@@ -66,8 +68,8 @@ export default function NotificationsPage() {
               size="sm"
               onClick={() =>
                 markAllAsRead.mutate(undefined, {
-                  onSuccess: () => toast.success("All notifications marked as read"),
-                  onError: () => toast.error("Failed to mark notifications as read"),
+                  onSuccess: () => toast.success(t("notifications.allRead")),
+                  onError: () => toast.error(t("error.failedToMarkNotifications")),
                 })
               }
               disabled={markAllAsRead.isPending}
@@ -88,8 +90,8 @@ export default function NotificationsPage() {
         }}
       >
         <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="unread">Unread</TabsTrigger>
+          <TabsTrigger value="all">{t("common.all")}</TabsTrigger>
+          <TabsTrigger value="unread">{t("notifications.unread")}</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -130,7 +132,7 @@ export default function NotificationsPage() {
                 aria-label="Go to previous page"
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Previous</span>
+                <span className="hidden sm:inline">{t("common.previous")}</span>
               </Button>
               <span className="text-sm text-muted-foreground" aria-current="page">
                 Page {page}
@@ -142,7 +144,7 @@ export default function NotificationsPage() {
                 onClick={() => setPage((p) => p + 1)}
                 aria-label="Go to next page"
               >
-                <span className="hidden sm:inline">Next</span>
+                <span className="hidden sm:inline">{t("common.next")}</span>
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </Button>
             </nav>

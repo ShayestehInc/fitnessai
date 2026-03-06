@@ -19,8 +19,10 @@ import {
   useAiProviders,
 } from "@/hooks/use-ai-chat";
 import type { AiChatThread } from "@/types/ai-chat";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function AiChatPage() {
+  const { t } = useLocale();
   const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [suggestedFollowup, setSuggestedFollowup] = useState("");
@@ -59,7 +61,7 @@ export default function AiChatPage() {
           setSendError(null);
         },
         onError: () => {
-          toast.error("Failed to create thread");
+          toast.error(t("error.failedToCreateThread"));
         },
       },
     );
@@ -95,7 +97,7 @@ export default function AiChatPage() {
         { threadId, title },
         {
           onError: () => {
-            toast.error("Failed to rename thread");
+            toast.error(t("error.failedToRenameThread"));
           },
         },
       );
@@ -112,7 +114,7 @@ export default function AiChatPage() {
           }
         },
         onError: () => {
-          toast.error("Failed to delete thread");
+          toast.error(t("error.failedToDeleteThread"));
         },
       });
     },
@@ -132,8 +134,8 @@ export default function AiChatPage() {
       <PageTransition>
         <div className="space-y-6">
           <PageHeader
-            title="AI Chat"
-            description="Your AI assistant for trainee insights and management"
+            title={t("nav.aiChat")}
+            description={t("aiChat.description")}
           />
           <ChatSkeleton />
         </div>
@@ -146,8 +148,8 @@ export default function AiChatPage() {
       <PageTransition>
         <div className="space-y-6">
           <PageHeader
-            title="AI Chat"
-            description="Your AI assistant for trainee insights and management"
+            title={t("nav.aiChat")}
+            description={t("aiChat.description")}
           />
           <div className="flex h-[calc(100dvh-12rem)] flex-col items-center justify-center gap-4">
             <div className="rounded-full bg-amber-100 p-4 dark:bg-amber-900/20">
@@ -167,8 +169,8 @@ export default function AiChatPage() {
     <PageTransition>
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         <PageHeader
-          title="AI Chat"
-          description="Your AI assistant for trainee insights and management"
+          title={t("nav.aiChat")}
+          description={t("aiChat.description")}
         />
 
         <div className="flex h-[calc(100dvh-12rem)] overflow-hidden rounded-lg border bg-card">

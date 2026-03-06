@@ -7,8 +7,10 @@ import { NutritionSummaryCard } from "@/components/trainee-dashboard/nutrition-s
 import { WeightTrendCard } from "@/components/trainee-dashboard/weight-trend-card";
 import { WeeklyProgressCard } from "@/components/trainee-dashboard/weekly-progress-card";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function TraineeDashboardPage() {
+  const { t } = useLocale();
   const { user } = useAuth();
   const firstName = user?.first_name || "there";
 
@@ -17,7 +19,7 @@ export default function TraineeDashboardPage() {
       <div className="space-y-6">
         <PageHeader
           title={`Welcome back, ${firstName}`}
-          description="Here's your fitness overview for today."
+          description={t("traineeView.description")}
         />
         <div className="grid gap-4 md:grid-cols-2">
           <TodaysWorkoutCard />

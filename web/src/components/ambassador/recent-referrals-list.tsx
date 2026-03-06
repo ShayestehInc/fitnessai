@@ -6,12 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import type { AmbassadorSelfReferral } from "@/types/ambassador";
+import { useLocale } from "@/providers/locale-provider";
 
 interface RecentReferralsListProps {
   referrals: AmbassadorSelfReferral[];
 }
 
 export function RecentReferralsList({ referrals }: RecentReferralsListProps) {
+  const { t } = useLocale();
   if (referrals.length === 0) {
     return (
       <Card>
@@ -21,8 +23,8 @@ export function RecentReferralsList({ referrals }: RecentReferralsListProps) {
         <CardContent>
           <EmptyState
             icon={Users}
-            title="No referrals yet"
-            description="Share your referral code to start earning commissions."
+            title={t("ambassador.noReferrals")}
+            description={t("ambassador.noReferralsDesc")}
           />
         </CardContent>
       </Card>

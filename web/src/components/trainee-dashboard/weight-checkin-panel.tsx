@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCreateWeightCheckIn } from "@/hooks/use-trainee-dashboard";
 import { ApiError } from "@/lib/api-client";
 import { getTodayString } from "@/lib/schedule-utils";
+import { useLocale } from "@/providers/locale-provider";
 
 interface WeightCheckInPanelProps {
   open: boolean;
@@ -21,6 +22,7 @@ export function WeightCheckInPanel({
   open,
   onOpenChange,
 }: WeightCheckInPanelProps) {
+  const { t } = useLocale();
   const [weight, setWeight] = useState("");
   const [date, setDate] = useState(getTodayString);
   const [notes, setNotes] = useState("");
@@ -72,7 +74,7 @@ export function WeightCheckInPanel({
       },
       {
         onSuccess: () => {
-          toast.success("Weight check-in saved");
+          toast.success(t("traineeView.weightSaved"));
           resetForm();
           onOpenChange(false);
         },
@@ -92,7 +94,7 @@ export function WeightCheckInPanel({
               return;
             }
           }
-          toast.error("Failed to save weight check-in");
+          toast.error(t("messages.failedToSaveWeight"));
         },
       },
     );
@@ -107,7 +109,7 @@ export function WeightCheckInPanel({
     <SlideOverPanel
       open={open}
       onOpenChange={handleOpenChange}
-      title="Log Weight"
+      title={t("traineeView.logWeight")}
       description="Record your weight check-in."
       width="sm"
       footer={
@@ -168,7 +170,7 @@ export function WeightCheckInPanel({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="date-input">Date</Label>
+          <Label htmlFor="date-input">{t("common.date")}</Label>
           <Input
             id="date-input"
             type="date"

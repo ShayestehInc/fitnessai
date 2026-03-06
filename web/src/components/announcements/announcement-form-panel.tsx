@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SlideOverPanel } from "@/components/ui/slide-over-panel";
 import type { Announcement } from "@/types/announcement";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AnnouncementFormPanelProps {
   open: boolean;
@@ -28,6 +29,7 @@ export function AnnouncementFormPanel({
   onSubmit,
   isPending,
 }: AnnouncementFormPanelProps) {
+  const { t } = useLocale();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [isPinned, setIsPinned] = useState(false);
@@ -111,7 +113,7 @@ export function AnnouncementFormPanel({
       <form id="announcement-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="title">{t("common.title")}</Label>
             <span className="text-xs text-muted-foreground">
               {title.length}/200
             </span>
@@ -124,7 +126,7 @@ export function AnnouncementFormPanel({
               setErrors((prev) => ({ ...prev, title: "" }));
             }}
             maxLength={200}
-            placeholder="Announcement title"
+            placeholder={t("announcements.titlePlaceholder")}
             aria-invalid={Boolean(errors.title)}
           />
           {errors.title && (
@@ -148,7 +150,7 @@ export function AnnouncementFormPanel({
             }}
             maxLength={2000}
             rows={5}
-            placeholder="Announcement body"
+            placeholder={t("announcements.bodyPlaceholder")}
             className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:opacity-50"
             aria-invalid={Boolean(errors.body)}
           />

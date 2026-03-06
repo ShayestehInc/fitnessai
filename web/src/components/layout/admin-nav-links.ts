@@ -13,14 +13,14 @@ import {
 import type { NavLink } from "./nav-links";
 
 export const adminNavLinks: NavLink[] = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Trainers", href: "/admin/trainers", icon: Users },
-  { label: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
-  { label: "Tiers", href: "/admin/tiers", icon: Layers },
-  { label: "Coupons", href: "/admin/coupons", icon: Ticket },
-  { label: "Users", href: "/admin/users", icon: UserCog },
-  { label: "Ambassadors", href: "/admin/ambassadors", icon: Handshake },
-  { label: "Upcoming Payments", href: "/admin/upcoming-payments", icon: CalendarClock },
-  { label: "Past Due", href: "/admin/past-due", icon: AlertTriangle },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
+  { label: "nav.dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+  { label: "admin.trainers", href: "/admin/trainers", icon: Users },
+  { label: "admin.subscriptions", href: "/admin/subscriptions", icon: CreditCard },
+  { label: "admin.tiers", href: "/admin/tiers", icon: Layers },
+  { label: "admin.coupons", href: "/admin/coupons", icon: Ticket },
+  { label: "admin.users", href: "/admin/users", icon: UserCog },
+  { label: "admin.ambassadors", href: "/admin/ambassadors", icon: Handshake },
+  { label: "admin.upcomingPayments", href: "/admin/upcoming-payments", icon: CalendarClock },
+  { label: "admin.pastDue", href: "/admin/past-due", icon: AlertTriangle },
+  { label: "nav.settings", href: "/admin/settings", icon: Settings },
 ];

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { AiChatThread } from "@/types/ai-chat";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AiThreadSidebarProps {
   threads: AiChatThread[];
@@ -49,6 +50,7 @@ export function AiThreadSidebar({
   onDelete,
   isCreating,
 }: AiThreadSidebarProps) {
+  const { t } = useLocale();
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [targetThread, setTargetThread] = useState<AiChatThread | null>(null);
@@ -124,7 +126,7 @@ export function AiThreadSidebar({
         ) : threads.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
             <MessageSquare className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No threads yet</p>
+            <p className="text-sm text-muted-foreground">{t("aiChat.noThreads")}</p>
             <p className="text-xs text-muted-foreground">
               Start a new thread to chat with AI
             </p>
@@ -214,7 +216,7 @@ export function AiThreadSidebar({
             onKeyDown={(e) => {
               if (e.key === "Enter") handleRenameConfirm();
             }}
-            placeholder="Thread title"
+            placeholder={t("aiChat.threadTitle")}
             maxLength={200}
             autoFocus
           />

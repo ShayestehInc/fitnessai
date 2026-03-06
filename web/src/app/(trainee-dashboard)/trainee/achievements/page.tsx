@@ -9,8 +9,10 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { AchievementsGrid } from "@/components/trainee-dashboard/achievements-grid";
 import { useAchievements } from "@/hooks/use-trainee-achievements";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function AchievementsPage() {
+  const { t } = useLocale();
   const { data: achievements, isLoading, isError, refetch } = useAchievements();
 
   const stats = useMemo(() => {
@@ -23,8 +25,8 @@ export default function AchievementsPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Achievements"
-          description="Your fitness milestones"
+          title={t("nav.achievements")}
+          description={t("achievements.description")}
         />
         <LoadingSpinner label="Loading achievements..." />
       </div>
@@ -35,8 +37,8 @@ export default function AchievementsPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Achievements"
-          description="Your fitness milestones"
+          title={t("nav.achievements")}
+          description={t("achievements.description")}
         />
         <ErrorState
           message="Failed to load achievements. Please try again."
@@ -51,13 +53,13 @@ export default function AchievementsPage() {
       <PageTransition>
         <div className="space-y-6">
           <PageHeader
-            title="Achievements"
-            description="Your fitness milestones"
+            title={t("nav.achievements")}
+            description={t("achievements.description")}
           />
           <EmptyState
             icon={Trophy}
-            title="No achievements available"
-            description="Achievements will appear here as you progress through your fitness journey."
+            title={t("achievements.noAchievements")}
+            description={t("achievements.noAchievementsDesc")}
           />
         </div>
       </PageTransition>
@@ -68,7 +70,7 @@ export default function AchievementsPage() {
     <PageTransition>
       <div className="space-y-6">
         <PageHeader
-          title="Achievements"
+          title={t("nav.achievements")}
           description={`${stats.earned} of ${stats.total} achievements earned`}
         />
         <AchievementsGrid achievements={achievements} />

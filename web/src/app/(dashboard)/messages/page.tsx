@@ -14,8 +14,10 @@ import { MessageSearch } from "@/components/messaging/message-search";
 import { Button } from "@/components/ui/button";
 import type { Conversation } from "@/types/messaging";
 import type { SearchMessageResult } from "@/types/messaging";
+import { useLocale } from "@/providers/locale-provider";
 
 function MessagesContent() {
+  const { t } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const conversationIdParam = searchParams.get("conversation");
@@ -156,8 +158,8 @@ function MessagesContent() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Messages"
-          description="Direct messages with your trainees"
+          title={t("nav.messages")}
+          description={t("messages.description")}
         />
         <LoadingSpinner label="Loading conversations..." />
       </div>
@@ -168,8 +170,8 @@ function MessagesContent() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Messages"
-          description="Direct messages with your trainees"
+          title={t("nav.messages")}
+          description={t("messages.description")}
         />
         <ErrorState
           message="Failed to load conversations. Please try again."
@@ -186,8 +188,8 @@ function MessagesContent() {
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-center justify-between">
         <PageHeader
-          title="Messages"
-          description="Direct messages with your trainees"
+          title={t("nav.messages")}
+          description={t("messages.description")}
         />
         <Button
           variant="outline"
@@ -197,7 +199,7 @@ function MessagesContent() {
           aria-label="Search messages"
         >
           <Search className="h-4 w-4" />
-          <span className="hidden sm:inline">Search</span>
+          <span className="hidden sm:inline">{t("common.search")}</span>
           <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex">
             {typeof navigator !== "undefined" &&
             /mac/i.test(navigator.userAgent)
@@ -297,13 +299,14 @@ function MessagesContent() {
 }
 
 export default function MessagesPage() {
+  const { t } = useLocale();
   return (
     <Suspense
       fallback={
         <div className="space-y-6">
           <PageHeader
-            title="Messages"
-            description="Direct messages with your trainees"
+            title={t("nav.messages")}
+            description={t("messages.description")}
           />
           <LoadingSpinner label="Loading messages..." />
         </div>

@@ -13,6 +13,7 @@ import {
   CATEGORY_LABELS,
   type FeatureRequestCategory,
 } from "@/types/feature-request";
+import { useLocale } from "@/providers/locale-provider";
 
 interface CreateFeatureRequestPanelProps {
   open: boolean;
@@ -23,6 +24,7 @@ export function CreateFeatureRequestPanel({
   open,
   onOpenChange,
 }: CreateFeatureRequestPanelProps) {
+  const { t } = useLocale();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<FeatureRequestCategory | "">("");
@@ -65,7 +67,7 @@ export function CreateFeatureRequestPanel({
         },
         {
           onSuccess: () => {
-            toast.success("Feature request submitted");
+            toast.success(t("featureRequests.submitted"));
             onOpenChange(false);
             resetForm();
           },
@@ -80,8 +82,8 @@ export function CreateFeatureRequestPanel({
     <SlideOverPanel
       open={open}
       onOpenChange={onOpenChange}
-      title="Submit Feature Request"
-      description="Describe the feature you would like to see."
+      title={t("featureRequests.submit")}
+      description={t("featureRequests.descriptionHint")}
       width="md"
       footer={
         <>
@@ -108,7 +110,7 @@ export function CreateFeatureRequestPanel({
       <form id="feature-request-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <div className="flex justify-between">
-            <Label htmlFor="fr-title">Title</Label>
+            <Label htmlFor="fr-title">{t("common.title")}</Label>
             <span className="text-xs text-muted-foreground">
               {title.length}/200
             </span>
@@ -121,7 +123,7 @@ export function CreateFeatureRequestPanel({
               setErrors((prev) => ({ ...prev, title: "" }));
             }}
             maxLength={200}
-            placeholder="Feature title (min 10 characters)"
+            placeholder={t("featureRequests.titlePlaceholder")}
             aria-invalid={Boolean(errors.title)}
           />
           {errors.title && (
@@ -130,7 +132,7 @@ export function CreateFeatureRequestPanel({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="fr-category">Category</Label>
+          <Label htmlFor="fr-category">{t("common.category")}</Label>
           <select
             id="fr-category"
             value={category}
@@ -141,7 +143,7 @@ export function CreateFeatureRequestPanel({
             className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
             aria-invalid={Boolean(errors.category)}
           >
-            <option value="">Select a category</option>
+            <option value="">{t("common.selectCategory")}</option>
             {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
               <option key={key} value={key}>
                 {label}
@@ -155,7 +157,7 @@ export function CreateFeatureRequestPanel({
 
         <div className="space-y-2">
           <div className="flex justify-between">
-            <Label htmlFor="fr-desc">Description</Label>
+            <Label htmlFor="fr-desc">{t("common.description")}</Label>
             <span className="text-xs text-muted-foreground">
               {description.length}/2000
             </span>
@@ -169,7 +171,7 @@ export function CreateFeatureRequestPanel({
             }}
             maxLength={2000}
             rows={5}
-            placeholder="Describe the feature in detail (min 30 characters)..."
+            placeholder={t("featureRequests.descriptionPlaceholder")}
             className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             aria-invalid={Boolean(errors.description)}
           />

@@ -24,6 +24,7 @@ import {
   type GoalType,
   type GeneratedProgramResponse,
 } from "@/types/program";
+import { useLocale } from "@/providers/locale-provider";
 
 const NAME_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 500;
@@ -73,6 +74,7 @@ interface ProgramBuilderProps {
 }
 
 export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
+  const { t } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const isEditing = Boolean(existingProgram);
@@ -240,7 +242,7 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
   const handleSave = async () => {
     if (savingRef.current) return;
     if (!name.trim()) {
-      toast.error("Program name is required");
+      toast.error(t("programs.programNameRequired"));
       return;
     }
 
@@ -259,11 +261,11 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
       if (isEditing) {
         await updateMutation.mutateAsync(basePayload);
         isDirtyRef.current = false;
-        toast.success("Program updated");
+        toast.success(t("programs.programUpdated"));
       } else {
         await createMutation.mutateAsync(basePayload);
         isDirtyRef.current = false;
-        toast.success("Program created");
+        toast.success(t("programs.programCreated"));
         router.push("/programs");
       }
     } catch (error) {
@@ -308,7 +310,7 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
                 id="program-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., 12-Week Strength Program"
+                placeholder={t("programs.programNamePlaceholder")}
                 maxLength={NAME_MAX_LENGTH}
                 required
                 aria-describedby="program-name-count"
@@ -334,12 +336,12 @@ export function ProgramBuilder({ existingProgram }: ProgramBuilderProps) {
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="program-description">Description</Label>
+              <Label htmlFor="program-description">{t("common.description")}</Label>
               <textarea
                 id="program-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of the program..."
+                placeholder={t("programs.programDescPlaceholder")}
                 maxLength={DESCRIPTION_MAX_LENGTH}
                 rows={3}
                 aria-describedby="program-description-count"

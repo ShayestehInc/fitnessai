@@ -17,6 +17,7 @@ import { formatCurrency } from "@/lib/format-utils";
 import { getErrorMessage } from "@/lib/error-utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Ambassador } from "@/types/ambassador";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AmbassadorDetailPanelProps {
   ambassador: Ambassador | null;
@@ -29,6 +30,7 @@ export function AmbassadorDetailPanel({
   open,
   onOpenChange,
 }: AmbassadorDetailPanelProps) {
+  const { t } = useLocale();
   if (!ambassador) return null;
 
   return (
@@ -36,7 +38,7 @@ export function AmbassadorDetailPanel({
       open={open}
       onOpenChange={onOpenChange}
       title={ambassador.user.email}
-      description="Ambassador details and commission management"
+      description={t("admin.ambassadorDetails")}
       width="lg"
     >
       <AmbassadorDetailContent ambassador={ambassador} />
@@ -45,6 +47,7 @@ export function AmbassadorDetailPanel({
 }
 
 function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
+  const { t } = useLocale();
   const { data: detail, isLoading } = useAdminAmbassadorDetail(ambassador.id);
   const bulkApproveMutation = useBulkApproveCommissions(ambassador.id);
   const bulkPayMutation = useBulkPayCommissions(ambassador.id);
@@ -66,7 +69,7 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
       {/* Summary Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-md border p-3 text-center">
-          <p className="text-xs text-muted-foreground">Referrals</p>
+          <p className="text-xs text-muted-foreground">{t("ambassador.referrals")}</p>
           <p className="text-lg font-bold">{ambassadorData.total_referrals ?? 0}</p>
         </div>
         <div className="rounded-md border p-3 text-center">
@@ -90,7 +93,7 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
           size="sm"
           onClick={() =>
             bulkApproveMutation.mutate(undefined, {
-              onSuccess: () => toast.success("All commissions approved"),
+              onSuccess: () => toast.success(t("admin.allCommissionsApproved")),
               onError: (err) => toast.error(getErrorMessage(err)),
             })
           }
@@ -108,7 +111,7 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
           size="sm"
           onClick={() =>
             bulkPayMutation.mutate(undefined, {
-              onSuccess: () => toast.success("All commissions marked as paid"),
+              onSuccess: () => toast.success(t("admin.allCommissionsPaid")),
               onError: (err) => toast.error(getErrorMessage(err)),
             })
           }
@@ -125,7 +128,7 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
           size="sm"
           onClick={() =>
             payoutMutation.mutate(undefined, {
-              onSuccess: () => toast.success("Payout triggered"),
+              onSuccess: () => toast.success(t("ambassador.payoutTriggered")),
               onError: (err) => toast.error(getErrorMessage(err)),
             })
           }
@@ -143,7 +146,7 @@ function AmbassadorDetailContent({ ambassador }: { ambassador: Ambassador }) {
       {/* Info */}
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Status</span>
+          <span className="text-muted-foreground">{t("common.status")}</span>
           <Badge variant={ambassadorData.is_active ? "default" : "secondary"}>
             {ambassadorData.is_active ? "Active" : "Inactive"}
           </Badge>

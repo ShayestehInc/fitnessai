@@ -38,8 +38,10 @@ import {
   setImpersonationState,
 } from "@/components/layout/impersonation-banner";
 import { setTokens, getAccessToken, getRefreshToken, setRoleCookie } from "@/lib/token-manager";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function AmbassadorTrainersPage() {
+  const { t } = useLocale();
   const [searchInput, setSearchInput] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -72,7 +74,7 @@ export default function AmbassadorTrainersPage() {
     }
     try {
       await createTrainer.mutateAsync(formData);
-      toast.success("Trainer created successfully");
+      toast.success(t("admin.trainerCreated"));
       setCreateOpen(false);
       setFormData({ email: "", password: "", first_name: "", last_name: "" });
     } catch (error) {
@@ -102,8 +104,8 @@ export default function AmbassadorTrainersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="My Trainers"
-        description="Manage trainers you've referred or created"
+        title={t("ambassador.trainers")}
+        description={t("ambassador.manageDesc")}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -113,7 +115,7 @@ export default function AmbassadorTrainersPage() {
       />
 
       <Input
-        placeholder="Search by name or email..."
+        placeholder={t("admin.searchByNameOrEmail")}
         value={searchInput}
         onChange={(e) => setSearchInput(e.target.value)}
         className="max-w-sm"
@@ -139,7 +141,7 @@ export default function AmbassadorTrainersPage() {
       {trainers.data && trainers.data.length === 0 && (
         <EmptyState
           icon={Users}
-          title="No trainers found"
+          title={t("admin.noTrainers")}
           description={
             debouncedSearch
               ? "No trainers match your search."
@@ -160,12 +162,12 @@ export default function AmbassadorTrainersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Tier</TableHead>
-                <TableHead className="text-right">Trainees</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("common.name")}</TableHead>
+                <TableHead>{t("settings.email")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
+                <TableHead>{t("admin.tier")}</TableHead>
+                <TableHead className="text-right">{t("nav.trainees")}</TableHead>
+                <TableHead className="text-right">{t("common.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -223,14 +225,14 @@ export default function AmbassadorTrainersPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Trainer</DialogTitle>
+            <DialogTitle>{t("admin.createTrainer")}</DialogTitle>
             <DialogDescription>
               Create a new trainer account linked to your ambassador profile.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="create-email">Email</Label>
+              <Label htmlFor="create-email">{t("settings.email")}</Label>
               <Input
                 id="create-email"
                 type="email"
@@ -243,7 +245,7 @@ export default function AmbassadorTrainersPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="create-first">First Name</Label>
+                <Label htmlFor="create-first">{t("settings.firstName")}</Label>
                 <Input
                   id="create-first"
                   value={formData.first_name}
@@ -253,7 +255,7 @@ export default function AmbassadorTrainersPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="create-last">Last Name</Label>
+                <Label htmlFor="create-last">{t("settings.lastName")}</Label>
                 <Input
                   id="create-last"
                   value={formData.last_name}
@@ -264,7 +266,7 @@ export default function AmbassadorTrainersPage() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="create-password">Password</Label>
+              <Label htmlFor="create-password">{t("auth.passwordLabel")}</Label>
               <Input
                 id="create-password"
                 type="password"
@@ -272,7 +274,7 @@ export default function AmbassadorTrainersPage() {
                 onChange={(e) =>
                   setFormData((d) => ({ ...d, password: e.target.value }))
                 }
-                placeholder="Min. 8 characters"
+                placeholder={t("settings.minCharsAlt")}
               />
             </div>
             {formError && (

@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 import { formatCurrency } from "@/lib/format-utils";
 import type { AdminTrainerListItem } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 interface TrainerDetailPanelProps {
   trainer: AdminTrainerListItem | null;
@@ -31,6 +32,7 @@ export function TrainerDetailPanel({
   open,
   onOpenChange,
 }: TrainerDetailPanelProps) {
+  const { t } = useLocale();
   const impersonate = useImpersonateTrainer();
   const toggleActive = useActivateDeactivateTrainer();
   const [showSuspendConfirm, setShowSuspendConfirm] = useState(false);
@@ -47,7 +49,7 @@ export function TrainerDetailPanel({
     const currentRefresh = getRefreshToken();
 
     if (!currentAccess || !currentRefresh) {
-      toast.error("Cannot impersonate: no active session");
+      toast.error(t("error.cannotImpersonate"));
       return;
     }
 
@@ -106,7 +108,7 @@ export function TrainerDetailPanel({
 
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <p className="text-muted-foreground">Trainees</p>
+            <p className="text-muted-foreground">{t("nav.trainees")}</p>
             <p className="font-medium">{trainer.trainee_count}</p>
           </div>
           <div>
@@ -121,10 +123,10 @@ export function TrainerDetailPanel({
           <>
             <Separator />
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Subscription</h4>
+              <h4 className="text-sm font-semibold">{t("nav.subscription")}</h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Status</p>
+                  <p className="text-muted-foreground">{t("common.status")}</p>
                   <p className="font-medium capitalize">
                     {sub.status?.replace(/_/g, " ") ?? "N/A"}
                   </p>
@@ -141,7 +143,7 @@ export function TrainerDetailPanel({
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Past Due</p>
+                  <p className="text-muted-foreground">{t("admin.pastDue")}</p>
                   <p className="font-medium">
                     {formatCurrency(sub.past_due_amount)}
                   </p>

@@ -18,6 +18,7 @@ import { MUSCLE_GROUP_LABELS, DIFFICULTY_LABELS, GOAL_LABELS } from "@/types/pro
 import { cn } from "@/lib/utils";
 import { FileUploadField } from "./file-upload-field";
 import type { Exercise, DifficultyLevel, GoalType } from "@/types/program";
+import { useLocale } from "@/providers/locale-provider";
 
 const DIFFICULTY_COLORS: Record<DifficultyLevel, string> = {
   beginner: "bg-emerald-100 text-emerald-700",
@@ -43,6 +44,7 @@ export function ExerciseDetailPanel({
   open,
   onOpenChange,
 }: ExerciseDetailPanelProps) {
+  const { t } = useLocale();
   const [imgError, setImgError] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -88,11 +90,11 @@ export function ExerciseDetailPanel({
 
   const handleSave = useCallback(async () => {
     if (!form.name.trim()) {
-      toast.error("Name is required");
+      toast.error(t("exercises.nameRequired"));
       return;
     }
     if (!form.muscle_group) {
-      toast.error("Muscle group is required");
+      toast.error(t("exercises.muscleGroupRequired"));
       return;
     }
 
@@ -122,7 +124,7 @@ export function ExerciseDetailPanel({
 
       await updateMutation.mutateAsync(patchData);
 
-      toast.success("Exercise updated");
+      toast.success(t("exercises.exerciseUpdated"));
       setEditing(false);
       setImageFile(null);
       setVideoFile(null);
@@ -202,7 +204,7 @@ export function ExerciseDetailPanel({
       {editing ? (
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="edit-name">Name</Label>
+            <Label htmlFor="edit-name">{t("common.name")}</Label>
             <Input
               id="edit-name"
               value={form.name}
@@ -231,7 +233,7 @@ export function ExerciseDetailPanel({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-desc">Description</Label>
+            <Label htmlFor="edit-desc">{t("common.description")}</Label>
             <textarea
               id="edit-desc"
               value={form.description}

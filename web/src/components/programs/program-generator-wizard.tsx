@@ -17,11 +17,13 @@ import type {
   CustomDayConfig,
   GeneratedProgramResponse,
 } from "@/types/program";
+import { useLocale } from "@/providers/locale-provider";
 
 const STEPS = ["Split Type", "Configure", "Preview"] as const;
 const DEFAULT_TRAINING_DAYS = ["Monday", "Tuesday", "Thursday", "Friday"];
 
 export function ProgramGeneratorWizard() {
+  const { t } = useLocale();
   const router = useRouter();
   const generateMutation = useGenerateProgram();
 
@@ -121,11 +123,11 @@ export function ProgramGeneratorWizard() {
         JSON.stringify(generatedData),
       );
     } catch {
-      toast.error("Failed to store program data. Please try again.");
+      toast.error(t("programs.failedToStore"));
       return;
     }
     router.push("/programs/new?from=generator");
-    toast.success("Program loaded into builder — customize and save!");
+    toast.success(t("programs.programLoaded"));
   };
 
   return (

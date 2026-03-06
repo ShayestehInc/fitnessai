@@ -13,12 +13,14 @@ import { Separator } from "@/components/ui/separator";
 import { getErrorMessage } from "@/lib/error-utils";
 import { useCreateTier, useUpdateTier } from "@/hooks/use-admin-tiers";
 import type { AdminSubscriptionTier, CreateTierPayload } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 interface TierWizardFormProps {
   tier?: AdminSubscriptionTier | null;
 }
 
 export function TierWizardForm({ tier }: TierWizardFormProps) {
+  const { t } = useLocale();
   const router = useRouter();
   const isEdit = tier != null;
   const createTier = useCreateTier();
@@ -124,7 +126,7 @@ export function TierWizardForm({ tier }: TierWizardFormProps) {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label htmlFor="tier-name">Name</Label>
+                <Label htmlFor="tier-name">{t("common.name")}</Label>
                 <Input
                   id="tier-name"
                   value={name}
@@ -141,7 +143,7 @@ export function TierWizardForm({ tier }: TierWizardFormProps) {
                 )}
               </div>
               <div className="space-y-1">
-                <Label htmlFor="tier-display-name">Display Name</Label>
+                <Label htmlFor="tier-display-name">{t("admin.displayName")}</Label>
                 <Input
                   id="tier-display-name"
                   value={displayName}
@@ -161,7 +163,7 @@ export function TierWizardForm({ tier }: TierWizardFormProps) {
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="tier-description">Description</Label>
+              <Label htmlFor="tier-description">{t("common.description")}</Label>
               <Input
                 id="tier-description"
                 value={description}
@@ -171,7 +173,7 @@ export function TierWizardForm({ tier }: TierWizardFormProps) {
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="tier-sort">Sort Order</Label>
+              <Label htmlFor="tier-sort">{t("admin.sortOrder")}</Label>
               <Input
                 id="tier-sort"
                 type="number"
@@ -224,7 +226,7 @@ export function TierWizardForm({ tier }: TierWizardFormProps) {
                 )}
               </div>
               <div className="space-y-1">
-                <Label htmlFor="tier-limit">Trainee Limit</Label>
+                <Label htmlFor="tier-limit">{t("admin.traineeLimit")}</Label>
                 <Input
                   id="tier-limit"
                   type="number"
@@ -266,7 +268,7 @@ export function TierWizardForm({ tier }: TierWizardFormProps) {
               <Input
                 value={featureInput}
                 onChange={(e) => setFeatureInput(e.target.value)}
-                placeholder="Add a feature..."
+                placeholder={t("featureRequests.addFeature")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -330,17 +332,17 @@ export function TierWizardForm({ tier }: TierWizardFormProps) {
               <Separator />
               <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
                 <div>
-                  <p className="text-muted-foreground">Name</p>
+                  <p className="text-muted-foreground">{t("common.name")}</p>
                   <p className="font-medium">{name.toUpperCase() || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Price</p>
+                  <p className="text-muted-foreground">{t("admin.price")}</p>
                   <p className="font-medium">
                     {price ? `$${parseFloat(price).toFixed(2)}/mo` : "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Trainee Limit</p>
+                  <p className="text-muted-foreground">{t("admin.traineeLimit")}</p>
                   <p className="font-medium">
                     {parseInt(traineeLimit, 10) === 0
                       ? "Unlimited"
@@ -348,7 +350,7 @@ export function TierWizardForm({ tier }: TierWizardFormProps) {
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Sort Order</p>
+                  <p className="text-muted-foreground">{t("admin.sortOrder")}</p>
                   <p className="font-medium">{sortOrder}</p>
                 </div>
                 {stripePriceId && (
@@ -362,7 +364,7 @@ export function TierWizardForm({ tier }: TierWizardFormProps) {
                 <>
                   <Separator />
                   <div>
-                    <p className="mb-2 text-sm text-muted-foreground">Features</p>
+                    <p className="mb-2 text-sm text-muted-foreground">{t("admin.features")}</p>
                     <div className="flex flex-wrap gap-1">
                       {features.map((f, i) => (
                         <span

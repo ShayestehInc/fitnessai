@@ -31,6 +31,7 @@ import type {
   RevenueSubscriber,
   RevenuePayment,
 } from "@/types/analytics";
+import { useLocale } from "@/providers/locale-provider";
 
 // ── Period selector (30d / 90d / 1y) ──
 
@@ -333,6 +334,7 @@ function RevenueSkeleton() {
 // ── Main component ──
 
 export function RevenueSection() {
+  const { t } = useLocale();
   const router = useRouter();
   const [days, setDays] = useState<RevenuePeriod>(30);
   const { data, isLoading, isError, isFetching, refetch } =
@@ -390,8 +392,8 @@ export function RevenueSection() {
       ) : isEmpty ? (
         <EmptyState
           icon={DollarSign}
-          title="No revenue data yet"
-          description="Set up pricing to start accepting payments from your trainees."
+          title={t("analytics.noRevenueData")}
+          description={t("subscription.setupPricing")}
           action={
             <Button asChild>
               <Link href="/subscription">Manage Pricing</Link>
@@ -412,9 +414,9 @@ export function RevenueSection() {
           {/* Stat cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              title="MRR"
+              title={t("admin.mrr")}
               value={formatCurrency(data.mrr)}
-              description="Monthly recurring revenue"
+              description={t("admin.mrrDesc")}
               icon={DollarSign}
             />
             <StatCard
@@ -424,15 +426,15 @@ export function RevenueSection() {
               icon={TrendingUp}
             />
             <StatCard
-              title="Active Subscribers"
+              title={t("admin.activeSubscribers")}
               value={data.active_subscribers}
-              description="Currently subscribed trainees"
+              description={t("admin.currentlySubscribed")}
               icon={Users}
             />
             <StatCard
-              title="Avg / Subscriber"
+              title={t("admin.avgPerSubscriber")}
               value={formatCurrency(data.avg_revenue_per_subscriber)}
-              description="Average monthly revenue"
+              description={t("admin.avgMonthlyRevenue")}
               icon={UserCheck}
             />
           </div>

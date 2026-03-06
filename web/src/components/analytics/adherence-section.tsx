@@ -14,6 +14,7 @@ import { PeriodSelector } from "./period-selector";
 import { AdherenceBarChart } from "./adherence-chart";
 import { AdherenceTrendChart } from "./adherence-trend-chart";
 import type { AdherencePeriod } from "@/types/analytics";
+import { useLocale } from "@/providers/locale-provider";
 
 function getIndicatorColor(rate: number): string {
   if (rate >= 80) return "text-green-600 dark:text-green-400";
@@ -65,6 +66,7 @@ function AdherenceSkeleton() {
 }
 
 export function AdherenceSection() {
+  const { t } = useLocale();
   const [days, setDays] = useState<AdherencePeriod>(30);
   const { data, isLoading, isError, isFetching, refetch } =
     useAdherenceAnalytics(days);
@@ -92,10 +94,10 @@ export function AdherenceSection() {
         <EmptyState
           icon={BarChart3}
           title="No active trainees"
-          description="Invite trainees to see their adherence analytics here."
+          description={t("analytics.adherenceDesc")}
           action={
             <Button asChild>
-              <Link href="/invitations">Invite Trainee</Link>
+              <Link href="/invitations">{t("trainer.inviteTrainee")}</Link>
             </Button>
           }
         />
@@ -111,28 +113,28 @@ export function AdherenceSection() {
           )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              title="Food Logged"
+              title={t("nutrition.foodLogged")}
               value={`${data.food_logged_rate.toFixed(1)}%`}
               description={getIndicatorDescription(data.food_logged_rate)}
               icon={UtensilsCrossed}
               valueClassName={getIndicatorColor(data.food_logged_rate)}
             />
             <StatCard
-              title="Workouts Logged"
+              title={t("dashboard.workoutsLogged")}
               value={`${data.workout_logged_rate.toFixed(1)}%`}
               description={getIndicatorDescription(data.workout_logged_rate)}
               icon={Dumbbell}
               valueClassName={getIndicatorColor(data.workout_logged_rate)}
             />
             <StatCard
-              title="Protein Goal Hit"
+              title={t("nutrition.proteinGoalHit")}
               value={`${data.protein_goal_rate.toFixed(1)}%`}
               description={getIndicatorDescription(data.protein_goal_rate)}
               icon={Target}
               valueClassName={getIndicatorColor(data.protein_goal_rate)}
             />
             <StatCard
-              title="Calorie Goal Hit"
+              title={t("nutrition.calorieGoalHit")}
               value={`${data.calorie_goal_rate.toFixed(1)}%`}
               description={getIndicatorDescription(data.calorie_goal_rate)}
               icon={Flame}

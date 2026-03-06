@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { useTraineePrograms } from "@/hooks/use-trainee-view";
 import type { TraineeViewProgram, TraineeViewScheduleDay } from "@/types/trainee-view";
+import { useLocale } from "@/providers/locale-provider";
 
 const DAY_NAMES = [
   "Sunday",
@@ -34,6 +35,7 @@ function getTodayScheduleDay(
 }
 
 export function ProgramCard() {
+  const { t } = useLocale();
   const { data: programs, isLoading, isError, refetch } = useTraineePrograms();
 
   if (isLoading) {
@@ -98,7 +100,7 @@ export function ProgramCard() {
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
           <p className="font-medium">{activeProgram.name}</p>
-          <Badge variant="secondary">Active</Badge>
+          <Badge variant="secondary">{t("common.active")}</Badge>
         </div>
 
         {activeProgram.start_date && (

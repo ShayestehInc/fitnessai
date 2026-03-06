@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useTraineeActivity } from "@/hooks/use-trainees";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { ErrorState } from "@/components/shared/error-state";
+import { useLocale } from "@/providers/locale-provider";
 
 interface TraineeActivityTabProps {
   traineeId: number;
@@ -31,6 +32,7 @@ interface TraineeActivityTabProps {
 const DAY_OPTIONS = [7, 14, 30] as const;
 
 export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
+  const { t } = useLocale();
   const [days, setDays] = useState<number>(7);
   const { data, isLoading, isError, refetch } = useTraineeActivity(
     traineeId,
@@ -58,8 +60,8 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
       <CardHeader>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle>Activity Log</CardTitle>
-            <CardDescription>Daily tracking overview</CardDescription>
+            <CardTitle>{t("trainees.activityLog")}</CardTitle>
+            <CardDescription>{t("trainees.activityDesc")}</CardDescription>
           </div>
           <div className="flex gap-1" role="group" aria-label="Time range filter">
             {DAY_OPTIONS.map((d) => (
@@ -94,14 +96,14 @@ export function TraineeActivityTab({ traineeId }: TraineeActivityTabProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Workout</TableHead>
-                  <TableHead>Food</TableHead>
-                  <TableHead className="text-right">Calories</TableHead>
-                  <TableHead className="text-right">Protein</TableHead>
-                  <TableHead className="hidden text-right md:table-cell">Carbs</TableHead>
-                  <TableHead className="hidden text-right md:table-cell">Fat</TableHead>
-                  <TableHead>Goals</TableHead>
+                  <TableHead>{t("common.date")}</TableHead>
+                  <TableHead>{t("nav.workout")}</TableHead>
+                  <TableHead>{t("trainees.food")}</TableHead>
+                  <TableHead className="text-right">{t("nutrition.calories")}</TableHead>
+                  <TableHead className="text-right">{t("nutrition.protein")}</TableHead>
+                  <TableHead className="hidden text-right md:table-cell">{t("nutrition.carbs")}</TableHead>
+                  <TableHead className="hidden text-right md:table-cell">{t("nutrition.fat")}</TableHead>
+                  <TableHead>{t("trainees.goals")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

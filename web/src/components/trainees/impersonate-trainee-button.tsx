@@ -26,6 +26,7 @@ import type { ImpersonationStartResponse } from "@/types/trainee-view";
 import {
   setTrainerImpersonationState,
 } from "@/components/layout/trainer-impersonation-banner";
+import { useLocale } from "@/providers/locale-provider";
 
 interface ImpersonateTraineeButtonProps {
   traineeId: number;
@@ -36,6 +37,7 @@ export function ImpersonateTraineeButton({
   traineeId,
   traineeName,
 }: ImpersonateTraineeButtonProps) {
+  const { t } = useLocale();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const impersonateMutation = useMutation({
@@ -50,7 +52,7 @@ export function ImpersonateTraineeButton({
       const trainerRefresh = getRefreshToken();
 
       if (!trainerAccess || !trainerRefresh) {
-        toast.error("Failed to save trainer session. Please try again.");
+        toast.error(t("trainees.impersonateDesc"));
         return;
       }
 
@@ -93,7 +95,7 @@ export function ImpersonateTraineeButton({
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Impersonate Trainee</DialogTitle>
+            <DialogTitle>{t("trainees.impersonate")}</DialogTitle>
             <DialogDescription>
               You will see the app as <strong>{traineeName}</strong> sees it.
               All actions will be logged for audit purposes. You can end the
