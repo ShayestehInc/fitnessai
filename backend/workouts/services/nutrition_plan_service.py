@@ -95,6 +95,13 @@ class NutritionPlanService:
 
         Skips days where the plan was manually overridden.
         """
+        max_days = 90
+        range_days = (end_date - start_date).days
+        if range_days > max_days:
+            raise ValueError(
+                f"Date range too large: {range_days} days (max {max_days})."
+            )
+
         plans: list[NutritionDayPlan] = []
         current = start_date
         while current <= end_date:
@@ -335,8 +342,8 @@ class NutritionPlanService:
         try:
             profile = trainee.profile  # type: ignore[union-attr]
             meals_per_day = profile.meals_per_day or 4
-        except Exception:
-            pass
+        except AttributeError:
+            pass  # No profile relation on this user
 
         # Determine day type from program (use training_based default)
         is_training = self._is_training_day(trainee, date)
@@ -412,9 +419,12 @@ class NutritionPlanService:
 
         Assignment parameters take precedence over profile values.
         """
+        import logging
+        logger = logging.getLogger(__name__)
         try:
             profile = trainee.profile  # type: ignore[union-attr]
-        except Exception:
+        except AttributeError:
+            logger.debug("No profile for trainee %s, skipping enrichment", trainee.pk)
             return parameters
 
         defaults: dict[str, float | str | int] = {}

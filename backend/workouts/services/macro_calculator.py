@@ -4,7 +4,7 @@ Uses the Mifflin-St Jeor equation for BMR calculation.
 """
 from __future__ import annotations
 
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
@@ -346,7 +346,7 @@ class MacroCalculatorService:
         weight_kg = max(self._MIN_WEIGHT_KG, min(self._MAX_WEIGHT_KG, weight_kg))
 
         body_fat_pct = parameters.get('body_fat_pct')
-        if body_fat_pct is None or float(body_fat_pct) <= 0:
+        if body_fat_pct is None:
             body_fat_pct = self.estimate_body_fat(sex, weight_kg, height_cm)
         body_fat_pct = float(body_fat_pct)
         body_fat_pct = max(3.0, min(60.0, body_fat_pct))
@@ -374,10 +374,10 @@ class MacroCalculatorService:
 
         Protein: 1.3g per lb of LBM (high to preserve muscle in deficit)
         Deficit: 22% below TDEE
-        Day types control carb/fat split:
-          - low_carb:    15% carbs / remaining fat
-          - medium_carb: 25% carbs / remaining fat
-          - high_carb:   35% carbs / remaining fat
+        Day types control carb/fat split (of remaining cals after protein):
+          - low_carb:    25% carbs / 75% fat
+          - medium_carb: 40% carbs / 60% fat
+          - high_carb:   55% carbs / 45% fat
         """
         weight_kg, body_fat_pct, lbm_kg = self._resolve_lbm_inputs(
             parameters, sex, height_cm, age, activity_level,
@@ -452,9 +452,9 @@ class MacroCalculatorService:
 
         Protein: 1.1g per lb of LBM
         Surplus: 12% above TDEE
-        Day types:
-          - training_day: 50% carbs / 20% fat (of total cals after protein)
-          - rest_day:     35% carbs / 35% fat
+        Day types (of remaining cals after protein):
+          - training_day: 60% carbs / 40% fat
+          - rest_day:     45% carbs / 55% fat
         """
         weight_kg, body_fat_pct, lbm_kg = self._resolve_lbm_inputs(
             parameters, sex, height_cm, age, activity_level,
@@ -530,9 +530,12 @@ class MacroCalculatorService:
             meals_per_day = 8
 
         per_protein = protein_g // meals_per_day
+        protein_remainder = protein_g % meals_per_day
         per_fat = fat_g // meals_per_day
+        fat_remainder = fat_g % meals_per_day
 
         meals: list[MealMacros] = []
+        meal_names = self._get_meal_names(meals_per_day)
 
         if front_load_carbs and meals_per_day >= 3:
             # Front-load: first third of meals get 40% of carbs,
@@ -541,48 +544,66 @@ class MacroCalculatorService:
             mid_count = max(1, meals_per_day // 3)
             back_count = meals_per_day - front_count - mid_count
 
-            front_carbs = int(carbs_g * 0.40) // front_count if front_count else 0
-            mid_carbs = int(carbs_g * 0.35) // mid_count if mid_count else 0
-            back_carbs = int(carbs_g * 0.25) // back_count if back_count else 0
+            front_total = int(round(carbs_g * 0.40))
+            mid_total = int(round(carbs_g * 0.35))
+            back_total = carbs_g - front_total - mid_total
 
-            meal_names = self._get_meal_names(meals_per_day)
+            front_per = front_total // front_count if front_count else 0
+            front_rem = front_total % front_count if front_count else 0
+            mid_per = mid_total // mid_count if mid_count else 0
+            mid_rem = mid_total % mid_count if mid_count else 0
+            back_per = back_total // back_count if back_count else 0
+            back_rem = back_total % back_count if back_count else 0
+
+            carb_idx_front = 0
+            carb_idx_mid = 0
+            carb_idx_back = 0
 
             for i in range(meals_per_day):
+                mp = per_protein + (1 if i < protein_remainder else 0)
+                mf = per_fat + (1 if i < fat_remainder else 0)
+
                 if i < front_count:
-                    mc = front_carbs
+                    mc = front_per + (1 if carb_idx_front < front_rem else 0)
+                    carb_idx_front += 1
                 elif i < front_count + mid_count:
-                    mc = mid_carbs
+                    mc = mid_per + (1 if carb_idx_mid < mid_rem else 0)
+                    carb_idx_mid += 1
                 else:
-                    mc = back_carbs
+                    mc = back_per + (1 if carb_idx_back < back_rem else 0)
+                    carb_idx_back += 1
 
                 cals = (
-                    per_protein * self.PROTEIN_CALS_PER_GRAM
+                    mp * self.PROTEIN_CALS_PER_GRAM
                     + mc * self.CARBS_CALS_PER_GRAM
-                    + per_fat * self.FAT_CALS_PER_GRAM
+                    + mf * self.FAT_CALS_PER_GRAM
                 )
                 meals.append(MealMacros(
                     meal_number=i + 1,
                     name=meal_names[i],
-                    protein=per_protein,
+                    protein=mp,
                     carbs=mc,
-                    fat=per_fat,
+                    fat=mf,
                     calories=cals,
                 ))
         else:
             per_carbs = carbs_g // meals_per_day
-            meal_names = self._get_meal_names(meals_per_day)
+            carbs_remainder = carbs_g % meals_per_day
             for i in range(meals_per_day):
+                mp = per_protein + (1 if i < protein_remainder else 0)
+                mc = per_carbs + (1 if i < carbs_remainder else 0)
+                mf = per_fat + (1 if i < fat_remainder else 0)
                 cals = (
-                    per_protein * self.PROTEIN_CALS_PER_GRAM
-                    + per_carbs * self.CARBS_CALS_PER_GRAM
-                    + per_fat * self.FAT_CALS_PER_GRAM
+                    mp * self.PROTEIN_CALS_PER_GRAM
+                    + mc * self.CARBS_CALS_PER_GRAM
+                    + mf * self.FAT_CALS_PER_GRAM
                 )
                 meals.append(MealMacros(
                     meal_number=i + 1,
                     name=meal_names[i],
-                    protein=per_protein,
-                    carbs=per_carbs,
-                    fat=per_fat,
+                    protein=mp,
+                    carbs=mc,
+                    fat=mf,
                     calories=cals,
                 ))
 

@@ -58,12 +58,22 @@ def update_template_rulesets(apps, schema_editor):
 def revert_rulesets(apps, schema_editor):
     NutritionTemplate = apps.get_model('workouts', 'NutritionTemplate')
 
+    # Restore original placeholder rulesets from 0013_seed_system_templates
+    placeholder_meal = {'name': '', 'protein': 0, 'carbs': 0, 'fat': 0, 'calories': 0}
+    placeholder_meals = [placeholder_meal] * 6
+
     for template_type in ('shredded', 'massive'):
         try:
             tmpl = NutritionTemplate.objects.get(
                 template_type=template_type, is_system=True,
             )
             tmpl.version = 1
+            tmpl.ruleset = {
+                'description': f'Placeholder {template_type} template.',
+                'meals_per_day': 6,
+                'day_types': {},
+                'note': 'Per-meal formulas will be implemented in Phase 3 (LBM engine).',
+            }
             tmpl.save()
         except NutritionTemplate.DoesNotExist:
             pass

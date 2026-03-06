@@ -23,7 +23,7 @@ class _DayPlanScreenState extends ConsumerState<DayPlanScreen> {
   void initState() {
     super.initState();
     if (widget.initialDate != null) {
-      _selectedDate = DateTime.parse(widget.initialDate!);
+      _selectedDate = DateTime.tryParse(widget.initialDate!) ?? DateTime.now();
     } else {
       _selectedDate = DateTime.now();
     }
