@@ -4,6 +4,34 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 49: Video Attachments on Community Posts
+
+### Added
+- Backend: `PostVideo` model with FK to CommunityPost, FileField, ImageField thumbnail, duration, file_size, sort_order
+- Backend: `video_service.py` — 3-layer validation (extension + MIME type + magic bytes), ffprobe duration extraction, ffmpeg thumbnail generation
+- Backend: Migration `0007_add_post_video` with indexes on (post, sort_order) and (created_at)
+- Backend: `MediaUploadThrottle` rate limiting (20/hour) on community feed POST
+- Backend: Django `DATA_UPLOAD_MAX_MEMORY_SIZE` (60MB) and `FILE_UPLOAD_MAX_MEMORY_SIZE` (10MB) settings
+- Backend: Video file + thumbnail cleanup on post deletion
+- Backend: 15MB fallback size limit when ffprobe unavailable (graceful degradation)
+- Backend: `ffmpeg` added to Dockerfile
+- Mobile: `PostVideoModel` with `formattedDuration` getter (M:SS format)
+- Mobile: `VideoPlayerCard` — lazy initialization, muted autoplay, tap play/pause, loading spinner, error retry
+- Mobile: `FullscreenVideoPlayer` — landscape support, seek bar, auto-hide controls, mute toggle
+- Mobile: Video picker in compose sheet with extension/size validation, preview cards with VIDEO badge and file size
+- Mobile: Upload progress bar (indeterminate while preparing, percentage during upload)
+- Mobile: Semantics labels on all video player controls (accessibility)
+- Mobile: Enlarged touch targets on remove buttons (images + videos)
+
+### Fixed
+- Negative duration guard in `formattedDuration` (returns empty for ≤0)
+- Double-tap race condition in video player (added `_isLoading` guard)
+- Bookmark queries now prefetch videos (N+1 fix)
+- `transaction.atomic()` wraps post + images + videos creation
+- Video player error overlay improved with styled retry button
+
+---
+
 ## [2026-03-05] — Pipeline 48: FCM Push Notifications for Community Events
 
 ### Added
