@@ -4,6 +4,27 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 46: Nutrition Phase 5 — Wire Template Assignment into Trainer Detail Screen
+
+### Added
+- `_NutritionTemplateSection` widget in trainer's trainee detail Nutrition tab
+- "Assign Nutrition Template" button (no active assignment) and assignment summary card (active assignment)
+- `traineeActiveAssignmentProvider` with autoDispose.family for trainer-side lookup
+- Body weight validation (required, 0-1000 lbs), body fat % (1-70), meals per day (1-10)
+- Loading spinner, error card with retry, empty template list state
+- PopScope to prevent back navigation during submission
+- Semantics labels for accessibility on loading/error states
+- Success snackbar with check icon and green background
+- Helper text on all parameter fields
+- Reassign confirmation dialog
+
+### Fixed
+- setState after async gap now checks mounted first
+- Raw error strings replaced with user-friendly messages
+- autoDispose added to dayPlanProvider and weekPlansProvider to prevent memory growth
+
+---
+
 ## [2026-03-05] — Pipeline 45: Nutrition Phase 4 — Wire Plan Screens into Navigation
 
 ### Added
