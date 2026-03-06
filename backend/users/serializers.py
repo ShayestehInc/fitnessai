@@ -141,6 +141,7 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer[NotificationP
             'trainee_started_workout',
             'trainee_finished_workout',
             'churn_alert',
+            're_engagement',
             'trainer_announcement',
             'achievement_earned',
             'community_event',

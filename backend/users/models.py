@@ -339,6 +339,11 @@ class NotificationPreference(models.Model):
         help_text="Notify when a new badge is earned",
     )
 
+    re_engagement = models.BooleanField(
+        default=True,
+        help_text="Notify with re-engagement prompts when inactive (trainee only)",
+    )
+
     # Trainee notification categories (continued)
     community_event = models.BooleanField(
         default=True,
@@ -364,6 +369,7 @@ class NotificationPreference(models.Model):
         'trainee_started_workout',
         'trainee_finished_workout',
         'churn_alert',
+        're_engagement',
         'trainer_announcement',
         'achievement_earned',
         'community_event',

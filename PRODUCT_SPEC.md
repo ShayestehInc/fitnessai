@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-03-05 (Pipeline 49: Video Attachments on Community Posts)
+> Last updated: 2026-03-05 (Pipeline 51: Churn Push Notifications via FCM)
 
 ---
 
@@ -1163,6 +1163,7 @@ Structured meal logging infrastructure replacing JSON blobs with relational Food
 - ~~Goal-based nutrition templates~~ ✅ Completed 2026-02-21 (Pipeline 31)
 
 ### Phase 12: Future Enhancements
+- ~~Churn push notifications via FCM~~ ✅ Completed 2026-03-05 (Pipeline 51 — FCM pushes for trainer churn alerts and trainee re-engagement, new re_engagement preference category, deep links for both notification types, mobile preference toggles)
 - ~~Video attachments on community posts~~ ✅ Completed 2026-03-05 (Pipeline 49 — PostVideo model, 3-layer validation: extension+MIME+magic bytes, ffprobe duration/ffmpeg thumbnail, 50MB/60s limits, max 3 per post, lazy inline player with muted autoplay, fullscreen player, upload progress, rate limiting 20/hr)
 - ~~Trainee web access~~ ✅ Completed 2026-02-21 (Pipeline 32 — full trainee web portal: dashboard, program viewer, messages, announcements, achievements, settings)
 - ~~Trainee web trainer branding~~ ✅ Completed 2026-02-23 (Pipeline 34 — trainer app name, logo, and primary color applied to trainee web sidebars; `useTraineeBranding()` hook, `BrandLogo` shared component, hex color sanitization)
@@ -1272,4 +1273,4 @@ Structured meal logging infrastructure replacing JSON blobs with relational Food
 - **Real-time updates on community feed and messaging** — WebSocket via Django Channels shipped for community feed (2026-02-16: new posts, deletions, comments, reactions) and direct messaging on mobile (2026-02-19) and web (2026-02-19 Pipeline 22: new messages, typing indicators, read receipts, graceful HTTP polling fallback). Trainer dashboard still requires manual refresh.
 - **Web dashboard covers trainer, admin, and ambassador roles** — Web dashboard (Next.js) shipped for trainers and admins (2026-02-15), ambassador role added (2026-02-19). Full feature parity achieved for all three roles. Trainee web access not yet built.
 - **i18n string extraction incomplete** — i18n infrastructure is fully in place across Django, Flutter, and Next.js (Pipeline 40). ~200 strings per platform have translations (en/es/pt-br). However, ~380 existing hardcoded strings in Flutter/Web screens still need to be migrated from hardcoded English to `context.l10n.xxx` / `t('xxx')` calls. Infrastructure supports this incrementally.
-- **Churn prevention push notifications** — Retention analytics and scoring are complete (Pipeline 39). Automated churn alerts create TrainerNotification records. Re-engagement push delivery is logged but not yet wired to Firebase Cloud Messaging (firebase_admin integration pending).
+- **Churn prevention push notifications** — Fully wired (Pipeline 51, 2026-03-05). Retention analytics compute_retention command now sends FCM pushes to trainers for at-risk trainees (churn_alert category) and re-engagement pushes to critical-risk trainees (re_engagement category). Preference toggles available on mobile for both roles. Deep links: churn_alert opens trainer trainee detail, re_engagement opens trainee home screen.

@@ -115,6 +115,12 @@ const _traineeSections = [
         subtitle: 'New events, updates, cancellations, and reminders',
         icon: Icons.event_outlined,
       ),
+      _CategoryMeta(
+        key: 're_engagement',
+        label: 'Re-engagement Reminders',
+        subtitle: 'Gentle nudges when you have not logged in a while',
+        icon: Icons.notifications_active_outlined,
+      ),
     ],
   ),
   _Section(

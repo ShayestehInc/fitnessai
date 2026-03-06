@@ -5,7 +5,11 @@ Deduplication rules:
 - Trainer notification: skip if a churn_alert exists for the same trainee
   within the last 3 days.
 - Trainee push: skip if a re-engagement push was sent within the last 7 days,
-  tracked via TrainerNotification.data['re_engagement_push_sent_at'].
+  tracked via TrainerNotification.data['re_engagement_push'] flag.
+
+FCM integration:
+- Trainer churn alerts are sent as push notifications (category: churn_alert).
+- Trainee re-engagement pushes are sent as push notifications (category: re_engagement).
 """
 from __future__ import annotations
 
@@ -25,12 +29,69 @@ TRAINER_ALERT_COOLDOWN_DAYS: int = 3
 PUSH_COOLDOWN_DAYS: int = 7
 
 
+def _send_trainer_churn_push(
+    trainer_id: int,
+    trainee_id: int,
+    title: str,
+    message: str,
+    risk_tier: str,
+) -> bool:
+    """Send FCM push to a trainer about an at-risk trainee.
+
+    Returns True if the push was delivered successfully.
+    """
+    from core.services.notification_service import send_push_notification
+
+    data = {
+        "type": "churn_alert",
+        "trainee_id": str(trainee_id),
+        "risk_tier": risk_tier,
+    }
+
+    return send_push_notification(
+        user_id=trainer_id,
+        title=title,
+        body=message,
+        data=data,
+        category="churn_alert",
+    )
+
+
+def _send_trainee_re_engagement_push(
+    trainee_id: int,
+    trainer_name: str,
+) -> bool:
+    """Send FCM push to a trainee encouraging them to come back.
+
+    Returns True if the push was delivered successfully.
+    """
+    from core.services.notification_service import send_push_notification
+
+    title = "We miss you!"
+    body = (
+        f"Your trainer {trainer_name} is cheering you on. "
+        "Open the app to log a workout and get back on track!"
+    )
+    data = {
+        "type": "re_engagement",
+    }
+
+    return send_push_notification(
+        user_id=trainee_id,
+        title=title,
+        body=body,
+        data=data,
+        category="re_engagement",
+    )
+
+
 def create_churn_alerts(
     trainer: User,
     at_risk_trainees: list[TraineeEngagementItem],
 ) -> int:
     """
-    Create TrainerNotification entries for at-risk trainees (critical + high).
+    Create TrainerNotification entries for at-risk trainees (critical + high)
+    and send FCM push notifications to the trainer.
 
     Deduplicates by checking for existing churn_alert notifications for the
     same trainee within the last TRAINER_ALERT_COOLDOWN_DAYS days.
@@ -65,6 +126,7 @@ def create_churn_alerts(
 
     created_count = 0
     notifications_to_create: list[TrainerNotification] = []
+    push_payloads: list[tuple[int, str, str, str]] = []
 
     for item in at_risk_trainees:
         if item.risk_tier not in ("critical", "high"):
@@ -98,6 +160,7 @@ def create_churn_alerts(
                 },
             )
         )
+        push_payloads.append((item.trainee_id, title, message, item.risk_tier))
         created_count += 1
 
     if notifications_to_create:
@@ -105,6 +168,26 @@ def create_churn_alerts(
         logger.info(
             "Created %d churn alert(s) for trainer %s",
             created_count,
+            trainer.email,
+        )
+
+    # Send FCM push notifications to the trainer for each alert
+    pushes_sent = 0
+    for trainee_id, title, message, risk_tier in push_payloads:
+        sent = _send_trainer_churn_push(
+            trainer_id=trainer.id,
+            trainee_id=trainee_id,
+            title=title,
+            message=message,
+            risk_tier=risk_tier,
+        )
+        if sent:
+            pushes_sent += 1
+
+    if pushes_sent > 0:
+        logger.info(
+            "Sent %d churn alert FCM push(es) to trainer %s",
+            pushes_sent,
             trainer.email,
         )
 
@@ -116,7 +199,8 @@ def send_re_engagement_pushes(
     critical_trainees: list[TraineeEngagementItem],
 ) -> int:
     """
-    Send re-engagement push notifications to critical-risk trainees.
+    Send re-engagement push notifications to critical-risk trainees via FCM
+    and log the action as a TrainerNotification.
 
     Deduplicates by checking for a re-engagement push sent within the
     last PUSH_COOLDOWN_DAYS days, tracked via TrainerNotification with
@@ -150,7 +234,13 @@ def send_re_engagement_pushes(
         if tid is not None
     )
 
+    trainer_name = f"{trainer.first_name} {trainer.last_name}".strip()
+    if not trainer_name:
+        trainer_name = trainer.email.split("@")[0]
+
     notifications_to_create: list[TrainerNotification] = []
+    trainee_ids_to_push: list[int] = []
+
     for item in critical_trainees:
         if item.risk_tier != "critical":
             continue
@@ -171,16 +261,26 @@ def send_re_engagement_pushes(
                 },
             )
         )
-
-        # NOTE: Actual FCM push delivery would be integrated here once
-        # firebase_admin is wired up. For now we log the intent.
-        logger.info(
-            "Re-engagement push queued for trainee %s (trainer %s)",
-            item.trainee_email,
-            trainer.email,
-        )
+        trainee_ids_to_push.append(item.trainee_id)
 
     if notifications_to_create:
         TrainerNotification.objects.bulk_create(notifications_to_create)
+
+    # Send FCM pushes to all eligible trainees
+    pushes_sent = 0
+    for trainee_id in trainee_ids_to_push:
+        sent = _send_trainee_re_engagement_push(
+            trainee_id=trainee_id,
+            trainer_name=trainer_name,
+        )
+        if sent:
+            pushes_sent += 1
+
+    if pushes_sent > 0:
+        logger.info(
+            "Sent %d re-engagement FCM push(es) for trainer %s",
+            pushes_sent,
+            trainer.email,
+        )
 
     return len(notifications_to_create)
