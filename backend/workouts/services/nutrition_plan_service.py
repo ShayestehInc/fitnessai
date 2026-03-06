@@ -95,6 +95,13 @@ class NutritionPlanService:
 
         Skips days where the plan was manually overridden.
         """
+        max_days = 90
+        range_days = (end_date - start_date).days
+        if range_days > max_days:
+            raise ValueError(
+                f"Date range too large: {range_days} days (max {max_days})."
+            )
+
         plans: list[NutritionDayPlan] = []
         current = start_date
         while current <= end_date:
@@ -161,10 +168,13 @@ class NutritionPlanService:
                 template.ruleset, parameters, day_type,
             )
 
-        # For shredded / massive / carb_cycling / macro_ebook
-        # Phase 3+ will implement dedicated formula engines.
-        # Until then, use the custom ruleset path if a ruleset exists,
-        # otherwise fall back to even-split from ruleset totals.
+        if template.template_type == NutritionTemplate.TemplateType.SHREDDED:
+            return self._apply_shredded_ruleset(parameters, day_type)
+
+        if template.template_type == NutritionTemplate.TemplateType.MASSIVE:
+            return self._apply_massive_ruleset(parameters, day_type)
+
+        # For carb_cycling / macro_ebook — Phase 4+
         if template.ruleset:
             return self._apply_custom_ruleset(
                 template.ruleset, parameters, day_type,
@@ -275,8 +285,17 @@ class NutritionPlanService:
     ) -> NutritionDayPlan:
         template = assignment.template
         day_type = self.determine_day_type(assignment, trainee, date)
+
+        # Enrich parameters with profile data for LBM-based templates
+        parameters = dict(assignment.parameters)
+        if template.template_type in (
+            NutritionTemplate.TemplateType.SHREDDED,
+            NutritionTemplate.TemplateType.MASSIVE,
+        ):
+            parameters = self._enrich_with_profile(trainee, parameters)
+
         meal_targets = self.apply_template_ruleset(
-            template, assignment.parameters, day_type,
+            template, parameters, day_type,
         )
 
         total_protein = sum(m.protein for m in meal_targets)
@@ -323,8 +342,8 @@ class NutritionPlanService:
         try:
             profile = trainee.profile  # type: ignore[union-attr]
             meals_per_day = profile.meals_per_day or 4
-        except Exception:
-            pass
+        except AttributeError:
+            pass  # No profile relation on this user
 
         # Determine day type from program (use training_based default)
         is_training = self._is_training_day(trainee, date)
@@ -394,6 +413,38 @@ class NutritionPlanService:
                 return bool(day.get('exercises'))
         return False
 
+    @staticmethod
+    def _enrich_with_profile(trainee: User, parameters: dict) -> dict:
+        """Merge UserProfile fields into parameters for LBM-based templates.
+
+        Assignment parameters take precedence over profile values.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        try:
+            profile = trainee.profile  # type: ignore[union-attr]
+        except AttributeError:
+            logger.debug("No profile for trainee %s, skipping enrichment", trainee.pk)
+            return parameters
+
+        defaults: dict[str, float | str | int] = {}
+        if profile.sex:
+            defaults['sex'] = profile.sex
+        if profile.height_cm:
+            defaults['height_cm'] = float(profile.height_cm)
+        if profile.age:
+            defaults['age'] = profile.age
+        if profile.activity_level:
+            defaults['activity_level'] = profile.activity_level
+        if profile.body_fat_percentage:
+            defaults['body_fat_pct'] = float(profile.body_fat_percentage)
+        if profile.weight_kg and 'body_weight_kg' not in parameters and 'body_weight_lbs' not in parameters:
+            defaults['body_weight_kg'] = float(profile.weight_kg)
+
+        # Parameters from assignment override profile defaults
+        merged = {**defaults, **parameters}
+        return merged
+
     def _apply_legacy_from_params(
         self,
         parameters: dict,
@@ -423,6 +474,125 @@ class NutritionPlanService:
                 calories=per_cals,
             )
             for i in range(meals_per_day)
+        ]
+
+    def _apply_shredded_ruleset(
+        self,
+        parameters: dict,
+        day_type: str,
+    ) -> list[MealTarget]:
+        """Apply the SHREDDED (fat-loss) formula engine.
+
+        Uses LBM-based macro calculation with day-type-specific carb cycling.
+        """
+        import logging
+
+        from workouts.services.macro_calculator import MacroCalculatorService
+
+        logger = logging.getLogger(__name__)
+        calc = MacroCalculatorService()
+
+        sex = str(parameters.get('sex', 'male'))
+        height_cm = float(parameters.get('height_cm', 175.0))
+        age = int(parameters.get('age', 30))
+        activity_level = str(
+            parameters.get('activity_level', 'moderately_active')
+        )
+        meals_per_day = int(parameters.get('meals_per_day', 6))
+
+        # Map day types: SHREDDED uses low/medium/high carb
+        # If the incoming day_type is training/rest, map it
+        shredded_day_type = day_type
+        if day_type in ('training', 'training_day'):
+            shredded_day_type = 'high_carb'
+        elif day_type in ('rest', 'rest_day'):
+            shredded_day_type = 'low_carb'
+        elif day_type not in ('low_carb', 'medium_carb', 'high_carb'):
+            shredded_day_type = 'medium_carb'
+
+        try:
+            result = calc.calculate_shredded_macros(
+                parameters=parameters,
+                day_type=shredded_day_type,
+                sex=sex,
+                height_cm=height_cm,
+                age=age,
+                activity_level=activity_level,
+                meals_per_day=meals_per_day,
+            )
+        except ValueError as exc:
+            logger.warning("SHREDDED calculation failed: %s", exc)
+            return self._apply_legacy_from_params(parameters)
+
+        return [
+            MealTarget(
+                meal_number=m.meal_number,
+                name=m.name,
+                protein=m.protein,
+                carbs=m.carbs,
+                fat=m.fat,
+                calories=m.calories,
+            )
+            for m in result.meals
+        ]
+
+    def _apply_massive_ruleset(
+        self,
+        parameters: dict,
+        day_type: str,
+    ) -> list[MealTarget]:
+        """Apply the MASSIVE (muscle-gain) formula engine.
+
+        Uses LBM-based macro calculation with training/rest day splits.
+        """
+        import logging
+
+        from workouts.services.macro_calculator import MacroCalculatorService
+
+        logger = logging.getLogger(__name__)
+        calc = MacroCalculatorService()
+
+        sex = str(parameters.get('sex', 'male'))
+        height_cm = float(parameters.get('height_cm', 175.0))
+        age = int(parameters.get('age', 30))
+        activity_level = str(
+            parameters.get('activity_level', 'moderately_active')
+        )
+        meals_per_day = int(parameters.get('meals_per_day', 6))
+
+        # Map day types: MASSIVE uses training/rest
+        massive_day_type = day_type
+        if day_type in ('high_carb', 'medium_carb'):
+            massive_day_type = 'training_day'
+        elif day_type in ('low_carb',):
+            massive_day_type = 'rest_day'
+        elif day_type not in ('training', 'training_day', 'rest', 'rest_day'):
+            massive_day_type = 'rest_day'
+
+        try:
+            result = calc.calculate_massive_macros(
+                parameters=parameters,
+                day_type=massive_day_type,
+                sex=sex,
+                height_cm=height_cm,
+                age=age,
+                activity_level=activity_level,
+                meals_per_day=meals_per_day,
+            )
+        except ValueError as exc:
+            logger.warning("MASSIVE calculation failed: %s", exc)
+            return self._apply_legacy_from_params(parameters)
+
+        return [
+            MealTarget(
+                meal_number=m.meal_number,
+                name=m.name,
+                protein=m.protein,
+                carbs=m.carbs,
+                fat=m.fat,
+                calories=m.calories,
+            )
+            for m in result.meals
         ]
 
     def _apply_custom_ruleset(

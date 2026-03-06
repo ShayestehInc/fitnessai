@@ -2485,6 +2485,45 @@ class NutritionTemplateAssignmentViewSet(viewsets.ModelViewSet[NutritionTemplate
             )
         return Response(NutritionTemplateAssignmentSerializer(assignment).data)
 
+    @action(detail=True, methods=['post'], url_path='recalculate')
+    def recalculate(self, request: Request, pk: Any = None) -> Response:
+        """POST /api/workouts/nutrition-template-assignments/<id>/recalculate/
+
+        Regenerate day plans for the next 7 days after a parameter change.
+        Only the assignment owner (trainer) or admin can trigger this.
+        """
+        user = cast(User, request.user)
+        if not (user.is_trainer() or user.is_admin()):
+            return Response(
+                {'error': 'Only trainers or admins can recalculate.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            assignment = self.get_queryset().get(pk=pk)
+        except NutritionTemplateAssignment.DoesNotExist:
+            return Response(
+                {'error': 'Assignment not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from workouts.services.nutrition_plan_service import NutritionPlanService
+
+        svc = NutritionPlanService()
+        today = date.today()
+        end_date = today + timedelta(days=6)
+        plans = svc.regenerate_plans_for_range(
+            trainee=assignment.trainee,
+            start_date=today,
+            end_date=end_date,
+        )
+
+        return Response({
+            'recalculated': len(plans),
+            'start_date': today.isoformat(),
+            'end_date': end_date.isoformat(),
+        })
+
 
 class NutritionDayPlanViewSet(viewsets.ReadOnlyModelViewSet[NutritionDayPlan]):
     """
@@ -2543,6 +2582,11 @@ class NutritionDayPlanViewSet(viewsets.ReadOnlyModelViewSet[NutritionDayPlan]):
                         {'error': 'Trainee not found.'},
                         status=status.HTTP_404_NOT_FOUND,
                     )
+                if user.is_trainer() and trainee.parent_trainer_id != user.pk:
+                    return Response(
+                        {'error': 'You do not have access to this trainee.'},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
             else:
                 return Response(
                     {'error': 'trainee_id is required for trainers/admins.'},
@@ -2592,6 +2636,11 @@ class NutritionDayPlanViewSet(viewsets.ReadOnlyModelViewSet[NutritionDayPlan]):
                 return Response(
                     {'error': 'Trainee not found.'},
                     status=status.HTTP_404_NOT_FOUND,
+                )
+            if user.is_trainer() and trainee.parent_trainer_id != user.pk:
+                return Response(
+                    {'error': 'You do not have access to this trainee.'},
+                    status=status.HTTP_403_FORBIDDEN,
                 )
         else:
             return Response(

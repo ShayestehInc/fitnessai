@@ -1,126 +1,68 @@
-# Feature: Nutrition Phase 2 — FoodItem Model, Structured MealLog, Fat Mode Toggle
+# Feature: LBM Formula Engine & SHREDDED/MASSIVE Nutrition Templates
 
 ## Priority
 High
 
 ## User Story
-As a trainee, I want to log meals using a structured food database with per-item tracking so that my nutrition data is accurate, searchable, and reusable. As a trainer, I want to create custom food items for my trainees and toggle their fat tracking mode so I can tailor their nutrition approach.
+As a trainer, I want to assign SHREDDED or MASSIVE nutrition templates to my trainees so that their daily macro targets are automatically calculated based on lean body mass, with per-meal breakdowns that vary by day type (training/rest/low carb/high carb).
 
 ## Acceptance Criteria
-
-### FoodItem Model (Backend)
-- [ ] AC-1: New `FoodItem` model with fields: `name`, `brand`, `serving_size`, `serving_unit`, `calories`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `sodium`, `barcode`, `is_public`, `created_by`, timestamps
-- [ ] AC-2: `is_public=True` for system foods (seeded), `is_public=False` for trainer-created custom foods
-- [ ] AC-3: `created_by` FK to User (null for system foods, trainer for custom)
-- [ ] AC-4: Full CRUD API at `/api/workouts/food-items/` with role-based access:
-  - Trainee: read system + their trainer's custom items
-  - Trainer: read all system + CRUD their own custom items
-  - Admin: full access
-- [ ] AC-5: Search endpoint with `?search=` query param filtering on `name` and `brand` (case-insensitive)
-- [ ] AC-6: Barcode lookup endpoint at `/api/workouts/food-items/barcode/<barcode>/` returning matching FoodItem or 404
-- [ ] AC-7: Pagination on list endpoint (20 items per page)
-
-### MealLog Model (Backend)
-- [ ] AC-8: New `MealLog` model: `trainee` FK, `date`, `meal_number` (1-6), `meal_name` (e.g., "Breakfast"), `logged_at` timestamp
-- [ ] AC-9: New `MealLogEntry` model: `meal_log` FK, `food_item` FK (nullable for freeform), `custom_name` (for freeform entries without a FoodItem), `quantity`, `serving_unit`, `protein`, `carbs`, `fat`, `calories`, `fat_mode` (total_fat or added_fat)
-- [ ] AC-10: Full CRUD API at `/api/workouts/meal-logs/` — trainee creates meals, entries nested
-- [ ] AC-11: `GET /api/workouts/meal-logs/?date=YYYY-MM-DD` returns all meals for that date with entries nested
-- [ ] AC-12: `GET /api/workouts/meal-logs/summary/?date=YYYY-MM-DD` returns aggregated daily macro totals from MealLog entries
-- [ ] AC-13: `POST /api/workouts/meal-logs/quick-add/` accepts a flat entry (food_item_id + quantity or freeform macros), auto-creates MealLog if none exists for that meal_number+date
-- [ ] AC-14: `DELETE /api/workouts/meal-logs/entries/<id>/` deletes a single entry
-- [ ] AC-15: Backward compatibility — existing `DailyLog.nutrition_data` JSON continues working; new MealLog is the preferred path
-
-### Fat Mode Toggle (Mobile + Backend)
-- [ ] AC-16: Template assignment screen shows fat mode selector with explanation tooltip
-- [ ] AC-17: Trainee nutrition screen displays current fat mode badge ("Total Fat" or "Added Fat Only")
-- [ ] AC-18: When fat_mode is `added_fat`, the fat column in meal entries shows "Added Fat" label and the day plan adjusts display accordingly
-- [ ] AC-19: `GET /api/workouts/nutrition-template-assignments/active/` endpoint returns trainee's active assignment (including fat_mode)
-
-### FoodItem Mobile (Flutter)
-- [ ] AC-20: New `FoodItemModel` Freezed class matching backend fields
-- [ ] AC-21: `FoodItemRepository` with methods: `search(query)`, `getByBarcode(barcode)`, `create(item)`, `getRecent()`
-- [ ] AC-22: Food search integrated into AddFoodScreen's Search tab — type-ahead search with debounce (300ms)
-- [ ] AC-23: Barcode scan result resolves to FoodItem from database (existing barcode scanner wired to new endpoint)
-- [ ] AC-24: Tapping a search result pre-fills the manual entry form with FoodItem macros and allows quantity adjustment
-- [ ] AC-25: Recently used foods shown when search is empty (last 20 unique items)
-
-### MealLog Mobile (Flutter)
-- [ ] AC-26: New `MealLogModel` and `MealLogEntryModel` Freezed classes
-- [ ] AC-27: `MealLogRepository` with methods: `getMeals(date)`, `getSummary(date)`, `quickAdd(entry)`, `deleteEntry(id)`
-- [ ] AC-28: Nutrition screen shows structured meal cards (Meal 1, Meal 2, etc.) with entries listed under each
-- [ ] AC-29: Each meal card shows per-meal macro subtotals
-- [ ] AC-30: Swipe-to-delete on individual food entries with undo snackbar
-- [ ] AC-31: "Add Food" FAB on nutrition screen opens AddFoodScreen with meal_number context
-- [ ] AC-32: After adding food via any method (manual, AI, search, scan), entry saved as MealLogEntry
+- [ ] AC-1: `calculate_shredded_macros()` returns accurate daily + per-meal macro targets based on LBM
+- [ ] AC-2: SHREDDED template produces a 20-25% caloric deficit with protein at 1.2-1.4g/lb LBM
+- [ ] AC-3: MASSIVE template produces a 10-15% caloric surplus with protein at 1.0-1.2g/lb LBM
+- [ ] AC-4: SHREDDED supports 3 day types: low_carb, medium_carb, high_carb — each with different carb/fat ratios
+- [ ] AC-5: MASSIVE supports 2 day types: training_day, rest_day — training days get more carbs
+- [ ] AC-6: Per-meal macro splitting distributes protein evenly but front-loads carbs around training
+- [ ] AC-7: `_apply_shredded_ruleset()` in NutritionPlanService generates correct NutritionDayPlan with per-meal MealTargets
+- [ ] AC-8: `_apply_massive_ruleset()` in NutritionPlanService generates correct NutritionDayPlan with per-meal MealTargets
+- [ ] AC-9: When body_fat_pct is missing, fall back to estimated body fat from sex/weight (Boer formula)
+- [ ] AC-10: Seed migration updates SHREDDED and MASSIVE templates with actual rulesets (replacing placeholders)
+- [ ] AC-11: Mobile day plan screen shows per-meal macro breakdown with day type indicator
+- [ ] AC-12: Mobile week view shows 7-day plan with day types color-coded
+- [ ] AC-13: Recalculate day plans when assignment parameters change (weight, body fat %)
+- [ ] AC-14: All formula calculations have unit tests with known reference values
 
 ## Edge Cases
-1. What if trainee searches for food and no results found? → Show "No results" with option to add custom entry
-2. What if two trainers create foods with the same name? → Both visible to their own trainees only (scoped by created_by)
-3. What if barcode not found in database? → Return 404, mobile shows "Food not found — add manually" with barcode pre-filled
-4. What if trainee logs 0 quantity? → Validation error, minimum quantity is 0.01
-5. What if trainee deletes the last entry in a meal? → MealLog stays (empty meal is valid, can be deleted separately)
-6. What if trainee has both old JSON nutrition_data and new MealLog entries for same date? → Summary endpoint merges both sources, MealLog entries take precedence
-7. What if food item is deleted after being used in a MealLogEntry? → PROTECT — cannot delete food items that have been logged
-8. What if search query is very short (1 char)? → Require minimum 2 characters for search
-9. What if trainee switches fat mode mid-day? → Existing entries keep their logged values; only new entries use new mode
-10. What if trainer creates food item with 0 calories but non-zero macros? → Auto-calculate calories from macros (P*4 + C*4 + F*9)
+1. Body fat % is 0 or not provided — fall back to Boer formula estimate
+2. Weight is extremely low (<90 lbs / 40kg) or high (>400 lbs / 180kg) — clamp to safe ranges
+3. LBM calculation produces negative or zero — return error, don't generate plan
+4. Meals per day is 2 vs 6 — macro splitting must work correctly for any count
+5. Template assignment has no parameters — use UserProfile defaults
+6. Day plan already exists and is manually overridden — don't regenerate
+7. Trainee has no active program — default all days to rest_day type for MASSIVE, medium_carb for SHREDDED
+8. Body fat % is exactly at boundary (3% or 60%) — handle without error
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Food search fails | "Search unavailable" with retry | Show error, retry on tap |
-| Barcode lookup fails | "Could not look up barcode" toast | Fall back to manual entry |
-| Save meal entry fails | "Failed to save" toast with retry | Retry with exponential backoff |
-| Delete entry fails | Entry reappears with error toast | Rollback optimistic delete |
-| Load meals for date fails | Error card with retry | Show error state, retry button |
+| Missing weight in parameters | "Weight is required for this template" | Return 400 |
+| LBM calculation fails | "Unable to calculate — check body metrics" | Log error, return 400 |
+| No active assignment | Empty state on day plan screen | Show "No template assigned" |
+| API error loading day plan | Error banner with retry | Preserve last known state |
 
 ## UX Requirements
-- **Loading state:** Shimmer skeletons for meal cards and food search results
-- **Empty state:** "No meals logged yet — tap + to add your first food" with illustration
-- **Error state:** Error card with retry button for load failures, toast for action failures
-- **Success feedback:** Entry appears in meal card immediately (optimistic), subtle slide-in animation
-- **Mobile behavior:** Swipe-to-delete with undo, pull-to-refresh on meal list, debounced search
+- **Loading state:** Shimmer skeleton on day plan and week view
+- **Empty state:** "No nutrition plan assigned" with CTA to contact trainer
+- **Error state:** Error banner with retry button, preserves last-loaded data
+- **Success feedback:** Day plan renders immediately on navigation
+- **Mobile behavior:** Day plan is scrollable list of meal cards, week view is horizontal date selector
 
 ## Technical Approach
 
-### Backend (Django)
-- **New models in `workouts/models.py`:**
-  - `FoodItem` — follows Exercise pattern (is_public, created_by)
-  - `MealLog` — per-meal container (trainee, date, meal_number)
-  - `MealLogEntry` — individual food entries within a meal
-- **New migration:** `workouts/migrations/0016_fooditem_meallog.py`
-- **New serializers in `workouts/serializers.py`:**
-  - `FoodItemSerializer`, `FoodItemCreateSerializer`
-  - `MealLogSerializer` (nested entries), `MealLogEntrySerializer`
-  - `MealLogSummarySerializer`, `QuickAddSerializer`
-- **New views in `workouts/views.py`:**
-  - `FoodItemViewSet` — ModelViewSet with search, barcode lookup
-  - `MealLogViewSet` — ModelViewSet with date filtering, summary action, quick-add
-- **New URLs in `workouts/urls.py`:**
-  - `food-items/` (router)
-  - `meal-logs/` (router)
-- **Modify `NutritionTemplateAssignmentViewSet`:** Add `active` action
+### Backend Changes
+- **`workouts/services/macro_calculator.py`**: Add `calculate_shredded_macros()` and `calculate_massive_macros()` functions. Each returns a dataclass with total daily macros + per-meal breakdown. Add `estimate_body_fat()` using Boer formula for fallback.
+- **`workouts/services/nutrition_plan_service.py`**: Implement `_apply_shredded_ruleset()` and `_apply_massive_ruleset()` replacing the placeholder blocks. These call the new macro_calculator functions and format results as MealTarget lists.
+- **`workouts/migrations/0017_update_shredded_massive_rulesets.py`**: Update seed data for SHREDDED and MASSIVE templates with actual ruleset configurations.
 
-### Mobile (Flutter)
-- **New models:** `food_item_model.dart`, `meal_log_model.dart`
-- **New repositories:** `food_item_repository.dart`, `meal_log_repository.dart`
-- **New providers:** `food_search_provider.dart`, `meal_log_provider.dart`
-- **Modify screens:**
-  - `nutrition_screen.dart` — restructure to show meal cards with entries
-  - `add_food_screen.dart` — wire Search tab to FoodItem API, wire barcode to new endpoint
-- **New widgets:**
-  - `meal_card.dart` — expandable meal card with entries and subtotals
-  - `food_search_delegate.dart` — search bar with debounced results
-  - `fat_mode_badge.dart` — displays current fat tracking mode
-- **New API constants** for food-items and meal-logs endpoints
-
-### Dependencies
-- No new packages needed (barcode scanner already installed)
+### Mobile Changes
+- **`features/nutrition/presentation/screens/day_plan_screen.dart`**: New screen showing daily nutrition plan with meal cards, day type badge, and macro totals.
+- **`features/nutrition/presentation/screens/week_plan_screen.dart`**: New screen showing 7-day horizontal view with day type indicators and daily totals.
+- **`features/nutrition/presentation/widgets/meal_plan_card.dart`**: Widget for individual meal showing target macros.
+- **`features/nutrition/presentation/widgets/day_type_badge.dart`**: Badge showing day type with color coding.
+- Wire day plan into existing nutrition navigation.
 
 ## Out of Scope
+- Carb cycling calendar UI (Phase 4)
 - Recipe system (Phase 5)
-- Copy-yesterday / plan-ahead (Phase 5)
 - Food swap suggestions (Phase 6)
-- Photo food logging (Phase 7)
-- Seeding a large system food database (separate task — start with empty, trainer creates custom)
-- Offline meal logging (existing Drift infrastructure can be extended later)
+- Custom per-meal overrides by trainer (future)

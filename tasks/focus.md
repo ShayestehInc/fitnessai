@@ -1,17 +1,19 @@
-# Focus: Nutrition Phase 2 — FoodItem Model, Structured MealLog, Fat Mode Toggle
+# Focus: Nutrition Phase 3 — LBM Formula Engine & SHREDDED/MASSIVE Templates
 
 ## Priority
-Build the foundational data layer for structured nutrition tracking:
+Build the body composition calculation engine and advanced nutrition template system:
 
-1. **FoodItem model** — A proper food database with name, brand, macros per serving, serving sizes, barcode, and public/trainer-custom visibility (mirrors Exercise model pattern).
+1. **LBM Formula Engine** — Calculate Lean Body Mass from weight + body fat %. Support multiple formulas (Boer, James, Hume). Use LBM to derive more accurate TDEE and macro targets. Integrate with existing NutritionGoal and MacroPreset systems.
 
-2. **MealLog model** — Replace the unstructured `DailyLog.nutrition_data` JSON blob with a proper relational model: `MealLog` → `MealLogEntry` → `FoodItem`. Each entry tracks quantity, serving unit, and computed macros. Backward-compatible with existing JSON data.
+2. **SHREDDED Template** — Aggressive fat loss template: high protein (1.2-1.4g/lb LBM), moderate fat, low carbs. Caloric deficit of 20-25%. Includes refeeds.
 
-3. **Fat Mode toggle** — The `NutritionTemplateAssignment.fat_mode` field already exists (`total_fat` vs `added_fat`). Wire it into the mobile UI so trainees can see which fat tracking mode they're on, and trainers can toggle it during template assignment. Display contextual help explaining the difference.
+3. **MASSIVE Template** — Aggressive muscle gain template: high protein (1.0-1.2g/lb LBM), moderate fat, high carbs. Caloric surplus of 10-15%.
+
+4. **Template Assignment Enhancement** — Trainers can assign SHREDDED/MASSIVE (and existing) templates with LBM-based calculations. Auto-recalculate when weight or body fat changes.
 
 ## Constraints
-- Must not break existing nutrition logging (JSON-based `nutrition_data` stays as fallback)
-- FoodItem follows the Exercise model pattern: `is_public` for system foods, trainer-custom for private
-- MealLog entries must support both FoodItem-linked and freeform (AI-parsed) entries
-- All new endpoints need proper row-level security (trainer sees only their trainees' data)
-- Mobile screens must handle loading/empty/error states
+- Must integrate with existing NutritionTemplate and NutritionTemplateAssignment models
+- LBM calculations require body_fat_percentage on UserProfile (already added in migration 0009)
+- Existing macro presets and goals remain backward-compatible
+- All formulas must be unit-tested with known reference values
+- Mobile UI must show the active template with LBM-derived targets
