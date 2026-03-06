@@ -13,6 +13,7 @@ import 'bookmark_button.dart';
 import 'comments_sheet.dart';
 import 'image_carousel.dart';
 import 'reaction_bar.dart';
+import 'video_player_card.dart';
 
 /// Card for a single community feed post.
 class CommunityPostCard extends ConsumerWidget {
@@ -56,6 +57,14 @@ class CommunityPostCard extends ConsumerWidget {
           if (post.hasImage) ...[
             const SizedBox(height: 10),
             ImageCarousel(images: post.images),
+          ],
+          if (post.hasVideo) ...[
+            const SizedBox(height: 10),
+            for (int i = 0; i < post.videos.length; i++)
+              Padding(
+                padding: EdgeInsets.only(top: i > 0 ? 8 : 0),
+                child: VideoPlayerCard(video: post.videos[i]),
+              ),
           ],
           const SizedBox(height: 12),
           _PostActions(post: post),

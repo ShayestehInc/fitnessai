@@ -14,6 +14,7 @@ RUN apt-get update \
         build-essential \
         libpq-dev \
         netcat-openbsd \
+        ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies

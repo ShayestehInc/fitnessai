@@ -22,11 +22,15 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
   final _controller = TextEditingController();
   bool _isSubmitting = false;
   bool _isMarkdown = false;
+  double _uploadProgress = 0;
   final List<String> _imagePaths = [];
+  final List<String> _videoPaths = [];
   int? _selectedSpaceId;
 
   static const int _maxImages = 10;
   static const int _maxImageSizeBytes = 5 * 1024 * 1024;
+  static const int _maxVideos = 3;
+  static const int _maxVideoSizeBytes = 50 * 1024 * 1024;
 
   @override
   void initState() {
@@ -108,6 +112,29 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
             const SizedBox(height: 8),
             _buildImagePreviews(theme),
           ],
+          // Video previews
+          if (_videoPaths.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildVideoPreviews(theme),
+          ],
+          // Upload progress
+          if (_isSubmitting) ...[
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: _uploadProgress > 0 ? _uploadProgress : null,
+              backgroundColor: theme.dividerColor,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _uploadProgress > 0
+                  ? '${(_uploadProgress * 100).toInt()}% uploaded'
+                  : 'Preparing upload...',
+              style: TextStyle(
+                fontSize: 11,
+                color: theme.textTheme.bodySmall?.color,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -184,11 +211,23 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
           label: Text(
             _imagePaths.isNotEmpty
                 ? '${_imagePaths.length}/$_maxImages'
-                : 'Add Images',
+                : 'Images',
             style: const TextStyle(fontSize: 12),
           ),
           avatar: const Icon(Icons.image_outlined, size: 18),
           onPressed: _imagePaths.length < _maxImages ? _pickImages : null,
+        ),
+        const SizedBox(width: 8),
+        // Video picker
+        ActionChip(
+          label: Text(
+            _videoPaths.isNotEmpty
+                ? '${_videoPaths.length}/$_maxVideos'
+                : 'Video',
+            style: const TextStyle(fontSize: 12),
+          ),
+          avatar: const Icon(Icons.videocam_outlined, size: 18),
+          onPressed: _videoPaths.length < _maxVideos ? _pickVideo : null,
         ),
       ],
     );
@@ -214,19 +253,27 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
                 ),
               ),
               Positioned(
-                top: 2,
-                right: 2,
-                child: GestureDetector(
-                  onTap: () =>
-                      setState(() => _imagePaths.removeAt(index)),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: Colors.black54,
-                      shape: BoxShape.circle,
+                top: 0,
+                right: 0,
+                child: Semantics(
+                  label: 'Remove image ${index + 1}',
+                  button: true,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () =>
+                        setState(() => _imagePaths.removeAt(index)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close,
+                            size: 14, color: Colors.white),
+                      ),
                     ),
-                    child: const Icon(Icons.close,
-                        size: 14, color: Colors.white),
                   ),
                 ),
               ),
@@ -238,7 +285,10 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
   }
 
   bool get _canSubmit =>
-      !_isSubmitting && _controller.text.trim().isNotEmpty;
+      !_isSubmitting &&
+      (_controller.text.trim().isNotEmpty ||
+          _imagePaths.isNotEmpty ||
+          _videoPaths.isNotEmpty);
 
   Future<void> _pickImages() async {
     final picker = ImagePicker();
@@ -271,22 +321,184 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
     }
   }
 
+  Widget _buildVideoPreviews(ThemeData theme) {
+    return SizedBox(
+      height: 80,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _videoPaths.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final path = _videoPaths[index];
+          return FutureBuilder<int>(
+            future: File(path).length(),
+            builder: (context, snapshot) {
+              final sizeMb = snapshot.hasData
+                  ? (snapshot.data! / (1024 * 1024)).toStringAsFixed(1)
+                  : '...';
+              return Stack(
+                children: [
+                  Container(
+                    height: 80,
+                    width: 100,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.videocam,
+                          size: 28,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${sizeMb}MB',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: theme.textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Video badge
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'VIDEO',
+                        style: TextStyle(
+                          color: theme.colorScheme.onPrimary,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Semantics(
+                      label: 'Remove video ${index + 1}',
+                      button: true,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () =>
+                            setState(() => _videoPaths.removeAt(index)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close,
+                                size: 14, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _pickVideo() async {
+    final picker = ImagePicker();
+    final remaining = _maxVideos - _videoPaths.length;
+    if (remaining <= 0) return;
+
+    final picked = await picker.pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: const Duration(seconds: 60),
+    );
+
+    if (picked == null || !mounted) return;
+
+    // Validate extension
+    final ext = picked.path.split('.').last.toLowerCase();
+    const allowedExts = {'mp4', 'm4v', 'mov', 'webm'};
+    if (!allowedExts.contains(ext)) {
+      if (!mounted) return;
+      showAdaptiveToast(
+        context,
+        message: 'Unsupported format. Use MP4, MOV, or WebM.',
+        type: ToastType.error,
+      );
+      return;
+    }
+
+    final fileSize = await File(picked.path).length();
+    if (fileSize == 0) {
+      if (!mounted) return;
+      showAdaptiveToast(
+        context,
+        message: 'Video file is empty.',
+        type: ToastType.error,
+      );
+      return;
+    }
+    if (fileSize > _maxVideoSizeBytes) {
+      if (!mounted) return;
+      showAdaptiveToast(
+        context,
+        message: 'Video must be under 50MB.',
+        type: ToastType.error,
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _videoPaths.add(picked.path));
+  }
+
   Future<void> _submit() async {
     final content = _controller.text.trim();
-    if (content.isEmpty) return;
+    if (content.isEmpty && _imagePaths.isEmpty && _videoPaths.isEmpty) return;
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _uploadProgress = 0;
+    });
 
     final success =
         await ref.read(communityFeedProvider.notifier).createPost(
               content: content,
               contentFormat: _isMarkdown ? 'markdown' : 'plain',
               imagePaths: _imagePaths,
+              videoPaths: _videoPaths,
               spaceId: _selectedSpaceId,
+              onUploadProgress: (sent, total) {
+                if (total > 0 && mounted) {
+                  setState(() => _uploadProgress = sent / total);
+                }
+              },
             );
 
     if (!mounted) return;
-    setState(() => _isSubmitting = false);
+    setState(() {
+      _isSubmitting = false;
+      _uploadProgress = 0;
+    });
 
     if (success) {
       Navigator.of(context).pop();

@@ -23,6 +23,7 @@ from .models import (
     ModerationAction,
     PostImage,
     PostReaction,
+    PostVideo,
     Space,
     SpaceMembership,
     UserAchievement,
@@ -78,13 +79,26 @@ class PostImageInline(admin.TabularInline):  # type: ignore[type-arg]
     extra = 0
 
 
+class PostVideoInline(admin.TabularInline):  # type: ignore[type-arg]
+    model = PostVideo
+    extra = 0
+    readonly_fields = ('duration', 'file_size')
+
+
 @admin.register(CommunityPost)
 class CommunityPostAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_display = ('author', 'trainer', 'space', 'post_type', 'is_pinned', 'created_at')
     list_filter = ('post_type', 'is_pinned', 'created_at')
     search_fields = ('content', 'author__email')
     raw_id_fields = ('author', 'trainer', 'space')
-    inlines = [PostImageInline]
+    inlines = [PostImageInline, PostVideoInline]
+
+
+@admin.register(PostVideo)
+class PostVideoAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+    list_display = ('post', 'sort_order', 'duration', 'file_size', 'created_at')
+    raw_id_fields = ('post',)
+    readonly_fields = ('duration', 'file_size')
 
 
 @admin.register(PostImage)

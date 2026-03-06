@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-03-05 (Pipeline 48: FCM Push Notifications for Community Events)
+> Last updated: 2026-03-05 (Pipeline 49: Video Attachments on Community Posts)
 
 ---
 
@@ -307,7 +307,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Feature request board | ✅ Done | In-app submission + voting |
 | MCP server (Claude Desktop) | ✅ Done | Trainer can query data via Claude Desktop |
 | TV mode | ❌ Placeholder | Screen exists but empty |
-| Community feed (replaces Forums) | ✅ Done | Shipped 2026-02-16: Trainer-scoped feed with text posts, reactions (fire/thumbs_up/heart), auto-posts for workouts and achievements, optimistic updates, infinite scroll, image attachments, markdown, comments, real-time WebSocket updates |
+| Community feed (replaces Forums) | ✅ Done | Shipped 2026-02-16: Trainer-scoped feed with text posts, reactions (fire/thumbs_up/heart), auto-posts for workouts and achievements, optimistic updates, infinite scroll, image attachments, markdown, comments, real-time WebSocket updates. Video attachments added 2026-03-05 (Pipeline 49): MP4/MOV/WebM, 50MB/60s limits, max 3 per post, inline muted player, fullscreen player, upload progress |
 | Offline-first with local DB | ✅ Done | Shipped 2026-02-15: Drift (SQLite) local database, sync queue with FIFO/exponential backoff, connectivity monitoring with 2s debounce, offline-aware repositories for workouts/nutrition/weight, program caching, 409 conflict detection, UI banners (offline/syncing/synced/failed), failed sync bottom sheet, logout warning |
 | Notification preferences | ✅ Done | Shipped 2026-03-04 (Pipeline 42): Backend NotificationPreference model with 9 per-category boolean toggles, GET/PATCH API, preference checking before FCM push (single + group), mobile screen with role-based categories and optimistic toggle updates |
 | Local reminders | ✅ Done | Shipped 2026-03-04 (Pipeline 42): ReminderService singleton using flutter_local_notifications, timezone-aware scheduling for workout/meal/weight reminders, notification tap payload routing |
@@ -1163,7 +1163,7 @@ Structured meal logging infrastructure replacing JSON blobs with relational Food
 - ~~Goal-based nutrition templates~~ ✅ Completed 2026-02-21 (Pipeline 31)
 
 ### Phase 12: Future Enhancements
-- Video attachments on community posts
+- ~~Video attachments on community posts~~ ✅ Completed 2026-03-05 (Pipeline 49 — PostVideo model, 3-layer validation: extension+MIME+magic bytes, ffprobe duration/ffmpeg thumbnail, 50MB/60s limits, max 3 per post, lazy inline player with muted autoplay, fullscreen player, upload progress, rate limiting 20/hr)
 - ~~Trainee web access~~ ✅ Completed 2026-02-21 (Pipeline 32 — full trainee web portal: dashboard, program viewer, messages, announcements, achievements, settings)
 - ~~Trainee web trainer branding~~ ✅ Completed 2026-02-23 (Pipeline 34 — trainer app name, logo, and primary color applied to trainee web sidebars; `useTraineeBranding()` hook, `BrandLogo` shared component, hex color sanitization)
 - ~~WebSocket support for web messaging (replace HTTP polling)~~ ✅ Completed 2026-02-19 (Pipeline 22)

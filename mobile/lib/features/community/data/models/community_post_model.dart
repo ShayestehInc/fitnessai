@@ -1,3 +1,5 @@
+import 'post_video_model.dart';
+
 /// Data model for a community feed post.
 class CommunityPostModel {
   final int id;
@@ -7,6 +9,7 @@ class CommunityPostModel {
   final String contentFormat;
   final String? imageUrl;
   final List<PostImageModel> images;
+  final List<PostVideoModel> videos;
   final PostSpaceInfo? space;
   final bool isPinned;
   final bool isBookmarked;
@@ -24,6 +27,7 @@ class CommunityPostModel {
     this.contentFormat = 'plain',
     this.imageUrl,
     this.images = const [],
+    this.videos = const [],
     this.space,
     this.isPinned = false,
     this.isBookmarked = false,
@@ -44,6 +48,10 @@ class CommunityPostModel {
       imageUrl: json['image_url'] as String?,
       images: (json['images'] as List<dynamic>?)
               ?.map((e) => PostImageModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      videos: (json['videos'] as List<dynamic>?)
+              ?.map((e) => PostVideoModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
       space: json['space'] != null
@@ -76,6 +84,9 @@ class CommunityPostModel {
   /// Whether this post has multiple images.
   bool get hasMultipleImages => images.length > 1;
 
+  /// Whether this post has any video attachments.
+  bool get hasVideo => videos.isNotEmpty;
+
   /// Total reaction count across all types.
   int get totalReactions =>
       reactions.fire + reactions.thumbsUp + reactions.heart;
@@ -95,6 +106,7 @@ class CommunityPostModel {
       contentFormat: contentFormat,
       imageUrl: imageUrl,
       images: images,
+      videos: videos,
       space: space,
       isPinned: isPinned ?? this.isPinned,
       isBookmarked: isBookmarked ?? this.isBookmarked,

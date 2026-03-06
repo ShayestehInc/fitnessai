@@ -1,112 +1,102 @@
-# Feature: Wire FCM Push Notifications End-to-End for Community Events
+# Feature: Video Attachments on Community Posts
 
 ## Priority
 High
 
 ## User Story
-As a **trainee**, I want to receive push notifications when my trainer creates events, when events I RSVP'd to are updated or cancelled, and a reminder before events start, so that I never miss a community event.
-
-As a **trainer**, I want my trainees to be automatically notified when I create or update events, so I don't have to manually remind them.
-
-## Context: What Already Exists
-- **Backend**: Full `notification_service.py` with `send_push_notification()` and `send_push_to_group()`, DeviceToken model, NotificationPreference model with category-based opt-out, device token registration endpoint (`POST/DELETE /api/users/device-token/`), notification preferences endpoint (`GET/PATCH /api/users/notification-preferences/`)
-- **Mobile**: `PushNotificationService` with Firebase init, token registration, token refresh, foreground handler (stub), background handler (stub), `deactivateToken()` on logout. Notification preferences screen with toggle UI. Dependencies installed (`firebase_core`, `firebase_messaging`, `flutter_local_notifications`).
-- **Pattern**: `_notify_trainees_announcement()` in `trainer_views.py` already sends push notifications on announcement creation — follow this exact pattern for events.
-
-## What's Missing (Gaps to Fill)
-
-### Backend
-1. No `community_event` notification category on NotificationPreference model
-2. No notification triggers when events are created, updated, cancelled, or go live
-3. No scheduled reminder notification (15 min before event starts)
-
-### Mobile
-1. `PushNotificationService.initialize()` is never called — not in `main.dart`, not after login
-2. Foreground message handler (`_handleForegroundMessage`) is a no-op stub
-3. Message opened handler (`_handleMessageOpenedApp`) is a no-op stub — no deep linking
-4. `deactivateToken()` is never called on logout
-5. No `community_event` category in notification preferences UI
+As a trainee or trainer, I want to attach short videos to community posts so that I can share workout clips, form checks, and progress videos with the community.
 
 ## Acceptance Criteria
-- [ ] AC1: Backend adds `community_event` boolean field to NotificationPreference model with migration
-- [ ] AC2: Backend sends push notification to all trainer's trainees when a new event is created
-- [ ] AC3: Backend sends push notification to RSVP'd users (going/maybe) when an event is cancelled
-- [ ] AC4: Backend sends push notification to RSVP'd users (going/maybe) when event time/location changes
-- [ ] AC5: Backend sends push notification to RSVP'd users (going) 15 minutes before event starts via management command
-- [ ] AC6: Mobile calls `PushNotificationService.initialize()` after successful login
-- [ ] AC7: Mobile calls `PushNotificationService.deactivateToken()` on logout
-- [ ] AC8: Mobile foreground handler displays a local notification (flutter_local_notifications) for incoming push messages
-- [ ] AC9: Mobile notification tap navigates to the relevant screen (event detail for community_event notifications)
-- [ ] AC10: Mobile notification preferences screen includes "Community Events" toggle for trainees
-- [ ] AC11: All push notification data payloads include `type` key for routing and relevant entity ID
-- [ ] AC12: Push notifications respect user's category opt-out preferences
+- [ ] AC1: PostVideo model with file field, thumbnail field, duration, file_size, sort_order, and FK to CommunityPost
+- [ ] AC2: Migration creates PostVideo table with indexes on post FK and created_at
+- [ ] AC3: Backend validates video uploads: MP4/MOV/WebM only, max 50MB per file, max 60s duration, max 3 videos per post
+- [ ] AC4: Video duration extracted server-side using ffprobe (via python-ffmpeg or moviepy) and stored
+- [ ] AC5: Thumbnail auto-generated server-side from first frame and stored in thumbnail field
+- [ ] AC6: CommunityPostSerializer includes `videos` nested list with id, url, thumbnail_url, duration, sort_order
+- [ ] AC7: Post creation view accepts `videos` in multipart form alongside existing `images`
+- [ ] AC8: WebSocket `feed_new_post` broadcast includes video data
+- [ ] AC9: Mobile video picker allows selecting up to 3 videos from gallery (image_picker or file_picker)
+- [ ] AC10: Mobile compose sheet shows video thumbnails with duration badge, delete button, and upload progress bar
+- [ ] AC11: Mobile feed renders inline video player (video_player package) with play/pause overlay, no autoplay
+- [ ] AC12: Mobile tap-to-fullscreen video with native controls (play, pause, seek, mute, fullscreen exit)
 
 ## Edge Cases
-1. **No device tokens registered**: User hasn't opened the app or denied permissions — notification service handles this gracefully (returns 0/False), no error raised.
-2. **Firebase not configured**: `FIREBASE_CREDENTIALS_PATH` not set — service logs warning and silently skips. App still works.
-3. **Token expired/invalid**: FCM returns `UnregisteredError` — existing service deactivates the token automatically.
-4. **User opts out of community_event**: The preference check in `send_push_to_group` filters them out before sending.
-5. **Event reminder for cancelled event**: Management command must skip cancelled/completed events.
-6. **Event created then immediately cancelled**: Cancel notification should still fire for anyone who RSVP'd between creation and cancellation.
-7. **Multiple rapid updates to same event**: Each update triggers a notification — this is acceptable; not deduped.
-8. **User logs out then back in**: Old token deactivated on logout, new token registered on login.
-9. **Foreground notification when user is on the event detail screen**: Should still show local notification banner (they may be on a different event).
-10. **Deep link to event that was deleted**: Event detail screen already handles "not found" with error state.
+1. User selects a video larger than 50MB — client-side validation rejects with toast, never uploads
+2. User selects a video longer than 60s — server-side validation rejects with 400 and clear error message; client-side pre-check if possible
+3. User selects unsupported format (AVI, FLV) — server-side 400 with format error; client-side filter in picker
+4. User mixes images and videos in same post — both should work, images shown in carousel, videos shown below
+5. Video upload fails mid-stream (network drop) — post creation fails, user sees error toast, can retry
+6. Server-side ffprobe unavailable — graceful degradation: skip duration/thumbnail extraction, store video without metadata, log warning
+7. Very large video on slow connection — progress indicator shows upload %, user can see it's working
+8. Video file is corrupt or zero-duration — server rejects with 400 "Invalid video file"
+9. Post with only videos (no images, no text) — allowed, content can be empty string
+10. Concurrent video + image uploads in same post — multipart form handles both file lists
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| FCM send fails (network) | Nothing — push is best-effort | Logs warning, returns False |
-| Device token invalid | Nothing | Marks token `is_active=False` |
-| User denied OS notification permission | Banner on notification preferences screen | Doesn't call FCM at all |
-| Firebase not initialized (missing credentials) | Nothing | Logs once, disables push |
-| Deep link target not found | "Event not found" error state | 404 from API handled in existing screen |
+| Video too large (>50MB) | Toast: "Video must be under 50MB" | Client prevents upload |
+| Video too long (>60s) | Toast: "Video must be 60 seconds or less" | Server returns 400 |
+| Invalid format | Toast: "Unsupported video format. Use MP4, MOV, or WebM" | Server returns 400 |
+| Too many videos (>3) | Toast: "Maximum 3 videos per post" | Client prevents selection |
+| Upload network failure | Toast: "Failed to upload. Please try again." | Dio error caught |
+| ffprobe missing on server | No user impact | Log warning, store video without thumbnail/duration |
+| Corrupt video file | Toast: "Could not process video file" | Server returns 400 |
 
 ## UX Requirements
-- **Foreground notification**: Show a local notification with event title as body. Tapping it navigates to event detail.
-- **Background/terminated notification**: FCM handles display automatically. Tapping navigates to event detail.
-- **Notification content**: Title = "New Event" / "Event Updated" / "Event Cancelled" / "Event Reminder". Body = event title. Data payload has `type` and `event_id`.
-- **Preferences UI**: Add "Community Events" toggle under the trainee "Updates" section, between "Achievements" and the Communication section.
+- **Compose sheet**: Video picker button next to existing image picker. Selected videos show as thumbnail cards with duration badge (e.g., "0:32") and X to remove. Upload progress bar per video during submission.
+- **Feed card**: Videos render below images (if both present). Single video: full-width player. Multiple videos: horizontal scroll or stacked. Play button overlay on thumbnail. Tap to play inline (muted initially), tap again to pause. Long-press or fullscreen button for immersive view.
+- **Fullscreen player**: Standard video controls (play/pause, seek bar, time display, mute toggle). Landscape support. Swipe down or X to dismiss.
+- **Loading state**: Thumbnail placeholder with spinner while video loads. Shimmer during feed load.
+- **Error state**: Broken video icon if video fails to load, with "Tap to retry" text.
+- **Empty state**: N/A (videos are optional on posts).
 
 ## Technical Approach
 
-### Backend Changes
+### Backend
+- **New model**: `PostVideo` in `backend/community/models.py` (mirrors PostImage pattern)
+  - Fields: `post` (FK), `file` (FileField), `thumbnail` (ImageField, nullable), `duration` (FloatField, nullable), `file_size` (PositiveIntegerField), `sort_order` (PositiveSmallIntegerField), `created_at`
+  - Upload path: `community/posts/videos/{year}/{month:02d}/{uuid}.{ext}`
+  - Thumbnail path: `community/posts/thumbnails/{year}/{month:02d}/{uuid}.jpg`
+- **New migration**: Add PostVideo table
+- **Video processing service**: `backend/community/services/video_service.py`
+  - `validate_video(file) -> VideoMetadata` — checks MIME type, file size, extracts duration via subprocess ffprobe
+  - `generate_thumbnail(file) -> bytes` — extracts first frame via subprocess ffprobe/ffmpeg
+  - Returns dataclass with duration, file_size, is_valid, error_message
+- **View changes**: `backend/community/views.py` — extend `CommunityFeedView.post()` to handle `videos` file list
+- **Serializer changes**: Add `PostVideoSerializer` and nest in `CommunityPostSerializer`
+- **Dependency**: `ffmpeg` must be available in Docker image (add to Dockerfile if missing). No Python package needed — use subprocess.
 
-**Files to modify:**
-- `backend/users/models.py` — Add `community_event` field to NotificationPreference, add to VALID_CATEGORIES
-- `backend/community/services/event_service.py` — Add notification dispatch methods for event lifecycle
-- `backend/community/trainer_views.py` — Call notification dispatch after event create/update/cancel
-- `backend/example.env` — Add FIREBASE_CREDENTIALS_PATH entry
+### Mobile
+- **New dependency**: `video_player` package in `pubspec.yaml`
+- **Model update**: Add `PostVideoModel` in community models, add `videos` list to `CommunityPostModel`
+- **Repository update**: Include videos in multipart form data for post creation
+- **New widget**: `VideoPlayerCard` — inline player with play/pause overlay, thumbnail preview
+- **New widget**: `FullscreenVideoPlayer` — immersive player with native controls
+- **Compose sheet update**: Add video picker button, video preview cards with duration, progress indicator
+- **Post card update**: Render videos section below images
 
-**Files to create:**
-- `backend/users/migrations/NNNN_add_community_event_notification_pref.py` — Migration for new field
-- `backend/community/management/commands/send_event_reminders.py` — Management command for 15-min reminders (designed for cron: `*/5 * * * *`)
+### Files to create
+- `backend/community/services/video_service.py`
+- `backend/community/migrations/NNNN_add_post_video.py` (auto-generated)
+- `mobile/lib/features/community/presentation/widgets/video_player_card.dart`
+- `mobile/lib/features/community/presentation/widgets/fullscreen_video_player.dart`
+- `mobile/lib/features/community/data/models/post_video_model.dart`
 
-**Pattern to follow:** `_notify_trainees_announcement()` in trainer_views.py — try/except with logging, never raises, calls `send_push_to_group()`.
-
-### Mobile Changes
-
-**Files to modify:**
-- `mobile/lib/features/auth/presentation/providers/auth_provider.dart` — Call PushNotificationService.initialize() after successful login/register
-- `mobile/lib/core/services/push_notification_service.dart` — Wire foreground handler (local notification), wire message opened handler (deep link via go_router), add notification channel setup
-- `mobile/lib/features/settings/presentation/screens/notification_preferences_screen.dart` — Add community_event toggle to trainee sections
-
-**Files to create:**
-- None — all integration points exist, just need wiring.
-
-### Data Payload Contract
-```json
-{
-  "type": "community_event_created",
-  "event_id": "123"
-}
-```
-Types: `community_event_created`, `community_event_updated`, `community_event_cancelled`, `community_event_reminder`
+### Files to modify
+- `backend/community/models.py` — add PostVideo model
+- `backend/community/serializers/` — add PostVideoSerializer, update post serializer
+- `backend/community/views.py` — extend post creation for videos
+- `mobile/lib/features/community/data/models/community_post_model.dart` — add videos field
+- `mobile/lib/features/community/data/repositories/community_feed_repository.dart` — add video upload
+- `mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart` — video picker + preview
+- `mobile/lib/features/community/presentation/widgets/community_post_card.dart` — render videos
+- `mobile/pubspec.yaml` — add video_player dependency
 
 ## Out of Scope
-- Web push notifications
-- Celery/task queue for async notification dispatch (use synchronous calls like existing announcement pattern)
-- Notification grouping/collapsing
-- Badge count management (iOS badge number)
-- Rich notification images
-- Apple Watch notifications
+- Video transcoding / adaptive bitrate streaming (CDN concern for later)
+- Video trimming in-app (users trim before selecting)
+- Video recording from camera (only gallery pick for now)
+- Web dashboard video upload (mobile-only this pipeline)
+- Video in direct messages
+- Video compression on-device beyond what the OS provides

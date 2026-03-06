@@ -1,90 +1,76 @@
-# UX Audit: FCM Push Notifications (Mobile)
+# UX Audit: Video Attachments on Community Posts
 
 ## Audit Date: 2026-03-05
 
-## Files Reviewed
-- `mobile/lib/core/services/push_notification_service.dart`
-- `mobile/lib/features/settings/presentation/screens/notification_preferences_screen.dart`
-- `mobile/lib/features/auth/presentation/providers/auth_provider.dart`
-- `mobile/lib/features/settings/data/providers/notification_preferences_provider.dart`
-- `mobile/lib/features/settings/data/repositories/notification_preferences_repository.dart`
-- `mobile/lib/core/router/app_router.dart` (deep link routes)
+## Files Audited
+- `mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart`
+- `mobile/lib/features/community/presentation/widgets/video_player_card.dart`
+- `mobile/lib/features/community/presentation/widgets/fullscreen_video_player.dart`
+- `mobile/lib/features/community/presentation/widgets/community_post_card.dart`
+- `mobile/lib/features/community/presentation/widgets/image_carousel.dart`
+- `mobile/lib/features/community/data/models/post_video_model.dart`
 
 ---
 
 ## Usability Issues
 
-| # | Severity | Screen/Component | Issue | Recommendation | Status |
+| # | Severity | Screen/Component | Issue | Recommendation | Fixed? |
 |---|----------|-----------------|-------|----------------|--------|
-| 1 | Major | `_OsPermissionBanner` | Button said "Enable" and called `requestPermission()`, but on iOS once a user denies, the system dialog never re-appears. The button silently did nothing. | Changed to "Open Settings" with `url_launcher` to open device settings. Added `WidgetsBindingObserver` lifecycle observer to re-check permission when user returns from settings. | FIXED |
-| 2 | Medium | `PushNotificationService.initialize()` | Permission prompt fires immediately after login with zero context. iOS shows a cold system dialog with no pre-permission explanation. Industry best practice is a "warm ask" with rationale first. | Requires a new pre-permission screen design. Documented for future work. | DOCUMENTED |
-| 3 | Medium | `_handleForegroundMessage` | Blank notifications shown to the user when both title and body are empty/null. | Added guard: skip display when both are empty. | FIXED |
-| 4 | Minor | `_handleForegroundMessage` | iOS foreground notifications had no explicit `presentAlert`/`presentBadge`/`presentSound` settings, relying on defaults that may be silent depending on device configuration. | Added `presentAlert: true, presentBadge: true, presentSound: true` to `DarwinNotificationDetails`. | FIXED |
-| 5 | Minor | `_ErrorCard` | Displayed raw `error.toString()` which could expose internal exception details (e.g., `DioException: 500 Internal Server Error`) to the user. | Removed the error message parameter. Error card now shows a fixed human-friendly message. Raw error logged via `debugPrint`. | FIXED |
-| 6 | Minor | `_navigateFromNotification` | Silent catch-all `catch (_)` swallowed all navigation errors with no logging, making deep-link debugging impossible. | Changed to `catch (e)` with `debugPrint` for diagnostics. | FIXED |
-| 7 | Minor | `PushNotificationService` | Stream subscriptions for `onTokenRefresh`, `onMessage`, and `onMessageOpenedApp` were never cancelled. On logout then re-login, duplicate listeners would accumulate, causing double notifications or double navigation. | Subscriptions are now stored in fields and cancelled in `deactivateToken()`. Previous subscriptions are also cancelled before re-subscribing in `initialize()`. | FIXED |
+| 1 | Major | VideoPlayerCard | No loading indicator when user taps play -- video initializes silently with no visual feedback, making it feel broken or laggy on slow connections | Added `_isLoading` state with a white CircularProgressIndicator spinner inside a dark circle overlay during initialization | Yes |
+| 2 | Major | ComposePostSheet | Upload progress bar only appeared when `_uploadProgress > 0`, leaving a gap between tap and first progress event where only the button spinner provided feedback | Changed to show indeterminate progress bar immediately when submitting, with "Preparing upload..." text until actual progress starts | Yes |
+| 3 | Major | VideoPlayerCard | Error overlay "Tap to retry" used `theme.colorScheme.onError` (designed for colored error backgrounds) on a semi-transparent black overlay, resulting in poor contrast and inconsistent appearance across themes | Redesigned error overlay: white70 icon/text, descriptive "Video failed to load" label, and a visible pill-shaped "Tap to retry" button with semi-transparent white background | Yes |
+| 4 | Minor | VideoPlayerCard | Fullscreen mode only discoverable via long-press (hidden gesture) or a small icon that appears after playback starts. Many users will never find it. | Kept existing pattern but ensured the fullscreen icon has adequate touch target padding. Long-press discoverability remains a known limitation -- consider adding a tooltip or onboarding hint in a future iteration. | Partial |
+| 5 | Minor | ComposePostSheet | Remove buttons on image/video previews were only 14px icon + 2px padding = ~18px total touch area, well below the 48dp minimum recommended by Material Design | Enlarged touch target with outer Padding of 4px and inner padding of 4px around icon, improving effective hit area to ~30px (closer to minimum; constrained by 80px preview height) | Yes |
+| 6 | Minor | VideoPlayerCard | Mute and fullscreen GestureDetectors had tight padding (4px), making them hard to tap accurately on mobile devices | Added outer Padding(4) + inner padding(6) and `HitTestBehavior.opaque` to expand effective touch area | Yes |
 
 ## Accessibility Issues
 
-| # | WCAG Level | Issue | Fix | Status |
+| # | WCAG Level | Issue | Fix | Fixed? |
 |---|------------|-------|-----|--------|
-| 1 | AA | `_OsPermissionBanner` icon had no `semanticLabel` -- screen readers announced nothing for the notification-off icon. | Added `semanticLabel: 'Notifications disabled'` to the icon. | FIXED |
-| 2 | AA | `SwitchListTile` toggles relied solely on default semantics which may not convey the notification category clearly to assistive technology users. | Wrapped each toggle in `Semantics(toggled:, label:, hint:)` with descriptive text like "Workout Logged notifications". | FIXED |
-| 3 | A | Banner button semantic label said "Enable notifications" but the action now opens system settings, which is a different action. | Updated to "Open notification settings". | FIXED |
+| 1 | A | VideoPlayerCard: No Semantics on play, mute, fullscreen controls -- screen readers cannot identify interactive elements | Added Semantics with descriptive labels: "Play video", "Unmute video", "Open fullscreen video" | Yes |
+| 2 | A | VideoPlayerCard: No overall Semantics label on the video container | Added Semantics wrapper: "Video attachment. Tap to play, long press for fullscreen." | Yes |
+| 3 | A | ComposePostSheet: Image/video remove buttons lack Semantics labels | Added Semantics: "Remove image N" and "Remove video N" with button role | Yes |
+| 4 | A | FullscreenVideoPlayer: Close button lacks tooltip/semantic label | Added Semantics wrapper with label "Close fullscreen video" and tooltip "Close" | Yes |
+| 5 | A | FullscreenVideoPlayer: Play/pause and mute buttons lack tooltips for assistive technology | Added tooltip: "Play"/"Pause" and "Mute"/"Unmute" to IconButtons | Yes |
+| 6 | A | FullscreenVideoPlayer: Seek bar lacks semantic label | Added Semantics wrapper with label "Video seek bar" and slider role | Yes |
 
-## Missing States
+## Missing States Checklist
 
-- [x] Loading / skeleton -- shimmer skeleton present, matches toggle layout shape (icon + text + switch)
-- [x] Empty / zero data -- defaults to `true` for all categories if key is missing from API response (sensible default; new users get all notifications)
-- [x] Error / failure -- error card with retry button for load failure, plus toast on toggle failure with optimistic rollback
-- [x] Success / confirmation -- optimistic toggle update provides instant visual feedback
-- [x] Offline / degraded -- error state with retry covers network failures
-- [x] Permission denied -- OS banner displayed when notifications are off at system level; banner now auto-refreshes when user returns from settings
+- [x] Loading / skeleton -- VideoPlayerCard now shows spinner during init; compose sheet shows indeterminate progress bar immediately
+- [x] Empty / zero data -- ImageCarousel returns SizedBox.shrink for empty list; video list simply hidden when empty; compose sheet allows text-only posts
+- [x] Error / failure -- VideoPlayerCard has error overlay with "Video failed to load" + retry; fullscreen has error with retry; compose has toast on failure; image load failures show broken_image icon
+- [x] Success / confirmation -- Compose shows "Posted!" toast on success; delete shows "Post deleted" toast
+- [x] Offline / degraded -- Network errors caught in video player init with retry option; upload failure shows error toast with "Failed to create post. Please try again."
+- [x] Permission denied -- Not directly applicable to video playback; gallery picker handles OS permissions natively
 
-## Deep Linking Evaluation
+## Positive Observations
 
-| Notification Type | Route | Natural? | Notes |
-|-------------------|-------|----------|-------|
-| `community_event_created` | `/community/events/:id` | Yes | Goes directly to the event detail -- user sees what was created |
-| `community_event_updated` | `/community/events/:id` | Yes | Same screen; user sees the latest state of the event |
-| `community_event_cancelled` | `/community/events/:id` | Acceptable | Event detail should show cancelled state; consider adding a transient banner |
-| `community_event_reminder` | `/community/events/:id` | Yes | Correct destination for a "starting soon" reminder |
-| `announcement` | `/announcements` | Yes | Goes to announcements list |
-| `community_comment` / `community_activity` | `/community` | Acceptable | Could deep link to specific post if `post_id` were in payload |
-| Unknown `type` | No navigation | Correct | Silent no-op; logged for debugging |
-
-## Notification Content Clarity
-
-The notification content is defined server-side. The mobile service correctly passes through `title` and `body` from FCM. The data payload contract (`type` + `event_id`) is clean and sufficient for routing. Data-only messages (no `notification` block) are correctly ignored by the foreground handler since they are intended for background processing only.
-
-## Notification Preferences Toggle UI
-
-The toggle UI is well-structured:
-- Role-based sections (trainer vs trainee) are clearly separated with uppercase section headers
-- Labels and subtitles are descriptive and use plain language
-- Icons provide quick visual scanning (e.g., fitness_center for workouts, campaign for announcements)
-- Optimistic updates with rollback on failure give immediate feedback without waiting for the API
-- Error toast on toggle failure uses clear, actionable copy ("Failed to update preference. Please try again.")
-- The `community_event` toggle is correctly placed in the trainee "Updates" section
-
-## Auth Lifecycle Integration
-
-- `initialize()` is called via `unawaited()` after every login path (email, Google, Apple, impersonation, registration) -- correct; doesn't block the login flow
-- `deactivateToken()` is called in both `logout()` and `deleteAccount()` -- correct; cleans up subscriptions and server-side token
-- Stream subscriptions are cancelled on deactivation, preventing duplicate listeners on re-login -- correct
+- Compose sheet enforces clear limits (10 images, 3 videos, 50MB video / 5MB image caps) with actionable error messages
+- Video format validation catches unsupported types with helpful message ("Use MP4, MOV, or WebM")
+- Feed video starts muted (standard social media pattern) with easy unmute via bottom-left icon
+- Fullscreen player supports landscape rotation and properly restores portrait on dispose
+- Controls auto-hide after 3 seconds with tap-to-toggle -- matches YouTube/Instagram patterns
+- Post deletion has confirmation dialog with cancel option (undo safety)
+- Video preview in compose shows file size and "VIDEO" badge -- clear visual distinction from image thumbnails
+- Duration badge shown before playback starts (bottom-right) -- sets user expectations
+- Empty file check added by linter in video picker -- catches corrupt/zero-byte files
 
 ## Remaining Recommendations (Not Fixed -- Require Design Decisions)
 
-1. **Pre-permission screen (High impact)**: Add an in-app screen before the iOS system permission dialog that explains why notifications matter (e.g., "Never miss an event, announcement, or message from your trainer"). This converts the cold ask into a warm ask and significantly improves opt-in rates (industry data shows 2-3x improvement). Requires a new screen design.
+1. **Fullscreen discoverability (Medium impact)**: The long-press gesture to enter fullscreen is hidden. Consider adding a subtle "pinch to expand" hint or a brief tooltip on first video playback to educate users.
 
-2. **Master toggle (Medium impact)**: Consider adding a "Pause all notifications" toggle at the top of the preferences screen. Common pattern in Slack, Discord, and other notification-heavy apps. Gives users a quick escape valve without toggling each category individually.
+2. **Video thumbnail generation (Medium impact)**: When no `thumbnailUrl` is provided from the server, the placeholder is a plain gray box with a camera icon. Consider generating a client-side thumbnail from the first frame of the video.
 
-3. **Deep link to specific post (Low impact)**: `community_comment` and `community_activity` notifications navigate to `/community` (feed root). If the payload included a `post_id`, the user could land directly on the relevant post.
-
-4. **Notification permission in onboarding (Medium impact)**: During the 4-step onboarding wizard, consider adding notification opt-in as a final step or post-onboarding prompt. This is the highest-intent moment to ask for permission.
+3. **Video progress bar in feed (Low impact)**: The inline video player has no seek bar or progress indicator. Users can only play/pause. Consider adding a thin progress bar at the bottom of the inline player for longer videos.
 
 ---
 
-## Overall UX Score: 8/10
+## Overall UX Score: 7/10
 
-The implementation covers all critical states (loading, error, empty, success, permission denied), has solid accessibility with semantic labels on all interactive elements, and the deep linking routes map correctly to existing screens. The auth lifecycle integration is thorough -- all login/logout paths are covered. The main gap is the cold permission ask with no pre-permission rationale, which is a design-level decision. With the seven fixes applied in this audit (OS settings redirect, blank notification guard, iOS sound/badge/alert, error message sanitization, debug logging, accessibility labels, and lifecycle observer), the notification UX is production-ready.
+The video attachment feature has solid core functionality with proper validation, error handling, and state management. All critical accessibility gaps (6 missing Semantics labels) have been fixed. The loading feedback gap during video initialization and upload preparation have been addressed. Touch targets on overlay controls have been enlarged. The main remaining UX concern is fullscreen discoverability relying on a hidden long-press gesture. With the fixes applied in this audit, the video UX is production-ready.
+
+## Summary of Fixes Applied
+
+1. **compose_post_sheet.dart**: Enlarged image/video remove button touch targets with outer padding; added Semantics labels ("Remove image N", "Remove video N"); changed upload progress to show indeterminate bar immediately with "Preparing upload..." text
+2. **video_player_card.dart**: Added `_isLoading` state with white spinner during video init; added Semantics to overall card, play button, mute button, fullscreen button; enlarged mute/fullscreen touch targets with padding and opaque hit behavior; redesigned error overlay with visible retry button, descriptive copy ("Video failed to load"), and better contrast
+3. **fullscreen_video_player.dart**: Added Semantics and tooltip to close button; added tooltips to play/pause and mute buttons; added Semantics wrapper to seek bar; linter fixed `late final` to `late` on controller for retry support; linter updated retry to properly dispose and recreate controller
