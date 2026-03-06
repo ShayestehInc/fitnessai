@@ -1,50 +1,49 @@
-# Ship Decision: Wire FCM Push Notifications End-to-End for Community Events
+# Ship Decision: Video Attachments on Community Posts
 
 ## Verdict: SHIP
 ## Confidence: HIGH
-## Quality Score: 9/10
+## Quality Score: 8/10
 
 ## Summary
-All 12 acceptance criteria are met. The implementation wires FCM push notifications end-to-end: backend sends notifications on event create/update/cancel with a cron-based reminder system, mobile initializes Firebase on login, displays foreground notifications via flutter_local_notifications, and deep links to event detail on tap. Notification preferences are fully integrated with a new "Community Events" toggle.
+11 of 12 acceptance criteria fully pass; AC10 is partially met (compose video previews show icon+size instead of thumbnail+duration badge, but functionality is complete). The feature is production-ready with robust 3-layer file validation, proper security hardening, clean architecture, and polished mobile UX with accessibility support.
 
 ## Acceptance Criteria Verification
-- AC1: community_event field + migration + VALID_CATEGORIES + serializer -- PASS
-- AC2: notify_event_created() called after event creation, excludes banned users -- PASS
-- AC3: notify_event_cancelled() called on DELETE and status PATCH to cancelled -- PASS
-- AC4: notify_event_updated() called only when time/location actually changes, with descriptive body -- PASS
-- AC5: send_event_reminders() with 10-15 min window, batched RSVP queries, management command -- PASS
-- AC6: initialize() called after login/register/social/impersonation with unawaited() -- PASS
-- AC7: deactivateToken() called on logout (with stream cleanup and _initialized reset) -- PASS
-- AC8: Foreground handler shows local notification with title/body, iOS presentAlert -- PASS
-- AC9: Deep links to /community/events/$eventId (verified route exists at app_router.dart:846) -- PASS
-- AC10: "Community Events" toggle in trainee Updates section -- PASS
-- AC11: All payloads include type + event_id as strings -- PASS
-- AC12: category='community_event' passed to send_push_to_group, preferences respected -- PASS
+- AC1: PostVideo model with file, thumbnail, duration, file_size, sort_order, post FK -- PASS
+- AC2: Migration creates table with indexes on (post, sort_order) and created_at -- PASS
+- AC3: 3-layer validation (extension + MIME + magic bytes), 50MB limit, 60s duration, max 3 per post -- PASS
+- AC4: ffprobe extracts duration via subprocess, stored in PostVideo.duration -- PASS
+- AC5: ffmpeg extracts first frame as JPEG thumbnail, stored in PostVideo.thumbnail -- PASS
+- AC6: _serialize_posts includes videos list with id, url, thumbnail_url, duration, file_size, sort_order -- PASS
+- AC7: CommunityFeedView.post() accepts multipart 'videos' alongside 'images' -- PASS
+- AC8: _broadcast_new_post sends full post_data (including videos) via WebSocket -- PASS
+- AC9: Mobile video picker with 3-video limit, gallery source, extension + size validation -- PASS
+- AC10: Delete button and upload progress bar present; compose previews show icon+file size instead of video thumbnail with duration badge -- PARTIAL (functional, UX gap)
+- AC11: VideoPlayerCard with tap-to-play/pause, thumbnail preview, no autoplay, muted start, duration badge -- PASS
+- AC12: FullscreenVideoPlayer with play/pause, seek bar, time display, mute toggle, landscape support, close button -- PASS
 
-## Issues Fixed During Pipeline
-- Duplicate reminders (narrowed window to 10-15 min matching cron interval)
-- Fragile payload encoding (switched to JSON)
-- Firebase init error handling (graceful degradation)
-- Logout/re-login token re-registration (reset _initialized + cancel stream subscriptions)
-- Deep link path (corrected from route name to actual path)
-- Banned users receiving notifications (excluded via UserBan query)
-- N+1 queries in reminders (batched RSVP fetch)
-- False-positive update notifications (compare old vs new values)
-- Impersonation token leak (deactivate before switching identity)
-- Event status state machine (valid transitions enforced, ValueError on invalid)
-- Serializer missing community_event field (security audit fix)
-- iOS foreground notification display flags
-- Stream subscription leak on login/logout cycles
-- Announcement deep link path (/community/announcements)
+## Critical/High Issues Resolved
+1. Magic bytes validation added (3-layer defense: extension + MIME + magic bytes)
+2. Temp file extension uses actual file extension, not hardcoded .mp4
+3. ffprobe unavailable: fallback 15MB size cap enforced to limit abuse
+4. Post+video creation wrapped in transaction.atomic()
+5. MediaUploadThrottle (20/hour) applied to POST requests
+6. DATA_UPLOAD_MAX_MEMORY_SIZE and FILE_UPLOAD_MAX_MEMORY_SIZE set in settings
+7. Video files and thumbnails deleted from storage on post deletion
+8. N+1 query fixed in bookmark service (added post__videos to prefetch)
+9. Feed queryset prefetches 'videos' alongside 'images'
+10. All 6 accessibility Semantics labels added to video player controls
+11. Video starts muted in feed (setVolume(0) before play)
+12. Client-side extension validation in compose sheet
 
 ## Remaining Concerns
-- Synchronous notification dispatch in request cycle (acceptable at current scale, documented for future async migration)
-- No notification debouncing for rapid event updates (documented, acceptable)
-- No TTL on reminder notifications (FCM handles expiry, acceptable default)
+- Compose sheet video previews show generic icon instead of actual video thumbnail (requires video_thumbnail package for client-side extraction; server thumbnails display correctly in feed after posting)
+- Synchronous video processing in request cycle (acceptable at current scale; 30s ffprobe timeout limits blast radius; future: Celery for async processing)
+- Fullscreen player creates new controller, re-downloading video (bandwidth cost; acceptable for MVP)
+- Single video selection per picker tap (image_picker limitation; user taps button multiple times for multiple videos)
 
 ## What Was Built
-FCM push notifications wired end-to-end for community events:
-- Backend: 4 notification dispatch methods in EventService, management command for scheduled reminders, community_event preference category, state machine for event status transitions
-- Mobile: Full PushNotificationService with Firebase init, local notification display, deep link navigation, stream subscription lifecycle management
-- Auth integration: Token registration on all login paths, token deactivation on logout/delete/impersonation
-- Preferences: Community Events toggle in notification preferences screen
+Video attachments on community posts -- full stack implementation:
+- Backend: PostVideo model, migration, video_service.py with 3-layer validation + ffprobe/ffmpeg metadata extraction, multipart upload endpoint, WebSocket broadcast, admin registration, rate limiting, file cleanup on delete
+- Mobile: PostVideoModel, video upload via multipart FormData with progress callback, VideoPlayerCard (inline player with tap-to-play, muted start, thumbnail, duration badge, error retry), FullscreenVideoPlayer (landscape, seek, mute, auto-hide controls), compose sheet with video picker + previews + progress bar
+- Security: Magic bytes validation, upload-specific throttle, fallback size cap without ffprobe, framework upload limits, atomic transactions
+- Docker: ffmpeg added to Dockerfile system dependencies
