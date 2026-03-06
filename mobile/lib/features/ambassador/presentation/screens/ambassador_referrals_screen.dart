@@ -4,6 +4,7 @@ import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/ambassador_models.dart';
 import '../providers/ambassador_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AmbassadorReferralsScreen extends ConsumerStatefulWidget {
   const AmbassadorReferralsScreen({super.key});
@@ -38,7 +39,7 @@ class _AmbassadorReferralsScreenState
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('My Referrals'),
+        title: Text(context.l10n.ambassadorMyReferrals),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: Column(
@@ -128,7 +129,7 @@ class _AmbassadorReferralsScreenState
                   .read(ambassadorReferralsProvider.notifier)
                   .loadReferrals(status: _statusFilter),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(context.l10n.commonRetry),
             ),
           ],
         ),

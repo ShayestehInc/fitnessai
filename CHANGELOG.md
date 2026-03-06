@@ -4,6 +4,26 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 52: i18n String Extraction (Phase B)
+
+### Added
+- Mobile: 976 new ARB translation keys extracted from hardcoded English strings across 161 dart files
+- Mobile: Spanish (es) translations for all 1164 ARB keys
+- Mobile: Portuguese Brazil (pt-br) translations for all 1164 ARB keys
+- Mobile: l10n imports added to all modified feature/widget files
+
+### Changed
+- Mobile: All user-facing strings in screens/widgets now use `context.l10n.keyName` pattern instead of hardcoded English
+- Mobile: `const` removed from widgets where runtime l10n values replaced compile-time string constants
+- Mobile: Total ARB keys expanded from 188 to 1164 (6x increase)
+- PRODUCT_SPEC: String extraction (Phase B - Flutter) marked as Done
+
+### Not Changed
+- Web (Next.js) i18n infrastructure exists but component adoption deferred to separate pipeline
+- ~56 Flutter strings with Dart interpolation remain hardcoded (need ICU message format conversion)
+
+---
+
 ## [2026-03-05] — Pipeline 51: Churn Push Notifications via FCM
 
 ### Added

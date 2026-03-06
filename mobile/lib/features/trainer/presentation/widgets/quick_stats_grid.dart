@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/trainer_stats_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class QuickStatsGrid extends StatelessWidget {
   final TrainerStatsModel stats;
@@ -18,7 +19,7 @@ class QuickStatsGrid extends StatelessWidget {
       children: [
         _buildStatCard(
           context,
-          title: 'Total Trainees',
+          title: context.l10n.trainerTotalTrainees,
           value: '${stats.totalTrainees}',
           subtitle: stats.maxTrainees > 0
               ? 'of ${stats.maxTrainees} max'
@@ -28,25 +29,25 @@ class QuickStatsGrid extends StatelessWidget {
         ),
         _buildStatCard(
           context,
-          title: 'Active Today',
+          title: context.l10n.trainerActiveToday,
           value: '${stats.traineesLoggedToday}',
-          subtitle: 'logged activity',
+          subtitle: context.l10n.trainerLoggedActivity,
           icon: Icons.today,
           color: Colors.green,
         ),
         _buildStatCard(
           context,
-          title: 'On Track',
+          title: context.l10n.trainerOnTrack,
           value: '${stats.traineesOnTrack}',
-          subtitle: 'hitting goals',
+          subtitle: context.l10n.trainerHittingGoals,
           icon: Icons.trending_up,
           color: Colors.orange,
         ),
         _buildStatCard(
           context,
-          title: 'Adherence',
+          title: context.l10n.trainerAdherence,
           value: '${stats.avgAdherenceRate.toStringAsFixed(0)}%',
-          subtitle: 'avg rate',
+          subtitle: context.l10n.trainerAvgRate,
           icon: Icons.check_circle,
           color: Colors.purple,
         ),

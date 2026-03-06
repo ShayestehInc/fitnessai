@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Shown when the user navigates to events but has no calendar connected.
 class CalendarNoConnectionView extends StatelessWidget {
@@ -13,11 +14,11 @@ class CalendarNoConnectionView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar Events'),
+        title: Text(context.l10n.calendarCalendarEvents),
         leading: IconButton(
           icon: Icon(AdaptiveIcons.back),
           onPressed: onGoBack,
-          tooltip: 'Go back',
+          tooltip: context.l10n.calendarGoBack,
         ),
       ),
       body: Center(
@@ -28,7 +29,7 @@ class CalendarNoConnectionView extends StatelessWidget {
             children: [
               Icon(Icons.calendar_month, size: 64,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                  semanticLabel: 'Calendar not connected'),
+                  semanticLabel: context.l10n.calendarCalendarNotConnected),
               const SizedBox(height: 16),
               Text(
                 'No calendar connected',
@@ -47,7 +48,7 @@ class CalendarNoConnectionView extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onGoBack,
                 icon: const Icon(Icons.link),
-                label: const Text('Connect a Calendar'),
+                label: Text(context.l10n.calendarConnectACalendar),
               ),
             ],
           ),

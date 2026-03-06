@@ -14,6 +14,7 @@ import 'comments_sheet.dart';
 import 'image_carousel.dart';
 import 'reaction_bar.dart';
 import 'video_player_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Card for a single community feed post.
 class CommunityPostCard extends ConsumerWidget {
@@ -192,7 +193,7 @@ class _PostAuthorRow extends ConsumerWidget {
                     context: context,
                     actions: [
                       AdaptiveAction(
-                        label: 'Delete',
+                        label: context.l10n.commonDelete,
                         isDestructive: true,
                         onPressed: () => _confirmDelete(context, ref),
                       ),
@@ -218,7 +219,7 @@ class _PostAuthorRow extends ConsumerWidget {
                           Icon(Icons.delete_outline,
                               color: theme.colorScheme.error, size: 20),
                           const SizedBox(width: 8),
-                          Text('Delete',
+                          Text(context.l10n.commonDelete,
                               style: TextStyle(color: theme.colorScheme.error)),
                         ],
                       ),
@@ -233,19 +234,19 @@ class _PostAuthorRow extends ConsumerWidget {
     showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Post'),
-        content: const Text('Delete this post? This cannot be undone.'),
+        title: Text(context.l10n.communityDeletePost),
+        content: Text(context.l10n.communityDeleteThisPostThisCannotBeUndone),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(context.l10n.commonDelete),
           ),
         ],
       ),

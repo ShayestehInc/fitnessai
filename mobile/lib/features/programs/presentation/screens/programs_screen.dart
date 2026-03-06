@@ -18,6 +18,7 @@ import 'program_builder_screen.dart';
 import 'program_generator_screen.dart';
 import '../../../workout_log/presentation/screens/workout_calendar_screen.dart';
 import '../../../trainer/presentation/providers/trainer_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class ProgramsScreen extends ConsumerStatefulWidget {
   const ProgramsScreen({super.key});
@@ -140,12 +141,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Programs'),
+        title: Text(context.l10n.trainerPrograms),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showCreateProgramDialog(context),
-            tooltip: 'Create Program',
+            tooltip: context.l10n.programsCreateProgram,
           ),
         ],
         bottom: Theme.of(context).platform == TargetPlatform.iOS
@@ -496,7 +497,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             ),
             error: (error, stack) => Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('Error: $error'),
+              child: Text(context.l10n.exercisesErrorerror),
             ),
             data: (drafts) {
               if (drafts.isEmpty) {
@@ -558,7 +559,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             error: (error, stack) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(32),
-                child: Text('Error loading programs: $error'),
+                child: Text(context.l10n.programsErrorLoadingProgramserror),
               ),
             ),
             data: (programs) {
@@ -714,9 +715,9 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
       confirmDismiss: (direction) async {
         return await showAdaptiveConfirmDialog(
           context: context,
-          title: 'Delete Draft?',
+          title: context.l10n.programsDeleteDraft,
           message: 'Are you sure you want to delete "${draft.name}"? This cannot be undone.',
-          confirmText: 'Delete',
+          confirmText: context.l10n.commonDelete,
           isDestructive: true,
         ) ?? false;
       },
@@ -832,27 +833,27 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                         child: Theme.of(context).platform == TargetPlatform.iOS
                           ? IconButton(
                               icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
-                              tooltip: 'More options',
+                              tooltip: context.l10n.programsMoreOptions,
                               onPressed: () => showAdaptiveActionSheet(
                                 context: context,
                                 actions: [
                                   AdaptiveAction(
-                                    label: 'Edit',
+                                    label: context.l10n.commonEdit,
                                     icon: Icons.edit_outlined,
                                     onPressed: () => _editDraftProgram(context, draft),
                                   ),
                                   AdaptiveAction(
-                                    label: 'Rename',
+                                    label: context.l10n.programsRename,
                                     icon: Icons.drive_file_rename_outline,
                                     onPressed: () => _showRenameProgramDialog(context, draft.id, draft.name, isTemplate: true),
                                   ),
                                   AdaptiveAction(
-                                    label: 'Edit Image',
+                                    label: context.l10n.exercisesEditImage,
                                     icon: Icons.image_outlined,
                                     onPressed: () => _showEditProgramImageDialog(context, draft.id, draft.name, draft.imageUrl, isTemplate: true),
                                   ),
                                   AdaptiveAction(
-                                    label: 'Assign to Trainee',
+                                    label: context.l10n.programsAssignToTrainee,
                                     icon: Icons.person_add_outlined,
                                     onPressed: () => _showTraineeSelectionForDraft(context, draft),
                                   ),
@@ -861,7 +862,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                             )
                           : PopupMenuButton<String>(
                               icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
-                              tooltip: 'More options',
+                              tooltip: context.l10n.programsMoreOptions,
                               onSelected: (value) {
                                 switch (value) {
                                   case 'edit':
@@ -879,29 +880,29 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                 }
                               },
                               itemBuilder: (context) => [
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'edit',
                                   child: ListTile(
                                     leading: Icon(Icons.edit_outlined),
-                                    title: Text('Edit'),
+                                    title: Text(context.l10n.commonEdit),
                                     contentPadding: EdgeInsets.zero,
                                     dense: true,
                                   ),
                                 ),
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'rename',
                                   child: ListTile(
                                     leading: Icon(Icons.drive_file_rename_outline),
-                                    title: Text('Rename'),
+                                    title: Text(context.l10n.programsRename),
                                     contentPadding: EdgeInsets.zero,
                                     dense: true,
                                   ),
                                 ),
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'edit_image',
                                   child: ListTile(
                                     leading: Icon(Icons.image_outlined),
-                                    title: Text('Edit Image'),
+                                    title: Text(context.l10n.exercisesEditImage),
                                     contentPadding: EdgeInsets.zero,
                                     dense: true,
                                   ),
@@ -910,7 +911,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                   value: 'assign',
                                   child: ListTile(
                                     leading: Icon(Icons.person_add_outlined, color: theme.colorScheme.primary),
-                                    title: const Text('Assign to Trainee'),
+                                    title: Text(context.l10n.programsAssignToTrainee),
                                     contentPadding: EdgeInsets.zero,
                                     dense: true,
                                   ),
@@ -1160,22 +1161,22 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       child: Theme.of(context).platform == TargetPlatform.iOS
                         ? IconButton(
                             icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
-                            tooltip: 'More options',
+                            tooltip: context.l10n.programsMoreOptions,
                             onPressed: () => showAdaptiveActionSheet(
                               context: context,
                               actions: [
                                 AdaptiveAction(
-                                  label: 'Edit',
+                                  label: context.l10n.commonEdit,
                                   icon: Icons.edit_outlined,
                                   onPressed: () => _editProgram(context, program),
                                 ),
                                 AdaptiveAction(
-                                  label: 'Rename',
+                                  label: context.l10n.programsRename,
                                   icon: Icons.drive_file_rename_outline,
                                   onPressed: () => _showRenameProgramDialog(context, program.id, program.name, isTemplate: false),
                                 ),
                                 AdaptiveAction(
-                                  label: 'Edit Image',
+                                  label: context.l10n.exercisesEditImage,
                                   icon: Icons.image_outlined,
                                   onPressed: () => _showEditProgramImageDialog(context, program.id, program.name, program.imageUrl, isTemplate: false),
                                 ),
@@ -1184,7 +1185,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                           )
                         : PopupMenuButton<String>(
                             icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
-                            tooltip: 'More options',
+                            tooltip: context.l10n.programsMoreOptions,
                             onSelected: (value) {
                               switch (value) {
                                 case 'edit':
@@ -1198,12 +1199,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                   break;
                               }
                             },
-                            itemBuilder: (context) => const [
+                            itemBuilder: (context) => [
                               PopupMenuItem(
                                 value: 'edit',
                                 child: ListTile(
                                   leading: Icon(Icons.edit_outlined),
-                                  title: Text('Edit'),
+                                  title: Text(context.l10n.commonEdit),
                                   contentPadding: EdgeInsets.zero,
                                   dense: true,
                                 ),
@@ -1212,7 +1213,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                 value: 'rename',
                                 child: ListTile(
                                   leading: Icon(Icons.drive_file_rename_outline),
-                                  title: Text('Rename'),
+                                  title: Text(context.l10n.programsRename),
                                   contentPadding: EdgeInsets.zero,
                                   dense: true,
                                 ),
@@ -1221,7 +1222,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                 value: 'edit_image',
                                 child: ListTile(
                                   leading: Icon(Icons.image_outlined),
-                                  title: Text('Edit Image'),
+                                  title: Text(context.l10n.exercisesEditImage),
                                   contentPadding: EdgeInsets.zero,
                                   dense: true,
                                 ),
@@ -1341,10 +1342,10 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
   Future<void> _showRenameProgramDialog(BuildContext context, int programId, String currentName, {required bool isTemplate}) async {
     final newName = await showAdaptiveTextInputDialog(
       context: context,
-      title: 'Rename Program',
+      title: context.l10n.programsRenameProgram,
       initialValue: currentName,
       placeholder: 'Enter new name',
-      confirmText: 'Rename',
+      confirmText: context.l10n.programsRename,
     );
 
     if (newName == null || newName.isEmpty) return;
@@ -1365,7 +1366,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
         // Refresh the lists
         ref.invalidate(myTemplatesProvider);
         ref.invalidate(trainerProgramsProvider);
-        showAdaptiveToast(context, message: 'Renamed to "$newName"', type: ToastType.success);
+        showAdaptiveToast(context, message: context.l10n.programsRenamedTonewName, type: ToastType.success);
       } else {
         showAdaptiveToast(context, message: result['error'] ?? 'Failed to rename', type: ToastType.error);
       }
@@ -1516,7 +1517,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                 Navigator.pop(context);
                                 ref.invalidate(myTemplatesProvider);
                                 ref.invalidate(trainerProgramsProvider);
-                                showAdaptiveToast(context, message: 'Image uploaded successfully', type: ToastType.success);
+                                showAdaptiveToast(context, message: context.l10n.exercisesImageUploadedSuccessfully, type: ToastType.success);
                               } else {
                                 setDialogState(() => isUploading = false);
                                 showAdaptiveToast(context, message: result['error'] ?? 'Failed to upload image', type: ToastType.error);
@@ -1536,7 +1537,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                           selectedImageFile = null;
                         });
                       },
-                      child: const Text('Clear selection'),
+                      child: Text(context.l10n.exercisesClearSelection),
                     ),
                   ),
                 ],
@@ -1566,12 +1567,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                   controller: imageUrlController,
                   enabled: selectedImageFile == null,
                   decoration: InputDecoration(
-                    labelText: 'Image URL',
+                    labelText: context.l10n.exercisesImageURL,
                     hintText: 'https://images.unsplash.com/...',
                     prefixIcon: const Icon(Icons.link),
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.preview),
-                      tooltip: 'Preview',
+                      tooltip: context.l10n.exercisesPreview,
                       onPressed: selectedImageFile == null
                           ? () {
                               final url = imageUrlController.text.trim();
@@ -1604,7 +1605,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                        child: Text(context.l10n.commonCancel),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -1632,7 +1633,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                                   Navigator.pop(context);
                                   ref.invalidate(myTemplatesProvider);
                                   ref.invalidate(trainerProgramsProvider);
-                                  showAdaptiveToast(context, message: 'Image updated', type: ToastType.success);
+                                  showAdaptiveToast(context, message: context.l10n.exercisesImageUpdated, type: ToastType.success);
                                 } else {
                                   setDialogState(() => isLoading = false);
                                   showAdaptiveToast(context, message: result['error'] ?? 'Failed to update image', type: ToastType.error);
@@ -1640,7 +1641,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                               },
                         child: isLoading
                             ? const AdaptiveSpinner.small()
-                            : const Text('Save URL'),
+                            : Text(context.l10n.exercisesSaveURL),
                       ),
                     ),
                   ],
@@ -1794,7 +1795,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Draft to My Programs'),
+                      child: Text(context.l10n.programsDraftToMyPrograms),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1810,7 +1811,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Assign to Trainee'),
+                      child: Text(context.l10n.programsAssignToTrainee),
                     ),
                   ),
                 ],
@@ -1899,7 +1900,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                         children: [
                           Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
                           const SizedBox(height: 16),
-                          Text('Error loading trainees', style: theme.textTheme.bodyLarge),
+                          Text(context.l10n.programsErrorLoadingTrainees, style: theme.textTheme.bodyLarge),
                         ],
                       ),
                     ),
@@ -2027,8 +2028,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             _buildCreateOption(
               context: parentContext,
               icon: Icons.auto_awesome,
-              title: 'Generate with AI',
-              subtitle: 'Auto-create a full program based on split, goal & difficulty',
+              title: context.l10n.programsGenerateWithAI,
+              subtitle: context.l10n.programsAutoCreateAFullProgramBasedOnSplitGoalDifficu,
               color: Colors.purple,
               onTap: () {
                 Navigator.pop(sheetContext);
@@ -2048,8 +2049,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             _buildCreateOption(
               context: parentContext,
               icon: Icons.content_copy,
-              title: 'Use a Template',
-              subtitle: 'Start with a proven program structure and customize it',
+              title: context.l10n.programsUseATemplate,
+              subtitle: context.l10n.programsStartWithAProvenProgramStructureAndCustomizeI,
               color: theme.colorScheme.primary,
               onTap: () {
                 Navigator.pop(sheetContext);
@@ -2064,8 +2065,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             _buildCreateOption(
               context: parentContext,
               icon: Icons.add_circle_outline,
-              title: 'Start from Scratch',
-              subtitle: 'Build a completely custom program from the ground up',
+              title: context.l10n.programsStartFromScratch,
+              subtitle: context.l10n.programsBuildACompletelyCustomProgramFromTheGroundUp,
               color: Colors.orange,
               onTap: () {
                 Navigator.pop(sheetContext);
@@ -2312,16 +2313,16 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
               // Program name
               TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Program Name',
-                  hintText: 'e.g., My Custom PPL',
+                decoration: InputDecoration(
+                  labelText: context.l10n.programsProgramName,
+                  hintText: context.l10n.programsEGMyCustomPPL,
                 ),
                 onChanged: (value) => programName = value,
               ),
               const SizedBox(height: 16),
 
               // Duration slider
-              Text('Duration: $durationWeeks weeks'),
+              Text(context.l10n.programsDurationdurationWeeksWeeks),
               Slider.adaptive(
                 value: durationWeeks.toDouble(),
                 min: 1,
@@ -2335,27 +2336,27 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               const SizedBox(height: 16),
 
               // Difficulty
-              const Text('Difficulty'),
+              Text(context.l10n.programsDifficulty),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('Beginner'),
+                    label: Text(context.l10n.programsBeginner),
                     selected: difficulty == 'beginner',
                     onSelected: (selected) {
                       setModalState(() => difficulty = 'beginner');
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Intermediate'),
+                    label: Text(context.l10n.programsIntermediate),
                     selected: difficulty == 'intermediate',
                     onSelected: (selected) {
                       setModalState(() => difficulty = 'intermediate');
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Advanced'),
+                    label: Text(context.l10n.programsAdvanced),
                     selected: difficulty == 'advanced',
                     onSelected: (selected) {
                       setModalState(() => difficulty = 'advanced');
@@ -2366,7 +2367,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               const SizedBox(height: 16),
 
               // Goal
-              const Text('Goal'),
+              Text(context.l10n.nutritionGoal),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -2404,7 +2405,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text('Create Program'),
+                  child: Text(context.l10n.programsCreateProgram),
                 ),
               ),
             ],

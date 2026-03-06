@@ -11,6 +11,7 @@ import '../providers/community_feed_provider.dart';
 import '../widgets/announcement_card.dart';
 import '../widgets/community_post_card.dart';
 import '../widgets/compose_post_sheet.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Main community tab screen combining announcements banner and feed.
 class CommunityFeedScreen extends ConsumerStatefulWidget {
@@ -58,13 +59,13 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Community'),
+        title: Text(context.l10n.navCommunity),
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.leaderboard_outlined),
             onPressed: () => context.push('/community/leaderboard'),
-            tooltip: 'Leaderboard',
+            tooltip: context.l10n.communityLeaderboard,
           ),
           if (announcementState.unreadCount > 0)
             _UnreadBadgeButton(
@@ -75,13 +76,13 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
             IconButton(
               icon: const Icon(Icons.campaign_outlined),
               onPressed: () => context.push('/community/announcements'),
-              tooltip: 'Announcements',
+              tooltip: context.l10n.trainerAnnouncements,
             ),
           if (Theme.of(context).platform == TargetPlatform.iOS)
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: _showComposeSheet,
-              tooltip: 'New post',
+              tooltip: context.l10n.communityNewPost,
             ),
         ],
       ),
@@ -99,7 +100,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
           : FloatingActionButton(
               onPressed: _showComposeSheet,
               backgroundColor: theme.colorScheme.primary,
-              tooltip: 'New post',
+              tooltip: context.l10n.communityNewPost,
               child: const Icon(Icons.edit),
             ),
     );
@@ -242,7 +243,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
             OutlinedButton(
               onPressed: () =>
                   ref.read(communityFeedProvider.notifier).loadFeed(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -252,7 +253,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
 
   Widget _buildLoadingSkeleton(ThemeData theme) {
     return Semantics(
-      label: 'Loading community feed',
+      label: context.l10n.communityLoadingCommunityFeed,
       child: ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: 3,
@@ -345,7 +346,7 @@ class _UnreadBadgeButton extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.campaign_outlined),
           onPressed: onTap,
-          tooltip: 'Announcements',
+          tooltip: context.l10n.trainerAnnouncements,
         ),
         Positioned(
           top: 6,

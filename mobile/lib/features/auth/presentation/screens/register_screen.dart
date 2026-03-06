@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -37,7 +38,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      showAdaptiveToast(context, message: 'Passwords do not match');
+      showAdaptiveToast(context, message: context.l10n.authPasswordsDoNotMatch);
       return;
     }
 
@@ -67,7 +68,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Register'),
+        title: Text(context.l10n.authRegister),
         leading: IconButton(
           icon: Icon(AdaptiveIcons.back),
           onPressed: () => context.go('/login'),
@@ -87,8 +88,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               const SizedBox(height: 32),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
+                decoration: InputDecoration(
+                  labelText: context.l10n.authEmailLabel,
                 ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
@@ -104,12 +105,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               const SizedBox(height: 16),
               AdaptiveDropdown<String>(
                 value: _selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'Role',
+                decoration: InputDecoration(
+                  labelText: context.l10n.authRole,
                 ),
-                items: const [
-                  AdaptiveDropdownItem(value: 'TRAINEE', label: 'Trainee'),
-                  AdaptiveDropdownItem(value: 'TRAINER', label: 'Trainer'),
+                items: [
+                  AdaptiveDropdownItem(value: 'TRAINEE', label: context.l10n.authTrainee),
+                  AdaptiveDropdownItem(value: 'TRAINER', label: context.l10n.adminTrainer),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -121,9 +122,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _referralCodeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Referral Code (Optional)',
-                    helperText: 'Have a referral code? Enter it here.',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.authReferralCodeOptional,
+                    helperText: context.l10n.authHaveAReferralCodeEnterItHere,
                   ),
                   textCapitalization: TextCapitalization.characters,
                   maxLength: 8,
@@ -132,8 +133,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
+                decoration: InputDecoration(
+                  labelText: context.l10n.authPasswordLabel,
                 ),
                 obscureText: true,
                 validator: (value) {
@@ -149,8 +150,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _confirmPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm Password',
+                decoration: InputDecoration(
+                  labelText: context.l10n.authConfirmPasswordLabel,
                 ),
                 obscureText: true,
                 validator: (value) {
@@ -165,7 +166,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 onPressed: authState.isLoading ? null : _handleRegister,
                 child: authState.isLoading
                     ? const AdaptiveSpinner.small()
-                    : const Text('Register'),
+                    : Text(context.l10n.authRegister),
               ),
             ],
           ),

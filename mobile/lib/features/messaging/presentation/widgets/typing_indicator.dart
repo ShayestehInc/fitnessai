@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Animated typing indicator ("...") shown when the other party is typing.
 class TypingIndicator extends StatefulWidget {
@@ -33,7 +34,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
 
     return Semantics(
       liveRegion: true,
-      label: 'Other person is typing',
+      label: context.l10n.messagingOtherPersonIsTyping,
       child: Align(
       alignment: Alignment.centerLeft,
       child: Container(

@@ -5,6 +5,7 @@ import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../providers/bookmark_provider.dart';
 import '../widgets/community_post_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen displaying the user's bookmarked / saved posts.
 class SavedItemsScreen extends ConsumerStatefulWidget {
@@ -30,7 +31,7 @@ class _SavedItemsScreenState extends ConsumerState<SavedItemsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Saved Posts'),
+        title: Text(context.l10n.communitySavedPosts),
         elevation: 0,
       ),
       body: AdaptiveRefreshIndicator(
@@ -66,7 +67,7 @@ class _SavedItemsScreenState extends ConsumerState<SavedItemsScreen> {
             OutlinedButton(
               onPressed: () =>
                   ref.read(bookmarksProvider.notifier).loadBookmarks(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../data/models/chat_models.dart';
 import '../providers/ai_chat_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TraineeSelector extends ConsumerWidget {
   const TraineeSelector({super.key});
@@ -185,7 +186,7 @@ class _TraineeBottomSheetState extends ConsumerState<_TraineeBottomSheet> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: TextField(
             decoration: InputDecoration(
-              hintText: 'Search trainees...',
+              hintText: context.l10n.aiChatSearchTrainees,
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: theme.scaffoldBackgroundColor,
@@ -218,7 +219,7 @@ class _TraineeBottomSheetState extends ConsumerState<_TraineeBottomSheet> {
               size: 20,
             ),
           ),
-          title: const Text('All trainees'),
+          title: Text(context.l10n.aiChatAllTrainees),
           subtitle: Text(
             'Get insights across all your trainees',
             style: TextStyle(

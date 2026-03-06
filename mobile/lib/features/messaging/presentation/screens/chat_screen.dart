@@ -8,6 +8,7 @@ import '../providers/messaging_provider.dart';
 import '../widgets/chat_input.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/typing_indicator.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Full-screen chat view for a single conversation.
 class ChatScreen extends ConsumerStatefulWidget {
@@ -184,7 +185,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 onPressed: () => ref
                     .read(chatProvider(widget.conversationId).notifier)
                     .loadMessages(),
-                child: const Text('Retry'),
+                child: Text(context.l10n.commonRetry),
               ),
             ],
           ),

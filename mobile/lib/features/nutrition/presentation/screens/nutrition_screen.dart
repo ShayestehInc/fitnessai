@@ -13,6 +13,7 @@ import '../../data/models/nutrition_models.dart';
 import '../providers/nutrition_provider.dart';
 import '../widgets/day_type_badge.dart';
 import '../widgets/edit_food_entry_sheet.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class NutritionScreen extends ConsumerStatefulWidget {
   const NutritionScreen({super.key});
@@ -139,7 +140,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                       minWidth: 32,
                       minHeight: 32,
                     ),
-                    tooltip: 'Refresh goals',
+                    tooltip: context.l10n.nutritionRefreshGoals,
                   ),
                 ],
               ),
@@ -182,8 +183,8 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                         state.pendingWeights.any((pw) =>
                             pw.date == state.latestCheckIn!.date)) ...[
                       const SizedBox(width: 4),
-                      const Tooltip(
-                        message: 'Pending sync',
+                      Tooltip(
+                        message: context.l10n.nutritionPendingSync,
                         child: Icon(
                           Icons.cloud_off,
                           size: 12,
@@ -226,7 +227,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
           side: BorderSide(color: theme.colorScheme.primary),
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
-        child: const Text('Check In'),
+        child: Text(context.l10n.nutritionCheckIn),
       ),
     );
   }
@@ -662,7 +663,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                   child: TextButton.icon(
                     onPressed: () => context.push('/nutrition/week-plan'),
                     icon: const Icon(Icons.calendar_view_week, size: 16),
-                    label: const Text('View Week'),
+                    label: Text(context.l10n.nutritionViewWeek),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       visualDensity: VisualDensity.compact,
@@ -700,7 +701,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
             Expanded(
               child: RepaintBoundary(
                 child: _MacroCard(
-                  label: 'Protein, g',
+                  label: context.l10n.nutritionProteinG,
                   current: proteinTotal,
                   goal: state.proteinGoal,
                   remaining: (state.proteinGoal - proteinTotal).clamp(0, state.proteinGoal),
@@ -714,7 +715,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
             Expanded(
               child: RepaintBoundary(
                 child: _MacroCard(
-                  label: 'Carbs, g',
+                  label: context.l10n.nutritionCarbsG,
                   current: carbsTotal,
                   goal: state.carbsGoal,
                   remaining: (state.carbsGoal - carbsTotal).clamp(0, state.carbsGoal),
@@ -728,7 +729,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
             Expanded(
               child: RepaintBoundary(
                 child: _MacroCard(
-                  label: 'Fat, g',
+                  label: context.l10n.nutritionFatG,
                   current: fatTotal,
                   goal: state.fatGoal,
                   remaining: (state.fatGoal - fatTotal).clamp(0, state.fatGoal),
@@ -838,7 +839,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
       final logResult = await ref.read(nutritionStateProvider.notifier).getDailyLogId(dateStr);
       if (logResult == null) {
         if (mounted) {
-          showAdaptiveToast(context, message: 'No log found for this date');
+          showAdaptiveToast(context, message: context.l10n.nutritionNoLogFoundForThisDate);
         }
         return;
       }
@@ -861,7 +862,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
       if (result['success'] == true) {
         showAdaptiveToast(
           context,
-          message: 'Food entry updated',
+          message: context.l10n.nutritionFoodEntryUpdated,
           type: ToastType.success,
         );
         ref.read(nutritionStateProvider.notifier).refreshDailySummary();
@@ -888,7 +889,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
       final logResult = await ref.read(nutritionStateProvider.notifier).getDailyLogId(dateStr);
       if (logResult == null) {
         if (mounted) {
-          showAdaptiveToast(context, message: 'No log found for this date');
+          showAdaptiveToast(context, message: context.l10n.nutritionNoLogFoundForThisDate);
         }
         return;
       }
@@ -904,7 +905,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
       if (result['success'] == true) {
         showAdaptiveToast(
           context,
-          message: 'Food entry deleted',
+          message: context.l10n.nutritionFoodEntryDeleted,
           type: ToastType.success,
         );
         ref.read(nutritionStateProvider.notifier).refreshDailySummary();
@@ -1180,11 +1181,11 @@ class _MealSection extends StatelessWidget {
                         context: context,
                         actions: [
                           AdaptiveAction(
-                            label: 'Copy Meal',
+                            label: context.l10n.nutritionCopyMeal,
                             onPressed: () {},
                           ),
                           AdaptiveAction(
-                            label: 'Clear Meal',
+                            label: context.l10n.nutritionClearMeal,
                             isDestructive: true,
                             onPressed: () {},
                           ),
@@ -1203,7 +1204,7 @@ class _MealSection extends StatelessWidget {
                             children: [
                               Icon(Icons.copy, color: theme.textTheme.bodyLarge?.color, size: 18),
                               const SizedBox(width: 8),
-                              Text('Copy Meal', style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+                              Text(context.l10n.nutritionCopyMeal, style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
                             ],
                           ),
                         ),
@@ -1212,7 +1213,7 @@ class _MealSection extends StatelessWidget {
                             children: [
                               Icon(Icons.delete_outline, color: theme.colorScheme.error, size: 18),
                               const SizedBox(width: 8),
-                              Text('Clear Meal', style: TextStyle(color: theme.colorScheme.error)),
+                              Text(context.l10n.nutritionClearMeal, style: TextStyle(color: theme.colorScheme.error)),
                             ],
                           ),
                         ),
@@ -1314,7 +1315,7 @@ class _FoodEntryRow extends StatelessWidget {
               minWidth: 32,
               minHeight: 32,
             ),
-            tooltip: 'Edit food entry',
+            tooltip: context.l10n.nutritionEditFoodEntry,
           ),
         ],
       ),

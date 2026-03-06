@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/notification_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Bell icon with unread notification count badge.
 /// Shows "99+" when count exceeds 99. Badge hidden when count is 0.
@@ -63,7 +64,7 @@ class NotificationBadge extends ConsumerWidget {
           ],
         ),
         onPressed: onTap,
-        tooltip: 'Notifications',
+        tooltip: context.l10n.settingsNotifications,
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/calendar_connection_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Single availability slot row with time display, active toggle, edit button.
 /// Used inside Dismissible in TrainerAvailabilityScreen.
@@ -61,7 +62,7 @@ class AvailabilitySlotTile extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.edit_outlined, size: 20),
               onPressed: onEdit,
-              tooltip: 'Edit time slot',
+              tooltip: context.l10n.calendarEditTimeSlot,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),

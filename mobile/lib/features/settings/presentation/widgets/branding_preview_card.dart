@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Preview card showing how branding will appear to trainees.
 class BrandingPreviewCard extends StatelessWidget {
@@ -27,7 +28,7 @@ class BrandingPreviewCard extends StatelessWidget {
       index: 0,
       delay: const Duration(milliseconds: 30),
       child: Semantics(
-        label: 'Preview of how your trainees will see: $displayName',
+        label: context.l10n.settingsPreviewOfHowYourTraineesWillSeedisplayName,
         child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(

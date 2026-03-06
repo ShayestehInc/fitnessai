@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/ambassador_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Formatter that forces all text input to uppercase.
 class _UpperCaseTextInputFormatter extends TextInputFormatter {
@@ -49,7 +50,7 @@ class _AmbassadorSettingsScreenState
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(context.l10n.settingsTitle),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: ListView(
@@ -105,11 +106,11 @@ class _AmbassadorSettingsScreenState
             width: double.infinity,
             child: Semantics(
               button: true,
-              label: 'Log out of your account',
+              label: context.l10n.ambassadorLogOutOfYourAccount,
               child: OutlinedButton.icon(
                 onPressed: () => _confirmLogout(theme),
                 icon: Icon(Icons.logout, color: theme.colorScheme.error),
-                label: Text('Log Out', style: TextStyle(color: theme.colorScheme.error)),
+                label: Text(context.l10n.settingsLogout, style: TextStyle(color: theme.colorScheme.error)),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: theme.colorScheme.error),
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -211,11 +212,11 @@ class _AmbassadorSettingsScreenState
     final code = dashState.data?.referralCode ?? '--';
 
     return Semantics(
-      label: 'Referral Code: $code',
+      label: context.l10n.ambassadorReferralCodecode,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Referral Code', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+          Text(context.l10n.ambassadorReferralCode, style: TextStyle(color: theme.textTheme.bodySmall?.color)),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -232,7 +233,7 @@ class _AmbassadorSettingsScreenState
                   onPressed: () => _showEditReferralCodeDialog(dashState.data!.referralCode),
                   padding: const EdgeInsets.only(left: 4),
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  tooltip: 'Edit referral code',
+                  tooltip: context.l10n.ambassadorEditReferralCode,
                 ),
             ],
           ),
@@ -253,7 +254,7 @@ class _AmbassadorSettingsScreenState
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Change Referral Code'),
+              title: Text(context.l10n.ambassadorChangeReferralCode),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,7 +287,7 @@ class _AmbassadorSettingsScreenState
               actions: [
                 TextButton(
                   onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
+                  child: Text(context.l10n.commonCancel),
                 ),
                 ElevatedButton(
                   onPressed: isSaving
@@ -330,7 +331,7 @@ class _AmbassadorSettingsScreenState
 
                             if (mounted) {
                               Navigator.pop(dialogContext);
-                              showAdaptiveToast(parentContext, message: 'Referral code updated to $code', type: ToastType.success);
+                              showAdaptiveToast(parentContext, message: context.l10n.ambassadorReferralCodeUpdatedTocode, type: ToastType.success);
                             }
                           } catch (e) {
                             final errStr = e.toString();
@@ -348,7 +349,7 @@ class _AmbassadorSettingsScreenState
                         },
                   child: isSaving
                       ? const AdaptiveSpinner.small()
-                      : const Text('Save'),
+                      : Text(context.l10n.commonSave),
                 ),
               ],
             );
@@ -363,9 +364,9 @@ class _AmbassadorSettingsScreenState
   Future<void> _confirmLogout(ThemeData theme) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Log Out',
-      message: 'Are you sure you want to log out?',
-      confirmText: 'Log Out',
+      title: context.l10n.settingsLogout,
+      message: context.l10n.settingsLogoutConfirm,
+      confirmText: context.l10n.settingsLogout,
       isDestructive: true,
     );
 

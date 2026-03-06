@@ -7,6 +7,7 @@ import '../../../../core/services/reminder_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen for configuring workout, meal, and weight check-in reminders.
 ///
@@ -57,7 +58,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       if (!mounted) return;
       showAdaptiveToast(
         context,
-        message: 'Failed to save reminder settings.',
+        message: context.l10n.settingsFailedToSaveReminderSettings,
         type: ToastType.error,
       );
     }
@@ -129,7 +130,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   CupertinoButton(
                     padding: EdgeInsets.zero,
                     onPressed: () => Navigator.of(ctx).pop(),
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                   CupertinoButton(
                     padding: EdgeInsets.zero,
@@ -137,7 +138,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       Navigator.of(ctx).pop();
                       onPicked(selectedHour, selectedMinute);
                     },
-                    child: const Text('Done'),
+                    child: Text(context.l10n.commonDone),
                   ),
                 ],
               ),
@@ -200,7 +201,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reminders'),
+        title: Text(context.l10n.settingsReminders),
         elevation: 0,
       ),
       body: _loading
@@ -260,8 +261,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
     return _buildReminderCard(
       theme: theme,
       icon: Icons.fitness_center,
-      title: 'Workout Reminder',
-      subtitle: 'Get a daily reminder to complete your workout',
+      title: context.l10n.settingsWorkoutReminder,
+      subtitle: context.l10n.settingsGetADailyReminderToCompleteYourWorkout,
       enabled: _settings.workoutEnabled,
       onToggle: (enabled) async {
         if (enabled) await _requestPermissionIfNeeded();
@@ -287,8 +288,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
     return _buildReminderCard(
       theme: theme,
       icon: Icons.restaurant_menu,
-      title: 'Meal Logging Reminder',
-      subtitle: 'Get a daily reminder to log your meals',
+      title: context.l10n.settingsMealLoggingReminder,
+      subtitle: context.l10n.settingsGetADailyReminderToLogYourMeals,
       enabled: _settings.mealEnabled,
       onToggle: (enabled) async {
         if (enabled) await _requestPermissionIfNeeded();
@@ -317,8 +318,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
         _buildReminderCard(
           theme: theme,
           icon: Icons.monitor_weight_outlined,
-          title: 'Weight Check-in Reminder',
-          subtitle: 'Get a weekly reminder to log your weight',
+          title: context.l10n.settingsWeightCheckInReminder,
+          subtitle: context.l10n.settingsGetAWeeklyReminderToLogYourWeight,
           enabled: _settings.weightEnabled,
           onToggle: (enabled) async {
             if (enabled) await _requestPermissionIfNeeded();
@@ -438,7 +439,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
             const Divider(height: 1, indent: 16, endIndent: 16),
             _buildTimeRow(
               theme: theme,
-              label: 'Time',
+              label: context.l10n.settingsTime,
               value: timeLabel,
               onTap: onTimeTap,
             ),
@@ -462,7 +463,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }) {
     return Semantics(
       button: true,
-      label: 'Change $label to $value',
+      label: context.l10n.settingsChangelabelTovalue,
       child: AdaptiveTappable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),

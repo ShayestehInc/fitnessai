@@ -61,7 +61,7 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Email Address',
                           hintText: 'client@example.com',
                           prefixIcon: Icon(Icons.email),
@@ -82,7 +82,7 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
                         controller: _messageController,
                         maxLines: 3,
                         maxLength: 500,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Personal Message (Optional)',
                           hintText: 'Add a personal message to your invitation...',
                           prefixIcon: Icon(Icons.message),
@@ -252,7 +252,7 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
                     }
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'copy',
                       child: Row(
                         children: [
@@ -262,7 +262,7 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
                         ],
                       ),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'resend',
                       child: Row(
                         children: [
@@ -272,7 +272,7 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
                         ],
                       ),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'cancel',
                       child: Row(
                         children: [
@@ -357,7 +357,6 @@ class _InviteTraineeScreenState extends ConsumerState<InviteTraineeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel Invitation?'),
-        content: Text('Cancel invitation to ${invitation.email}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),

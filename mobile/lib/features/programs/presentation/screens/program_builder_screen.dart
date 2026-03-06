@@ -13,6 +13,7 @@ import '../../../trainer/presentation/providers/trainer_provider.dart';
 import '../../data/models/program_week_model.dart';
 import '../providers/program_provider.dart';
 import 'week_editor_screen.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class ProgramBuilderScreen extends ConsumerStatefulWidget {
   final int? traineeId;
@@ -203,12 +204,12 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               : IconButton(
                   onPressed: _saveProgram,
                   icon: const Icon(Icons.check),
-                  tooltip: 'Save',
+                  tooltip: context.l10n.commonSave,
                 ),
           if (Theme.of(context).platform == TargetPlatform.iOS)
             TextButton.icon(
               icon: const Icon(Icons.edit),
-              label: const Text('Edit Week'),
+              label: Text(context.l10n.programsEditWeek),
               onPressed: () => _editWeek(_programState.weeks[_selectedWeekIndex]),
             ),
         ],
@@ -232,7 +233,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           : FloatingActionButton.extended(
               onPressed: () => _editWeek(_programState.weeks[_selectedWeekIndex]),
               icon: const Icon(Icons.edit),
-              label: const Text('Edit Week'),
+              label: Text(context.l10n.programsEditWeek),
             ),
     );
   }
@@ -254,7 +255,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Start Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                Text(context.l10n.programsStartDate, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                 Text(
                   _formatDate(_startDate),
                   style: TextStyle(color: Colors.grey[600], fontSize: 13),
@@ -274,7 +275,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 setState(() => _startDate = picked);
               }
             },
-            child: const Text('Change'),
+            child: Text(context.l10n.programsChange),
           ),
         ],
       ),
@@ -458,7 +459,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           child: _buildActionButton(
             context,
             icon: Icons.content_copy,
-            label: 'Copy to All',
+            label: context.l10n.programsCopyToAll,
             onTap: () => _copyToAllWeeks(week),
           ),
         ),
@@ -467,7 +468,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           child: _buildActionButton(
             context,
             icon: Icons.trending_up,
-            label: 'Add Volume',
+            label: context.l10n.programsAddVolume,
             onTap: () => _adjustVolume(week, increase: true),
           ),
         ),
@@ -588,7 +589,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () => _showAddExerciseDialog(index),
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add Exercise'),
+                      label: Text(context.l10n.programsAddExercise),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: theme.colorScheme.primary,
                         side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.5)),
@@ -765,7 +766,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   Future<void> _showEditProgramNameDialog() async {
     final newName = await showAdaptiveTextInputDialog(
       context: context,
-      title: 'Edit Program Name',
+      title: context.l10n.programsEditProgramName,
       initialValue: _programState.name,
       placeholder: 'e.g., Full Body 3x/Week',
     );
@@ -826,7 +827,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                       _showReplaceExerciseDialog(exercise, dayIndex);
                     },
                     icon: const Icon(Icons.swap_horiz),
-                    tooltip: 'Replace exercise',
+                    tooltip: context.l10n.programsReplaceExercise,
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.blue.withValues(alpha: 0.1),
                       foregroundColor: Colors.blue,
@@ -840,7 +841,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                       _removeExercise(exercise, dayIndex);
                     },
                     icon: const Icon(Icons.delete_outline),
-                    tooltip: 'Remove exercise',
+                    tooltip: context.l10n.programsRemoveExercise,
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.red.withValues(alpha: 0.1),
                       foregroundColor: Colors.red,
@@ -858,7 +859,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               // Sets slider
               Row(
                 children: [
-                  const SizedBox(width: 60, child: Text('Sets:')),
+                  SizedBox(width: 60, child: Text(context.l10n.programsSets)),
                   Expanded(
                     child: Slider.adaptive(
                       value: sets.toDouble(),
@@ -885,7 +886,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               // Reps slider
               Row(
                 children: [
-                  const SizedBox(width: 60, child: Text('Reps:')),
+                  SizedBox(width: 60, child: Text(context.l10n.programsReps)),
                   Expanded(
                     child: Slider.adaptive(
                       value: reps.toDouble(),
@@ -912,7 +913,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               // Rest time slider
               Row(
                 children: [
-                  const SizedBox(width: 60, child: Text('Rest:')),
+                  SizedBox(width: 60, child: Text(context.l10n.programsRest)),
                   Expanded(
                     child: Slider.adaptive(
                       value: restSeconds.toDouble(),
@@ -947,7 +948,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                         _applyToThisWeek(exercise, sets, reps, restSeconds);
                         Navigator.pop(context);
                       },
-                      child: const Text('This Week'),
+                      child: Text(context.l10n.communityThisWeek),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -957,7 +958,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                         _applyToAllWeeks(exercise, sets, reps, restSeconds);
                         Navigator.pop(context);
                       },
-                      child: const Text('All Weeks'),
+                      child: Text(context.l10n.programsAllWeeks),
                     ),
                   ),
                 ],
@@ -970,7 +971,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                     _applyProgressiveOverload(exercise, sets, reps, restSeconds);
                     Navigator.pop(context);
                   },
-                  child: const Text('Apply with Progressive Overload (+1 rep/week)'),
+                  child: Text(context.l10n.programsApplyWithProgressiveOverload1RepWeek),
                 ),
               ),
               const SizedBox(height: 16),
@@ -981,7 +982,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                     _applyToAllWeeks(exercise, sets, reps, restSeconds);
                     Navigator.pop(context);
                   },
-                  child: const Text('Save'),
+                  child: Text(context.l10n.commonSave),
                 ),
               ),
             ],
@@ -1084,7 +1085,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
 
   void _showAddExerciseDialog(int dayIndex) {
     _showExercisePicker(
-      title: 'Add Exercise',
+      title: context.l10n.programsAddExercise,
       onSelect: (exercise) => _addExerciseToDay(exercise, dayIndex),
     );
   }
@@ -1148,7 +1149,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                       // Search bar
                       TextField(
                         decoration: InputDecoration(
-                          hintText: 'Search exercises...',
+                          hintText: context.l10n.programsSearchExercises,
                           prefixIcon: const Icon(Icons.search),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -1167,7 +1168,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                           scrollDirection: Axis.horizontal,
                           children: [
                             FilterChip(
-                              label: const Text('All'),
+                              label: Text(context.l10n.commonAll),
                               selected: selectedMuscle == null,
                               onSelected: (_) {
                                 setModalState(() => selectedMuscle = null);
@@ -1300,9 +1301,9 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   Future<void> _removeExercise(WorkoutExercise exercise, int dayIndex) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Remove Exercise',
+      title: context.l10n.programsRemoveExercise2,
       message: 'Remove "${exercise.exerciseName}" from this workout?',
-      confirmText: 'Remove',
+      confirmText: context.l10n.programsRemove,
       isDestructive: true,
     );
 
@@ -1347,7 +1348,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       _programState = _programState.copyWith(weeks: updatedWeeks);
     });
 
-    showAdaptiveToast(context, message: 'Updated for this week');
+    showAdaptiveToast(context, message: context.l10n.programsUpdatedForThisWeek);
   }
 
   void _applyToAllWeeks(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
@@ -1369,7 +1370,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       _programState = _programState.copyWith(weeks: updatedWeeks);
     });
 
-    showAdaptiveToast(context, message: 'Updated for all weeks');
+    showAdaptiveToast(context, message: context.l10n.programsUpdatedForAllWeeks);
   }
 
   void _applyProgressiveOverload(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
@@ -1409,15 +1410,15 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       _programState = _programState.copyWith(weeks: updatedWeeks);
     });
 
-    showAdaptiveToast(context, message: 'Applied progressive overload across all weeks');
+    showAdaptiveToast(context, message: context.l10n.programsAppliedProgressiveOverloadAcrossAllWeeks);
   }
 
   Future<void> _copyToAllWeeks(ProgramWeek sourceWeek) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Copy Week',
+      title: context.l10n.programsCopyWeek,
       message: 'Copy this week\'s workout structure to all other weeks? This will overwrite existing exercises.',
-      confirmText: 'Copy',
+      confirmText: context.l10n.messagingCopy,
     );
 
     if (confirmed != true || !mounted) return;
@@ -1432,7 +1433,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       }).toList();
       _programState = _programState.copyWith(weeks: updatedWeeks);
     });
-    showAdaptiveToast(context, message: 'Copied to all weeks');
+    showAdaptiveToast(context, message: context.l10n.programsCopiedToAllWeeks);
   }
 
   void _adjustVolume(ProgramWeek week, {required bool increase}) {
@@ -1559,7 +1560,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               }
             });
 
-            showAdaptiveToast(context, message: 'Week deleted', type: ToastType.success);
+            showAdaptiveToast(context, message: context.l10n.programsWeekDeleted, type: ToastType.success);
           },
         ),
       ),
@@ -1597,7 +1598,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           ref.invalidate(traineesProvider);
           ref.invalidate(trainerProgramsProvider);
 
-          showAdaptiveToast(context, message: 'Program updated successfully!', type: ToastType.success);
+          showAdaptiveToast(context, message: context.l10n.programsProgramUpdatedSuccessfully, type: ToastType.success);
 
           // Pop back
           Navigator.of(context).pop();
@@ -1651,11 +1652,11 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           final currentProgram = trainee!.programs.firstWhere((p) => p.isActive);
           final confirmed = await showAdaptiveConfirmDialog(
             context: context,
-            title: 'Replace Active Program?',
+            title: context.l10n.programsReplaceActiveProgram,
             message: 'This trainee already has an active program. '
                 'Saving this program will end "${currentProgram.name}" '
                 'and start "${_programState.name}".',
-            confirmText: 'Replace Program',
+            confirmText: context.l10n.programsReplaceProgram,
           );
 
           if (confirmed != true) {
@@ -1686,7 +1687,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           ref.invalidate(trainerStatsProvider);
           ref.invalidate(trainerProgramsProvider);
 
-          showAdaptiveToast(context, message: 'Program saved and assigned successfully!', type: ToastType.success);
+          showAdaptiveToast(context, message: context.l10n.programsProgramSavedAndAssignedSuccessfully, type: ToastType.success);
 
           // Pop back to trainee detail screen (pop twice: builder -> assign -> detail)
           final navigator = Navigator.of(context);
@@ -1700,7 +1701,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           ref.invalidate(programTemplatesProvider);
           ref.invalidate(myTemplatesProvider);
 
-          showAdaptiveToast(context, message: 'Program template saved successfully!', type: ToastType.success);
+          showAdaptiveToast(context, message: context.l10n.programsProgramTemplateSavedSuccessfully, type: ToastType.success);
           Navigator.of(context).pop(true);
         }
       }

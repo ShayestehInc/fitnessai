@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../providers/payment_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class StripeConnectScreen extends ConsumerStatefulWidget {
   const StripeConnectScreen({super.key});
@@ -301,7 +302,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
                     await ref.read(stripeConnectProvider.notifier).openDashboard();
                   },
             icon: const Icon(Icons.open_in_new),
-            label: const Text('Open Stripe Dashboard'),
+            label: Text(context.l10n.paymentsOpenStripeDashboard),
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: theme.colorScheme.onPrimary,
@@ -315,7 +316,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
           OutlinedButton.icon(
             onPressed: () => context.push('/trainer/pricing'),
             icon: const Icon(Icons.attach_money),
-            label: const Text('Set Your Prices'),
+            label: Text(context.l10n.paymentsSetYourPrices),
             style: OutlinedButton.styleFrom(
               foregroundColor: theme.textTheme.bodyLarge?.color,
               side: BorderSide(color: theme.dividerColor),
@@ -333,7 +334,7 @@ class _StripeConnectScreenState extends ConsumerState<StripeConnectScreen> {
             ref.read(stripeConnectProvider.notifier).loadStatus();
           },
           icon: const Icon(Icons.refresh, size: 18),
-          label: const Text('Refresh Status'),
+          label: Text(context.l10n.paymentsRefreshStatus),
           style: TextButton.styleFrom(
             foregroundColor: theme.textTheme.bodySmall?.color,
           ),

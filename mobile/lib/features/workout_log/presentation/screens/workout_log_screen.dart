@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/offline_banner.dart';
 import '../providers/workout_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class WorkoutLogScreen extends ConsumerStatefulWidget {
   const WorkoutLogScreen({super.key});
@@ -141,13 +142,13 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                     onPressed: () => context.push('/workout-calendar'),
                     icon: const Icon(Icons.calendar_month),
                     color: theme.textTheme.bodySmall?.color,
-                    tooltip: 'Open calendar',
+                    tooltip: context.l10n.workoutOpenCalendar,
                   ),
                   IconButton(
                     onPressed: () => _showProgramOptions(context),
                     icon: const Icon(Icons.more_vert),
                     color: theme.textTheme.bodySmall?.color,
-                    tooltip: 'More options',
+                    tooltip: context.l10n.programsMoreOptions,
                   ),
                 ],
               ),
@@ -265,16 +266,16 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     final IconData icon;
 
     if (!hasPrograms) {
-      title = 'No programs assigned';
-      subtitle = 'Your trainer will assign you a program soon';
+      title = context.l10n.workoutNoProgramsAssigned;
+      subtitle = context.l10n.workoutYourTrainerWillAssignYouAProgramSoon;
       icon = Icons.fitness_center;
     } else if (hasEmptySchedule) {
-      title = 'Schedule not built yet';
+      title = context.l10n.workoutScheduleNotBuiltYet;
       subtitle = "Your trainer hasn't built your schedule yet";
       icon = Icons.calendar_today;
     } else {
-      title = 'No workouts this week';
-      subtitle = 'Check other weeks or contact your trainer';
+      title = context.l10n.workoutNoWorkoutsThisWeek;
+      subtitle = context.l10n.workoutCheckOtherWeeksOrContactYourTrainer;
       icon = Icons.event_busy;
     }
 
@@ -355,7 +356,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
             onPressed: () =>
                 ref.read(workoutStateProvider.notifier).loadInitialData(),
             icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            label: Text(context.l10n.commonRetry),
           ),
         ],
       ),
@@ -403,7 +404,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => context.push('/ai-command'),
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Workout'),
+                    label: Text(context.l10n.workoutAddWorkout),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -417,7 +418,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => _showProgramOptions(context),
                     icon: const Icon(Icons.swap_horiz),
-                    label: const Text('Change'),
+                    label: Text(context.l10n.programsChange),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -459,7 +460,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
               const SizedBox(height: 20),
               ListTile(
                 leading: Icon(Icons.list_alt, color: theme.colorScheme.primary),
-                title: const Text('View All Programs'),
+                title: Text(context.l10n.workoutViewAllPrograms),
                 onTap: () {
                   context.pop();
                   context.push('/my-programs');
@@ -467,7 +468,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.swap_horiz, color: theme.colorScheme.primary),
-                title: const Text('Switch Program'),
+                title: Text(context.l10n.workoutSwitchProgram),
                 onTap: () {
                   Navigator.of(context).pop();
                   // Wait for the options sheet to fully close before opening switcher
@@ -478,7 +479,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.calendar_month, color: theme.colorScheme.primary),
-                title: const Text('View Calendar'),
+                title: Text(context.l10n.workoutViewCalendar),
                 onTap: () {
                   context.pop();
                   context.push('/workout-calendar');
@@ -497,12 +498,12 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     final programs = state.programs;
 
     if (programs.isEmpty) {
-      showAdaptiveToast(context, message: 'No programs available to switch to');
+      showAdaptiveToast(context, message: context.l10n.workoutNoProgramsAvailableToSwitchTo);
       return;
     }
 
     if (programs.length == 1) {
-      showAdaptiveToast(context, message: 'You only have one program assigned');
+      showAdaptiveToast(context, message: context.l10n.workoutYouOnlyHaveOneProgramAssigned);
       return;
     }
 

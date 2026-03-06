@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../../core/l10n/l10n_extension.dart';
 
 /// Shows a platform-adaptive date picker.
 ///
@@ -56,7 +57,7 @@ Future<DateTime?> _showCupertinoDatePicker({
                 CupertinoButton(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   onPressed: () => Navigator.of(ctx).pop(null),
-                  child: const Text('Cancel'),
+                  child: Text(context.l10n.commonCancel),
                 ),
                 CupertinoButton(
                   padding: const EdgeInsets.symmetric(horizontal: 16),

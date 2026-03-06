@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../screens/active_workout_screen.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Minimal workout layout: compact collapsible list with quick-complete.
 /// Best for speed loggers doing high-volume training.
@@ -212,7 +213,7 @@ class _MinimalWorkoutLayoutState extends State<MinimalWorkoutLayout> {
                     child: TextButton.icon(
                       onPressed: () => widget.onAddSet(exerciseIndex),
                       icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Add Set', style: TextStyle(fontSize: 13)),
+                      label: Text(context.l10n.workoutAddSet, style: TextStyle(fontSize: 13)),
                     ),
                   ),
                 ],

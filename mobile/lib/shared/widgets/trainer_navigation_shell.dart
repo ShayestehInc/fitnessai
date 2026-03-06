@@ -6,6 +6,7 @@ import '../../core/services/haptic_service.dart';
 import '../../features/admin/presentation/widgets/admin_impersonation_banner.dart';
 import '../../features/messaging/presentation/providers/messaging_provider.dart';
 import 'adaptive/adaptive_icons.dart';
+import '../../core/l10n/l10n_extension.dart';
 
 class TrainerNavigationShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -55,21 +56,21 @@ class _TrainerNavigationShellState
                 _NavItem(
                   icon: AdaptiveIcons.dashboardOutlined,
                   activeIcon: AdaptiveIcons.dashboard,
-                  label: 'Dashboard',
+                  label: context.l10n.navDashboard,
                   isSelected: widget.navigationShell.currentIndex == 0,
                   onTap: () => _onTap(context, 0),
                 ),
                 _NavItem(
                   icon: AdaptiveIcons.communityOutlined,
                   activeIcon: AdaptiveIcons.community,
-                  label: 'Trainees',
+                  label: context.l10n.trainerTrainees,
                   isSelected: widget.navigationShell.currentIndex == 1,
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
                   icon: AdaptiveIcons.messagesOutlined,
                   activeIcon: AdaptiveIcons.messages,
-                  label: 'Messages',
+                  label: context.l10n.navMessages,
                   isSelected: widget.navigationShell.currentIndex == 2,
                   onTap: () => _onTap(context, 2),
                   badgeCount: unreadCount,
@@ -77,14 +78,14 @@ class _TrainerNavigationShellState
                 _NavItem(
                   icon: AdaptiveIcons.programsOutlined,
                   activeIcon: AdaptiveIcons.programs,
-                  label: 'Programs',
+                  label: context.l10n.trainerPrograms,
                   isSelected: widget.navigationShell.currentIndex == 3,
                   onTap: () => _onTap(context, 3),
                 ),
                 _NavItem(
                   icon: AdaptiveIcons.settingsOutlined,
                   activeIcon: AdaptiveIcons.settingsFilled,
-                  label: 'Settings',
+                  label: context.l10n.settingsTitle,
                   isSelected: widget.navigationShell.currentIndex == 4,
                   onTap: () => _onTap(context, 4),
                 ),

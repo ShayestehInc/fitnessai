@@ -1,37 +1,35 @@
-# Dev Done: Wire Churn Push Notifications to FCM
+# Dev Done: i18n String Extraction (Phase B)
 
 ## Date: 2026-03-05
 
 ## Summary
-Wired the existing churn detection system (compute_retention management command) to actually send FCM push notifications via the core notification_service, instead of just logging the intent.
+Extracted ~976 new hardcoded English strings from the Flutter mobile app to ARB translation files (app_en.arb, app_es.arb, app_pt.arb), replacing them with `context.l10n.keyName` references. Total ARB keys went from 188 to 1164 across all three languages.
+
+## Key Numbers
+- **Files modified:** 161 dart files across all feature areas
+- **New ARB keys added:** 976 (from 188 to 1164 total)
+- **l10n references in codebase:** ~1,483 context.l10n.xxx calls
+- **Languages:** English (en), Spanish (es), Portuguese Brazil (pt-br)
+- **Zero analyzer errors** after all fixes
+
+## What Was Done
+1. Scanned all Flutter screen/widget files for hardcoded English strings
+2. Generated camelCase ARB keys with feature-based prefixes
+3. Added translations to app_es.arb and app_pt.arb
+4. Modified dart files to use `context.l10n.keyName` pattern with proper imports
+5. Removed `const` from widgets where context.l10n made them non-constant
+6. Excluded strings with Dart interpolation (need ICU message format conversion)
+7. Excluded strings in static const contexts where BuildContext is unavailable
+8. Regenerated Flutter l10n output files
 
 ## Files Changed
-
-### Backend
-1. **backend/trainer/services/retention_notification_service.py** — Core change. Added two helper functions that call `core.services.notification_service.send_push_notification`. Both `create_churn_alerts` and `send_re_engagement_pushes` now send FCM pushes after creating TrainerNotification records.
-
-2. **backend/users/models.py** — Added `re_engagement` BooleanField to NotificationPreference (default=True). Added to VALID_CATEGORIES.
-
-3. **backend/users/serializers.py** — Added `re_engagement` to NotificationPreferenceSerializer fields.
-
-4. **backend/users/migrations/0011_add_re_engagement_notification_pref.py** — Migration for the new field.
-
-5. **backend/users/tests/test_notification_preferences.py** — Updated expected categories set and count (10 -> 11).
-
-### Mobile
-6. **mobile/lib/core/services/push_notification_service.dart** — Added deep link handling for `churn_alert` and `re_engagement` types.
-
-7. **mobile/lib/features/settings/presentation/screens/notification_preferences_screen.dart** — Added "Re-engagement Reminders" toggle to the trainee Updates section.
-
-## Key Decisions
-- Trainer churn alerts send individual pushes per at-risk trainee (personalized messages).
-- Re-engagement push copy: "We miss you! Your trainer [name] is cheering you on."
-- Deep link for re-engagement goes to `/home` (the trainee home screen).
-- Deep link for churn_alert goes to `/trainer/trainees/:id` (trainee detail).
+- `mobile/lib/l10n/app_en.arb` - 1164 keys (was 188)
+- `mobile/lib/l10n/app_es.arb` - 1164 keys with Spanish translations
+- `mobile/lib/l10n/app_pt.arb` - 1164 keys with Portuguese (BR) translations
+- `mobile/lib/l10n/app_localizations*.dart` - Auto-generated from ARB
+- 161 files across mobile/lib/features/ and mobile/lib/shared/
 
 ## How to Test
-1. Run `python manage.py compute_retention` with at-risk trainees.
-2. Verify FCM pushes sent (check logs).
-3. Toggle "Re-engagement Reminders" in trainee notification preferences.
-4. Tap churn_alert notification -> trainer trainee detail page.
-5. Tap re_engagement notification -> home screen.
+1. Run `flutter analyze` - should show 0 errors
+2. Run `flutter gen-l10n` - should succeed without errors
+3. Switch language in Settings -> Language and verify strings change

@@ -7,6 +7,7 @@ import '../../data/models/comment_model.dart';
 import '../../data/repositories/community_feed_repository.dart';
 import '../providers/community_feed_provider.dart';
 import 'threaded_comment.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Bottom sheet that shows threaded comments for a post.
 class CommentsSheet extends ConsumerStatefulWidget {
@@ -127,7 +128,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       showAdaptiveToast(context,
-          message: 'Failed to post comment', type: ToastType.error);
+          message: context.l10n.communityFailedToPostComment, type: ToastType.error);
     }
   }
 
@@ -201,7 +202,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: _loadComments,
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -322,19 +323,19 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Comment'),
-        content: const Text('Delete this comment?'),
+        title: Text(context.l10n.communityDeleteComment),
+        content: Text(context.l10n.communityDeleteThisComment),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(context.l10n.commonDelete),
           ),
         ],
       ),
@@ -354,7 +355,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     } catch (_) {
       if (!mounted) return;
       showAdaptiveToast(context,
-          message: 'Failed to delete comment', type: ToastType.error);
+          message: context.l10n.communityFailedToDeleteComment, type: ToastType.error);
     }
   }
 }

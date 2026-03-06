@@ -8,6 +8,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../programs/data/models/program_week_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// A calendar item representing a single day in the program
 class CalendarDayItem {
@@ -287,7 +288,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
         _hasChanges = false;
       });
       if (mounted) {
-        showAdaptiveToast(context, message: 'Changes saved successfully', type: ToastType.success);
+        showAdaptiveToast(context, message: context.l10n.workoutChangesSavedSuccessfully, type: ToastType.success);
       }
     } catch (e) {
       setState(() => _isSaving = false);
@@ -315,13 +316,13 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                   )
                 : IconButton(
                     icon: const Icon(Icons.save),
-                    tooltip: 'Save changes',
+                    tooltip: context.l10n.workoutSaveChanges,
                     onPressed: _saveChanges,
                   ),
           if (!_isLoading && _calendarDays.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.today),
-              tooltip: 'Go to today',
+              tooltip: context.l10n.workoutGoToToday,
               onPressed: _scrollToToday,
             ),
         ],
@@ -345,7 +346,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _loadProgram,
-                          child: const Text('Retry'),
+                          child: Text(context.l10n.commonRetry),
                         ),
                       ],
                     ),
@@ -760,7 +761,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                           if (_isTrainerMode && currentWorkout?.isRestDay != true)
                             IconButton(
                               icon: const Icon(Icons.add),
-                              tooltip: 'Add exercise',
+                              tooltip: context.l10n.workoutAddExercise,
                               onPressed: () {
                                 Navigator.pop(sheetContext);
                                 _showAddExerciseDialog(weekIndex, dayIndex);
@@ -969,7 +970,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                             _showMarkMissedDialog(item);
                           },
                           icon: const Icon(Icons.event_busy),
-                          label: const Text('Mark as Missed'),
+                          label: Text(context.l10n.workoutMarkAsMissed),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.orange,
                             foregroundColor: Colors.white,
@@ -1077,7 +1078,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
             const SizedBox(height: 12),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
+              child: Text(context.l10n.commonCancel),
             ),
           ],
         ),
@@ -1148,9 +1149,9 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                         Padding(
                           padding: const EdgeInsets.all(24),
                           child: Column(children: [
-                            Text('Replace Exercise', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                            Text(context.l10n.trainerReplaceExercise, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 16),
-                            TextField(decoration: InputDecoration(hintText: 'Search...', prefixIcon: const Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => setPickerState(() => search = v)),
+                            TextField(decoration: InputDecoration(hintText: context.l10n.trainerSearch, prefixIcon: Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => setPickerState(() => search = v)),
                           ]),
                         ),
                         Expanded(
@@ -1222,8 +1223,8 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                Row(children: [const SizedBox(width: 60, child: Text('Sets:')), Expanded(child: Slider.adaptive(value: sets.toDouble(), min: 1, max: 8, divisions: 7, onChanged: (v) => setModalState(() => sets = v.round()))), SizedBox(width: 40, child: Text('$sets', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
-                Row(children: [const SizedBox(width: 60, child: Text('Reps:')), Expanded(child: Slider.adaptive(value: reps.toDouble(), min: 1, max: 30, divisions: 29, onChanged: (v) => setModalState(() => reps = v.round()))), SizedBox(width: 40, child: Text('$reps', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
+                Row(children: [SizedBox(width: 60, child: Text(context.l10n.programsSets)), Expanded(child: Slider.adaptive(value: sets.toDouble(), min: 1, max: 8, divisions: 7, onChanged: (v) => setModalState(() => sets = v.round()))), SizedBox(width: 40, child: Text('$sets', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
+                Row(children: [SizedBox(width: 60, child: Text(context.l10n.programsReps)), Expanded(child: Slider.adaptive(value: reps.toDouble(), min: 1, max: 30, divisions: 29, onChanged: (v) => setModalState(() => reps = v.round()))), SizedBox(width: 40, child: Text('$reps', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
                 const SizedBox(height: 24),
                 Row(
                   children: [
@@ -1304,7 +1305,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                       Navigator.pop(dialogContext);
                     },
                     style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                    child: const Text('Save'),
+                    child: Text(context.l10n.commonSave),
                   ),
                 ),
               ],
@@ -1368,8 +1369,8 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                   controller: controller,
                   autofocus: true,
                   decoration: InputDecoration(
-                    labelText: 'Day Name',
-                    hintText: 'e.g., Push Day, Circuit A',
+                    labelText: context.l10n.trainerDayName,
+                    hintText: context.l10n.trainerEGPushDayCircuitA,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -1447,7 +1448,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Save'),
+                    child: Text(context.l10n.commonSave),
                   ),
                 ),
               ],
@@ -1468,7 +1469,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       _hasChanges = true;
       _buildCalendarDays();
     });
-    showAdaptiveToast(context, message: 'Renamed to "$newName"');
+    showAdaptiveToast(context, message: context.l10n.programsRenamedTonewName);
   }
 
   void _updateDayNameAllWeeks(int weekIndex, int dayIndex, String oldName, String newName) {
@@ -1488,7 +1489,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       _hasChanges = true;
       _buildCalendarDays();
     });
-    showAdaptiveToast(context, message: 'Renamed to "$newName" in all weeks');
+    showAdaptiveToast(context, message: context.l10n.trainerRenamedTonewNameInAllWeeks);
   }
 
   void _showAddExerciseDialog(int weekIndex, int dayIndex) {
@@ -1506,9 +1507,9 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                 Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(children: [
-                    Text('Add Exercise', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(context.l10n.programsAddExercise, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    TextField(decoration: InputDecoration(hintText: 'Search...', prefixIcon: const Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => setModalState(() => search = v)),
+                    TextField(decoration: InputDecoration(hintText: context.l10n.trainerSearch, prefixIcon: Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => setModalState(() => search = v)),
                   ]),
                 ),
                 Expanded(
@@ -1590,12 +1591,12 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                 ),
                 const SizedBox(height: 24),
                 Row(children: [
-                  const SizedBox(width: 60, child: Text('Sets:')),
+                  SizedBox(width: 60, child: Text(context.l10n.programsSets)),
                   Expanded(child: Slider.adaptive(value: sets.toDouble(), min: 1, max: 8, divisions: 7, onChanged: (v) => setModalState(() => sets = v.round()))),
                   SizedBox(width: 40, child: Text('$sets', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center)),
                 ]),
                 Row(children: [
-                  const SizedBox(width: 60, child: Text('Reps:')),
+                  SizedBox(width: 60, child: Text(context.l10n.programsReps)),
                   Expanded(child: Slider.adaptive(value: reps.toDouble(), min: 1, max: 30, divisions: 29, onChanged: (v) => setModalState(() => reps = v.round()))),
                   SizedBox(width: 40, child: Text('$reps', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center)),
                 ]),
@@ -1668,7 +1669,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                       Navigator.pop(dialogContext);
                     },
                     style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                    child: const Text('Add Exercise'),
+                    child: Text(context.l10n.programsAddExercise),
                   ),
                 ),
               ],
@@ -1707,7 +1708,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
       _hasChanges = true;
     });
     _buildCalendarDays();
-    showAdaptiveToast(context, message: 'Updated in all weeks');
+    showAdaptiveToast(context, message: context.l10n.trainerUpdatedInAllWeeks);
   }
 
   void _replaceExerciseInWeek(WorkoutExercise oldExercise, WorkoutExercise newExercise, int weekIndex, int dayIndex) {
@@ -1854,7 +1855,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                       side: const BorderSide(color: Colors.red),
                       foregroundColor: Colors.red,
                     ),
-                    child: const Text('This Week'),
+                    child: Text(context.l10n.communityThisWeek),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1881,7 +1882,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('All Weeks'),
+                    child: Text(context.l10n.programsAllWeeks),
                   ),
                 ),
               ],
@@ -1891,7 +1892,7 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
               width: double.infinity,
               child: TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(context.l10n.commonCancel),
               ),
             ),
           ],

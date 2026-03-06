@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/community_post_model.dart';
 import '../providers/community_feed_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Reaction bar displayed below each community post.
 class ReactionBar extends ConsumerWidget {
@@ -18,7 +19,7 @@ class ReactionBar extends ConsumerWidget {
       children: [
         _ReactionButton(
           emoji: '\u{1F525}',
-          label: 'fire',
+          label: context.l10n.communityFire,
           count: post.reactions.fire,
           isActive: post.userReactions.contains('fire'),
           theme: theme,
@@ -36,7 +37,7 @@ class ReactionBar extends ConsumerWidget {
         const SizedBox(width: 8),
         _ReactionButton(
           emoji: '\u{2764}\u{FE0F}',
-          label: 'heart',
+          label: context.l10n.communityHeart,
           count: post.reactions.heart,
           isActive: post.userReactions.contains('heart'),
           theme: theme,

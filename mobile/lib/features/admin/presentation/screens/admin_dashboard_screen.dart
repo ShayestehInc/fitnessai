@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -31,12 +32,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        title: Text(context.l10n.adminAdminDashboard),
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),
-            tooltip: 'Create User',
+            tooltip: context.l10n.adminCreateUser,
             onPressed: () => context.push('/admin/users/create'),
           ),
         ],
@@ -60,7 +61,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         const SizedBox(height: 24),
                         ElevatedButton(
                           onPressed: () => ref.read(adminDashboardProvider.notifier).loadDashboard(),
-                          child: const Text('Retry'),
+                          child: Text(context.l10n.commonRetry),
                         ),
                       ],
                     ),
@@ -120,7 +121,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               const SizedBox(height: 8),
                               TextButton(
                                 onPressed: () => ref.read(adminDashboardProvider.notifier).loadDashboard(),
-                                child: const Text('Tap to reload'),
+                                child: Text(context.l10n.adminTapToReload),
                               ),
                             ],
                           ),
@@ -225,7 +226,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 child: _buildActionButton(
                   context,
                   icon: Icons.people,
-                  label: 'Users',
+                  label: context.l10n.adminUsers,
                   color: Colors.blue,
                   onTap: () => context.push('/admin/users'),
                 ),
@@ -235,7 +236,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 child: _buildActionButton(
                   context,
                   icon: Icons.layers,
-                  label: 'Tiers',
+                  label: context.l10n.adminTiers,
                   color: Colors.purple,
                   onTap: () => context.push('/admin/tiers'),
                 ),
@@ -245,7 +246,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 child: _buildActionButton(
                   context,
                   icon: Icons.local_offer,
-                  label: 'Coupons',
+                  label: context.l10n.adminCoupons,
                   color: Colors.orange,
                   onTap: () => context.push('/admin/coupons'),
                 ),
@@ -255,7 +256,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 child: _buildActionButton(
                   context,
                   icon: Icons.handshake_outlined,
-                  label: 'Ambassadors',
+                  label: context.l10n.adminAmbassadors,
                   color: Colors.teal,
                   onTap: () => context.push('/admin/ambassadors'),
                 ),
@@ -410,7 +411,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
               TextButton(
                 onPressed: () => context.push('/admin/subscriptions'),
-                child: const Text('View All'),
+                child: Text(context.l10n.commonViewAll),
               ),
             ],
           ),
@@ -493,7 +494,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
               TextButton(
                 onPressed: () => context.push('/admin/past-due'),
-                child: const Text('View All'),
+                child: Text(context.l10n.commonViewAll),
               ),
             ],
           ),
@@ -561,7 +562,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
               TextButton(
                 onPressed: () => context.push('/admin/upcoming'),
-                child: const Text('View All'),
+                child: Text(context.l10n.commonViewAll),
               ),
             ],
           ),

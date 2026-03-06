@@ -6,6 +6,7 @@ import '../../data/models/nutrition_template_models.dart';
 import '../providers/nutrition_template_provider.dart';
 import '../widgets/day_type_badge.dart';
 import '../../../../shared/widgets/loading_shimmer.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class WeekPlanScreen extends ConsumerStatefulWidget {
   const WeekPlanScreen({super.key});
@@ -39,7 +40,7 @@ class _WeekPlanScreenState extends ConsumerState<WeekPlanScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Weekly Nutrition'),
+        title: Text(context.l10n.nutritionWeeklyNutrition),
       ),
       body: Column(
         children: [
@@ -63,7 +64,7 @@ class _WeekPlanScreenState extends ConsumerState<WeekPlanScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Failed to load week plan',
+                    Text(context.l10n.nutritionFailedToLoadWeekPlan,
                         style: theme.textTheme.titleSmall),
                     const SizedBox(height: 8),
                     FilledButton.icon(
@@ -71,7 +72,7 @@ class _WeekPlanScreenState extends ConsumerState<WeekPlanScreen> {
                         weekPlansProvider(_weekStartKey),
                       ),
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
+                      label: Text(context.l10n.commonRetry),
                     ),
                   ],
                 ),
@@ -134,7 +135,7 @@ class _WeekNavigator extends StatelessWidget {
           IconButton(
             onPressed: onPrevious,
             icon: const Icon(Icons.chevron_left),
-            tooltip: 'Previous week',
+            tooltip: context.l10n.nutritionPreviousWeek,
             visualDensity: VisualDensity.compact,
           ),
           Expanded(
@@ -152,7 +153,7 @@ class _WeekNavigator extends StatelessWidget {
           IconButton(
             onPressed: onNext,
             icon: const Icon(Icons.chevron_right),
-            tooltip: 'Next week',
+            tooltip: context.l10n.nutritionNextWeek,
             visualDensity: VisualDensity.compact,
           ),
         ],

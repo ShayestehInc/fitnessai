@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// A form widget for entering body measurements (waist, chest, arms, hips,
 /// thighs) in centimeters.
@@ -61,14 +62,14 @@ class MeasurementForm extends StatelessWidget {
             Expanded(
               child: _MeasurementField(
                 controller: waistController,
-                label: 'Waist',
+                label: context.l10n.photosWaist,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _MeasurementField(
                 controller: chestController,
-                label: 'Chest',
+                label: context.l10n.photosChest,
               ),
             ),
           ],
@@ -79,14 +80,14 @@ class MeasurementForm extends StatelessWidget {
             Expanded(
               child: _MeasurementField(
                 controller: armsController,
-                label: 'Arms',
+                label: context.l10n.photosArms,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _MeasurementField(
                 controller: hipsController,
-                label: 'Hips',
+                label: context.l10n.photosHips,
               ),
             ),
           ],
@@ -97,7 +98,7 @@ class MeasurementForm extends StatelessWidget {
             Expanded(
               child: _MeasurementField(
                 controller: thighsController,
-                label: 'Thighs',
+                label: context.l10n.photosThighs,
               ),
             ),
             const Expanded(child: SizedBox.shrink()),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/models/checkin_models.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Renders a single dynamic form field based on its [CheckInFieldDefinition] type.
 ///
@@ -137,7 +138,7 @@ class _TextFieldInputState extends State<_TextFieldInput> {
       minLines: 1,
       onChanged: widget.onChanged,
       decoration: InputDecoration(
-        hintText: 'Enter your response...',
+        hintText: context.l10n.checkinsEnterYourResponse,
         filled: true,
         fillColor: widget.theme.cardColor,
         border: OutlineInputBorder(
@@ -198,7 +199,7 @@ class _NumberFieldInputState extends State<_NumberFieldInput> {
         widget.onChanged(parsed);
       },
       decoration: InputDecoration(
-        hintText: 'Enter a number...',
+        hintText: context.l10n.checkinsEnterANumber,
         filled: true,
         fillColor: widget.theme.cardColor,
         border: OutlineInputBorder(

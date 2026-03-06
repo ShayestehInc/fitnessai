@@ -8,6 +8,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Model for admin/trainer user
 class AdminUser {
@@ -113,11 +114,11 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Users'),
+        title: Text(context.l10n.adminManageUsers),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),
-            tooltip: 'Create User',
+            tooltip: context.l10n.adminCreateUser,
             onPressed: () async {
               final result = await context.push('/admin/users/create');
               if (result == true) _loadUsers();
@@ -176,7 +177,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                               const SizedBox(height: 16),
                               ElevatedButton(
                                 onPressed: _loadUsers,
-                                child: const Text('Retry'),
+                                child: Text(context.l10n.commonRetry),
                               ),
                             ],
                           ),

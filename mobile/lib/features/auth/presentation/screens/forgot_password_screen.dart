@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -51,7 +52,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reset Password'),
+        title: Text(context.l10n.authForgotTitle),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -75,7 +76,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         children: [
           const SizedBox(height: 32),
           Semantics(
-            label: 'Password reset icon',
+            label: context.l10n.authPasswordResetIcon,
             excludeSemantics: true,
             child: Icon(
               Icons.lock_reset_outlined,
@@ -114,7 +115,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 color: theme.textTheme.bodyLarge?.color,
               ),
               decoration: InputDecoration(
-                hintText: 'Email address',
+                hintText: context.l10n.authEmailAddress,
                 hintStyle: TextStyle(
                   color: Colors.grey[400],
                   fontSize: 16,
@@ -190,7 +191,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Semantics(
-          label: 'Email sent successfully',
+          label: context.l10n.authEmailSentSuccessfully,
           excludeSemantics: true,
           child: Icon(
             Icons.mark_email_read_outlined,

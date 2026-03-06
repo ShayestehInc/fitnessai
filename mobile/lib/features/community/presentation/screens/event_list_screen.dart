@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/event_model.dart';
 import '../providers/event_provider.dart';
 import '../widgets/event_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class EventListScreen extends ConsumerStatefulWidget {
   const EventListScreen({super.key});
@@ -26,7 +27,7 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
     final state = ref.watch(traineeEventProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Events')),
+      appBar: AppBar(title: Text(context.l10n.communityEvents)),
       body: _buildBody(context, state),
     );
   }
@@ -64,11 +65,11 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
             ..._buildGroupedEvents(context, upcoming),
           ],
           if (cancelled.isNotEmpty) ...[
-            const _SectionHeader(title: 'Cancelled'),
+            _SectionHeader(title: context.l10n.communityCancelled),
             ...cancelled.map((e) => _buildEventCard(e)),
           ],
           if (past.isNotEmpty) ...[
-            const _SectionHeader(title: 'Past Events'),
+            _SectionHeader(title: context.l10n.communityPastEvents),
             ...past.map((e) => _buildEventCard(e)),
           ],
         ],
@@ -127,7 +128,7 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
   Widget _buildLoadingSkeleton(BuildContext context) {
     final theme = Theme.of(context);
     return Semantics(
-      label: 'Loading events',
+      label: context.l10n.communityLoadingEvents,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: 3,
@@ -259,7 +260,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 12),
             FilledButton.tonal(
               onPressed: onRetry,
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),

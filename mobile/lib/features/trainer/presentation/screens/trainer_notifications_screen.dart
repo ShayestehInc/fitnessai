@@ -10,6 +10,7 @@ import '../../../../shared/widgets/loading_shimmer.dart';
 import '../../data/models/trainer_notification_model.dart';
 import '../providers/notification_provider.dart';
 import '../widgets/notification_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TrainerNotificationsScreen extends ConsumerStatefulWidget {
   const TrainerNotificationsScreen({super.key});
@@ -55,15 +56,15 @@ class _TrainerNotificationsScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(context.l10n.settingsNotifications),
         actions: [
           if (hasUnread)
             Semantics(
               button: true,
-              label: 'Mark all notifications as read',
+              label: context.l10n.trainerMarkAllNotificationsAsRead,
               child: TextButton(
                 onPressed: () => _markAllRead(context),
-                child: const Text('Mark All Read'),
+                child: Text(context.l10n.trainerMarkAllRead),
               ),
             ),
         ],
@@ -181,7 +182,7 @@ class _TrainerNotificationsScreenState
     if (traineeId != null) {
       context.push('/trainer/trainees/$traineeId');
     } else {
-      showAdaptiveToast(context, message: 'Trainee no longer available');
+      showAdaptiveToast(context, message: context.l10n.trainerTraineeNoLongerAvailable);
     }
   }
 
@@ -195,14 +196,14 @@ class _TrainerNotificationsScreenState
     final success = await notifier.deleteNotification(notification.id);
 
     if (!success && mounted) {
-      showAdaptiveToast(context, message: 'Failed to delete notification');
+      showAdaptiveToast(context, message: context.l10n.trainerFailedToDeleteNotification);
       return false;
     }
 
     if (mounted) {
       showAdaptiveToastWithAction(
         context,
-        message: 'Notification deleted',
+        message: context.l10n.trainerNotificationDeleted,
         actionLabel: 'Undo',
         onAction: () {
           // Re-fetch the full list to restore the deleted notification
@@ -218,9 +219,9 @@ class _TrainerNotificationsScreenState
   Future<void> _markAllRead(BuildContext context) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Mark All as Read',
-      message: 'Mark all notifications as read?',
-      confirmText: 'Confirm',
+      title: context.l10n.trainerMarkAllAsRead,
+      message: context.l10n.trainerMarkAllNotificationsAsRead2,
+      confirmText: context.l10n.commonConfirm,
     );
     if (confirmed != true) return;
 
@@ -361,7 +362,7 @@ class _TrainerNotificationsScreenState
                       ElevatedButton.icon(
                         onPressed: () => ref.invalidate(notificationsProvider),
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
+                        label: Text(context.l10n.commonRetry),
                       ),
                     ],
                   ),

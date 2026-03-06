@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/messaging_provider.dart';
 import '../widgets/conversation_tile.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen showing the list of conversations for the current user.
 class ConversationListScreen extends ConsumerStatefulWidget {
@@ -35,7 +36,7 @@ class _ConversationListScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Messages'),
+        title: Text(context.l10n.navMessages),
         centerTitle: false,
       ),
       body: _buildBody(theme, state, isTrainer),
@@ -64,7 +65,7 @@ class _ConversationListScreenState
 
     // Conversation list
     return Semantics(
-      label: 'Conversation list',
+      label: context.l10n.messagingConversationList,
       child: AdaptiveRefreshIndicator(
       onRefresh: () =>
           ref.read(conversationListProvider.notifier).loadConversations(),
@@ -168,7 +169,7 @@ class _ConversationListScreenState
               onPressed: () => ref
                   .read(conversationListProvider.notifier)
                   .loadConversations(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -210,7 +211,7 @@ class _ConversationListScreenState
               ElevatedButton.icon(
                 onPressed: () => context.go('/trainer/trainees'),
                 icon: const Icon(Icons.people),
-                label: const Text('Go to Trainees'),
+                label: Text(context.l10n.messagingGoToTrainees),
               ),
             ],
           ],

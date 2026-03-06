@@ -325,7 +325,8 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Language selector (mobile) | ✅ Done | Shipped 2026-02-27 (Pipeline 40): Language settings screen for all roles, backend sync via PATCH, SharedPreferences persistence |
 | Language selector (web) | ✅ Done | Shipped 2026-02-27 (Pipeline 40): LanguageSelector component on all 4 settings pages (admin, trainer, trainee, ambassador), cookie + API sync |
 | Translation glossary | ✅ Done | Shipped 2026-02-27 (Pipeline 40): Standardized fitness terms across en/es/pt-br with consistency rules |
-| String extraction (Phase B) | 🟡 Partial | Infrastructure in place; ~380 existing hardcoded strings in Flutter/Web screens to be migrated to l10n in future pipeline |
+| String extraction (Phase B — Flutter) | ✅ Done | Shipped 2026-03-05 (Pipeline 52): 976 new ARB keys extracted from 161 dart files across all features. Total Flutter l10n keys: 1164 with en/es/pt-br translations. Zero analyzer errors. |
+| String extraction (Phase B — Web) | 🟡 Pending | Web i18n infrastructure exists (locale-provider, JSON message files, t() function) but zero component adoption. Needs `useLocale()` hook calls added to web components. |
 
 ---
 
@@ -1272,5 +1273,5 @@ Structured meal logging infrastructure replacing JSON blobs with relational Food
 - **AI parsing is OpenAI-only** — Function Calling mode. No fallback provider yet. Rate limits apply.
 - **Real-time updates on community feed and messaging** — WebSocket via Django Channels shipped for community feed (2026-02-16: new posts, deletions, comments, reactions) and direct messaging on mobile (2026-02-19) and web (2026-02-19 Pipeline 22: new messages, typing indicators, read receipts, graceful HTTP polling fallback). Trainer dashboard still requires manual refresh.
 - **Web dashboard covers trainer, admin, and ambassador roles** — Web dashboard (Next.js) shipped for trainers and admins (2026-02-15), ambassador role added (2026-02-19). Full feature parity achieved for all three roles. Trainee web access not yet built.
-- **i18n string extraction incomplete** — i18n infrastructure is fully in place across Django, Flutter, and Next.js (Pipeline 40). ~200 strings per platform have translations (en/es/pt-br). However, ~380 existing hardcoded strings in Flutter/Web screens still need to be migrated from hardcoded English to `context.l10n.xxx` / `t('xxx')` calls. Infrastructure supports this incrementally.
+- **i18n string extraction — Flutter complete, Web pending** — Flutter i18n string extraction complete (Pipeline 52, 2026-03-05): 976 new keys extracted from 161 files, 1164 total ARB keys with en/es/pt-br translations. ~56 strings with Dart interpolation need ICU message format conversion. Web (Next.js) has i18n infrastructure but zero component adoption -- web string extraction requires `useLocale()`/`t()` hook adoption across all components.
 - **Churn prevention push notifications** — Fully wired (Pipeline 51, 2026-03-05). Retention analytics compute_retention command now sends FCM pushes to trainers for at-risk trainees (churn_alert category) and re-engagement pushes to critical-risk trainees (re_engagement category). Preference toggles available on mobile for both roles. Deep links: churn_alert opens trainer trainee detail, re_engagement opens trainee home screen.

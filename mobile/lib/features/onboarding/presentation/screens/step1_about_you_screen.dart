@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../providers/onboarding_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class Step1AboutYouScreen extends ConsumerStatefulWidget {
   const Step1AboutYouScreen({super.key});
@@ -63,8 +64,8 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
           TextField(
             controller: _firstNameController,
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              hintText: 'Enter your first name',
+            decoration: InputDecoration(
+              hintText: context.l10n.onboardingEnterYourFirstName,
             ),
             onChanged: (value) {
               notifier.setFirstName(value.trim());
@@ -82,7 +83,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
             children: [
               Expanded(
                 child: _SelectionCard(
-                  title: 'Male',
+                  title: context.l10n.onboardingSexMale,
                   icon: Icons.male,
                   isSelected: state.sex == 'male',
                   onTap: () => notifier.setSex('male'),
@@ -91,7 +92,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: _SelectionCard(
-                  title: 'Female',
+                  title: context.l10n.onboardingSexFemale,
                   icon: Icons.female,
                   isSelected: state.sex == 'female',
                   onTap: () => notifier.setSex('female'),
@@ -111,8 +112,8 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
             controller: _ageController,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(
-              hintText: 'Enter your age',
+            decoration: InputDecoration(
+              hintText: context.l10n.onboardingEnterYourAge,
               suffixText: 'years',
             ),
             onChanged: (value) {
@@ -148,8 +149,8 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
               ],
-              decoration: const InputDecoration(
-                hintText: 'Enter height',
+              decoration: InputDecoration(
+                hintText: context.l10n.onboardingEnterHeight,
                 suffixText: 'cm',
               ),
               onChanged: (value) {
@@ -167,8 +168,8 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
                     controller: _heightFeetController,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      hintText: 'Feet',
+                    decoration: InputDecoration(
+                      hintText: context.l10n.onboardingFeet,
                       suffixText: 'ft',
                     ),
                     onChanged: (_) => _updateHeightFromImperial(),
@@ -180,8 +181,8 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
                     controller: _heightInchesController,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      hintText: 'Inches',
+                    decoration: InputDecoration(
+                      hintText: context.l10n.onboardingInches,
                       suffixText: 'in',
                     ),
                     onChanged: (_) => _updateHeightFromImperial(),
@@ -215,7 +216,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
             ],
             decoration: InputDecoration(
-              hintText: 'Enter weight',
+              hintText: context.l10n.onboardingEnterWeight,
               suffixText: state.useMetric ? 'kg' : 'lbs',
             ),
             onChanged: (value) {
@@ -237,7 +238,7 @@ class _Step1AboutYouScreenState extends ConsumerState<Step1AboutYouScreen> {
                   : null,
               child: state.isLoading
                   ? const AdaptiveSpinner.small()
-                  : const Text('Continue'),
+                  : Text(context.l10n.adminContinue),
             ),
           ),
 

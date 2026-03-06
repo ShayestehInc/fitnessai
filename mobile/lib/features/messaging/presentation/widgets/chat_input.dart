@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Chat message input field with character counter, send button, and image picker.
 class ChatInput extends StatefulWidget {
@@ -63,7 +64,7 @@ class _ChatInputState extends State<ChatInput> {
     final fileSize = await File(picked.path).length();
     if (fileSize > _maxImageBytes) {
       if (!mounted) return;
-      showAdaptiveToast(context, message: 'Image must be under 5MB', type: ToastType.error);
+      showAdaptiveToast(context, message: context.l10n.messagingImageMustBeUnder5MB, type: ToastType.error);
       return;
     }
 
@@ -118,7 +119,7 @@ class _ChatInputState extends State<ChatInput> {
               children: [
                 // Image picker button
                 Semantics(
-                  label: 'Attach image',
+                  label: context.l10n.messagingAttachImage,
                   button: true,
                   child: SizedBox(
                     width: 44,
@@ -168,7 +169,7 @@ class _ChatInputState extends State<ChatInput> {
                 ),
                 const SizedBox(width: 8),
                 Semantics(
-                  label: 'Send message',
+                  label: context.l10n.messagingSendMessage,
                   button: true,
                   enabled: _canSend && !_isOverLimit,
                   child: SizedBox(

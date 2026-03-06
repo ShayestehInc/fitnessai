@@ -13,6 +13,7 @@ import '../../data/models/calendar_connection_model.dart';
 import '../widgets/calendar_actions_section.dart';
 import '../widgets/calendar_card.dart';
 import '../widgets/calendar_connection_header.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class CalendarConnectionScreen extends ConsumerStatefulWidget {
   const CalendarConnectionScreen({super.key});
@@ -47,7 +48,7 @@ class _CalendarConnectionScreenState
       final state = ref.read(calendarProvider);
       if (state.error == null) {
         showAdaptiveToast(context,
-            message: 'Could not get authorization URL',
+            message: context.l10n.calendarCouldNotGetAuthorizationURL,
             type: ToastType.error);
       }
       return;
@@ -60,7 +61,7 @@ class _CalendarConnectionScreenState
     } else {
       if (mounted) {
         showAdaptiveToast(context,
-            message: 'Could not open browser', type: ToastType.error);
+            message: context.l10n.calendarCouldNotOpenBrowser, type: ToastType.error);
       }
     }
   }
@@ -100,8 +101,8 @@ class _CalendarConnectionScreenState
               const SizedBox(height: 16),
               TextField(
                 controller: codeController,
-                decoration: const InputDecoration(
-                  labelText: 'Authorization Code',
+                decoration: InputDecoration(
+                  labelText: context.l10n.calendarAuthorizationCode,
                   border: OutlineInputBorder(),
                 ),
                 autofocus: true,
@@ -109,8 +110,8 @@ class _CalendarConnectionScreenState
               const SizedBox(height: 12),
               TextField(
                 controller: stateController,
-                decoration: const InputDecoration(
-                  labelText: 'State Parameter',
+                decoration: InputDecoration(
+                  labelText: context.l10n.calendarStateParameter,
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -124,7 +125,7 @@ class _CalendarConnectionScreenState
                         codeController.dispose();
                         stateController.dispose();
                       },
-                      child: const Text('Cancel'),
+                      child: Text(context.l10n.commonCancel),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -135,7 +136,7 @@ class _CalendarConnectionScreenState
                         final stateParam = stateController.text.trim();
                         if (code.isEmpty || stateParam.isEmpty) {
                           showAdaptiveToast(sheetContext,
-                              message: 'Please enter both code and state',
+                              message: context.l10n.calendarPleaseEnterBothCodeAndState,
                               type: ToastType.warning);
                           return;
                         }
@@ -152,7 +153,7 @@ class _CalendarConnectionScreenState
                               type: ToastType.success);
                         }
                       },
-                      child: const Text('Connect'),
+                      child: Text(context.l10n.calendarConnect),
                     ),
                   ),
                 ],
@@ -167,11 +168,11 @@ class _CalendarConnectionScreenState
   Future<void> _disconnectCalendar(CalendarConnectionModel connection) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Disconnect Calendar',
+      title: context.l10n.calendarDisconnectCalendar,
       message:
           'Are you sure you want to disconnect ${connection.providerDisplay}?\n\n'
           'This will remove all synced events from this calendar.',
-      confirmText: 'Disconnect',
+      confirmText: context.l10n.calendarDisconnect,
       isDestructive: true,
     );
     if (confirmed == true) {
@@ -200,11 +201,11 @@ class _CalendarConnectionScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar Integration'),
+        title: Text(context.l10n.settingsCalendar),
         leading: IconButton(
           icon: Icon(AdaptiveIcons.back),
           onPressed: () => context.pop(),
-          tooltip: 'Go back',
+          tooltip: context.l10n.calendarGoBack,
         ),
       ),
       body: state.isLoading && state.connections.isEmpty
@@ -219,7 +220,7 @@ class _CalendarConnectionScreenState
                   const SizedBox(height: 24),
                   CalendarCard(
                     provider: 'google',
-                    title: 'Google Calendar',
+                    title: context.l10n.calendarGoogleCalendar,
                     icon: Icons.calendar_today,
                     iconColor: Colors.red,
                     connection: state.googleConnection,
@@ -237,7 +238,7 @@ class _CalendarConnectionScreenState
                   const SizedBox(height: 16),
                   CalendarCard(
                     provider: 'microsoft',
-                    title: 'Microsoft Outlook',
+                    title: context.l10n.calendarMicrosoftOutlook,
                     icon: Icons.mail_outline,
                     iconColor: Colors.blue,
                     connection: state.microsoftConnection,

@@ -10,6 +10,7 @@ import '../providers/trainer_provider.dart';
 import '../widgets/trainee_card.dart';
 import '../../data/models/trainee_model.dart';
 import '../../data/models/invitation_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TraineeListScreen extends ConsumerWidget {
   const TraineeListScreen({super.key});
@@ -21,12 +22,12 @@ class TraineeListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Trainees'),
+        title: Text(context.l10n.trainerMyTrainees),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),
             onPressed: () => context.push('/trainer/invite'),
-            tooltip: 'Invite Trainee',
+            tooltip: context.l10n.trainerInviteTrainee,
           ),
         ],
       ),
@@ -42,7 +43,7 @@ class TraineeListScreen extends ConsumerWidget {
           : FloatingActionButton.extended(
               onPressed: () => context.push('/trainer/invite'),
               icon: const Icon(Icons.person_add),
-              label: const Text('Invite'),
+              label: Text(context.l10n.trainerInvite),
             ),
     );
   }
@@ -75,7 +76,7 @@ class TraineeListScreen extends ConsumerWidget {
                 ref.invalidate(traineesProvider);
                 ref.invalidate(invitationsProvider);
               },
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -111,7 +112,7 @@ class TraineeListScreen extends ConsumerWidget {
             ElevatedButton.icon(
               onPressed: () => context.push('/trainer/invite'),
               icon: const Icon(Icons.person_add),
-              label: const Text('Invite Trainee'),
+              label: Text(context.l10n.trainerInviteTrainee),
             ),
           ],
         ),
@@ -250,12 +251,12 @@ class TraineeListScreen extends ConsumerWidget {
                     context: context,
                     actions: [
                       AdaptiveAction(
-                        label: 'Resend',
+                        label: context.l10n.trainerResend,
                         icon: Icons.refresh,
                         onPressed: () => _resendInvitation(context, ref, invitation.id),
                       ),
                       AdaptiveAction(
-                        label: 'Cancel',
+                        label: context.l10n.commonCancel,
                         icon: Icons.cancel_outlined,
                         onPressed: () => _cancelInvitation(context, ref, invitation.id),
                         isDestructive: true,
@@ -272,23 +273,23 @@ class TraineeListScreen extends ConsumerWidget {
                     }
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'resend',
                       child: Row(
                         children: [
                           Icon(Icons.refresh, size: 20),
                           SizedBox(width: 8),
-                          Text('Resend'),
+                          Text(context.l10n.trainerResend),
                         ],
                       ),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'cancel',
                       child: Row(
                         children: [
                           Icon(Icons.cancel_outlined, size: 20, color: Colors.red),
                           SizedBox(width: 8),
-                          Text('Cancel', style: TextStyle(color: Colors.red)),
+                          Text(context.l10n.commonCancel, style: TextStyle(color: Colors.red)),
                         ],
                       ),
                     ),
@@ -334,7 +335,7 @@ class TraineeListScreen extends ConsumerWidget {
 
     if (context.mounted) {
       if (result['success']) {
-        showAdaptiveToast(context, message: 'Invitation resent successfully', type: ToastType.success);
+        showAdaptiveToast(context, message: context.l10n.trainerInvitationResentSuccessfully, type: ToastType.success);
       } else {
         showAdaptiveToast(context, message: result['error'] ?? 'Failed to resend invitation', type: ToastType.error);
       }
@@ -344,9 +345,9 @@ class TraineeListScreen extends ConsumerWidget {
   void _cancelInvitation(BuildContext context, WidgetRef ref, int invitationId) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Cancel Invitation?',
+      title: context.l10n.trainerCancelInvitation,
       message: 'This will cancel the pending invitation. The trainee will no longer be able to join using this invite.',
-      confirmText: 'Cancel Invitation',
+      confirmText: context.l10n.trainerCancelInvitation2,
       cancelText: 'Keep',
       isDestructive: true,
     );
@@ -357,7 +358,7 @@ class TraineeListScreen extends ConsumerWidget {
       if (context.mounted) {
         if (result['success']) {
           ref.invalidate(invitationsProvider);
-          showAdaptiveToast(context, message: 'Invitation cancelled');
+          showAdaptiveToast(context, message: context.l10n.trainerInvitationCancelled);
         } else {
           showAdaptiveToast(context, message: result['error'] ?? 'Failed to cancel invitation', type: ToastType.error);
         }

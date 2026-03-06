@@ -5,6 +5,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/step_form_page.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen for admins to create new Admin or Trainer accounts.
 class AdminCreateUserScreen extends ConsumerStatefulWidget {
@@ -69,7 +70,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
     if (!_canProceed()) {
       showAdaptiveToast(
         context,
-        message: 'Please fix the errors before continuing',
+        message: context.l10n.adminPleaseFixTheErrorsBeforeContinuing,
         type: ToastType.error,
       );
       return;
@@ -113,13 +114,13 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
     final theme = Theme.of(context);
 
     return StepFormPage(
-      title: 'Create User',
+      title: context.l10n.adminCreateUser,
       completeButtonText: _isLoading ? 'Creating...' : 'Create Account',
       onComplete: _isLoading ? null : _createUser,
       steps: [
         // Step 1: Role Selection
         FormStep(
-          title: 'Select Role',
+          title: context.l10n.adminSelectRole,
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -140,7 +141,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
               _buildRoleOption(
                 theme: theme,
                 role: 'TRAINER',
-                title: 'Trainer',
+                title: context.l10n.adminTrainer,
                 description: 'Can manage trainees, create programs, and view analytics',
                 icon: Icons.fitness_center,
                 color: Colors.blue,
@@ -149,7 +150,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
               _buildRoleOption(
                 theme: theme,
                 role: 'ADMIN',
-                title: 'Admin',
+                title: context.l10n.adminAdmin,
                 description: 'Full platform access including trainer management and billing',
                 icon: Icons.admin_panel_settings,
                 color: Colors.purple,
@@ -159,7 +160,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
         ),
         // Step 2: Basic Info
         FormStep(
-          title: 'User Details',
+          title: context.l10n.adminUserDetails,
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -182,7 +183,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
                   Expanded(
                     child: _buildTextField(
                       controller: _firstNameController,
-                      label: 'First Name',
+                      label: context.l10n.authFirstNameLabel,
                       hint: 'John',
                       textCapitalization: TextCapitalization.words,
                     ),
@@ -191,7 +192,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
                   Expanded(
                     child: _buildTextField(
                       controller: _lastNameController,
-                      label: 'Last Name',
+                      label: context.l10n.authLastNameLabel,
                       hint: 'Doe',
                       textCapitalization: TextCapitalization.words,
                     ),
@@ -201,7 +202,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
               const SizedBox(height: 16),
               _buildTextField(
                 controller: _emailController,
-                label: 'Email',
+                label: context.l10n.authEmailLabel,
                 hint: 'john@example.com',
                 keyboardType: TextInputType.emailAddress,
                 validator: _validateEmail,
@@ -211,7 +212,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
         ),
         // Step 3: Password
         FormStep(
-          title: 'Set Password',
+          title: context.l10n.adminSetPassword,
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -231,7 +232,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
               const SizedBox(height: 24),
               _buildTextField(
                 controller: _passwordController,
-                label: 'Password',
+                label: context.l10n.authPasswordLabel,
                 hint: 'Enter password',
                 obscureText: _obscurePassword,
                 suffixIcon: IconButton(
@@ -243,7 +244,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
               const SizedBox(height: 16),
               _buildTextField(
                 controller: _confirmPasswordController,
-                label: 'Confirm Password',
+                label: context.l10n.authConfirmPasswordLabel,
                 hint: 'Re-enter password',
                 obscureText: _obscureConfirmPassword,
                 suffixIcon: IconButton(

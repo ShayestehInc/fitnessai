@@ -10,6 +10,7 @@ import '../../../ambassador/presentation/providers/ambassador_provider.dart';
 import '../widgets/ambassador_commissions_list.dart';
 import '../widgets/ambassador_profile_card.dart';
 import '../widgets/ambassador_referrals_list.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminAmbassadorDetailScreen extends ConsumerStatefulWidget {
   final int ambassadorId;
@@ -103,7 +104,7 @@ class _AdminAmbassadorDetailScreenState
     } else if (mounted) {
       showAdaptiveToast(
         context,
-        message: 'Failed to $actionLabel ambassador. Please try again.',
+        message: context.l10n.adminFailedToactionLabelAmbassadorPleaseTryAgain,
         type: ToastType.error,
       );
     }
@@ -121,7 +122,7 @@ class _AdminAmbassadorDetailScreenState
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Edit Commission Rate'),
+              title: Text(context.l10n.adminEditCommissionRate),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -148,11 +149,11 @@ class _AdminAmbassadorDetailScreenState
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(context.l10n.commonCancel),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(newRate),
-                  child: const Text('Save'),
+                  child: Text(context.l10n.commonSave),
                 ),
               ],
             );
@@ -182,9 +183,9 @@ class _AdminAmbassadorDetailScreenState
   Future<void> _approveCommission(AmbassadorCommission commission) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Approve Commission',
+      title: context.l10n.adminApproveCommission,
       message: 'Approve \$${commission.commissionAmount} commission for ${commission.trainerEmail}?',
-      confirmText: 'Approve',
+      confirmText: context.l10n.adminApprove,
     );
 
     if (confirmed != true || !mounted) return;
@@ -198,7 +199,7 @@ class _AdminAmbassadorDetailScreenState
       if (mounted) {
         showAdaptiveToast(
           context,
-          message: 'Commission approved',
+          message: context.l10n.adminCommissionApproved,
           type: ToastType.success,
         );
       }
@@ -221,9 +222,9 @@ class _AdminAmbassadorDetailScreenState
   Future<void> _payCommission(AmbassadorCommission commission) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Mark Commission as Paid',
+      title: context.l10n.adminMarkCommissionAsPaid,
       message: 'Mark \$${commission.commissionAmount} commission for ${commission.trainerEmail} as paid?',
-      confirmText: 'Mark Paid',
+      confirmText: context.l10n.adminMarkPaid,
     );
 
     if (confirmed != true || !mounted) return;
@@ -237,7 +238,7 @@ class _AdminAmbassadorDetailScreenState
       if (mounted) {
         showAdaptiveToast(
           context,
-          message: 'Commission marked as paid',
+          message: context.l10n.adminCommissionMarkedAsPaid,
           type: ToastType.success,
         );
       }
@@ -268,9 +269,9 @@ class _AdminAmbassadorDetailScreenState
 
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Approve All Pending',
+      title: context.l10n.adminApproveAllPending,
       message: 'Approve ${pendingCommissions.length} pending commission(s) totaling \$${totalAmount.toStringAsFixed(2)}?',
-      confirmText: 'Approve All',
+      confirmText: context.l10n.adminApproveAll,
     );
 
     if (confirmed != true || !mounted) return;
@@ -297,7 +298,7 @@ class _AdminAmbassadorDetailScreenState
       if (mounted) {
         showAdaptiveToast(
           context,
-          message: 'Failed to bulk approve commissions. Please try again.',
+          message: context.l10n.adminFailedToBulkApproveCommissionsPleaseTryAgain,
           type: ToastType.error,
         );
       }
@@ -319,9 +320,9 @@ class _AdminAmbassadorDetailScreenState
 
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Pay All Approved',
+      title: context.l10n.adminPayAllApproved,
       message: 'Mark ${approvedCommissions.length} approved commission(s) totaling \$${totalAmount.toStringAsFixed(2)} as paid?',
-      confirmText: 'Pay All',
+      confirmText: context.l10n.adminPayAll,
     );
 
     if (confirmed != true || !mounted) return;
@@ -348,7 +349,7 @@ class _AdminAmbassadorDetailScreenState
       if (mounted) {
         showAdaptiveToast(
           context,
-          message: 'Failed to bulk pay commissions. Please try again.',
+          message: context.l10n.adminFailedToBulkPayCommissionsPleaseTryAgain,
           type: ToastType.error,
         );
       }
@@ -379,13 +380,13 @@ class _AdminAmbassadorDetailScreenState
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Ambassador Detail'),
+        title: Text(context.l10n.adminAmbassadorDetail),
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           if (_profile != null) ...[
             IconButton(
               icon: const Icon(Icons.edit, size: 20),
-              tooltip: 'Edit Commission Rate',
+              tooltip: context.l10n.adminEditCommissionRate,
               onPressed: _showEditCommissionRateDialog,
             ),
             _isToggling
@@ -473,7 +474,7 @@ class _AdminAmbassadorDetailScreenState
             ElevatedButton.icon(
               onPressed: _loadDetail,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(context.l10n.commonRetry),
             ),
           ],
         ),

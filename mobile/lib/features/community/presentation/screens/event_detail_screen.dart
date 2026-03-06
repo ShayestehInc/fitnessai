@@ -6,6 +6,7 @@ import '../../data/models/event_model.dart';
 import '../providers/event_provider.dart';
 import '../widgets/event_type_badge.dart';
 import '../widgets/rsvp_button.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class EventDetailScreen extends ConsumerWidget {
   final int eventId;
@@ -21,7 +22,7 @@ class EventDetailScreen extends ConsumerWidget {
 
     if (cachedEvent != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Event Details')),
+        appBar: AppBar(title: Text(context.l10n.communityEventDetails)),
         body: _EventDetailBody(event: cachedEvent),
       );
     }
@@ -30,7 +31,7 @@ class EventDetailScreen extends ConsumerWidget {
     final detailAsync = ref.watch(eventDetailProvider(eventId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Event Details')),
+      appBar: AppBar(title: Text(context.l10n.communityEventDetails)),
       body: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => Center(
@@ -40,11 +41,11 @@ class EventDetailScreen extends ConsumerWidget {
               Icon(Icons.error_outline,
                   size: 48, color: Theme.of(context).colorScheme.error),
               const SizedBox(height: 16),
-              const Text('Event not found or no longer available'),
+              Text(context.l10n.communityEventNotFoundOrNoLongerAvailable),
               const SizedBox(height: 12),
               FilledButton.tonal(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Go Back'),
+                child: Text(context.l10n.communityGoBack),
               ),
             ],
           ),
@@ -119,7 +120,7 @@ class _EventDetailBody extends ConsumerWidget {
         // Date & Time
         _DetailRow(
           icon: Icons.calendar_today,
-          title: 'Date & Time',
+          title: context.l10n.communityDateTime,
           value: _formatFullDateRange(
             event.startsAt.toLocal(),
             event.endsAt.toLocal(),
@@ -140,11 +141,11 @@ class _EventDetailBody extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(left: 32),
             child: Semantics(
-              label: 'Join virtual meeting',
+              label: context.l10n.communityJoinVirtualMeeting,
               child: FilledButton.icon(
                 onPressed: () => _launchUrl(context, event.meetingUrl),
                 icon: const Icon(Icons.videocam, size: 18),
-                label: const Text('Join Meeting'),
+                label: Text(context.l10n.communityJoinMeeting),
               ),
             ),
           ),
@@ -154,7 +155,7 @@ class _EventDetailBody extends ConsumerWidget {
         // Attendees
         _DetailRow(
           icon: Icons.people_outline,
-          title: 'Attendees',
+          title: context.l10n.communityAttendees,
           value: '${event.goingCount} going'
               '${event.maybeCount > 0 ? ", ${event.maybeCount} interested" : ""}'
               '${event.maxAttendees != null ? " (max ${event.maxAttendees})" : ""}',
@@ -202,14 +203,14 @@ class _EventDetailBody extends ConsumerWidget {
           const SizedBox(height: 16),
           Card(
             color: Colors.red.withValues(alpha: 0.06),
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.all(12),
               child: Row(
                 children: [
                   Icon(Icons.cancel_outlined, color: Colors.red, size: 20),
                   SizedBox(width: 8),
                   Expanded(
-                    child: Text('This event has been cancelled.'),
+                    child: Text(context.l10n.communityThisEventHasBeenCancelled),
                   ),
                 ],
               ),
@@ -260,7 +261,7 @@ class _EventDetailBody extends ConsumerWidget {
     } else {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open meeting link')),
+          SnackBar(content: Text(context.l10n.communityCouldNotOpenMeetingLink)),
         );
       }
     }

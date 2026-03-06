@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/progression_models.dart';
 import '../providers/progression_provider.dart';
 import '../widgets/progression_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class ProgressionScreen extends ConsumerStatefulWidget {
   final int programId;
@@ -60,7 +61,7 @@ class _ProgressionScreenState extends ConsumerState<ProgressionScreen> {
       if (result['success'] == true) {
         showAdaptiveToast(
           context,
-          message: 'Suggestion dismissed',
+          message: context.l10n.progressionSuggestionDismissed,
           type: ToastType.info,
         );
         ref.invalidate(progressionSuggestionsProvider(widget.programId));
@@ -114,7 +115,7 @@ class _ProgressionScreenState extends ConsumerState<ProgressionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Smart Progression'),
+        title: Text(context.l10n.progressionSmartProgression),
       ),
       body: suggestionsAsync.when(
         loading: () => const Center(child: AdaptiveSpinner()),
@@ -161,7 +162,7 @@ class _ProgressionScreenState extends ConsumerState<ProgressionScreen> {
                 progressionSuggestionsProvider(widget.programId),
               ),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -210,7 +211,7 @@ class _ProgressionScreenState extends ConsumerState<ProgressionScreen> {
                 progressionSuggestionsProvider(widget.programId),
               ),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Check Again'),
+              label: Text(context.l10n.progressionCheckAgain),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.primary,
                 side: const BorderSide(color: AppTheme.primary),

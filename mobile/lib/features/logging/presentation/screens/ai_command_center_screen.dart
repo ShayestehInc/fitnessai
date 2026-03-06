@@ -9,6 +9,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/logging_provider.dart';
 import '../widgets/draft_log_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// AI Command Center - The "Killer Feature"
 /// Floating chat interface for natural language logging
@@ -71,7 +72,7 @@ class _AICommandCenterScreenState
       } else {
         showAdaptiveToast(
           context,
-          message: 'Log saved successfully!',
+          message: context.l10n.loggingLogSavedSuccessfully,
           type: ToastType.success,
         );
         // Show achievement celebrations for any newly earned badges.
@@ -104,7 +105,7 @@ class _AICommandCenterScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Command Center'),
+        title: Text(context.l10n.loggingAiCommandCenter),
       ),
       body: Column(
         children: [
@@ -214,8 +215,8 @@ class _AICommandCenterScreenState
                   Expanded(
                     child: TextField(
                       controller: _textController,
-                      decoration: const InputDecoration(
-                        hintText: 'Type your log here...',
+                      decoration: InputDecoration(
+                        hintText: context.l10n.loggingTypeYourLogHere,
                         border: OutlineInputBorder(),
                       ),
                       maxLines: null,

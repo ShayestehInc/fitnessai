@@ -8,6 +8,7 @@ import '../../../../core/services/sync_status.dart';
 import '../../../../shared/widgets/sync_status_badge.dart';
 import '../providers/nutrition_provider.dart';
 import '../../data/models/nutrition_models.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class WeightTrendsScreen extends ConsumerStatefulWidget {
   const WeightTrendsScreen({super.key});
@@ -44,7 +45,7 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
-        title: const Text('Weight Trends'),
+        title: Text(context.l10n.nutritionWeightTrends),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -53,7 +54,7 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
           TextButton.icon(
             onPressed: () => context.push('/weight-checkin'),
             icon: Icon(Icons.add, color: theme.colorScheme.primary),
-            label: Text('Check In', style: TextStyle(color: theme.colorScheme.primary)),
+            label: Text(context.l10n.nutritionCheckIn, style: TextStyle(color: theme.colorScheme.primary)),
           ),
         ],
       ),
@@ -148,7 +149,7 @@ class _WeightTrendsScreenState extends ConsumerState<WeightTrendsScreen> {
             ElevatedButton.icon(
               onPressed: () => context.push('/weight-checkin'),
               icon: const Icon(Icons.add),
-              label: const Text('Add First Check-In'),
+              label: Text(context.l10n.nutritionAddFirstCheckIn),
             ),
           ],
         ),

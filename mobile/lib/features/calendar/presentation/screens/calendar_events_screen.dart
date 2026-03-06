@@ -11,6 +11,7 @@ import '../providers/calendar_provider.dart';
 import '../widgets/calendar_event_tile.dart';
 import '../widgets/calendar_no_connection_view.dart';
 import '../widgets/calendar_provider_filter.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class CalendarEventsScreen extends ConsumerStatefulWidget {
   const CalendarEventsScreen({super.key});
@@ -74,11 +75,11 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar Events'),
+        title: Text(context.l10n.calendarCalendarEvents),
         leading: IconButton(
           icon: Icon(AdaptiveIcons.back),
           onPressed: () => context.pop(),
-          tooltip: 'Back to Calendar Settings',
+          tooltip: context.l10n.calendarBackToCalendarSettings,
         ),
       ),
       body: Column(
@@ -176,15 +177,15 @@ class _CalendarEventsScreenState extends ConsumerState<CalendarEventsScreen> {
         height: MediaQuery.of(context).size.height * 0.6,
         child: Center(
           child: Semantics(
-            label: 'No upcoming events. Pull down to sync your calendar.',
+            label: context.l10n.calendarNoUpcomingEventsPullDownToSyncYourCalendar,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.event_busy, size: 64,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                    semanticLabel: 'No events'),
+                    semanticLabel: context.l10n.calendarNoEvents),
                 const SizedBox(height: 16),
-                Text('No upcoming events', style: theme.textTheme.titleMedium),
+                Text(context.l10n.calendarNoUpcomingEvents, style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(
                   'Pull down to sync your calendar',

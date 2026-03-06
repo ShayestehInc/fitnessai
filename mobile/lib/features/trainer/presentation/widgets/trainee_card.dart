@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/trainee_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TraineeCard extends StatelessWidget {
   final TraineeModel trainee;
@@ -129,7 +130,7 @@ class TraineeCard extends StatelessWidget {
                     context: context,
                     actions: [
                       AdaptiveAction(
-                        label: 'View as Trainee',
+                        label: context.l10n.trainerViewAsTrainee,
                         icon: Icons.visibility,
                         onPressed: () => onLoginAs?.call(),
                       ),
@@ -143,13 +144,13 @@ class TraineeCard extends StatelessWidget {
                     }
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'login_as',
                       child: Row(
                         children: [
                           Icon(Icons.visibility, size: 20),
                           SizedBox(width: 8),
-                          Text('View as Trainee'),
+                          Text(context.l10n.trainerViewAsTrainee),
                         ],
                       ),
                     ),

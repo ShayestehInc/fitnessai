@@ -11,6 +11,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../providers/admin_impersonation_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminTrainersScreen extends ConsumerStatefulWidget {
   const AdminTrainersScreen({super.key});
@@ -44,7 +45,7 @@ class _AdminTrainersScreenState extends ConsumerState<AdminTrainersScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Trainers'),
+        title: Text(context.l10n.adminTrainers),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: Column(
@@ -105,10 +106,10 @@ class _TrainerCard extends ConsumerWidget {
     // Show confirmation dialog
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Login as Trainer',
+      title: context.l10n.adminLoginAsTrainer,
       message: 'You will be logged in as ${trainer.displayName} (${trainer.email}). '
           'Click "Exit" in the orange banner to return to your admin account.',
-      confirmText: 'Continue',
+      confirmText: context.l10n.adminContinue,
     );
 
     if (confirmed != true) return;
@@ -197,12 +198,12 @@ class _TrainerCard extends ConsumerWidget {
                             context: context,
                             actions: [
                               AdaptiveAction(
-                                label: 'Login as Trainer',
+                                label: context.l10n.adminLoginAsTrainer,
                                 onPressed: () => _impersonateTrainer(context, ref),
                               ),
                               if (sub?.id != null)
                                 AdaptiveAction(
-                                  label: 'View Subscription',
+                                  label: context.l10n.adminViewSubscription,
                                   onPressed: () => context.push('/admin/subscriptions/${sub!.id}'),
                                 ),
                             ],
@@ -218,24 +219,24 @@ class _TrainerCard extends ConsumerWidget {
                             }
                           },
                           itemBuilder: (context) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'impersonate',
                               child: Row(
                                 children: [
                                   Icon(Icons.login, size: 20),
                                   SizedBox(width: 8),
-                                  Text('Login as Trainer'),
+                                  Text(context.l10n.adminLoginAsTrainer),
                                 ],
                               ),
                             ),
                             if (sub?.id != null)
-                              const PopupMenuItem(
+                              PopupMenuItem(
                                 value: 'subscription',
                                 child: Row(
                                   children: [
                                     Icon(Icons.credit_card, size: 20),
                                     SizedBox(width: 8),
-                                    Text('View Subscription'),
+                                    Text(context.l10n.adminViewSubscription),
                                   ],
                                 ),
                               ),

@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../onboarding/data/models/user_profile_model.dart';
 import '../providers/settings_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -85,7 +86,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Sex selection
-                  Text('Sex', style: Theme.of(context).textTheme.titleMedium),
+                  Text(context.l10n.onboardingSexLabel, style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 12),
                   Row(
                     children: ProfileEnums.sexOptions.map((sex) {
@@ -134,13 +135,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   const SizedBox(height: 24),
 
                   // Age
-                  Text('Age', style: Theme.of(context).textTheme.titleMedium),
+                  Text(context.l10n.onboardingAgeLabel, style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _ageController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      hintText: 'Enter your age',
+                      hintText: context.l10n.onboardingEnterYourAge,
                       filled: true,
                       fillColor: theme.cardColor,
                       border: OutlineInputBorder(
@@ -159,7 +160,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Height & Weight', style: Theme.of(context).textTheme.titleMedium),
+                      Text(context.l10n.settingsHeightWeight, style: Theme.of(context).textTheme.titleMedium),
                       GestureDetector(
                         onTap: () => notifier.toggleUnitSystem(),
                         child: Container(
@@ -188,7 +189,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       controller: _heightCmController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        hintText: 'Height (cm)',
+                        hintText: context.l10n.onboardingHeightLabel,
                         filled: true,
                         fillColor: theme.cardColor,
                         border: OutlineInputBorder(
@@ -209,7 +210,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             controller: _heightFeetController,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
-                              hintText: 'Feet',
+                              hintText: context.l10n.onboardingFeet,
                               filled: true,
                               fillColor: theme.cardColor,
                               border: OutlineInputBorder(
@@ -226,7 +227,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             controller: _heightInchesController,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
-                              hintText: 'Inches',
+                              hintText: context.l10n.onboardingInches,
                               filled: true,
                               fillColor: theme.cardColor,
                               border: OutlineInputBorder(
@@ -274,13 +275,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               HapticService.mediumTap();
                               final success = await notifier.saveProfile();
                               if (success && context.mounted) {
-                                showAdaptiveToast(context, message: 'Profile updated!');
+                                showAdaptiveToast(context, message: context.l10n.settingsProfileUpdated);
                                 context.pop();
                               }
                             },
                       child: state.isLoading
                           ? const AdaptiveSpinner.small()
-                          : const Text('Save Changes'),
+                          : Text(context.l10n.adminSaveChanges),
                     ),
                   ),
 

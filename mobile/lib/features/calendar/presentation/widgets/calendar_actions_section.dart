@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Actions section shown when at least one calendar is connected.
 /// Shows links to events and availability management.
@@ -24,7 +25,7 @@ class CalendarActionsSection extends StatelessWidget {
             TextButton.icon(
               onPressed: () => context.push('/trainer/calendar/events'),
               icon: const Icon(Icons.event, size: 18),
-              label: const Text('View All'),
+              label: Text(context.l10n.commonViewAll),
             ),
           ],
         ),
@@ -39,7 +40,7 @@ class CalendarActionsSection extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: () => context.push('/trainer/calendar/availability'),
           icon: const Icon(Icons.access_time),
-          label: const Text('Manage Availability'),
+          label: Text(context.l10n.calendarManageAvailability),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 48),
           ),

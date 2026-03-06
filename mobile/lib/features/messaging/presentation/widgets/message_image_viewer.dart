@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Full-screen image viewer with pinch-to-zoom for message images.
 class MessageImageViewer extends StatelessWidget {
@@ -19,13 +20,13 @@ class MessageImageViewer extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Image'),
+        title: Text(context.l10n.messagingImage),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Semantics(
-        label: 'Full screen image. Pinch to zoom.',
+        label: context.l10n.messagingFullScreenImagePinchToZoom,
         child: InteractiveViewer(
           minScale: 1.0,
           maxScale: 4.0,

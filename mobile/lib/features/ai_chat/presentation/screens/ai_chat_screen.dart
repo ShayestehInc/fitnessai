@@ -8,6 +8,7 @@ import '../../data/models/chat_models.dart';
 import '../providers/ai_chat_provider.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../widgets/trainee_selector.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AIChatScreen extends ConsumerStatefulWidget {
   final int? initialTraineeId;
@@ -87,19 +88,19 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('AI Assistant'),
+        title: Text(context.l10n.trainerAiAssistant),
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           if (state.messages.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              tooltip: 'Clear conversation',
+              tooltip: context.l10n.aiChatClearConversation,
               onPressed: () async {
                 final confirmed = await showAdaptiveConfirmDialog(
                   context: context,
-                  title: 'Clear Conversation',
-                  message: 'Are you sure you want to clear the conversation history?',
-                  confirmText: 'Clear',
+                  title: context.l10n.aiChatClearConversation2,
+                  message: context.l10n.aiChatAreYouSureYouWantToClearTheConversationHistor,
+                  confirmText: context.l10n.adminClear,
                   isDestructive: true,
                 );
                 if (confirmed == true) {
@@ -159,7 +160,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
                           Clipboard.setData(
                             ClipboardData(text: message.content),
                           );
-                          showAdaptiveToast(context, message: 'Copied to clipboard', duration: const Duration(seconds: 1));
+                          showAdaptiveToast(context, message: context.l10n.commonCopied, duration: Duration(seconds: 1));
                         },
                       );
                     },

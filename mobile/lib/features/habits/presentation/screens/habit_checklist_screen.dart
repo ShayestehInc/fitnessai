@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/habit_model.dart';
 import '../providers/habit_provider.dart';
 import '../widgets/habit_check_tile.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// The trainee-facing daily habit checklist screen.
 ///
@@ -39,12 +40,12 @@ class _HabitChecklistScreenState extends ConsumerState<HabitChecklistScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
-        title: const Text('Daily Habits'),
+        title: Text(context.l10n.habitsDailyHabits),
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_today, size: 20),
             onPressed: () => _pickDate(context),
-            tooltip: 'Pick date',
+            tooltip: context.l10n.habitsPickDate,
           ),
         ],
       ),
@@ -282,7 +283,7 @@ class _HabitChecklistScreenState extends ConsumerState<HabitChecklistScreen> {
                 ref.invalidate(dailyHabitsProvider(_selectedDate));
               },
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -305,7 +306,7 @@ class _HabitChecklistScreenState extends ConsumerState<HabitChecklistScreen> {
     } else {
       showAdaptiveToast(
         context,
-        message: 'Failed to update habit',
+        message: context.l10n.habitsFailedToUpdateHabit,
         type: ToastType.error,
       );
     }

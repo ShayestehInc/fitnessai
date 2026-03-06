@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Bottom sheet for editing a message.
 ///
@@ -89,7 +90,7 @@ class _EditMessageSheetState extends State<EditMessageSheet> {
             minLines: 1,
             autofocus: true,
             decoration: InputDecoration(
-              hintText: 'Edit your message...',
+              hintText: context.l10n.messagingEditYourMessage,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -115,14 +116,14 @@ class _EditMessageSheetState extends State<EditMessageSheet> {
             children: [
               TextButton(
                 onPressed: widget.onCancel,
-                child: const Text('Cancel'),
+                child: Text(context.l10n.commonCancel),
               ),
               const SizedBox(width: 8),
               FilledButton(
                 onPressed: _canSave
                     ? () => widget.onSave(_controller.text.trim())
                     : null,
-                child: const Text('Save'),
+                child: Text(context.l10n.commonSave),
               ),
             ],
           ),

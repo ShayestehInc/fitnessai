@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'adaptive/adaptive_tappable.dart';
+import '../../core/l10n/l10n_extension.dart';
 
 /// A full-page filter/sort screen.
 ///
@@ -41,7 +42,7 @@ class _FilterPageState<T> extends State<FilterPage<T>> {
                 widget.onReset?.call();
                 setState(() {});
               },
-              child: const Text('Reset'),
+              child: Text(context.l10n.settingsReset),
             ),
         ],
       ),
@@ -89,7 +90,7 @@ class _FilterPageState<T> extends State<FilterPage<T>> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Apply Filters'),
+                child: Text(context.l10n.commonApplyFilters),
               ),
             ),
           ),

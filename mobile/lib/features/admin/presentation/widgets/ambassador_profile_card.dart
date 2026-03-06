@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../ambassador/data/models/ambassador_models.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Displays the ambassador's profile header: avatar, name, email, status, and code.
 class AmbassadorProfileCard extends StatelessWidget {
@@ -109,18 +110,18 @@ class AmbassadorStatsRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _StatTile(label: 'Referrals', value: profile.totalReferrals.toString(), color: Colors.blue),
+          child: _StatTile(label: context.l10n.adminReferrals, value: profile.totalReferrals.toString(), color: Colors.blue),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _StatTile(label: 'Earnings', value: '\$${profile.totalEarnings}', color: Colors.green),
+          child: _StatTile(label: context.l10n.adminEarnings, value: '\$${profile.totalEarnings}', color: Colors.green),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: GestureDetector(
             onTap: onRateTap,
             child: _StatTile(
-              label: 'Rate',
+              label: context.l10n.adminRate,
               value: '${profile.commissionPercent.toStringAsFixed(0)}%',
               color: Colors.purple,
             ),

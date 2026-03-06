@@ -12,6 +12,7 @@ import '../../../programs/data/models/program_week_model.dart';
 import '../../../programs/presentation/screens/program_builder_screen.dart';
 import '../../data/models/trainee_model.dart';
 import '../providers/trainer_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Full-page program options screen for managing a trainee's program.
 class ProgramOptionsScreen extends ConsumerStatefulWidget {
@@ -35,7 +36,7 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Program Options'),
+        title: Text(context.l10n.trainerProgramOptions),
       ),
       body: ListView(
         padding: const EdgeInsets.all(24),
@@ -48,8 +49,8 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
           _buildOptionTile(
             theme: theme,
             icon: Icons.edit,
-            title: 'Edit Program',
-            subtitle: 'Modify exercises, sets, and reps',
+            title: context.l10n.trainerEditProgram,
+            subtitle: context.l10n.trainerModifyExercisesSetsAndReps,
             color: Colors.green,
             onTap: () => _navigateToEditProgram(context),
           ),
@@ -57,8 +58,8 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
           _buildOptionTile(
             theme: theme,
             icon: Icons.swap_horiz,
-            title: 'Change Program',
-            subtitle: 'Assign a different program',
+            title: context.l10n.trainerChangeProgram,
+            subtitle: context.l10n.trainerAssignADifferentProgram,
             color: Colors.blue,
             onTap: () {
               Navigator.pop(context);
@@ -69,8 +70,8 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
           _buildOptionTile(
             theme: theme,
             icon: Icons.cancel,
-            title: 'End Program',
-            subtitle: 'Remove this program from trainee',
+            title: context.l10n.trainerEndProgram,
+            subtitle: context.l10n.trainerRemoveThisProgramFromTrainee,
             color: Colors.red,
             isDestructive: true,
             onTap: () => _navigateToEndProgram(context),
@@ -249,7 +250,7 @@ class _ProgramOptionsScreenState extends ConsumerState<ProgramOptionsScreen> {
       Navigator.pop(context); // Close loading dialog
 
       if (weeks.isEmpty) {
-        showAdaptiveToast(context, message: 'No program schedule found');
+        showAdaptiveToast(context, message: context.l10n.trainerNoProgramScheduleFound);
         return;
       }
 
@@ -313,7 +314,7 @@ class _EndProgramScreenState extends ConsumerState<EndProgramScreen> {
         await ref.refresh(traineeDetailProvider(widget.traineeId).future);
 
         if (mounted) {
-          showAdaptiveToast(context, message: 'Program ended successfully', type: ToastType.success);
+          showAdaptiveToast(context, message: context.l10n.trainerProgramEndedSuccessfully, type: ToastType.success);
 
           // Pop back twice: once from EndProgramScreen, once from ProgramOptionsScreen
           // This brings us back to the trainee detail screen
@@ -335,7 +336,7 @@ class _EndProgramScreenState extends ConsumerState<EndProgramScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('End Program'),
+        title: Text(context.l10n.trainerEndProgram),
       ),
       body: SafeArea(
         child: Padding(
@@ -390,7 +391,7 @@ class _EndProgramScreenState extends ConsumerState<EndProgramScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Cancel'),
+                      child: Text(context.l10n.commonCancel),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -412,7 +413,7 @@ class _EndProgramScreenState extends ConsumerState<EndProgramScreen> {
                               width: 20,
                               child: AdaptiveSpinner.small(),
                             )
-                          : const Text('End Program'),
+                          : Text(context.l10n.trainerEndProgram),
                     ),
                   ),
                 ],
@@ -514,14 +515,14 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
 
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Program')),
+        appBar: AppBar(title: Text(context.l10n.trainerEditProgram)),
         body: const Center(child: AdaptiveSpinner()),
       );
     }
 
     if (_error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Program')),
+        appBar: AppBar(title: Text(context.l10n.trainerEditProgram)),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -538,7 +539,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                   setState(() { _isLoading = true; _error = null; });
                   _loadProgram();
                 },
-                child: const Text('Retry'),
+                child: Text(context.l10n.commonRetry),
               ),
             ],
           ),
@@ -548,8 +549,8 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
 
     if (_weeks.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Program')),
-        body: const Center(child: Text('No program schedule found')),
+        appBar: AppBar(title: Text(context.l10n.trainerEditProgram)),
+        body: Center(child: Text(context.l10n.trainerNoProgramScheduleFound)),
       );
     }
 
@@ -562,7 +563,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                   padding: EdgeInsets.all(16),
                   child: AdaptiveSpinner.small(),
                 )
-              : IconButton(onPressed: _saveChanges, icon: const Icon(Icons.check), tooltip: 'Save'),
+              : IconButton(onPressed: _saveChanges, icon: Icon(Icons.check), tooltip: context.l10n.commonSave),
         ],
       ),
       body: Column(
@@ -684,13 +685,13 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
-                  child: const Text('Logged', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                  child: Text(context.l10n.trainerLogged, style: TextStyle(fontSize: 10, color: Colors.grey)),
                 ),
               ],
             ],
           ),
           subtitle: day.isRestDay
-              ? Text('Rest Day', style: TextStyle(color: !isEditable ? Colors.grey : Colors.grey[600], fontSize: 12))
+              ? Text(context.l10n.trainerRestDay, style: TextStyle(color: !isEditable ? Colors.grey : Colors.grey[600], fontSize: 12))
               : GestureDetector(
                   onTap: isEditable ? () => _showEditDayNameDialog(dayIndex, day) : null,
                   child: Row(
@@ -708,7 +709,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                   ),
                 ),
           children: day.isRestDay
-              ? [Padding(padding: const EdgeInsets.all(16), child: Row(children: [Icon(Icons.self_improvement, color: Colors.grey[400]), const SizedBox(width: 12), Text('Recovery & rest', style: TextStyle(color: Colors.grey[600]))]))]
+              ? [Padding(padding: const EdgeInsets.all(16), child: Row(children: [Icon(Icons.self_improvement, color: Colors.grey[400]), SizedBox(width: 12), Text(context.l10n.trainerRecoveryRest, style: TextStyle(color: Colors.grey[600]))]))]
               : [
                   ...day.exercises.map((e) => _buildExerciseRow(theme, e, dayIndex, isEditable)),
                   if (isEditable)
@@ -717,7 +718,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                       child: OutlinedButton.icon(
                         onPressed: () => _showAddExerciseDialog(dayIndex),
                         icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Add Exercise'),
+                        label: Text(context.l10n.programsAddExercise),
                       ),
                     ),
                 ],
@@ -877,9 +878,9 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                         Padding(
                           padding: const EdgeInsets.all(24),
                           child: Column(children: [
-                            Text('Replace Exercise', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                            Text(context.l10n.trainerReplaceExercise, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 16),
-                            TextField(decoration: InputDecoration(hintText: 'Search...', prefixIcon: const Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => setPickerState(() => search = v)),
+                            TextField(decoration: InputDecoration(hintText: context.l10n.trainerSearch, prefixIcon: Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => setPickerState(() => search = v)),
                           ]),
                         ),
                         Expanded(
@@ -947,8 +948,8 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                   ],
                 ),
                 const SizedBox(height: 24),
-                Row(children: [const SizedBox(width: 60, child: Text('Sets:')), Expanded(child: Slider.adaptive(value: sets.toDouble(), min: 1, max: 8, divisions: 7, onChanged: (v) => setModalState(() => sets = v.round()))), SizedBox(width: 40, child: Text('$sets', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
-                Row(children: [const SizedBox(width: 60, child: Text('Reps:')), Expanded(child: Slider.adaptive(value: reps.toDouble(), min: 1, max: 30, divisions: 29, onChanged: (v) => setModalState(() => reps = v.round()))), SizedBox(width: 40, child: Text('$reps', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
+                Row(children: [SizedBox(width: 60, child: Text(context.l10n.programsSets)), Expanded(child: Slider.adaptive(value: sets.toDouble(), min: 1, max: 8, divisions: 7, onChanged: (v) => setModalState(() => sets = v.round()))), SizedBox(width: 40, child: Text('$sets', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
+                Row(children: [SizedBox(width: 60, child: Text(context.l10n.programsReps)), Expanded(child: Slider.adaptive(value: reps.toDouble(), min: 1, max: 30, divisions: 29, onChanged: (v) => setModalState(() => reps = v.round()))), SizedBox(width: 40, child: Text('$reps', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center))]),
                 const SizedBox(height: 24),
                 // This Week / All Weeks toggle buttons
                 Row(
@@ -1036,7 +1037,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Save'),
+                    child: Text(context.l10n.commonSave),
                   ),
                 ),
               ],
@@ -1048,7 +1049,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
   }
 
   void _showAddExerciseDialog(int dayIndex) => _showExercisePicker(
-    title: 'Add Exercise',
+    title: context.l10n.programsAddExercise,
     onSelect: (e) => _showAddExerciseSettingsDialog(e, dayIndex),
   );
 
@@ -1116,7 +1117,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    const SizedBox(width: 60, child: Text('Sets:')),
+                    SizedBox(width: 60, child: Text(context.l10n.programsSets)),
                     Expanded(
                       child: Slider.adaptive(
                         value: sets.toDouble(),
@@ -1138,7 +1139,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                 ),
                 Row(
                   children: [
-                    const SizedBox(width: 60, child: Text('Reps:')),
+                    SizedBox(width: 60, child: Text(context.l10n.programsReps)),
                     Expanded(
                       child: Slider.adaptive(
                         value: reps.toDouble(),
@@ -1259,7 +1260,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                   child: Column(children: [
                     Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    TextField(decoration: InputDecoration(hintText: 'Search...', prefixIcon: const Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => setModalState(() => search = v)),
+                    TextField(decoration: InputDecoration(hintText: context.l10n.trainerSearch, prefixIcon: Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => setModalState(() => search = v)),
                   ]),
                 ),
                 Expanded(
@@ -1333,8 +1334,8 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                   controller: controller,
                   autofocus: true,
                   decoration: InputDecoration(
-                    labelText: 'Day Name',
-                    hintText: 'e.g., Push Day, Circuit A',
+                    labelText: context.l10n.trainerDayName,
+                    hintText: context.l10n.trainerEGPushDayCircuitA,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
@@ -1412,7 +1413,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Save'),
+                    child: Text(context.l10n.commonSave),
                   ),
                 ),
               ],
@@ -1431,7 +1432,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
       days[dayIndex] = day.copyWith(name: newName);
       _weeks[_selectedWeekIndex] = week.copyWith(days: days);
     });
-    showAdaptiveToast(context, message: 'Renamed to "$newName"');
+    showAdaptiveToast(context, message: context.l10n.programsRenamedTonewName);
   }
 
   void _updateDayNameAllWeeks(int dayIndex, String oldName, String newName) {
@@ -1451,7 +1452,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
         }
       }
     });
-    showAdaptiveToast(context, message: 'Renamed to "$newName" in all weeks');
+    showAdaptiveToast(context, message: context.l10n.trainerRenamedTonewNameInAllWeeks);
   }
 
   /// Parse a reps string (e.g. "8-10" or "12") into an integer for slider UI.
@@ -1495,7 +1496,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
         _weeks[weekIndex] = week.copyWith(days: days);
       }
     });
-    showAdaptiveToast(context, message: 'Updated in all weeks');
+    showAdaptiveToast(context, message: context.l10n.trainerUpdatedInAllWeeks);
   }
 
   void _replaceExerciseInWeek(WorkoutExercise oldExercise, WorkoutExercise newExercise, int dayIndex) {
@@ -1631,7 +1632,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                       side: const BorderSide(color: Colors.red),
                       foregroundColor: Colors.red,
                     ),
-                    child: const Text('This Week'),
+                    child: Text(context.l10n.communityThisWeek),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1657,7 +1658,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('All Weeks'),
+                    child: Text(context.l10n.programsAllWeeks),
                   ),
                 ),
               ],
@@ -1667,7 +1668,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
               width: double.infinity,
               child: TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(context.l10n.commonCancel),
               ),
             ),
           ],
@@ -1685,7 +1686,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
         // Force refresh trainee data and wait for it to complete
         await ref.refresh(traineeDetailProvider(widget.traineeId).future);
         if (mounted) {
-          showAdaptiveToast(context, message: 'Program updated successfully', type: ToastType.success);
+          showAdaptiveToast(context, message: context.l10n.trainerProgramUpdatedSuccessfully, type: ToastType.success);
           Navigator.pop(context);
           Navigator.pop(context);
         }
@@ -1693,7 +1694,7 @@ class _EditAssignedProgramScreenState extends ConsumerState<EditAssignedProgramS
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        showAdaptiveToast(context, message: 'Failed to save: $e', type: ToastType.error);
+        showAdaptiveToast(context, message: context.l10n.trainerFailedToSavee, type: ToastType.error);
       }
     }
   }

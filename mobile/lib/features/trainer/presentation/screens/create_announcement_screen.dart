@@ -5,6 +5,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../community/data/models/announcement_model.dart';
 import '../../../community/presentation/providers/announcement_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen for creating or editing a trainer announcement.
 class CreateAnnouncementScreen extends ConsumerStatefulWidget {
@@ -59,8 +60,8 @@ class _CreateAnnouncementScreenState
               controller: _titleController,
               maxLength: 200,
               decoration: InputDecoration(
-                labelText: 'Title',
-                hintText: 'Announcement title',
+                labelText: context.l10n.communityTitle,
+                hintText: context.l10n.trainerAnnouncementTitle,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
                 fillColor: theme.cardColor,
@@ -72,8 +73,8 @@ class _CreateAnnouncementScreenState
               maxLength: 2000,
               maxLines: 6,
               decoration: InputDecoration(
-                labelText: 'Body',
-                hintText: 'Write your announcement...',
+                labelText: context.l10n.trainerBody,
+                hintText: context.l10n.trainerWriteYourAnnouncement,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
                 fillColor: theme.cardColor,
@@ -81,8 +82,8 @@ class _CreateAnnouncementScreenState
             ),
             const SizedBox(height: 16),
             SwitchListTile.adaptive(
-              title: const Text('Pin Announcement'),
-              subtitle: const Text('Pinned announcements appear at the top'),
+              title: Text(context.l10n.trainerPinAnnouncement),
+              subtitle: Text(context.l10n.trainerPinnedAnnouncementsAppearAtTheTop),
               value: _isPinned,
               onChanged: (v) => setState(() => _isPinned = v),
               contentPadding: EdgeInsets.zero,

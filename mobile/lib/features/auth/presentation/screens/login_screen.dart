@@ -12,6 +12,7 @@ import '../../../settings/data/repositories/branding_repository.dart';
 import '../../data/models/user_model.dart';
 import '../providers/auth_provider.dart';
 import 'server_config_screen.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -325,7 +326,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5),
               ),
               onPressed: _openServerConfig,
-              tooltip: 'Server Settings',
+              tooltip: context.l10n.authServerSettings,
             ),
           ),
         ],
@@ -388,7 +389,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
             decoration: InputDecoration(
-              hintText: 'email',
+              hintText: context.l10n.authEmail,
               hintStyle: TextStyle(
                 color: Colors.grey[400],
                 fontSize: 16,
@@ -443,7 +444,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
             decoration: InputDecoration(
-              hintText: 'password',
+              hintText: context.l10n.authPassword,
               hintStyle: TextStyle(
                 color: Colors.grey[400],
                 fontSize: 16,

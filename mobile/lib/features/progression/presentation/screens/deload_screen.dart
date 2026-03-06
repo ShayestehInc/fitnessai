@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/progression_models.dart';
 import '../providers/progression_provider.dart';
 import '../widgets/deload_recommendation_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class DeloadScreen extends ConsumerStatefulWidget {
   final int programId;
@@ -36,7 +37,7 @@ class _DeloadScreenState extends ConsumerState<DeloadScreen> {
       if (result['success'] == true) {
         showAdaptiveToast(
           context,
-          message: 'Deload applied successfully',
+          message: context.l10n.progressionDeloadAppliedSuccessfully,
           type: ToastType.success,
         );
         ref.invalidate(deloadCheckProvider(widget.programId));
@@ -57,7 +58,7 @@ class _DeloadScreenState extends ConsumerState<DeloadScreen> {
   void _handleDismissDeload() {
     showAdaptiveToast(
       context,
-      message: 'Deload recommendation dismissed',
+      message: context.l10n.progressionDeloadRecommendationDismissed,
       type: ToastType.info,
     );
     Navigator.of(context).pop();
@@ -70,7 +71,7 @@ class _DeloadScreenState extends ConsumerState<DeloadScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Deload Detection'),
+        title: Text(context.l10n.progressionDeloadDetection),
       ),
       body: deloadAsync.when(
         loading: () => const Center(child: AdaptiveSpinner()),
@@ -112,7 +113,7 @@ class _DeloadScreenState extends ConsumerState<DeloadScreen> {
                 deloadCheckProvider(widget.programId),
               ),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(context.l10n.commonRetry),
             ),
           ],
         ),

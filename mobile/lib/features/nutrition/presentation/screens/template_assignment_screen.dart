@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/models/nutrition_template_models.dart';
 import '../providers/nutrition_template_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TemplateAssignmentScreen extends ConsumerStatefulWidget {
   final int traineeId;
@@ -41,14 +42,14 @@ class _TemplateAssignmentScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Assign Nutrition Template'),
+        title: Text(context.l10n.nutritionAssignNutritionTemplate),
       ),
       body: PopScope(
         canPop: !_isSubmitting,
         child: templatesAsync.when(
           loading: () => Center(
             child: Semantics(
-              label: 'Loading nutrition templates',
+              label: context.l10n.nutritionLoadingNutritionTemplates,
               child: const CircularProgressIndicator(),
             ),
           ),
@@ -72,7 +73,7 @@ class _TemplateAssignmentScreenState
                   FilledButton.tonal(
                     onPressed: () =>
                         ref.invalidate(nutritionTemplatesProvider),
-                    child: const Text('Retry'),
+                    child: Text(context.l10n.commonRetry),
                   ),
                 ],
               ),
@@ -127,22 +128,22 @@ class _TemplateAssignmentScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Template',
+          Text(context.l10n.nutritionTemplate,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           _buildTemplateSelector(templates),
           const SizedBox(height: 24),
-          Text('Trainee Parameters',
+          Text(context.l10n.nutritionTraineeParameters,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           _buildParameterFields(),
           const SizedBox(height: 24),
-          Text('Day-Type Schedule',
+          Text(context.l10n.nutritionDayTypeSchedule,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           _buildScheduleConfig(),
           const SizedBox(height: 24),
-          Text('Fat Mode',
+          Text(context.l10n.nutritionFatMode,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           _buildFatModeSelector(),
@@ -159,7 +160,7 @@ class _TemplateAssignmentScreenState
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Assign Template'),
+                  : Text(context.l10n.nutritionAssignTemplate),
             ),
           ),
         ],
@@ -170,9 +171,9 @@ class _TemplateAssignmentScreenState
   Widget _buildTemplateSelector(List<NutritionTemplateModel> templates) {
     return DropdownButtonFormField<NutritionTemplateModel>(
       value: _selectedTemplate,
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         border: OutlineInputBorder(),
-        hintText: 'Select a template',
+        hintText: context.l10n.nutritionSelectATemplate,
       ),
       isExpanded: true,
       items: templates.map((t) {
@@ -195,9 +196,9 @@ class _TemplateAssignmentScreenState
         TextField(
           controller: _bodyWeightController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Body Weight (lbs)',
-            helperText: 'Required. Used to calculate macro targets.',
+          decoration: InputDecoration(
+            labelText: context.l10n.nutritionBodyWeightLbs,
+            helperText: context.l10n.nutritionRequiredUsedToCalculateMacroTargets,
             border: OutlineInputBorder(),
           ),
         ),
@@ -205,9 +206,9 @@ class _TemplateAssignmentScreenState
         TextField(
           controller: _bodyFatController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Body Fat % (optional)',
-            helperText: 'If known, improves lean body mass calculation.',
+          decoration: InputDecoration(
+            labelText: context.l10n.nutritionBodyFatOptional,
+            helperText: context.l10n.nutritionIfKnownImprovesLeanBodyMassCalculation,
             border: OutlineInputBorder(),
           ),
         ),
@@ -215,9 +216,9 @@ class _TemplateAssignmentScreenState
         TextField(
           controller: _mealsPerDayController,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Meals Per Day',
-            helperText: 'Between 1 and 10.',
+          decoration: InputDecoration(
+            labelText: context.l10n.onboardingMealsPerDay,
+            helperText: context.l10n.nutritionBetween1And10,
             border: OutlineInputBorder(),
           ),
         ),
@@ -229,11 +230,11 @@ class _TemplateAssignmentScreenState
     return Column(
       children: [
         SegmentedButton<String>(
-          segments: const [
+          segments: [
             ButtonSegment(
-                value: 'training_based', label: Text('Training-Based')),
+                value: 'training_based', label: Text(context.l10n.nutritionTrainingBased)),
             ButtonSegment(
-                value: 'weekly_rotation', label: Text('Weekly Rotation')),
+                value: 'weekly_rotation', label: Text(context.l10n.nutritionWeeklyRotation)),
           ],
           selected: {_scheduleMethod},
           onSelectionChanged: (v) =>
@@ -298,9 +299,9 @@ class _TemplateAssignmentScreenState
 
   Widget _buildFatModeSelector() {
     return SegmentedButton<String>(
-      segments: const [
-        ButtonSegment(value: 'total_fat', label: Text('Total Fat')),
-        ButtonSegment(value: 'added_fat', label: Text('Added Fat')),
+      segments: [
+        ButtonSegment(value: 'total_fat', label: Text(context.l10n.nutritionTotalFat)),
+        ButtonSegment(value: 'added_fat', label: Text(context.l10n.nutritionAddedFat)),
       ],
       selected: {_fatMode},
       onSelectionChanged: (v) => setState(() => _fatMode = v.first),
@@ -314,11 +315,11 @@ class _TemplateAssignmentScreenState
     if (weight == null || weight <= 0 || weight > 1000) {
       String message;
       if (weight == null || _bodyWeightController.text.trim().isEmpty) {
-        message = 'Body weight is required';
+        message = context.l10n.nutritionBodyWeightIsRequired;
       } else if (weight <= 0) {
-        message = 'Body weight must be a positive number';
+        message = context.l10n.nutritionBodyWeightMustBeAPositiveNumber;
       } else {
-        message = 'Body weight must be under 1,000 lbs';
+        message = context.l10n.nutritionBodyWeightMustBeUnder1000Lbs;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -335,7 +336,7 @@ class _TemplateAssignmentScreenState
       if (bfVal == null || bfVal < 1 || bfVal > 70) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Body fat % must be between 1 and 70'),
+            content: Text(context.l10n.nutritionBodyFatMustBeBetween1And70),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -347,7 +348,7 @@ class _TemplateAssignmentScreenState
     if (mealsPerDay == null || mealsPerDay < 1 || mealsPerDay > 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Meals per day must be between 1 and 10'),
+          content: Text(context.l10n.nutritionMealsPerDayMustBeBetween1And10),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -389,11 +390,11 @@ class _TemplateAssignmentScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Row(
+          content: Row(
             children: [
               Icon(Icons.check_circle, color: Colors.white, size: 20),
               SizedBox(width: 8),
-              Text('Nutrition template assigned'),
+              Text(context.l10n.nutritionNutritionTemplateAssigned),
             ],
           ),
           backgroundColor: Colors.green.shade700,
@@ -406,7 +407,7 @@ class _TemplateAssignmentScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Failed to assign template. Please try again.'),
+          content: Text(context.l10n.nutritionFailedToAssignTemplatePleaseTryAgain),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

@@ -233,7 +233,6 @@ class _HabitManagerScreenState extends ConsumerState<HabitManagerScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Habit'),
-        content: Text('Are you sure you want to delete "${habit.name}"?'),
         actions: [
           TextButton(
             onPressed: () => ctx.pop(false),
@@ -431,7 +430,7 @@ class _HabitFormSheetState extends ConsumerState<_HabitFormSheet> {
               // Name
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Habit Name',
                   hintText: 'e.g., Drink 8 glasses of water',
                 ),
@@ -448,7 +447,7 @@ class _HabitFormSheetState extends ConsumerState<_HabitFormSheet> {
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 2,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Description (optional)',
                   hintText: 'Brief description of the habit',
                 ),
@@ -511,10 +510,10 @@ class _HabitFormSheetState extends ConsumerState<_HabitFormSheet> {
               ),
               const SizedBox(height: 8),
               SegmentedButton<String>(
-                segments: const [
+                segments: [
                   ButtonSegment(value: 'daily', label: Text('Daily')),
-                  ButtonSegment(value: 'weekdays', label: Text('Weekdays')),
-                  ButtonSegment(value: 'custom', label: Text('Custom')),
+                  ButtonSegment(value: 'daily', label: Text('Daily')),
+                  ButtonSegment(value: 'daily', label: Text('Daily')),
                 ],
                 selected: {_selectedFrequency},
                 onSelectionChanged: (selection) {

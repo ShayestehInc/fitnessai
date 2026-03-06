@@ -4,6 +4,7 @@ import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/user_profile_model.dart';
 import '../providers/onboarding_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class Step2ActivityLevelScreen extends ConsumerWidget {
   const Step2ActivityLevelScreen({super.key});
@@ -73,7 +74,7 @@ class Step2ActivityLevelScreen extends ConsumerWidget {
                   : null,
               child: state.isLoading
                   ? const AdaptiveSpinner.small()
-                  : const Text('Continue'),
+                  : Text(context.l10n.adminContinue),
             ),
           ),
 

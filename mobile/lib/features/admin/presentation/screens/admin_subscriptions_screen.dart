@@ -8,6 +8,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminSubscriptionsScreen extends ConsumerStatefulWidget {
   const AdminSubscriptionsScreen({super.key});
@@ -51,7 +52,7 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Subscriptions'),
+        title: Text(context.l10n.adminSubscriptions),
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           IconButton(
@@ -68,7 +69,7 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search by email...',
+                hintText: context.l10n.adminSearchByEmail,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -125,7 +126,7 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
                       });
                       _applyFilters();
                     },
-                    child: const Text('Clear All'),
+                    child: Text(context.l10n.adminClearAll),
                   ),
                 ],
               ),
@@ -154,7 +155,7 @@ class _AdminSubscriptionsScreenState extends ConsumerState<AdminSubscriptionsScr
                               const SizedBox(height: 16),
                               ElevatedButton(
                                 onPressed: _applyFilters,
-                                child: const Text('Retry'),
+                                child: Text(context.l10n.commonRetry),
                               ),
                             ],
                           ),

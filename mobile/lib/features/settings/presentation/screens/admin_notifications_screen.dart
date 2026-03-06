@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Admin notification preferences screen
 class AdminNotificationsScreen extends ConsumerStatefulWidget {
@@ -64,14 +65,14 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
 
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Notifications')),
+        appBar: AppBar(title: Text(context.l10n.settingsNotifications)),
         body: const Center(child: AdaptiveSpinner()),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(context.l10n.settingsNotifications),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -81,8 +82,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
           const SizedBox(height: 8),
           _buildMainToggle(
             theme: theme,
-            title: 'Push Notifications',
-            subtitle: 'Receive push notifications on this device',
+            title: context.l10n.settingsPushNotifications,
+            subtitle: context.l10n.settingsReceivePushNotificationsOnThisDevice,
             value: _pushEnabled,
             onChanged: (value) {
               setState(() => _pushEnabled = value);
@@ -93,8 +94,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
             const SizedBox(height: 8),
             _buildSubToggle(
               theme: theme,
-              title: 'New Trainer Signups',
-              subtitle: 'When a new trainer creates an account',
+              title: context.l10n.settingsNewTrainerSignups,
+              subtitle: context.l10n.settingsWhenANewTrainerCreatesAnAccount,
               value: _newTrainerSignup,
               onChanged: (value) {
                 setState(() => _newTrainerSignup = value);
@@ -103,8 +104,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
             ),
             _buildSubToggle(
               theme: theme,
-              title: 'Subscription Changes',
-              subtitle: 'Upgrades, downgrades, and cancellations',
+              title: context.l10n.settingsSubscriptionChanges,
+              subtitle: context.l10n.settingsUpgradesDowngradesAndCancellations,
               value: _subscriptionChanges,
               onChanged: (value) {
                 setState(() => _subscriptionChanges = value);
@@ -113,8 +114,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
             ),
             _buildSubToggle(
               theme: theme,
-              title: 'Payment Alerts',
-              subtitle: 'Successful and failed payments',
+              title: context.l10n.settingsPaymentAlerts,
+              subtitle: context.l10n.settingsSuccessfulAndFailedPayments,
               value: _paymentAlerts,
               onChanged: (value) {
                 setState(() => _paymentAlerts = value);
@@ -123,8 +124,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
             ),
             _buildSubToggle(
               theme: theme,
-              title: 'Past Due Alerts',
-              subtitle: 'When accounts become past due',
+              title: context.l10n.settingsPastDueAlerts,
+              subtitle: context.l10n.settingsWhenAccountsBecomePastDue,
               value: _pastDueAlerts,
               onChanged: (value) {
                 setState(() => _pastDueAlerts = value);
@@ -140,8 +141,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
           const SizedBox(height: 8),
           _buildMainToggle(
             theme: theme,
-            title: 'Email Notifications',
-            subtitle: 'Receive notifications via email',
+            title: context.l10n.settingsEmailNotifications,
+            subtitle: context.l10n.settingsReceiveNotificationsViaEmail,
             value: _emailEnabled,
             onChanged: (value) {
               setState(() => _emailEnabled = value);
@@ -152,8 +153,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
             const SizedBox(height: 8),
             _buildSubToggle(
               theme: theme,
-              title: 'Daily Summary',
-              subtitle: 'Daily overview of platform activity',
+              title: context.l10n.settingsDailySummary,
+              subtitle: context.l10n.settingsDailyOverviewOfPlatformActivity,
               value: _dailySummary,
               onChanged: (value) {
                 setState(() => _dailySummary = value);
@@ -162,8 +163,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
             ),
             _buildSubToggle(
               theme: theme,
-              title: 'Weekly Summary',
-              subtitle: 'Weekly report with key metrics',
+              title: context.l10n.settingsWeeklySummary,
+              subtitle: context.l10n.settingsWeeklyReportWithKeyMetrics,
               value: _weeklySummary,
               onChanged: (value) {
                 setState(() => _weeklySummary = value);
@@ -172,8 +173,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
             ),
             _buildSubToggle(
               theme: theme,
-              title: 'Payment Receipts',
-              subtitle: 'Confirmation emails for payments',
+              title: context.l10n.settingsPaymentReceipts,
+              subtitle: context.l10n.settingsConfirmationEmailsForPayments,
               value: _paymentReceipts,
               onChanged: (value) {
                 setState(() => _paymentReceipts = value);
@@ -182,8 +183,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
             ),
             _buildSubToggle(
               theme: theme,
-              title: 'Security Alerts',
-              subtitle: 'Login attempts and security events',
+              title: context.l10n.settingsSecurityAlerts,
+              subtitle: context.l10n.settingsLoginAttemptsAndSecurityEvents,
               value: _securityAlerts,
               onChanged: (value) {
                 setState(() => _securityAlerts = value);

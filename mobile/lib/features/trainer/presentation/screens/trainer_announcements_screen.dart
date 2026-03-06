@@ -8,6 +8,7 @@ import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../community/data/models/announcement_model.dart';
 import '../../../community/presentation/providers/announcement_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Trainer-facing announcement management screen.
 class TrainerAnnouncementsScreen extends ConsumerStatefulWidget {
@@ -35,14 +36,14 @@ class _TrainerAnnouncementsScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Announcements'),
+        title: Text(context.l10n.trainerAnnouncements),
         elevation: 0,
         actions: [
           if (Theme.of(context).platform == TargetPlatform.iOS)
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: () => context.push('/trainer/announcements/create'),
-              tooltip: 'New announcement',
+              tooltip: context.l10n.trainerNewAnnouncement,
             ),
         ],
       ),
@@ -57,7 +58,7 @@ class _TrainerAnnouncementsScreenState
           : FloatingActionButton(
               onPressed: () => context.push('/trainer/announcements/create'),
               backgroundColor: theme.colorScheme.primary,
-              tooltip: 'New announcement',
+              tooltip: context.l10n.trainerNewAnnouncement,
               child: const Icon(Icons.add),
             ),
     );
@@ -80,7 +81,7 @@ class _TrainerAnnouncementsScreenState
             OutlinedButton(
               onPressed: () =>
                   ref.read(trainerAnnouncementProvider.notifier).loadAnnouncements(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -174,14 +175,14 @@ class _TrainerAnnouncementsScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Announcement'),
-        content: const Text('Are you sure you want to delete this announcement?'),
+        title: Text(context.l10n.trainerDeleteAnnouncement),
+        content: Text(context.l10n.trainerAreYouSureYouWantToDeleteThisAnnouncement),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.commonCancel)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Theme.of(ctx).colorScheme.error),
-            child: const Text('Delete'),
+            child: Text(context.l10n.commonDelete),
           ),
         ],
       ),
@@ -191,7 +192,7 @@ class _TrainerAnnouncementsScreenState
       final success =
           await ref.read(trainerAnnouncementProvider.notifier).deleteAnnouncement(id);
       if (!success && mounted) {
-        showAdaptiveToast(context, message: 'Failed to delete announcement');
+        showAdaptiveToast(context, message: context.l10n.trainerFailedToDeleteAnnouncement);
       }
     }
   }
@@ -246,11 +247,11 @@ class _TrainerAnnouncementTile extends StatelessWidget {
                       context: context,
                       actions: [
                         AdaptiveAction(
-                          label: 'Edit',
+                          label: context.l10n.commonEdit,
                           onPressed: () => onEdit(),
                         ),
                         AdaptiveAction(
-                          label: 'Delete',
+                          label: context.l10n.commonDelete,
                           onPressed: () => onDelete(),
                           isDestructive: true,
                         ),
@@ -264,10 +265,10 @@ class _TrainerAnnouncementTile extends StatelessWidget {
                       if (value == 'delete') onDelete();
                     },
                     itemBuilder: (ctx) => [
-                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'edit', child: Text(context.l10n.commonEdit)),
                       PopupMenuItem(
                         value: 'delete',
-                        child: Text('Delete', style: TextStyle(color: theme.colorScheme.error)),
+                        child: Text(context.l10n.commonDelete, style: TextStyle(color: theme.colorScheme.error)),
                       ),
                     ],
                   ),

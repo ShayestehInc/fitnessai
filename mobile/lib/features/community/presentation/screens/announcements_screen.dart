@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../providers/announcement_provider.dart';
 import '../../data/models/announcement_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Full-screen announcements list for trainees.
 class AnnouncementsScreen extends ConsumerStatefulWidget {
@@ -31,7 +32,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Announcements'),
+        title: Text(context.l10n.trainerAnnouncements),
         elevation: 0,
       ),
       body: AdaptiveRefreshIndicator(
@@ -59,7 +60,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
             const SizedBox(height: 16),
             OutlinedButton(
               onPressed: () => ref.read(announcementProvider.notifier).loadAnnouncements(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -100,7 +101,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 
   Widget _buildLoadingSkeleton(ThemeData theme) {
     return Semantics(
-      label: 'Loading announcements',
+      label: context.l10n.communityLoadingAnnouncements,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: 3,

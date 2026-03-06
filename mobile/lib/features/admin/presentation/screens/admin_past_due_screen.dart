@@ -8,6 +8,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../providers/admin_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminPastDueScreen extends ConsumerStatefulWidget {
   const AdminPastDueScreen({super.key});
@@ -55,7 +56,7 @@ class _AdminPastDueScreenState extends ConsumerState<AdminPastDueScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Past Due Accounts'),
+        title: Text(context.l10n.adminPastDueAccounts),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: _isLoading
@@ -72,7 +73,7 @@ class _AdminPastDueScreenState extends ConsumerState<AdminPastDueScreen> {
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadPastDue,
-                        child: const Text('Retry'),
+                        child: Text(context.l10n.commonRetry),
                       ),
                     ],
                   ),
@@ -323,10 +324,10 @@ class _PastDueCard extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: () {
                         // TODO: Send reminder email
-                        showAdaptiveToast(context, message: 'Reminder sent');
+                        showAdaptiveToast(context, message: context.l10n.adminReminderSent);
                       },
                       icon: const Icon(Icons.email, size: 18),
-                      label: const Text('Send Reminder'),
+                      label: Text(context.l10n.adminSendReminder),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.orange,
                         side: const BorderSide(color: Colors.orange),
@@ -338,7 +339,7 @@ class _PastDueCard extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: () => context.push('/admin/subscriptions/${subscription.id}'),
                       icon: const Icon(Icons.payment, size: 18),
-                      label: const Text('Record Payment'),
+                      label: Text(context.l10n.adminRecordPayment),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,

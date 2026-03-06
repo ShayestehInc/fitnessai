@@ -5,6 +5,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/feature_request_model.dart';
 import '../providers/feature_request_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class FeatureDetailScreen extends ConsumerStatefulWidget {
   final int featureId;
@@ -35,17 +36,17 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Feature Request'),
+        title: Text(context.l10n.featureReqFeatureRequest),
       ),
       body: featureAsync.when(
         data: (feature) {
           if (feature == null) {
-            return const Center(child: Text('Feature request not found'));
+            return Center(child: Text(context.l10n.featureReqFeatureRequestNotFound));
           }
           return _buildContent(feature, commentsAsync);
         },
         loading: () => const Center(child: AdaptiveSpinner()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(context.l10n.featureReqErrore)),
       ),
     );
   }
@@ -245,7 +246,7 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
                   );
                 },
                 loading: () => const Center(child: AdaptiveSpinner()),
-                error: (e, _) => Text('Error loading comments: $e'),
+                error: (e, _) => Text(context.l10n.featureReqErrorLoadingCommentse),
               ),
             ],
           ),
@@ -266,8 +267,8 @@ class _FeatureDetailScreenState extends ConsumerState<FeatureDetailScreen> {
                 Expanded(
                   child: TextField(
                     controller: _commentController,
-                    decoration: const InputDecoration(
-                      hintText: 'Add a comment...',
+                    decoration: InputDecoration(
+                      hintText: context.l10n.featureReqAddAComment,
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),

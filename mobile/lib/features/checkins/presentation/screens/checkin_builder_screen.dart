@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/checkin_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Trainer-facing screen for building a check-in form template.
 class CheckInBuilderScreen extends ConsumerStatefulWidget {
@@ -67,7 +68,7 @@ class _CheckInBuilderScreenState extends ConsumerState<CheckInBuilderScreen> {
     if (!_validate()) {
       showAdaptiveToast(
         context,
-        message: 'Please fill in the template name and all field labels',
+        message: context.l10n.checkinsPleaseFillInTheTemplateNameAndAllFieldLabels,
         type: ToastType.warning,
       );
       return;
@@ -98,7 +99,7 @@ class _CheckInBuilderScreenState extends ConsumerState<CheckInBuilderScreen> {
       ref.invalidate(templatesProvider);
       showAdaptiveToast(
         context,
-        message: 'Template created!',
+        message: context.l10n.checkinsTemplateCreated,
         type: ToastType.success,
       );
       context.pop();
@@ -124,7 +125,7 @@ class _CheckInBuilderScreenState extends ConsumerState<CheckInBuilderScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Build Check-In Form'),
+        title: Text(context.l10n.checkinsBuildCheckInForm),
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _save,
@@ -134,7 +135,7 @@ class _CheckInBuilderScreenState extends ConsumerState<CheckInBuilderScreen> {
                     height: 20,
                     child: AdaptiveSpinner.small(),
                   )
-                : const Text('Save'),
+                : Text(context.l10n.commonSave),
           ),
         ],
       ),
@@ -144,12 +145,12 @@ class _CheckInBuilderScreenState extends ConsumerState<CheckInBuilderScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Template name
-            Text('Template Name', style: theme.textTheme.titleSmall),
+            Text(context.l10n.checkinsTemplateName, style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             TextField(
               controller: _nameController,
               decoration: InputDecoration(
-                hintText: 'e.g. Weekly Progress Check-In',
+                hintText: context.l10n.checkinsEGWeeklyProgressCheckIn,
                 filled: true,
                 fillColor: theme.cardColor,
                 border: OutlineInputBorder(
@@ -161,7 +162,7 @@ class _CheckInBuilderScreenState extends ConsumerState<CheckInBuilderScreen> {
             const SizedBox(height: 20),
 
             // Frequency selector
-            Text('Frequency', style: theme.textTheme.titleSmall),
+            Text(context.l10n.checkinsFrequency, style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             _FrequencySelector(
               value: _frequency,
@@ -174,11 +175,11 @@ class _CheckInBuilderScreenState extends ConsumerState<CheckInBuilderScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Fields', style: theme.textTheme.titleSmall),
+                Text(context.l10n.checkinsFields, style: theme.textTheme.titleSmall),
                 TextButton.icon(
                   onPressed: _addField,
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Field'),
+                  label: Text(context.l10n.checkinsAddField),
                 ),
               ],
             ),
@@ -390,8 +391,8 @@ class _FieldEditorCard extends StatelessWidget {
           TextField(
             controller: field.labelController,
             decoration: InputDecoration(
-              labelText: 'Label',
-              hintText: 'e.g. How are you feeling?',
+              labelText: context.l10n.checkinsLabel,
+              hintText: context.l10n.checkinsEGHowAreYouFeeling,
               isDense: true,
               filled: true,
               fillColor: theme.scaffoldBackgroundColor,
@@ -408,7 +409,7 @@ class _FieldEditorCard extends StatelessWidget {
           DropdownButtonFormField<String>(
             initialValue: field.type,
             decoration: InputDecoration(
-              labelText: 'Type',
+              labelText: context.l10n.checkinsType,
               isDense: true,
               filled: true,
               fillColor: theme.scaffoldBackgroundColor,
@@ -441,7 +442,7 @@ class _FieldEditorCard extends StatelessWidget {
           // Required toggle
           Row(
             children: [
-              const Text('Required'),
+              Text(context.l10n.checkinsRequired),
               const Spacer(),
               Switch.adaptive(
                 value: field.isRequired,
@@ -545,7 +546,7 @@ class _OptionsEditorState extends State<_OptionsEditor> {
               child: TextField(
                 controller: _optionController,
                 decoration: InputDecoration(
-                  hintText: 'Add option...',
+                  hintText: context.l10n.checkinsAddOption,
                   isDense: true,
                   filled: true,
                   fillColor: widget.theme.scaffoldBackgroundColor,

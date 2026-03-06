@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/payment_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TrainerPricingScreen extends ConsumerStatefulWidget {
   const TrainerPricingScreen({super.key});
@@ -88,7 +89,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
 
                   // Monthly Subscription
                   _buildPricingCard(
-                    title: 'Monthly Subscription',
+                    title: context.l10n.paymentsMonthlySubscription,
                     description: 'Recurring monthly coaching fee',
                     icon: Icons.calendar_month,
                     enabled: _monthlyEnabled,
@@ -102,7 +103,7 @@ class _TrainerPricingScreenState extends ConsumerState<TrainerPricingScreen> {
 
                   // One-Time Consultation
                   _buildPricingCard(
-                    title: 'One-Time Consultation',
+                    title: context.l10n.paymentsOneTimeConsultation,
                     description: 'Single session or consultation fee',
                     icon: Icons.person,
                     enabled: _oneTimeEnabled,

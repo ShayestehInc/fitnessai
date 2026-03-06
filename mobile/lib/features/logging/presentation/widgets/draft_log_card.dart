@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/parsed_log_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Draft Log Card - Shows parsed data before confirmation
 /// Displays nutrition and workout data in a clean card format
@@ -62,14 +63,14 @@ class DraftLogCard extends StatelessWidget {
               children: [
                 TextButton(
                   onPressed: isSaving ? null : onCancel,
-                  child: const Text('Cancel'),
+                  child: Text(context.l10n.commonCancel),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: isSaving ? null : onConfirm,
                   child: isSaving
                       ? const AdaptiveSpinner.small()
-                      : const Text('Confirm'),
+                      : Text(context.l10n.commonConfirm),
                 ),
               ],
             ),

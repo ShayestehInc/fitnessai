@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../providers/workout_history_provider.dart';
 import 'workout_history_widgets.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class WorkoutHistoryScreen extends ConsumerStatefulWidget {
   const WorkoutHistoryScreen({super.key});
@@ -47,7 +48,7 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Workout History'),
+        title: Text(context.l10n.workoutHistory),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
       ),
@@ -114,7 +115,7 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
                           .read(workoutHistoryProvider.notifier)
                           .loadMore(),
                       icon: const Icon(Icons.refresh, size: 16),
-                      label: const Text('Retry'),
+                      label: Text(context.l10n.commonRetry),
                     ),
                   ],
                 ),
@@ -237,7 +238,7 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
               OutlinedButton.icon(
                 onPressed: () => context.push('/logbook'),
                 icon: const Icon(Icons.play_arrow),
-                label: const Text('Start a Workout'),
+                label: Text(context.l10n.workoutStartAWorkout),
               ),
             ],
           ),
@@ -252,7 +253,7 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
         padding: const EdgeInsets.all(32),
         child: Semantics(
           liveRegion: true,
-          label: 'Error: $error',
+          label: context.l10n.exercisesErrorerror,
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -293,7 +294,7 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
                   onPressed: () =>
                       ref.read(workoutHistoryProvider.notifier).loadInitial(),
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
+                  label: Text(context.l10n.commonRetry),
                 ),
               ],
             ),

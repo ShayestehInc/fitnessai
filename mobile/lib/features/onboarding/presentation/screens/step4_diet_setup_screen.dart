@@ -4,6 +4,7 @@ import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/user_profile_model.dart';
 import '../providers/onboarding_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class Step4DietSetupScreen extends ConsumerWidget {
   const Step4DietSetupScreen({super.key});
@@ -199,7 +200,7 @@ class Step4DietSetupScreen extends ConsumerWidget {
                   : null,
               child: state.isLoading
                   ? const AdaptiveSpinner.small()
-                  : const Text('Complete Setup'),
+                  : Text(context.l10n.onboardingCompleteSetup),
             ),
           ),
 

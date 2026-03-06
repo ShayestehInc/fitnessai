@@ -11,6 +11,7 @@ import '../../data/repositories/branding_repository.dart';
 import '../widgets/branding_color_section.dart';
 import '../widgets/branding_logo_section.dart';
 import '../widgets/branding_preview_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 final _brandingRepositoryProvider = Provider<BrandingRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
@@ -115,7 +116,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
         _originalSecondaryColor = saved.secondaryColorValue;
       });
       if (!mounted) return;
-      showAdaptiveToast(context, message: 'Branding updated successfully', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.settingsBrandingUpdatedSuccessfully, type: ToastType.success);
     } else {
       if (!mounted) return;
       showAdaptiveToast(context, message: result.error ?? 'Failed to save branding', type: ToastType.error);
@@ -142,7 +143,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
 
     if (result.success && result.branding != null) {
       setState(() => _branding = result.branding);
-      showAdaptiveToast(context, message: 'Logo uploaded successfully', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.settingsLogoUploadedSuccessfully, type: ToastType.success);
     } else {
       showAdaptiveToast(context, message: result.error ?? 'Failed to upload logo', type: ToastType.error);
     }
@@ -151,9 +152,9 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
   Future<void> _removeLogo() async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Remove Logo',
-      message: 'Are you sure you want to remove your logo?',
-      confirmText: 'Remove',
+      title: context.l10n.settingsRemoveLogo,
+      message: context.l10n.settingsAreYouSureYouWantToRemoveYourLogo,
+      confirmText: context.l10n.programsRemove,
       isDestructive: true,
     );
 
@@ -169,7 +170,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
     if (result.success && result.branding != null) {
       setState(() => _branding = result.branding);
       if (!mounted) return;
-      showAdaptiveToast(context, message: 'Logo removed', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.settingsLogoRemoved, type: ToastType.success);
     } else {
       if (!mounted) return;
       showAdaptiveToast(context, message: result.error ?? 'Failed to remove logo', type: ToastType.error);
@@ -179,10 +180,10 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
   Future<void> _resetToDefaults() async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Reset Branding',
+      title: context.l10n.settingsResetBranding,
       message: 'This will reset your app name, colors, and remove your logo. '
           'Your trainees will see the default FitnessAI branding.',
-      confirmText: 'Reset',
+      confirmText: context.l10n.settingsReset,
       isDestructive: true,
     );
 
@@ -217,9 +218,9 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
         if (didPop) return;
         final shouldDiscard = await showAdaptiveConfirmDialog(
           context: context,
-          title: 'Unsaved Changes',
-          message: 'You have unsaved branding changes. Discard them?',
-          confirmText: 'Discard',
+          title: context.l10n.settingsUnsavedChanges,
+          message: context.l10n.settingsYouHaveUnsavedBrandingChangesDiscardThem,
+          confirmText: context.l10n.checkinsDiscard,
           cancelText: 'Keep Editing',
           isDestructive: true,
         );
@@ -229,7 +230,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Branding'),
+          title: Text(context.l10n.settingsBranding),
           elevation: 0,
           actions: [
             if (!_isLoading && _error == null)
@@ -240,7 +241,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
                       context: context,
                       actions: [
                         AdaptiveAction(
-                          label: 'Reset to Defaults',
+                          label: context.l10n.settingsResetToDefaults,
                           icon: Icons.restart_alt,
                           onPressed: () => _resetToDefaults(),
                           isDestructive: true,
@@ -297,7 +298,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
             style: TextStyle(color: theme.textTheme.bodySmall?.color),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: _fetchBranding, child: const Text('Retry')),
+          ElevatedButton(onPressed: _fetchBranding, child: Text(context.l10n.commonRetry)),
         ],
       ),
     );
@@ -362,8 +363,8 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
         controller: _appNameController,
         maxLength: 50,
         decoration: InputDecoration(
-          hintText: 'FitnessAI',
-          helperText: 'Your trainees will see this name instead of "FitnessAI"',
+          hintText: context.l10n.appTitle,
+          helperText: context.l10n.settingsYourTraineesWillSeeThisNameInsteadOfFitnessAI,
           counterText: '${_appNameController.text.length}/50',
         ),
         onChanged: (_) => setState(() {}),
@@ -384,12 +385,12 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
             child: Semantics(
               button: true,
               enabled: canSave,
-              label: 'Save branding changes',
+              label: context.l10n.settingsSaveBrandingChanges,
               child: ElevatedButton(
                 onPressed: canSave ? _saveBranding : null,
                 child: _isSaving
                     ? const AdaptiveSpinner.small()
-                    : const Text('Save Branding'),
+                    : Text(context.l10n.settingsSaveBranding),
               ),
             ),
           ),

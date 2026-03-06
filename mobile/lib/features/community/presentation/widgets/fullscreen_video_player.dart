@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Fullscreen video player with native controls.
 /// Supports landscape, seek bar, play/pause, and mute toggle.
@@ -97,12 +98,12 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
               top: MediaQuery.of(context).padding.top + 8,
               left: 8,
               child: Semantics(
-                label: 'Close fullscreen video',
+                label: context.l10n.communityCloseFullscreenVideo,
                 button: true,
                 child: IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                  tooltip: 'Close',
+                  tooltip: context.l10n.commonClose,
                 ),
               ),
             ),
@@ -133,7 +134,7 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
           children: [
             // Seek bar
             Semantics(
-              label: 'Video seek bar',
+              label: context.l10n.communityVideoSeekBar,
               slider: true,
             child: SliderTheme(
               data: SliderThemeData(
@@ -232,7 +233,7 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
             });
             _initialize();
           },
-          child: const Text('Retry', style: TextStyle(color: Colors.white)),
+          child: Text(context.l10n.commonRetry, style: TextStyle(color: Colors.white)),
         ),
       ],
     );

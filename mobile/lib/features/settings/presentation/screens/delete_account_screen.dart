@@ -5,6 +5,7 @@ import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Full-page delete account confirmation screen.
 class DeleteAccountScreen extends ConsumerStatefulWidget {
@@ -49,7 +50,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Delete Account'),
+        title: Text(context.l10n.settingsDeleteAccount),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -159,7 +160,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Cancel'),
+                      child: Text(context.l10n.commonCancel),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -178,7 +179,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                       ),
                       child: _isLoading
                           ? const AdaptiveSpinner.small()
-                          : const Text('Delete My Account'),
+                          : Text(context.l10n.settingsDeleteMyAccount),
                     ),
                   ),
                 ],
