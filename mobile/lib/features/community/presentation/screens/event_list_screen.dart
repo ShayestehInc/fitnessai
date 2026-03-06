@@ -33,7 +33,7 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
 
   Widget _buildBody(BuildContext context, EventListState state) {
     if (state.isLoading && state.events.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildLoadingSkeleton(context);
     }
 
     if (state.error != null && state.events.isEmpty) {
@@ -122,6 +122,43 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
       widgets.addAll(group.map((e) => _buildEventCard(e)));
     }
     return widgets;
+  }
+
+  Widget _buildLoadingSkeleton(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      label: 'Loading events',
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 3,
+        itemBuilder: (_, __) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(width: 80, height: 18, decoration: BoxDecoration(
+                  color: theme.dividerColor, borderRadius: BorderRadius.circular(6))),
+                const SizedBox(height: 10),
+                Container(width: 200, height: 16, color: theme.dividerColor),
+                const SizedBox(height: 10),
+                Container(width: 150, height: 12, color: theme.dividerColor),
+                const SizedBox(height: 6),
+                Container(width: 120, height: 12, color: theme.dividerColor),
+                const SizedBox(height: 6),
+                Container(width: 100, height: 12, color: theme.dividerColor),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildEventCard(CommunityEventModel event) {

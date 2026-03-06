@@ -65,6 +65,15 @@ class _EventDetailBody extends ConsumerWidget {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurface.withValues(alpha: 0.6);
 
+    // Show snackbar on RSVP errors
+    ref.listen<EventListState>(traineeEventProvider, (prev, next) {
+      if (next.error != null && next.error != prev?.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(next.error!)),
+        );
+      }
+    });
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
