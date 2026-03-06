@@ -45,6 +45,7 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
         _isInitialized = true;
       });
       controller.addListener(_onPlayerStateChanged);
+      await controller.setVolume(0); // Start muted in feed
       await controller.play();
     } catch (_) {
       if (mounted) {
@@ -161,6 +162,31 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Mute indicator (bottom-left, when playing muted)
+              if (_isInitialized && _controller != null && _controller!.value.volume == 0)
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  child: GestureDetector(
+                    onTap: () {
+                      _controller!.setVolume(1);
+                      setState(() {});
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Icon(
+                        Icons.volume_off,
+                        color: Colors.white,
+                        size: 18,
                       ),
                     ),
                   ),

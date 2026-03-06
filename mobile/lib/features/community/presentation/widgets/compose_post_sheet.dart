@@ -320,58 +320,84 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final path = _videoPaths[index];
-          final fileName = path.split('/').last;
-          return Stack(
-            children: [
-              Container(
-                height: 80,
-                width: 100,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.videocam,
-                      size: 28,
-                      color: theme.colorScheme.primary,
+          return FutureBuilder<int>(
+            future: File(path).length(),
+            builder: (context, snapshot) {
+              final sizeMb = snapshot.hasData
+                  ? (snapshot.data! / (1024 * 1024)).toStringAsFixed(1)
+                  : '...';
+              return Stack(
+                children: [
+                  Container(
+                    height: 80,
+                    width: 100,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.videocam,
+                          size: 28,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${sizeMb}MB',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: theme.textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Video badge
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                       child: Text(
-                        fileName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        'VIDEO',
                         style: TextStyle(
-                          fontSize: 9,
-                          color: theme.textTheme.bodySmall?.color,
+                          color: theme.colorScheme.onPrimary,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 2,
-                right: 2,
-                child: GestureDetector(
-                  onTap: () =>
-                      setState(() => _videoPaths.removeAt(index)),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: Colors.black54,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close,
-                        size: 14, color: Colors.white),
                   ),
-                ),
-              ),
-            ],
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: GestureDetector(
+                      onTap: () =>
+                          setState(() => _videoPaths.removeAt(index)),
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close,
+                            size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),

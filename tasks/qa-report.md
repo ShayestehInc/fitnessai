@@ -1,4 +1,4 @@
-# QA Report: Wire FCM Push Notifications End-to-End for Community Events
+# QA Report: Video Attachments on Community Posts
 
 ## Date: 2026-03-05
 
@@ -12,109 +12,119 @@ Code-review-style QA. All 12 acceptance criteria verified by reading actual impl
 
 ## Acceptance Criteria Verification
 
-- [x] **AC1**: Backend adds `community_event` boolean field to NotificationPreference model with migration -- **PASS**
-  - Field added at `backend/users/models.py:343-346` with `default=True` and descriptive `help_text`.
-  - Added to `VALID_CATEGORIES` frozenset at line 369.
-  - Migration at `backend/users/migrations/0010_add_community_event_notification_pref.py` is correct: `AddField` with `BooleanField(default=True)`, depends on `0009_add_body_fat_percentage`.
+- [x] **AC1**: PostVideo model exists with correct fields -- **PASS**
+  - Model defined at `backend/community/models.py:375-410` with all required fields: `post` (FK to CommunityPost, CASCADE, related_name='videos'), `file` (FileField), `thumbnail` (ImageField, null=True, blank=True), `duration` (FloatField, null=True, blank=True), `file_size` (PositiveIntegerField), `sort_order` (PositiveSmallIntegerField, default=0), `created_at` (DateTimeField, auto_now_add=True).
+  - Upload paths use year/month partitioning with UUID filenames as specified in the ticket.
+  - `db_table = 'community_post_videos'`, ordering by `sort_order`. Mirrors the PostImage pattern correctly.
 
-- [x] **AC2**: Backend sends push notification to all trainer's trainees when a new event is created -- **PASS**
-  - `TrainerEventListCreateView.create()` (trainer_views.py:510-511) calls `EventService.notify_event_created(event)` after event creation.
-  - `notify_event_created()` (event_service.py:144-164) fetches non-banned trainee IDs via `_get_non_banned_trainee_ids()`, sends via `send_push_to_group()` with title="New Event", body=event.title, correct data payload.
-  - Fire-and-forget pattern with try/except + logging matches existing announcement pattern.
+- [ ] **AC2**: Migration creates PostVideo table with indexes on post FK and created_at -- **FAIL**
+  - Migration at `backend/community/migrations/0007_add_post_video.py` creates the table correctly with all fields.
+  - Index on `['post', 'sort_order']` is present (line 33).
+  - **BUG**: The ticket requires an index on `created_at`, but no such index exists in the migration or the model Meta. The model Meta `indexes` list only includes `Index(fields=['post', 'sort_order'])`. Querying posts ordered by video creation time will be unindexed.
 
-- [x] **AC3**: Backend sends push notification to RSVP'd users (going/maybe) when an event is cancelled -- **PASS**
-  - `TrainerEventDetailView.delete()` (trainer_views.py:588-589) calls `notify_event_cancelled()` after status transition to CANCELLED.
-  - `TrainerEventStatusView.patch()` (trainer_views.py:621-622) also calls `notify_event_cancelled()` when new_status is CANCELLED.
-  - `notify_event_cancelled()` (event_service.py:201-221) queries going/maybe RSVPs via `_get_rsvpd_user_ids()`, sends with title="Event Cancelled".
-  - Both cancellation paths covered.
+- [x] **AC3**: Backend validates MP4/MOV/WebM, 50MB, 60s, max 3 -- **PASS**
+  - `video_service.py:19-34` defines `ALLOWED_VIDEO_TYPES` (video/mp4, video/quicktime, video/webm), `ALLOWED_VIDEO_EXTENSIONS` (.mp4, .m4v, .mov, .webm), `MAX_VIDEO_SIZE` (50MB), `MAX_VIDEO_DURATION` (60s), `MAX_VIDEOS_PER_POST` (3).
+  - `validate_video()` checks extension (line 145), MIME type (line 156), magic bytes (line 168), file size (line 178), and duration (line 208).
+  - View at `views.py:323-327` enforces max 3 videos per post. Each video is validated via `validate_video()` at line 332.
 
-- [x] **AC4**: Backend sends push notification to RSVP'd users (going/maybe) when event time/location changes -- **PASS**
-  - `TrainerEventDetailView._update()` (trainer_views.py:556-572) tracks `notify_fields = {'starts_at', 'ends_at', 'meeting_url'}`, checks intersection with validated data keys.
-  - Only notifies when `should_notify and event.status == SCHEDULED`. Correct: no notification for description-only changes or non-scheduled events.
-  - `notify_event_updated()` (event_service.py:166-198) builds a descriptive body ("time changed", "meeting link updated") and sends to RSVP'd users.
+- [x] **AC4**: Duration extracted server-side using ffprobe and stored -- **PASS**
+  - `_extract_duration()` at `video_service.py:70-100` uses `subprocess.run()` with `ffprobe -v quiet -print_format json -show_format` and parses `format.duration` from JSON output.
+  - Has 30s timeout, handles `subprocess.TimeoutExpired`, `ValueError`, and `KeyError`.
+  - Duration stored in `PostVideo.duration` field at `views.py:379`.
+  - Graceful degradation: if ffprobe unavailable, logs warning and allows upload with null duration (lines 230-235).
 
-- [ ] **AC5**: Backend sends push notification to RSVP'd users (going) 15 minutes before event starts via management command -- **FAIL**
-  - **BUG**: The reminder window in `send_event_reminders()` (event_service.py:238) uses `now + timedelta(minutes=5)`, NOT 15 minutes. Events starting in 0-5 minutes from the cron run get reminders. Users receive notifications at most ~5 minutes before, not 15 minutes before as the ticket specifies.
-  - The docstring (line 227) says "5 minutes" which contradicts the management command's help text saying "15 minutes".
-  - Correct implementation should query events starting between `now + 10min` and `now + 15min` so that with a `*/5 * * * *` cron, reminders arrive ~10-15 minutes before.
-  - Everything else in the method is correct: filters by SCHEDULED status only (skips cancelled/completed), queries only GOING RSVPs, batches RSVP queries efficiently, fire-and-forget per event with try/except.
+- [x] **AC5**: Thumbnail auto-generated from first frame and stored -- **PASS**
+  - `_extract_thumbnail()` at `video_service.py:103-129` uses `ffmpeg -i <file> -vframes 1 -f image2pipe -vcodec mjpeg -q:v 5 -vf scale=640:-1 -` to extract first frame as JPEG.
+  - Thumbnail bytes stored via `ContentFile` at `views.py:370-374` into `PostVideo.thumbnail` ImageField.
+  - Graceful degradation if ffmpeg unavailable (returns None, thumbnail stored as null).
 
-- [x] **AC6**: Mobile calls `PushNotificationService.initialize()` after successful login -- **PASS**
-  - Called in `login()` (auth_provider.dart:62), `register()` (auth_provider.dart:91), `loginWithGoogle()` (auth_provider.dart:190), `loginWithApple()` (auth_provider.dart:210), and `setTokensAndLoadUser()` (auth_provider.dart:159).
-  - All calls use `unawaited()` to avoid blocking the UI. Correct.
-  - `initialize()` is guarded by `_initialized` flag so repeated calls are safe.
+- [x] **AC6**: Serializer includes videos in response -- **PASS**
+  - `_serialize_posts()` at `views.py:1148-1164` iterates over videos relation and builds list with `id`, `url`, `thumbnail_url`, `duration`, `file_size`, `sort_order` -- all fields specified in the ticket.
+  - Videos included in response dict at line 1186.
+  - Feed queryset prefetches videos at line 242: `.prefetch_related('images', 'videos')`.
+  - Note: There is no dedicated `PostVideoSerializer` class. Instead, serialization is done inline in `_serialize_posts()`. This is a minor deviation from the ticket ("Add PostVideoSerializer") but functionally equivalent. Marking PASS since the response format matches requirements.
 
-- [x] **AC7**: Mobile calls `PushNotificationService.deactivateToken()` on logout -- **PASS**
-  - Called in `logout()` (auth_provider.dart:101) with `await`, before clearing auth state. Correct sequencing.
+- [x] **AC7**: Post creation view accepts videos in multipart form -- **PASS**
+  - `views.py:321` collects video files via `request.FILES.getlist('videos')`.
+  - Videos validated individually (lines 330-338), then created in a transaction (lines 368-382).
+  - Supports mixed images + videos in the same multipart form (images at line 296, videos at line 321).
+  - Allows post with only videos (no text): line 342 checks `not content_text and not image_files and not video_files`.
 
-- [x] **AC8**: Mobile foreground handler displays a local notification for incoming push messages -- **PASS**
-  - `_handleForegroundMessage()` (push_notification_service.dart:154-175) creates a local notification with title/body from the FCM `RemoteMessage.notification`, high importance, and passes the data map as a JSON-encoded payload.
-  - Android notification channel created in `_initLocalNotifications()` with `Importance.high`.
-  - Guards against null notification payload (line 156).
+- [x] **AC8**: WebSocket feed_new_post broadcast includes video data -- **PASS**
+  - `_broadcast_new_post()` at `views.py:1200-1229` sends the full `post_data` dict (which includes `videos` key from `_serialize_posts`) via channel layer.
+  - Consumer `feed_new_post()` at `consumers.py:109-114` forwards the entire `event['post']` to the WebSocket client, which includes all video data.
 
-- [ ] **AC9**: Mobile notification tap navigates to the relevant screen (event detail for community_event notifications) -- **FAIL**
-  - **BUG**: `_navigateFromNotification()` (push_notification_service.dart:206) calls `router.push('/community-event-detail/$eventId')`, but the actual GoRouter path is `/community/events/:id` (app_router.dart:846). The string `community-event-detail` is the route NAME, not the path. `router.push()` expects a path. This will result in a route-not-found error on every notification tap for community events.
-  - The fix is either `router.push('/community/events/$eventId')` (path-based) or `router.pushNamed('community-event-detail', pathParameters: {'id': eventId})` (name-based).
-  - Local notification taps (`_onLocalNotificationTap`) also flow through the same `_navigateFromNotification`, so both foreground and background taps are broken.
-  - `getInitialMessage()` taps (terminated state) are also broken for the same reason.
+- [x] **AC9**: Mobile video picker allows selecting up to 3 videos -- **PASS**
+  - `compose_post_sheet.dart:381-418` uses `ImagePicker().pickVideo(source: ImageSource.gallery, maxDuration: Duration(seconds: 60))`.
+  - Enforces max 3 videos via `_maxVideos = 3` (line 33) and checks `remaining <= 0` before picking (line 384).
+  - Client-side extension validation for mp4, m4v, mov, webm (lines 394-404).
+  - Client-side 50MB size check with toast (lines 406-414).
+  - Video picker button in toolbar (lines 220-229), disabled when 3 videos already selected.
 
-- [x] **AC10**: Mobile notification preferences screen includes "Community Events" toggle for trainees -- **PASS**
-  - Added in `_traineeSections` (notification_preferences_screen.dart:111-116) with key `community_event`, label "Community Events", subtitle "New events, updates, cancellations, and reminders", icon `Icons.event_outlined`.
-  - Positioned between "Achievements" and "Communication" section as specified in ticket UX requirements.
+- [ ] **AC10**: Compose sheet shows video thumbnails with duration badge, delete button, and upload progress bar -- **FAIL**
+  - Delete button: Present (X button in `_buildVideoPreviews`, lines 357-374). PASS.
+  - Upload progress bar: Present (LinearProgressIndicator at lines 122-135, fed by `onUploadProgress` callback). PASS.
+  - **BUG**: Video previews do NOT show thumbnail images or duration badges. The `_buildVideoPreviews()` method (lines 314-378) renders a generic `Icons.videocam` icon with the filename text, not an actual video thumbnail or duration badge. The ticket explicitly requires "thumbnail cards with duration badge (e.g., '0:32')". The implementation shows only a plain icon placeholder. This is because generating thumbnails client-side before upload would require a separate package (e.g., `video_thumbnail`), which is not included. The preview is functional but does not match the UX specification.
 
-- [x] **AC11**: All push notification data payloads include `type` key for routing and relevant entity ID -- **PASS**
-  - All four notification methods include `'type': 'community_event_*'` and `'event_id': str(event.id)` in the data dict.
-  - Types: `community_event_created`, `community_event_updated`, `community_event_cancelled`, `community_event_reminder`. Matches the contract in the ticket.
+- [x] **AC11**: Inline video player in feed -- **PASS**
+  - `VideoPlayerCard` at `video_player_card.dart` implements inline playback: thumbnail/placeholder on load, tap-to-play (line 66), tap-to-pause (line 71), play button overlay when not playing (lines 129-142), duration badge before playback (lines 145-167).
+  - Uses `video_player` package (pubspec.yaml line 71: `video_player: ^2.8.6`).
+  - No autoplay: player initializes only on first tap (`_initializePlayer()` called from `_togglePlayPause` at line 67).
+  - Error state with "Tap to retry" (lines 210-244).
+  - Renders in `community_post_card.dart:61-71` below images when `post.hasVideo`.
 
-- [x] **AC12**: Push notifications respect user's category opt-out preferences -- **PASS**
-  - All four notification methods pass `category='community_event'` to `send_push_to_group()`.
-  - `send_push_to_group()` (notification_service.py:153-181) validates `community_event` is in `VALID_CATEGORIES`, queries users who opted out (`community_event=False`), and filters them from the recipient list before sending.
-  - Fail-open behavior: if preference check fails (DB error), notifications are still sent. This matches the existing pattern.
+- [x] **AC12**: Fullscreen player with controls -- **PASS**
+  - `FullscreenVideoPlayer` at `fullscreen_video_player.dart` implements all required controls:
+    - Play/pause button (lines 163-177).
+    - Seek bar via Slider (lines 130-149).
+    - Time display showing position/duration (lines 157-159).
+    - Mute toggle (lines 180-191).
+    - Landscape support via `SystemChrome.setPreferredOrientations` (lines 25-29), restored on dispose (line 66).
+    - Close button always visible (lines 96-103).
+    - Controls auto-hide after 3 seconds during playback (lines 52-56).
+    - Tap to toggle controls (line 76).
+  - Accessible from inline player via long-press (line 106 of video_player_card.dart) or fullscreen icon button (lines 170-189 of video_player_card.dart).
 
 ## Bugs Found Outside Acceptance Criteria
 
 | # | Severity | Description | Details |
 |---|----------|-------------|---------|
-| 1 | **Critical** | Deep link navigation uses wrong path | `push_notification_service.dart:206` uses `router.push('/community-event-detail/$eventId')` but the GoRouter path is `/community/events/:id`. Every community event notification tap silently fails to navigate. Affects foreground taps, background taps, and terminated-state taps. |
-| 2 | **Major** | Reminder window is 5 minutes instead of 15 | `event_service.py:238` uses `timedelta(minutes=5)`. Reminders arrive 0-5 min before events, not ~15 min. Fix: query `starts_at__gt=now + 10min, starts_at__lte=now + 15min`. |
-| 3 | **Major** | Push notifications break after logout/re-login cycle | `deactivateToken()` clears `_currentToken` but does not reset `_initialized`. On re-login, `initialize()` returns immediately (line 37), so the FCM token is never re-registered on the backend. The backend has the token marked inactive, but the mobile never re-registers it. Push notifications stop working until a full app restart. |
-| 4 | **Minor** | `deleteAccount()` does not deactivate push token | `auth_provider.dart:125-140` calls `_repository.deleteAccount()` without first calling `_pushService.deactivateToken()`. Inconsistent with the `logout()` pattern. Not a security issue if backend cascade-deletes user data, but leaves orphan tokens if cascade is missing. |
-| 5 | **Minor** | PUT updates trigger false-positive notifications | `trainer_views.py:557` computes `changed_fields` from `serializer.validated_data.keys()`, which for a full PUT includes ALL fields even if values are unchanged. A PUT that keeps the same time will still trigger an "Event Updated -- time changed" notification. Fix: compare old values with new before deciding to notify. |
-| 6 | **Minor** | `send_event_reminders()` lacks top-level error handling | `event_service.py:224` -- the `CommunityEvent.objects.filter()` query is not wrapped in try/except. If the DB query itself fails, the management command crashes with an unhandled exception. Per-event sends have try/except, but the outer query does not. |
+| 1 | **Minor** | Missing `created_at` index on PostVideo | Migration `0007` only indexes `['post', 'sort_order']`. The ticket specifies indexes on "post FK and created_at". Not a functional issue now but could impact query performance if videos are ever queried by creation time. |
+| 2 | **Major** | Compose sheet video previews lack thumbnails and duration badges | `_buildVideoPreviews()` in `compose_post_sheet.dart:314-378` shows a generic video icon and filename instead of actual video thumbnails with duration badges as specified in the ticket UX requirements. Requires a client-side thumbnail extraction package (e.g., `video_thumbnail`) that is not in pubspec.yaml. |
+| 3 | **Minor** | No `PostVideoSerializer` class | Ticket says "Add PostVideoSerializer and nest in CommunityPostSerializer" but serialization is done inline in `_serialize_posts()`. Functionally correct but deviates from the specified approach and the project's rule about using `rest_framework_dataclasses` for API responses (per `.claude/rules/datatypes.md`). |
+| 4 | **Minor** | Video picker only picks one video at a time | `ImagePicker.pickVideo()` returns a single file. To add multiple videos, the user must tap the video button multiple times. The UX would be smoother with multi-select, but `image_picker` does not support multi-video selection. Not a bug per se, but a UX friction point. |
+| 5 | **Minor** | Inline player starts unmuted | Ticket says "Tap to play inline (muted initially)" but `VideoPlayerCard._initializePlayer()` calls `controller.play()` without first calling `controller.setVolume(0)`. Video will play with audio on first tap, which may surprise users scrolling through a feed. |
 
 ## Recommended Fixes
 
-**Bug #1 (Critical)** -- In `push_notification_service.dart:206`, change:
-```dart
-router.push('/community-event-detail/$eventId');
-```
-to:
-```dart
-router.push('/community/events/$eventId');
-```
-
-**Bug #2 (Major)** -- In `event_service.py:237-238`, change the window to target 15 minutes before:
+**Bug #1 (Minor)** -- Add a `created_at` index to the PostVideo model Meta and create a new migration:
 ```python
-reminder_window_start = now + timezone.timedelta(minutes=10)
-reminder_window_end = now + timezone.timedelta(minutes=15)
+indexes = [
+    models.Index(fields=['post', 'sort_order']),
+    models.Index(fields=['created_at']),
+]
 ```
-Update filter to: `starts_at__gt=reminder_window_start, starts_at__lte=reminder_window_end`. Update docstring.
 
-**Bug #3 (Major)** -- In `push_notification_service.dart`, add `_initialized = false;` at the end of `deactivateToken()`:
+**Bug #2 (Major)** -- Two options:
+1. Add `video_thumbnail` package to pubspec.yaml and use it in `_buildVideoPreviews()` to generate local thumbnails with duration overlay.
+2. Accept the current icon-based preview as an MVP and document the gap. The server-side thumbnails will be visible in the feed after posting.
+
+**Bug #5 (Minor)** -- In `video_player_card.dart:48`, add `controller.setVolume(0);` before `controller.play()`:
 ```dart
-Future<void> deactivateToken() async {
-    // ... existing code ...
-    _currentToken = null;
-    _initialized = false;  // Allow re-initialization on next login
+await controller.initialize();
+if (!mounted) {
+  controller.dispose();
+  return;
 }
+setState(() {
+  _controller = controller;
+  _isInitialized = true;
+});
+controller.addListener(_onPlayerStateChanged);
+await controller.setVolume(0);  // Start muted per spec
+await controller.play();
 ```
-
-**Bug #4 (Minor)** -- Add `await _pushService.deactivateToken();` at the top of `deleteAccount()`.
-
-**Bug #5 (Minor)** -- Compare old and new field values in `_update()` before setting `should_notify`.
-
-**Bug #6 (Minor)** -- Wrap the outer query in `send_event_reminders()` in try/except with logging.
 
 ## Confidence Level: LOW
 
-Two acceptance criteria fail (AC5: wrong reminder window, AC9: broken deep linking). Three additional bugs found: the logout/re-login token re-registration bug (#3) is particularly impactful as it silently breaks push notifications for any user who logs out and back in. Bug #1 (wrong deep link path) is critical -- it means notification taps never navigate to the event detail screen.
+Two acceptance criteria fail (AC2: missing created_at index, AC10: video previews lack thumbnails/duration badges). Bug #2 is a visible UX gap -- the compose sheet video previews are functional but do not match the ticket's UX specification for thumbnail cards with duration badges. Bug #5 (unmuted playback) contradicts the ticket's explicit "muted initially" requirement for inline feed playback. While the core video upload and playback pipeline works correctly end-to-end, the compose-time UX and inline muting behavior need attention before this matches the acceptance criteria.

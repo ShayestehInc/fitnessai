@@ -32,4 +32,8 @@ class Migration(migrations.Migration):
             model_name='postvideo',
             index=models.Index(fields=['post', 'sort_order'], name='community_p_post_id_video_sort_idx'),
         ),
+        migrations.AddIndex(
+            model_name='postvideo',
+            index=models.Index(fields=['created_at'], name='community_p_video_created_idx'),
+        ),
     ]

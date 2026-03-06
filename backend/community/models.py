@@ -403,6 +403,7 @@ class PostVideo(models.Model):
         ordering = ['sort_order']
         indexes = [
             models.Index(fields=['post', 'sort_order']),
+            models.Index(fields=['created_at']),
         ]
 
     def __str__(self) -> str:
