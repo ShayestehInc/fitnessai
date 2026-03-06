@@ -2468,6 +2468,11 @@ class NutritionTemplateAssignmentViewSet(viewsets.ModelViewSet[NutritionTemplate
                     {'error': 'Trainee not found.'},
                     status=status.HTTP_404_NOT_FOUND,
                 )
+            if user.is_trainer() and trainee.parent_trainer_id != user.pk:
+                return Response(
+                    {'error': 'This trainee does not belong to you.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         assignment = NutritionTemplateAssignment.objects.filter(
             trainee=trainee, is_active=True,
@@ -2750,7 +2755,22 @@ class FoodItemViewSet(viewsets.ModelViewSet[FoodItem]):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        food_item = FoodItem.objects.filter(barcode=barcode.strip()).first()
+        from django.db.models import Q
+
+        user = cast(User, request.user)
+        qs = FoodItem.objects.filter(barcode=barcode.strip())
+
+        # Apply same visibility rules as get_queryset
+        if user.is_trainer():
+            qs = qs.filter(Q(is_public=True) | Q(created_by=user))
+        elif user.is_trainee():
+            qs = qs.filter(
+                Q(is_public=True) | Q(created_by=user.parent_trainer),
+            )
+        elif not user.is_admin():
+            qs = qs.filter(is_public=True)
+
+        food_item = qs.first()
         if not food_item:
             return Response(
                 {'error': 'No food item found for this barcode.'},
@@ -2804,6 +2824,12 @@ class FoodItemViewSet(viewsets.ModelViewSet[FoodItem]):
         return Response(FoodItemSerializer(ordered, many=True).data)
 
 
+class MealLogPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
 class MealLogViewSet(viewsets.ModelViewSet[MealLog]):
     """
     CRUD for MealLogs (meal containers with nested entries).
@@ -2812,6 +2838,7 @@ class MealLogViewSet(viewsets.ModelViewSet[MealLog]):
 
     serializer_class = MealLogSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = MealLogPagination
 
     def get_queryset(self) -> QuerySet[MealLog]:
         user = cast(User, self.request.user)
@@ -2838,7 +2865,9 @@ class MealLogViewSet(viewsets.ModelViewSet[MealLog]):
                 target_date = date.fromisoformat(date_str)
                 qs = qs.filter(date=target_date)
             except ValueError:
-                pass
+                logger.warning("Invalid date format in meal-logs query: %s", date_str)
+                # Return empty queryset for invalid date
+                qs = qs.none()
 
         return qs
 
@@ -2880,6 +2909,11 @@ class MealLogViewSet(viewsets.ModelViewSet[MealLog]):
                 return Response(
                     {'error': 'Trainee not found.'},
                     status=status.HTTP_404_NOT_FOUND,
+                )
+            if user.is_trainer() and trainee.parent_trainer_id != user.pk:
+                return Response(
+                    {'error': 'This trainee does not belong to you.'},
+                    status=status.HTTP_403_FORBIDDEN,
                 )
 
         from django.db.models import Sum, Count
@@ -2939,12 +2973,16 @@ class MealLogViewSet(viewsets.ModelViewSet[MealLog]):
             defaults={'meal_name': data.get('meal_name', '')},
         )
 
-        # Resolve food item if provided
+        # Resolve food item if provided (with access control)
         food_item: FoodItem | None = None
         food_item_id = data.get('food_item_id')
         if food_item_id:
+            from django.db.models import Q
             try:
-                food_item = FoodItem.objects.get(pk=food_item_id)
+                food_item = FoodItem.objects.get(
+                    Q(is_public=True) | Q(created_by=user.parent_trainer),
+                    pk=food_item_id,
+                )
             except FoodItem.DoesNotExist:
                 return Response(
                     {'error': 'Food item not found.'},
@@ -2990,7 +3028,7 @@ class MealLogViewSet(viewsets.ModelViewSet[MealLog]):
         )
 
     @action(detail=False, methods=['delete'], url_path=r'entries/(?P<entry_id>\d+)')
-    def delete_entry(self, request: Request, entry_id: int = 0) -> Response:
+    def delete_entry(self, request: Request, entry_id: str = '') -> Response:
         """DELETE /api/workouts/meal-logs/entries/<entry_id>/"""
         user = cast(User, request.user)
 

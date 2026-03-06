@@ -143,6 +143,9 @@ class _EntryRow extends StatelessWidget {
         color: theme.colorScheme.error,
         child: const Icon(Icons.delete, color: Colors.white),
       ),
+      confirmDismiss: (_) async {
+        return true; // Deletion handled with undo snackbar by parent
+      },
       onDismissed: (_) => onDelete(),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/api/api_client.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/nutrition_models.dart';
 import '../../data/repositories/food_item_repository.dart';
 

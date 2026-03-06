@@ -922,7 +922,7 @@ class MealLogEntrySerializer(serializers.ModelSerializer[MealLogEntry]):
     food_item_brand = serializers.CharField(
         source='food_item.brand', read_only=True, allow_null=True,
     )
-    display_name = serializers.CharField(read_only=True)
+    display_name = serializers.SerializerMethodField()
 
     class Meta:
         model = MealLogEntry
@@ -933,6 +933,9 @@ class MealLogEntrySerializer(serializers.ModelSerializer[MealLogEntry]):
             'created_at',
         ]
         read_only_fields = ['created_at']
+
+    def get_display_name(self, obj: MealLogEntry) -> str:
+        return obj.display_name
 
 
 class MealLogSerializer(serializers.ModelSerializer[MealLog]):
@@ -953,17 +956,22 @@ class MealLogSerializer(serializers.ModelSerializer[MealLog]):
         ]
         read_only_fields = ['logged_at']
 
+    def _cached_entries(self, obj: MealLog) -> list[MealLogEntry]:
+        if not hasattr(obj, '_cached_entry_list'):
+            obj._cached_entry_list = list(obj.entries.all())  # type: ignore[attr-defined]
+        return obj._cached_entry_list  # type: ignore[attr-defined]
+
     def get_total_calories(self, obj: MealLog) -> int:
-        return sum(e.calories for e in obj.entries.all())
+        return sum(e.calories for e in self._cached_entries(obj))
 
     def get_total_protein(self, obj: MealLog) -> float:
-        return round(sum(e.protein for e in obj.entries.all()), 1)
+        return round(sum(e.protein for e in self._cached_entries(obj)), 1)
 
     def get_total_carbs(self, obj: MealLog) -> float:
-        return round(sum(e.carbs for e in obj.entries.all()), 1)
+        return round(sum(e.carbs for e in self._cached_entries(obj)), 1)
 
     def get_total_fat(self, obj: MealLog) -> float:
-        return round(sum(e.fat for e in obj.entries.all()), 1)
+        return round(sum(e.fat for e in self._cached_entries(obj)), 1)
 
 
 class MealLogSummarySerializer(serializers.Serializer[dict[str, Any]]):
