@@ -224,23 +224,25 @@ class EventService:
     def send_event_reminders() -> int:
         """
         Send push notifications to users with 'going' RSVP for events
-        starting within the next 5 minutes (matching the cron interval).
+        starting in 10-15 minutes from now.
 
         The cron schedule should be `*/5 * * * *` (every 5 minutes).
-        Using a 5-minute window ensures each event matches exactly one
-        cron run, preventing duplicate reminder sends.
+        Using a 5-minute window (10-15 min before start) ensures each
+        event matches exactly one cron run, preventing duplicate sends.
+        Users receive the reminder approximately 10-15 minutes before start.
 
         Returns the number of events for which reminders were sent.
         """
         from core.services.notification_service import send_push_to_group
 
         now = timezone.now()
-        reminder_window_end = now + timezone.timedelta(minutes=5)
+        reminder_window_start = now + timezone.timedelta(minutes=10)
+        reminder_window_end = now + timezone.timedelta(minutes=15)
 
         events = list(
             CommunityEvent.objects.filter(
                 status=CommunityEvent.EventStatus.SCHEDULED,
-                starts_at__gt=now,
+                starts_at__gt=reminder_window_start,
                 starts_at__lte=reminder_window_end,
             ).select_related('trainer')
         )

@@ -552,24 +552,27 @@ class TrainerEventDetailView(views.APIView):
         serializer = CommunityEventCreateSerializer(data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
-        # Track whether time/location changed for notification
+        # Track which notify-relevant fields actually changed (value differs)
         notify_fields = {'starts_at', 'ends_at', 'meeting_url'}
-        changed_fields = set(serializer.validated_data.keys())
-        should_notify = bool(changed_fields & notify_fields)
+        actually_changed: set[str] = set()
 
         update_fields: list[str] = ['updated_at']
         for field in ('title', 'description', 'event_type', 'starts_at', 'ends_at',
                        'meeting_url', 'max_attendees', 'is_recurring', 'recurrence_rule'):
             if field in serializer.validated_data:
-                setattr(event, field, serializer.validated_data[field])
-                update_fields.append(field)
+                new_value = serializer.validated_data[field]
+                if getattr(event, field) != new_value:
+                    if field in notify_fields:
+                        actually_changed.add(field)
+                    setattr(event, field, new_value)
+                    update_fields.append(field)
 
         event.save(update_fields=update_fields)
 
-        # Notify RSVP'd users if time/location changed (fire-and-forget)
-        if should_notify and event.status == CommunityEvent.EventStatus.SCHEDULED:
+        # Notify RSVP'd users if time/location actually changed (fire-and-forget)
+        if actually_changed and event.status == CommunityEvent.EventStatus.SCHEDULED:
             from .services.event_service import EventService
-            EventService.notify_event_updated(event, changed_fields=changed_fields)
+            EventService.notify_event_updated(event, changed_fields=actually_changed)
 
         response_serializer = CommunityEventSerializer(event, context={'request': request})
         return Response(response_serializer.data)

@@ -125,6 +125,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<Map<String, dynamic>> deleteAccount() async {
     state = state.copyWith(isLoading: true, error: null);
 
+    await _pushService.deactivateToken();
     final result = await _repository.deleteAccount();
 
     if (result['success'] == true) {

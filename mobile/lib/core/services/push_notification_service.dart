@@ -136,18 +136,23 @@ class PushNotificationService {
   }
 
   /// Deactivate the current token on logout.
+  /// Resets _initialized so the next login re-registers the token.
   Future<void> deactivateToken() async {
-    if (_currentToken == null) return;
+    if (_currentToken == null) {
+      _initialized = false;
+      return;
+    }
     try {
       final apiClient = _ref.read(apiClientProvider);
       await apiClient.dio.delete(
         ApiConstants.deviceToken,
         data: {'token': _currentToken},
       );
-    } catch (_) {
-      // Best-effort deactivation
+    } catch (e) {
+      debugPrint('FCM token deactivation failed: $e');
     }
     _currentToken = null;
+    _initialized = false;
   }
 
   /// Show a local notification when a push arrives while app is in foreground.
@@ -203,7 +208,7 @@ class PushNotificationService {
         case 'community_event_reminder':
           final eventId = data['event_id'] as String?;
           if (eventId != null) {
-            router.push('/community-event-detail/$eventId');
+            router.push('/community/events/$eventId');
           }
           break;
         case 'announcement':
