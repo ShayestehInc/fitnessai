@@ -37,7 +37,7 @@ def get_user_bookmarks(user: User, collection_id: int | None = None) -> QuerySet
     """
     qs = Bookmark.objects.filter(user=user).select_related(
         'post__author', 'post__space', 'collection',
-    ).prefetch_related('post__images')
+    ).prefetch_related('post__images', 'post__videos')
 
     if collection_id is not None:
         qs = qs.filter(collection_id=collection_id)

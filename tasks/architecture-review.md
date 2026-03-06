@@ -1,16 +1,23 @@
-# Architecture Review: FCM Push Notification Implementation
+# Architecture Review: Video Attachments on Community Posts
 
 ## Review Date
 2026-03-05
 
 ## Files Reviewed
-- `backend/users/models.py` (lines 258-397) -- DeviceToken, NotificationPreference models
-- `backend/community/services/event_service.py` -- notification dispatch methods
-- `backend/community/trainer_views.py` (lines 460-632) -- event CRUD views
-- `backend/community/management/commands/send_event_reminders.py` -- cron command
-- `backend/core/services/notification_service.py` -- FCM service layer
-- `mobile/lib/core/services/push_notification_service.dart` -- Flutter FCM client
-- `mobile/lib/features/auth/presentation/providers/auth_provider.dart` -- auth + push init
+- `backend/community/models.py` (lines 360-411) -- PostVideo model, upload path helpers
+- `backend/community/views.py` (lines 224-392, 1078-1197) -- CommunityFeedView, _serialize_posts
+- `backend/community/services/video_service.py` -- validation + metadata extraction service
+- `backend/community/serializers/core_serializers.py` -- CreatePostSerializer
+- `backend/community/migrations/0007_add_post_video.py` -- migration
+- `backend/community/admin.py` -- PostVideo admin registration
+- `backend/community/services/bookmark_service.py` -- bookmark queries
+- `mobile/lib/features/community/data/models/post_video_model.dart` -- PostVideoModel
+- `mobile/lib/features/community/data/models/community_post_model.dart` -- videos field
+- `mobile/lib/features/community/data/repositories/community_feed_repository.dart` -- video upload
+- `mobile/lib/features/community/presentation/providers/community_feed_provider.dart` -- videoPaths param
+- `mobile/lib/features/community/presentation/widgets/video_player_card.dart` -- inline player
+- `mobile/lib/features/community/presentation/widgets/fullscreen_video_player.dart` -- fullscreen player
+- `mobile/lib/features/community/presentation/widgets/community_post_card.dart` -- video rendering
 
 ---
 
@@ -18,15 +25,16 @@
 
 - [x] Follows existing layered architecture
 - [x] Models/schemas in correct locations
-- [x] No business logic in views (notification dispatch delegated to EventService)
-- [x] Consistent with existing patterns (service layer, management commands)
+- [x] No business logic in routers/views (video validation is in `services/video_service.py`)
+- [x] Consistent with existing patterns
 
 **Positive observations:**
-1. Clean separation: `notification_service.py` in `core/services/` is a shared utility; `event_service.py` in `community/services/` handles domain-specific notification logic. Correct layering.
-2. `NotificationPreference` model uses a clean `get_or_create_for_user` pattern with `VALID_CATEGORIES` frozenset for compile-time category validation.
-3. `send_push_to_group` efficiently batches FCM calls (500-message batches) and bulk-deactivates stale tokens.
-4. The reminder cron command batches RSVP queries across events in a single DB query -- avoids N+1.
-5. Mobile side correctly uses `unawaited()` for push init (non-blocking) and deactivates tokens on logout/delete.
+1. `PostVideo` model mirrors the `PostImage` pattern exactly: FK to `CommunityPost`, `sort_order`, year/month-partitioned upload paths with UUID filenames.
+2. Video validation logic is properly isolated in `services/video_service.py` with a frozen dataclass return type (`VideoMetadata`). Follows project convention of returning dataclasses from services (not dicts).
+3. The view layer (`CommunityFeedView.post()`) handles only request/response orchestration: calls `validate_video()` from the service, creates model instances in a transaction, and serializes. Correct layering.
+4. Admin registration includes `PostVideoInline` on `CommunityPost` and a standalone `PostVideoAdmin`, consistent with `PostImage` admin setup.
+5. Flutter side follows repository -> provider -> widget pattern correctly. `PostVideoModel` is in data/models, repository handles multipart upload, provider passes through, `VideoPlayerCard` is a presentation widget.
+6. Three-layer validation (extension, MIME type, magic bytes) in the service is thorough and defensive.
 
 ---
 
@@ -34,65 +42,30 @@
 
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | PASS | `DeviceToken` and `NotificationPreference` are additive tables, no existing columns altered |
-| Migrations reversible | PASS | New tables can be dropped without data loss to existing tables |
-| Indexes added for new queries | PASS | `DeviceToken` has index on `(user, is_active)` and unique constraint on `(user, token)` |
-| No N+1 query patterns | PASS | `send_push_to_group` fetches all tokens for all users in one query; reminder command batches RSVP lookups |
+| Schema changes backward-compatible | PASS | New table only; no existing columns modified. Existing posts have empty `videos` relation. |
+| Migrations reversible | PASS | Single `CreateModel` + `AddIndex` operations. Django can reverse automatically. |
+| Indexes added for new queries | PASS | Composite index on `(post, sort_order)` for ordered fetch. Index on `created_at` for admin. |
+| No N+1 query patterns | FIXED | Feed queryset correctly prefetches `'videos'`. Bookmark service was missing `'post__videos'` -- fixed (see below). |
 
-**Note:** `NotificationPreference` is queried via `filter(user_id__in=..., **{category: False})` in `send_push_to_group`. This dynamic field lookup is efficient because it translates to a single SQL query with a WHERE clause on the boolean column. No index needed on individual boolean columns given the expected table size (one row per user).
+**PostVideo vs PostImage consistency:**
+- PostVideo adds `file_size`, `duration`, `thumbnail`, and `created_at` fields that PostImage lacks. Appropriate for video-specific metadata.
+- PostVideo uses `PositiveSmallIntegerField` for `sort_order` (max 3 videos) vs PostImage's `PositiveIntegerField` (max 10 images). Slightly inconsistent but functionally correct since constraint is enforced at application level.
+- PostVideo uses `FileField` (not `ImageField`) for the video file -- correct.
 
 ---
 
 ## Issues Found and Fixed
 
-### 1. FIXED -- Missing state machine validation on `transition_status` (Major)
+### 1. FIXED -- N+1 query in bookmark_service.py (Major)
 
-**Before:** `EventService.transition_status()` accepted any status string and blindly saved it. A cancelled or completed event could be transitioned back to "scheduled" or "live" -- data integrity violation.
+**File:** `backend/community/services/bookmark_service.py`, line 40
 
-**Fix:** Added `_VALID_TRANSITIONS` dict defining the state machine:
-- `scheduled` -> `{live, cancelled}`
-- `live` -> `{completed, cancelled}`
-- `completed` -> terminal (no transitions)
-- `cancelled` -> terminal (no transitions)
+**Before:** `get_user_bookmarks()` prefetched `post__images` but NOT `post__videos`. When `_serialize_posts()` accessed `post.videos.all()` for bookmarked posts, each post triggered a separate database query.
 
-`transition_status()` now raises `ValueError` for invalid transitions. Both calling views (`TrainerEventDetailView.delete` and `TrainerEventStatusView.patch`) now catch `ValueError` and return `409 Conflict`.
-
-### 2. FIXED -- Bare `except Exception` with warning-level logging (Minor)
-
-**Before:** Three notification methods in `event_service.py` caught `Exception` and logged at `warning` level. This made FCM failures hard to detect in monitoring.
-
-**Fix:** Upgraded all three to `logger.error()` with the event ID in the message for traceability.
-
----
-
-## Issues Noted (Not Fixed -- Require Discussion)
-
-### 3. Synchronous notification dispatch in request cycle (Medium)
-
-`notify_event_created`, `notify_event_updated`, and `notify_event_cancelled` are called synchronously within the HTTP request/response cycle in `trainer_views.py`. Each call:
-1. Queries `NotificationPreference` to filter opted-out users
-2. Queries `DeviceToken` for all matching tokens
-3. Makes FCM API calls in batches of 500
-
-For a trainer with hundreds of trainees, this could add 1-3 seconds to the response time. The `try/except` prevents it from breaking the response, but the trainer waits for it.
-
-**Recommendation:** When the project adds Celery or Django-Q (or any task queue), move these calls to async tasks. For now, the current approach is acceptable for the user base size, but this should be tracked as tech debt. The architecture is already well-positioned for this -- the service methods are stateless and take simple arguments, making them trivially wrappable as Celery tasks.
-
-### 4. Mobile `_navigateFromNotification` silently catches all exceptions (Low)
-
-```dart
-} catch (_) {
-  // Navigation may fail if router not ready; ignore
-}
+**Fix:** Added `'post__videos'` to the `prefetch_related()` call:
+```python
+).prefetch_related('post__images', 'post__videos')
 ```
-
-This is defensible because notification tap handling is best-effort -- crashing the app because the router isn't ready would be worse. However, it would benefit from a `debugPrint` so developers can see navigation failures during development.
-
-### 5. `notification_service.py` "never raises" contract vs. project rules (Informational)
-
-The module docstring says "All errors are handled gracefully -- this service never raises." This conflicts with the project rule of no exception silencing. However, for a fire-and-forget notification service, this is the correct architectural decision. A failed push notification should never break the primary operation (event creation, status update, etc.). The service logs errors internally, which is sufficient observability.
-
-**Verdict:** The "never raises" contract is architecturally correct for this service. No change needed.
 
 ---
 
@@ -100,9 +73,9 @@ The module docstring says "All errors are handled gracefully -- this service nev
 
 | # | Area | Issue | Recommendation |
 |---|------|-------|----------------|
-| 1 | Synchronous FCM dispatch | Blocks HTTP response for duration of FCM API calls | Move to task queue when available (see issue #3 above) |
-| 2 | Reminder window precision | 5-minute cron with 5-minute window works well; no overlap risk | No action needed |
-| 3 | Token cleanup | Stale tokens auto-deactivated on FCM error response | Good -- no unbounded growth concern |
+| 1 | Video player lifecycle in feed | Multiple `VideoPlayerCard` widgets in a scrolling feed each hold their own `VideoPlayerController`. No visibility-based pausing when scrolled offscreen. | Mitigated by tap-to-play design (no autoplay). Controllers are only created on user tap. Acceptable for now. Consider `VisibilityDetector` to auto-dispose offscreen controllers if video usage grows significantly. |
+| 2 | Inline serialization | Videos serialized as inline dicts in `_serialize_posts()` rather than via a `PostVideoSerializer` class. | Consistent with how PostImage and all other nested data are serialized in the same function. Not a scalability issue. |
+| 3 | Large video uploads in request cycle | 50MB uploads processed synchronously (validation + ffprobe + storage). | Django's file upload handling streams to temp files. ffprobe processing has a 30s timeout. Acceptable for current scale. Future: consider async processing via Celery for thumbnails/duration extraction. |
 
 ---
 
@@ -110,22 +83,16 @@ The module docstring says "All errors are handled gracefully -- this service nev
 
 | # | Description | Severity | Suggested Resolution |
 |---|-------------|----------|---------------------|
-| 1 | Synchronous notification dispatch should eventually be async | Low | Wrap in Celery task when task queue is added |
-| 2 | No retry logic for transient FCM failures | Low | Add exponential backoff when task queue is available |
-
----
-
-## Technical Debt Reduced
-
-1. **State machine enforcement** -- `transition_status` now prevents invalid state transitions, closing a data integrity gap.
-2. **Notification preference filtering** -- Users can opt out of categories, reducing unwanted notifications without backend changes per category.
+| 1 | Unused `_VIDEO_MAGIC_BYTES` dict in `video_service.py` | Low | The dict at module level (line 28-31) is defined but never referenced. Actual magic byte checks are hardcoded in `_validate_magic_bytes()`. Remove the unused dict to avoid confusion. |
+| 2 | Inline video serialization matches existing pattern | Low | The ticket called for a `PostVideoSerializer`, but inline dict construction in `_serialize_posts()` is consistent with existing PostImage serialization. If the team refactors to use DRF serializer classes for post output, videos should be included. Not a regression. |
+| 3 | No client-side duration pre-check | Low | Ticket mentioned "client-side pre-check if possible" for duration. Currently only server validates. Could add `video_player` initialization on selected file to check duration before upload. |
 
 ---
 
 ## Architecture Score: 8/10
 
-The implementation follows clean layered architecture. Business logic is in services. Data model is additive and backward-compatible. Indexes are in place. The main deduction is for synchronous notification dispatch in the request cycle, which is acceptable at current scale but should be tracked.
+The implementation is architecturally sound. It follows established patterns (`PostImage`), properly separates concerns (validation in service, orchestration in view, models in models.py), and the data model is clean and backward-compatible. The one real issue (N+1 in bookmark service) has been fixed. The remaining items are low-severity debt that aligns with existing patterns. Flutter code follows the repository/provider/widget pattern correctly, and the video player lifecycle is acceptable given the tap-to-play design.
 
 ## Recommendation: APPROVE
 
-The architecture is sound. The synchronous dispatch is a known tradeoff that's acceptable for the current user base and can be migrated to async when a task queue is introduced. The state machine fix and error logging improvements have been applied.
+The architecture is clean, the data model is additive and well-indexed, business logic is in services, and the implementation is consistent with the existing PostImage pattern throughout the stack. The N+1 query fix was the only architectural issue requiring correction.
