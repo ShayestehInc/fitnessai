@@ -4,6 +4,21 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 51: Churn Push Notifications via FCM
+
+### Added
+- Backend: `_send_trainer_churn_push()` and `_send_trainee_re_engagement_push()` helpers in retention_notification_service — wire FCM delivery via core notification_service
+- Backend: `re_engagement` BooleanField on NotificationPreference model (default=True) with migration
+- Mobile: Deep link handling for `churn_alert` (navigates to trainer trainee detail) and `re_engagement` (navigates to home screen) in push_notification_service
+- Mobile: "Re-engagement Reminders" toggle in trainee notification preferences screen
+
+### Changed
+- Backend: `create_churn_alerts()` now sends FCM pushes to trainers after creating TrainerNotification records
+- Backend: `send_re_engagement_pushes()` now sends FCM pushes to critical-risk trainees instead of just logging intent
+- Backend: NotificationPreference.VALID_CATEGORIES expanded from 10 to 11 categories
+
+---
+
 ## [2026-03-05] — Pipeline 50: Achievement Toast on New Badge
 
 ### Added
