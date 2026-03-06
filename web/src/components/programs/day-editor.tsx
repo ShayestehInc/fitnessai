@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ExerciseRow } from "./exercise-row";
-import { ExercisePickerDialog } from "./exercise-picker-dialog";
+import { ExercisePickerPanel } from "./exercise-picker-panel";
 import type { ScheduleDay, ScheduleExercise } from "@/types/program";
 
 const MAX_EXERCISES_PER_DAY = 50;
@@ -155,7 +155,7 @@ export function DayEditor({ day, dayIndex, onUpdate }: DayEditorProps) {
               Maximum of {MAX_EXERCISES_PER_DAY} exercises reached
             </p>
           ) : (
-            <ExercisePickerDialog
+            <ExercisePickerPanel
               onSelect={addExercise}
               trigger={
                 <Button

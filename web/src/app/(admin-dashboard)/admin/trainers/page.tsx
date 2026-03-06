@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TrainerList } from "@/components/admin/trainer-list";
-import { TrainerDetailDialog } from "@/components/admin/trainer-detail-dialog";
+import { TrainerDetailPanel } from "@/components/admin/trainer-detail-panel";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -121,7 +121,7 @@ export default function AdminTrainersPage() {
         />
       )}
 
-      <TrainerDetailDialog
+      <TrainerDetailPanel
         key={selectedTrainer?.id ?? "none"}
         trainer={selectedTrainer}
         open={dialogOpen}

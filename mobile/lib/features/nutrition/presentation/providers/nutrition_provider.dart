@@ -9,7 +9,9 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../onboarding/data/models/user_profile_model.dart';
 import '../../../onboarding/data/repositories/onboarding_repository.dart';
 import '../../data/repositories/nutrition_repository.dart';
+import '../../data/repositories/nutrition_template_repository.dart';
 import '../../data/models/nutrition_models.dart';
+import '../../data/models/nutrition_template_models.dart';
 
 final nutritionRepositoryProvider = Provider<NutritionRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
@@ -21,14 +23,22 @@ final onboardingRepositoryProvider = Provider<OnboardingRepository>((ref) {
   return OnboardingRepository(apiClient);
 });
 
+final nutritionTemplateRepoProvider =
+    Provider<NutritionTemplateRepository>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return NutritionTemplateRepository(apiClient);
+});
+
 final nutritionStateProvider =
     StateNotifierProvider<NutritionNotifier, NutritionState>((ref) {
   final nutritionRepo = ref.watch(nutritionRepositoryProvider);
   final onboardingRepo = ref.watch(onboardingRepositoryProvider);
+  final templateRepo = ref.watch(nutritionTemplateRepoProvider);
   final db = ref.watch(databaseProvider);
   final authState = ref.watch(authStateProvider);
   final userId = authState.user?.id;
-  return NutritionNotifier(nutritionRepo, onboardingRepo, db, userId);
+  return NutritionNotifier(
+      nutritionRepo, onboardingRepo, templateRepo, db, userId);
 });
 
 class NutritionState {
@@ -40,6 +50,7 @@ class NutritionState {
   final List<MacroPresetModel> macroPresets;
   final MacroPresetModel? activePreset;
   final UserProfileModel? userProfile;
+  final NutritionDayPlanModel? dayPlan;
   final int pendingNutritionCount;
   final int pendingCalories;
   final int pendingProtein;
@@ -58,6 +69,7 @@ class NutritionState {
     this.macroPresets = const [],
     this.activePreset,
     this.userProfile,
+    this.dayPlan,
     this.pendingNutritionCount = 0,
     this.pendingCalories = 0,
     this.pendingProtein = 0,
@@ -77,6 +89,7 @@ class NutritionState {
     List<MacroPresetModel>? macroPresets,
     MacroPresetModel? activePreset,
     UserProfileModel? userProfile,
+    NutritionDayPlanModel? dayPlan,
     int? pendingNutritionCount,
     int? pendingCalories,
     int? pendingProtein,
@@ -95,6 +108,7 @@ class NutritionState {
       macroPresets: macroPresets ?? this.macroPresets,
       activePreset: activePreset ?? this.activePreset,
       userProfile: userProfile ?? this.userProfile,
+      dayPlan: dayPlan ?? this.dayPlan,
       pendingNutritionCount:
           pendingNutritionCount ?? this.pendingNutritionCount,
       pendingCalories: pendingCalories ?? this.pendingCalories,
@@ -106,6 +120,15 @@ class NutritionState {
       error: error,
     );
   }
+
+  /// Day type from the template day plan (e.g. "Training Day", "Rest Day").
+  String? get dayType => dayPlan?.dayTypeDisplay;
+
+  /// Template name from the day plan snapshot.
+  String? get templateName => dayPlan?.templateName;
+
+  /// Whether this trainee has a template-based nutrition plan.
+  bool get hasTemplatePlan => dayPlan != null;
 
   /// Check if trainee has any macro presets from trainer
   bool get hasPresets => macroPresets.isNotEmpty;
@@ -209,12 +232,14 @@ class PendingWeightDisplay {
 class NutritionNotifier extends StateNotifier<NutritionState> {
   final NutritionRepository _nutritionRepo;
   final OnboardingRepository _onboardingRepo;
+  final NutritionTemplateRepository _templateRepo;
   final AppDatabase _db;
   final int? _userId;
 
   NutritionNotifier(
     this._nutritionRepo,
     this._onboardingRepo,
+    this._templateRepo,
     this._db,
     this._userId,
   ) : super(NutritionState());
@@ -222,13 +247,14 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
   Future<void> loadInitialData() async {
     state = state.copyWith(isLoading: true, error: null);
 
-    // Load goals, daily summary, latest check-in, user profile, and presets in parallel
+    // Load goals, daily summary, latest check-in, user profile, presets, and day plan in parallel
     final results = await Future.wait([
       _nutritionRepo.getNutritionGoals(),
       _nutritionRepo.getDailyNutritionSummary(state.dateParam),
       _nutritionRepo.getLatestWeightCheckIn(),
       _onboardingRepo.getProfile(),
       _nutritionRepo.getMacroPresets(),
+      _templateRepo.getDayPlan(state.dateParam),
     ]);
 
     final goalsResult = results[0];
@@ -236,6 +262,7 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
     final checkInResult = results[2];
     final profileResult = results[3];
     final presetsResult = results[4];
+    final dayPlanResult = results[5];
 
     List<MacroPresetModel> presets = [];
     MacroPresetModel? defaultPreset;
@@ -270,6 +297,11 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
       }
     }
 
+    NutritionDayPlanModel? dayPlan;
+    if (dayPlanResult['success'] == true) {
+      dayPlan = dayPlanResult['plan'] as NutritionDayPlanModel?;
+    }
+
     state = state.copyWith(
       isLoading: false,
       goals: goalsResult['success'] == true
@@ -284,6 +316,7 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
           : null,
       macroPresets: presets,
       activePreset: defaultPreset,
+      dayPlan: dayPlan,
       pendingNutritionCount: pendingNutrition.count,
       pendingCalories: pendingNutrition.calories,
       pendingProtein: pendingNutrition.protein,

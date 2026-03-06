@@ -34,6 +34,24 @@ from community.trainer_views import (
     TrainerAnnouncementListCreateView,
     TrainerAnnouncementDetailView,
     TrainerLeaderboardSettingsView,
+    # Phase 2 — Classroom
+    TrainerCourseListCreateView,
+    TrainerCourseDetailView,
+    TrainerLessonListCreateView,
+    TrainerLessonDetailView,
+    # Phase 3 — Events
+    TrainerEventListCreateView,
+    TrainerEventDetailView,
+    TrainerEventStatusView,
+    # Phase 4 — Moderation
+    TrainerReportListView,
+    TrainerReportReviewView,
+    TrainerBanListCreateView,
+    TrainerUnbanView,
+    TrainerAutoModRuleListCreateView,
+    TrainerAutoModRuleDetailView,
+    # Phase 5 — Community Config
+    TrainerCommunityConfigView,
 )
 
 urlpatterns = [
@@ -113,4 +131,26 @@ urlpatterns = [
 
     # Leaderboard settings
     path('leaderboard-settings/', TrainerLeaderboardSettingsView.as_view(), name='trainer-leaderboard-settings'),
+
+    # Courses (trainer CRUD)
+    path('courses/', TrainerCourseListCreateView.as_view(), name='trainer-courses'),
+    path('courses/<int:pk>/', TrainerCourseDetailView.as_view(), name='trainer-course-detail'),
+    path('courses/<int:course_id>/lessons/', TrainerLessonListCreateView.as_view(), name='trainer-course-lessons'),
+    path('courses/<int:course_id>/lessons/<int:pk>/', TrainerLessonDetailView.as_view(), name='trainer-lesson-detail'),
+
+    # Events (trainer CRUD)
+    path('events/', TrainerEventListCreateView.as_view(), name='trainer-events'),
+    path('events/<int:pk>/', TrainerEventDetailView.as_view(), name='trainer-event-detail'),
+    path('events/<int:pk>/status/', TrainerEventStatusView.as_view(), name='trainer-event-status'),
+
+    # Moderation
+    path('moderation/reports/', TrainerReportListView.as_view(), name='trainer-reports'),
+    path('moderation/reports/<int:pk>/review/', TrainerReportReviewView.as_view(), name='trainer-report-review'),
+    path('moderation/bans/', TrainerBanListCreateView.as_view(), name='trainer-bans'),
+    path('moderation/bans/<int:user_id>/', TrainerUnbanView.as_view(), name='trainer-unban'),
+    path('moderation/rules/', TrainerAutoModRuleListCreateView.as_view(), name='trainer-automod-rules'),
+    path('moderation/rules/<int:pk>/', TrainerAutoModRuleDetailView.as_view(), name='trainer-automod-rule-detail'),
+
+    # Community Config (Admin Builder)
+    path('community-config/', TrainerCommunityConfigView.as_view(), name='trainer-community-config'),
 ]

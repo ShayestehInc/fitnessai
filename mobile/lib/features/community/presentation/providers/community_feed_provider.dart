@@ -1,7 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/community_post_model.dart';
+import '../../data/repositories/bookmark_repository.dart';
 import '../../data/repositories/community_feed_repository.dart';
+import 'space_provider.dart';
+
+// ---------------------------------------------------------------------------
+// Feed sort
+// ---------------------------------------------------------------------------
+
+enum FeedSort { latest, popular }
+
+final feedSortProvider = StateProvider<FeedSort>((ref) => FeedSort.latest);
+
+// ---------------------------------------------------------------------------
+// Feed state
+// ---------------------------------------------------------------------------
 
 class CommunityFeedState {
   final List<CommunityPostModel> posts;
@@ -43,18 +57,34 @@ class CommunityFeedState {
 final communityFeedProvider =
     StateNotifierProvider<CommunityFeedNotifier, CommunityFeedState>((ref) {
   final apiClient = ref.watch(apiClientProvider);
-  return CommunityFeedNotifier(CommunityFeedRepository(apiClient));
+  final repo = CommunityFeedRepository(apiClient);
+  final bookmarkRepo = BookmarkRepository(apiClient);
+  return CommunityFeedNotifier(repo, bookmarkRepo, ref);
 });
 
 class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
   final CommunityFeedRepository _repo;
+  final BookmarkRepository _bookmarkRepo;
+  final Ref _ref;
 
-  CommunityFeedNotifier(this._repo) : super(const CommunityFeedState());
+  CommunityFeedNotifier(this._repo, this._bookmarkRepo, this._ref)
+      : super(const CommunityFeedState());
+
+  String get _sortParam {
+    final sort = _ref.read(feedSortProvider);
+    return sort == FeedSort.popular ? 'popular' : 'latest';
+  }
+
+  int? get _spaceId => _ref.read(currentSpaceIdProvider);
 
   Future<void> loadFeed() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final response = await _repo.getFeed(page: 1);
+      final response = await _repo.getFeed(
+        page: 1,
+        spaceId: _spaceId,
+        sort: _sortParam,
+      );
       state = state.copyWith(
         posts: response.results,
         isLoading: false,
@@ -75,7 +105,11 @@ class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
     state = state.copyWith(isLoadingMore: true);
     try {
       final nextPage = state.currentPage + 1;
-      final response = await _repo.getFeed(page: nextPage);
+      final response = await _repo.getFeed(
+        page: nextPage,
+        spaceId: _spaceId,
+        sort: _sortParam,
+      );
       state = state.copyWith(
         posts: [...state.posts, ...response.results],
         isLoadingMore: false,
@@ -90,13 +124,15 @@ class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
   Future<bool> createPost({
     required String content,
     String contentFormat = 'plain',
-    String? imagePath,
+    List<String> imagePaths = const [],
+    int? spaceId,
   }) async {
     try {
       final post = await _repo.createPost(
         content: content,
         contentFormat: contentFormat,
-        imagePath: imagePath,
+        imagePaths: imagePaths,
+        spaceId: spaceId,
       );
       state = state.copyWith(posts: [post, ...state.posts]);
       return true;
@@ -184,6 +220,33 @@ class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
     } catch (_) {
       // Rollback to previous state on error
       state = state.copyWith(posts: previousPosts);
+    }
+  }
+
+  /// Toggle bookmark on a post (optimistic update).
+  Future<void> toggleBookmark(int postId) async {
+    // Optimistic update
+    state = state.copyWith(
+      posts: state.posts.map((p) {
+        if (p.id == postId) {
+          return p.copyWith(isBookmarked: !p.isBookmarked);
+        }
+        return p;
+      }).toList(),
+    );
+
+    try {
+      await _bookmarkRepo.toggleBookmark(postId);
+    } catch (_) {
+      // Rollback
+      state = state.copyWith(
+        posts: state.posts.map((p) {
+          if (p.id == postId) {
+            return p.copyWith(isBookmarked: !p.isBookmarked);
+          }
+          return p;
+        }).toList(),
+      );
     }
   }
 

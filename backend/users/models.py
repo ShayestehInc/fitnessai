@@ -234,6 +234,14 @@ class UserProfile(models.Model):
         help_text="Preferred UI language",
     )
 
+    # Body composition
+    body_fat_percentage = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(3.0), MaxValueValidator(60.0)],
+        help_text="Body fat percentage for LBM-based nutrition calculations"
+    )
+
     # Onboarding status
     onboarding_completed = models.BooleanField(default=False)
 

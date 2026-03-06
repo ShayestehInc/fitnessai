@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
-import { AnnouncementFormDialog } from "./announcement-form-dialog";
+import { AnnouncementFormPanel } from "./announcement-form-panel";
 import { AnnouncementDeleteDialog } from "./announcement-delete-dialog";
 import { useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement } from "@/hooks/use-announcements";
 import { getErrorMessage } from "@/lib/error-utils";
@@ -76,7 +76,7 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
             </Button>
           }
         />
-        <AnnouncementFormDialog
+        <AnnouncementFormPanel
           open={formOpen}
           onOpenChange={setFormOpen}
           announcement={null}
@@ -177,9 +177,9 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
         </CardContent>
       </Card>
 
-      {/* Create dialog (only when no announcement selected) */}
+      {/* Create panel (only when no announcement selected) */}
       {!selectedAnnouncement && (
-        <AnnouncementFormDialog
+        <AnnouncementFormPanel
           open={formOpen}
           onOpenChange={setFormOpen}
           announcement={null}
@@ -196,7 +196,7 @@ export function AnnouncementList({ announcements }: AnnouncementListProps) {
         />
       )}
 
-      {/* Edit dialog (only when announcement selected) */}
+      {/* Edit panel (only when announcement selected) */}
       {selectedAnnouncement && (
         <EditAnnouncementWrapper
           open={formOpen}
@@ -240,7 +240,7 @@ function EditAnnouncementWrapper({
   const updateMutation = useUpdateAnnouncement(announcement.id);
 
   return (
-    <AnnouncementFormDialog
+    <AnnouncementFormPanel
       open={open}
       onOpenChange={onOpenChange}
       announcement={announcement}

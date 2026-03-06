@@ -27,7 +27,7 @@ test.describe("Admin Ambassador Management", () => {
     ).toBeVisible();
   });
 
-  test("should open create ambassador dialog", async ({ page }) => {
+  test("should open create ambassador panel", async ({ page }) => {
     await page
       .getByRole("button", { name: /add ambassador/i })
       .first()
@@ -38,7 +38,7 @@ test.describe("Admin Ambassador Management", () => {
     ).toBeVisible();
   });
 
-  test("create dialog should have email and commission fields", async ({
+  test("create panel should have email and commission fields", async ({
     page,
   }) => {
     await page
@@ -49,7 +49,7 @@ test.describe("Admin Ambassador Management", () => {
     await expect(page.getByLabel(/commission/i)).toBeVisible();
   });
 
-  test("should validate email in create dialog", async ({ page }) => {
+  test("should validate email in create panel", async ({ page }) => {
     await page
       .getByRole("button", { name: /add ambassador/i })
       .first()

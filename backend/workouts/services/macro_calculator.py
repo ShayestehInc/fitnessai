@@ -89,6 +89,26 @@ class MacroCalculatorService:
     CARBS_CALS_PER_GRAM = 4
     FAT_CALS_PER_GRAM = 9
 
+    @staticmethod
+    def calculate_lbm(weight_kg: float, body_fat_pct: float) -> float:
+        """Calculate Lean Body Mass in kg.
+
+        Args:
+            weight_kg: Total body weight in kilograms.
+            body_fat_pct: Body fat percentage (e.g. 15.0 for 15%).
+
+        Returns:
+            Lean body mass in kilograms.
+
+        Raises:
+            ValueError: If body_fat_pct is outside 0-100.
+        """
+        if body_fat_pct < 0 or body_fat_pct > 100:
+            raise ValueError(
+                f"body_fat_pct must be between 0 and 100, got {body_fat_pct}"
+            )
+        return weight_kg * (1 - body_fat_pct / 100.0)
+
     def calculate_bmr(
         self,
         sex: str,

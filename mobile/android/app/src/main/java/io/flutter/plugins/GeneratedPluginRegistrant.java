@@ -66,6 +66,11 @@ public final class GeneratedPluginRegistrant {
       Log.e(TAG, "Error registering plugin health, cachet.plugins.health.HealthPlugin", e);
     }
     try {
+      flutterEngine.getPlugins().add(new com.example.image_gallery_saver_plus.ImageGallerySaverPlusPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin image_gallery_saver_plus, com.example.image_gallery_saver_plus.ImageGallerySaverPlusPlugin", e);
+    }
+    try {
       flutterEngine.getPlugins().add(new io.flutter.plugins.imagepicker.ImagePickerPlugin());
     } catch (Exception e) {
       Log.e(TAG, "Error registering plugin image_picker_android, io.flutter.plugins.imagepicker.ImagePickerPlugin", e);
@@ -74,6 +79,11 @@ public final class GeneratedPluginRegistrant {
       flutterEngine.getPlugins().add(new io.flutter.plugins.localauth.LocalAuthPlugin());
     } catch (Exception e) {
       Log.e(TAG, "Error registering plugin local_auth_android, io.flutter.plugins.localauth.LocalAuthPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new dev.steenbakker.mobile_scanner.MobileScannerPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin mobile_scanner, dev.steenbakker.mobile_scanner.MobileScannerPlugin", e);
     }
     try {
       flutterEngine.getPlugins().add(new dev.fluttercommunity.plus.packageinfo.PackageInfoPlugin());
@@ -109,6 +119,11 @@ public final class GeneratedPluginRegistrant {
       flutterEngine.getPlugins().add(new io.flutter.plugins.urllauncher.UrlLauncherPlugin());
     } catch (Exception e) {
       Log.e(TAG, "Error registering plugin url_launcher_android, io.flutter.plugins.urllauncher.UrlLauncherPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new io.flutter.plugins.videoplayer.VideoPlayerPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin video_player_android, io.flutter.plugins.videoplayer.VideoPlayerPlugin", e);
     }
   }
 }

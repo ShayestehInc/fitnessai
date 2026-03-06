@@ -13,10 +13,16 @@ from .models import (
     CheckInTemplate,
     DailyLog,
     Exercise,
+    FoodItem,
     Habit,
     HabitLog,
     MacroPreset,
+    MealLog,
+    MealLogEntry,
+    NutritionDayPlan,
     NutritionGoal,
+    NutritionTemplate,
+    NutritionTemplateAssignment,
     Program,
     ProgressionSuggestion,
     ProgressPhoto,
@@ -723,3 +729,299 @@ class CheckInResponseCreateSerializer(serializers.Serializer[dict[str, Any]]):
         child=serializers.DictField(),
         required=True,
     )
+
+
+# --- Nutrition Template System (Phase 1) ---
+
+class NutritionTemplateSerializer(serializers.ModelSerializer[NutritionTemplate]):
+    """Read serializer for NutritionTemplate."""
+
+    created_by_email = serializers.CharField(
+        source='created_by.email', read_only=True, allow_null=True,
+    )
+
+    class Meta:
+        model = NutritionTemplate
+        fields = [
+            'id', 'name', 'template_type', 'version', 'ruleset',
+            'is_system', 'created_by', 'created_by_email',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class NutritionTemplateCreateSerializer(serializers.Serializer[dict[str, Any]]):
+    """Validation serializer for creating a custom NutritionTemplate."""
+
+    name = serializers.CharField(max_length=255, required=True)
+    template_type = serializers.ChoiceField(
+        choices=NutritionTemplate.TemplateType.choices,
+        required=False,
+        default=NutritionTemplate.TemplateType.CUSTOM,
+    )
+    ruleset = serializers.JSONField(required=True)
+
+    def validate_name(self, value: str) -> str:
+        if not value.strip():
+            raise serializers.ValidationError("Template name cannot be blank.")
+        return value.strip()
+
+    def validate_ruleset(self, value: Any) -> Any:
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Ruleset must be a JSON object.")
+        return value
+
+
+class NutritionTemplateAssignmentSerializer(
+    serializers.ModelSerializer[NutritionTemplateAssignment],
+):
+    """Read serializer for NutritionTemplateAssignment."""
+
+    trainee_email = serializers.CharField(
+        source='trainee.email', read_only=True,
+    )
+    template_name = serializers.CharField(
+        source='template.name', read_only=True,
+    )
+    template_type = serializers.CharField(
+        source='template.template_type', read_only=True,
+    )
+
+    class Meta:
+        model = NutritionTemplateAssignment
+        fields = [
+            'id', 'trainee', 'trainee_email',
+            'template', 'template_name', 'template_type',
+            'parameters', 'day_type_schedule', 'fat_mode',
+            'is_active', 'activated_at',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['activated_at', 'created_at', 'updated_at']
+
+
+class NutritionTemplateAssignmentCreateSerializer(
+    serializers.Serializer[dict[str, Any]],
+):
+    """Validation serializer for assigning a template to a trainee."""
+
+    trainee_id = serializers.IntegerField(required=True)
+    template_id = serializers.IntegerField(required=True)
+    parameters = serializers.JSONField(required=False, default=dict)
+    day_type_schedule = serializers.JSONField(required=False, default=dict)
+    fat_mode = serializers.ChoiceField(
+        choices=NutritionTemplateAssignment.FatMode.choices,
+        required=False,
+        default=NutritionTemplateAssignment.FatMode.TOTAL_FAT,
+    )
+
+    def validate_parameters(self, value: Any) -> Any:
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Parameters must be a JSON object.")
+        return value
+
+    def validate_day_type_schedule(self, value: Any) -> Any:
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Day type schedule must be a JSON object.")
+        method = value.get('method')
+        if method and method not in ('training_based', 'weekly_rotation'):
+            raise serializers.ValidationError(
+                "Method must be 'training_based' or 'weekly_rotation'."
+            )
+        return value
+
+
+class NutritionDayPlanSerializer(serializers.ModelSerializer[NutritionDayPlan]):
+    """Read serializer for NutritionDayPlan."""
+
+    trainee_email = serializers.CharField(
+        source='trainee.email', read_only=True,
+    )
+    day_type_display = serializers.CharField(
+        source='get_day_type_display', read_only=True,
+    )
+
+    class Meta:
+        model = NutritionDayPlan
+        fields = [
+            'id', 'trainee', 'trainee_email', 'date',
+            'day_type', 'day_type_display',
+            'template_snapshot',
+            'total_protein', 'total_carbs', 'total_fat', 'total_calories',
+            'meals', 'fat_mode', 'is_overridden',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class NutritionDayPlanOverrideSerializer(serializers.Serializer[dict[str, Any]]):
+    """Serializer for trainer overriding a day plan."""
+
+    total_protein = serializers.IntegerField(min_value=0, required=False)
+    total_carbs = serializers.IntegerField(min_value=0, required=False)
+    total_fat = serializers.IntegerField(min_value=0, required=False)
+    total_calories = serializers.IntegerField(min_value=0, required=False)
+    day_type = serializers.ChoiceField(
+        choices=NutritionDayPlan.DayType.choices, required=False,
+    )
+    meals = serializers.JSONField(required=False)
+
+
+# --- FoodItem & MealLog System (Phase 2) ---
+
+class FoodItemSerializer(serializers.ModelSerializer[FoodItem]):
+    """Read serializer for FoodItem."""
+
+    created_by_email = serializers.CharField(
+        source='created_by.email', read_only=True, allow_null=True,
+    )
+
+    class Meta:
+        model = FoodItem
+        fields = [
+            'id', 'name', 'brand', 'serving_size', 'serving_unit',
+            'calories', 'protein', 'carbs', 'fat',
+            'fiber', 'sugar', 'sodium', 'barcode',
+            'is_public', 'created_by', 'created_by_email',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'created_by', 'is_public']
+
+
+class FoodItemCreateSerializer(serializers.Serializer[dict[str, Any]]):
+    """Validation serializer for creating a custom FoodItem."""
+
+    name = serializers.CharField(max_length=255, required=True)
+    brand = serializers.CharField(max_length=255, required=False, default='')
+    serving_size = serializers.FloatField(min_value=0.01, required=False, default=1.0)
+    serving_unit = serializers.ChoiceField(
+        choices=FoodItem.ServingUnit.choices,
+        required=False,
+        default=FoodItem.ServingUnit.GRAMS,
+    )
+    calories = serializers.IntegerField(min_value=0, required=False, default=0)
+    protein = serializers.FloatField(min_value=0, required=False, default=0)
+    carbs = serializers.FloatField(min_value=0, required=False, default=0)
+    fat = serializers.FloatField(min_value=0, required=False, default=0)
+    fiber = serializers.FloatField(min_value=0, required=False, default=0)
+    sugar = serializers.FloatField(min_value=0, required=False, default=0)
+    sodium = serializers.FloatField(min_value=0, required=False, default=0)
+    barcode = serializers.CharField(max_length=50, required=False, default='')
+
+    def validate_name(self, value: str) -> str:
+        if not value.strip():
+            raise serializers.ValidationError("Food item name cannot be blank.")
+        return value.strip()
+
+
+class MealLogEntrySerializer(serializers.ModelSerializer[MealLogEntry]):
+    """Read serializer for MealLogEntry, nested inside MealLogSerializer."""
+
+    food_item_name = serializers.CharField(
+        source='food_item.name', read_only=True, allow_null=True,
+    )
+    food_item_brand = serializers.CharField(
+        source='food_item.brand', read_only=True, allow_null=True,
+    )
+    display_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MealLogEntry
+        fields = [
+            'id', 'food_item', 'food_item_name', 'food_item_brand',
+            'custom_name', 'display_name', 'quantity', 'serving_unit',
+            'calories', 'protein', 'carbs', 'fat', 'fat_mode',
+            'created_at',
+        ]
+        read_only_fields = ['created_at']
+
+    def get_display_name(self, obj: MealLogEntry) -> str:
+        return obj.display_name
+
+
+class MealLogSerializer(serializers.ModelSerializer[MealLog]):
+    """Read serializer for MealLog with nested entries."""
+
+    entries = MealLogEntrySerializer(many=True, read_only=True)
+    total_calories = serializers.SerializerMethodField()
+    total_protein = serializers.SerializerMethodField()
+    total_carbs = serializers.SerializerMethodField()
+    total_fat = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MealLog
+        fields = [
+            'id', 'trainee', 'date', 'meal_number', 'meal_name',
+            'entries', 'total_calories', 'total_protein', 'total_carbs', 'total_fat',
+            'logged_at',
+        ]
+        read_only_fields = ['trainee', 'logged_at']
+
+    def _cached_entries(self, obj: MealLog) -> list[MealLogEntry]:
+        if not hasattr(obj, '_cached_entry_list'):
+            obj._cached_entry_list = list(obj.entries.all())  # type: ignore[attr-defined]
+        return obj._cached_entry_list  # type: ignore[attr-defined]
+
+    def get_total_calories(self, obj: MealLog) -> int:
+        return sum(e.calories for e in self._cached_entries(obj))
+
+    def get_total_protein(self, obj: MealLog) -> float:
+        return round(sum(e.protein for e in self._cached_entries(obj)), 1)
+
+    def get_total_carbs(self, obj: MealLog) -> float:
+        return round(sum(e.carbs for e in self._cached_entries(obj)), 1)
+
+    def get_total_fat(self, obj: MealLog) -> float:
+        return round(sum(e.fat for e in self._cached_entries(obj)), 1)
+
+
+class MealLogSummarySerializer(serializers.Serializer[dict[str, Any]]):
+    """Response serializer for daily meal log summary."""
+
+    date = serializers.DateField()
+    total_calories = serializers.IntegerField()
+    total_protein = serializers.FloatField()
+    total_carbs = serializers.FloatField()
+    total_fat = serializers.FloatField()
+    meal_count = serializers.IntegerField()
+    entry_count = serializers.IntegerField()
+
+
+class QuickAddEntrySerializer(serializers.Serializer[dict[str, Any]]):
+    """Validation serializer for quick-adding a food entry."""
+
+    date = serializers.DateField(required=True)
+    meal_number = serializers.IntegerField(min_value=1, max_value=6, required=True)
+    meal_name = serializers.CharField(max_length=100, required=False, default='')
+
+    # Either food_item_id (from database) or freeform entry
+    food_item_id = serializers.IntegerField(required=False)
+    custom_name = serializers.CharField(max_length=255, required=False, default='')
+
+    quantity = serializers.FloatField(min_value=0.01, required=False, default=1.0)
+    serving_unit = serializers.ChoiceField(
+        choices=FoodItem.ServingUnit.choices,
+        required=False,
+        default=FoodItem.ServingUnit.SERVING,
+    )
+
+    # Manual macros (for freeform entries)
+    calories = serializers.IntegerField(min_value=0, required=False, default=0)
+    protein = serializers.FloatField(min_value=0, required=False, default=0)
+    carbs = serializers.FloatField(min_value=0, required=False, default=0)
+    fat = serializers.FloatField(min_value=0, required=False, default=0)
+
+    fat_mode = serializers.ChoiceField(
+        choices=MealLogEntry.FatMode.choices,
+        required=False,
+        default=MealLogEntry.FatMode.TOTAL_FAT,
+    )
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        food_item_id = data.get('food_item_id')
+        custom_name = data.get('custom_name', '')
+
+        if not food_item_id and not custom_name:
+            raise serializers.ValidationError(
+                "Either food_item_id or custom_name is required."
+            )
+        return data

@@ -20,9 +20,13 @@ import '../../features/workout_log/presentation/screens/workout_history_screen.d
 import '../../features/workout_log/presentation/screens/workout_detail_screen.dart';
 import '../../features/workout_log/data/models/workout_history_model.dart';
 import '../../features/workout_log/presentation/providers/workout_provider.dart';
-import '../../features/community/presentation/screens/community_feed_screen.dart';
 import '../../features/community/presentation/screens/announcements_screen.dart';
 import '../../features/community/presentation/screens/achievements_screen.dart';
+import '../../features/community/presentation/screens/school_home_screen.dart';
+import '../../features/community/presentation/screens/space_list_screen.dart';
+import '../../features/community/presentation/screens/space_detail_screen.dart';
+import '../../features/community/presentation/screens/space_create_screen.dart';
+import '../../features/community/presentation/screens/saved_items_screen.dart';
 import '../../features/community/data/models/announcement_model.dart';
 import '../../features/trainer/presentation/screens/trainer_announcements_screen.dart';
 import '../../features/trainer/presentation/screens/create_announcement_screen.dart';
@@ -43,6 +47,7 @@ import '../../features/trainer/presentation/screens/trainee_list_screen.dart';
 import '../../features/trainer/presentation/screens/trainee_detail_screen.dart';
 import '../../features/trainer/presentation/screens/invite_trainee_screen.dart';
 import '../../features/trainer/presentation/screens/assign_program_screen.dart';
+import '../../features/nutrition/presentation/screens/template_assignment_screen.dart';
 import '../../features/trainer/presentation/screens/trainer_notifications_screen.dart';
 import '../../features/trainer/presentation/screens/retention_analytics_screen.dart';
 import '../../features/exercises/presentation/screens/exercise_bank_screen.dart';
@@ -335,6 +340,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           return adaptivePage(
             key: state.pageKey,
             child: AssignProgramScreen(traineeId: traineeId),
+          );
+        },
+      ),
+
+      // Nutrition template assignment (trainer)
+      GoRoute(
+        path: '/nutrition/template-assignment/:traineeId',
+        name: 'template-assignment',
+        pageBuilder: (context, state) {
+          final traineeId =
+              int.parse(state.pathParameters['traineeId']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: TemplateAssignmentScreen(traineeId: traineeId),
           );
         },
       ),
@@ -706,7 +725,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/community',
                 name: 'community',
-                builder: (context, state) => const CommunityFeedScreen(),
+                builder: (context, state) => const SchoolHomeScreen(),
               ),
             ],
           ),
@@ -747,6 +766,41 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => adaptivePage(
           key: state.pageKey,
           child: const LeaderboardScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/community/spaces',
+        name: 'community-spaces',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const SpaceListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/community/spaces/create',
+        name: 'community-space-create',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const SpaceCreateScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/community/spaces/:spaceId',
+        name: 'community-space-detail',
+        pageBuilder: (context, state) {
+          final spaceId = int.parse(state.pathParameters['spaceId']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: SpaceDetailScreen(spaceId: spaceId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/community/saved',
+        name: 'community-saved',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const SavedItemsScreen(),
         ),
       ),
 

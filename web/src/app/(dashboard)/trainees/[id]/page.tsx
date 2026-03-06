@@ -15,10 +15,10 @@ import { TraineeOverviewTab } from "@/components/trainees/trainee-overview-tab";
 import { TraineeActivityTab } from "@/components/trainees/trainee-activity-tab";
 import { TraineeProgressTab } from "@/components/trainees/trainee-progress-tab";
 import { AssignProgramAction } from "@/components/trainees/assign-program-action";
-import { EditGoalsDialog } from "@/components/trainees/edit-goals-dialog";
+import { EditGoalsPanel } from "@/components/trainees/edit-goals-panel";
 import { RemoveTraineeDialog } from "@/components/trainees/remove-trainee-dialog";
 import { ImpersonateTraineeButton } from "@/components/trainees/impersonate-trainee-button";
-import { MarkMissedDayDialog } from "@/components/trainees/mark-missed-day-dialog";
+import { MarkMissedDayPanel } from "@/components/trainees/mark-missed-day-panel";
 import { LayoutConfigSelector } from "@/components/trainees/layout-config-selector";
 
 export default function TraineeDetailPage({
@@ -170,7 +170,7 @@ export default function TraineeDetailPage({
         </Tabs>
 
         {/* Dialogs */}
-        <EditGoalsDialog
+        <EditGoalsPanel
           traineeId={trainee.id}
           traineeName={displayName}
           currentGoals={trainee.nutrition_goal}
@@ -183,7 +183,7 @@ export default function TraineeDetailPage({
           open={removeOpen}
           onOpenChange={setRemoveOpen}
         />
-        <MarkMissedDayDialog
+        <MarkMissedDayPanel
           traineeId={trainee.id}
           programs={trainee.programs}
           open={missedDayOpen}

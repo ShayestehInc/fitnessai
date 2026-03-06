@@ -20,10 +20,16 @@ class CommunityFeedConsumer(AsyncJsonWebsocketConsumer):
 
     Connect:  ws://host/ws/community/feed/?token=<JWT>
     Receives: new_post, post_deleted, new_comment events from the channel layer.
+    Supports: subscribe/unsubscribe to space-specific groups.
     """
 
     group_name: str = ''
     trainer_id: int | None = None
+    space_groups: set[str]
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.space_groups = set()
 
     async def connect(self) -> None:
         """Authenticate user and join the trainer's feed group."""
@@ -51,21 +57,50 @@ class CommunityFeedConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def disconnect(self, code: int) -> None:
-        """Leave the feed group on disconnect."""
+        """Leave the feed group and all space groups on disconnect."""
         if self.group_name:
             await self.channel_layer.group_discard(
                 self.group_name,
                 self.channel_name,
             )
+        # Leave all subscribed space groups
+        for space_group in self.space_groups:
+            await self.channel_layer.group_discard(
+                space_group,
+                self.channel_name,
+            )
+        self.space_groups.clear()
 
     async def receive_json(self, content: dict[str, Any], **kwargs: Any) -> None:
         """
         Handle incoming messages from the client.
-        Currently clients only listen; we send a heartbeat acknowledgment.
+        Supports: ping, subscribe_space, unsubscribe_space.
         """
         msg_type = content.get('type')
         if msg_type == 'ping':
             await self.send_json({'type': 'pong'})
+        elif msg_type == 'subscribe_space':
+            space_id = content.get('space_id')
+            if space_id is not None:
+                group = f'community_space_{space_id}'
+                if group not in self.space_groups:
+                    await self.channel_layer.group_add(group, self.channel_name)
+                    self.space_groups.add(group)
+                    await self.send_json({
+                        'type': 'subscribed_space',
+                        'space_id': space_id,
+                    })
+        elif msg_type == 'unsubscribe_space':
+            space_id = content.get('space_id')
+            if space_id is not None:
+                group = f'community_space_{space_id}'
+                if group in self.space_groups:
+                    await self.channel_layer.group_discard(group, self.channel_name)
+                    self.space_groups.discard(group)
+                    await self.send_json({
+                        'type': 'unsubscribed_space',
+                        'space_id': space_id,
+                    })
 
     # ------------------------------------------------------------------
     # Channel layer event handlers

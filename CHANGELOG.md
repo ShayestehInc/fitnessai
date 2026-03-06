@@ -4,6 +4,32 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 43: Nutrition Phase 2 — FoodItem, MealLog, Fat Mode
+
+### Added
+- `FoodItem` model with Exercise-pattern visibility (`is_public` + `created_by`), full macro fields, barcode support, auto-calculated calories
+- `MealLog` + `MealLogEntry` relational models replacing JSON blob nutrition logging
+- `FoodItemViewSet` with search, barcode lookup, recent foods, CRUD with ownership checks
+- `MealLogViewSet` with date filtering, daily summary aggregation, quick-add with auto-created containers, entry deletion
+- `active_assignment` action on `NutritionTemplateAssignmentViewSet`
+- `FoodItemRepository` and `MealLogRepository` (Flutter)
+- `FoodItemSearchNotifier` with 300ms debounce and barcode lookup
+- `MealLogNotifier` with parallel loading, optimistic deletes with rollback
+- `MealCard` widget with macro chips, swipe-to-delete, a11y semantics
+- `FatModeBadge` widget with tooltip explanation
+- 6 new backend serializers, 9 new API endpoints
+- Migration `0016_fooditem_meallog`
+
+### Fixed
+- 3 IDOR vulnerabilities on summary, active_assignment, and barcode_lookup endpoints
+- N+1 query pattern in MealLogSerializer (4x `entries.all()` → cached)
+- Missing FoodItem access control in quick_add endpoint
+- Silent exception swallow on date parse in MealLogViewSet
+- ProtectedError crash on FoodItem delete (now returns 409 Conflict)
+- Removed 2 pre-existing debug `print()` statements from `food_search_repository.dart`
+
+---
+
 ## [2026-03-04] — Pipeline 42: Notification Preferences, Local Reminders & Dead UI Cleanup
 
 ### Added

@@ -9,10 +9,11 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { Button } from "@/components/ui/button";
 import { InvitationTable } from "@/components/invitations/invitation-table";
-import { CreateInvitationDialog } from "@/components/invitations/create-invitation-dialog";
+import { CreateInvitationPanel, CreateInvitationTrigger } from "@/components/invitations/create-invitation-panel";
 
 export default function InvitationsPage() {
   const [page, setPage] = useState(1);
+  const [panelOpen, setPanelOpen] = useState(false);
   const { data, isLoading, isError, refetch } = useInvitations(page);
 
   const hasNextPage = Boolean(data?.next);
@@ -23,7 +24,7 @@ export default function InvitationsPage() {
       <PageHeader
         title="Invitations"
         description="Manage trainee invitations"
-        actions={<CreateInvitationDialog />}
+        actions={<CreateInvitationTrigger onClick={() => setPanelOpen(true)} />}
       />
 
       {isLoading ? (
@@ -38,7 +39,7 @@ export default function InvitationsPage() {
           icon={Mail}
           title="No invitations yet"
           description="Send your first invitation to start onboarding trainees."
-          action={<CreateInvitationDialog />}
+          action={<CreateInvitationTrigger onClick={() => setPanelOpen(true)} />}
         />
       ) : data ? (
         <>
@@ -72,6 +73,8 @@ export default function InvitationsPage() {
           )}
         </>
       ) : null}
+
+      <CreateInvitationPanel open={panelOpen} onOpenChange={setPanelOpen} />
     </div>
   );
 }

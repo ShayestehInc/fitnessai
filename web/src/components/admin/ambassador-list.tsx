@@ -10,8 +10,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminAmbassadors } from "@/hooks/use-admin-ambassadors";
 import { formatCurrency } from "@/lib/format-utils";
-import { CreateAmbassadorDialog } from "./create-ambassador-dialog";
-import { AmbassadorDetailDialog } from "./ambassador-detail-dialog";
+import { CreateAmbassadorPanel } from "./create-ambassador-panel";
+import { AmbassadorDetailPanel } from "./ambassador-detail-panel";
 import type { Ambassador } from "@/types/ambassador";
 
 export function AmbassadorList() {
@@ -127,8 +127,8 @@ export function AmbassadorList() {
         )}
       </div>
 
-      <CreateAmbassadorDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <AmbassadorDetailDialog
+      <CreateAmbassadorPanel open={createOpen} onOpenChange={setCreateOpen} />
+      <AmbassadorDetailPanel
         ambassador={selectedAmbassador}
         open={detailOpen}
         onOpenChange={setDetailOpen}

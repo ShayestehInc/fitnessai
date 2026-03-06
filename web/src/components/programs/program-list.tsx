@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { DeleteProgramDialog } from "./delete-program-dialog";
-import { AssignProgramDialog } from "./assign-program-dialog";
+import { AssignProgramPanel } from "./assign-program-panel";
 import { useAuth } from "@/hooks/use-auth";
 import {
   DIFFICULTY_LABELS,
@@ -174,7 +174,7 @@ function ProgramActions({
           </DropdownMenuItem>
         )}
 
-        <AssignProgramDialog
+        <AssignProgramPanel
           program={program}
           trigger={
             <DropdownMenuItem

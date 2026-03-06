@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ExerciseCard } from "./exercise-card";
-import { ExerciseDetailDialog } from "./exercise-detail-dialog";
-import { CreateExerciseDialog } from "./create-exercise-dialog";
+import { ExerciseDetailPanel } from "./exercise-detail-panel";
+import { CreateExercisePanel } from "./create-exercise-panel";
 import { MUSCLE_GROUP_LABELS, DIFFICULTY_LABELS, GOAL_LABELS, MuscleGroup } from "@/types/program";
 import type { Exercise, DifficultyLevel, GoalType } from "@/types/program";
 
@@ -206,12 +206,12 @@ export function ExerciseList({
         )}
       </div>
 
-      <ExerciseDetailDialog
+      <ExerciseDetailPanel
         exercise={selectedExercise}
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
-      <CreateExerciseDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateExercisePanel open={createOpen} onOpenChange={setCreateOpen} />
     </>
   );
 }

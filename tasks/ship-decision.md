@@ -1,41 +1,47 @@
-# Ship Decision: Notification Preferences, Reminders & Dead UI Cleanup (Pipeline 42)
+# Ship Decision: Nutrition Phase 2 — FoodItem, MealLog, Fat Mode
 
 ## Verdict: SHIP
 ## Confidence: HIGH
-## Quality Score: 9/10
-## Summary: All 28 acceptance criteria pass. 62/62 tests pass (31 backend, 31 mobile). Zero flutter analyze errors. All 3 critical bugs from Round 1 review were fixed correctly. Security audit passed (9/10, no critical/high issues). Architecture review approved (9/10).
+## Quality Score: 8/10
+
+## Summary
+Nutrition Phase 2 is production-ready. All critical and major issues from code review were fixed across 3 fix rounds. QA passed 15/15 acceptance criteria with HIGH confidence. Security audit found no new vulnerabilities. Architecture aligns with existing patterns (8/10).
 
 ## Verification Details
 
-### Test Suite
-- **Flutter tests:** 31/31 passed (notification_preferences_test, reminder_service_test, help_support_test, widget_test)
-- **Flutter analyze:** Zero errors. Only pre-existing warnings (unused imports, unused catch clauses in admin_repository.dart -- none from this feature)
-- **Backend tests:** 31/31 passed per QA report (not runnable without Docker/DB, but QA agent confirmed)
+### System Checks
+- **Django check:** 0 issues (verified)
+- **Flutter analyze:** 0 errors (229 issues, all pre-existing warnings — no new issues from this feature)
 
-### Critical Bug Fixes Verified (Code Inspected)
-1. **AC-7 Map key bug (notification_preferences_provider.dart:28-30):** FIXED. Uses `Map<String, bool>.from(previous)` + `optimistic[category] = enabled` -- correctly uses the variable, not a string literal.
-2. **AC-6 Category parameter (notification_service.py:59-76, 125-181):** FIXED. `send_push_notification` checks `_check_notification_preference(user_id, category)`. `send_push_to_group` validates category against `VALID_CATEGORIES`, batch-filters opted-out users via single query `**{category: False}`. All 3 callers pass `category=`.
-3. **AC-15 Notification tap handling (reminder_service.dart:137-150):** FIXED. `onDidReceiveNotificationResponse: _onNotificationResponse` callback registered. Payloads ('workout', 'meal', 'weight') set on all `zonedSchedule` calls. `onNotificationTapped` callback hook exposed for navigation wiring.
+### Critical Bug Fixes Verified
+1. **3 IDOR vulnerabilities** on summary, active_assignment, barcode_lookup — all fixed with parent_trainer ownership checks
+2. **N+1 query in MealLogSerializer** — fixed via `_cached_entries()` method
+3. **Missing FoodItem access control in quick_add** — fixed with `Q(is_public=True) | Q(created_by=user.parent_trainer)` filter
+4. **Silent exception swallow** on date parse — replaced with `qs.none()` + warning log
+5. **ProtectedError crash** on FoodItem delete — caught and returns 409 Conflict
+6. **Missing pagination** on MealLogViewSet — added 20/page
 
 ### Report Summary
 | Report | Score | Verdict |
 |--------|-------|---------|
-| Code Review Round 2 | 9/10 | APPROVE |
-| QA Report | 28/28 AC, 62/62 tests | HIGH confidence |
-| UX Audit | 8/10 | All issues fixed |
-| Security Audit | 9/10 | PASS (no critical/high) |
-| Architecture Review | 9/10 | APPROVE |
-| Hacker Report | 7/10 | 4 items fixed, 4 deferred (pre-existing admin security screen) |
+| Code Review (after fixes) | 8/10 | APPROVE |
+| QA Report | 15/15 AC | HIGH confidence |
+| UX Audit | 8/10 | All states handled |
+| Security Audit | 8/10 | CONDITIONAL PASS |
+| Architecture Review | 8/10 | APPROVE |
+| Hacker Report | 8/10 | 0 dead UI, 0 visual bugs |
 
 ### Remaining Concerns
-1. **Minor:** `ReminderService.onNotificationTapped` callback is implemented but not yet wired to go_router navigation during app initialization. The infrastructure is complete; wiring is a follow-up task.
-2. **Minor:** 5 of 9 notification preference categories have toggles but no corresponding send callsites yet (those features don't exist). Not debt from this pipeline.
-3. **Pre-existing:** Admin Security screen has multiple non-functional features (2FA, Sign Out All Devices, Login History). These were found by the Hacker but are not part of this feature's scope.
-4. **Low risk:** No per-endpoint rate limiting on notification preferences PATCH. Acceptable given JWT auth and low-sensitivity data.
+1. **Pre-existing:** Hardcoded RapidAPI key in `food_search_repository.dart:5` — not introduced in this PR, flagged for separate remediation
+2. **Deferred:** MealCard and FoodItem search widgets are built but not yet wired into existing NutritionScreen/AddFoodScreen — planned for Phase 3 integration
+3. **Minor:** 2 pre-existing dev dependency warnings in pubspec.yaml (json_serializable, build_runner)
 
 ## What Was Built
-- **Notification Preferences:** Full-stack feature allowing trainers and trainees to toggle 7/4 push notification categories respectively. Backend NotificationPreference model with 9 boolean fields, GET/PATCH API, preference-aware push notification sending (both single-user and batch). Mobile screen with role-based category lists, optimistic toggle updates with rollback on error, shimmer loading skeleton.
-- **Workout/Meal/Weight Reminders:** Local notification scheduling via flutter_local_notifications. Three reminder types with configurable times and day-of-week (weight). Persisted in SharedPreferences. Platform-aware timezone resolution via flutter_timezone. Notification tap handling with payload routing.
-- **Help & Support Screen:** FAQ accordion with role-based sections (Getting Started, Workouts, Nutrition, Account, Billing for trainer/admin). Contact card with mailto link and clipboard fallback. Real app version via package_info_plus.
-- **Dead UI Cleanup:** Wired 5 previously non-functional settings tiles (Push Notifications, Help & Support, Reminders, Analytics, Check-in Days). Wired Message and Schedule buttons on Trainee Detail screen. Removed Email Notifications tile (no backend). Removed ~25 debug print statements from api_client.dart and admin_repository.dart. Replaced broken widget_test.dart with working smoke test.
-- **Adaptive UI Migration:** Converted ~85 routes to adaptive pages, migrated dialogs to showAdaptiveConfirmDialog/showAdaptiveTextInputDialog, InkWell to AdaptiveTappable, search fields to AdaptiveSearchBar across ~30 files.
+- **FoodItem model** with Exercise-pattern visibility (is_public + created_by), full macro fields, barcode support, auto-calculated calories
+- **MealLog + MealLogEntry** structured relational model supporting both food_item FK and freeform custom_name entries
+- **FoodItemViewSet** with search, barcode lookup, recent foods, CRUD with ownership/visibility checks
+- **MealLogViewSet** with date filtering, daily summary aggregation (DB-level Sum/Count), quick-add with auto-created containers, entry deletion
+- **Fat Mode badge** widget with tooltip explanation of total_fat vs added_fat
+- **MealCard widget** with expandable entries, macro chips (P/C/F), swipe-to-delete with a11y semantics
+- **Riverpod providers** for food item search (with 300ms debounce) and meal log state (with optimistic deletes and rollback)
+- **6 new serializers** and **2 new Flutter repositories** following existing patterns

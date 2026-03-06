@@ -27,8 +27,8 @@ import {
 } from "@/components/ui/dialog";
 import { useMacroPresets, useDeleteMacroPreset } from "@/hooks/use-macro-presets";
 import { getErrorMessage } from "@/lib/error-utils";
-import { PresetFormDialog } from "./preset-form-dialog";
-import { CopyPresetDialog } from "./copy-preset-dialog";
+import { PresetFormPanel } from "./preset-form-panel";
+import { CopyPresetPanel } from "./copy-preset-panel";
 import { PresetCard } from "./preset-card";
 import type { MacroPreset } from "@/types/trainer";
 
@@ -154,8 +154,8 @@ export function MacroPresetsSection({
         </CardContent>
       </Card>
 
-      {/* Create / Edit Dialog */}
-      <PresetFormDialog
+      {/* Create / Edit Panel */}
+      <PresetFormPanel
         traineeId={traineeId}
         traineeName={traineeName}
         preset={editingPreset}
@@ -163,8 +163,8 @@ export function MacroPresetsSection({
         onOpenChange={setFormOpen}
       />
 
-      {/* Copy Dialog */}
-      <CopyPresetDialog
+      {/* Copy Panel */}
+      <CopyPresetPanel
         traineeId={traineeId}
         preset={copyTarget}
         open={copyTarget !== null}

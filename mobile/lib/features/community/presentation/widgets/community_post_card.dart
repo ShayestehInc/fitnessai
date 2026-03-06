@@ -5,13 +5,13 @@ import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
-import '../../../../shared/widgets/adaptive/adaptive_route.dart';
-import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/community_post_model.dart';
 import '../providers/community_feed_provider.dart';
+import 'bookmark_button.dart';
 import 'comments_sheet.dart';
+import 'image_carousel.dart';
 import 'reaction_bar.dart';
 
 /// Card for a single community feed post.
@@ -40,6 +40,14 @@ class CommunityPostCard extends ConsumerWidget {
         children: [
           _PostAuthorRow(post: post, isAuthor: isAuthor),
           const SizedBox(height: 12),
+          if (post.isPinned) ...[
+            _PinIndicator(theme: theme),
+            const SizedBox(height: 8),
+          ],
+          if (post.space != null) ...[
+            _SpaceBadge(space: post.space!, theme: theme),
+            const SizedBox(height: 8),
+          ],
           if (post.isAutoPost) ...[
             _PostTypeBadge(postType: post.postType),
             const SizedBox(height: 8),
@@ -47,11 +55,62 @@ class CommunityPostCard extends ConsumerWidget {
           _PostContent(post: post),
           if (post.hasImage) ...[
             const SizedBox(height: 10),
-            _PostImage(imageUrl: post.imageUrl!),
+            ImageCarousel(images: post.images),
           ],
           const SizedBox(height: 12),
           _PostActions(post: post),
         ],
+      ),
+    );
+  }
+}
+
+/// Pin indicator badge.
+class _PinIndicator extends StatelessWidget {
+  final ThemeData theme;
+
+  const _PinIndicator({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(Icons.push_pin, size: 14, color: theme.colorScheme.primary),
+        const SizedBox(width: 4),
+        Text(
+          'Pinned',
+          style: TextStyle(
+            fontSize: 11,
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Space badge showing which space the post belongs to.
+class _SpaceBadge extends StatelessWidget {
+  final PostSpaceInfo space;
+  final ThemeData theme;
+
+  const _SpaceBadge({required this.space, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        '${space.emoji} ${space.name}',
+        style: TextStyle(
+          fontSize: 11,
+          color: theme.textTheme.bodySmall?.color,
+        ),
       ),
     );
   }
@@ -111,6 +170,7 @@ class _PostAuthorRow extends ConsumerWidget {
             ],
           ),
         ),
+        BookmarkButton(postId: post.id, isBookmarked: post.isBookmarked),
         if (isAuthor)
           Theme.of(context).platform == TargetPlatform.iOS
               ? IconButton(
@@ -264,62 +324,6 @@ class _PostContent extends StatelessWidget {
   }
 }
 
-/// Displays the post image with tap to view fullscreen.
-class _PostImage extends StatelessWidget {
-  final String imageUrl;
-
-  const _PostImage({required this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showFullImage(context),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          imageUrl,
-          width: double.infinity,
-          height: 250,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              width: double.infinity,
-              height: 250,
-              decoration: BoxDecoration(
-                color: Theme.of(context).dividerColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(child: AdaptiveSpinner()),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: double.infinity,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Theme.of(context).dividerColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Icon(Icons.broken_image_outlined, size: 32),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  void _showFullImage(BuildContext context) {
-    Navigator.of(context).push(
-      adaptivePageRoute(
-        builder: (_) => _FullImageScreen(imageUrl: imageUrl),
-      ),
-    );
-  }
-}
-
 /// Post type badge for auto-generated posts.
 class _PostTypeBadge extends StatelessWidget {
   final String postType;
@@ -452,61 +456,6 @@ class _CommentButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Full-screen image viewer with pinch-to-zoom.
-class _FullImageScreen extends StatelessWidget {
-  final String imageUrl;
-
-  const _FullImageScreen({required this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0,
-      ),
-      body: Semantics(
-        label: 'Full screen image. Pinch to zoom.',
-        image: true,
-        child: Center(
-        child: InteractiveViewer(
-          minScale: 1.0,
-          maxScale: 4.0,
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return const Center(
-                child: AdaptiveSpinner(),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.broken_image_outlined,
-                        size: 48, color: Colors.white54),
-                    SizedBox(height: 8),
-                    Text(
-                      'Failed to load image',
-                      style: TextStyle(color: Colors.white54),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ),
       ),
     );
   }

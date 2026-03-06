@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Ticket, Plus } from "lucide-react";
 import { useAdminCoupons } from "@/hooks/use-admin-coupons";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -8,8 +9,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CouponList } from "@/components/admin/coupon-list";
-import { CouponFormDialog } from "@/components/admin/coupon-form-dialog";
-import { CouponDetailDialog } from "@/components/admin/coupon-detail-dialog";
+import { CouponDetailPanel } from "@/components/admin/coupon-detail-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,13 +39,11 @@ const APPLIES_TO_OPTIONS = [
 ];
 
 export default function AdminCouponsPage() {
+  const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [appliesToFilter, setAppliesToFilter] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
-  const [formKey, setFormKey] = useState(0);
-  const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
   const [detailCouponId, setDetailCouponId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -64,9 +62,7 @@ export default function AdminCouponsPage() {
   const coupons = useAdminCoupons(filters);
 
   function handleCreate() {
-    setEditingCoupon(null);
-    setFormKey((k) => k + 1);
-    setFormOpen(true);
+    router.push("/admin/coupons/new");
   }
 
   function handleRowClick(coupon: AdminCouponListItem) {
@@ -76,8 +72,7 @@ export default function AdminCouponsPage() {
 
   function handleEditFromDetail(coupon: AdminCoupon) {
     setDetailOpen(false);
-    setEditingCoupon(coupon);
-    setFormOpen(true);
+    router.push(`/admin/coupons/${coupon.id}/edit`);
   }
 
   return (
@@ -176,14 +171,7 @@ export default function AdminCouponsPage() {
         <CouponList coupons={coupons.data} onRowClick={handleRowClick} />
       )}
 
-      <CouponFormDialog
-        key={editingCoupon?.id ?? `new-${formKey}`}
-        coupon={editingCoupon}
-        open={formOpen}
-        onOpenChange={setFormOpen}
-      />
-
-      <CouponDetailDialog
+      <CouponDetailPanel
         couponId={detailCouponId}
         open={detailOpen}
         onOpenChange={setDetailOpen}

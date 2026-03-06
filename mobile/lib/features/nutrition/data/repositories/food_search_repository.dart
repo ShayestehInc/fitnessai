@@ -70,7 +70,7 @@ class FoodSearchRepository {
               try {
                 return FoodSearchResult.fromJson(item as Map<String, dynamic>);
               } catch (e) {
-                print('Error parsing food item: $e');
+                // Silently skip unparseable food items
                 return null;
               }
             })
@@ -130,7 +130,7 @@ class FoodSearchRepository {
 
       return null;
     } catch (e) {
-      print('Error getting food details: $e');
+      // Food detail lookup failed — caller handles null
       return null;
     }
   }

@@ -6,6 +6,10 @@ class CommunityPostModel {
   final String postType;
   final String contentFormat;
   final String? imageUrl;
+  final List<PostImageModel> images;
+  final PostSpaceInfo? space;
+  final bool isPinned;
+  final bool isBookmarked;
   final Map<String, dynamic> metadata;
   final int commentCount;
   final DateTime createdAt;
@@ -19,6 +23,10 @@ class CommunityPostModel {
     required this.postType,
     this.contentFormat = 'plain',
     this.imageUrl,
+    this.images = const [],
+    this.space,
+    this.isPinned = false,
+    this.isBookmarked = false,
     required this.metadata,
     this.commentCount = 0,
     required this.createdAt,
@@ -34,6 +42,15 @@ class CommunityPostModel {
       postType: json['post_type'] as String? ?? 'text',
       contentFormat: json['content_format'] as String? ?? 'plain',
       imageUrl: json['image_url'] as String?,
+      images: (json['images'] as List<dynamic>?)
+              ?.map((e) => PostImageModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      space: json['space'] != null
+          ? PostSpaceInfo.fromJson(json['space'] as Map<String, dynamic>)
+          : null,
+      isPinned: json['is_pinned'] as bool? ?? false,
+      isBookmarked: json['is_bookmarked'] as bool? ?? false,
       metadata: (json['metadata'] as Map<String, dynamic>?) ?? {},
       commentCount: json['comment_count'] as int? ?? 0,
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -53,8 +70,11 @@ class CommunityPostModel {
   /// Whether this post has markdown content.
   bool get isMarkdown => contentFormat == 'markdown';
 
-  /// Whether this post has an image attachment.
-  bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
+  /// Whether this post has any image attachments.
+  bool get hasImage => images.isNotEmpty || (imageUrl != null && imageUrl!.isNotEmpty);
+
+  /// Whether this post has multiple images.
+  bool get hasMultipleImages => images.length > 1;
 
   /// Total reaction count across all types.
   int get totalReactions =>
@@ -64,6 +84,8 @@ class CommunityPostModel {
     ReactionCounts? reactions,
     List<String>? userReactions,
     int? commentCount,
+    bool? isBookmarked,
+    bool? isPinned,
   }) {
     return CommunityPostModel(
       id: id,
@@ -72,6 +94,10 @@ class CommunityPostModel {
       postType: postType,
       contentFormat: contentFormat,
       imageUrl: imageUrl,
+      images: images,
+      space: space,
+      isPinned: isPinned ?? this.isPinned,
+      isBookmarked: isBookmarked ?? this.isBookmarked,
       metadata: metadata,
       commentCount: commentCount ?? this.commentCount,
       createdAt: createdAt,
@@ -114,6 +140,48 @@ class PostAuthor {
     final last = lastName.isNotEmpty ? lastName[0] : '';
     final result = '$first$last'.toUpperCase();
     return result.isNotEmpty ? result : '?';
+  }
+}
+
+/// Image attached to a post (multi-image support).
+class PostImageModel {
+  final int? id;
+  final String url;
+  final int sortOrder;
+
+  const PostImageModel({
+    this.id,
+    required this.url,
+    this.sortOrder = 0,
+  });
+
+  factory PostImageModel.fromJson(Map<String, dynamic> json) {
+    return PostImageModel(
+      id: json['id'] as int?,
+      url: json['url'] as String,
+      sortOrder: json['sort_order'] as int? ?? 0,
+    );
+  }
+}
+
+/// Minimal space info nested in a post.
+class PostSpaceInfo {
+  final int id;
+  final String name;
+  final String emoji;
+
+  const PostSpaceInfo({
+    required this.id,
+    required this.name,
+    this.emoji = '💬',
+  });
+
+  factory PostSpaceInfo.fromJson(Map<String, dynamic> json) {
+    return PostSpaceInfo(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      emoji: json['emoji'] as String? ?? '💬',
+    );
   }
 }
 
