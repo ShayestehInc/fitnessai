@@ -390,6 +390,19 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
 
     if (picked == null || !mounted) return;
 
+    // Validate extension
+    final ext = picked.path.split('.').last.toLowerCase();
+    const allowedExts = {'mp4', 'm4v', 'mov', 'webm'};
+    if (!allowedExts.contains(ext)) {
+      if (!mounted) return;
+      showAdaptiveToast(
+        context,
+        message: 'Unsupported format. Use MP4, MOV, or WebM.',
+        type: ToastType.error,
+      );
+      return;
+    }
+
     final fileSize = await File(picked.path).length();
     if (fileSize > _maxVideoSizeBytes) {
       if (!mounted) return;
@@ -401,6 +414,7 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
       return;
     }
 
+    if (!mounted) return;
     setState(() => _videoPaths.add(picked.path));
   }
 

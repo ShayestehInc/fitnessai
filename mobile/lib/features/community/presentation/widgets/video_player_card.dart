@@ -83,7 +83,12 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
       MaterialPageRoute<void>(
         builder: (_) => FullscreenVideoPlayer(videoUrl: widget.video.url),
       ),
-    );
+    ).then((_) {
+      // Resume playback when returning from fullscreen (if still mounted)
+      if (mounted && _controller != null && _isInitialized) {
+        _controller!.play();
+      }
+    });
   }
 
   @override

@@ -42,6 +42,10 @@ from .models import (
     SpaceMembership,
     UserAchievement,
 )
+from .services.video_service import (
+    MAX_VIDEOS_PER_POST,
+    validate_video,
+)
 from .serializers import (
     AnnouncementSerializer,
     CommentReplySerializer,
@@ -315,10 +319,6 @@ class CommunityFeedView(views.APIView):
 
         # Collect video files
         video_files = request.FILES.getlist('videos')
-        from .services.video_service import (
-            MAX_VIDEOS_PER_POST,
-            validate_video,
-        )
 
         if len(video_files) > MAX_VIDEOS_PER_POST:
             return Response(
@@ -345,38 +345,41 @@ class CommunityFeedView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        post = CommunityPost.objects.create(
-            author=user,
-            trainer=trainer,
-            space=space,
-            content=serializer.validated_data['content'],
-            content_format=serializer.validated_data.get(
-                'content_format', CommunityPost.ContentFormat.PLAIN,
-            ),
-            post_type=CommunityPost.PostType.TEXT,
-        )
+        from django.core.files.base import ContentFile
+        from django.db import transaction
 
-        # Create PostImage records
-        for idx, img_file in enumerate(image_files):
-            PostImage.objects.create(post=post, image=img_file, sort_order=idx)
-
-        # Create PostVideo records
-        for idx, (vid_file, metadata) in enumerate(zip(video_files, video_metadata_list)):
-            thumbnail_file = None
-            if metadata.thumbnail_bytes:
-                from django.core.files.base import ContentFile
-                thumbnail_file = ContentFile(
-                    metadata.thumbnail_bytes,
-                    name=f"thumb_{vid_file.name}.jpg",
-                )
-            PostVideo.objects.create(
-                post=post,
-                file=vid_file,
-                thumbnail=thumbnail_file,
-                duration=metadata.duration,
-                file_size=metadata.file_size,
-                sort_order=idx,
+        with transaction.atomic():
+            post = CommunityPost.objects.create(
+                author=user,
+                trainer=trainer,
+                space=space,
+                content=serializer.validated_data['content'],
+                content_format=serializer.validated_data.get(
+                    'content_format', CommunityPost.ContentFormat.PLAIN,
+                ),
+                post_type=CommunityPost.PostType.TEXT,
             )
+
+            # Create PostImage records
+            for idx, img_file in enumerate(image_files):
+                PostImage.objects.create(post=post, image=img_file, sort_order=idx)
+
+            # Create PostVideo records
+            for idx, (vid_file, metadata) in enumerate(zip(video_files, video_metadata_list)):
+                thumbnail_file = None
+                if metadata.thumbnail_bytes:
+                    thumbnail_file = ContentFile(
+                        metadata.thumbnail_bytes,
+                        name=f"thumb_{vid_file.name}.jpg",
+                    )
+                PostVideo.objects.create(
+                    post=post,
+                    file=vid_file,
+                    thumbnail=thumbnail_file,
+                    duration=metadata.duration,
+                    file_size=metadata.file_size,
+                    sort_order=idx,
+                )
 
         # Annotate comment_count for serialization
         post.comment_count = 0  # type: ignore[attr-defined]

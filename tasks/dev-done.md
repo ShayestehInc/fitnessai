@@ -1,59 +1,40 @@
-# Dev Done: Wire FCM Push Notifications End-to-End for Community Events
-
-## Date: 2026-03-05
+# Dev Done: Video Attachments on Community Posts
 
 ## Files Created
-- `backend/users/migrations/0010_add_community_event_notification_pref.py` — Migration adding `community_event` boolean field to NotificationPreference model
-- `backend/community/management/commands/send_event_reminders.py` — Management command for sending 15-min reminders to RSVP'd users. Run via cron: `*/5 * * * *`
+- `backend/community/services/video_service.py` — Video validation + metadata extraction service (ffprobe/ffmpeg)
+- `backend/community/migrations/0007_add_post_video.py` — PostVideo table migration
+- `mobile/lib/features/community/data/models/post_video_model.dart` — PostVideoModel with formattedDuration
+- `mobile/lib/features/community/presentation/widgets/video_player_card.dart` — Inline video player card
+- `mobile/lib/features/community/presentation/widgets/fullscreen_video_player.dart` — Immersive fullscreen player
 
 ## Files Modified
-
-### Backend
-- `backend/users/models.py` — Added `community_event` field to NotificationPreference model and added it to VALID_CATEGORIES frozenset
-- `backend/community/services/event_service.py` — Added 4 notification methods to EventService:
-  - `notify_event_created()` — Pushes to all trainer's trainees
-  - `notify_event_updated()` — Pushes to RSVP'd users (going/maybe)
-  - `notify_event_cancelled()` — Pushes to RSVP'd users (going/maybe)
-  - `send_event_reminders()` — Class method for cron, finds events starting within 15 min, pushes to going users
-- `backend/community/trainer_views.py` — Wired notification triggers:
-  - `TrainerEventListCreateView.create()` — Calls `notify_event_created()` after event creation
-  - `TrainerEventDetailView._update()` — Calls `notify_event_updated()` when time/location changes on scheduled events
-  - `TrainerEventDetailView.delete()` — Calls `notify_event_cancelled()` after status transition
-  - `TrainerEventStatusView.patch()` — Calls `notify_event_cancelled()` when status set to CANCELLED
-- `backend/example.env` — Added `FIREBASE_CREDENTIALS_PATH` entry
-
-### Mobile
-- `mobile/lib/core/services/push_notification_service.dart` — Full rewrite:
-  - Added `flutter_local_notifications` integration for foreground message display
-  - Android notification channel creation on init
-  - Foreground handler shows local notification with title/body
-  - Notification tap handler (both local and FCM) navigates via go_router
-  - Deep link routing: community_event_* → event detail, announcement → announcements, community_* → community feed
-  - `getInitialMessage()` check for terminated-state notification taps
-  - Payload encoding/decoding for local notification payloads
-- `mobile/lib/features/auth/presentation/providers/auth_provider.dart` — Wired push notifications into auth lifecycle:
-  - `login()`, `register()`, `loginWithGoogle()`, `loginWithApple()`, `setTokensAndLoadUser()` — All call `_pushService.initialize()` after success
-  - `logout()` — Calls `_pushService.deactivateToken()` before clearing auth state
-  - AuthNotifier now takes PushNotificationService as a dependency
-- `mobile/lib/features/settings/presentation/screens/notification_preferences_screen.dart` — Added "Community Events" toggle in trainee Updates section
+- `backend/community/models.py` — Added PostVideo model with file, thumbnail, duration, file_size, sort_order
+- `backend/community/views.py` — Extended CommunityFeedView.post() for video upload, _serialize_posts for video output, prefetch_related('videos')
+- `backend/community/serializers/core_serializers.py` — CreatePostSerializer allows blank content (media-only posts)
+- `backend/community/admin.py` — PostVideo admin + inline on CommunityPost
+- `backend/Dockerfile` — Added ffmpeg to system dependencies
+- `mobile/lib/features/community/data/models/community_post_model.dart` — Added videos field, hasVideo getter
+- `mobile/lib/features/community/data/repositories/community_feed_repository.dart` — Video upload via multipart, onUploadProgress callback
+- `mobile/lib/features/community/presentation/providers/community_feed_provider.dart` — Pass videoPaths + progress callback
+- `mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart` — Video picker, previews, upload progress bar
+- `mobile/lib/features/community/presentation/widgets/community_post_card.dart` — Render VideoPlayerCard for videos
 
 ## Key Decisions
-1. **Fire-and-forget notifications** — All notification dispatch follows the existing `_notify_trainees_announcement()` pattern: try/except with logging, never raises, never blocks the response
-2. **Update notifications only for time/location changes** — Description-only edits don't trigger push notifications to avoid spam. Checks intersection of changed fields with `{starts_at, ends_at, meeting_url}`
-3. **Reminder window is 15 minutes** — Management command queries events with `starts_at > now AND starts_at <= now + 15min`, only for `going` RSVP status
-4. **Local notifications for foreground** — Used `flutter_local_notifications` to show a banner when FCM message arrives while app is open. Tapping navigates to event detail.
-5. **Deep linking via go_router** — PushNotificationService reads the `routerProvider` to navigate. Routes to `/community-event-detail/{id}` for event notifications.
-6. **Push init on every auth success** — `PushNotificationService.initialize()` is idempotent (guarded by `_initialized` flag), so calling it on login/register/social/impersonation is safe.
+1. Used subprocess ffprobe/ffmpeg for video metadata (no Python package dependency). Graceful degradation if unavailable.
+2. Videos stored as FileField (not ImageField) with separate thumbnail ImageField.
+3. Max 3 videos per post, 50MB each, 60s max duration. Server validates all three constraints.
+4. Client-side pre-validation: file size check before upload, maxDuration on picker.
+5. Inline player: tap to play/pause, no autoplay. Fullscreen on long-press or icon tap.
+6. Upload progress: Dio's onSendProgress piped through provider to compose sheet's LinearProgressIndicator.
+7. Media-only posts allowed (content can be empty if images or videos attached).
 
-## How to Manually Test
-1. Set `FIREBASE_CREDENTIALS_PATH` in `.env` to a valid Firebase service account JSON
-2. Login on mobile → should request notification permission and register device token
-3. As trainer, create an event → trainee should receive "New Event" push notification
-4. Tap the notification → should navigate to event detail screen
-5. As trainee, RSVP "Going" to an event
-6. As trainer, update the event time → trainee should receive "Event Updated" notification
-7. As trainer, cancel the event → trainee should receive "Event Cancelled" notification
-8. Run `python manage.py send_event_reminders` with an event starting within 15 min → going users get "Event Reminder"
-9. Open notification preferences → "Community Events" toggle should appear for trainees
-10. Toggle it off → no more event push notifications for that user
-11. Logout → device token should be deactivated
+## How to Test
+1. Create a post with video: compose → tap "Video" chip → pick from gallery → post
+2. Verify video appears in feed with thumbnail and duration badge
+3. Tap video to play inline, tap again to pause
+4. Long-press or tap fullscreen icon for immersive player
+5. Test video > 50MB rejected client-side
+6. Test video > 60s rejected server-side (if ffprobe available)
+7. Test post with both images and videos
+8. Test video-only post (no text, no images)
+9. Test upload progress bar appears during large video upload

@@ -21,6 +21,14 @@ ALLOWED_VIDEO_TYPES: frozenset[str] = frozenset({
     'video/quicktime',   # .mov
     'video/webm',
 })
+ALLOWED_VIDEO_EXTENSIONS: frozenset[str] = frozenset({
+    '.mp4', '.m4v', '.mov', '.webm',
+})
+# Magic bytes for video container formats
+_VIDEO_MAGIC_BYTES: dict[bytes, str] = {
+    b'\x00\x00\x00': 'mp4/mov',       # ftyp box (offset varies, but starts with 00 00 00)
+    b'\x1a\x45\xdf\xa3': 'webm/mkv',  # EBML header
+}
 MAX_VIDEO_SIZE: int = 50 * 1024 * 1024  # 50 MB
 MAX_VIDEO_DURATION: float = 60.0  # 60 seconds
 MAX_VIDEOS_PER_POST: int = 3
@@ -34,6 +42,19 @@ class VideoMetadata:
     duration: float | None
     file_size: int
     thumbnail_bytes: bytes | None
+
+
+def _validate_magic_bytes(header: bytes) -> bool:
+    """Validate that the file header matches a known video container format."""
+    if len(header) < 8:
+        return False
+    # MP4/MOV: ftyp box — bytes 4-7 should be 'ftyp'
+    if header[4:8] == b'ftyp':
+        return True
+    # WebM/MKV: EBML header
+    if header[:4] == b'\x1a\x45\xdf\xa3':
+        return True
+    return False
 
 
 def _ffprobe_available() -> bool:
@@ -115,14 +136,39 @@ def validate_video(video_file: UploadedFile) -> VideoMetadata:
     Checks content type, file size, and duration.
     Extracts thumbnail from first frame if ffmpeg is available.
     """
+    import os
     file_size = video_file.size or 0
+    filename = video_file.name or ''
+    ext = os.path.splitext(filename)[1].lower()
 
-    # Check MIME type
+    # Check file extension
+    if ext not in ALLOWED_VIDEO_EXTENSIONS:
+        return VideoMetadata(
+            is_valid=False,
+            error_message=f'Unsupported video format "{ext}". Use MP4, MOV, or WebM.',
+            duration=None,
+            file_size=file_size,
+            thumbnail_bytes=None,
+        )
+
+    # Check MIME type (client-provided, first layer)
     content_type = video_file.content_type or ''
     if content_type not in ALLOWED_VIDEO_TYPES:
         return VideoMetadata(
             is_valid=False,
             error_message=f'Unsupported video format "{content_type}". Use MP4, MOV, or WebM.',
+            duration=None,
+            file_size=file_size,
+            thumbnail_bytes=None,
+        )
+
+    # Magic byte validation (server-side, second layer)
+    header = video_file.read(16)
+    video_file.seek(0)
+    if not _validate_magic_bytes(header):
+        return VideoMetadata(
+            is_valid=False,
+            error_message='File content does not match a supported video format.',
             duration=None,
             file_size=file_size,
             thumbnail_bytes=None,
@@ -144,7 +190,7 @@ def validate_video(video_file: UploadedFile) -> VideoMetadata:
     thumbnail_bytes: bytes | None = None
 
     try:
-        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=True) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=ext or '.mp4', delete=True) as tmp:
             for chunk in video_file.chunks():
                 tmp.write(chunk)
             tmp.flush()
@@ -176,6 +222,16 @@ def validate_video(video_file: UploadedFile) -> VideoMetadata:
             duration=None,
             file_size=file_size,
             thumbnail_bytes=None,
+        )
+
+    # If ffprobe is not available, we can't verify duration.
+    # Log a warning but allow the upload — the file passed magic byte and
+    # extension validation. Duration will be null in the database.
+    if duration is None:
+        logger.warning(
+            "Could not extract video duration (ffprobe unavailable?). "
+            "Allowing upload for file '%s' (%d bytes).",
+            filename, file_size,
         )
 
     return VideoMetadata(
