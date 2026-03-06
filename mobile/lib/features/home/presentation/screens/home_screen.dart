@@ -24,6 +24,7 @@ import '../widgets/habits_summary_card.dart';
 import '../widgets/pending_checkin_banner.dart';
 import '../widgets/progression_alert_card.dart';
 import '../widgets/quick_log_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -197,7 +198,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onPressed: () => context.push('/ai-command'),
               backgroundColor: theme.colorScheme.primary,
               icon: const Icon(Icons.mic),
-              label: const Text('Log'),
+              label: Text(context.l10n.homeLog),
             ),
     );
   }
@@ -284,7 +285,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (Theme.of(context).platform == TargetPlatform.iOS)
               TextButton.icon(
                 icon: const Icon(Icons.mic),
-                label: const Text('Log'),
+                label: Text(context.l10n.homeLog),
                 onPressed: () => context.push('/ai-command'),
               ),
             _buildAnnouncementBell(theme),
@@ -304,11 +305,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       context: context,
                       actions: [
                         AdaptiveAction(
-                          label: 'Settings',
+                          label: context.l10n.settingsTitle,
                           onPressed: () => context.push('/settings'),
                         ),
                         AdaptiveAction(
-                          label: 'Logout',
+                          label: context.l10n.homeLogout,
                           isDestructive: true,
                           onPressed: () => _handleLogout(),
                         ),
@@ -333,7 +334,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             Icon(Icons.settings, color: theme.textTheme.bodyLarge?.color),
                             const SizedBox(width: 8),
-                            Text('Settings',
+                            Text(context.l10n.settingsTitle,
                                 style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
                           ],
                         ),
@@ -348,7 +349,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             Icon(Icons.logout, color: theme.colorScheme.error),
                             const SizedBox(width: 8),
-                            Text('Logout',
+                            Text(context.l10n.homeLogout,
                                 style: TextStyle(color: theme.colorScheme.error)),
                           ],
                         ),
@@ -375,11 +376,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (unsyncedCount > 0) {
       final confirmed = await showAdaptiveConfirmDialog(
         context: context,
-        title: 'Unsynced Data',
+        title: context.l10n.homeUnsyncedData,
         message: 'You have $unsyncedCount unsynced item${unsyncedCount == 1 ? '' : 's'} '
             'that will be lost if you log out. '
             'Are you sure you want to continue?',
-        confirmText: 'Logout Anyway',
+        confirmText: context.l10n.homeLogoutAnyway,
         isDestructive: true,
       );
 
@@ -518,7 +519,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             RepaintBoundary(
               child: _MacroCircle(
-                label: 'Protein',
+                label: context.l10n.nutritionProtein,
                 current: state.proteinConsumed,
                 goal: state.proteinGoal,
                 progress: state.proteinProgress,
@@ -527,7 +528,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             RepaintBoundary(
               child: _MacroCircle(
-                label: 'Carbs',
+                label: context.l10n.nutritionCarbs,
                 current: state.carbsConsumed,
                 goal: state.carbsGoal,
                 progress: state.carbsProgress,
@@ -536,7 +537,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             RepaintBoundary(
               child: _MacroCircle(
-                label: 'Fat',
+                label: context.l10n.nutritionFat,
                 current: state.fatConsumed,
                 goal: state.fatGoal,
                 progress: state.fatProgress,
@@ -560,9 +561,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     String message;
     if (completed == 0) {
-      message = 'Start your first workout!';
+      message = context.l10n.homeStartYourFirstWorkout;
     } else if (percentage >= 100) {
-      message = 'Week complete — great job!';
+      message = context.l10n.homeWeekCompleteGreatJob;
     } else {
       message = '$completed of $total workout days completed';
     }
@@ -704,7 +705,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               side: BorderSide(color: theme.colorScheme.primary),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            child: const Text('View Programs'),
+            child: Text(context.l10n.homeViewPrograms),
           ),
         ),
       ],
@@ -796,7 +797,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       side: BorderSide(color: theme.colorScheme.primary),
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     ),
-                    child: const Text('Overview'),
+                    child: Text(context.l10n.homeOverview),
                   ),
                 ],
               ),
@@ -898,7 +899,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             TextButton(
               onPressed: () =>
                   ref.read(homeStateProvider.notifier).loadDashboardData(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -930,7 +931,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onTap: () {
                 showAdaptiveToast(
                   context,
-                  message: 'This workout is waiting to sync.',
+                  message: context.l10n.homeThisWorkoutIsWaitingToSync,
                   type: ToastType.warning,
                 );
               },

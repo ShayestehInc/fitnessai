@@ -14,6 +14,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/sharing_provider.dart';
 import '../widgets/share_card_widget.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen that previews a workout share card and offers share / save actions.
 class SharePreviewScreen extends ConsumerStatefulWidget {
@@ -53,7 +54,7 @@ class _SharePreviewScreenState extends ConsumerState<SharePreviewScreen> {
         if (mounted) {
           showAdaptiveToast(
             context,
-            message: 'Failed to capture workout card',
+            message: context.l10n.sharingFailedToCaptureWorkoutCard,
             type: ToastType.error,
           );
         }
@@ -91,7 +92,7 @@ class _SharePreviewScreenState extends ConsumerState<SharePreviewScreen> {
         if (mounted) {
           showAdaptiveToast(
             context,
-            message: 'Failed to capture workout card',
+            message: context.l10n.sharingFailedToCaptureWorkoutCard,
             type: ToastType.error,
           );
         }
@@ -141,7 +142,7 @@ class _SharePreviewScreenState extends ConsumerState<SharePreviewScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Share Workout'),
+        title: Text(context.l10n.sharingShareWorkout),
       ),
       body: shareCardAsync.when(
         loading: () => const Center(child: AdaptiveSpinner()),
@@ -193,7 +194,7 @@ class _SharePreviewScreenState extends ConsumerState<SharePreviewScreen> {
             ElevatedButton.icon(
               onPressed: () => ref.invalidate(shareCardProvider(widget.logId)),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -225,7 +226,7 @@ class _SharePreviewScreenState extends ConsumerState<SharePreviewScreen> {
                       child: AdaptiveSpinner.small(),
                     )
                   : const Icon(Icons.save_alt, size: 18),
-              label: const Text('Save to Gallery'),
+              label: Text(context.l10n.sharingSaveToGallery),
             ),
           ),
           const SizedBox(width: 12),
@@ -239,7 +240,7 @@ class _SharePreviewScreenState extends ConsumerState<SharePreviewScreen> {
                       child: AdaptiveSpinner.small(),
                     )
                   : const Icon(Icons.share, size: 18),
-              label: const Text('Share'),
+              label: Text(context.l10n.sharingShare),
             ),
           ),
         ],

@@ -4,6 +4,7 @@ import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/calendar_connection_model.dart';
 import 'time_tile.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Bottom sheet for creating or editing an availability slot.
 class AvailabilitySlotEditor extends StatefulWidget {
@@ -56,11 +57,11 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   CupertinoButton(
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.commonCancel),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                   CupertinoButton(
-                    child: const Text('Done'),
+                    child: Text(context.l10n.commonDone),
                     onPressed: () {
                       setState(() {
                         if (isStart) {
@@ -149,8 +150,8 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
           // Day picker
           AdaptiveDropdown<int>(
             value: _day,
-            decoration: const InputDecoration(
-              labelText: 'Day of Week',
+            decoration: InputDecoration(
+              labelText: context.l10n.calendarDayOfWeek,
               border: OutlineInputBorder(),
             ),
             items: List.generate(7, (i) => AdaptiveDropdownItem(
@@ -167,7 +168,7 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
             children: [
               Expanded(
                 child: TimeTile(
-                  label: 'Start',
+                  label: context.l10n.calendarStart,
                   value: _formatTimeDisplay(_start),
                   onTap: () => _pickTime(true),
                 ),
@@ -175,7 +176,7 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
               const SizedBox(width: 12),
               Expanded(
                 child: TimeTile(
-                  label: 'End',
+                  label: context.l10n.calendarEnd,
                   value: _formatTimeDisplay(_end),
                   onTap: () => _pickTime(false),
                 ),
@@ -189,7 +190,7 @@ class _AvailabilitySlotEditorState extends State<AvailabilitySlotEditor> {
               final endMinutes = _end.hour * 60 + _end.minute;
               if (endMinutes <= startMinutes) {
                 showAdaptiveToast(context,
-                    message: 'End time must be after start time',
+                    message: context.l10n.calendarEndTimeMustBeAfterStartTime,
                     type: ToastType.error);
                 return;
               }

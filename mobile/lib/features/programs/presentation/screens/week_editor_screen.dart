@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/program_week_model.dart';
 import '../../../exercises/data/models/exercise_model.dart';
 import '../widgets/exercise_picker_sheet.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class WeekEditorScreen extends ConsumerStatefulWidget {
   final ProgramWeek week;
@@ -65,7 +66,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
 
   void _createSuperset() {
     if (_selectedExerciseIndices.length < 2) {
-      showAdaptiveToast(context, message: 'Select at least 2 exercises to create a superset');
+      showAdaptiveToast(context, message: context.l10n.programsSelectAtLeast2ExercisesToCreateASuperset);
       return;
     }
 
@@ -124,7 +125,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('This Week'),
+                    child: Text(context.l10n.communityThisWeek),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -139,7 +140,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('All Weeks'),
+                    child: Text(context.l10n.programsAllWeeks),
                   ),
                 ),
               ],
@@ -168,7 +169,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       _selectedExerciseIndices.clear();
     });
 
-    showAdaptiveToast(context, message: 'Superset created for this week!', type: ToastType.success);
+    showAdaptiveToast(context, message: context.l10n.programsSupersetCreatedForThisWeek, type: ToastType.success);
   }
 
   void _applySupersetToAllWeeks() {
@@ -199,7 +200,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     // Call parent to apply to all other weeks
     widget.onApplySupersetToAllWeeks?.call(_selectedDayIndex, exerciseNames, groupId);
 
-    showAdaptiveToast(context, message: 'Superset created for all weeks!', type: ToastType.success);
+    showAdaptiveToast(context, message: context.l10n.programsSupersetCreatedForAllWeeks, type: ToastType.success);
   }
 
   void _removeFromSuperset(int index) {
@@ -233,20 +234,20 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
           if (!_isSelectionMode && hasExercises && !currentDay.isRestDay)
             IconButton(
               icon: const Icon(Icons.link),
-              tooltip: 'Create Superset',
+              tooltip: context.l10n.programsCreateSuperset,
               onPressed: _toggleSelectionMode,
             ),
           if (!_isSelectionMode)
             Theme.of(context).platform == TargetPlatform.iOS
               ? IconButton(
                   icon: const Icon(Icons.more_vert),
-                  tooltip: 'More options',
+                  tooltip: context.l10n.programsMoreOptions,
                   onPressed: widget.canDelete
                     ? () => showAdaptiveActionSheet(
                         context: context,
                         actions: [
                           AdaptiveAction(
-                            label: 'Delete Week',
+                            label: context.l10n.programsDeleteWeek,
                             icon: Icons.delete_outline,
                             onPressed: () => _showDeleteWeekDialog(),
                             isDestructive: true,
@@ -257,7 +258,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                 )
               : PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
-                  tooltip: 'More options',
+                  tooltip: context.l10n.programsMoreOptions,
                   onSelected: (value) {
                     if (value == 'delete') {
                       _showDeleteWeekDialog();
@@ -291,7 +292,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                 Navigator.pop(context);
               },
               icon: const Icon(Icons.check),
-              tooltip: 'Save',
+              tooltip: context.l10n.commonSave,
             ),
           // iOS: show FAB actions in AppBar instead
           if (Theme.of(context).platform == TargetPlatform.iOS &&
@@ -299,14 +300,14 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
             _isSelectionMode
                 ? TextButton.icon(
                     icon: const Icon(Icons.link),
-                    label: const Text('Superset'),
+                    label: Text(context.l10n.programsSuperset),
                     onPressed: _selectedExerciseIndices.length >= 2
                         ? _createSuperset
                         : null,
                   )
                 : TextButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Exercise'),
+                    label: Text(context.l10n.programsAddExercise),
                     onPressed: () => _showAddExerciseSheet(context),
                   ),
         ],
@@ -345,12 +346,12 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                           ? theme.colorScheme.primary
                           : Colors.grey,
                       icon: const Icon(Icons.link),
-                      label: const Text('Create Superset'),
+                      label: Text(context.l10n.programsCreateSuperset),
                     )
                   : FloatingActionButton.extended(
                       onPressed: () => _showAddExerciseSheet(context),
                       icon: const Icon(Icons.add),
-                      label: const Text('Add Exercise'),
+                      label: Text(context.l10n.programsAddExercise),
                     ),
     );
   }
@@ -467,7 +468,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
           OutlinedButton.icon(
             onPressed: () => _convertToWorkoutDay(),
             icon: const Icon(Icons.fitness_center),
-            label: const Text('Convert to Workout Day'),
+            label: Text(context.l10n.programsConvertToWorkoutDay),
           ),
         ],
       ),
@@ -511,17 +512,17 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                   context: context,
                   actions: [
                     AdaptiveAction(
-                      label: 'Rename Day',
+                      label: context.l10n.programsRenameDay,
                       icon: Icons.edit,
                       onPressed: () => _showRenameDayDialog(),
                     ),
                     AdaptiveAction(
-                      label: 'Convert to Rest Day',
+                      label: context.l10n.programsConvertToRestDay,
                       icon: Icons.bed,
                       onPressed: () => _convertToRestDay(),
                     ),
                     AdaptiveAction(
-                      label: 'Clear All Exercises',
+                      label: context.l10n.programsClearAllExercises,
                       icon: Icons.clear_all,
                       onPressed: () => _clearExercises(),
                       isDestructive: true,
@@ -531,33 +532,33 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
               )
             : PopupMenuButton(
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'rename',
                     child: Row(
                       children: [
                         Icon(Icons.edit, size: 18),
                         SizedBox(width: 8),
-                        Text('Rename Day'),
+                        Text(context.l10n.programsRenameDay),
                       ],
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'rest',
                     child: Row(
                       children: [
                         Icon(Icons.bed, size: 18),
                         SizedBox(width: 8),
-                        Text('Convert to Rest Day'),
+                        Text(context.l10n.programsConvertToRestDay),
                       ],
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'clear',
                     child: Row(
                       children: [
                         Icon(Icons.clear_all, size: 18, color: Colors.red),
                         SizedBox(width: 8),
-                        Text('Clear All Exercises', style: TextStyle(color: Colors.red)),
+                        Text(context.l10n.programsClearAllExercises, style: TextStyle(color: Colors.red)),
                       ],
                     ),
                   ),
@@ -689,7 +690,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                 if (isInSuperset)
                   IconButton(
                     icon: const Icon(Icons.link_off, size: 20),
-                    tooltip: 'Remove from superset',
+                    tooltip: context.l10n.programsRemoveFromSuperset,
                     onPressed: () => _removeFromSuperset(index),
                   ),
 
@@ -876,7 +877,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                   // Sets
                   Row(
                     children: [
-                      const SizedBox(width: 60, child: Text('Sets:')),
+                      SizedBox(width: 60, child: Text(context.l10n.programsSets)),
                       IconButton(
                         onPressed: () {
                           if (sets > 1) setModalState(() => sets--);
@@ -899,7 +900,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                   // Reps
                   Row(
                     children: [
-                      const SizedBox(width: 60, child: Text('Reps:')),
+                      SizedBox(width: 60, child: Text(context.l10n.programsReps)),
                       IconButton(
                         onPressed: () {
                           if (reps > 1) setModalState(() => reps--);
@@ -922,7 +923,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                   // Rest Time
                   Row(
                     children: [
-                      const SizedBox(width: 60, child: Text('Rest:')),
+                      SizedBox(width: 60, child: Text(context.l10n.programsRest)),
                       IconButton(
                         onPressed: () {
                           if (restSeconds > 15) setModalState(() => restSeconds -= 15);
@@ -960,7 +961,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                   const SizedBox(height: 24),
 
                   // Quick presets
-                  const Text('Quick Presets:', style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text(context.l10n.programsQuickPresets, style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -987,7 +988,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Update'),
+                      child: Text(context.l10n.programsUpdate),
                     ),
                   ),
                 ],
@@ -1039,7 +1040,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
   Future<void> _showRenameDayDialog() async {
     final newName = await showAdaptiveTextInputDialog(
       context: context,
-      title: 'Rename Day',
+      title: context.l10n.programsRenameDay,
       initialValue: _week.days[_selectedDayIndex].name,
       placeholder: 'e.g., Push, Pull, Upper',
     );
@@ -1104,7 +1105,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('This Week Only'),
+                    child: Text(context.l10n.programsThisWeekOnly),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1119,7 +1120,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('All Weeks'),
+                    child: Text(context.l10n.programsAllWeeks),
                   ),
                 ),
               ],
@@ -1141,7 +1142,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       _week = _week.copyWith(days: updatedDays);
     });
 
-    showAdaptiveToast(context, message: 'Converted to rest day for this week', type: ToastType.success);
+    showAdaptiveToast(context, message: context.l10n.programsConvertedToRestDayForThisWeek, type: ToastType.success);
   }
 
   void _showDeleteWeekDialog() async {
@@ -1149,9 +1150,9 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
 
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Delete Week?',
+      title: context.l10n.programsDeleteWeek2,
       message: 'Are you sure you want to delete Week ${_week.weekNumber}? This action cannot be undone.',
-      confirmText: 'Delete',
+      confirmText: context.l10n.commonDelete,
       isDestructive: true,
     );
 
@@ -1176,7 +1177,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     // Call parent to apply to all other weeks
     widget.onApplyRestDayToAllWeeks?.call(_selectedDayIndex, true);
 
-    showAdaptiveToast(context, message: 'Converted to rest day for all weeks', type: ToastType.success);
+    showAdaptiveToast(context, message: context.l10n.programsConvertedToRestDayForAllWeeks, type: ToastType.success);
   }
 
   void _convertToWorkoutDay() {
@@ -1228,7 +1229,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('This Week Only'),
+                    child: Text(context.l10n.programsThisWeekOnly),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1243,7 +1244,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('All Weeks'),
+                    child: Text(context.l10n.programsAllWeeks),
                   ),
                 ),
               ],
@@ -1265,7 +1266,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       _week = _week.copyWith(days: updatedDays);
     });
 
-    showAdaptiveToast(context, message: 'Converted to workout day for this week', type: ToastType.success);
+    showAdaptiveToast(context, message: context.l10n.programsConvertedToWorkoutDayForThisWeek, type: ToastType.success);
   }
 
   void _applyWorkoutDayToAllWeeks() {
@@ -1283,15 +1284,15 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
     // Call parent to apply to all other weeks (false means convert TO workout day)
     widget.onApplyRestDayToAllWeeks?.call(_selectedDayIndex, false);
 
-    showAdaptiveToast(context, message: 'Converted to workout day for all weeks', type: ToastType.success);
+    showAdaptiveToast(context, message: context.l10n.programsConvertedToWorkoutDayForAllWeeks, type: ToastType.success);
   }
 
   void _clearExercises() async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Clear All Exercises',
-      message: 'Are you sure you want to remove all exercises from this day?',
-      confirmText: 'Clear',
+      title: context.l10n.programsClearAllExercises,
+      message: context.l10n.programsAreYouSureYouWantToRemoveAllExercisesFromThis,
+      confirmText: context.l10n.adminClear,
       isDestructive: true,
     );
 

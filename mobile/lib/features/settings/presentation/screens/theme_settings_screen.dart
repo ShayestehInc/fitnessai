@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class ThemeSettingsScreen extends ConsumerStatefulWidget {
   const ThemeSettingsScreen({super.key});
@@ -27,7 +28,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Appearance'),
+        title: Text(context.l10n.settingsAppearance),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -157,8 +158,8 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
         children: [
           _ThemeModeOption(
             icon: Icons.brightness_auto,
-            title: 'System',
-            subtitle: 'Match device settings',
+            title: context.l10n.settingsThemeSystem,
+            subtitle: context.l10n.settingsMatchDeviceSettings,
             isSelected: themeState.mode == AppThemeMode.system,
             onTap: () => ref.read(themeProvider.notifier).setThemeMode(AppThemeMode.system),
             isFirst: true,
@@ -166,16 +167,16 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
           Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.3)),
           _ThemeModeOption(
             icon: Icons.light_mode,
-            title: 'Light',
-            subtitle: 'Always use light mode',
+            title: context.l10n.settingsThemeLight,
+            subtitle: context.l10n.settingsAlwaysUseLightMode,
             isSelected: themeState.mode == AppThemeMode.light,
             onTap: () => ref.read(themeProvider.notifier).setThemeMode(AppThemeMode.light),
           ),
           Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.3)),
           _ThemeModeOption(
             icon: Icons.dark_mode,
-            title: 'Dark',
-            subtitle: 'Always use dark mode',
+            title: context.l10n.settingsThemeDark,
+            subtitle: context.l10n.settingsAlwaysUseDarkMode,
             isSelected: themeState.mode == AppThemeMode.dark,
             onTap: () => ref.read(themeProvider.notifier).setThemeMode(AppThemeMode.dark),
             isLast: true,
@@ -421,7 +422,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                   });
                 },
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Reset to default'),
+                label: Text(context.l10n.settingsResetToDefault),
               ),
             ),
           ],
@@ -462,7 +463,7 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                   ref.read(themeProvider.notifier).regeneratePaletteFromPrimary();
                 },
                 icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Regenerate'),
+                label: Text(context.l10n.settingsRegenerate),
               ),
             ],
           ),
@@ -472,19 +473,19 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
             runSpacing: 8,
             children: [
               _PaletteColorChip(
-                label: 'Primary',
+                label: context.l10n.settingsPrimary,
                 color: palette.primary,
               ),
               _PaletteColorChip(
-                label: 'Primary Light',
+                label: context.l10n.settingsPrimaryLight,
                 color: palette.primaryLight,
               ),
               _PaletteColorChip(
-                label: 'Secondary',
+                label: context.l10n.settingsSecondary,
                 color: palette.secondary,
               ),
               _PaletteColorChip(
-                label: 'Accent',
+                label: context.l10n.settingsAccent,
                 color: palette.accent,
               ),
             ],
@@ -574,28 +575,28 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
           ),
           const SizedBox(height: 12),
           _AdvancedColorRow(
-            label: 'Primary',
+            label: context.l10n.settingsPrimary,
             color: palette.primary,
             onColorSelected: (color) {
               ref.read(themeProvider.notifier).updateCustomColor(primary: color);
             },
           ),
           _AdvancedColorRow(
-            label: 'Primary Light',
+            label: context.l10n.settingsPrimaryLight,
             color: palette.primaryLight,
             onColorSelected: (color) {
               ref.read(themeProvider.notifier).updateCustomColor(primaryLight: color);
             },
           ),
           _AdvancedColorRow(
-            label: 'Secondary',
+            label: context.l10n.settingsSecondary,
             color: palette.secondary,
             onColorSelected: (color) {
               ref.read(themeProvider.notifier).updateCustomColor(secondary: color);
             },
           ),
           _AdvancedColorRow(
-            label: 'Accent',
+            label: context.l10n.settingsAccent,
             color: palette.accent,
             onColorSelected: (color) {
               ref.read(themeProvider.notifier).updateCustomColor(accent: color);
@@ -613,21 +614,21 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
           ),
           const SizedBox(height: 12),
           _AdvancedColorRow(
-            label: 'Success',
+            label: context.l10n.commonSuccess,
             color: palette.success,
             onColorSelected: (color) {
               ref.read(themeProvider.notifier).updateCustomColor(success: color);
             },
           ),
           _AdvancedColorRow(
-            label: 'Warning',
+            label: context.l10n.settingsWarning,
             color: palette.warning,
             onColorSelected: (color) {
               ref.read(themeProvider.notifier).updateCustomColor(warning: color);
             },
           ),
           _AdvancedColorRow(
-            label: 'Error',
+            label: context.l10n.settingsError,
             color: palette.error,
             onColorSelected: (color) {
               ref.read(themeProvider.notifier).updateCustomColor(error: color);
@@ -739,14 +740,14 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {},
-                  child: const Text('Start'),
+                  child: Text(context.l10n.calendarStart),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton(
                   onPressed: () {},
-                  child: const Text('Schedule'),
+                  child: Text(context.l10n.settingsSchedule),
                 ),
               ),
             ],
@@ -759,9 +760,9 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
   Future<void> _showResetDialog(BuildContext context, WidgetRef ref) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Reset to Defaults?',
-      message: 'This will reset all color customizations back to the default Indigo theme.',
-      confirmText: 'Reset',
+      title: context.l10n.settingsResetToDefaults2,
+      message: context.l10n.settingsThisWillResetAllColorCustomizationsBackToTheD,
+      confirmText: context.l10n.settingsReset,
       cancelText: 'Cancel',
       isDestructive: true,
     );
@@ -1129,8 +1130,8 @@ class _HexColorInputState extends State<_HexColorInput> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _controller,
-      decoration: const InputDecoration(
-        labelText: 'Hex Color',
+      decoration: InputDecoration(
+        labelText: context.l10n.settingsHexColor,
         hintText: '#6366F1',
         prefixIcon: Icon(Icons.tag, size: 20),
       ),
@@ -1381,7 +1382,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                     widget.onColorSelected(_selectedColor);
                     Navigator.pop(context);
                   },
-                  child: const Text('Apply'),
+                  child: Text(context.l10n.featureReqApply),
                 ),
               ],
             ),

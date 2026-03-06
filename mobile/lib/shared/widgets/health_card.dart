@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/models/health_metrics.dart';
 import '../../core/providers/health_provider.dart';
 import '../../core/services/health_service.dart';
+import '../../core/l10n/l10n_extension.dart';
 
 /// Displays today's health metrics (steps, active calories, heart rate, weight)
 /// from HealthKit / Health Connect.
@@ -111,7 +112,7 @@ class _LoadedHealthCardState extends State<_LoadedHealthCard>
                     minWidth: 32,
                     minHeight: 32,
                   ),
-                  tooltip: 'Open health settings',
+                  tooltip: context.l10n.commonOpenHealthSettings,
                 ),
               ],
             ),
@@ -123,7 +124,7 @@ class _LoadedHealthCardState extends State<_LoadedHealthCard>
                   child: _MetricTile(
                     icon: Icons.directions_walk,
                     iconColor: const Color(0xFF22C55E),
-                    label: 'Steps',
+                    label: context.l10n.dashboardSteps,
                     value: numberFormat.format(widget.metrics.steps),
                   ),
                 ),
@@ -132,7 +133,7 @@ class _LoadedHealthCardState extends State<_LoadedHealthCard>
                   child: _MetricTile(
                     icon: Icons.local_fire_department,
                     iconColor: const Color(0xFFEF4444),
-                    label: 'Active Cal',
+                    label: context.l10n.commonActiveCal,
                     value:
                         '${numberFormat.format(widget.metrics.activeCalories)} cal',
                   ),
@@ -146,7 +147,7 @@ class _LoadedHealthCardState extends State<_LoadedHealthCard>
                   child: _MetricTile(
                     icon: Icons.favorite,
                     iconColor: const Color(0xFFEC4899),
-                    label: 'Heart Rate',
+                    label: context.l10n.commonHeartRate,
                     value: widget.metrics.heartRate != null
                         ? '${widget.metrics.heartRate} bpm'
                         : '--',
@@ -157,7 +158,7 @@ class _LoadedHealthCardState extends State<_LoadedHealthCard>
                   child: _MetricTile(
                     icon: Icons.monitor_weight_outlined,
                     iconColor: const Color(0xFF3B82F6),
-                    label: 'Weight',
+                    label: context.l10n.workoutWeight,
                     value: widget.metrics.latestWeightKg != null
                         ? '${widget.metrics.latestWeightKg!.toStringAsFixed(1)} kg'
                         : '--',
@@ -259,7 +260,7 @@ class _SkeletonHealthCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Semantics(
-      label: 'Loading health data',
+      label: context.l10n.commonLoadingHealthData,
       liveRegion: true,
       child: Container(
         padding: const EdgeInsets.all(16),

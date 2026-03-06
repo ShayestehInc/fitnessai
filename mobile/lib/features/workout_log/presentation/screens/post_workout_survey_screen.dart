@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/workout_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class PostWorkoutSurveyScreen extends ConsumerStatefulWidget {
   final ProgramWorkoutDay workout;
@@ -202,7 +203,7 @@ class _PostWorkoutSurveyScreenState extends ConsumerState<PostWorkoutSurveyScree
             OutlinedButton.icon(
               onPressed: () => context.push('/share-workout/${widget.logId}'),
               icon: const Icon(Icons.share, size: 18),
-              label: const Text('Share Workout'),
+              label: Text(context.l10n.sharingShareWorkout),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 48),
                 shape: RoundedRectangleBorder(
@@ -251,8 +252,8 @@ class _PostWorkoutSurveyScreenState extends ConsumerState<PostWorkoutSurveyScree
   Widget _buildPerformancePage(ThemeData theme) {
     return _buildRatingPage(
       theme: theme,
-      title: 'How was your performance?',
-      subtitle: 'Rate how well you executed your exercises',
+      title: context.l10n.workoutHowWasYourPerformance,
+      subtitle: context.l10n.workoutRateHowWellYouExecutedYourExercises,
       icon: Icons.stars,
       iconColor: Colors.amber,
       emojis: ['😞', '😕', '😐', '😊', '🔥'],
@@ -268,8 +269,8 @@ class _PostWorkoutSurveyScreenState extends ConsumerState<PostWorkoutSurveyScree
   Widget _buildIntensityPage(ThemeData theme) {
     return _buildRatingPage(
       theme: theme,
-      title: 'How intense was it?',
-      subtitle: 'Compared to your usual workouts',
+      title: context.l10n.workoutHowIntenseWasIt,
+      subtitle: context.l10n.workoutComparedToYourUsualWorkouts,
       icon: Icons.local_fire_department,
       iconColor: Colors.deepOrange,
       emojis: ['😴', '🚶', '🏃', '💪', '🏋️'],
@@ -285,8 +286,8 @@ class _PostWorkoutSurveyScreenState extends ConsumerState<PostWorkoutSurveyScree
   Widget _buildEnergyPage(ThemeData theme) {
     return _buildRatingPage(
       theme: theme,
-      title: 'How do you feel now?',
-      subtitle: 'Your energy level after the workout',
+      title: context.l10n.workoutHowDoYouFeelNow,
+      subtitle: context.l10n.workoutYourEnergyLevelAfterTheWorkout,
       icon: Icons.bolt,
       iconColor: Colors.amber,
       emojis: ['😩', '😮‍💨', '😌', '😄', '⚡'],
@@ -302,8 +303,8 @@ class _PostWorkoutSurveyScreenState extends ConsumerState<PostWorkoutSurveyScree
   Widget _buildSatisfactionPage(ThemeData theme) {
     return _buildRatingPage(
       theme: theme,
-      title: 'Overall satisfaction?',
-      subtitle: 'How happy are you with this session',
+      title: context.l10n.workoutOverallSatisfaction,
+      subtitle: context.l10n.workoutHowHappyAreYouWithThisSession,
       icon: Icons.thumb_up,
       iconColor: theme.colorScheme.primary,
       emojis: ['👎', '😒', '👌', '👍', '🙌'],
@@ -407,7 +408,7 @@ class _PostWorkoutSurveyScreenState extends ConsumerState<PostWorkoutSurveyScree
           const SizedBox(height: 48),
           TextButton(
             onPressed: _submitSurvey,
-            child: const Text('Skip & Finish'),
+            child: Text(context.l10n.workoutSkipFinish),
           ),
         ],
       ),
@@ -445,7 +446,7 @@ class _PostWorkoutSurveyScreenState extends ConsumerState<PostWorkoutSurveyScree
             controller: _notesController,
             maxLines: 5,
             decoration: InputDecoration(
-              hintText: 'e.g., "Shoulder felt tight during overhead press"',
+              hintText: context.l10n.workoutEGShoulderFeltTightDuringOverheadPress,
               hintStyle: TextStyle(color: theme.textTheme.bodySmall?.color),
               filled: true,
               fillColor: theme.cardColor,
@@ -474,7 +475,7 @@ class _PostWorkoutSurveyScreenState extends ConsumerState<PostWorkoutSurveyScree
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Complete', style: TextStyle(fontSize: 16)),
+              child: Text(context.l10n.workoutComplete, style: TextStyle(fontSize: 16)),
             ),
           ),
           const SizedBox(height: 12),

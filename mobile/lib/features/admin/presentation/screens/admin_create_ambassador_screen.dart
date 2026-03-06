@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../ambassador/presentation/providers/ambassador_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminCreateAmbassadorScreen extends ConsumerStatefulWidget {
   const AdminCreateAmbassadorScreen({super.key});
@@ -75,7 +76,7 @@ class _AdminCreateAmbassadorScreenState
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Create Ambassador'),
+        title: Text(context.l10n.adminCreateAmbassador),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: SingleChildScrollView(
@@ -92,9 +93,9 @@ class _AdminCreateAmbassadorScreenState
                 children: [
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      hintText: 'ambassador@example.com',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.authEmailLabel,
+                      hintText: context.l10n.adminAmbassadorexampleCom,
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
                     keyboardType: TextInputType.emailAddress,
@@ -109,8 +110,8 @@ class _AdminCreateAmbassadorScreenState
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _firstNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'First Name',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.authFirstNameLabel,
                       prefixIcon: Icon(Icons.person_outline),
                     ),
                     textInputAction: TextInputAction.next,
@@ -123,8 +124,8 @@ class _AdminCreateAmbassadorScreenState
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _lastNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Last Name',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.authLastNameLabel,
                       prefixIcon: Icon(Icons.person_outline),
                     ),
                     textInputAction: TextInputAction.done,
@@ -138,8 +139,8 @@ class _AdminCreateAmbassadorScreenState
                   TextFormField(
                     controller: _passwordController,
                     decoration: InputDecoration(
-                      labelText: 'Temporary Password',
-                      helperText: 'Share this with the ambassador so they can log in',
+                      labelText: context.l10n.adminTemporaryPassword,
+                      helperText: context.l10n.adminShareThisWithTheAmbassadorSoTheyCanLogIn,
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
@@ -190,7 +191,7 @@ class _AdminCreateAmbassadorScreenState
                       onPressed: _isSubmitting ? null : _submit,
                       child: _isSubmitting
                           ? const AdaptiveSpinner.small()
-                          : const Text('Create Ambassador'),
+                          : Text(context.l10n.adminCreateAmbassador),
                     ),
                   ),
                 ],

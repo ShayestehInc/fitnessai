@@ -9,6 +9,7 @@ import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class MySubscriptionScreen extends ConsumerStatefulWidget {
   const MySubscriptionScreen({super.key});
@@ -99,7 +100,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
     if (state.subscriptions.isEmpty) {
       return _buildEmptyState(
         icon: Icons.credit_card_off,
-        title: 'No Subscriptions',
+        title: context.l10n.paymentsNoSubscriptions,
         message: 'You don\'t have any coaching subscriptions yet.',
       );
     }
@@ -228,7 +229,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text('Cancel Subscription'),
+                child: Text(context.l10n.paymentsCancelSubscription),
               ),
             ),
           ],
@@ -241,7 +242,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
     if (state.payments.isEmpty) {
       return _buildEmptyState(
         icon: Icons.receipt_long,
-        title: 'No Payments',
+        title: context.l10n.paymentsNoPayments,
         message: 'You haven\'t made any payments yet.',
       );
     }
@@ -476,9 +477,9 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen>
   void _showCancelDialog(TraineeSubscriptionModel subscription) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Cancel Subscription',
+      title: context.l10n.paymentsCancelSubscription,
       message: 'Are you sure you want to cancel your subscription with ${subscription.trainerName ?? subscription.trainerEmail}? You will lose access at the end of your current billing period.',
-      confirmText: 'Cancel',
+      confirmText: context.l10n.commonCancel,
       cancelText: 'Keep Subscription',
       isDestructive: true,
     );

@@ -4,6 +4,7 @@ import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../providers/achievement_provider.dart';
 import '../widgets/achievement_badge.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Full-screen achievement / badge grid.
 class AchievementsScreen extends ConsumerStatefulWidget {
@@ -29,7 +30,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Achievements'),
+        title: Text(context.l10n.communityAchievements),
         elevation: 0,
       ),
       body: AdaptiveRefreshIndicator(
@@ -57,7 +58,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
             const SizedBox(height: 16),
             OutlinedButton(
               onPressed: () => ref.read(achievementProvider.notifier).loadAchievements(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -113,7 +114,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
 
   Widget _buildLoadingSkeleton(ThemeData theme) {
     return Semantics(
-      label: 'Loading achievements',
+      label: context.l10n.communityLoadingAchievements,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

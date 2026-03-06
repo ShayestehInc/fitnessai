@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/calendar_connection_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class CalendarCard extends StatelessWidget {
   final String provider;
@@ -120,14 +121,14 @@ class CalendarCard extends StatelessWidget {
                       icon: isLoading
                           ? const AdaptiveSpinner.small()
                           : const Icon(Icons.sync, size: 18),
-                      label: const Text('Sync Now'),
+                      label: Text(context.l10n.calendarSyncNow),
                     ),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
                     onPressed: isLoading ? null : onDisconnect,
                     icon: const Icon(Icons.link_off),
-                    tooltip: 'Disconnect',
+                    tooltip: context.l10n.calendarDisconnect,
                     style: IconButton.styleFrom(foregroundColor: Colors.red),
                   ),
                 ],
@@ -139,7 +140,7 @@ class CalendarCard extends StatelessWidget {
                 icon: isLoading
                     ? const AdaptiveSpinner.small()
                     : const Icon(Icons.add_link),
-                label: Text('Connect $title'),
+                label: Text(context.l10n.calendarConnecttitle),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size(double.infinity, 48),
                 ),

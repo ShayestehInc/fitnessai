@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
   final String uid;
@@ -101,7 +102,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Set New Password'),
+        title: Text(context.l10n.authSetNewPassword),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -161,7 +162,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                     color: theme.textTheme.bodyLarge?.color,
                   ),
                   decoration: InputDecoration(
-                    hintText: 'New password',
+                    hintText: context.l10n.authNewPassword,
                     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 16),
                     filled: true,
                     fillColor: inputFillColor,
@@ -221,7 +222,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                     color: theme.textTheme.bodyLarge?.color,
                   ),
                   decoration: InputDecoration(
-                    hintText: 'Confirm password',
+                    hintText: context.l10n.authConfirmPassword,
                     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 16),
                     filled: true,
                     fillColor: inputFillColor,

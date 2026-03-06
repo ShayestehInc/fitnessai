@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../onboarding/data/models/user_profile_model.dart';
 import '../providers/settings_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class EditGoalsScreen extends ConsumerStatefulWidget {
   const EditGoalsScreen({super.key});
@@ -203,13 +204,13 @@ class _EditGoalsScreenState extends ConsumerState<EditGoalsScreen> {
                               HapticService.mediumTap();
                               final success = await notifier.saveProfile();
                               if (success && context.mounted) {
-                                showAdaptiveToast(context, message: 'Goals updated! Macros recalculated.');
+                                showAdaptiveToast(context, message: context.l10n.settingsGoalsUpdatedMacrosRecalculated);
                                 context.pop();
                               }
                             },
                       child: state.isLoading
                           ? const AdaptiveSpinner.small()
-                          : const Text('Save Changes'),
+                          : Text(context.l10n.adminSaveChanges),
                     ),
                   ),
 

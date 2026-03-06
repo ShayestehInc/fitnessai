@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/services/api_config_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/form_page.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Full-page server configuration screen.
 ///
@@ -41,7 +42,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     await ApiConfigService.setBaseUrl(url);
 
     if (mounted) {
-      showAdaptiveToast(context, message: 'Server URL updated to: $url');
+      showAdaptiveToast(context, message: context.l10n.authServerURLUpdatedTourl);
       Navigator.of(context).pop(true);
     }
   }
@@ -52,7 +53,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
       _urlController.text = ApiConfigService.defaultBaseUrl;
     });
     if (mounted) {
-      showAdaptiveToast(context, message: 'Reset to default URL');
+      showAdaptiveToast(context, message: context.l10n.authResetToDefaultURL);
     }
   }
 
@@ -61,7 +62,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     final theme = Theme.of(context);
 
     return FormPage(
-      title: 'Server Configuration',
+      title: context.l10n.authServerConfiguration,
       submitButtonText: 'Save',
       isLoading: _isLoading,
       formKey: _formKey,
@@ -84,7 +85,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
           ),
           const SizedBox(height: 32),
           FormPageTextField(
-            label: 'Server URL',
+            label: context.l10n.authServerURL,
             hint: 'https://your-ngrok-url.ngrok.io',
             controller: _urlController,
             keyboardType: TextInputType.url,
@@ -132,7 +133,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
             child: OutlinedButton.icon(
               onPressed: _resetToDefault,
               icon: const Icon(Icons.refresh),
-              label: const Text('Reset to Default'),
+              label: Text(context.l10n.authResetToDefault),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(

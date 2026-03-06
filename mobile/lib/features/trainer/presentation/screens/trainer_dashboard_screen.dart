@@ -18,6 +18,7 @@ import '../providers/trainer_provider.dart';
 import '../widgets/quick_stats_grid.dart';
 import '../widgets/trainee_card.dart';
 import '../widgets/notification_badge.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TrainerDashboardScreen extends ConsumerWidget {
   const TrainerDashboardScreen({super.key});
@@ -33,7 +34,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Trainer Dashboard'),
+        title: Text(context.l10n.trainerDashboard),
         actions: [
           NotificationBadge(
             onTap: () => context.push('/trainer/notifications'),
@@ -41,17 +42,17 @@ class TrainerDashboardScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.psychology),
             onPressed: () => context.push('/trainer/ai-chat'),
-            tooltip: 'AI Assistant',
+            tooltip: context.l10n.trainerAiAssistant,
           ),
           IconButton(
             icon: const Icon(Icons.person_add),
             onPressed: () => context.push('/trainer/invite'),
-            tooltip: 'Invite Trainee',
+            tooltip: context.l10n.trainerInviteTrainee,
           ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => context.push('/settings'),
-            tooltip: 'Settings',
+            tooltip: context.l10n.settingsTitle,
           ),
         ],
       ),
@@ -79,7 +80,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                           child: AdaptiveSpinner(),
                         ),
                       ),
-                      error: (e, _) => Text('Error: $e'),
+                      error: (e, _) => Text(context.l10n.featureReqErrore),
                     ),
                     const SizedBox(height: 24),
 
@@ -338,7 +339,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                     programsAsync.when(
                       data: (programs) => _buildProgramsCarousel(context, programs),
                       loading: () => _buildCarouselShimmer(),
-                      error: (e, _) => Text('Error: $e'),
+                      error: (e, _) => Text(context.l10n.featureReqErrore),
                     ),
                     const SizedBox(height: 24),
 
@@ -352,7 +353,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                     exercisesAsync.when(
                       data: (exercises) => _buildExercisesCarousel(context, exercises),
                       loading: () => _buildCarouselShimmer(),
-                      error: (e, _) => Text('Error: $e'),
+                      error: (e, _) => Text(context.l10n.featureReqErrore),
                     ),
                     const SizedBox(height: 24),
 
@@ -366,7 +367,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                         ),
                         TextButton(
                           onPressed: () => context.push('/trainer/trainees'),
-                          child: const Text('View All'),
+                          child: Text(context.l10n.commonViewAll),
                         ),
                       ],
                     ),
@@ -403,7 +404,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                           child: AdaptiveSpinner(),
                         ),
                       ),
-                      error: (e, _) => Text('Error: $e'),
+                      error: (e, _) => Text(context.l10n.featureReqErrore),
                     ),
                   ],
                 ),
@@ -414,7 +415,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
           : FloatingActionButton.extended(
               onPressed: () => context.push('/trainer/invite'),
               icon: const Icon(Icons.person_add),
-              label: const Text('Invite'),
+              label: Text(context.l10n.trainerInvite),
             ),
     );
   }
@@ -431,7 +432,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
         if (onViewAll != null)
           TextButton(
             onPressed: onViewAll,
-            child: const Text('View All'),
+            child: Text(context.l10n.commonViewAll),
           ),
       ],
     );
@@ -481,7 +482,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => context.push('/trainer/programs'),
-                child: const Text('Create Program'),
+                child: Text(context.l10n.programsCreateProgram),
               ),
             ],
           ),
@@ -662,7 +663,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                         );
                       },
                       icon: const Icon(Icons.edit),
-                      label: const Text('Edit'),
+                      label: Text(context.l10n.commonEdit),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
@@ -676,7 +677,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                         _showAssignToTraineeDialog(context, program);
                       },
                       icon: const Icon(Icons.person_add),
-                      label: const Text('Assign'),
+                      label: Text(context.l10n.trainerAssign),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
@@ -763,7 +764,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                   child: traineesAsync.when(
                     loading: () => const Center(child: AdaptiveSpinner()),
                     error: (error, stack) => Center(
-                      child: Text('Error: $error'),
+                      child: Text(context.l10n.exercisesErrorerror),
                     ),
                     data: (trainees) {
                       if (trainees.isEmpty) {
@@ -1058,7 +1059,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } catch (e) {
         if (context.mounted) {
-          showAdaptiveToast(context, message: 'Could not open video');
+          showAdaptiveToast(context, message: context.l10n.exercisesCouldNotOpenVideo);
         }
       }
     }
@@ -1075,7 +1076,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
         child: ElevatedButton.icon(
           onPressed: () => _openVideoUrl(context, videoUrl),
           icon: const Icon(Icons.play_circle_filled),
-          label: const Text('Watch Tutorial Video'),
+          label: Text(context.l10n.exercisesWatchTutorialVideo),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.red,
             foregroundColor: Colors.white,
@@ -1281,7 +1282,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                 ElevatedButton.icon(
                   onPressed: () => context.push('/home'),
                   icon: const Icon(Icons.home),
-                  label: const Text('Go to Trainee Home'),
+                  label: Text(context.l10n.trainerGoToTraineeHome),
                 ),
               ],
             ),
@@ -1416,7 +1417,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
             ElevatedButton.icon(
               onPressed: () => context.push('/trainer/invite'),
               icon: const Icon(Icons.person_add),
-              label: const Text('Invite Trainee'),
+              label: Text(context.l10n.trainerInviteTrainee),
             ),
           ],
         ),

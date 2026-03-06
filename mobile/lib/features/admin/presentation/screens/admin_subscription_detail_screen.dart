@@ -9,6 +9,7 @@ import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/admin_models.dart';
 import '../providers/admin_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminSubscriptionDetailScreen extends ConsumerStatefulWidget {
   final int subscriptionId;
@@ -41,7 +42,7 @@ class _AdminSubscriptionDetailScreenState
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Subscription Details'),
+        title: Text(context.l10n.adminSubscriptionDetails),
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           if (sub != null)
@@ -52,19 +53,19 @@ class _AdminSubscriptionDetailScreenState
                       context: context,
                       actions: [
                         AdaptiveAction(
-                          label: 'Change Tier',
+                          label: context.l10n.adminChangeTier,
                           onPressed: () => _handleAction('change_tier', sub),
                         ),
                         AdaptiveAction(
-                          label: 'Change Status',
+                          label: context.l10n.adminChangeStatus,
                           onPressed: () => _handleAction('change_status', sub),
                         ),
                         AdaptiveAction(
-                          label: 'Record Payment',
+                          label: context.l10n.adminRecordPayment,
                           onPressed: () => _handleAction('record_payment', sub),
                         ),
                         AdaptiveAction(
-                          label: 'Edit Notes',
+                          label: context.l10n.adminEditNotes,
                           onPressed: () => _handleAction('edit_notes', sub),
                         ),
                       ],
@@ -73,10 +74,10 @@ class _AdminSubscriptionDetailScreenState
                 : PopupMenuButton<String>(
                     onSelected: (value) => _handleAction(value, sub),
                     itemBuilder: (context) => [
-                      const PopupMenuItem(value: 'change_tier', child: Text('Change Tier')),
-                      const PopupMenuItem(value: 'change_status', child: Text('Change Status')),
-                      const PopupMenuItem(value: 'record_payment', child: Text('Record Payment')),
-                      const PopupMenuItem(value: 'edit_notes', child: Text('Edit Notes')),
+                      PopupMenuItem(value: 'change_tier', child: Text(context.l10n.adminChangeTier)),
+                      PopupMenuItem(value: 'change_status', child: Text(context.l10n.adminChangeStatus)),
+                      PopupMenuItem(value: 'record_payment', child: Text(context.l10n.adminRecordPayment)),
+                      PopupMenuItem(value: 'edit_notes', child: Text(context.l10n.adminEditNotes)),
                     ],
                   ),
         ],
@@ -84,7 +85,7 @@ class _AdminSubscriptionDetailScreenState
       body: state.isLoading
           ? const Center(child: AdaptiveSpinner())
           : sub == null
-              ? const Center(child: Text('Subscription not found'))
+              ? Center(child: Text(context.l10n.adminSubscriptionNotFound))
               : AdaptiveRefreshIndicator(
                   onRefresh: () => ref
                       .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
@@ -710,8 +711,8 @@ class _AdminSubscriptionDetailScreenState
               const SizedBox(height: 24),
               AdaptiveDropdown<String>(
                 value: selectedTier,
-                decoration: const InputDecoration(
-                  labelText: 'New Tier',
+                decoration: InputDecoration(
+                  labelText: context.l10n.adminNewTier,
                   border: OutlineInputBorder(),
                 ),
                 items: SubscriptionTier.values.map((tier) {
@@ -725,8 +726,8 @@ class _AdminSubscriptionDetailScreenState
               const SizedBox(height: 16),
               TextField(
                 controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Reason (optional)',
+                decoration: InputDecoration(
+                  labelText: context.l10n.adminReasonOptional,
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 2,
@@ -737,7 +738,7 @@ class _AdminSubscriptionDetailScreenState
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
@@ -747,10 +748,10 @@ class _AdminSubscriptionDetailScreenState
                           .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
                           .changeTier(selectedTier, reason: reasonController.text);
                       if (success && mounted) {
-                        showAdaptiveToast(context, message: 'Tier updated successfully');
+                        showAdaptiveToast(context, message: context.l10n.adminTierUpdatedSuccessfully);
                       }
                     },
-                    child: const Text('Save'),
+                    child: Text(context.l10n.commonSave),
                   ),
                 ],
               ),
@@ -784,8 +785,8 @@ class _AdminSubscriptionDetailScreenState
               const SizedBox(height: 24),
               AdaptiveDropdown<String>(
                 value: selectedStatus,
-                decoration: const InputDecoration(
-                  labelText: 'New Status',
+                decoration: InputDecoration(
+                  labelText: context.l10n.adminNewStatus,
                   border: OutlineInputBorder(),
                 ),
                 items: SubscriptionStatus.values.map((status) {
@@ -799,8 +800,8 @@ class _AdminSubscriptionDetailScreenState
               const SizedBox(height: 16),
               TextField(
                 controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Reason (optional)',
+                decoration: InputDecoration(
+                  labelText: context.l10n.adminReasonOptional,
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 2,
@@ -811,7 +812,7 @@ class _AdminSubscriptionDetailScreenState
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
@@ -821,10 +822,10 @@ class _AdminSubscriptionDetailScreenState
                           .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
                           .changeStatus(selectedStatus, reason: reasonController.text);
                       if (success && mounted) {
-                        showAdaptiveToast(context, message: 'Status updated successfully');
+                        showAdaptiveToast(context, message: context.l10n.adminStatusUpdatedSuccessfully);
                       }
                     },
-                    child: const Text('Save'),
+                    child: Text(context.l10n.commonSave),
                   ),
                 ],
               ),
@@ -858,8 +859,8 @@ class _AdminSubscriptionDetailScreenState
               const SizedBox(height: 24),
               TextField(
                 controller: amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Amount',
+                decoration: InputDecoration(
+                  labelText: context.l10n.adminAmount,
                   prefixText: '\$',
                   border: OutlineInputBorder(),
                 ),
@@ -868,9 +869,9 @@ class _AdminSubscriptionDetailScreenState
               const SizedBox(height: 16),
               TextField(
                 controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
-                  hintText: 'e.g., Manual payment via check',
+                decoration: InputDecoration(
+                  labelText: context.l10n.adminDescriptionOptional,
+                  hintText: context.l10n.adminEGManualPaymentViaCheck,
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -880,7 +881,7 @@ class _AdminSubscriptionDetailScreenState
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
@@ -893,10 +894,10 @@ class _AdminSubscriptionDetailScreenState
                             description: descriptionController.text,
                           );
                       if (success && mounted) {
-                        showAdaptiveToast(context, message: 'Payment recorded successfully');
+                        showAdaptiveToast(context, message: context.l10n.adminPaymentRecordedSuccessfully);
                       }
                     },
-                    child: const Text('Record'),
+                    child: Text(context.l10n.adminRecord),
                   ),
                 ],
               ),
@@ -929,8 +930,8 @@ class _AdminSubscriptionDetailScreenState
               const SizedBox(height: 24),
               TextField(
                 controller: notesController,
-                decoration: const InputDecoration(
-                  hintText: 'Add notes about this subscription...',
+                decoration: InputDecoration(
+                  hintText: context.l10n.adminAddNotesAboutThisSubscription,
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 4,
@@ -941,7 +942,7 @@ class _AdminSubscriptionDetailScreenState
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
@@ -951,10 +952,10 @@ class _AdminSubscriptionDetailScreenState
                           .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
                           .updateNotes(notesController.text);
                       if (success && mounted) {
-                        showAdaptiveToast(context, message: 'Notes updated successfully');
+                        showAdaptiveToast(context, message: context.l10n.adminNotesUpdatedSuccessfully);
                       }
                     },
-                    child: const Text('Save'),
+                    child: Text(context.l10n.commonSave),
                   ),
                 ],
               ),
@@ -968,9 +969,9 @@ class _AdminSubscriptionDetailScreenState
   Future<void> _clearPastDue(AdminSubscription sub) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Clear Past Due',
+      title: context.l10n.adminClearPastDue,
       message: 'This will record a payment of \$${sub.pastDueAmount} and clear the past due status. Continue?',
-      confirmText: 'Clear',
+      confirmText: context.l10n.adminClear,
     );
 
     if (confirmed != true || !mounted) return;
@@ -979,7 +980,7 @@ class _AdminSubscriptionDetailScreenState
         .read(adminSubscriptionDetailProvider(widget.subscriptionId).notifier)
         .recordPayment(sub.pastDueAmount, description: 'Past due cleared');
     if (success && mounted) {
-      showAdaptiveToast(context, message: 'Past due cleared successfully');
+      showAdaptiveToast(context, message: context.l10n.adminPastDueClearedSuccessfully);
     }
   }
 

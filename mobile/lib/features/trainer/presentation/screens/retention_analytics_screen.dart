@@ -7,6 +7,7 @@ import '../../data/models/retention_model.dart';
 import '../providers/trainer_provider.dart';
 import '../widgets/retention_summary_card.dart';
 import '../widgets/at_risk_trainee_tile.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Full-screen retention analytics with period selector and trainee list.
 class RetentionAnalyticsScreen extends ConsumerStatefulWidget {
@@ -28,7 +29,7 @@ class _RetentionAnalyticsScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Retention Analytics'),
+        title: Text(context.l10n.trainerRetentionAnalytics),
         actions: [
           _PeriodChip(
             days: _days,
@@ -61,7 +62,7 @@ class _RetentionAnalyticsScreenState
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('Error: $e', style: TextStyle(color: theme.colorScheme.error)),
+              child: Text(context.l10n.featureReqErrore, style: TextStyle(color: theme.colorScheme.error)),
             ),
           ),
         ),

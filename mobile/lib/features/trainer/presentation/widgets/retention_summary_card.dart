@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/retention_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Grid of 4 stat cards showing retention summary.
 class RetentionSummaryCard extends StatelessWidget {
@@ -19,29 +20,29 @@ class RetentionSummaryCard extends StatelessWidget {
       childAspectRatio: 1.8,
       children: [
         _StatTile(
-          label: 'At-Risk',
+          label: context.l10n.trainerAtRisk,
           value: '${summary.atRiskCount}',
           subtitle: '${summary.criticalCount} critical, ${summary.highCount} high',
           valueColor: summary.atRiskCount > 0 ? const Color(0xFFF97316) : null,
           icon: Icons.warning_amber_rounded,
         ),
         _StatTile(
-          label: 'Avg Engagement',
+          label: context.l10n.trainerAvgEngagement,
           value: '${summary.avgEngagement.toStringAsFixed(0)}%',
           subtitle: '14-day rolling',
           icon: Icons.favorite_rounded,
         ),
         _StatTile(
-          label: 'Retention Rate',
+          label: context.l10n.trainerRetentionRate,
           value: '${summary.retentionRate.toStringAsFixed(0)}%',
           subtitle: '${summary.totalTrainees - summary.atRiskCount}/${summary.totalTrainees} engaged',
           valueColor: summary.retentionRate >= 80 ? const Color(0xFF22C55E) : null,
           icon: Icons.group_rounded,
         ),
         _StatTile(
-          label: 'Critical',
+          label: context.l10n.trainerCritical,
           value: '${summary.criticalCount}',
-          subtitle: 'Needs attention',
+          subtitle: context.l10n.trainerNeedsAttention,
           valueColor: summary.criticalCount > 0 ? const Color(0xFFEF4444) : null,
           icon: Icons.trending_down_rounded,
         ),

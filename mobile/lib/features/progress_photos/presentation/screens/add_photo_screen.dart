@@ -41,7 +41,7 @@ class _AddPhotoScreenState extends ConsumerState<AddPhotoScreen> {
         label: 'Side', value: 'side', icon: Icons.person_outline),
     _CategoryOption(label: 'Back', value: 'back', icon: Icons.person_3),
     _CategoryOption(
-        label: 'Other', value: 'other', icon: Icons.photo_camera),
+        label: 'Side', value: 'side', icon: Icons.person_outline),
   ];
 
   @override

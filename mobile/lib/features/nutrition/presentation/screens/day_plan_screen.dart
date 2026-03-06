@@ -6,6 +6,7 @@ import '../providers/nutrition_template_provider.dart';
 import '../widgets/day_type_badge.dart';
 import '../widgets/meal_plan_card.dart';
 import '../../../../shared/widgets/loading_shimmer.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class DayPlanScreen extends ConsumerStatefulWidget {
   final String? initialDate;
@@ -43,7 +44,7 @@ class _DayPlanScreenState extends ConsumerState<DayPlanScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nutrition Plan'),
+        title: Text(context.l10n.nutritionNutritionPlan),
       ),
       body: Column(
         children: [
@@ -117,7 +118,7 @@ class _DateNavigator extends StatelessWidget {
           IconButton(
             onPressed: onPrevious,
             icon: const Icon(Icons.chevron_left),
-            tooltip: 'Previous day',
+            tooltip: context.l10n.nutritionPreviousDay,
             visualDensity: VisualDensity.compact,
           ),
           Expanded(
@@ -147,7 +148,7 @@ class _DateNavigator extends StatelessWidget {
           IconButton(
             onPressed: onNext,
             icon: const Icon(Icons.chevron_right),
-            tooltip: 'Next day',
+            tooltip: context.l10n.nutritionNextDay,
             visualDensity: VisualDensity.compact,
           ),
         ],
@@ -236,17 +237,17 @@ class _DailyTotalsCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _MacroTotal(
-                  label: 'Protein',
+                  label: context.l10n.nutritionProtein,
                   grams: plan.totalProtein,
                   color: Colors.blue,
                 ),
                 _MacroTotal(
-                  label: 'Carbs',
+                  label: context.l10n.nutritionCarbs,
                   grams: plan.totalCarbs,
                   color: Colors.orange,
                 ),
                 _MacroTotal(
-                  label: 'Fat',
+                  label: context.l10n.nutritionFat,
                   grams: plan.totalFat,
                   color: Colors.red,
                 ),
@@ -373,7 +374,7 @@ class _ErrorContent extends StatelessWidget {
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(context.l10n.commonRetry),
             ),
           ],
         ),

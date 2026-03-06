@@ -12,6 +12,7 @@ import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/exercise_model.dart';
 import '../providers/exercise_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class ExerciseBankScreen extends ConsumerStatefulWidget {
   const ExerciseBankScreen({super.key});
@@ -41,12 +42,12 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Exercise Library'),
+        title: Text(context.l10n.exercisesExerciseLibrary),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showAddExerciseDialog(context),
-            tooltip: 'Add Custom Exercise',
+            tooltip: context.l10n.exercisesAddCustomExercise,
           ),
         ],
       ),
@@ -92,11 +93,11 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                   children: [
                     Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
                     const SizedBox(height: 16),
-                    Text('Error: $error'),
+                    Text(context.l10n.exercisesErrorerror),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () => ref.invalidate(exercisesProvider(filter)),
-                      child: const Text('Retry'),
+                      child: Text(context.l10n.commonRetry),
                     ),
                   ],
                 ),
@@ -390,7 +391,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                         }
                       },
                       icon: const Icon(Icons.image, size: 18),
-                      label: const Text('Edit Image'),
+                      label: Text(context.l10n.exercisesEditImage),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -404,7 +405,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                         }
                       },
                       icon: const Icon(Icons.videocam, size: 18),
-                      label: const Text('Edit Video'),
+                      label: Text(context.l10n.exercisesEditVideo),
                     ),
                   ),
                 ],
@@ -426,7 +427,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
         child: ElevatedButton.icon(
           onPressed: () => _openYouTubeVideo(videoUrl),
           icon: const Icon(Icons.play_circle_filled),
-          label: const Text('Watch Tutorial Video'),
+          label: Text(context.l10n.exercisesWatchTutorialVideo),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.red,
             foregroundColor: Colors.white,
@@ -643,9 +644,9 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 // Exercise name
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Exercise Name *',
-                    hintText: 'e.g., Incline Dumbbell Press',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.exercisesExerciseName,
+                    hintText: context.l10n.exercisesEGInclineDumbbellPress,
                     prefixIcon: Icon(Icons.fitness_center),
                   ),
                   textCapitalization: TextCapitalization.words,
@@ -655,8 +656,8 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 // Muscle group dropdown
                 AdaptiveDropdown<String>(
                   value: selectedMuscleGroup,
-                  decoration: const InputDecoration(
-                    labelText: 'Muscle Group *',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.exercisesMuscleGroup,
                     prefixIcon: Icon(Icons.category),
                   ),
                   items: MuscleGroups.all.map((group) {
@@ -678,10 +679,10 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                   TextField(
                     controller: customMuscleGroupController,
                     decoration: InputDecoration(
-                      labelText: 'Custom Muscle Group (optional)',
-                      hintText: 'e.g., Forearms, Neck, Hip Flexors...',
+                      labelText: context.l10n.exercisesCustomMuscleGroupOptional,
+                      hintText: context.l10n.exercisesEGForearmsNeckHipFlexors,
                       prefixIcon: const Icon(Icons.edit),
-                      helperText: 'Leave empty to use "Other"',
+                      helperText: context.l10n.exercisesLeaveEmptyToUseOther,
                       helperStyle: TextStyle(color: theme.hintColor),
                     ),
                     textCapitalization: TextCapitalization.words,
@@ -692,9 +693,9 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 // Description
                 TextField(
                   controller: descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (optional)',
-                    hintText: 'How to perform this exercise...',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.adminDescriptionOptional,
+                    hintText: context.l10n.exercisesHowToPerformThisExercise,
                     prefixIcon: Icon(Icons.description),
                     alignLabelWithHint: true,
                   ),
@@ -706,8 +707,8 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 // Video URL
                 TextField(
                   controller: videoUrlController,
-                  decoration: const InputDecoration(
-                    labelText: 'Video URL (optional)',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.exercisesVideoURLOptional,
                     hintText: 'https://youtube.com/...',
                     prefixIcon: Icon(Icons.play_circle_outline),
                   ),
@@ -724,7 +725,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                         : () async {
                             final name = nameController.text.trim();
                             if (name.isEmpty) {
-                              showAdaptiveToast(context, message: 'Please enter an exercise name');
+                              showAdaptiveToast(context, message: context.l10n.exercisesPleaseEnterAnExerciseName);
                               return;
                             }
 
@@ -754,7 +755,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               Navigator.pop(context);
                               // Refresh the exercise list
                               ref.invalidate(exercisesProvider);
-                              showAdaptiveToast(context, message: 'Exercise "$name" created', type: ToastType.success);
+                              showAdaptiveToast(context, message: context.l10n.exercisesExercisenameCreated, type: ToastType.success);
                             } else {
                               setDialogState(() => isLoading = false);
                               showAdaptiveToast(context, message: result['error'] ?? 'Failed to create exercise', type: ToastType.error);
@@ -765,7 +766,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                     ),
                     child: isLoading
                         ? const AdaptiveSpinner.small()
-                        : const Text('Create Exercise'),
+                        : Text(context.l10n.exercisesCreateExercise),
                   ),
                 ),
               ],
@@ -782,7 +783,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        showAdaptiveToast(context, message: 'Could not open video', type: ToastType.error);
+        showAdaptiveToast(context, message: context.l10n.exercisesCouldNotOpenVideo, type: ToastType.error);
       }
     }
   }
@@ -816,8 +817,8 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
               const SizedBox(height: 16),
               ListTile(
                 leading: const Icon(Icons.image),
-                title: const Text('Edit Image'),
-                subtitle: const Text('Change the exercise thumbnail'),
+                title: Text(context.l10n.exercisesEditImage),
+                subtitle: Text(context.l10n.exercisesChangeTheExerciseThumbnail),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   if (parentContext.mounted) {
@@ -827,8 +828,8 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.info_outline),
-                title: const Text('View Details'),
-                subtitle: const Text('See full exercise information'),
+                title: Text(context.l10n.exercisesViewDetails),
+                subtitle: Text(context.l10n.exercisesSeeFullExerciseInformation),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   if (parentContext.mounted) {
@@ -985,7 +986,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               if (result['success'] == true) {
                                 Navigator.pop(context);
                                 ref.invalidate(exercisesProvider);
-                                showAdaptiveToast(context, message: 'Image uploaded successfully', type: ToastType.success);
+                                showAdaptiveToast(context, message: context.l10n.exercisesImageUploadedSuccessfully, type: ToastType.success);
                               } else {
                                 setDialogState(() => isUploading = false);
                                 showAdaptiveToast(context, message: result['error'] ?? 'Failed to upload image', type: ToastType.error);
@@ -1005,7 +1006,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                           selectedImageFile = null;
                         });
                       },
-                      child: const Text('Clear selection'),
+                      child: Text(context.l10n.exercisesClearSelection),
                     ),
                   ),
                 ],
@@ -1035,12 +1036,12 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                   controller: imageUrlController,
                   enabled: selectedImageFile == null,
                   decoration: InputDecoration(
-                    labelText: 'Image URL',
+                    labelText: context.l10n.exercisesImageURL,
                     hintText: 'https://images.unsplash.com/...',
                     prefixIcon: const Icon(Icons.link),
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.preview),
-                      tooltip: 'Preview',
+                      tooltip: context.l10n.exercisesPreview,
                       onPressed: selectedImageFile == null
                           ? () {
                               final url = imageUrlController.text.trim();
@@ -1073,7 +1074,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                        child: Text(context.l10n.commonCancel),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -1097,7 +1098,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                                 if (result['success'] == true) {
                                   Navigator.pop(context);
                                   ref.invalidate(exercisesProvider);
-                                  showAdaptiveToast(context, message: 'Image updated', type: ToastType.success);
+                                  showAdaptiveToast(context, message: context.l10n.exercisesImageUpdated, type: ToastType.success);
                                 } else {
                                   setDialogState(() => isLoading = false);
                                   showAdaptiveToast(context, message: result['error'] ?? 'Failed to update image', type: ToastType.error);
@@ -1105,7 +1106,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               },
                         child: isLoading
                             ? const AdaptiveSpinner.small()
-                            : const Text('Save URL'),
+                            : Text(context.l10n.exercisesSaveURL),
                       ),
                     ),
                   ],
@@ -1270,7 +1271,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               if (result['success'] == true) {
                                 Navigator.pop(context);
                                 ref.invalidate(exercisesProvider);
-                                showAdaptiveToast(context, message: 'Video uploaded successfully', type: ToastType.success);
+                                showAdaptiveToast(context, message: context.l10n.exercisesVideoUploadedSuccessfully, type: ToastType.success);
                               } else {
                                 setDialogState(() => isUploading = false);
                                 showAdaptiveToast(context, message: result['error'] ?? 'Failed to upload video', type: ToastType.error);
@@ -1290,7 +1291,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                           selectedVideoFile = null;
                         });
                       },
-                      child: const Text('Clear selection'),
+                      child: Text(context.l10n.exercisesClearSelection),
                     ),
                   ),
                 ],
@@ -1320,12 +1321,12 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                   controller: videoUrlController,
                   enabled: selectedVideoFile == null,
                   decoration: InputDecoration(
-                    labelText: 'YouTube URL',
+                    labelText: context.l10n.exercisesYoutubeURL,
                     hintText: 'https://www.youtube.com/watch?v=...',
                     prefixIcon: const Icon(Icons.link),
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.preview),
-                      tooltip: 'Preview',
+                      tooltip: context.l10n.exercisesPreview,
                       onPressed: selectedVideoFile == null
                           ? () {
                               final url = videoUrlController.text.trim();
@@ -1333,7 +1334,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               if (videoId != null) {
                                 setDialogState(() => previewVideoId = videoId);
                               } else if (url.isNotEmpty) {
-                                showAdaptiveToast(context, message: 'Invalid YouTube URL', type: ToastType.error);
+                                showAdaptiveToast(context, message: context.l10n.exercisesInvalidYouTubeURL, type: ToastType.error);
                               }
                             }
                           : null,
@@ -1364,7 +1365,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                        child: Text(context.l10n.commonCancel),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -1388,7 +1389,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                                 if (result['success'] == true) {
                                   Navigator.pop(context);
                                   ref.invalidate(exercisesProvider);
-                                  showAdaptiveToast(context, message: 'Video URL updated', type: ToastType.success);
+                                  showAdaptiveToast(context, message: context.l10n.exercisesVideoURLUpdated, type: ToastType.success);
                                 } else {
                                   setDialogState(() => isLoading = false);
                                   showAdaptiveToast(context, message: result['error'] ?? 'Failed to update video', type: ToastType.error);
@@ -1396,7 +1397,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               },
                         child: isLoading
                             ? const AdaptiveSpinner.small()
-                            : const Text('Save URL'),
+                            : Text(context.l10n.exercisesSaveURL),
                       ),
                     ),
                   ],

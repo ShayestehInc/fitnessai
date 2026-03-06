@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/space_model.dart';
 import '../providers/community_feed_provider.dart';
 import '../providers/space_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Bottom sheet for composing a new text post with multi-image and space selector.
 class ComposePostSheet extends ConsumerStatefulWidget {
@@ -150,7 +151,7 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
               ),
               child: _isSubmitting
                   ? AdaptiveSpinner.small()
-                  : const Text('Post'),
+                  : Text(context.l10n.communityPost),
             ),
           ),
         ],
@@ -162,16 +163,16 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
     return DropdownButtonFormField<int?>(
       value: _selectedSpaceId,
       decoration: InputDecoration(
-        labelText: 'Post to',
+        labelText: context.l10n.communityPostTo,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         isDense: true,
       ),
       items: [
-        const DropdownMenuItem<int?>(
+        DropdownMenuItem<int?>(
           value: null,
-          child: Text('General feed'),
+          child: Text(context.l10n.communityGeneralFeed),
         ),
         ...spaces.map((s) => DropdownMenuItem<int?>(
               value: s.id,
@@ -188,7 +189,7 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
         // Markdown toggle
         FilterChip(
           selected: _isMarkdown,
-          label: const Text('Markdown'),
+          label: Text(context.l10n.communityMarkdown),
           avatar: Icon(
             Icons.text_format,
             size: 18,
@@ -441,7 +442,7 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
       if (!mounted) return;
       showAdaptiveToast(
         context,
-        message: 'Unsupported format. Use MP4, MOV, or WebM.',
+        message: context.l10n.communityUnsupportedFormatUseMP4MOVOrWebM,
         type: ToastType.error,
       );
       return;
@@ -452,7 +453,7 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
       if (!mounted) return;
       showAdaptiveToast(
         context,
-        message: 'Video file is empty.',
+        message: context.l10n.communityVideoFileIsEmpty,
         type: ToastType.error,
       );
       return;
@@ -461,7 +462,7 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
       if (!mounted) return;
       showAdaptiveToast(
         context,
-        message: 'Video must be under 50MB.',
+        message: context.l10n.communityVideoMustBeUnder50MB,
         type: ToastType.error,
       );
       return;
@@ -503,10 +504,10 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
     if (success) {
       Navigator.of(context).pop();
       showAdaptiveToast(context,
-          message: 'Posted!', type: ToastType.success);
+          message: context.l10n.communityPosted, type: ToastType.success);
     } else {
       showAdaptiveToast(context,
-          message: 'Failed to create post. Please try again.',
+          message: context.l10n.communityFailedToCreatePostPleaseTryAgain,
           type: ToastType.error);
     }
   }

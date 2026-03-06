@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../providers/workout_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class ReadinessSurveyScreen extends ConsumerStatefulWidget {
   final ProgramWorkoutDay workout;
@@ -305,7 +306,7 @@ class _ReadinessSurveyScreenState extends ConsumerState<ReadinessSurveyScreen> {
             TextButton.icon(
               onPressed: () => _showSkipDialog(context),
               icon: Icon(AdaptiveIcons.back),
-              label: const Text('Skip'),
+              label: Text(context.l10n.workoutSkip),
             ),
             Text(
               'Completed $_completedCount / 5',
@@ -337,9 +338,9 @@ class _ReadinessSurveyScreenState extends ConsumerState<ReadinessSurveyScreen> {
   void _showSkipDialog(BuildContext context) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Skip Survey?',
-      message: 'You can still start your workout without completing the survey.',
-      confirmText: 'Skip & Start',
+      title: context.l10n.workoutSkipSurvey,
+      message: context.l10n.workoutYouCanStillStartYourWorkoutWithoutCompletingT,
+      confirmText: context.l10n.workoutSkipStart,
       cancelText: 'Continue Survey',
     );
     if (confirmed == true) {

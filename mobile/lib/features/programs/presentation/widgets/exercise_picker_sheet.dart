@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../exercises/data/models/exercise_model.dart';
 import '../../../exercises/presentation/providers/exercise_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class ExercisePickerSheet extends ConsumerStatefulWidget {
   final ScrollController scrollController;
@@ -70,7 +71,7 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search exercises...',
+              hintText: context.l10n.programsSearchExercises,
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -92,7 +93,7 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
               FilterChip(
-                label: const Text('All'),
+                label: Text(context.l10n.commonAll),
                 selected: _selectedMuscleGroup == null,
                 onSelected: (selected) {
                   setState(() => _selectedMuscleGroup = null);
@@ -143,13 +144,13 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
         // Exercise list
         Expanded(
           child: exercisesAsync.when(
-            loading: () => const Center(
+            loading: () => Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  AdaptiveSpinner(),
-                  SizedBox(height: 16),
-                  Text('Loading exercises...'),
+                  const AdaptiveSpinner(),
+                  const SizedBox(height: 16),
+                  Text(context.l10n.programsLoadingExercises),
                 ],
               ),
             ),
@@ -183,7 +184,7 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
                     FilledButton.icon(
                       onPressed: () => ref.invalidate(exercisesProvider(filter)),
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
+                      label: Text(context.l10n.commonRetry),
                     ),
                   ],
                 ),

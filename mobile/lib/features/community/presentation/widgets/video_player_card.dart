@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../../data/models/post_video_model.dart';
 import 'fullscreen_video_player.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Inline video player card for community feed posts.
 /// Shows thumbnail with play button overlay. Tap to play/pause.
@@ -104,7 +105,7 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
     final theme = Theme.of(context);
 
     return Semantics(
-      label: 'Video attachment. Tap to play, long press for fullscreen.',
+      label: context.l10n.communityVideoAttachmentTapToPlayLongPressForFullscree,
       child: ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: AspectRatio(
@@ -159,7 +160,7 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
               // Play button overlay (when not playing and not loading)
               if (!_isPlaying && !_hasError && !_isLoading)
                 Semantics(
-                  label: 'Play video',
+                  label: context.l10n.communityPlayVideo,
                   button: true,
                   child: Container(
                     width: 56,
@@ -207,7 +208,7 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
                   bottom: 4,
                   left: 4,
                   child: Semantics(
-                    label: 'Unmute video',
+                    label: context.l10n.communityUnmuteVideo,
                     button: true,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
@@ -240,7 +241,7 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
                   bottom: 4,
                   right: 4,
                   child: Semantics(
-                    label: 'Open fullscreen video',
+                    label: context.l10n.communityOpenFullscreenVideo,
                     button: true,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,

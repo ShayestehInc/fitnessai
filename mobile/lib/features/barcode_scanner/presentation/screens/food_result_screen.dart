@@ -7,6 +7,7 @@ import '../../data/models/food_lookup_model.dart';
 import '../providers/barcode_provider.dart';
 import '../widgets/macro_info_row.dart';
 import 'barcode_scan_screen.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Displays the food product returned by a barcode lookup.
 ///
@@ -56,8 +57,8 @@ class _FoodResultScreenState extends ConsumerState<FoodResultScreen> {
         );
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Food added to your log'),
+        SnackBar(
+          content: Text(context.l10n.barcodeFoodAddedToYourLog),
           backgroundColor: AppTheme.primary,
         ),
       );
@@ -88,7 +89,7 @@ class _FoodResultScreenState extends ConsumerState<FoodResultScreen> {
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         backgroundColor: AppTheme.background,
-        title: const Text('Scan Result'),
+        title: Text(context.l10n.barcodeScanResult),
         centerTitle: true,
       ),
       body: asyncFood.when(
@@ -179,31 +180,31 @@ class _FoundBody extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           MacroInfoRow(
-            label: 'Protein',
+            label: context.l10n.nutritionProtein,
             value: food.protein * servings,
             color: const Color(0xFF60A5FA),
             maxValue: 100,
           ),
           MacroInfoRow(
-            label: 'Carbs',
+            label: context.l10n.nutritionCarbs,
             value: food.carbs * servings,
             color: const Color(0xFF34D399),
             maxValue: 200,
           ),
           MacroInfoRow(
-            label: 'Fat',
+            label: context.l10n.nutritionFat,
             value: food.fat * servings,
             color: const Color(0xFFFBBF24),
             maxValue: 100,
           ),
           MacroInfoRow(
-            label: 'Fiber',
+            label: context.l10n.barcodeFiber,
             value: food.fiber * servings,
             color: const Color(0xFFA78BFA),
             maxValue: 50,
           ),
           MacroInfoRow(
-            label: 'Sugar',
+            label: context.l10n.barcodeSugar,
             value: food.sugar * servings,
             color: const Color(0xFFF472B6),
             maxValue: 80,
@@ -257,7 +258,7 @@ class _FoundBody extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Scan Another'),
+              child: Text(context.l10n.barcodeScanAnother),
             ),
           ),
           const SizedBox(height: 24),
@@ -536,7 +537,7 @@ class _NotFoundBody extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Cancel'),
+                child: Text(context.l10n.commonCancel),
               ),
             ),
           ],

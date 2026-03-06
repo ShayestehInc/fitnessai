@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/workout_provider.dart';
 import '../../data/models/workout_models.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class MyProgramsScreen extends ConsumerWidget {
   const MyProgramsScreen({super.key});
@@ -16,7 +17,7 @@ class MyProgramsScreen extends ConsumerWidget {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
-        title: const Text('My Programs'),
+        title: Text(context.l10n.workoutMyPrograms),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),

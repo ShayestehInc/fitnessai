@@ -8,6 +8,7 @@ import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/nutrition_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class WeightCheckInScreen extends ConsumerStatefulWidget {
   const WeightCheckInScreen({super.key});
@@ -43,7 +44,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Weight Check-In'),
+        title: Text(context.l10n.nutritionWeightCheckIn),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -142,7 +143,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
               controller: _notesController,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'How are you feeling today?',
+                hintText: context.l10n.nutritionHowAreYouFeelingToday,
                 filled: true,
                 fillColor: theme.cardColor,
                 border: OutlineInputBorder(
@@ -207,7 +208,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
                     : _saveCheckIn,
                 child: _isSaving
                     ? const AdaptiveSpinner.small()
-                    : const Text('Save Check-In'),
+                    : Text(context.l10n.nutritionSaveCheckIn),
               ),
             ),
 
@@ -241,7 +242,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
         setState(() => _isSaving = false);
         showAdaptiveToast(
           context,
-          message: 'Please log in to save weight data.',
+          message: context.l10n.nutritionPleaseLogInToSaveWeightData,
           type: ToastType.error,
         );
       }
@@ -269,7 +270,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
       } else {
         showAdaptiveToast(
           context,
-          message: 'Weight check-in saved successfully!',
+          message: context.l10n.nutritionWeightCheckInSavedSuccessfully,
           type: ToastType.success,
         );
         // Show achievement celebrations for any newly earned badges.

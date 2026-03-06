@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/services/haptic_service.dart';
+import '../../../core/l10n/l10n_extension.dart';
 
 /// A platform-adaptive dropdown selector.
 ///
@@ -161,11 +162,11 @@ class _IOSDropdown<T> extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 CupertinoButton(
-                  child: const Text('Cancel'),
+                  child: Text(context.l10n.commonCancel),
                   onPressed: () => Navigator.of(ctx).pop(),
                 ),
                 CupertinoButton(
-                  child: const Text('Done'),
+                  child: Text(context.l10n.commonDone),
                   onPressed: () {
                     HapticService.selectionTick();
                     onChanged(items[tempIndex].value);

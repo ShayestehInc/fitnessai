@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/nutrition_models.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Bottom sheet for editing or deleting a food entry.
 /// Returns the edited [MealEntry] on save, or `null` on cancel.
@@ -80,19 +81,19 @@ class _EditFoodEntrySheetState extends State<EditFoodEntrySheet> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Entry'),
-        content: const Text('Are you sure you want to delete this food entry?'),
+        title: Text(context.l10n.nutritionDeleteEntry),
+        content: Text(context.l10n.nutritionAreYouSureYouWantToDeleteThisFoodEntry),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(context.l10n.commonDelete),
           ),
         ],
       ),
@@ -143,7 +144,7 @@ class _EditFoodEntrySheetState extends State<EditFoodEntrySheet> {
               const SizedBox(height: 20),
               _buildTextField(
                 controller: _nameController,
-                label: 'Food name',
+                label: context.l10n.nutritionFoodName,
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Name is required' : null,
               ),
@@ -153,14 +154,14 @@ class _EditFoodEntrySheetState extends State<EditFoodEntrySheet> {
                   Expanded(
                     child: _buildNumberField(
                       controller: _proteinController,
-                      label: 'Protein (g)',
+                      label: context.l10n.nutritionProteinG2,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildNumberField(
                       controller: _carbsController,
-                      label: 'Carbs (g)',
+                      label: context.l10n.nutritionCarbsG2,
                     ),
                   ),
                 ],
@@ -171,14 +172,14 @@ class _EditFoodEntrySheetState extends State<EditFoodEntrySheet> {
                   Expanded(
                     child: _buildNumberField(
                       controller: _fatController,
-                      label: 'Fat (g)',
+                      label: context.l10n.nutritionFatG2,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildNumberField(
                       controller: _caloriesController,
-                      label: 'Calories',
+                      label: context.l10n.nutritionCalories,
                     ),
                   ),
                 ],

@@ -11,6 +11,7 @@ import '../providers/space_provider.dart';
 import '../widgets/community_post_card.dart';
 import '../widgets/compose_post_sheet.dart';
 import '../widgets/sort_toggle.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Detail screen for a single space — shows header, members count, feed.
 class SpaceDetailScreen extends ConsumerStatefulWidget {
@@ -150,7 +151,7 @@ class _SpaceDetailScreenState extends ConsumerState<SpaceDetailScreen> {
           ? FloatingActionButton(
               onPressed: () => _showComposeSheet(),
               backgroundColor: theme.colorScheme.primary,
-              tooltip: 'New post',
+              tooltip: context.l10n.communityNewPost,
               child: const Icon(Icons.edit),
             )
           : null,
@@ -335,7 +336,7 @@ class _SpaceHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text('Leave Space'),
+                    child: Text(context.l10n.communityLeaveSpace),
                   )
                 : ElevatedButton(
                     onPressed: onJoin,
@@ -347,7 +348,7 @@ class _SpaceHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text('Join Space'),
+                    child: Text(context.l10n.communityJoinSpace),
                   ),
           ),
         ],

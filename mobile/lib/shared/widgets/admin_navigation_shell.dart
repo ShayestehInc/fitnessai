@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/haptic_service.dart';
 import 'adaptive/adaptive_icons.dart';
+import '../../core/l10n/l10n_extension.dart';
 
 class AdminNavigationShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -36,25 +37,25 @@ class AdminNavigationShell extends StatelessWidget {
               children: [
                 _NavItem(
                   icon: AdaptiveIcons.dashboard,
-                  label: 'Dashboard',
+                  label: context.l10n.navDashboard,
                   isSelected: navigationShell.currentIndex == 0,
                   onTap: () => navigationShell.goBranch(0),
                 ),
                 _NavItem(
                   icon: AdaptiveIcons.trainers,
-                  label: 'Trainers',
+                  label: context.l10n.adminTrainers,
                   isSelected: navigationShell.currentIndex == 1,
                   onTap: () => navigationShell.goBranch(1),
                 ),
                 _NavItem(
                   icon: AdaptiveIcons.subscriptions,
-                  label: 'Subscriptions',
+                  label: context.l10n.adminSubscriptions,
                   isSelected: navigationShell.currentIndex == 2,
                   onTap: () => navigationShell.goBranch(2),
                 ),
                 _NavItem(
                   icon: AdaptiveIcons.settingsFilled,
-                  label: 'Settings',
+                  label: context.l10n.settingsTitle,
                   isSelected: navigationShell.currentIndex == 3,
                   onTap: () => navigationShell.goBranch(3),
                 ),

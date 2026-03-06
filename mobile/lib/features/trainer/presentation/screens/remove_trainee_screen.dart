@@ -5,6 +5,7 @@ import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/trainer_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Full-page confirmation screen to remove a trainee.
 class RemoveTraineeScreen extends ConsumerStatefulWidget {
@@ -36,7 +37,7 @@ class _RemoveTraineeScreenState extends ConsumerState<RemoveTraineeScreen> {
     if (result['success'] == true) {
       HapticService.heavyTap();
       ref.invalidate(traineesProvider);
-      showAdaptiveToast(context, message: 'Trainee removed successfully', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.trainerTraineeRemovedSuccessfully, type: ToastType.success);
       // Go back to trainer dashboard
       context.go('/trainer');
     } else {
@@ -51,7 +52,7 @@ class _RemoveTraineeScreenState extends ConsumerState<RemoveTraineeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Remove Trainee'),
+        title: Text(context.l10n.trainerRemoveTrainee),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -149,7 +150,7 @@ class _RemoveTraineeScreenState extends ConsumerState<RemoveTraineeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Cancel'),
+                      child: Text(context.l10n.commonCancel),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -167,7 +168,7 @@ class _RemoveTraineeScreenState extends ConsumerState<RemoveTraineeScreen> {
                       ),
                       child: _isLoading
                           ? const AdaptiveSpinner.small()
-                          : const Text('Remove Trainee'),
+                          : Text(context.l10n.trainerRemoveTrainee),
                     ),
                   ),
                 ],

@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/space_model.dart';
 import '../providers/space_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Browse / search all spaces in the trainer's community.
 class SpaceListScreen extends ConsumerStatefulWidget {
@@ -40,7 +41,7 @@ class _SpaceListScreenState extends ConsumerState<SpaceListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Spaces'),
+        title: Text(context.l10n.communitySpaces),
         elevation: 0,
       ),
       body: Column(
@@ -64,7 +65,7 @@ class _SpaceListScreenState extends ConsumerState<SpaceListScreen> {
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'Search spaces...',
+          hintText: context.l10n.communitySearchSpaces,
           prefixIcon: const Icon(Icons.search, size: 20),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
@@ -100,7 +101,7 @@ class _SpaceListScreenState extends ConsumerState<SpaceListScreen> {
             OutlinedButton(
               onPressed: () =>
                   ref.read(spacesProvider.notifier).loadSpaces(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),

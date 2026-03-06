@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/event_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class RsvpButton extends StatelessWidget {
   final String? currentRsvp;
@@ -26,13 +27,13 @@ class RsvpButton extends StatelessWidget {
         segments: [
           ButtonSegment(
             value: RsvpStatus.going,
-            label: const Text('Going'),
+            label: Text(context.l10n.communityGoing),
             icon: const Icon(Icons.check_circle_outline, size: 16),
             enabled: !disabled && (!isAtCapacity || current == RsvpStatus.going),
           ),
           ButtonSegment(
             value: RsvpStatus.maybe,
-            label: const Text('Interested'),
+            label: Text(context.l10n.communityInterested),
             icon: const Icon(Icons.star_outline, size: 16),
             enabled: !disabled,
           ),

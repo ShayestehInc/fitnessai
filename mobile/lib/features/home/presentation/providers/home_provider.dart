@@ -480,7 +480,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
     return const [
       VideoItem(
         id: 1,
-        title: 'Advanced Glute Biomechanics with Tom & Joe',
+        title: 'Advanced Glute Biomechanics with Tom Joe',
         thumbnailUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400',
         date: '25 April',
         likes: 16,

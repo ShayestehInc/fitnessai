@@ -5,6 +5,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/trainee_model.dart';
 import '../providers/trainer_provider.dart';
 import '../../../../shared/widgets/step_form_page.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Full-page screen to edit trainee fitness goals.
 class EditTraineeGoalsScreen extends ConsumerStatefulWidget {
@@ -99,7 +100,7 @@ class _EditTraineeGoalsScreenState extends ConsumerState<EditTraineeGoalsScreen>
 
     if (result['success'] == true) {
       ref.invalidate(traineeDetailProvider(widget.trainee.id));
-      showAdaptiveToast(context, message: 'Goals updated successfully', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.trainerGoalsUpdatedSuccessfully, type: ToastType.success);
       Navigator.of(context).pop();
     } else {
       showAdaptiveToast(context, message: result['error'] ?? 'Failed to update goals', type: ToastType.error);
@@ -112,13 +113,13 @@ class _EditTraineeGoalsScreenState extends ConsumerState<EditTraineeGoalsScreen>
     final traineeName = widget.trainee.firstName ?? widget.trainee.email.split('@').first;
 
     return StepFormPage(
-      title: 'Edit Goals',
+      title: context.l10n.trainerEditGoals,
       completeButtonText: _isLoading ? 'Saving...' : 'Save Changes',
       onComplete: _isLoading ? null : _saveGoals,
       steps: [
         // Step 1: Primary Goal
         FormStep(
-          title: 'Primary Goal',
+          title: context.l10n.trainerPrimaryGoal,
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -211,7 +212,7 @@ class _EditTraineeGoalsScreenState extends ConsumerState<EditTraineeGoalsScreen>
         ),
         // Step 2: Activity Level
         FormStep(
-          title: 'Activity Level',
+          title: context.l10n.onboardingActivityLevel,
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

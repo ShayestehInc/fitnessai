@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/event_model.dart';
 import '../providers/event_provider.dart';
 import '../widgets/event_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TrainerEventListScreen extends ConsumerStatefulWidget {
   const TrainerEventListScreen({super.key});
@@ -28,9 +29,9 @@ class _TrainerEventListScreenState
     final state = ref.watch(trainerEventProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Events')),
+      appBar: AppBar(title: Text(context.l10n.communityEvents)),
       floatingActionButton: Semantics(
-        label: 'Create a new event',
+        label: context.l10n.communityCreateANewEvent,
         button: true,
         child: FloatingActionButton(
           onPressed: () async {
@@ -41,7 +42,7 @@ class _TrainerEventListScreenState
               ref.read(trainerEventProvider.notifier).loadEvents();
             }
           },
-          tooltip: 'Create event',
+          tooltip: context.l10n.communityCreateEvent,
           child: const Icon(Icons.add),
         ),
       ),
@@ -67,7 +68,7 @@ class _TrainerEventListScreenState
             FilledButton.tonal(
               onPressed: () =>
                   ref.read(trainerEventProvider.notifier).loadEvents(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -197,7 +198,7 @@ class _TrainerEmptyView extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: onCreateFirst,
               icon: const Icon(Icons.add),
-              label: const Text('Create Event'),
+              label: Text(context.l10n.communityCreateEvent2),
             ),
           ),
         ],

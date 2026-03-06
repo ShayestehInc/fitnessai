@@ -8,6 +8,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/ambassador_models.dart';
 import '../providers/ambassador_provider.dart';
 import '../widgets/monthly_earnings_chart.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AmbassadorDashboardScreen extends ConsumerStatefulWidget {
   const AmbassadorDashboardScreen({super.key});
@@ -56,7 +57,7 @@ class _AmbassadorDashboardScreenState
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Ambassador Dashboard'),
+        title: Text(context.l10n.ambassadorAmbassadorDashboard),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: state.isLoading
@@ -103,7 +104,7 @@ class _AmbassadorDashboardScreenState
             ElevatedButton.icon(
               onPressed: () => ref.read(ambassadorDashboardProvider.notifier).loadDashboard(),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -139,7 +140,7 @@ class _AmbassadorDashboardScreenState
             ElevatedButton.icon(
               onPressed: () => ref.read(ambassadorDashboardProvider.notifier).loadDashboard(),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Refresh'),
+              label: Text(context.l10n.commonRefresh),
             ),
           ],
         ),
@@ -303,7 +304,7 @@ class _AmbassadorDashboardScreenState
                 IconButton(
                   icon: Icon(Icons.copy, color: theme.colorScheme.primary),
                   onPressed: () => _copyCode(data.referralCode),
-                  tooltip: 'Copy code',
+                  tooltip: context.l10n.adminCopyCode,
                 ),
               ],
             ),
@@ -317,7 +318,7 @@ class _AmbassadorDashboardScreenState
               child: ElevatedButton.icon(
                 onPressed: () => _shareCode(data.referralCode),
                 icon: const Icon(Icons.share),
-                label: const Text('Share Referral Code'),
+                label: Text(context.l10n.ambassadorShareReferralCode),
               ),
             ),
           ),
@@ -510,7 +511,7 @@ class _AmbassadorDashboardScreenState
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
     if (mounted) {
-      showAdaptiveToast(context, message: 'Referral code copied!', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.ambassadorReferralCodeCopied, type: ToastType.success);
     }
   }
 
@@ -525,7 +526,7 @@ class _AmbassadorDashboardScreenState
       // platforms).
       await Clipboard.setData(ClipboardData(text: message));
       if (mounted) {
-        showAdaptiveToast(context, message: 'Share message copied to clipboard!', type: ToastType.success);
+        showAdaptiveToast(context, message: context.l10n.ambassadorShareMessageCopiedToClipboard, type: ToastType.success);
       }
     }
   }

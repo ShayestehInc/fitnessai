@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TrainerPricingViewScreen extends ConsumerWidget {
   final int trainerId;
@@ -88,7 +89,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
             _buildPricingCard(
               context,
               ref,
-              title: 'Monthly Coaching',
+              title: context.l10n.paymentsMonthlyCoaching,
               description: 'Get ongoing coaching and support with personalized workout and nutrition plans.',
               price: '\$${pricing.monthlyPrice.toStringAsFixed(2)}',
               period: '/month',
@@ -118,7 +119,7 @@ class TrainerPricingViewScreen extends ConsumerWidget {
             _buildPricingCard(
               context,
               ref,
-              title: 'One-Time Consultation',
+              title: context.l10n.paymentsOneTimeConsultation,
               description: 'Get a single session for a specific question or initial assessment.',
               price: '\$${pricing.oneTimePrice.toStringAsFixed(2)}',
               period: '',

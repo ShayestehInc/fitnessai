@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../screens/active_workout_screen.dart';
 import '../../../../features/exercises/presentation/widgets/exercise_video_player.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Classic workout layout: all exercises in a scrollable list with full sets tables.
 /// Best for experienced lifters who want an overview of their entire workout.
@@ -206,7 +207,7 @@ class _ClassicWorkoutLayoutState extends State<ClassicWorkoutLayout> {
                 child: TextButton.icon(
                   onPressed: () => widget.onAddSet(exerciseIndex),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Set'),
+                  label: Text(context.l10n.workoutAddSet),
                 ),
               ),
             ],

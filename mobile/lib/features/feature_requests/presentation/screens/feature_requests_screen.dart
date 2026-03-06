@@ -9,6 +9,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/feature_request_model.dart';
 import '../providers/feature_request_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class FeatureRequestsScreen extends ConsumerStatefulWidget {
   const FeatureRequestsScreen({super.key});
@@ -33,7 +34,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Feature Requests'),
+        title: Text(context.l10n.settingsFeatureRequests),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -42,7 +43,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
           if (Theme.of(context).platform == TargetPlatform.iOS)
             TextButton.icon(
               icon: const Icon(Icons.add),
-              label: const Text('Request'),
+              label: Text(context.l10n.featureReqRequest),
               onPressed: () => context.push('/feature-requests/submit'),
             ),
         ],
@@ -66,7 +67,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
             );
           },
           loading: () => const Center(child: AdaptiveSpinner()),
-          error: (e, _) => Center(child: Text('Error: $e')),
+          error: (e, _) => Center(child: Text(context.l10n.featureReqErrore)),
         ),
       ),
       floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
@@ -74,7 +75,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
           : FloatingActionButton.extended(
               onPressed: () => context.push('/feature-requests/submit'),
               icon: const Icon(Icons.add),
-              label: const Text('Request Feature'),
+              label: Text(context.l10n.featureReqRequestFeature),
             ),
     );
   }
@@ -99,7 +100,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
           ElevatedButton.icon(
             onPressed: () => context.push('/feature-requests/submit'),
             icon: const Icon(Icons.add),
-            label: const Text('Request Feature'),
+            label: Text(context.l10n.featureReqRequestFeature),
           ),
         ],
       ),
@@ -303,18 +304,18 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
             ),
             const SizedBox(height: 16),
             // Sort by
-            Text('Sort by', style: Theme.of(context).textTheme.titleSmall),
+            Text(context.l10n.featureReqSortBy, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               children: [
                 ChoiceChip(
-                  label: const Text('Most Votes'),
+                  label: Text(context.l10n.featureReqMostVotes),
                   selected: _sortBy == 'votes',
                   onSelected: (_) => setState(() => _sortBy = 'votes'),
                 ),
                 ChoiceChip(
-                  label: const Text('Recent'),
+                  label: Text(context.l10n.featureReqRecent),
                   selected: _sortBy == 'recent',
                   onSelected: (_) => setState(() => _sortBy = 'recent'),
                 ),
@@ -322,13 +323,13 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
             ),
             const SizedBox(height: 16),
             // Status filter
-            Text('Status', style: Theme.of(context).textTheme.titleSmall),
+            Text(context.l10n.featureReqStatus, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               children: [
                 ChoiceChip(
-                  label: const Text('All'),
+                  label: Text(context.l10n.commonAll),
                   selected: _selectedStatus == null,
                   onSelected: (_) => setState(() => _selectedStatus = null),
                 ),
@@ -346,7 +347,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Apply'),
+                child: Text(context.l10n.featureReqApply),
               ),
             ),
           ],

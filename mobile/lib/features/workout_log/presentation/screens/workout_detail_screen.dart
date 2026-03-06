@@ -5,6 +5,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/workout_history_model.dart';
 import '../../data/repositories/workout_repository.dart';
 import 'workout_detail_widgets.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Read-only detail view of a completed workout.
 ///
@@ -69,7 +70,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.share),
-            tooltip: 'Share workout',
+            tooltip: context.l10n.workoutShareWorkout,
             onPressed: () => context.push('/share-workout/${workout.id}'),
           ),
         ],
@@ -104,7 +105,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
           if (readinessSurvey != null) ...[
             _buildSurveySection(
               theme: theme,
-              title: 'Pre-Workout',
+              title: context.l10n.workoutPreWorkout,
               icon: Icons.battery_charging_full,
               survey: readinessSurvey,
               fields: const [
@@ -130,7 +131,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
             const SizedBox(height: 8),
             _buildSurveySection(
               theme: theme,
-              title: 'Post-Workout',
+              title: context.l10n.workoutPostWorkout,
               icon: Icons.check_circle_outline,
               survey: postSurvey,
               fields: const [
@@ -281,7 +282,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
                     _fetchDetail();
                   },
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
+                  label: Text(context.l10n.commonRetry),
                 ),
               ],
             ),

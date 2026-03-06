@@ -14,6 +14,7 @@ import '../widgets/community_post_card.dart';
 import '../widgets/compose_post_sheet.dart';
 import '../widgets/sort_toggle.dart';
 import '../widgets/space_chip.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Main "School" tab screen — replaces the old community feed.
 /// Shows horizontal space chips, sort toggle, and the feed.
@@ -63,23 +64,23 @@ class _SchoolHomeScreenState extends ConsumerState<SchoolHomeScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Community'),
+        title: Text(context.l10n.navCommunity),
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.event_outlined),
             onPressed: () => context.push('/community/events'),
-            tooltip: 'Events',
+            tooltip: context.l10n.communityEvents,
           ),
           IconButton(
             icon: const Icon(Icons.bookmark_border),
             onPressed: () => context.push('/community/saved'),
-            tooltip: 'Saved',
+            tooltip: context.l10n.communitySaved,
           ),
           IconButton(
             icon: const Icon(Icons.leaderboard_outlined),
             onPressed: () => context.push('/community/leaderboard'),
-            tooltip: 'Leaderboard',
+            tooltip: context.l10n.communityLeaderboard,
           ),
           if (announcementState.unreadCount > 0)
             _UnreadBadgeButton(
@@ -90,13 +91,13 @@ class _SchoolHomeScreenState extends ConsumerState<SchoolHomeScreen> {
             IconButton(
               icon: const Icon(Icons.campaign_outlined),
               onPressed: () => context.push('/community/announcements'),
-              tooltip: 'Announcements',
+              tooltip: context.l10n.trainerAnnouncements,
             ),
           if (Theme.of(context).platform == TargetPlatform.iOS)
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () => _showComposeSheet(selectedSpaceId),
-              tooltip: 'New post',
+              tooltip: context.l10n.communityNewPost,
             ),
         ],
       ),
@@ -117,7 +118,7 @@ class _SchoolHomeScreenState extends ConsumerState<SchoolHomeScreen> {
           : FloatingActionButton(
               onPressed: () => _showComposeSheet(selectedSpaceId),
               backgroundColor: theme.colorScheme.primary,
-              tooltip: 'New post',
+              tooltip: context.l10n.communityNewPost,
               child: const Icon(Icons.edit),
             ),
     );
@@ -277,7 +278,7 @@ class _SchoolHomeScreenState extends ConsumerState<SchoolHomeScreen> {
             OutlinedButton(
               onPressed: () =>
                   ref.read(communityFeedProvider.notifier).loadFeed(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -287,7 +288,7 @@ class _SchoolHomeScreenState extends ConsumerState<SchoolHomeScreen> {
 
   Widget _buildLoadingSkeleton(ThemeData theme) {
     return Semantics(
-      label: 'Loading community feed',
+      label: context.l10n.communityLoadingCommunityFeed,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: 3,
@@ -383,7 +384,7 @@ class _UnreadBadgeButton extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.campaign_outlined),
           onPressed: onTap,
-          tooltip: 'Announcements',
+          tooltip: context.l10n.trainerAnnouncements,
         ),
         Positioned(
           top: 6,

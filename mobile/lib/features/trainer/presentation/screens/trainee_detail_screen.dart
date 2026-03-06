@@ -22,6 +22,7 @@ import 'dart:math' as math;
 import '../../data/repositories/trainer_repository.dart';
 import '../../../nutrition/presentation/providers/nutrition_template_provider.dart';
 import '../../../nutrition/data/models/nutrition_template_models.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TraineeDetailScreen extends ConsumerStatefulWidget {
   final int traineeId;
@@ -57,12 +58,12 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
       body: traineeAsync.when(
         data: (trainee) {
           if (trainee == null) {
-            return const Center(child: Text('Trainee not found'));
+            return Center(child: Text(context.l10n.trainerTraineeNotFound));
           }
           return _buildContent(context, trainee, activityAsync);
         },
         loading: () => const Center(child: AdaptiveSpinner()),
-        error: (error, _) => Center(child: Text('Error: $error')),
+        error: (error, _) => Center(child: Text(context.l10n.exercisesErrorerror)),
       ),
     );
   }
@@ -142,12 +143,12 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
               '/trainer/ai-chat?trainee_id=${trainee.id}&trainee_name=$displayName',
             );
           },
-          tooltip: 'Ask AI about this trainee',
+          tooltip: context.l10n.trainerAskAIAboutThisTrainee,
         ),
         IconButton(
           icon: const Icon(Icons.visibility),
           onPressed: () => _startImpersonation(context),
-          tooltip: 'View as Trainee',
+          tooltip: context.l10n.trainerViewAsTrainee,
         ),
         Theme.of(context).platform == TargetPlatform.iOS
           ? IconButton(
@@ -156,11 +157,11 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                 context: context,
                 actions: [
                   AdaptiveAction(
-                    label: 'Send Message',
+                    label: context.l10n.trainerSendMessage,
                     onPressed: () => _openMessageTrainee(context, trainee),
                   ),
                   AdaptiveAction(
-                    label: 'Remove Trainee',
+                    label: context.l10n.trainerRemoveTrainee,
                     onPressed: () => _openRemoveTrainee(context, trainee),
                     isDestructive: true,
                   ),
@@ -176,10 +177,10 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                 }
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(value: 'message', child: Text('Send Message')),
-                const PopupMenuItem(
+                PopupMenuItem(value: 'message', child: Text(context.l10n.trainerSendMessage)),
+                PopupMenuItem(
                   value: 'remove',
-                  child: Text('Remove Trainee', style: TextStyle(color: Colors.red)),
+                  child: Text(context.l10n.trainerRemoveTrainee, style: TextStyle(color: Colors.red)),
                 ),
               ],
             ),
@@ -280,7 +281,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           Expanded(
             child: _QuickStatCard(
               icon: Icons.fitness_center,
-              label: 'Workouts',
+              label: context.l10n.communityWorkouts,
               value: '${workoutAdherence.toInt()}%',
               subLabel: '$workoutDays/7 days',
               color: Colors.green,
@@ -291,7 +292,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           Expanded(
             child: _QuickStatCard(
               icon: Icons.restaurant,
-              label: 'Nutrition',
+              label: context.l10n.settingsNutrition,
               value: '${nutritionAdherence.toInt()}%',
               subLabel: '$nutritionDays/7 days',
               color: Colors.blue,
@@ -302,7 +303,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           Expanded(
             child: _QuickStatCard(
               icon: Icons.egg_alt,
-              label: 'Protein',
+              label: context.l10n.nutritionProtein,
               value: '${proteinAdherence.toInt()}%',
               subLabel: '$proteinDays/7 days',
               color: Colors.orange,
@@ -458,7 +459,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
         );
       },
       loading: () => const Center(child: AdaptiveSpinner()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => Center(child: Text(context.l10n.featureReqErrore)),
     );
   }
 
@@ -551,7 +552,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Primary Goal', style: TextStyle(color: Colors.grey)),
+                  Text(context.l10n.trainerPrimaryGoal, style: TextStyle(color: Colors.grey)),
                   const SizedBox(height: 4),
                   Text(
                     _formatGoal(goal),
@@ -584,14 +585,14 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             children: [
               Icon(Icons.calendar_today, size: 48, color: Colors.grey[400]),
               const SizedBox(height: 16),
-              const Text('No Active Program', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(context.l10n.trainerNoActiveProgram, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              Text('Assign a program to get started', style: TextStyle(color: Colors.grey[600])),
+              Text(context.l10n.trainerAssignAProgramToGetStarted, style: TextStyle(color: Colors.grey[600])),
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () => context.push('/trainer/programs/assign/${widget.traineeId}'),
                 icon: const Icon(Icons.add),
-                label: const Text('Assign Program'),
+                label: Text(context.l10n.trainerAssignProgram),
               ),
             ],
           ),
@@ -658,7 +659,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                       color: Colors.green,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text('Week $currentWeek', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    child: Text(context.l10n.trainerWeekcurrentWeek, style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -666,11 +667,11 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(Icons.check_circle, color: Colors.green, size: 16),
                       SizedBox(width: 4),
-                      Text('Active', style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.w500)),
+                      Text(context.l10n.adminActive, style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.w500)),
                     ],
                   ),
                   Row(
@@ -688,17 +689,17 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                             color: Colors.blue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
                               Icon(Icons.calendar_month, size: 14, color: Colors.blue),
                               SizedBox(width: 4),
-                              Text('Calendar', style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.w500)),
+                              Text(context.l10n.trainerCalendar, style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.w500)),
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text('Tap to manage', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                      Text(context.l10n.trainerTapToManage, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
                     ],
                   ),
                 ],
@@ -747,7 +748,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             Expanded(
               child: _ActionButton(
                 icon: Icons.message,
-                label: 'Message',
+                label: context.l10n.trainerMessage,
                 color: Colors.green,
                 onTap: () => _openMessageTrainee(context, trainee),
               ),
@@ -756,7 +757,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             Expanded(
               child: _ActionButton(
                 icon: Icons.calendar_month,
-                label: 'Schedule',
+                label: context.l10n.settingsSchedule,
                 color: Colors.orange,
                 onTap: () => _openTraineeSchedule(context, trainee),
               ),
@@ -769,7 +770,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             Expanded(
               child: _ActionButton(
                 icon: Icons.assignment_add,
-                label: 'Send Check-In',
+                label: context.l10n.trainerSendCheckIn,
                 color: Colors.teal,
                 onTap: () => context.push('/trainer/checkin-builder'),
               ),
@@ -778,7 +779,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             Expanded(
               child: _ActionButton(
                 icon: Icons.playlist_add_check,
-                label: 'Manage Habits',
+                label: context.l10n.habitsManageHabits,
                 color: Colors.purple,
                 onTap: () => context.push(
                   '/trainer/trainees/${trainee.id}/habits',
@@ -793,7 +794,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
             Expanded(
               child: _ActionButton(
                 icon: Icons.photo_library,
-                label: 'Progress Photos',
+                label: context.l10n.photosProgressPhotos,
                 color: Colors.indigo,
                 onTap: () => context.push(
                   '/progress-photos?trainee_id=${trainee.id}',
@@ -1003,7 +1004,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           children: [
             Row(
               children: [
-                const Text('Total Sets', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(context.l10n.trainerTotalSets, style: TextStyle(fontWeight: FontWeight.bold)),
                 const Spacer(),
                 Text(
                   '${last7Days.fold(0, (sum, a) => sum + a.totalSets)} sets',
@@ -1073,7 +1074,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           children: [
             Row(
               children: [
-                const Text('Avg Daily Intake', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(context.l10n.trainerAvgDailyIntake, style: TextStyle(fontWeight: FontWeight.bold)),
                 const Spacer(),
                 Text(
                   '$avgCalories kcal',
@@ -1163,7 +1164,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
 
           Future<void> savePreset() async {
             if (name.trim().isEmpty) {
-              showAdaptiveToast(context, message: 'Please enter a preset name', type: ToastType.error);
+              showAdaptiveToast(context, message: context.l10n.trainerPleaseEnterAPresetName, type: ToastType.error);
               return;
             }
 
@@ -1226,7 +1227,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
               if (mounted) {
                 Navigator.pop(dialogContext);
                 onSaved();
-                showAdaptiveToast(context, message: 'Preset deleted', type: ToastType.warning);
+                showAdaptiveToast(context, message: context.l10n.trainerPresetDeleted, type: ToastType.warning);
               }
             } catch (e) {
               setModalState(() => isDeleting = false);
@@ -1343,8 +1344,8 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                   // Name field
                   TextField(
                     decoration: InputDecoration(
-                      labelText: 'Preset Name',
-                      hintText: 'e.g., Training Day, Rest Day',
+                      labelText: context.l10n.trainerPresetName,
+                      hintText: context.l10n.trainerEGTrainingDayRestDay,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -1357,13 +1358,13 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                   AdaptiveDropdown<int?>(
                     value: frequencyPerWeek,
                     decoration: InputDecoration(
-                      labelText: 'Frequency (optional)',
+                      labelText: context.l10n.trainerFrequencyOptional,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     items: [
-                      const AdaptiveDropdownItem<int?>(value: null, label: 'Not specified'),
+                      AdaptiveDropdownItem<int?>(value: null, label: context.l10n.trainerNotSpecified),
                       ...List.generate(7, (i) => i + 1).map(
                         (i) => AdaptiveDropdownItem<int?>(value: i, label: '$i× per week'),
                       ),
@@ -1373,8 +1374,8 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                   const SizedBox(height: 16),
                   // Default toggle
                   SwitchListTile.adaptive(
-                    title: const Text('Set as Default'),
-                    subtitle: const Text('Show as primary option'),
+                    title: Text(context.l10n.trainerSetAsDefault),
+                    subtitle: Text(context.l10n.trainerShowAsPrimaryOption),
                     value: isDefault,
                     onChanged: (v) => setModalState(() => isDefault = v),
                     contentPadding: EdgeInsets.zero,
@@ -1425,14 +1426,14 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Text('kcal', style: TextStyle(color: Colors.grey[600])),
+                        Text(context.l10n.trainerKcal, style: TextStyle(color: Colors.grey[600])),
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
                   // Macro sliders
                   buildMacroSlider(
-                    label: 'Protein',
+                    label: context.l10n.nutritionProtein,
                     value: protein,
                     min: 50,
                     max: 350,
@@ -1444,7 +1445,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                   ),
                   const SizedBox(height: 12),
                   buildMacroSlider(
-                    label: 'Carbs',
+                    label: context.l10n.nutritionCarbs,
                     value: carbs,
                     min: 50,
                     max: 500,
@@ -1456,7 +1457,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                   ),
                   const SizedBox(height: 12),
                   buildMacroSlider(
-                    label: 'Fat',
+                    label: context.l10n.nutritionFat,
                     value: fat,
                     min: 20,
                     max: 200,
@@ -1478,9 +1479,9 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                                 : () async {
                                     final confirmed = await showAdaptiveConfirmDialog(
                                       context: dialogContext,
-                                      title: 'Delete Preset?',
+                                      title: context.l10n.trainerDeletePreset,
                                       message: 'Are you sure you want to delete "${existingPreset?['name']}"?',
-                                      confirmText: 'Delete',
+                                      confirmText: context.l10n.commonDelete,
                                       cancelText: 'Cancel',
                                       isDestructive: true,
                                     );
@@ -1495,7 +1496,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                             ),
                             child: isDeleting
                                 ? const AdaptiveSpinner.small()
-                                : const Text('Delete'),
+                                : Text(context.l10n.commonDelete),
                           ),
                         ),
                       if (isEditing) const SizedBox(width: 12),
@@ -1554,7 +1555,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                       children: [
                         const Icon(Icons.fitness_center, size: 14, color: Colors.green),
                         const SizedBox(width: 4),
-                        const Text('Workout', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                        Text(context.l10n.trainerWorkout, style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -1571,7 +1572,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                       children: [
                         const Icon(Icons.restaurant, size: 14, color: Colors.blue),
                         const SizedBox(width: 4),
-                        const Text('Nutrition', style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold)),
+                        Text(context.l10n.settingsNutrition, style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -1855,7 +1856,7 @@ class _NutritionTemplateSection extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Center(
             child: Semantics(
-              label: 'Loading nutrition template assignment',
+              label: context.l10n.trainerLoadingNutritionTemplateAssignment,
               child: const SizedBox(
                 height: 20,
                 width: 20,
@@ -1883,7 +1884,7 @@ class _NutritionTemplateSection extends ConsumerWidget {
               TextButton(
                 onPressed: () => ref.invalidate(
                     traineeActiveAssignmentProvider(traineeId)),
-                child: const Text('Retry'),
+                child: Text(context.l10n.commonRetry),
               ),
             ],
           ),
@@ -1901,7 +1902,7 @@ class _NutritionTemplateSection extends ConsumerWidget {
   Widget _buildAssignButton(BuildContext context, WidgetRef ref, ThemeData theme) {
     return Semantics(
       button: true,
-      label: 'Assign nutrition template to trainee',
+      label: context.l10n.trainerAssignNutritionTemplateToTrainee,
       child: Card(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -2017,7 +2018,7 @@ class _NutritionTemplateSection extends ConsumerWidget {
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text('Reassign Template?'),
+                        title: Text(context.l10n.trainerReassignTemplate),
                         content: const Text(
                           'This will replace the current nutrition template. '
                           'The trainee\'s macro targets will be recalculated.',
@@ -2025,11 +2026,11 @@ class _NutritionTemplateSection extends ConsumerWidget {
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(ctx).pop(false),
-                            child: const Text('Cancel'),
+                            child: Text(context.l10n.commonCancel),
                           ),
                           FilledButton(
                             onPressed: () => Navigator.of(ctx).pop(true),
-                            child: const Text('Reassign'),
+                            child: Text(context.l10n.trainerReassign),
                           ),
                         ],
                       ),
@@ -2040,7 +2041,7 @@ class _NutritionTemplateSection extends ConsumerWidget {
                         .push('/nutrition/template-assignment/$traineeId');
                     ref.invalidate(traineeActiveAssignmentProvider(traineeId));
                   },
-                  child: const Text('Reassign'),
+                  child: Text(context.l10n.trainerReassign),
                 ),
               ],
             ),
@@ -2472,11 +2473,11 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
           children: [
             Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
             const SizedBox(height: 16),
-            Text('Error loading presets', style: TextStyle(color: Colors.grey[600])),
+            Text(context.l10n.trainerErrorLoadingPresets, style: TextStyle(color: Colors.grey[600])),
             const SizedBox(height: 8),
             TextButton(
               onPressed: _loadPresets,
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -2499,14 +2500,14 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
               TextButton.icon(
                 onPressed: _showImportDialog,
                 icon: const Icon(Icons.file_download_outlined, size: 18),
-                label: const Text('Import'),
+                label: Text(context.l10n.trainerImport),
               ),
               TextButton.icon(
                 onPressed: () {
                   widget.onAddPreset(_loadPresets);
                 },
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add'),
+                label: Text(context.l10n.trainerAdd),
               ),
             ],
           ),
@@ -2531,7 +2532,7 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
                 widget.onAddPreset(_loadPresets);
               },
               icon: const Icon(Icons.add),
-              label: const Text('Add New Preset'),
+              label: Text(context.l10n.trainerAddNewPreset),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
@@ -2572,7 +2573,7 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
                 OutlinedButton.icon(
                   onPressed: _showImportDialog,
                   icon: const Icon(Icons.file_download_outlined),
-                  label: const Text('Import'),
+                  label: Text(context.l10n.trainerImport),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
@@ -2583,7 +2584,7 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
                     widget.onAddPreset(_loadPresets);
                   },
                   icon: const Icon(Icons.add),
-                  label: const Text('Create New'),
+                  label: Text(context.l10n.trainerCreateNew),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
@@ -2695,7 +2696,7 @@ class _MacroPresetsTabState extends State<_MacroPresetsTab> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Text('kcal', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                    Text(context.l10n.trainerKcal, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                   ],
                 ),
               ),
@@ -2813,7 +2814,7 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
 
     if (result['success'] == true) {
       final label = _layoutLabel(layoutType);
-      showAdaptiveToast(context, message: 'Layout updated to $label');
+      showAdaptiveToast(context, message: context.l10n.trainerLayoutUpdatedTolabel);
     } else {
       // Revert to previous value on failure
       setState(() => _selectedLayout = previousLayout);
@@ -2878,7 +2879,7 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
                   });
                   _fetchCurrentLayout();
                 },
-                child: const Text('Retry'),
+                child: Text(context.l10n.commonRetry),
               ),
             ],
           ),
@@ -2910,7 +2911,7 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
                 Expanded(
                   child: _LayoutOption(
                     icon: Icons.table_chart,
-                    label: 'Classic',
+                    label: context.l10n.trainerClassic,
                     description: 'All exercises visible',
                     isSelected: _selectedLayout == 'classic',
                     onTap: () => _updateLayout('classic'),
@@ -2920,7 +2921,7 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
                 Expanded(
                   child: _LayoutOption(
                     icon: Icons.view_carousel,
-                    label: 'Card',
+                    label: context.l10n.trainerCard,
                     description: 'One at a time',
                     isSelected: _selectedLayout == 'card',
                     onTap: () => _updateLayout('card'),
@@ -2930,7 +2931,7 @@ class _WorkoutLayoutPickerState extends ConsumerState<_WorkoutLayoutPicker> {
                 Expanded(
                   child: _LayoutOption(
                     icon: Icons.checklist,
-                    label: 'Minimal',
+                    label: context.l10n.trainerMinimal,
                     description: 'Compact list',
                     isSelected: _selectedLayout == 'minimal',
                     onTap: () => _updateLayout('minimal'),

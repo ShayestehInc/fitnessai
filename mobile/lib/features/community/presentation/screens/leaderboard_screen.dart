@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/leaderboard_model.dart';
 import '../../data/repositories/community_feed_repository.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Leaderboard screen showing rankings by metric and time period.
 class LeaderboardScreen extends ConsumerStatefulWidget {
@@ -61,7 +62,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Leaderboard'),
+        title: Text(context.l10n.communityLeaderboard),
         elevation: 0,
       ),
       body: Column(
@@ -91,15 +92,15 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
     return AdaptiveDropdown<String>(
       value: _metricType,
       decoration: InputDecoration(
-        labelText: 'Metric',
+        labelText: context.l10n.communityMetric,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         isDense: true,
       ),
-      items: const [
-        AdaptiveDropdownItem(value: 'workout_count', label: 'Workouts'),
-        AdaptiveDropdownItem(value: 'current_streak', label: 'Streak'),
+      items: [
+        AdaptiveDropdownItem(value: 'workout_count', label: context.l10n.communityWorkouts),
+        AdaptiveDropdownItem(value: 'current_streak', label: context.l10n.communityStreak),
       ],
       onChanged: (val) {
         if (val != null && val != _metricType) {
@@ -114,15 +115,15 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
     return AdaptiveDropdown<String>(
       value: _timePeriod,
       decoration: InputDecoration(
-        labelText: 'Period',
+        labelText: context.l10n.communityPeriod,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         isDense: true,
       ),
-      items: const [
-        AdaptiveDropdownItem(value: 'weekly', label: 'This Week'),
-        AdaptiveDropdownItem(value: 'monthly', label: 'This Month'),
+      items: [
+        AdaptiveDropdownItem(value: 'weekly', label: context.l10n.communityThisWeek),
+        AdaptiveDropdownItem(value: 'monthly', label: context.l10n.communityThisMonth),
       ],
       onChanged: (val) {
         if (val != null && val != _timePeriod) {
@@ -152,7 +153,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: _loadLeaderboard,
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ],
         ),

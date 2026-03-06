@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/checkin_models.dart';
 import '../providers/checkin_provider.dart';
 import '../widgets/dynamic_field_widget.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Trainee-facing dynamic form screen for completing a check-in assignment.
 class CheckInFormScreen extends ConsumerStatefulWidget {
@@ -51,7 +52,7 @@ class _CheckInFormScreenState extends ConsumerState<CheckInFormScreen> {
     if (!_validate()) {
       showAdaptiveToast(
         context,
-        message: 'Please fill in all required fields',
+        message: context.l10n.checkinsPleaseFillInAllRequiredFields,
         type: ToastType.warning,
       );
       return;
@@ -76,7 +77,7 @@ class _CheckInFormScreenState extends ConsumerState<CheckInFormScreen> {
       ref.invalidate(pendingCheckInsProvider);
       showAdaptiveToast(
         context,
-        message: 'Check-in submitted successfully!',
+        message: context.l10n.checkinsCheckInSubmittedSuccessfully,
         type: ToastType.success,
       );
       context.pop();
@@ -213,7 +214,7 @@ class _CheckInFormScreenState extends ConsumerState<CheckInFormScreen> {
               onPressed: _isSubmitting ? null : _submit,
               child: _isSubmitting
                   ? const AdaptiveSpinner.small()
-                  : const Text('Submit Check-In'),
+                  : Text(context.l10n.checkinsSubmitCheckIn),
             ),
           ),
         ),
@@ -238,18 +239,18 @@ class _CheckInFormScreenState extends ConsumerState<CheckInFormScreen> {
     final shouldExit = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Discard check-in?'),
+        title: Text(context.l10n.checkinsDiscardCheckIn),
         content: const Text(
           'You have unsaved responses. Are you sure you want to leave?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Discard'),
+            child: Text(context.l10n.checkinsDiscard),
           ),
         ],
       ),

@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/feature_request_model.dart';
 import '../providers/feature_request_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class SubmitFeatureScreen extends ConsumerStatefulWidget {
   const SubmitFeatureScreen({super.key});
@@ -33,7 +34,7 @@ class _SubmitFeatureScreenState extends ConsumerState<SubmitFeatureScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Request a Feature'),
+        title: Text(context.l10n.featureReqRequestAFeature),
       ),
       body: Form(
         key: _formKey,
@@ -54,9 +55,9 @@ class _SubmitFeatureScreenState extends ConsumerState<SubmitFeatureScreen> {
             // Title field
             TextFormField(
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Feature Title',
-                hintText: 'Brief description of your idea',
+              decoration: InputDecoration(
+                labelText: context.l10n.featureReqFeatureTitle,
+                hintText: context.l10n.featureReqBriefDescriptionOfYourIdea,
                 border: OutlineInputBorder(),
               ),
               maxLength: 255,
@@ -75,8 +76,8 @@ class _SubmitFeatureScreenState extends ConsumerState<SubmitFeatureScreen> {
             // Category dropdown
             AdaptiveDropdown<FeatureCategory>(
               value: _selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Category',
+              decoration: InputDecoration(
+                labelText: context.l10n.featureReqCategory,
                 border: OutlineInputBorder(),
               ),
               items: FeatureCategory.values.map((category) {
@@ -96,9 +97,9 @@ class _SubmitFeatureScreenState extends ConsumerState<SubmitFeatureScreen> {
             // Description field
             TextFormField(
               controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'Explain your idea in detail. What problem does it solve? How would it work?',
+              decoration: InputDecoration(
+                labelText: context.l10n.adminDescription,
+                hintText: context.l10n.featureReqExplainYourIdeaInDetailWhatProblemDoesItSolve,
                 border: OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
@@ -159,7 +160,7 @@ class _SubmitFeatureScreenState extends ConsumerState<SubmitFeatureScreen> {
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting
                     ? AdaptiveSpinner.small()
-                    : const Text('Submit Feature Request'),
+                    : Text(context.l10n.featureReqSubmitFeatureRequest),
               ),
             ),
           ],
@@ -185,7 +186,7 @@ class _SubmitFeatureScreenState extends ConsumerState<SubmitFeatureScreen> {
     setState(() => _isSubmitting = false);
 
     if (result['success']) {
-      showAdaptiveToast(context, message: 'Feature request submitted successfully!', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.featureReqFeatureRequestSubmittedSuccessfully, type: ToastType.success);
       context.pop();
     } else {
       showAdaptiveToast(context, message: result['error'] ?? 'Failed to submit feature request', type: ToastType.error);

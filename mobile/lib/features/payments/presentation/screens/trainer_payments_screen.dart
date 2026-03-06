@@ -8,6 +8,7 @@ import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/payment_models.dart';
 import '../providers/payment_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TrainerPaymentsScreen extends ConsumerStatefulWidget {
   const TrainerPaymentsScreen({super.key});
@@ -165,7 +166,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
     if (state.payments.isEmpty) {
       return _buildEmptyState(
         icon: Icons.receipt_long,
-        title: 'No Payments Yet',
+        title: context.l10n.paymentsNoPaymentsYet,
         message: 'You haven\'t received any payments yet. Share your pricing with trainees to get started.',
       );
     }
@@ -276,7 +277,7 @@ class _TrainerPaymentsScreenState extends ConsumerState<TrainerPaymentsScreen>
     if (state.subscribers.isEmpty) {
       return _buildEmptyState(
         icon: Icons.people_outline,
-        title: 'No Subscribers Yet',
+        title: context.l10n.paymentsNoSubscribersYet,
         message: 'You don\'t have any active subscribers yet. Set up your pricing and share it with potential trainees.',
       );
     }

@@ -8,6 +8,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../ambassador/data/models/ambassador_models.dart';
 import '../../../ambassador/presentation/providers/ambassador_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminAmbassadorsScreen extends ConsumerStatefulWidget {
   const AdminAmbassadorsScreen({super.key});
@@ -51,12 +52,12 @@ class _AdminAmbassadorsScreenState
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Ambassadors'),
+        title: Text(context.l10n.adminAmbassadors),
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Create Ambassador',
+            tooltip: context.l10n.adminCreateAmbassador,
             onPressed: () => context.push('/admin/ambassadors/create'),
           ),
         ],
@@ -71,7 +72,7 @@ class _AdminAmbassadorsScreenState
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
-                      hintText: 'Search by name or email...',
+                      hintText: context.l10n.adminSearchByNameOrEmail,
                       prefixIcon: const Icon(Icons.search),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -90,24 +91,24 @@ class _AdminAmbassadorsScreenState
                         ),
                         onPressed: () => showAdaptiveActionSheet(
                           context: context,
-                          title: 'Filter',
+                          title: context.l10n.commonFilter,
                           actions: [
                             AdaptiveAction(
-                              label: 'All',
+                              label: context.l10n.commonAll,
                               onPressed: () {
                                 setState(() => _activeFilter = null);
                                 _search();
                               },
                             ),
                             AdaptiveAction(
-                              label: 'Active',
+                              label: context.l10n.adminActive,
                               onPressed: () {
                                 setState(() => _activeFilter = true);
                                 _search();
                               },
                             ),
                             AdaptiveAction(
-                              label: 'Inactive',
+                              label: context.l10n.adminInactive,
                               onPressed: () {
                                 setState(() => _activeFilter = false);
                                 _search();
@@ -128,9 +129,9 @@ class _AdminAmbassadorsScreenState
                           _search();
                         },
                         itemBuilder: (context) => [
-                          const PopupMenuItem(value: null, child: Text('All')),
-                          const PopupMenuItem(value: true, child: Text('Active')),
-                          const PopupMenuItem(value: false, child: Text('Inactive')),
+                          PopupMenuItem(value: null, child: Text(context.l10n.commonAll)),
+                          PopupMenuItem(value: true, child: Text(context.l10n.adminActive)),
+                          PopupMenuItem(value: false, child: Text(context.l10n.adminInactive)),
                         ],
                       ),
               ],
@@ -168,7 +169,7 @@ class _AdminAmbassadorsScreenState
                               ElevatedButton.icon(
                                 onPressed: _search,
                                 icon: const Icon(Icons.refresh, size: 18),
-                                label: const Text('Retry'),
+                                label: Text(context.l10n.commonRetry),
                               ),
                             ],
                           ),

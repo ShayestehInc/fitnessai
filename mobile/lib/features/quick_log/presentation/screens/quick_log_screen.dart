@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/quick_log_provider.dart';
 import '../widgets/template_card.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class QuickLogScreen extends ConsumerStatefulWidget {
   const QuickLogScreen({super.key});
@@ -73,7 +74,7 @@ class _QuickLogScreenState extends ConsumerState<QuickLogScreen>
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Quick Log'),
+        title: Text(context.l10n.homeQuickLog),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -114,7 +115,7 @@ class _QuickLogScreenState extends ConsumerState<QuickLogScreen>
     if (template == null) {
       showAdaptiveToast(
         context,
-        message: 'Please select a workout template',
+        message: context.l10n.quickLogPleaseSelectAWorkoutTemplate,
         type: ToastType.error,
       );
       return;
@@ -124,7 +125,7 @@ class _QuickLogScreenState extends ConsumerState<QuickLogScreen>
     if (duration <= 0) {
       showAdaptiveToast(
         context,
-        message: 'Duration must be greater than zero',
+        message: context.l10n.quickLogDurationMustBeGreaterThanZero,
         type: ToastType.error,
       );
       return;
@@ -160,7 +161,7 @@ class _QuickLogScreenState extends ConsumerState<QuickLogScreen>
     if (result['success'] == true) {
       showAdaptiveToast(
         context,
-        message: 'Quick log saved!',
+        message: context.l10n.quickLogQuickLogSaved,
         type: ToastType.success,
       );
       context.pop();
@@ -214,7 +215,7 @@ class _TemplateList extends ConsumerWidget {
               OutlinedButton(
                 onPressed: () =>
                     ref.invalidate(workoutTemplatesProvider(category)),
-                child: const Text('Retry'),
+                child: Text(context.l10n.commonRetry),
               ),
             ],
           ),
@@ -337,7 +338,7 @@ class _QuickLogForm extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Duration', style: theme.textTheme.titleSmall),
+              Text(context.l10n.quickLogDuration, style: theme.textTheme.titleSmall),
               Text(
                 '$duration min',
                 style: theme.textTheme.titleSmall?.copyWith(
@@ -377,7 +378,7 @@ class _QuickLogForm extends ConsumerWidget {
                     FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                   ],
                   decoration: InputDecoration(
-                    labelText: 'Calories',
+                    labelText: context.l10n.nutritionCalories,
                     suffixText: 'kcal',
                     filled: true,
                     fillColor: theme.scaffoldBackgroundColor,
@@ -405,7 +406,7 @@ class _QuickLogForm extends ConsumerWidget {
                 child: TextField(
                   controller: notesController,
                   decoration: InputDecoration(
-                    labelText: 'Notes (optional)',
+                    labelText: context.l10n.quickLogNotesOptional,
                     filled: true,
                     fillColor: theme.scaffoldBackgroundColor,
                     border: OutlineInputBorder(

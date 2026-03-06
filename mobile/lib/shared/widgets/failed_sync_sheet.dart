@@ -9,6 +9,7 @@ import '../../core/providers/database_provider.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/services/sync_status.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../core/l10n/l10n_extension.dart';
 
 /// Bottom sheet showing failed sync items with individual retry/delete actions.
 /// AC-27: Lists failed items with operation type, date, error message,
@@ -140,7 +141,7 @@ class _FailedSyncSheetState extends ConsumerState<FailedSyncSheet> {
                           : () {
                               _retryAll();
                             },
-                      child: const Text('Retry All'),
+                      child: Text(context.l10n.commonRetryAll),
                     ),
                   ],
                 ),
@@ -296,7 +297,7 @@ class _FailedSyncItemCard extends StatelessWidget {
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFFEF4444),
                 ),
-                child: const Text('Delete'),
+                child: Text(context.l10n.commonDelete),
               ),
               const SizedBox(width: 8),
               OutlinedButton(
@@ -305,7 +306,7 @@ class _FailedSyncItemCard extends StatelessWidget {
                   foregroundColor: const Color(0xFF3B82F6),
                   side: const BorderSide(color: Color(0xFF3B82F6)),
                 ),
-                child: const Text('Retry'),
+                child: Text(context.l10n.commonRetry),
               ),
             ],
           ),

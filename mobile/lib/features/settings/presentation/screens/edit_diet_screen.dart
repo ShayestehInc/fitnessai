@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../onboarding/data/models/user_profile_model.dart';
 import '../providers/settings_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class EditDietScreen extends ConsumerStatefulWidget {
   const EditDietScreen({super.key});
@@ -277,13 +278,13 @@ class _EditDietScreenState extends ConsumerState<EditDietScreen> {
                           : () async {
                               final success = await notifier.saveProfile();
                               if (success && context.mounted) {
-                                showAdaptiveToast(context, message: 'Diet preferences updated!');
+                                showAdaptiveToast(context, message: context.l10n.settingsDietPreferencesUpdated);
                                 context.pop();
                               }
                             },
                       child: state.isLoading
                           ? const AdaptiveSpinner.small()
-                          : const Text('Save Changes'),
+                          : Text(context.l10n.adminSaveChanges),
                     ),
                   ),
 

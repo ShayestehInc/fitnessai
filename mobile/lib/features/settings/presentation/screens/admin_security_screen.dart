@@ -8,6 +8,7 @@ import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Admin security settings screen
 class AdminSecurityScreen extends ConsumerStatefulWidget {
@@ -24,7 +25,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Security'),
+        title: Text(context.l10n.settingsSecurity),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -35,8 +36,8 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
           _buildSettingsTile(
             theme: theme,
             icon: Icons.lock_outline,
-            title: 'Change Password',
-            subtitle: 'Update your account password',
+            title: context.l10n.settingsChangePassword,
+            subtitle: context.l10n.settingsUpdateYourAccountPassword,
             onTap: () => _navigateToChangePassword(context),
           ),
 
@@ -55,16 +56,16 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
           _buildSettingsTile(
             theme: theme,
             icon: Icons.devices,
-            title: 'Active Sessions',
-            subtitle: 'Manage devices logged into your account',
+            title: context.l10n.settingsActiveSessions,
+            subtitle: context.l10n.settingsManageDevicesLoggedIntoYourAccount,
             onTap: () => _showActiveSessionsDialog(context),
           ),
           const SizedBox(height: 8),
           _buildSettingsTile(
             theme: theme,
             icon: Icons.logout,
-            title: 'Sign Out All Devices',
-            subtitle: 'Log out from all other devices',
+            title: context.l10n.settingsSignOutAllDevices,
+            subtitle: context.l10n.settingsLogOutFromAllOtherDevices,
             isDestructive: true,
             onTap: () => _confirmSignOutAll(context),
           ),
@@ -398,7 +399,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.phone_iphone),
                 title: const Text('iPhone 15 Pro'),
-                subtitle: const Text('Current session'),
+                subtitle: Text(context.l10n.settingsCurrentSession),
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -416,7 +417,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
+                  child: Text(context.l10n.commonClose),
                 ),
               ),
             ],
@@ -429,14 +430,14 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
   void _confirmSignOutAll(BuildContext context) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Sign Out All Devices',
+      title: context.l10n.settingsSignOutAllDevices,
       message: 'This will sign you out from all devices except this one. You will need to sign in again on other devices.',
-      confirmText: 'Sign Out All',
+      confirmText: context.l10n.settingsSignOutAll,
       isDestructive: true,
     );
 
     if (confirmed == true && mounted) {
-      showAdaptiveToast(context, message: 'Signed out from all other devices', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.settingsSignedOutFromAllOtherDevices, type: ToastType.success);
     }
   }
 
@@ -527,7 +528,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      showAdaptiveToast(context, message: 'Password changed successfully', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.settingsPasswordChangedSuccessfully, type: ToastType.success);
       Navigator.of(context).pop();
     } else {
       final errorMsg = result['error'] as String? ?? 'Failed to change password';
@@ -546,7 +547,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Change Password'),
+        title: Text(context.l10n.settingsChangePassword),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -571,7 +572,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             // Current Password
             _buildPasswordField(
               controller: _currentPasswordController,
-              label: 'Current Password',
+              label: context.l10n.settingsCurrentPassword,
               hint: 'Enter your current password',
               obscure: _obscureCurrent,
               onToggleObscure: () => setState(() => _obscureCurrent = !_obscureCurrent),
@@ -584,7 +585,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             // New Password
             _buildPasswordField(
               controller: _newPasswordController,
-              label: 'New Password',
+              label: context.l10n.settingsNewPassword,
               hint: 'At least 8 characters',
               obscure: _obscureNew,
               onToggleObscure: () => setState(() => _obscureNew = !_obscureNew),
@@ -597,7 +598,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             // Confirm Password
             _buildPasswordField(
               controller: _confirmPasswordController,
-              label: 'Confirm New Password',
+              label: context.l10n.settingsConfirmNewPassword,
               hint: 'Re-enter your new password',
               obscure: _obscureConfirm,
               onToggleObscure: () => setState(() => _obscureConfirm = !_obscureConfirm),

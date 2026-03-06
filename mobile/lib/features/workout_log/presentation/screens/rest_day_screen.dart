@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen for rest day completion with optional recovery exercises.
 class RestDayScreen extends ConsumerStatefulWidget {
@@ -51,14 +52,14 @@ class _RestDayScreenState extends ConsumerState<RestDayScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rest day completed!')),
+          SnackBar(content: Text(context.l10n.workoutRestDayCompleted)),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save rest day: $e')),
+          SnackBar(content: Text(context.l10n.workoutFailedToSaveRestDaye)),
         );
       }
     } finally {
@@ -72,7 +73,7 @@ class _RestDayScreenState extends ConsumerState<RestDayScreen> {
     final completedCount = _recoveryExercises.where((e) => e.completed).length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Rest Day')),
+      appBar: AppBar(title: Text(context.l10n.trainerRestDay)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -145,9 +146,9 @@ class _RestDayScreenState extends ConsumerState<RestDayScreen> {
           TextField(
             controller: _notesController,
             maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Notes (optional)',
-              hintText: 'How are you feeling today?',
+            decoration: InputDecoration(
+              labelText: context.l10n.quickLogNotesOptional,
+              hintText: context.l10n.nutritionHowAreYouFeelingToday,
               border: OutlineInputBorder(),
             ),
           ),

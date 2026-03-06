@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/event_model.dart';
 import '../providers/event_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TrainerEventFormScreen extends ConsumerStatefulWidget {
   final int? eventId;
@@ -79,12 +80,12 @@ class _TrainerEventFormScreenState
             if (!_existingEvent!.isCancelled)
               IconButton(
                 icon: const Icon(Icons.cancel_outlined),
-                tooltip: 'Cancel event',
+                tooltip: context.l10n.communityCancelEvent,
                 onPressed: _confirmCancel,
               ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete event',
+              tooltip: context.l10n.communityDeleteEvent,
               onPressed: _confirmDelete,
             ),
           ],
@@ -134,8 +135,8 @@ class _TrainerEventFormScreenState
     return TextFormField(
       controller: _titleController,
       maxLength: 200,
-      decoration: const InputDecoration(
-        labelText: 'Title',
+      decoration: InputDecoration(
+        labelText: context.l10n.communityTitle,
         border: OutlineInputBorder(),
       ),
       validator: (v) =>
@@ -148,8 +149,8 @@ class _TrainerEventFormScreenState
       controller: _descriptionController,
       maxLength: 2000,
       maxLines: 4,
-      decoration: const InputDecoration(
-        labelText: 'Description (optional)',
+      decoration: InputDecoration(
+        labelText: context.l10n.adminDescriptionOptional,
         border: OutlineInputBorder(),
         alignLabelWithHint: true,
       ),
@@ -159,16 +160,16 @@ class _TrainerEventFormScreenState
   Widget _buildEventTypeSelector() {
     return DropdownButtonFormField<String>(
       value: _eventType,
-      decoration: const InputDecoration(
-        labelText: 'Event Type',
+      decoration: InputDecoration(
+        labelText: context.l10n.communityEventType,
         border: OutlineInputBorder(),
       ),
-      items: const [
-        DropdownMenuItem(value: 'live_session', child: Text('Live Session')),
-        DropdownMenuItem(value: 'q_and_a', child: Text('Q&A')),
-        DropdownMenuItem(value: 'workshop', child: Text('Workshop')),
-        DropdownMenuItem(value: 'challenge', child: Text('Challenge')),
-        DropdownMenuItem(value: 'other', child: Text('Other')),
+      items: [
+        DropdownMenuItem(value: 'live_session', child: Text(context.l10n.communityLiveSession)),
+        DropdownMenuItem(value: 'q_and_a', child: Text(context.l10n.communityQA)),
+        DropdownMenuItem(value: 'workshop', child: Text(context.l10n.communityWorkshop)),
+        DropdownMenuItem(value: 'challenge', child: Text(context.l10n.communityChallenge)),
+        DropdownMenuItem(value: 'other', child: Text(context.l10n.communityOther)),
       ],
       onChanged: (v) {
         if (v != null) setState(() => _eventType = v);
@@ -183,7 +184,7 @@ class _TrainerEventFormScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Start', style: Theme.of(context).textTheme.labelLarge),
+        Text(context.l10n.calendarStart, style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -205,7 +206,7 @@ class _TrainerEventFormScreenState
           ],
         ),
         const SizedBox(height: 12),
-        Text('End', style: Theme.of(context).textTheme.labelLarge),
+        Text(context.l10n.calendarEnd, style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -232,8 +233,8 @@ class _TrainerEventFormScreenState
 
   Widget _buildVirtualToggle() {
     return SwitchListTile(
-      title: const Text('Virtual Event'),
-      subtitle: const Text('Attendees join via meeting link'),
+      title: Text(context.l10n.communityVirtualEvent),
+      subtitle: Text(context.l10n.communityAttendeesJoinViaMeetingLink),
       value: _isVirtual,
       onChanged: (v) => setState(() => _isVirtual = v),
       contentPadding: EdgeInsets.zero,
@@ -244,8 +245,8 @@ class _TrainerEventFormScreenState
     return TextFormField(
       controller: _meetingUrlController,
       keyboardType: TextInputType.url,
-      decoration: const InputDecoration(
-        labelText: 'Meeting Link',
+      decoration: InputDecoration(
+        labelText: context.l10n.communityMeetingLink,
         hintText: 'https://zoom.us/j/...',
         border: OutlineInputBorder(),
       ),
@@ -266,9 +267,9 @@ class _TrainerEventFormScreenState
     return TextFormField(
       controller: _maxAttendeesController,
       keyboardType: TextInputType.number,
-      decoration: const InputDecoration(
-        labelText: 'Max Attendees (optional)',
-        helperText: 'Leave empty for unlimited.',
+      decoration: InputDecoration(
+        labelText: context.l10n.communityMaxAttendeesOptional,
+        helperText: context.l10n.communityLeaveEmptyForUnlimited,
         border: OutlineInputBorder(),
       ),
       validator: (v) {
@@ -362,7 +363,7 @@ class _TrainerEventFormScreenState
     if (_endsAt.isBefore(_startsAt) || _endsAt == _startsAt) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('End time must be after start time'),
+          content: Text(context.l10n.calendarEndTimeMustBeAfterStartTime),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -429,14 +430,14 @@ class _TrainerEventFormScreenState
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancel Event?'),
+        title: Text(context.l10n.communityCancelEvent2),
         content: const Text(
           'Trainees will see this event as cancelled. This cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Keep'),
+            child: Text(context.l10n.communityKeep),
           ),
           FilledButton(
             onPressed: () async {
@@ -447,14 +448,14 @@ class _TrainerEventFormScreenState
                     .cancelEvent(widget.eventId!);
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Event cancelled')),
+                  SnackBar(content: Text(context.l10n.communityEventCancelled)),
                 );
                 context.pop('updated');
               } on Exception {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text('Failed to cancel event'),
+                    content: Text(context.l10n.communityFailedToCancelEvent),
                     backgroundColor: Theme.of(context).colorScheme.error,
                   ),
                 );
@@ -463,7 +464,7 @@ class _TrainerEventFormScreenState
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('Cancel Event'),
+            child: Text(context.l10n.communityCancelEvent3),
           ),
         ],
       ),
@@ -474,14 +475,14 @@ class _TrainerEventFormScreenState
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Event?'),
+        title: Text(context.l10n.communityDeleteEvent2),
         content: const Text(
           'This event will be permanently deleted. This cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Keep'),
+            child: Text(context.l10n.communityKeep),
           ),
           FilledButton(
             onPressed: () async {
@@ -493,7 +494,7 @@ class _TrainerEventFormScreenState
                     .deleteEvent(widget.eventId!);
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Event deleted')),
+                  SnackBar(content: Text(context.l10n.communityEventDeleted)),
                 );
                 context.pop('deleted');
               } on Exception {
@@ -501,7 +502,7 @@ class _TrainerEventFormScreenState
                 setState(() => _isDeleting = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text('Failed to delete event'),
+                    content: Text(context.l10n.communityFailedToDeleteEvent),
                     backgroundColor: Theme.of(context).colorScheme.error,
                   ),
                 );
@@ -510,7 +511,7 @@ class _TrainerEventFormScreenState
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(context.l10n.commonDelete),
           ),
         ],
       ),

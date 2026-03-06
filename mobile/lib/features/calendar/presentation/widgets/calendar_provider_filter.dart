@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Filter chips for selecting calendar provider (All / Google / Microsoft).
 class CalendarProviderFilter extends StatelessWidget {
@@ -18,11 +19,11 @@ class CalendarProviderFilter extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          _Chip(label: 'All', selected: selected == null, onTap: () => onChanged(null)),
+          _Chip(label: context.l10n.commonAll, selected: selected == null, onTap: () => onChanged(null)),
           const SizedBox(width: 8),
-          _Chip(label: 'Google', selected: selected == 'google', onTap: () => onChanged('google')),
+          _Chip(label: context.l10n.authGoogle, selected: selected == 'google', onTap: () => onChanged('google')),
           const SizedBox(width: 8),
-          _Chip(label: 'Microsoft', selected: selected == 'microsoft', onTap: () => onChanged('microsoft')),
+          _Chip(label: context.l10n.calendarMicrosoft, selected: selected == 'microsoft', onTap: () => onChanged('microsoft')),
         ],
       ),
     );
@@ -42,7 +43,7 @@ class _Chip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: 'Filter by $label',
+      label: context.l10n.calendarFilterBylabel,
       child: AdaptiveTappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),

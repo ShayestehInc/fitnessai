@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/tier_coupon_models.dart';
 import '../providers/admin_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminCouponDetailScreen extends ConsumerStatefulWidget {
   final int couponId;
@@ -43,12 +44,12 @@ class _AdminCouponDetailScreenState
           if (coupon != null)
             IconButton(
               icon: const Icon(Icons.copy),
-              tooltip: 'Copy code',
+              tooltip: context.l10n.adminCopyCode,
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: coupon.code));
                 showAdaptiveToast(
                   context,
-                  message: 'Code copied to clipboard',
+                  message: context.l10n.adminCodeCopiedToClipboard,
                 );
               },
             ),
@@ -77,14 +78,14 @@ class _AdminCouponDetailScreenState
                               .read(couponDetailProvider(widget.couponId)
                                   .notifier)
                               .loadCoupon(),
-                          child: const Text('Retry'),
+                          child: Text(context.l10n.commonRetry),
                         ),
                       ],
                     ),
                   ),
                 )
               : coupon == null
-                  ? const Center(child: Text('Coupon not found'))
+                  ? Center(child: Text(context.l10n.adminCouponNotFound))
                   : AdaptiveRefreshIndicator(
                       onRefresh: () => ref
                           .read(couponDetailProvider(widget.couponId).notifier)

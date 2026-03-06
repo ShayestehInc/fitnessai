@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/space_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen for creating (or editing) a space — trainer only.
 class SpaceCreateScreen extends ConsumerStatefulWidget {
@@ -39,7 +40,7 @@ class _SpaceCreateScreenState extends ConsumerState<SpaceCreateScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Space'),
+        title: Text(context.l10n.communityCreateSpace),
         elevation: 0,
       ),
       body: Form(
@@ -56,8 +57,8 @@ class _SpaceCreateScreenState extends ConsumerState<SpaceCreateScreen> {
               controller: _nameController,
               maxLength: 200,
               decoration: InputDecoration(
-                labelText: 'Space Name',
-                hintText: 'e.g. Workout Tips',
+                labelText: context.l10n.communitySpaceName,
+                hintText: context.l10n.communityEGWorkoutTips,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -77,8 +78,8 @@ class _SpaceCreateScreenState extends ConsumerState<SpaceCreateScreen> {
               maxLines: 3,
               maxLength: 500,
               decoration: InputDecoration(
-                labelText: 'Description (optional)',
-                hintText: 'What is this space about?',
+                labelText: context.l10n.adminDescriptionOptional,
+                hintText: context.l10n.communityWhatIsThisSpaceAbout,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -92,7 +93,7 @@ class _SpaceCreateScreenState extends ConsumerState<SpaceCreateScreen> {
 
             // Default toggle
             SwitchListTile(
-              title: const Text('Auto-join new members'),
+              title: Text(context.l10n.communityAutoJoinNewMembers),
               subtitle: const Text(
                 'New trainees will automatically join this space',
               ),
@@ -117,7 +118,7 @@ class _SpaceCreateScreenState extends ConsumerState<SpaceCreateScreen> {
                 ),
                 child: _isSubmitting
                     ? AdaptiveSpinner.small()
-                    : const Text('Create Space'),
+                    : Text(context.l10n.communityCreateSpace),
               ),
             ),
           ],
@@ -188,7 +189,7 @@ class _SpaceCreateScreenState extends ConsumerState<SpaceCreateScreen> {
           children: [
             Expanded(
               child: _VisibilityOption(
-                label: 'Public',
+                label: context.l10n.communityPublic,
                 icon: Icons.public,
                 description: 'Visible to all members',
                 isSelected: _visibility == 'public',
@@ -199,7 +200,7 @@ class _SpaceCreateScreenState extends ConsumerState<SpaceCreateScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _VisibilityOption(
-                label: 'Private',
+                label: context.l10n.communityPrivate,
                 icon: Icons.lock_outline,
                 description: 'Invite only',
                 isSelected: _visibility == 'private',
@@ -232,10 +233,10 @@ class _SpaceCreateScreenState extends ConsumerState<SpaceCreateScreen> {
     if (success) {
       Navigator.of(context).pop();
       showAdaptiveToast(context,
-          message: 'Space created!', type: ToastType.success);
+          message: context.l10n.communitySpaceCreated, type: ToastType.success);
     } else {
       showAdaptiveToast(context,
-          message: 'Failed to create space', type: ToastType.error);
+          message: context.l10n.communityFailedToCreateSpace, type: ToastType.error);
     }
   }
 }

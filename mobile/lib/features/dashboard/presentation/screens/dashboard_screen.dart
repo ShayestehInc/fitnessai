@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../logging/presentation/screens/ai_command_center_screen.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Trainee Dashboard Screen
 /// Shows overview and floating AI Command Center button
@@ -17,7 +18,7 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        title: Text(context.l10n.navDashboard),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -31,7 +32,7 @@ class DashboardScreen extends ConsumerWidget {
           if (Theme.of(context).platform == TargetPlatform.iOS)
             TextButton.icon(
               icon: const Icon(Icons.chat_bubble_outline),
-              label: const Text('AI Command'),
+              label: Text(context.l10n.dashboardAiCommand),
               onPressed: () {
                 Navigator.of(context).push(
                   adaptivePageRoute(
@@ -65,19 +66,19 @@ class DashboardScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
                     _StatRow(
                       icon: Icons.fitness_center,
-                      label: 'Workouts',
+                      label: context.l10n.communityWorkouts,
                       value: '0',
                     ),
                     const SizedBox(height: 8),
                     _StatRow(
                       icon: Icons.restaurant,
-                      label: 'Calories',
+                      label: context.l10n.nutritionCalories,
                       value: '0',
                     ),
                     const SizedBox(height: 8),
                     _StatRow(
                       icon: Icons.directions_walk,
-                      label: 'Steps',
+                      label: context.l10n.dashboardSteps,
                       value: '0',
                     ),
                   ],
@@ -123,7 +124,7 @@ class DashboardScreen extends ConsumerWidget {
                 );
               },
               icon: const Icon(Icons.chat_bubble_outline),
-              label: const Text('AI Command'),
+              label: Text(context.l10n.dashboardAiCommand),
             ),
     );
   }

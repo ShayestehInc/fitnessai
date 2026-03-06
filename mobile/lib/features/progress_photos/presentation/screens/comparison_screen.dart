@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/progress_photo_model.dart';
 import '../providers/progress_photo_provider.dart';
 import '../widgets/comparison_slider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen that lets the user select two progress photos and compare them
 /// side-by-side with a slider overlay and measurement diffs.
@@ -32,7 +33,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Compare Photos'),
+        title: Text(context.l10n.photosComparePhotos),
       ),
       body: photosAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -45,14 +46,14 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
                 Icon(Icons.error_outline, size: 48,
                     color: theme.colorScheme.error),
                 const SizedBox(height: 16),
-                Text('Failed to load photos',
+                Text(context.l10n.photosFailedToLoadPhotos,
                     style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(error.toString(), style: theme.textTheme.bodySmall),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () => ref.invalidate(photosProvider),
-                  child: const Text('Retry'),
+                  child: Text(context.l10n.commonRetry),
                 ),
               ],
             ),
@@ -113,7 +114,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
             children: [
               Expanded(
                 child: _PhotoSlot(
-                  label: 'Before',
+                  label: context.l10n.photosBefore,
                   photo: _photo1,
                   onTap: () => _selectPhoto(context, photos, isFirstSlot: true),
                 ),
@@ -121,7 +122,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: _PhotoSlot(
-                  label: 'After',
+                  label: context.l10n.photosAfter,
                   photo: _photo2,
                   onTap: () =>
                       _selectPhoto(context, photos, isFirstSlot: false),

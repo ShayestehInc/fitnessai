@@ -14,6 +14,7 @@ import '../../../logging/presentation/providers/logging_provider.dart';
 import '../providers/nutrition_provider.dart';
 import '../providers/food_search_provider.dart';
 import '../../data/models/food_search_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AddFoodScreen extends ConsumerStatefulWidget {
   final int? mealNumber;
@@ -166,7 +167,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
               child: FilledButton.icon(
                 onPressed: () => context.push('/barcode-scan'),
                 icon: const Icon(Icons.qr_code_scanner),
-                label: const Text('Open Scanner'),
+                label: Text(context.l10n.nutritionOpenScanner),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -265,7 +266,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           TextField(
             controller: _foodNameController,
             decoration: InputDecoration(
-              hintText: 'e.g., Chicken Breast',
+              hintText: context.l10n.nutritionEGChickenBreast,
               filled: true,
               fillColor: theme.cardColor,
               border: OutlineInputBorder(
@@ -289,7 +290,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           TextField(
             controller: _servingSizeController,
             decoration: InputDecoration(
-              hintText: 'e.g., 150g, 1 cup',
+              hintText: context.l10n.nutritionEG150g1Cup,
               filled: true,
               fillColor: theme.cardColor,
               border: OutlineInputBorder(
@@ -312,7 +313,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             children: [
               Expanded(
                 child: _buildMacroInput(
-                  label: 'Protein',
+                  label: context.l10n.nutritionProtein,
                   controller: _proteinController,
                   color: const Color(0xFFEC4899), // Pink
                   suffix: 'g',
@@ -322,7 +323,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
               const SizedBox(width: 12),
               Expanded(
                 child: _buildMacroInput(
-                  label: 'Carbs',
+                  label: context.l10n.nutritionCarbs,
                   controller: _carbsController,
                   color: const Color(0xFF22C55E), // Green
                   suffix: 'g',
@@ -332,7 +333,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
               const SizedBox(width: 12),
               Expanded(
                 child: _buildMacroInput(
-                  label: 'Fat',
+                  label: context.l10n.nutritionFat,
                   controller: _fatController,
                   color: const Color(0xFF3B82F6), // Blue
                   suffix: 'g',
@@ -536,7 +537,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
 
         showAdaptiveToast(
           context,
-          message: 'Added "$foodName" to Meal $mealNumber',
+          message: context.l10n.nutritionAddedfoodNameToMealmealNumber,
           type: ToastType.success,
         );
         _showAchievementToastsFromLogging();
@@ -544,7 +545,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
       } else if (mounted) {
         showAdaptiveToast(
           context,
-          message: 'Failed to save food entry',
+          message: context.l10n.nutritionFailedToSaveFoodEntry,
           type: ToastType.error,
         );
       }
@@ -586,7 +587,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             ),
             const SizedBox(height: 8),
             Semantics(
-              label: 'Select meal number',
+              label: context.l10n.nutritionSelectMealNumber,
               child: Container(
                 decoration: BoxDecoration(
                   color: theme.cardColor,
@@ -601,7 +602,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                       child: Semantics(
                         button: true,
                         selected: isSelected,
-                        label: 'Meal $mealNum',
+                        label: context.l10n.nutritionMealmealNum,
                         child: AdaptiveTappable(
                           onTap: () => setState(() => _selectedMealNumber = mealNum),
                           borderRadius: BorderRadius.circular(12),
@@ -643,8 +644,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             keyboardType: TextInputType.multiline,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              hintText: 'e.g., "2 chicken breasts, 1 cup rice, 1 apple"',
-              helperText: 'Include quantities and measurements for accuracy',
+              hintText: context.l10n.nutritionEG2ChickenBreasts1CupRice1Apple,
+              helperText: context.l10n.nutritionIncludeQuantitiesAndMeasurementsForAccuracy,
               helperMaxLines: 2,
               filled: true,
               fillColor: theme.cardColor,
@@ -691,7 +692,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
             const SizedBox(height: 16),
             Semantics(
               liveRegion: true,
-              label: 'Clarification needed',
+              label: context.l10n.nutritionClarificationNeeded,
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -742,7 +743,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -821,7 +822,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
       if (!mounted) return;
       showAdaptiveToast(
         context,
-        message: 'No food items detected. Please describe what you ate with quantities.',
+        message: context.l10n.nutritionNoFoodItemsDetectedPleaseDescribeWhatYouAteWi,
         type: ToastType.warning,
         duration: const Duration(seconds: 4),
       );
@@ -837,7 +838,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
       ref.read(nutritionStateProvider.notifier).refreshDailySummary();
       showAdaptiveToast(
         context,
-        message: 'Food logged successfully',
+        message: context.l10n.nutritionFoodLoggedSuccessfully,
         type: ToastType.success,
         duration: const Duration(seconds: 2),
       );
@@ -846,7 +847,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     } else if (mounted) {
       showAdaptiveToastWithAction(
         context,
-        message: 'Failed to save food entry. Please check your connection and try again.',
+        message: context.l10n.nutritionFailedToSaveFoodEntryPleaseCheckYourConnectio,
         type: ToastType.error,
         actionLabel: 'Retry',
         onAction: () => _confirmAiEntry(),
@@ -1156,7 +1157,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
               ref.read(foodSearchProvider.notifier).clearSelection();
             },
             icon: Icon(AdaptiveIcons.back),
-            label: const Text('Back to results'),
+            label: Text(context.l10n.nutritionBackToResults),
           ),
           const SizedBox(height: 16),
 
@@ -1368,7 +1369,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
     } else if (mounted) {
       showAdaptiveToast(
         context,
-        message: 'Failed to add food',
+        message: context.l10n.nutritionFailedToAddFood,
         type: ToastType.error,
       );
     }

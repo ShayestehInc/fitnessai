@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/nutrition_template_models.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class MealPlanCard extends StatelessWidget {
   final MealPlanModel meal;
@@ -57,19 +58,19 @@ class MealPlanCard extends StatelessWidget {
             Row(
               children: [
                 _MacroBar(
-                  label: 'Protein',
+                  label: context.l10n.nutritionProtein,
                   grams: meal.protein,
                   color: Colors.blue,
                 ),
                 const SizedBox(width: 12),
                 _MacroBar(
-                  label: 'Carbs',
+                  label: context.l10n.nutritionCarbs,
                   grams: meal.carbs,
                   color: Colors.orange,
                 ),
                 const SizedBox(width: 12),
                 _MacroBar(
-                  label: 'Fat',
+                  label: context.l10n.nutritionFat,
                   grams: meal.fat,
                   color: Colors.red,
                 ),

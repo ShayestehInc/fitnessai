@@ -7,6 +7,7 @@ import '../../features/trainer/presentation/providers/trainer_provider.dart';
 import '../../features/trainer/presentation/widgets/impersonation_banner.dart';
 import '../../features/messaging/presentation/providers/messaging_provider.dart';
 import 'adaptive/adaptive_icons.dart';
+import '../../core/l10n/l10n_extension.dart';
 
 class MainNavigationShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -62,35 +63,35 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
                 _NavItem(
                   icon: AdaptiveIcons.homeOutlined,
                   activeIcon: AdaptiveIcons.home,
-                  label: 'Home',
+                  label: context.l10n.navHome,
                   isSelected: widget.navigationShell.currentIndex == 0,
                   onTap: () => _onTap(context, 0),
                 ),
                 _NavItem(
                   icon: AdaptiveIcons.dietOutlined,
                   activeIcon: AdaptiveIcons.diet,
-                  label: 'Diet',
+                  label: context.l10n.navDiet,
                   isSelected: widget.navigationShell.currentIndex == 1,
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
                   icon: AdaptiveIcons.workoutOutlined,
                   activeIcon: AdaptiveIcons.workout,
-                  label: 'Logbook',
+                  label: context.l10n.navLogbook,
                   isSelected: widget.navigationShell.currentIndex == 2,
                   onTap: () => _onTap(context, 2),
                 ),
                 _NavItem(
                   icon: AdaptiveIcons.communityOutlined,
                   activeIcon: AdaptiveIcons.community,
-                  label: 'Community',
+                  label: context.l10n.navCommunity,
                   isSelected: widget.navigationShell.currentIndex == 3,
                   onTap: () => _onTap(context, 3),
                 ),
                 _NavItem(
                   icon: AdaptiveIcons.messagesOutlined,
                   activeIcon: AdaptiveIcons.messages,
-                  label: 'Messages',
+                  label: context.l10n.navMessages,
                   isSelected: widget.navigationShell.currentIndex == 4,
                   onTap: () => _onTap(context, 4),
                   badgeCount: unreadCount,

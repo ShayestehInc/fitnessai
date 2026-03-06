@@ -8,6 +8,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/tier_coupon_models.dart';
 import '../providers/admin_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminTiersScreen extends ConsumerStatefulWidget {
   const AdminTiersScreen({super.key});
@@ -33,7 +34,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Subscription Tiers'),
+        title: Text(context.l10n.adminSubscriptionTiers),
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           if (state.tiers.isEmpty && !state.isLoading)
@@ -45,11 +46,11 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
                           .read(adminTiersProvider.notifier)
                           .seedDefaultTiers();
                       if (success && mounted) {
-                        showAdaptiveToast(context, message: 'Default tiers created', type: ToastType.success);
+                        showAdaptiveToast(context, message: context.l10n.adminDefaultTiersCreated, type: ToastType.success);
                       }
                     },
               icon: const Icon(Icons.add_box),
-              label: const Text('Seed Defaults'),
+              label: Text(context.l10n.adminSeedDefaults),
             ),
           IconButton(
             icon: const Icon(Icons.add),
@@ -78,7 +79,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
                         ElevatedButton(
                           onPressed: () =>
                               ref.read(adminTiersProvider.notifier).loadTiers(),
-                          child: const Text('Retry'),
+                          child: Text(context.l10n.commonRetry),
                         ),
                       ],
                     ),
@@ -109,11 +110,11 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
                                   .read(adminTiersProvider.notifier)
                                   .seedDefaultTiers();
                               if (success && mounted) {
-                                showAdaptiveToast(context, message: 'Default tiers created', type: ToastType.success);
+                                showAdaptiveToast(context, message: context.l10n.adminDefaultTiersCreated, type: ToastType.success);
                               }
                             },
                             icon: const Icon(Icons.add_box),
-                            label: const Text('Create Default Tiers'),
+                            label: Text(context.l10n.adminCreateDefaultTiers),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: theme.colorScheme.primary,
                             ),
@@ -178,9 +179,9 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
   Future<void> _confirmDelete(SubscriptionTierModel tier) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Delete Tier',
+      title: context.l10n.adminDeleteTier,
       message: 'Are you sure you want to delete "${tier.displayName}"? This cannot be undone.',
-      confirmText: 'Delete',
+      confirmText: context.l10n.commonDelete,
       isDestructive: true,
     );
 
@@ -189,7 +190,7 @@ class _AdminTiersScreenState extends ConsumerState<AdminTiersScreen> {
           await ref.read(adminTiersProvider.notifier).deleteTier(tier.id);
 
       if (success && mounted) {
-        showAdaptiveToast(context, message: 'Tier deleted', type: ToastType.success);
+        showAdaptiveToast(context, message: context.l10n.adminTierDeleted, type: ToastType.success);
       }
     }
   }
@@ -371,12 +372,12 @@ class _TierCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onEdit,
                   icon: const Icon(Icons.edit, size: 18),
-                  label: const Text('Edit'),
+                  label: Text(context.l10n.commonEdit),
                 ),
                 TextButton.icon(
                   onPressed: onDelete,
                   icon: const Icon(Icons.delete, size: 18),
-                  label: const Text('Delete'),
+                  label: Text(context.l10n.commonDelete),
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
                 ),
               ],
@@ -523,9 +524,9 @@ class _TierDialogState extends State<_TierDialog> {
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Tier Name (Internal)',
-                    hintText: 'e.g., PRO, STARTER',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.adminTierNameInternal,
+                    hintText: context.l10n.adminEGPROSTARTER,
                   ),
                   textCapitalization: TextCapitalization.characters,
                   inputFormatters: [
@@ -537,9 +538,9 @@ class _TierDialogState extends State<_TierDialog> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _displayNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Display Name',
-                    hintText: 'e.g., Professional',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.adminDisplayName,
+                    hintText: context.l10n.adminEGProfessional,
                   ),
                   validator: (v) =>
                       v?.isEmpty == true ? 'Display name is required' : null,
@@ -547,9 +548,9 @@ class _TierDialogState extends State<_TierDialog> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    hintText: 'Brief description of this tier',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.adminDescription,
+                    hintText: context.l10n.adminBriefDescriptionOfThisTier,
                   ),
                   maxLines: 2,
                 ),
@@ -559,8 +560,8 @@ class _TierDialogState extends State<_TierDialog> {
                     Expanded(
                       child: TextFormField(
                         controller: _priceController,
-                        decoration: const InputDecoration(
-                          labelText: 'Price (\$/month)',
+                        decoration: InputDecoration(
+                          labelText: context.l10n.adminPriceMonth,
                           prefixText: '\$',
                         ),
                         keyboardType: const TextInputType.numberWithOptions(
@@ -581,8 +582,8 @@ class _TierDialogState extends State<_TierDialog> {
                     Expanded(
                       child: TextFormField(
                         controller: _traineeLimitController,
-                        decoration: const InputDecoration(
-                          labelText: 'Trainee Limit',
+                        decoration: InputDecoration(
+                          labelText: context.l10n.adminTraineeLimit,
                           hintText: '0 = unlimited',
                         ),
                         keyboardType: TextInputType.number,
@@ -596,17 +597,17 @@ class _TierDialogState extends State<_TierDialog> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _featuresController,
-                  decoration: const InputDecoration(
-                    labelText: 'Features (one per line)',
-                    hintText: 'Basic analytics\nEmail support\n...',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.adminFeaturesOnePerLine,
+                    hintText: context.l10n.adminBasicAnalyticsnEmailSupportn,
                   ),
                   maxLines: 4,
                 ),
                 const SizedBox(height: 16),
                 SwitchListTile.adaptive(
-                  title: const Text('Active'),
+                  title: Text(context.l10n.adminActive),
                   subtitle:
-                      const Text('Inactive tiers cannot be purchased'),
+                      Text(context.l10n.adminInactiveTiersCannotBePurchased),
                   value: _isActive,
                   onChanged: (v) => setState(() => _isActive = v),
                   contentPadding: EdgeInsets.zero,
@@ -618,7 +619,7 @@ class _TierDialogState extends State<_TierDialog> {
                     TextButton(
                       onPressed:
                           _isSaving ? null : () => Navigator.pop(context),
-                      child: const Text('Cancel'),
+                      child: Text(context.l10n.commonCancel),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(

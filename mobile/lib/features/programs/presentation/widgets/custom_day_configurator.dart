@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Represents a single custom day configuration.
 class CustomDayConfig {
@@ -174,7 +175,7 @@ class _CustomDayTileState extends State<_CustomDayTile> {
                 child: TextField(
                   controller: _labelController,
                   decoration: InputDecoration(
-                    hintText: 'Day name (e.g. Push Day)',
+                    hintText: context.l10n.programsDayNameEGPushDay,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,

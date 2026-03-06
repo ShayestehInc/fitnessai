@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen showing ambassador payout history and Stripe Connect status.
 class AmbassadorPayoutsScreen extends ConsumerStatefulWidget {
@@ -75,13 +76,13 @@ class _AmbassadorPayoutsScreenState
           await apiClient.dio.post(ApiConstants.ambassadorConnectOnboard);
       final url = (resp.data as Map<String, dynamic>)['onboarding_url'] as String?;
       if (url != null && mounted) {
-        showAdaptiveToast(context, message: 'Opening Stripe onboarding... Complete setup in browser.', duration: const Duration(seconds: 6));
+        showAdaptiveToast(context, message: context.l10n.ambassadorOpeningStripeOnboardingCompleteSetupInBrowser, duration: Duration(seconds: 6));
         // In a real app, launch the URL in the browser:
         // launchUrl(Uri.parse(url));
       }
     } catch (_) {
       if (!mounted) return;
-      showAdaptiveToast(context, message: 'Failed to start Stripe onboarding');
+      showAdaptiveToast(context, message: context.l10n.ambassadorFailedToStartStripeOnboarding);
     } finally {
       if (mounted) setState(() => _isOnboarding = false);
     }
@@ -94,7 +95,7 @@ class _AmbassadorPayoutsScreenState
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Payouts'),
+        title: Text(context.l10n.ambassadorPayouts),
         elevation: 0,
       ),
       body: _isLoading
@@ -125,7 +126,7 @@ class _AmbassadorPayoutsScreenState
           Text(_error!,
               style: TextStyle(color: theme.textTheme.bodySmall?.color)),
           const SizedBox(height: 12),
-          OutlinedButton(onPressed: _loadData, child: const Text('Retry')),
+          OutlinedButton(onPressed: _loadData, child: Text(context.l10n.commonRetry)),
         ],
       ),
     );

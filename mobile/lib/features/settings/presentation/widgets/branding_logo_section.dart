@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Logo upload/preview section for the branding screen.
 class BrandingLogoSection extends StatelessWidget {
@@ -54,7 +55,7 @@ class BrandingLogoSection extends StatelessWidget {
             else if (hasLogo) ...[
               Semantics(
                 image: true,
-                label: 'Current logo',
+                label: context.l10n.settingsCurrentLogo,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Image.network(
@@ -92,20 +93,20 @@ class BrandingLogoSection extends StatelessWidget {
                 children: [
                   Semantics(
                     button: true,
-                    label: 'Replace logo image',
+                    label: context.l10n.settingsReplaceLogoImage,
                     child: TextButton.icon(
                       onPressed: onPickLogo,
                       icon: const Icon(Icons.swap_horiz, size: 18),
-                      label: const Text('Replace'),
+                      label: Text(context.l10n.settingsReplace),
                     ),
                   ),
                   Semantics(
                     button: true,
-                    label: 'Remove logo image',
+                    label: context.l10n.settingsRemoveLogoImage,
                     child: TextButton.icon(
                       onPressed: onRemoveLogo,
                       icon: Icon(Icons.delete_outline, size: 18, color: theme.colorScheme.error),
-                      label: Text('Remove', style: TextStyle(color: theme.colorScheme.error)),
+                      label: Text(context.l10n.programsRemove, style: TextStyle(color: theme.colorScheme.error)),
                     ),
                   ),
                 ],
@@ -134,11 +135,11 @@ class BrandingLogoSection extends StatelessWidget {
               const SizedBox(height: 12),
               Semantics(
                 button: true,
-                label: 'Upload a logo image',
+                label: context.l10n.settingsUploadALogoImage,
                 child: ElevatedButton.icon(
                   onPressed: onPickLogo,
                   icon: const Icon(Icons.upload, size: 18),
-                  label: const Text('Choose Image'),
+                  label: Text(context.l10n.settingsChooseImage),
                 ),
               ),
             ],

@@ -15,9 +15,9 @@ class PhotoGalleryScreen extends ConsumerWidget {
 
   static const List<_CategoryTab> _categories = [
     _CategoryTab(label: 'All', value: 'all'),
-    _CategoryTab(label: 'Front', value: 'front'),
-    _CategoryTab(label: 'Side', value: 'side'),
-    _CategoryTab(label: 'Back', value: 'back'),
+    _CategoryTab(label: 'All', value: 'all'),
+    _CategoryTab(label: 'All', value: 'all'),
+    _CategoryTab(label: 'All', value: 'all'),
   ];
 
   @override

@@ -16,6 +16,7 @@ import '../../../programs/data/models/program_model.dart';
 import '../../../programs/presentation/providers/program_provider.dart';
 import '../../../programs/presentation/screens/program_builder_screen.dart';
 import '../providers/trainer_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AssignProgramScreen extends ConsumerStatefulWidget {
   final int traineeId;
@@ -42,7 +43,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Assign Program'),
+        title: Text(context.l10n.trainerAssignProgram),
         leading: IconButton(
           icon: Icon(AdaptiveIcons.back),
           onPressed: () => context.pop(),
@@ -151,8 +152,8 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
             _buildOptionCard(
               context,
               icon: Icons.add_circle_outline,
-              title: 'Create New Program',
-              subtitle: 'Build a custom program from scratch',
+              title: context.l10n.trainerCreateNewProgram,
+              subtitle: context.l10n.trainerBuildACustomProgramFromScratch,
               onTap: () => _showCreateNewProgramDialog(context),
             ),
 
@@ -162,8 +163,8 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
             _buildOptionCard(
               context,
               icon: Icons.copy_all,
-              title: 'Use a Template',
-              subtitle: 'Start with a pre-built program template',
+              title: context.l10n.programsUseATemplate,
+              subtitle: context.l10n.trainerStartWithAPreBuiltProgramTemplate,
               onTap: () => _showTemplatesSheet(context),
             ),
 
@@ -173,8 +174,8 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
             _buildOptionCard(
               context,
               icon: Icons.folder_open,
-              title: 'Assign Existing Program',
-              subtitle: 'Copy a program from another trainee',
+              title: context.l10n.trainerAssignExistingProgram,
+              subtitle: context.l10n.trainerCopyAProgramFromAnotherTrainee,
               onTap: () => _showExistingProgramsSheet(context),
             ),
           ],
@@ -288,8 +289,8 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
               // Program name
               TextField(
                 decoration: InputDecoration(
-                  labelText: 'Program Name',
-                  hintText: 'e.g., Strength Building Phase 1',
+                  labelText: context.l10n.programsProgramName,
+                  hintText: context.l10n.trainerEGStrengthBuildingPhase1,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -299,7 +300,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
               const SizedBox(height: 16),
 
               // Duration slider
-              Text('Duration: $durationWeeks weeks'),
+              Text(context.l10n.programsDurationdurationWeeksWeeks),
               Slider.adaptive(
                 value: durationWeeks.toDouble(),
                 min: 1,
@@ -313,27 +314,27 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
               const SizedBox(height: 16),
 
               // Difficulty
-              const Text('Difficulty', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(context.l10n.programsDifficulty, style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('Beginner'),
+                    label: Text(context.l10n.programsBeginner),
                     selected: difficulty == 'beginner',
                     onSelected: (selected) {
                       setModalState(() => difficulty = 'beginner');
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Intermediate'),
+                    label: Text(context.l10n.programsIntermediate),
                     selected: difficulty == 'intermediate',
                     onSelected: (selected) {
                       setModalState(() => difficulty = 'intermediate');
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Advanced'),
+                    label: Text(context.l10n.programsAdvanced),
                     selected: difficulty == 'advanced',
                     onSelected: (selected) {
                       setModalState(() => difficulty = 'advanced');
@@ -344,7 +345,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
               const SizedBox(height: 16),
 
               // Goal
-              const Text('Goal', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(context.l10n.nutritionGoal, style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -386,7 +387,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text('Create Program'),
+                  child: Text(context.l10n.programsCreateProgram),
                 ),
               ),
             ],
@@ -763,7 +764,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Back'),
+                      child: Text(context.l10n.commonBack),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -793,7 +794,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Use This Template'),
+                      child: Text(context.l10n.trainerUseThisTemplate),
                     ),
                   ),
                 ],
@@ -873,7 +874,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                     children: [
                       Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
                       const SizedBox(height: 16),
-                      Text('Could not load programs', style: TextStyle(color: Colors.grey[600])),
+                      Text(context.l10n.trainerCouldNotLoadPrograms, style: TextStyle(color: Colors.grey[600])),
                     ],
                   ),
                 ),
@@ -904,7 +905,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                               _showCreateNewProgramDialog(context);
                             },
                             icon: const Icon(Icons.add),
-                            label: const Text('Create New Program'),
+                            label: Text(context.l10n.trainerCreateNewProgram),
                           ),
                         ],
                       ),
@@ -984,7 +985,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               ),
-              child: const Text('Assign'),
+              child: Text(context.l10n.trainerAssign),
             ),
           ],
         ),
@@ -1059,7 +1060,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                               setSheetState(() => selectedStartDate = picked);
                             }
                           },
-                          child: const Text('Change'),
+                          child: Text(context.l10n.programsChange),
                         ),
                       ],
                     ),
@@ -1070,7 +1071,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () => Navigator.pop(sheetContext),
-                          child: const Text('Cancel'),
+                          child: Text(context.l10n.commonCancel),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1086,11 +1087,11 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                               final currentProgram = trainee!.programs.firstWhere((p) => p.isActive);
                               final confirmed = await showAdaptiveConfirmDialog(
                                 context: sheetContext,
-                                title: 'Replace Active Program?',
+                                title: context.l10n.programsReplaceActiveProgram,
                                 message: 'This trainee already has an active program. '
                                     'Assigning a new program will end "${currentProgram.name}" '
                                     'and start "${program.name}".',
-                                confirmText: 'Replace Program',
+                                confirmText: context.l10n.programsReplaceProgram,
                               );
 
                               if (confirmed != true) return;
@@ -1142,7 +1143,7 @@ class _AssignProgramScreenState extends ConsumerState<AssignProgramScreen> {
                               }
                             }
                           },
-                          child: const Text('Assign'),
+                          child: Text(context.l10n.trainerAssign),
                         ),
                       ),
                     ],

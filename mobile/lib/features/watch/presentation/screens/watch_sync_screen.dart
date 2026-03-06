@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/watch_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Settings screen showing Apple Watch pairing status and sync controls.
 class WatchSyncScreen extends ConsumerWidget {
@@ -14,7 +15,7 @@ class WatchSyncScreen extends ConsumerWidget {
     final reachableAsync = ref.watch(isWatchReachableProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Apple Watch')),
+      appBar: AppBar(title: Text(context.l10n.settingsAppleWatch)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -38,12 +39,12 @@ class WatchSyncScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   _StatusRow(
-                    label: 'Paired',
+                    label: context.l10n.watchPaired,
                     asyncValue: pairedAsync,
                   ),
                   const SizedBox(height: 8),
                   _StatusRow(
-                    label: 'Connected',
+                    label: context.l10n.watchConnected,
                     asyncValue: reachableAsync,
                   ),
                 ],
@@ -69,21 +70,21 @@ class WatchSyncScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   _InfoTile(
                     icon: Icons.sync,
-                    title: 'Auto Sync',
+                    title: context.l10n.watchAutoSync,
                     subtitle:
                         "Your workout plan syncs to your watch automatically when you open the app.",
                   ),
                   const SizedBox(height: 8),
                   _InfoTile(
                     icon: Icons.fitness_center,
-                    title: 'Log from your wrist',
+                    title: context.l10n.watchLogFromYourWrist,
                     subtitle:
                         'Complete sets directly on your watch during workouts.',
                   ),
                   const SizedBox(height: 8),
                   _InfoTile(
                     icon: Icons.timer,
-                    title: 'Rest timers',
+                    title: context.l10n.watchRestTimers,
                     subtitle:
                         'Haptic alerts when your rest period is over.',
                   ),
@@ -103,12 +104,12 @@ class WatchSyncScreen extends ConsumerWidget {
                       await repo.requestPendingCompletions();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Sync requested')),
+                          SnackBar(content: Text(context.l10n.watchSyncRequested)),
                         );
                       }
                     },
                     icon: const Icon(Icons.sync),
-                    label: const Text('Sync Now'),
+                    label: Text(context.l10n.calendarSyncNow),
                   )
                 : const SizedBox.shrink(),
             loading: () => const SizedBox.shrink(),

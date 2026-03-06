@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/admin_impersonation_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Banner shown when admin is impersonating a trainer
 class AdminImpersonationBanner extends ConsumerWidget {
@@ -116,7 +117,7 @@ class AdminImpersonationBanner extends ConsumerWidget {
       if (result['success'] == true) {
         // Navigate back to admin dashboard
         context.go('/admin');
-        showAdaptiveToast(context, message: 'Returned to admin account', type: ToastType.success);
+        showAdaptiveToast(context, message: context.l10n.adminReturnedToAdminAccount, type: ToastType.success);
       } else {
         showAdaptiveToast(context, message: result['error'] ?? 'Failed to end session', type: ToastType.error);
       }

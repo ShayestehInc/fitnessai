@@ -5,6 +5,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen to edit an Admin or Trainer user
 class AdminEditUserScreen extends ConsumerStatefulWidget {
@@ -97,7 +98,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
     setState(() => _isSaving = false);
 
     if (result['success'] == true) {
-      showAdaptiveToast(context, message: 'User updated successfully', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.adminUserUpdatedSuccessfully, type: ToastType.success);
       Navigator.of(context).pop(true);
     } else {
       showAdaptiveToast(context, message: result['error'] ?? 'Failed to update user', type: ToastType.error);
@@ -108,12 +109,12 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete User'),
+        title: Text(context.l10n.adminDeleteUser),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Are you sure you want to delete $_email?'),
+            Text(context.l10n.adminAreYouSureYouWantToDeleteEmail),
             if (_traineeCount > 0) ...[
               const SizedBox(height: 12),
               Container(
@@ -142,7 +143,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           ElevatedButton(
             onPressed: _traineeCount > 0 ? null : () => Navigator.pop(context, true),
@@ -150,7 +151,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Delete'),
+            child: Text(context.l10n.commonDelete),
           ),
         ],
       ),
@@ -170,7 +171,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
     setState(() => _isDeleting = false);
 
     if (result['success'] == true) {
-      showAdaptiveToast(context, message: 'User deleted successfully', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.adminUserDeletedSuccessfully, type: ToastType.success);
       Navigator.of(context).pop(true);
     } else {
       showAdaptiveToast(context, message: result['error'] ?? 'Failed to delete user', type: ToastType.error);
@@ -183,14 +184,14 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
 
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit User')),
+        appBar: AppBar(title: Text(context.l10n.adminEditUser)),
         body: const Center(child: AdaptiveSpinner()),
       );
     }
 
     if (_error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit User')),
+        appBar: AppBar(title: Text(context.l10n.adminEditUser)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -203,7 +204,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: _loadUser,
-                  child: const Text('Retry'),
+                  child: Text(context.l10n.commonRetry),
                 ),
               ],
             ),
@@ -217,13 +218,13 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit User'),
+        title: Text(context.l10n.adminEditUser),
         actions: [
           IconButton(
             icon: _isDeleting
                 ? const AdaptiveSpinner.small()
                 : const Icon(Icons.delete_outline, color: Colors.red),
-            tooltip: 'Delete User',
+            tooltip: context.l10n.adminDeleteUser,
             onPressed: _isDeleting || _isSaving ? null : _deleteUser,
           ),
         ],
@@ -268,7 +269,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
                 Expanded(
                   child: _buildTextField(
                     controller: _firstNameController,
-                    label: 'First Name',
+                    label: context.l10n.authFirstNameLabel,
                     hint: 'John',
                   ),
                 ),
@@ -276,7 +277,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
                 Expanded(
                   child: _buildTextField(
                     controller: _lastNameController,
-                    label: 'Last Name',
+                    label: context.l10n.authLastNameLabel,
                     hint: 'Doe',
                   ),
                 ),
@@ -298,7 +299,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
                   child: _buildRoleOption(
                     theme: theme,
                     role: 'TRAINER',
-                    title: 'Trainer',
+                    title: context.l10n.adminTrainer,
                     icon: Icons.fitness_center,
                     color: Colors.blue,
                   ),
@@ -308,7 +309,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
                   child: _buildRoleOption(
                     theme: theme,
                     role: 'ADMIN',
-                    title: 'Admin',
+                    title: context.l10n.adminAdmin,
                     icon: Icons.admin_panel_settings,
                     color: Colors.purple,
                   ),
@@ -371,7 +372,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
               controller: _passwordController,
               obscureText: _obscurePassword,
               decoration: InputDecoration(
-                hintText: 'Leave blank to keep current password',
+                hintText: context.l10n.adminLeaveBlankToKeepCurrentPassword,
                 filled: true,
                 fillColor: theme.brightness == Brightness.light
                     ? const Color(0xFFF5F5F8)
@@ -410,7 +411,7 @@ class _AdminEditUserScreenState extends ConsumerState<AdminEditUserScreen> {
                 ),
                 child: _isSaving
                     ? const AdaptiveSpinner.small()
-                    : const Text('Save Changes'),
+                    : Text(context.l10n.adminSaveChanges),
               ),
             ),
           ],

@@ -10,6 +10,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/payment_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TrainerCouponsScreen extends ConsumerStatefulWidget {
   const TrainerCouponsScreen({super.key});
@@ -37,7 +38,7 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('My Coupons'),
+        title: Text(context.l10n.paymentsMyCoupons),
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           Theme.of(context).platform == TargetPlatform.iOS
@@ -45,31 +46,31 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
                   icon: const Icon(Icons.filter_list),
                   onPressed: () => showAdaptiveActionSheet(
                     context: context,
-                    title: 'Filter by Status',
+                    title: context.l10n.adminFilterByStatus,
                     actions: [
                       AdaptiveAction(
-                        label: 'All',
+                        label: context.l10n.commonAll,
                         onPressed: () {
                           setState(() => _statusFilter = null);
                           ref.read(trainerCouponsProvider.notifier).loadCoupons(status: null);
                         },
                       ),
                       AdaptiveAction(
-                        label: 'Active',
+                        label: context.l10n.adminActive,
                         onPressed: () {
                           setState(() => _statusFilter = 'active');
                           ref.read(trainerCouponsProvider.notifier).loadCoupons(status: 'active');
                         },
                       ),
                       AdaptiveAction(
-                        label: 'Revoked',
+                        label: context.l10n.adminRevoked,
                         onPressed: () {
                           setState(() => _statusFilter = 'revoked');
                           ref.read(trainerCouponsProvider.notifier).loadCoupons(status: 'revoked');
                         },
                       ),
                       AdaptiveAction(
-                        label: 'Expired',
+                        label: context.l10n.adminExpired,
                         onPressed: () {
                           setState(() => _statusFilter = 'expired');
                           ref.read(trainerCouponsProvider.notifier).loadCoupons(status: 'expired');
@@ -85,21 +86,21 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
                     ref.read(trainerCouponsProvider.notifier).loadCoupons(status: status);
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: null,
-                      child: Text('All'),
+                      child: Text(context.l10n.commonAll),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'active',
-                      child: Text('Active'),
+                      child: Text(context.l10n.adminActive),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'revoked',
-                      child: Text('Revoked'),
+                      child: Text(context.l10n.adminRevoked),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'expired',
-                      child: Text('Expired'),
+                      child: Text(context.l10n.adminExpired),
                     ),
                   ],
                 ),
@@ -179,7 +180,7 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
                                 onPressed: () => ref
                                     .read(trainerCouponsProvider.notifier)
                                     .loadCoupons(status: _statusFilter),
-                                child: const Text('Retry'),
+                                child: Text(context.l10n.commonRetry),
                               ),
                             ],
                           ),
@@ -216,7 +217,7 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
                                 ElevatedButton.icon(
                                   onPressed: () => _showCouponDialog(context),
                                   icon: const Icon(Icons.add),
-                                  label: const Text('Create Coupon'),
+                                  label: Text(context.l10n.adminCreateCoupon),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: theme.colorScheme.primary,
                                   ),
@@ -299,7 +300,7 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
 
           if (success && mounted) {
             Navigator.pop(context);
-            showAdaptiveToast(context, message: 'Coupon created', type: ToastType.success);
+            showAdaptiveToast(context, message: context.l10n.adminCouponCreated, type: ToastType.success);
           } else if (mounted) {
             final error = ref.read(trainerCouponsProvider).error;
             showAdaptiveToast(context, message: error ?? 'Failed to create coupon', type: ToastType.error);
@@ -312,9 +313,9 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
   Future<void> _revokeCoupon(TrainerCoupon coupon) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Revoke Coupon',
+      title: context.l10n.adminRevokeCoupon,
       message: 'Are you sure you want to revoke "${coupon.code}"? It will no longer be usable by your trainees.',
-      confirmText: 'Revoke',
+      confirmText: context.l10n.adminRevoke,
       isDestructive: true,
     );
 
@@ -324,7 +325,7 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
           .revokeCoupon(coupon.id);
 
       if (success && mounted) {
-        showAdaptiveToast(context, message: 'Coupon revoked', type: ToastType.success);
+        showAdaptiveToast(context, message: context.l10n.adminCouponRevoked, type: ToastType.success);
       }
     }
   }
@@ -335,16 +336,16 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
         .reactivateCoupon(coupon.id);
 
     if (success && mounted) {
-      showAdaptiveToast(context, message: 'Coupon reactivated', type: ToastType.success);
+      showAdaptiveToast(context, message: context.l10n.adminCouponReactivated, type: ToastType.success);
     }
   }
 
   Future<void> _confirmDelete(TrainerCoupon coupon) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Delete Coupon',
+      title: context.l10n.adminDeleteCoupon,
       message: 'Are you sure you want to delete "${coupon.code}"? This cannot be undone.',
-      confirmText: 'Delete',
+      confirmText: context.l10n.commonDelete,
       isDestructive: true,
     );
 
@@ -354,7 +355,7 @@ class _TrainerCouponsScreenState extends ConsumerState<TrainerCouponsScreen> {
           .deleteCoupon(coupon.id);
 
       if (success && mounted) {
-        showAdaptiveToast(context, message: 'Coupon deleted', type: ToastType.success);
+        showAdaptiveToast(context, message: context.l10n.adminCouponDeleted, type: ToastType.success);
       }
     }
   }
@@ -505,7 +506,7 @@ class _CouponCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: onReactivate,
                     icon: const Icon(Icons.refresh, size: 18),
-                    label: const Text('Reactivate'),
+                    label: Text(context.l10n.adminReactivate),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.green,
                     ),
@@ -514,7 +515,7 @@ class _CouponCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: onRevoke,
                     icon: const Icon(Icons.block, size: 18),
-                    label: const Text('Revoke'),
+                    label: Text(context.l10n.adminRevoke),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.orange,
                     ),
@@ -522,7 +523,7 @@ class _CouponCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onDelete,
                   icon: const Icon(Icons.delete, size: 18),
-                  label: const Text('Delete'),
+                  label: Text(context.l10n.commonDelete),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.red,
                   ),
@@ -690,9 +691,9 @@ class _CouponDialogState extends State<_CouponDialog> {
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _codeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Coupon Code',
-                    hintText: 'e.g., WELCOME10',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.adminCouponCode,
+                    hintText: context.l10n.paymentsEGWELCOME10,
                   ),
                   textCapitalization: TextCapitalization.characters,
                   inputFormatters: [
@@ -707,19 +708,19 @@ class _CouponDialogState extends State<_CouponDialog> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (optional)',
-                    hintText: 'e.g., Welcome discount for new trainees',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.adminDescriptionOptional,
+                    hintText: context.l10n.paymentsEGWelcomeDiscountForNewTrainees,
                   ),
                 ),
                 const SizedBox(height: 16),
                 AdaptiveDropdown<String>(
                   value: _couponType,
-                  decoration: const InputDecoration(labelText: 'Discount Type'),
-                  items: const [
-                    AdaptiveDropdownItem(value: 'percent', label: 'Percentage Off'),
-                    AdaptiveDropdownItem(value: 'fixed', label: 'Fixed Amount Off'),
-                    AdaptiveDropdownItem(value: 'free_trial', label: 'Free Trial Days'),
+                  decoration: InputDecoration(labelText: context.l10n.adminDiscountType),
+                  items: [
+                    AdaptiveDropdownItem(value: 'percent', label: context.l10n.adminPercentageOff),
+                    AdaptiveDropdownItem(value: 'fixed', label: context.l10n.adminFixedAmountOff),
+                    AdaptiveDropdownItem(value: 'free_trial', label: context.l10n.adminFreeTrialDays),
                   ],
                   onChanged: (v) => setState(() => _couponType = v!),
                 ),
@@ -753,8 +754,8 @@ class _CouponDialogState extends State<_CouponDialog> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _maxUsesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Max Uses (0 = unlimited)',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.adminMaxUses0Unlimited,
                     hintText: '0',
                   ),
                   keyboardType: TextInputType.number,
@@ -767,7 +768,7 @@ class _CouponDialogState extends State<_CouponDialog> {
                   onTap: _selectDate,
                   child: InputDecorator(
                     decoration: InputDecoration(
-                      labelText: 'Expiry Date (optional)',
+                      labelText: context.l10n.adminExpiryDateOptional,
                       suffixIcon: _validUntil != null
                           ? IconButton(
                               icon: const Icon(Icons.clear),
@@ -795,7 +796,7 @@ class _CouponDialogState extends State<_CouponDialog> {
                     TextButton(
                       onPressed:
                           _isSaving ? null : () => Navigator.pop(context),
-                      child: const Text('Cancel'),
+                      child: Text(context.l10n.commonCancel),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
@@ -805,7 +806,7 @@ class _CouponDialogState extends State<_CouponDialog> {
                       ),
                       child: _isSaving
                           ? const AdaptiveSpinner.small()
-                          : const Text('Create'),
+                          : Text(context.l10n.adminCreate),
                     ),
                   ],
                 ),

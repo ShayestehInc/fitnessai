@@ -10,6 +10,7 @@ import '../widgets/goal_type_card.dart';
 import '../widgets/custom_day_configurator.dart';
 import '../widgets/step_indicator.dart';
 import 'program_builder_screen.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Multi-step wizard for generating a program using the smart generator API.
 class ProgramGeneratorScreen extends ConsumerStatefulWidget {
@@ -191,7 +192,7 @@ class _ProgramGeneratorScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Generate Program'),
+        title: Text(context.l10n.programsGenerateProgram),
         leading: IconButton(
           icon: Icon(AdaptiveIcons.back),
           onPressed: _onBack,
@@ -352,12 +353,12 @@ class _ProgramGeneratorScreenState
                   ? () => setState(() => _durationWeeks--)
                   : null,
               icon: const Icon(Icons.remove_circle_outline),
-              tooltip: 'Decrease duration',
+              tooltip: context.l10n.programsDecreaseDuration,
             ),
             Expanded(
               child: Center(
                 child: Semantics(
-                  label: 'Program duration: $_durationWeeks weeks',
+                  label: context.l10n.programsProgramDurationDurationWeeksWeeks,
                   child: Text(
                     '$_durationWeeks weeks',
                     style: theme.textTheme.headlineSmall?.copyWith(
@@ -372,7 +373,7 @@ class _ProgramGeneratorScreenState
                   ? () => setState(() => _durationWeeks++)
                   : null,
               icon: const Icon(Icons.add_circle_outline),
-              tooltip: 'Increase duration',
+              tooltip: context.l10n.programsIncreaseDuration,
             ),
           ],
         ),
@@ -407,12 +408,12 @@ class _ProgramGeneratorScreenState
                     }
                   : null,
               icon: const Icon(Icons.remove_circle_outline),
-              tooltip: 'Decrease training days',
+              tooltip: context.l10n.programsDecreaseTrainingDays,
             ),
             Expanded(
               child: Center(
                 child: Semantics(
-                  label: 'Training days per week: $_trainingDaysPerWeek',
+                  label: context.l10n.programsTrainingDaysPerWeekTrainingDaysPerWeek,
                   child: Text(
                     '$_trainingDaysPerWeek days',
                     style: theme.textTheme.headlineSmall?.copyWith(
@@ -430,7 +431,7 @@ class _ProgramGeneratorScreenState
                     }
                   : null,
               icon: const Icon(Icons.add_circle_outline),
-              tooltip: 'Increase training days',
+              tooltip: context.l10n.programsIncreaseTrainingDays,
             ),
           ],
         ),
@@ -521,12 +522,12 @@ class _ProgramGeneratorScreenState
                 children: [
                   OutlinedButton(
                     onPressed: () => _goToStep(1),
-                    child: const Text('Back'),
+                    child: Text(context.l10n.commonBack),
                   ),
                   const SizedBox(width: 12),
                   FilledButton(
                     onPressed: _generateProgram,
-                    child: const Text('Retry'),
+                    child: Text(context.l10n.commonRetry),
                   ),
                 ],
               ),
@@ -563,7 +564,7 @@ class _ProgramGeneratorScreenState
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: _generateProgram,
-                child: const Text('Generate'),
+                child: Text(context.l10n.programsGenerate),
               ),
             ],
           ),
@@ -684,7 +685,7 @@ class _ProgramGeneratorScreenState
               child: FilledButton.icon(
                 onPressed: _openInBuilder,
                 icon: const Icon(Icons.edit),
-                label: const Text('Open in Builder'),
+                label: Text(context.l10n.programsOpenInBuilder),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),

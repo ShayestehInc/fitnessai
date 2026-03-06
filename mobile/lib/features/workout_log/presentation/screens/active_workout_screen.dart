@@ -14,6 +14,7 @@ import '../widgets/minimal_workout_layout.dart';
 import '../../../exercises/presentation/widgets/exercise_video_player.dart';
 import 'readiness_survey_screen.dart';
 import 'post_workout_survey_screen.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class ActiveWorkoutScreen extends ConsumerStatefulWidget {
   final ProgramWorkoutDay workout;
@@ -314,7 +315,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           ),
           TextButton(
             onPressed: _skipRest,
-            child: const Text('Skip'),
+            child: Text(context.l10n.workoutSkip),
           ),
         ],
       ),
@@ -396,9 +397,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   void _showExitConfirmation(BuildContext context) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Exit Workout?',
-      message: 'Your progress will not be saved.',
-      confirmText: 'Exit',
+      title: context.l10n.workoutExitWorkout,
+      message: context.l10n.workoutYourProgressWillNotBeSaved,
+      confirmText: context.l10n.workoutExit,
       isDestructive: true,
     );
     if (confirmed == true && context.mounted) {
@@ -610,7 +611,7 @@ class _ExerciseCardState extends State<_ExerciseCard> {
             child: TextButton.icon(
               onPressed: widget.onAddSet,
               icon: const Icon(Icons.add),
-              label: const Text('Add Set'),
+              label: Text(context.l10n.workoutAddSet),
             ),
           ),
 

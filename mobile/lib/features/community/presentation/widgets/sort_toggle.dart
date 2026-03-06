@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/community_feed_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Toggle chip for switching between Latest and Popular feed sort.
 class SortToggle extends ConsumerWidget {
@@ -15,7 +16,7 @@ class SortToggle extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _SortChip(
-          label: 'Latest',
+          label: context.l10n.communityLatest,
           isSelected: currentSort == FeedSort.latest,
           onTap: () {
             ref.read(feedSortProvider.notifier).state = FeedSort.latest;
@@ -25,7 +26,7 @@ class SortToggle extends ConsumerWidget {
         ),
         const SizedBox(width: 8),
         _SortChip(
-          label: 'Popular',
+          label: context.l10n.communityPopular,
           isSelected: currentSort == FeedSort.popular,
           onTap: () {
             ref.read(feedSortProvider.notifier).state = FeedSort.popular;

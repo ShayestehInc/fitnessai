@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/space_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Horizontal scrollable list of space filter chips.
 class SpaceChipBar extends StatelessWidget {
@@ -29,7 +30,7 @@ class SpaceChipBar extends StatelessWidget {
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
               selected: selectedSpaceId == null,
-              label: const Text('All'),
+              label: Text(context.l10n.commonAll),
               onSelected: (_) => onSelected(null),
               selectedColor: theme.colorScheme.primary,
               labelStyle: TextStyle(

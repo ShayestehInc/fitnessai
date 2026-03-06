@@ -4,6 +4,7 @@ import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/message_model.dart';
 import 'edit_message_sheet.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Shows a bottom sheet context menu for a message.
 ///
@@ -44,11 +45,11 @@ void showMessageContextMenu({
               if (canCopy)
                 ListTile(
                   leading: const Icon(Icons.copy),
-                  title: const Text('Copy'),
+                  title: Text(context.l10n.messagingCopy),
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: message.content));
                     Navigator.of(sheetContext).pop();
-                    showAdaptiveToast(context, message: 'Message copied');
+                    showAdaptiveToast(context, message: context.l10n.messagingMessageCopied);
                   },
                 ),
               if (isMine && !message.isDeleted) ...[
@@ -149,14 +150,14 @@ void _showDeleteConfirmation({
     builder: (dialogContext) {
       final theme = Theme.of(dialogContext);
       return AlertDialog(
-        title: const Text('Delete message'),
+        title: Text(context.l10n.messagingDeleteMessage),
         content: const Text(
           "Delete this message? This can't be undone.",
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           TextButton(
             onPressed: () {
@@ -166,7 +167,7 @@ void _showDeleteConfirmation({
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(context.l10n.commonDelete),
           ),
         ],
       );

@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/admin_models.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../providers/admin_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class AdminUpcomingPaymentsScreen extends ConsumerStatefulWidget {
   const AdminUpcomingPaymentsScreen({super.key});
@@ -55,7 +56,7 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Upcoming Payments'),
+        title: Text(context.l10n.adminUpcomingPayments),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: Column(
@@ -104,7 +105,7 @@ class _AdminUpcomingPaymentsScreenState extends ConsumerState<AdminUpcomingPayme
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadUpcoming,
-                              child: const Text('Retry'),
+                              child: Text(context.l10n.commonRetry),
                             ),
                           ],
                         ),

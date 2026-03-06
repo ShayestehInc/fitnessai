@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/animated_widgets.dart';
 import '../../data/models/branding_model.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 /// Color picker section for the branding screen.
 class BrandingColorSection extends StatelessWidget {
@@ -45,13 +46,13 @@ class BrandingColorSection extends StatelessWidget {
           _buildColorRow(
             theme: theme,
             context: context,
-            label: 'Primary Color',
-            subtitle: 'Buttons, headers, accent elements',
+            label: context.l10n.settingsPrimaryColor,
+            subtitle: context.l10n.settingsButtonsHeadersAccentElements,
             color: primaryColor,
             onTap: () => _showColorPicker(
               context: context,
               currentColor: primaryColor,
-              title: 'Primary Color',
+              title: context.l10n.settingsPrimaryColor,
               onSelected: onPrimaryChanged,
             ),
           ),
@@ -59,13 +60,13 @@ class BrandingColorSection extends StatelessWidget {
           _buildColorRow(
             theme: theme,
             context: context,
-            label: 'Secondary Color',
-            subtitle: 'Highlights, badges, secondary actions',
+            label: context.l10n.settingsSecondaryColor,
+            subtitle: context.l10n.settingsHighlightsBadgesSecondaryActions,
             color: secondaryColor,
             onTap: () => _showColorPicker(
               context: context,
               currentColor: secondaryColor,
-              title: 'Secondary Color',
+              title: context.l10n.settingsSecondaryColor,
               onSelected: onSecondaryChanged,
             ),
           ),
@@ -233,7 +234,7 @@ class BrandingColorSection extends StatelessWidget {
                   width: double.infinity,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                 ),
               ],

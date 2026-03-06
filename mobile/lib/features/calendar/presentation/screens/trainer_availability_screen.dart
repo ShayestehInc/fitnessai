@@ -11,6 +11,7 @@ import '../../data/models/calendar_connection_model.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/availability_slot_editor.dart';
 import '../widgets/availability_slot_tile.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class TrainerAvailabilityScreen extends ConsumerStatefulWidget {
   const TrainerAvailabilityScreen({super.key});
@@ -54,18 +55,18 @@ class _TrainerAvailabilityScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Availability'),
+        title: Text(context.l10n.calendarAvailability),
         leading: IconButton(
           icon: Icon(AdaptiveIcons.back),
           onPressed: () => context.pop(),
-          tooltip: 'Back to Calendar Settings',
+          tooltip: context.l10n.calendarBackToCalendarSettings,
         ),
         actions: [
           if (Theme.of(context).platform == TargetPlatform.iOS)
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: () => _showEditor(context),
-              tooltip: 'Add availability slot',
+              tooltip: context.l10n.calendarAddAvailabilitySlot,
             ),
         ],
       ),
@@ -73,7 +74,7 @@ class _TrainerAvailabilityScreenState
           ? null
           : FloatingActionButton(
               onPressed: () => _showEditor(context),
-              tooltip: 'Add availability slot',
+              tooltip: context.l10n.calendarAddAvailabilitySlot,
               child: const Icon(Icons.add),
             ),
       body: state.isLoading && slots.isEmpty
@@ -154,9 +155,9 @@ class _TrainerAvailabilityScreenState
   Future<bool> _confirmDelete(int id) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Delete Slot',
-      message: 'Remove this availability slot?',
-      confirmText: 'Delete',
+      title: context.l10n.calendarDeleteSlot,
+      message: context.l10n.calendarRemoveThisAvailabilitySlot,
+      confirmText: context.l10n.commonDelete,
       isDestructive: true,
     );
     if (confirmed == true) {
@@ -222,15 +223,15 @@ class _TrainerAvailabilityScreenState
         height: MediaQuery.of(context).size.height * 0.6,
         child: Center(
           child: Semantics(
-            label: 'No availability set. Tap the plus button to add your first time slot.',
+            label: context.l10n.calendarNoAvailabilitySetTapThePlusButtonToAddYourFir,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.access_time, size: 64,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                    semanticLabel: 'No availability'),
+                    semanticLabel: context.l10n.calendarNoAvailability),
                 const SizedBox(height: 16),
-                Text('No availability set', style: theme.textTheme.titleMedium),
+                Text(context.l10n.calendarNoAvailabilitySet, style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(
                   'Tap + to add your first time slot',

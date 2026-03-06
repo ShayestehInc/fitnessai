@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/l10n/l10n_extension.dart';
 
 class EditNameScreen extends ConsumerStatefulWidget {
   const EditNameScreen({super.key});
@@ -55,7 +56,7 @@ class _EditNameScreenState extends ConsumerState<EditNameScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      showAdaptiveToast(context, message: 'Profile updated!');
+      showAdaptiveToast(context, message: context.l10n.settingsProfileUpdated);
       context.pop();
     } else {
       showAdaptiveToast(context, message: result['error'] ?? 'Failed to update profile', type: ToastType.error);
@@ -89,13 +90,13 @@ class _EditNameScreenState extends ConsumerState<EditNameScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // First Name
-            Text('First Name', style: theme.textTheme.titleMedium),
+            Text(context.l10n.authFirstNameLabel, style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
             TextField(
               controller: _firstNameController,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                hintText: 'Enter your first name',
+                hintText: context.l10n.onboardingEnterYourFirstName,
                 filled: true,
                 fillColor: theme.cardColor,
                 border: OutlineInputBorder(
@@ -115,13 +116,13 @@ class _EditNameScreenState extends ConsumerState<EditNameScreen> {
             const SizedBox(height: 24),
 
             // Last Name
-            Text('Last Name', style: theme.textTheme.titleMedium),
+            Text(context.l10n.authLastNameLabel, style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
             TextField(
               controller: _lastNameController,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                hintText: 'Enter your last name',
+                hintText: context.l10n.settingsEnterYourLastName,
                 filled: true,
                 fillColor: theme.cardColor,
                 border: OutlineInputBorder(
@@ -142,7 +143,7 @@ class _EditNameScreenState extends ConsumerState<EditNameScreen> {
             // Business Name (Trainers only)
             if (isTrainer) ...[
               const SizedBox(height: 24),
-              Text('Business Name', style: theme.textTheme.titleMedium),
+              Text(context.l10n.settingsBusinessName, style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
                 'This will be displayed to your trainees',
@@ -156,7 +157,7 @@ class _EditNameScreenState extends ConsumerState<EditNameScreen> {
                 controller: _businessNameController,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  hintText: 'Enter your business name',
+                  hintText: context.l10n.settingsEnterYourBusinessName,
                   filled: true,
                   fillColor: theme.cardColor,
                   border: OutlineInputBorder(
@@ -190,7 +191,7 @@ class _EditNameScreenState extends ConsumerState<EditNameScreen> {
                 ),
                 child: _isLoading
                     ? const AdaptiveSpinner.small()
-                    : const Text('Save Changes'),
+                    : Text(context.l10n.adminSaveChanges),
               ),
             ),
           ],
