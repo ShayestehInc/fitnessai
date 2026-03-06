@@ -13,7 +13,7 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Deploy via SSH
@@ -23,7 +23,7 @@ jobs:
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script_stop: true
-          command_timeout: 14m
+          command_timeout: 20m
           envs: SECRET_KEY,DB_PASSWORD,DROPLET_IP,AI_PROVIDER,OPENAI_API_KEY,ANTHROPIC_API_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,DO_SPACES_KEY,DO_SPACES_SECRET
           script: |
             set -euo pipefail
