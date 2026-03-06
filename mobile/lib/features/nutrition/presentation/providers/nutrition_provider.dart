@@ -247,22 +247,26 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
   Future<void> loadInitialData() async {
     state = state.copyWith(isLoading: true, error: null);
 
-    // Load goals, daily summary, latest check-in, user profile, presets, and day plan in parallel
-    final results = await Future.wait([
+    // Load all data in parallel — day plan uses typed return, others use Map
+    final dayPlanFuture =
+        _templateRepo.getDayPlan(state.dateParam).catchError((_) => null);
+    final mapFuture = Future.wait([
       _nutritionRepo.getNutritionGoals(),
       _nutritionRepo.getDailyNutritionSummary(state.dateParam),
       _nutritionRepo.getLatestWeightCheckIn(),
       _onboardingRepo.getProfile(),
       _nutritionRepo.getMacroPresets(),
-      _templateRepo.getDayPlan(state.dateParam),
     ]);
+    final parallelResults = await Future.wait([mapFuture, dayPlanFuture]);
+    final mapResults =
+        parallelResults[0] as List<Map<String, dynamic>>;
+    final dayPlan = parallelResults[1] as NutritionDayPlanModel?;
 
-    final goalsResult = results[0];
-    final summaryResult = results[1];
-    final checkInResult = results[2];
-    final profileResult = results[3];
-    final presetsResult = results[4];
-    final dayPlanResult = results[5];
+    final goalsResult = mapResults[0];
+    final summaryResult = mapResults[1];
+    final checkInResult = mapResults[2];
+    final profileResult = mapResults[3];
+    final presetsResult = mapResults[4];
 
     List<MacroPresetModel> presets = [];
     MacroPresetModel? defaultPreset;
@@ -295,11 +299,6 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
           notes: latestPending.notes,
         );
       }
-    }
-
-    NutritionDayPlanModel? dayPlan;
-    if (dayPlanResult['success'] == true) {
-      dayPlan = dayPlanResult['plan'] as NutritionDayPlanModel?;
     }
 
     state = state.copyWith(

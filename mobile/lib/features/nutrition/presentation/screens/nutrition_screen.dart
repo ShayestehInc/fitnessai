@@ -11,6 +11,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/offline_banner.dart';
 import '../../data/models/nutrition_models.dart';
 import '../providers/nutrition_provider.dart';
+import '../widgets/day_type_badge.dart';
 import '../widgets/edit_food_entry_sheet.dart';
 
 class NutritionScreen extends ConsumerStatefulWidget {
@@ -77,6 +78,12 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                               // Macro presets (if trainer has set any)
                               if (state.hasPresets) ...[
                                 _buildMacroPresetsSection(state, theme),
+                                const SizedBox(height: 16),
+                              ],
+
+                              // Meal plan card (if template assigned)
+                              if (state.hasTemplatePlan) ...[
+                                _buildMealPlanCard(state, theme),
                                 const SizedBox(height: 16),
                               ],
 
@@ -561,6 +568,109 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMealPlanCard(NutritionState state, ThemeData theme) {
+    final plan = state.dayPlan!;
+    final dateKey = state.dateParam;
+
+    return Semantics(
+      button: true,
+      label:
+          '${plan.dayTypeDisplay ?? plan.dayType} meal plan. '
+          '${plan.totalCalories} calories. '
+          'Tap to view details.',
+      child: Card(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.15),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: InkWell(
+          onTap: () => context.push('/nutrition/day-plan?date=$dateKey'),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    DayTypeBadge(dayType: plan.dayType),
+                    const Spacer(),
+                    Text(
+                      plan.templateName,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.5),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text(
+                      '${plan.totalCalories}',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'cal target',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'P: ${plan.totalProtein}g',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'C: ${plan.totalCarbs}g',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'F: ${plan.totalFat}g',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => context.push('/nutrition/week-plan'),
+                    icon: const Icon(Icons.calendar_view_week, size: 16),
+                    label: const Text('View Week'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
