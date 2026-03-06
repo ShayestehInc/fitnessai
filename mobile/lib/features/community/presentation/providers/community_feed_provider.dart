@@ -125,14 +125,18 @@ class CommunityFeedNotifier extends StateNotifier<CommunityFeedState> {
     required String content,
     String contentFormat = 'plain',
     List<String> imagePaths = const [],
+    List<String> videoPaths = const [],
     int? spaceId,
+    void Function(int sent, int total)? onUploadProgress,
   }) async {
     try {
       final post = await _repo.createPost(
         content: content,
         contentFormat: contentFormat,
         imagePaths: imagePaths,
+        videoPaths: videoPaths,
         spaceId: spaceId,
+        onUploadProgress: onUploadProgress,
       );
       state = state.copyWith(posts: [post, ...state.posts]);
       return true;

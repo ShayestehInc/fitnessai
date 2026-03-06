@@ -357,6 +357,59 @@ class PostImage(models.Model):
         return f"Image {self.sort_order} on post {self.post_id}"
 
 
+def _post_video_upload_path(instance: object, filename: str) -> str:
+    """Generate upload path for post videos with year/month partitioning."""
+    from django.utils import timezone
+    now = timezone.now()
+    ext = os.path.splitext(filename)[1].lower()
+    return f"community/posts/videos/{now.year}/{now.month:02d}/{uuid.uuid4().hex}{ext}"
+
+
+def _post_video_thumbnail_path(instance: object, filename: str) -> str:
+    """Generate upload path for video thumbnails."""
+    from django.utils import timezone
+    now = timezone.now()
+    return f"community/posts/thumbnails/{now.year}/{now.month:02d}/{uuid.uuid4().hex}.jpg"
+
+
+class PostVideo(models.Model):
+    """
+    Video attached to a community post. Supports up to 3 videos per post.
+    """
+    post = models.ForeignKey(
+        CommunityPost,
+        on_delete=models.CASCADE,
+        related_name='videos',
+    )
+    file = models.FileField(upload_to=_post_video_upload_path)
+    thumbnail = models.ImageField(
+        upload_to=_post_video_thumbnail_path,
+        null=True,
+        blank=True,
+    )
+    duration = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Video duration in seconds.",
+    )
+    file_size = models.PositiveIntegerField(
+        help_text="File size in bytes.",
+    )
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'community_post_videos'
+        ordering = ['sort_order']
+        indexes = [
+            models.Index(fields=['post', 'sort_order']),
+        ]
+
+    def __str__(self) -> str:
+        dur = f"{self.duration:.1f}s" if self.duration else "unknown"
+        return f"Video {self.sort_order} on post {self.post_id} ({dur})"
+
+
 class PostReaction(models.Model):
     """
     Reaction on a community post (fire, thumbs_up, heart).

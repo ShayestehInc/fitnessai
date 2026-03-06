@@ -36,14 +36,18 @@ class CommunityFeedRepository {
     );
   }
 
-  /// Create a text post with optional multiple images and space.
+  /// Create a text post with optional images, videos, and space.
   Future<CommunityPostModel> createPost({
     required String content,
     String contentFormat = 'plain',
     List<String> imagePaths = const [],
+    List<String> videoPaths = const [],
     int? spaceId,
+    void Function(int sent, int total)? onUploadProgress,
   }) async {
-    if (imagePaths.isNotEmpty) {
+    final hasMedia = imagePaths.isNotEmpty || videoPaths.isNotEmpty;
+
+    if (hasMedia) {
       final formMap = <String, dynamic>{
         'content': content,
         'content_format': contentFormat,
@@ -51,24 +55,37 @@ class CommunityFeedRepository {
       if (spaceId != null) {
         formMap['space'] = spaceId;
       }
-      // Add multiple images under 'images' key
-      final imageFiles = <MultipartFile>[];
-      for (final path in imagePaths) {
-        imageFiles.add(await MultipartFile.fromFile(path));
+
+      // Add images
+      if (imagePaths.isNotEmpty) {
+        final imageFiles = <MultipartFile>[];
+        for (final path in imagePaths) {
+          imageFiles.add(await MultipartFile.fromFile(path));
+        }
+        formMap['images'] = imageFiles;
       }
-      formMap['images'] = imageFiles;
+
+      // Add videos
+      if (videoPaths.isNotEmpty) {
+        final videoFiles = <MultipartFile>[];
+        for (final path in videoPaths) {
+          videoFiles.add(await MultipartFile.fromFile(path));
+        }
+        formMap['videos'] = videoFiles;
+      }
 
       final formData = FormData.fromMap(formMap);
       final response = await _apiClient.dio.post(
         ApiConstants.communityFeed,
         data: formData,
+        onSendProgress: onUploadProgress,
       );
       return CommunityPostModel.fromJson(
         response.data as Map<String, dynamic>,
       );
     }
 
-    // JSON post (no images)
+    // JSON post (no media)
     final data = <String, dynamic>{
       'content': content,
       'content_format': contentFormat,

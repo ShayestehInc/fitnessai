@@ -37,6 +37,7 @@ from .models import (
     LessonProgress,
     PostImage,
     PostReaction,
+    PostVideo,
     Space,
     SpaceMembership,
     UserAchievement,
@@ -213,8 +214,6 @@ class AchievementRecentView(views.APIView):
 
 _ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
 _MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
-
-
 _MAX_IMAGES_PER_POST = 10
 
 
@@ -236,7 +235,7 @@ class CommunityFeedView(views.APIView):
         queryset = (
             CommunityPost.objects.filter(trainer=trainer)
             .select_related('author', 'space')
-            .prefetch_related('images')
+            .prefetch_related('images', 'videos')
             .annotate(comment_count=Count('comments'))
         )
 
@@ -314,6 +313,38 @@ class CommunityFeedView(views.APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        # Collect video files
+        video_files = request.FILES.getlist('videos')
+        from .services.video_service import (
+            MAX_VIDEOS_PER_POST,
+            validate_video,
+        )
+
+        if len(video_files) > MAX_VIDEOS_PER_POST:
+            return Response(
+                {'error': f'Maximum {MAX_VIDEOS_PER_POST} videos per post.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate all videos before creating the post
+        video_metadata_list = []
+        for vid_file in video_files:
+            metadata = validate_video(vid_file)
+            if not metadata.is_valid:
+                return Response(
+                    {'error': metadata.error_message},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            video_metadata_list.append(metadata)
+
+        # Ensure at least content or media is present
+        content_text = serializer.validated_data['content']
+        if not content_text and not image_files and not video_files:
+            return Response(
+                {'error': 'Post must have content, images, or videos.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         post = CommunityPost.objects.create(
             author=user,
             trainer=trainer,
@@ -328,6 +359,24 @@ class CommunityFeedView(views.APIView):
         # Create PostImage records
         for idx, img_file in enumerate(image_files):
             PostImage.objects.create(post=post, image=img_file, sort_order=idx)
+
+        # Create PostVideo records
+        for idx, (vid_file, metadata) in enumerate(zip(video_files, video_metadata_list)):
+            thumbnail_file = None
+            if metadata.thumbnail_bytes:
+                from django.core.files.base import ContentFile
+                thumbnail_file = ContentFile(
+                    metadata.thumbnail_bytes,
+                    name=f"thumb_{vid_file.name}.jpg",
+                )
+            PostVideo.objects.create(
+                post=post,
+                file=vid_file,
+                thumbnail=thumbnail_file,
+                duration=metadata.duration,
+                file_size=metadata.file_size,
+                sort_order=idx,
+            )
 
         # Annotate comment_count for serialization
         post.comment_count = 0  # type: ignore[attr-defined]
@@ -1093,6 +1142,24 @@ def _serialize_posts(
         if not images and image_url:
             images.append({'id': None, 'url': image_url, 'sort_order': 0})
 
+        # Multi-video: use prefetched videos relation
+        videos: list[dict[str, Any]] = []
+        post_videos = getattr(post, '_prefetched_objects_cache', {}).get('videos')
+        if post_videos is None:
+            post_videos = post.videos.all()
+        for pv in post_videos:
+            videos.append({
+                'id': pv.id,
+                'url': request.build_absolute_uri(pv.file.url),
+                'thumbnail_url': (
+                    request.build_absolute_uri(pv.thumbnail.url)
+                    if pv.thumbnail else None
+                ),
+                'duration': pv.duration,
+                'file_size': pv.file_size,
+                'sort_order': pv.sort_order,
+            })
+
         # Space info
         space_data = None
         if post.space is not None:
@@ -1113,6 +1180,7 @@ def _serialize_posts(
             'content_format': post.content_format,
             'image_url': image_url,  # Kept for backward compat
             'images': images,
+            'videos': videos,
             'space': space_data,
             'is_pinned': post.is_pinned,
             'is_bookmarked': post.id in bookmarked_ids,

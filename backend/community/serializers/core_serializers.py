@@ -65,8 +65,8 @@ class NewAchievementSerializer(serializers.ModelSerializer[UserAchievement]):
 # ---------------------------------------------------------------------------
 
 class CreatePostSerializer(serializers.Serializer[dict[str, Any]]):
-    """Validates creation of a text post (JSON or multipart)."""
-    content = serializers.CharField(max_length=1000)
+    """Validates creation of a text post (JSON or multipart, with optional media)."""
+    content = serializers.CharField(max_length=1000, allow_blank=True, default='')
     content_format = serializers.ChoiceField(
         choices=CommunityPost.ContentFormat.choices,
         default=CommunityPost.ContentFormat.PLAIN,
@@ -74,10 +74,7 @@ class CreatePostSerializer(serializers.Serializer[dict[str, Any]]):
     space = serializers.IntegerField(required=False, allow_null=True, default=None)
 
     def validate_content(self, value: str) -> str:
-        stripped = value.strip()
-        if not stripped:
-            raise serializers.ValidationError("Post content cannot be empty.")
-        return stripped
+        return value.strip()
 
 
 class ReactionToggleSerializer(serializers.Serializer[dict[str, Any]]):

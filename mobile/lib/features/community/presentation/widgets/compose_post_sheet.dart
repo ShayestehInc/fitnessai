@@ -22,11 +22,15 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
   final _controller = TextEditingController();
   bool _isSubmitting = false;
   bool _isMarkdown = false;
+  double _uploadProgress = 0;
   final List<String> _imagePaths = [];
+  final List<String> _videoPaths = [];
   int? _selectedSpaceId;
 
   static const int _maxImages = 10;
   static const int _maxImageSizeBytes = 5 * 1024 * 1024;
+  static const int _maxVideos = 3;
+  static const int _maxVideoSizeBytes = 50 * 1024 * 1024;
 
   @override
   void initState() {
@@ -108,6 +112,27 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
             const SizedBox(height: 8),
             _buildImagePreviews(theme),
           ],
+          // Video previews
+          if (_videoPaths.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildVideoPreviews(theme),
+          ],
+          // Upload progress
+          if (_isSubmitting && _uploadProgress > 0) ...[
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: _uploadProgress,
+              backgroundColor: theme.dividerColor,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${(_uploadProgress * 100).toInt()}% uploaded',
+              style: TextStyle(
+                fontSize: 11,
+                color: theme.textTheme.bodySmall?.color,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -184,11 +209,23 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
           label: Text(
             _imagePaths.isNotEmpty
                 ? '${_imagePaths.length}/$_maxImages'
-                : 'Add Images',
+                : 'Images',
             style: const TextStyle(fontSize: 12),
           ),
           avatar: const Icon(Icons.image_outlined, size: 18),
           onPressed: _imagePaths.length < _maxImages ? _pickImages : null,
+        ),
+        const SizedBox(width: 8),
+        // Video picker
+        ActionChip(
+          label: Text(
+            _videoPaths.isNotEmpty
+                ? '${_videoPaths.length}/$_maxVideos'
+                : 'Video',
+            style: const TextStyle(fontSize: 12),
+          ),
+          avatar: const Icon(Icons.videocam_outlined, size: 18),
+          onPressed: _videoPaths.length < _maxVideos ? _pickVideo : null,
         ),
       ],
     );
@@ -238,7 +275,10 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
   }
 
   bool get _canSubmit =>
-      !_isSubmitting && _controller.text.trim().isNotEmpty;
+      !_isSubmitting &&
+      (_controller.text.trim().isNotEmpty ||
+          _imagePaths.isNotEmpty ||
+          _videoPaths.isNotEmpty);
 
   Future<void> _pickImages() async {
     final picker = ImagePicker();
@@ -271,22 +311,127 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
     }
   }
 
+  Widget _buildVideoPreviews(ThemeData theme) {
+    return SizedBox(
+      height: 80,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _videoPaths.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final path = _videoPaths[index];
+          final fileName = path.split('/').last;
+          return Stack(
+            children: [
+              Container(
+                height: 80,
+                width: 100,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.videocam,
+                      size: 28,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        fileName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: theme.textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 2,
+                right: 2,
+                child: GestureDetector(
+                  onTap: () =>
+                      setState(() => _videoPaths.removeAt(index)),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close,
+                        size: 14, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _pickVideo() async {
+    final picker = ImagePicker();
+    final remaining = _maxVideos - _videoPaths.length;
+    if (remaining <= 0) return;
+
+    final picked = await picker.pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: const Duration(seconds: 60),
+    );
+
+    if (picked == null || !mounted) return;
+
+    final fileSize = await File(picked.path).length();
+    if (fileSize > _maxVideoSizeBytes) {
+      if (!mounted) return;
+      showAdaptiveToast(
+        context,
+        message: 'Video must be under 50MB.',
+        type: ToastType.error,
+      );
+      return;
+    }
+
+    setState(() => _videoPaths.add(picked.path));
+  }
+
   Future<void> _submit() async {
     final content = _controller.text.trim();
-    if (content.isEmpty) return;
+    if (content.isEmpty && _imagePaths.isEmpty && _videoPaths.isEmpty) return;
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _uploadProgress = 0;
+    });
 
     final success =
         await ref.read(communityFeedProvider.notifier).createPost(
               content: content,
               contentFormat: _isMarkdown ? 'markdown' : 'plain',
               imagePaths: _imagePaths,
+              videoPaths: _videoPaths,
               spaceId: _selectedSpaceId,
+              onUploadProgress: (sent, total) {
+                if (total > 0 && mounted) {
+                  setState(() => _uploadProgress = sent / total);
+                }
+              },
             );
 
     if (!mounted) return;
-    setState(() => _isSubmitting = false);
+    setState(() {
+      _isSubmitting = false;
+      _uploadProgress = 0;
+    });
 
     if (success) {
       Navigator.of(context).pop();
