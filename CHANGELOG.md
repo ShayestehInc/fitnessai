@@ -4,6 +4,29 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 50: Achievement Toast on New Badge
+
+### Added
+- Backend: Weight check-in endpoint now returns `new_achievements` in 201 response
+- Backend: Nutrition confirm-and-save endpoint now returns `new_achievements` in response
+- Mobile: `AchievementCelebrationOverlay` — animated toast with elastic scale entrance, pulsing gold glow, backdrop blur, tap/swipe dismiss, 4-second auto-dismiss
+- Mobile: `AchievementToastService` — singleton queue manager for sequential display with 500ms gap between achievements
+- Mobile: `showAchievementToastsFromRaw()` — shared helper to parse raw achievement JSON and trigger toasts
+- Mobile: Achievement toasts wired into 5 trigger points: post-workout survey, weight check-in, AI command center, manual food entry, barcode scan
+- Mobile: Haptic feedback (success pattern) on achievement display
+- Mobile: Accessibility semantics with liveRegion for screen reader announcement
+
+### Changed
+- Mobile: Consolidated duplicated `achievementIconMap` — achievement_badge.dart now imports from celebration overlay
+- Mobile: `rootNavigatorKey` made public for global overlay access by toast service
+- Mobile: `OfflineSaveResult` gained `newAchievements` convenience accessor
+- Mobile: `LoggingState` gained `newAchievements` field for forwarding achievement data through the logging flow
+
+### Fixed
+- Mobile: Overlay dispose safety — completer always completes even if widget is disposed during animation, preventing stuck queue
+
+---
+
 ## [2026-03-05] — Pipeline 49: Video Attachments on Community Posts
 
 ### Added
