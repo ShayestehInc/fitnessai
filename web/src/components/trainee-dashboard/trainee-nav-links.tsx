@@ -19,13 +19,13 @@ export interface TraineeNavLink {
 }
 
 export const traineeNavLinks: TraineeNavLink[] = [
-  { label: "Dashboard", href: "/trainee/dashboard", icon: LayoutDashboard },
-  { label: "My Program", href: "/trainee/program", icon: Dumbbell },
-  { label: "History", href: "/trainee/history", icon: History },
-  { label: "Progress", href: "/trainee/progress", icon: TrendingUp },
-  { label: "Nutrition", href: "/trainee/nutrition", icon: Apple },
-  { label: "Messages", href: "/trainee/messages", icon: MessageSquare, badgeKey: "messages" },
-  { label: "Announcements", href: "/trainee/announcements", icon: Megaphone, badgeKey: "announcements" },
-  { label: "Achievements", href: "/trainee/achievements", icon: Trophy },
-  { label: "Settings", href: "/trainee/settings", icon: Settings },
+  { label: "nav.dashboard", href: "/trainee/dashboard", icon: LayoutDashboard },
+  { label: "nav.myProgram", href: "/trainee/program", icon: Dumbbell },
+  { label: "nav.history", href: "/trainee/history", icon: History },
+  { label: "nav.progress", href: "/trainee/progress", icon: TrendingUp },
+  { label: "nav.nutrition", href: "/trainee/nutrition", icon: Apple },
+  { label: "nav.messages", href: "/trainee/messages", icon: MessageSquare, badgeKey: "messages" },
+  { label: "nav.announcements", href: "/trainee/announcements", icon: Megaphone, badgeKey: "announcements" },
+  { label: "nav.achievements", href: "/trainee/achievements", icon: Trophy },
+  { label: "nav.settings", href: "/trainee/settings", icon: Settings },
 ];

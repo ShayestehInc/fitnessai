@@ -10,6 +10,7 @@ import {
   refreshAccessToken,
   clearTokens,
 } from "@/lib/token-manager";
+import { useLocale } from "@/providers/locale-provider";
 
 interface ExportButtonProps {
   url: string;
@@ -40,6 +41,7 @@ export function ExportButton({
   "aria-label": ariaLabel,
   disabled = false,
 }: ExportButtonProps) {
+  const { t } = useLocale();
   const [status, setStatus] = useState<ButtonStatus>("idle");
   const abortRef = useRef<AbortController | null>(null);
 
@@ -83,7 +85,7 @@ export function ExportButton({
             signal: controller.signal,
           });
           if (!retryResponse.ok) {
-            toast.error("Failed to download CSV. Please try again.");
+            toast.error(t("error.failedToDownloadCsv"));
             return;
           }
           const blob = await retryResponse.blob();
@@ -97,12 +99,12 @@ export function ExportButton({
       }
 
       if (response.status === 403) {
-        toast.error("You don't have permission to export this data.");
+        toast.error(t("error.noPermissionExport"));
         return;
       }
 
       if (!response.ok) {
-        toast.error("Failed to download CSV. Please try again.");
+        toast.error(t("error.failedToDownloadCsv"));
         return;
       }
 
@@ -111,7 +113,7 @@ export function ExportButton({
       onSuccess();
     } catch (error: unknown) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      toast.error("Failed to download CSV. Please try again.");
+      toast.error(t("error.failedToDownloadCsv"));
     } finally {
       setStatus((prev) => (prev === "success" ? "success" : "idle"));
     }

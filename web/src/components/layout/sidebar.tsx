@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { navGroups } from "./nav-links";
+import { useLocale } from "@/providers/locale-provider";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -22,6 +23,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { t } = useLocale();
   const { data: unreadData } = useMessagingUnreadCount();
   const unreadCount = unreadData?.unread_count ?? 0;
 
@@ -83,7 +85,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 {group.label && !collapsed && (
                   <div className={cn("pb-1", groupIndex === 0 ? "pt-0" : "pt-4")}>
                     <span className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-                      {group.label}
+                      {t(group.label)}
                     </span>
                   </div>
                 )}
@@ -121,7 +123,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         </span>
                         {!collapsed && (
                           <>
-                            <span className="flex-1 truncate">{link.label}</span>
+                            <span className="flex-1 truncate">{t(link.label)}</span>
                             {showBadge && (
                               <Badge
                                 variant="destructive"
@@ -140,7 +142,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         <Tooltip key={link.href}>
                           <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
                           <TooltipContent side="right" sideOffset={8}>
-                            {link.label}
+                            {t(link.label)}
                             {showBadge && ` (${unreadCount})`}
                           </TooltipContent>
                         </Tooltip>

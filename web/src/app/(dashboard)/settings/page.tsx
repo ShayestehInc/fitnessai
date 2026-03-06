@@ -11,6 +11,7 @@ import { SecuritySection } from "@/components/settings/security-section";
 import { BrandingSection } from "@/components/settings/branding-section";
 import { LeaderboardSection } from "@/components/settings/leaderboard-section";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocale } from "@/providers/locale-provider";
 
 function SettingsSkeleton() {
   return (
@@ -30,12 +31,13 @@ function SettingsSkeleton() {
 }
 
 export default function SettingsPage() {
+  const { t } = useLocale();
   const { user, isLoading, refreshUser } = useAuth();
 
   if (isLoading) {
     return (
       <div className="max-w-2xl space-y-6">
-        <PageHeader title="Settings" description="Manage your account" />
+        <PageHeader title={t("nav.settings")} description={t("settings.manageAccount")} />
         <SettingsSkeleton />
       </div>
     );
@@ -44,7 +46,7 @@ export default function SettingsPage() {
   if (!user) {
     return (
       <div className="max-w-2xl space-y-6">
-        <PageHeader title="Settings" description="Manage your account" />
+        <PageHeader title={t("nav.settings")} description={t("settings.manageAccount")} />
         <ErrorState
           message="Failed to load settings"
           onRetry={() => refreshUser()}
@@ -56,7 +58,7 @@ export default function SettingsPage() {
   return (
     <PageTransition>
       <div className="max-w-2xl space-y-6">
-        <PageHeader title="Settings" description="Manage your account" />
+        <PageHeader title={t("nav.settings")} description={t("settings.manageAccount")} />
         <ProfileSection />
         <BrandingSection />
         <LeaderboardSection />

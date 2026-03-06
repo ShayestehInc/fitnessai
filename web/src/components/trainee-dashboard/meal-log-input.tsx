@@ -17,6 +17,7 @@ import {
   useConfirmAndSaveMeal,
 } from "@/hooks/use-trainee-nutrition";
 import type { ParseNaturalLanguageResponse } from "@/types/trainee-dashboard";
+import { useLocale } from "@/providers/locale-provider";
 
 const MAX_INPUT_LENGTH = 2000;
 /** Show character count when the user is within this many characters of the limit. */
@@ -27,6 +28,7 @@ interface MealLogInputProps {
 }
 
 export function MealLogInput({ date }: MealLogInputProps) {
+  const { t } = useLocale();
   const [input, setInput] = useState("");
   const [parsedResult, setParsedResult] = useState<ParseNaturalLanguageResponse | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,7 +61,7 @@ export function MealLogInput({ date }: MealLogInputProps) {
 
           const meals = data.nutrition?.meals;
           if (!meals || meals.length === 0) {
-            toast.error("No food items detected. Try being more specific.");
+            toast.error(t("nutrition.noFoodDetected"));
             return;
           }
 
@@ -83,13 +85,13 @@ export function MealLogInput({ date }: MealLogInputProps) {
       { parsed_data: parsedResult, date, confirm: true },
       {
         onSuccess: () => {
-          toast.success("Meal logged!");
+          toast.success(t("nutrition.mealLogged"));
           setParsedResult(null);
           setInput("");
           inputRef.current?.focus();
         },
         onError: () => {
-          toast.error("Failed to save meal. Please try again.");
+          toast.error(t("nutrition.failedToSaveMeal"));
         },
       },
     );

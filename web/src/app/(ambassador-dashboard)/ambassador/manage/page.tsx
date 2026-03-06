@@ -8,16 +8,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TIER_COLORS } from "@/lib/admin-constants";
 import { Badge } from "@/components/ui/badge";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function AmbassadorManagePage() {
+  const { t } = useLocale();
   const dashboard = useAmbassadorAdminDashboard();
 
   if (dashboard.isLoading) {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Manage"
-          description="Overview of your trainers and platform"
+          title={t("ambassador.manage")}
+          description={t("ambassador.dashboardDesc")}
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -32,11 +34,11 @@ export default function AmbassadorManagePage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Manage"
-          description="Overview of your trainers and platform"
+          title={t("ambassador.manage")}
+          description={t("ambassador.dashboardDesc")}
         />
         <ErrorState
-          message="Failed to load dashboard data"
+          message={t("dashboard.failedToLoad")}
           onRetry={() => dashboard.refetch()}
         />
       </div>
@@ -51,8 +53,8 @@ export default function AmbassadorManagePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Manage"
-        description="Overview of your trainers and platform"
+        title={t("ambassador.manage")}
+        description={t("ambassador.dashboardDesc")}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -88,7 +90,7 @@ export default function AmbassadorManagePage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">MRR</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("admin.mrr")}</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           </CardHeader>
           <CardContent>
@@ -120,7 +122,7 @@ export default function AmbassadorManagePage() {
       {tierEntries.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Tier Breakdown</CardTitle>
+            <CardTitle>{t("admin.tierBreakdown")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">

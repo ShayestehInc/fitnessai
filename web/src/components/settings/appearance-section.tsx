@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/providers/locale-provider";
 
 const emptySubscribe = () => () => {};
 
@@ -22,6 +23,7 @@ const themes = [
 ] as const;
 
 export function AppearanceSection() {
+  const { t } = useLocale();
   const { theme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
@@ -53,7 +55,7 @@ export function AppearanceSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Appearance</CardTitle>
+        <CardTitle>{t("settings.appearance")}</CardTitle>
         <CardDescription>
           Choose how the dashboard looks to you
         </CardDescription>

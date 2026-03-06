@@ -23,12 +23,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { Invitation } from "@/types/invitation";
+import { useLocale } from "@/providers/locale-provider";
 
 interface InvitationActionsProps {
   invitation: Invitation;
 }
 
 export function InvitationActions({ invitation }: InvitationActionsProps) {
+  const { t } = useLocale();
   const resend = useResendInvitation();
   const cancel = useCancelInvitation();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -46,29 +48,29 @@ export function InvitationActions({ invitation }: InvitationActionsProps) {
     setDropdownOpen(false);
     try {
       navigator.clipboard.writeText(invitation.invitation_code).then(
-        () => toast.success("Invitation code copied"),
-        () => toast.error("Failed to copy code"),
+        () => toast.success(t("invitations.codeCopied")),
+        () => toast.error(t("invitations.failedToCopyCode")),
       );
     } catch {
-      toast.error("Failed to copy code");
+      toast.error(t("invitations.failedToCopyCode"));
     }
   };
 
   const handleResend = () => {
     setDropdownOpen(false);
     resend.mutate(invitation.id, {
-      onSuccess: () => toast.success("Invitation resent"),
-      onError: () => toast.error("Failed to resend invitation"),
+      onSuccess: () => toast.success(t("invitations.resent")),
+      onError: () => toast.error(t("invitations.failedToResend")),
     });
   };
 
   const handleCancel = () => {
     cancel.mutate(invitation.id, {
       onSuccess: () => {
-        toast.success("Invitation cancelled");
+        toast.success(t("invitations.cancelled"));
         setShowCancelDialog(false);
       },
-      onError: () => toast.error("Failed to cancel invitation"),
+      onError: () => toast.error(t("invitations.failedToCancel")),
     });
   };
 

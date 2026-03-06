@@ -9,6 +9,7 @@ import { usePrograms, useAssignProgram } from "@/hooks/use-programs";
 import { getErrorMessage } from "@/lib/error-utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/providers/locale-provider";
 
 interface ChangeProgramPanelProps {
   traineeId: number;
@@ -25,6 +26,7 @@ export function ChangeProgramPanel({
   open,
   onOpenChange,
 }: ChangeProgramPanelProps) {
+  const { t } = useLocale();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const { data, isLoading } = usePrograms(1, "");
 
@@ -37,7 +39,7 @@ export function ChangeProgramPanel({
       { trainee_id: traineeId, start_date: new Date().toISOString().split("T")[0] },
       {
         onSuccess: () => {
-          toast.success("Program assigned successfully");
+          toast.success(t("programs.programAssigned"));
           onOpenChange(false);
           setSelectedId(null);
         },

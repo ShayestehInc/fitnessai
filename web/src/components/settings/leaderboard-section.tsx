@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getErrorMessage } from "@/lib/error-utils";
+import { useLocale } from "@/providers/locale-provider";
 
 const METRIC_LABELS: Record<string, string> = {
   workout_count: "Workout Count",
@@ -40,6 +41,7 @@ function settingDisplayName(setting: LeaderboardSetting): string {
 }
 
 export function LeaderboardSection() {
+  const { t } = useLocale();
   const { data: settings, isLoading } = useLeaderboardSettings();
   const updateMutation = useUpdateLeaderboardSetting();
   const [pendingToggles, setPendingToggles] = useState<Set<string>>(new Set());
@@ -97,7 +99,7 @@ export function LeaderboardSection() {
       <CardHeader>
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Leaderboard Settings</CardTitle>
+          <CardTitle>{t("settings.leaderboardSettings")}</CardTitle>
         </div>
         <CardDescription>
           Choose which metrics your trainees compete on

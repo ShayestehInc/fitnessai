@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TrendingUp } from "lucide-react";
 import { tooltipContentStyle } from "@/lib/chart-utils";
+import { useLocale } from "@/providers/locale-provider";
 
 interface EarningsChartProps {
   data: { month: string; amount: string }[];
@@ -46,6 +47,7 @@ function formatExactAmount(value: number): string {
 }
 
 export function EarningsChart({ data }: EarningsChartProps) {
+  const { t } = useLocale();
   const hasAnyEarnings = data.some((d) => parseFloat(d.amount) > 0);
 
   if (!data.length || !hasAnyEarnings) {
@@ -57,8 +59,8 @@ export function EarningsChart({ data }: EarningsChartProps) {
         <CardContent>
           <EmptyState
             icon={TrendingUp}
-            title="No earnings data yet"
-            description="Your monthly commission earnings will appear here once you start earning."
+            title={t("ambassador.noEarningsData")}
+            description={t("ambassador.earningsAppear")}
           />
         </CardContent>
       </Card>

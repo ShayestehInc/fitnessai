@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { adminNavLinks } from "./admin-nav-links";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AdminSidebarProps {
   collapsed: boolean;
@@ -19,6 +20,7 @@ interface AdminSidebarProps {
 }
 
 export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
+  const { t } = useLocale();
   const pathname = usePathname();
 
   return (
@@ -96,7 +98,7 @@ export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
                   )}
                 >
                   <link.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  {!collapsed && <span className="truncate">{link.label}</span>}
+                  {!collapsed && <span className="truncate">{t(link.label)}</span>}
                 </Link>
               );
 
@@ -105,7 +107,7 @@ export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
                   <Tooltip key={link.href}>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
                     <TooltipContent side="right" sideOffset={8}>
-                      {link.label}
+                      {t(link.label)}
                     </TooltipContent>
                   </Tooltip>
                 );

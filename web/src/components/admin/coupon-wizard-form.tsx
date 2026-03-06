@@ -16,6 +16,7 @@ import type {
   CreateCouponPayload,
   UpdateCouponPayload,
 } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 interface CouponWizardFormProps {
   coupon?: AdminCoupon | null;
@@ -36,6 +37,7 @@ const APPLIES_TO_OPTIONS = [
 const AVAILABLE_TIERS = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
 
 export function CouponWizardForm({ coupon }: CouponWizardFormProps) {
+  const { t } = useLocale();
   const router = useRouter();
   const isEdit = coupon != null;
   const createCoupon = useCreateCoupon();
@@ -159,7 +161,7 @@ export function CouponWizardForm({ coupon }: CouponWizardFormProps) {
           <div className="space-y-4">
             {!isEdit && (
               <div className="space-y-1">
-                <Label htmlFor="coupon-code">Code</Label>
+                <Label htmlFor="coupon-code">{t("invitations.code")}</Label>
                 <Input
                   id="coupon-code"
                   value={code}
@@ -182,13 +184,13 @@ export function CouponWizardForm({ coupon }: CouponWizardFormProps) {
             )}
             {isEdit && (
               <div className="space-y-1">
-                <Label>Code</Label>
+                <Label>{t("invitations.code")}</Label>
                 <p className="font-mono font-medium">{coupon?.code}</p>
               </div>
             )}
 
             <div className="space-y-1">
-              <Label htmlFor="coupon-description">Description</Label>
+              <Label htmlFor="coupon-description">{t("common.description")}</Label>
               <Input
                 id="coupon-description"
                 value={description}
@@ -200,7 +202,7 @@ export function CouponWizardForm({ coupon }: CouponWizardFormProps) {
             {!isEdit && (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label htmlFor="coupon-type">Type</Label>
+                  <Label htmlFor="coupon-type">{t("common.type")}</Label>
                   <select
                     id="coupon-type"
                     value={couponType}
@@ -215,7 +217,7 @@ export function CouponWizardForm({ coupon }: CouponWizardFormProps) {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="coupon-applies-to">Applies To</Label>
+                  <Label htmlFor="coupon-applies-to">{t("admin.appliesTo")}</Label>
                   <select
                     id="coupon-applies-to"
                     value={appliesTo}
@@ -270,7 +272,7 @@ export function CouponWizardForm({ coupon }: CouponWizardFormProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label htmlFor="coupon-max-uses">Max Uses (0 = unlimited)</Label>
+                <Label htmlFor="coupon-max-uses">{t("admin.maxUses")}</Label>
                 <Input
                   id="coupon-max-uses"
                   type="number"
@@ -382,7 +384,7 @@ export function CouponWizardForm({ coupon }: CouponWizardFormProps) {
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Applies To</p>
+                  <p className="text-muted-foreground">{t("admin.appliesTo")}</p>
                   <p className="font-medium">{appliesToLabel}</p>
                 </div>
                 <div>
@@ -396,7 +398,7 @@ export function CouponWizardForm({ coupon }: CouponWizardFormProps) {
                   <p className="font-medium">{maxUsesPerUser}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Expires</p>
+                  <p className="text-muted-foreground">{t("invitations.expiresAt")}</p>
                   <p className="font-medium">
                     {validUntil
                       ? new Date(validUntil).toLocaleDateString()

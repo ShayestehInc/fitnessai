@@ -5,6 +5,7 @@ import { useState, useCallback } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/providers/locale-provider";
 
 export interface WizardStep {
   label: string;
@@ -30,6 +31,7 @@ export function StepWizard({
   submitLabel = "Submit",
   isSubmitting = false,
 }: StepWizardProps) {
+  const { t } = useLocale();
   const [currentStep, setCurrentStep] = useState(0);
 
   const isLastStep = currentStep === steps.length - 1;
@@ -56,7 +58,7 @@ export function StepWizard({
       </div>
 
       {/* Stepper */}
-      <nav aria-label="Progress">
+      <nav aria-label={t("nav.progress")}>
         <ol className="flex items-center">
           {steps.map((s, index) => {
             const isCompleted = index < currentStep;

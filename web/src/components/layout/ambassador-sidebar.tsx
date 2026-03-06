@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ambassadorNavLinks, ambassadorManageLinks } from "./ambassador-nav-links";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AmbassadorSidebarProps {
   collapsed: boolean;
@@ -19,6 +20,7 @@ interface AmbassadorSidebarProps {
 }
 
 export function AmbassadorSidebar({ collapsed, onToggle }: AmbassadorSidebarProps) {
+  const { t } = useLocale();
   const pathname = usePathname();
 
   const renderLink = (link: (typeof ambassadorNavLinks)[number], basePath: string) => {
@@ -42,7 +44,7 @@ export function AmbassadorSidebar({ collapsed, onToggle }: AmbassadorSidebarProp
         )}
       >
         <link.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-        {!collapsed && <span className="truncate">{link.label}</span>}
+        {!collapsed && <span className="truncate">{t(link.label)}</span>}
       </Link>
     );
 
@@ -51,7 +53,7 @@ export function AmbassadorSidebar({ collapsed, onToggle }: AmbassadorSidebarProp
         <Tooltip key={link.href}>
           <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
           <TooltipContent side="right" sideOffset={8}>
-            {link.label}
+            {t(link.label)}
           </TooltipContent>
         </Tooltip>
       );

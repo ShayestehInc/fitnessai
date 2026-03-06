@@ -9,8 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAmbassadorReferralCode, useUpdateReferralCode } from "@/hooks/use-ambassador";
 import { getErrorMessage } from "@/lib/error-utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocale } from "@/providers/locale-provider";
 
 export function ReferralCodeCard() {
+  const { t } = useLocale();
   const { data, isLoading } = useAmbassadorReferralCode();
   const updateMutation = useUpdateReferralCode();
   const [isEditing, setIsEditing] = useState(false);
@@ -23,7 +25,7 @@ export function ReferralCodeCard() {
     const url = `${window.location.origin}/signup?ref=${referralCode}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
-      toast.success("Referral link copied!");
+      toast.success(t("ambassador.referralLinkCopied"));
       setTimeout(() => setCopied(false), 2000);
     });
   }, [referralCode]);
@@ -31,12 +33,12 @@ export function ReferralCodeCard() {
   const handleSave = useCallback(() => {
     const sanitized = newCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (sanitized.length < 3) {
-      toast.error("Code must be at least 3 characters");
+      toast.error(t("error.codeMinChars"));
       return;
     }
     updateMutation.mutate(sanitized, {
       onSuccess: () => {
-        toast.success("Referral code updated");
+        toast.success(t("ambassador.referralCodeUpdated"));
         setIsEditing(false);
       },
       onError: (err) => toast.error(getErrorMessage(err)),

@@ -6,6 +6,7 @@ import { DataTable } from "@/components/shared/data-table";
 import type { Column } from "@/components/shared/data-table";
 import { TIER_COLORS } from "@/lib/admin-constants";
 import type { AdminTrainerListItem } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 interface TrainerListProps {
   trainers: AdminTrainerListItem[];
@@ -66,6 +67,7 @@ const columns: Column<AdminTrainerListItem>[] = [
 ];
 
 export function TrainerList({ trainers, onRowClick }: TrainerListProps) {
+  const { t } = useLocale();
   return (
     <DataTable
       columns={columns}

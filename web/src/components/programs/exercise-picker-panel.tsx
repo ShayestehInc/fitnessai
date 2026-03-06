@@ -19,6 +19,7 @@ import {
   type Exercise,
   type ScheduleExercise,
 } from "@/types/program";
+import { useLocale } from "@/providers/locale-provider";
 
 interface ExercisePickerPanelProps {
   onSelect: (exercise: ScheduleExercise) => void;
@@ -31,6 +32,7 @@ export function ExercisePickerPanel({
   onSelect,
   trigger,
 }: ExercisePickerPanelProps) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<MuscleGroup | "">("");
@@ -94,8 +96,8 @@ export function ExercisePickerPanel({
       <SlideOverPanel
         open={open}
         onOpenChange={handleOpenChange}
-        title="Add Exercises"
-        description="Select exercises to add to this day. You can add multiple at once."
+        title={t("programs.addExercises")}
+        description={t("programs.selectExercises")}
         width="xl"
         footer={footerContent}
       >
@@ -106,7 +108,7 @@ export function ExercisePickerPanel({
               aria-hidden="true"
             />
             <Input
-              placeholder="Search exercises..."
+              placeholder={t("exercises.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -186,7 +188,7 @@ export function ExercisePickerPanel({
           ) : firstPage && firstPage.results.length === 0 ? (
             <EmptyState
               icon={Dumbbell}
-              title="No exercises found"
+              title={t("exercises.noExercises")}
               description={
                 search || selectedGroup || selectedDifficulty
                   ? "Try adjusting your search or filters."

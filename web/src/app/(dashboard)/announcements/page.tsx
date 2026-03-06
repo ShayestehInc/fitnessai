@@ -9,8 +9,10 @@ import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
 import { AnnouncementList } from "@/components/announcements/announcement-list";
 import { AnnouncementListSkeleton } from "@/components/announcements/announcement-list-skeleton";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function AnnouncementsPage() {
+  const { t } = useLocale();
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch } = useAnnouncements(page);
 
@@ -21,7 +23,7 @@ export default function AnnouncementsPage() {
     return (
       <PageTransition>
         <div className="space-y-6">
-          <PageHeader title="Announcements" description="Broadcast messages to all your trainees" />
+          <PageHeader title={t("nav.announcements")} description={t("trainer.broadcastMessages")} />
           <AnnouncementListSkeleton />
         </div>
       </PageTransition>
@@ -32,7 +34,7 @@ export default function AnnouncementsPage() {
     return (
       <PageTransition>
         <div className="space-y-6">
-          <PageHeader title="Announcements" description="Broadcast messages to all your trainees" />
+          <PageHeader title={t("nav.announcements")} description={t("trainer.broadcastMessages")} />
           <ErrorState message="Failed to load announcements" onRetry={() => refetch()} />
         </div>
       </PageTransition>
@@ -43,8 +45,8 @@ export default function AnnouncementsPage() {
     <PageTransition>
       <div className="space-y-6">
         <PageHeader
-          title="Announcements"
-          description="Broadcast messages to all your trainees"
+          title={t("nav.announcements")}
+          description={t("trainer.broadcastMessages")}
         />
         <AnnouncementList announcements={data?.results ?? []} />
         {(hasPrevPage || hasNextPage) && (
@@ -57,7 +59,7 @@ export default function AnnouncementsPage() {
               aria-label="Go to previous page"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Previous</span>
+              <span className="hidden sm:inline">{t("common.previous")}</span>
             </Button>
             <span className="text-sm text-muted-foreground" aria-current="page">
               Page {page}
@@ -69,7 +71,7 @@ export default function AnnouncementsPage() {
               onClick={() => setPage((p) => p + 1)}
               aria-label="Go to next page"
             >
-              <span className="hidden sm:inline">Next</span>
+              <span className="hidden sm:inline">{t("common.next")}</span>
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           </nav>

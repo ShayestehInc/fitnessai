@@ -13,8 +13,10 @@ import { formatCurrency } from "@/lib/format-utils";
 import { CreateAmbassadorPanel } from "./create-ambassador-panel";
 import { AmbassadorDetailPanel } from "./ambassador-detail-panel";
 import type { Ambassador } from "@/types/ambassador";
+import { useLocale } from "@/providers/locale-provider";
 
 export function AmbassadorList() {
+  const { t } = useLocale();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [createOpen, setCreateOpen] = useState(false);
@@ -48,7 +50,7 @@ export function AmbassadorList() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search ambassadors..."
+              placeholder={t("admin.searchAmbassadors")}
               className="pl-9"
             />
           </div>

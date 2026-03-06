@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ExerciseRow } from "./exercise-row";
 import { ExercisePickerPanel } from "./exercise-picker-panel";
 import type { ScheduleDay, ScheduleExercise } from "@/types/program";
+import { useLocale } from "@/providers/locale-provider";
 
 const MAX_EXERCISES_PER_DAY = 50;
 
@@ -19,6 +20,7 @@ interface DayEditorProps {
 }
 
 export function DayEditor({ day, dayIndex, onUpdate }: DayEditorProps) {
+  const { t } = useLocale();
   const updateName = (name: string) => {
     onUpdate({ ...day, name });
   };
@@ -89,7 +91,7 @@ export function DayEditor({ day, dayIndex, onUpdate }: DayEditorProps) {
                   id={`day-name-${dayIndex}`}
                   value={day.name}
                   onChange={(e) => updateName(e.target.value)}
-                  placeholder="Day name (e.g., Push Day)"
+                  placeholder={t("programs.dayNamePlaceholder")}
                   className="h-8 w-full max-w-[200px] text-sm"
                   maxLength={50}
                 />

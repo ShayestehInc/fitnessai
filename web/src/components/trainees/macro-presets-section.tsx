@@ -31,6 +31,7 @@ import { PresetFormPanel } from "./preset-form-panel";
 import { CopyPresetPanel } from "./copy-preset-panel";
 import { PresetCard } from "./preset-card";
 import type { MacroPreset } from "@/types/trainer";
+import { useLocale } from "@/providers/locale-provider";
 
 interface MacroPresetsSectionProps {
   traineeId: number;
@@ -41,6 +42,7 @@ export function MacroPresetsSection({
   traineeId,
   traineeName,
 }: MacroPresetsSectionProps) {
+  const { t } = useLocale();
   const { data: presets, isLoading, isError, refetch } = useMacroPresets(traineeId);
   const deleteMutation = useDeleteMacroPreset(traineeId);
 
@@ -63,7 +65,7 @@ export function MacroPresetsSection({
     if (!deleteTarget) return;
     deleteMutation.mutate(deleteTarget.id, {
       onSuccess: () => {
-        toast.success("Preset deleted");
+        toast.success(t("trainees.presetDeleted"));
         setDeleteTarget(null);
       },
       onError: (err) => toast.error(getErrorMessage(err)),
@@ -76,7 +78,7 @@ export function MacroPresetsSection({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Macro Presets</CardTitle>
+              <CardTitle>{t("trainees.macroPresets")}</CardTitle>
               <CardDescription>
                 Nutrition templates for this trainee
               </CardDescription>
@@ -125,7 +127,7 @@ export function MacroPresetsSection({
                 <Utensils className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-sm font-medium">No macro presets</p>
+                <p className="text-sm font-medium">{t("trainees.noMacroPresets")}</p>
                 <p className="text-sm text-muted-foreground">
                   Create presets like Training Day, Rest Day to quickly manage
                   nutrition for this trainee.
@@ -192,7 +194,7 @@ export function MacroPresetsSection({
           }}
         >
           <DialogHeader>
-            <DialogTitle>Delete Preset</DialogTitle>
+            <DialogTitle>{t("trainees.deletePreset")}</DialogTitle>
             <DialogDescription id="delete-preset-description">
               Are you sure you want to delete the preset &ldquo;
               {deleteTarget?.name}&rdquo;? This cannot be undone.

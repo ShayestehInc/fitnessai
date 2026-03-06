@@ -11,16 +11,16 @@ import {
 import type { NavLink } from "./nav-links";
 
 export const ambassadorNavLinks: NavLink[] = [
-  { label: "Dashboard", href: "/ambassador/dashboard", icon: LayoutDashboard },
-  { label: "Referrals", href: "/ambassador/referrals", icon: Users },
-  { label: "Payouts", href: "/ambassador/payouts", icon: DollarSign },
-  { label: "Settings", href: "/ambassador/settings", icon: Settings },
+  { label: "nav.dashboard", href: "/ambassador/dashboard", icon: LayoutDashboard },
+  { label: "ambassador.referrals", href: "/ambassador/referrals", icon: Users },
+  { label: "ambassador.payouts", href: "/ambassador/payouts", icon: DollarSign },
+  { label: "nav.settings", href: "/ambassador/settings", icon: Settings },
 ];
 
 export const ambassadorManageLinks: NavLink[] = [
-  { label: "Manage", href: "/ambassador/manage", icon: Shield },
-  { label: "My Trainers", href: "/ambassador/manage/trainers", icon: Users },
-  { label: "Subscriptions", href: "/ambassador/manage/subscriptions", icon: CreditCard },
-  { label: "Tiers", href: "/ambassador/manage/tiers", icon: Layers },
-  { label: "Coupons", href: "/ambassador/manage/coupons", icon: Ticket },
+  { label: "ambassador.manage", href: "/ambassador/manage", icon: Shield },
+  { label: "ambassador.trainers", href: "/ambassador/manage/trainers", icon: Users },
+  { label: "ambassador.subscriptions", href: "/ambassador/manage/subscriptions", icon: CreditCard },
+  { label: "admin.tiers", href: "/ambassador/manage/tiers", icon: Layers },
+  { label: "ambassador.coupons", href: "/ambassador/manage/coupons", icon: Ticket },
 ];

@@ -8,6 +8,7 @@ import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
+import { useLocale } from "@/providers/locale-provider";
 
 const IMPERSONATION_KEY = "fitnessai_impersonation";
 
@@ -37,6 +38,7 @@ export function clearImpersonationState(): void {
 }
 
 export function ImpersonationBanner() {
+  const { t } = useLocale();
   const [state, setState] = useState<ImpersonationState | null>(() =>
     typeof window !== "undefined" ? getImpersonationState() : null,
   );
@@ -76,7 +78,7 @@ export function ImpersonationBanner() {
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-4 w-4" aria-hidden="true" />
         <span className="text-sm font-medium">
-          Viewing as {state.trainerEmail}
+          {t("impersonation.viewingAs")} {state.trainerEmail}
         </span>
         <span className="sr-only">(impersonation mode active)</span>
       </div>
@@ -98,7 +100,7 @@ export function ImpersonationBanner() {
         ) : (
           <>
             <X className="mr-1 h-3 w-3" aria-hidden="true" />
-            End Impersonation
+            {t("impersonation.endSession")}
           </>
         )}
       </Button>

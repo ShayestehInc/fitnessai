@@ -22,6 +22,7 @@ import { MessageBubble } from "./message-bubble";
 import { ChatInput } from "./chat-input";
 import { TypingIndicator } from "./typing-indicator";
 import type { Conversation, Message } from "@/types/messaging";
+import { useLocale } from "@/providers/locale-provider";
 
 // Polling intervals: fast when WS is down, disabled (0) when connected
 const POLLING_FAST_MS = 5_000;
@@ -43,6 +44,7 @@ export function ChatView({
   highlightMessageId,
   onHighlightShown,
 }: ChatViewProps) {
+  const { t } = useLocale();
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [allMessages, setAllMessages] = useState<Message[]>([]);
@@ -278,7 +280,7 @@ export function ChatView({
         { messageId, content },
         {
           onError: () => {
-            toast.error("Failed to edit message");
+            toast.error(t("error.failedToEditMessage"));
             // Revert local state on error by refetching
             refetch();
           },
@@ -302,7 +304,7 @@ export function ChatView({
         { messageId },
         {
           onError: () => {
-            toast.error("Failed to delete message");
+            toast.error(t("error.failedToDeleteMessage"));
             // Revert local state on error by refetching
             refetch();
           },

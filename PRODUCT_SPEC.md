@@ -326,7 +326,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Language selector (web) | ✅ Done | Shipped 2026-02-27 (Pipeline 40): LanguageSelector component on all 4 settings pages (admin, trainer, trainee, ambassador), cookie + API sync |
 | Translation glossary | ✅ Done | Shipped 2026-02-27 (Pipeline 40): Standardized fitness terms across en/es/pt-br with consistency rules |
 | String extraction (Phase B — Flutter) | ✅ Done | Shipped 2026-03-05 (Pipeline 52): 976 new ARB keys extracted from 161 dart files across all features. Total Flutter l10n keys: 1164 with en/es/pt-br translations. Zero analyzer errors. |
-| String extraction (Phase B — Web) | 🟡 Pending | Web i18n infrastructure exists (locale-provider, JSON message files, t() function) but zero component adoption. Needs `useLocale()` hook calls added to web components. |
+| String extraction (Phase B — Web) | ✅ Done | Shipped 2026-03-05 (Pipeline 55): 150 web components converted to use useLocale() hook with 728 t() calls. JSON message files expanded from ~130 to ~580 keys across en/es/pt-br. All nav links, page titles, descriptions, buttons, form labels, placeholders, toast messages, empty/error states extracted. Zero TypeScript errors. |
 
 ---
 

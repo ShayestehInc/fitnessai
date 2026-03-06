@@ -19,18 +19,20 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import type { TraineeListItem } from "@/types/trainer";
+import { useLocale } from "@/providers/locale-provider";
 
 interface RecentTraineesProps {
   trainees: TraineeListItem[];
 }
 
 export function RecentTrainees({ trainees }: RecentTraineesProps) {
+  const { t } = useLocale();
   if (trainees.length === 0) return null;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent Trainees</CardTitle>
+        <CardTitle>{t("dashboard.recentTrainees")}</CardTitle>
         <CardDescription>Latest trainees to join your program</CardDescription>
       </CardHeader>
       <CardContent>
@@ -38,9 +40,9 @@ export function RecentTrainees({ trainees }: RecentTraineesProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Program</TableHead>
+                <TableHead>{t("common.name")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
+                <TableHead className="hidden md:table-cell">{t("trainees.missedProgram")}</TableHead>
                 <TableHead className="hidden md:table-cell">Joined</TableHead>
               </TableRow>
             </TableHeader>

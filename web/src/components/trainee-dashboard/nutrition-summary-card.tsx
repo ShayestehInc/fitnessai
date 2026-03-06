@@ -13,6 +13,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { MacroBar } from "@/components/shared/macro-bar";
 import { useTraineeDashboardNutrition } from "@/hooks/use-trainee-dashboard";
 import { getTodayString } from "@/lib/schedule-utils";
+import { useLocale } from "@/providers/locale-provider";
 
 function CardSkeleton() {
   return (
@@ -33,6 +34,7 @@ function CardSkeleton() {
 }
 
 export function NutritionSummaryCard() {
+  const { t } = useLocale();
   const [today, setToday] = useState(getTodayString);
 
   // Update the date if the user keeps the tab open past midnight
@@ -121,26 +123,26 @@ export function NutritionSummaryCard() {
       </CardHeader>
       <CardContent className="space-y-3">
         <MacroBar
-          label="Calories"
+          label={t("nutrition.calories")}
           consumed={consumed.calories}
           goal={goals.calories}
           color="hsl(var(--chart-1))"
           unit=" kcal"
         />
         <MacroBar
-          label="Protein"
+          label={t("nutrition.protein")}
           consumed={consumed.protein}
           goal={goals.protein}
           color="hsl(var(--chart-2))"
         />
         <MacroBar
-          label="Carbs"
+          label={t("nutrition.carbs")}
           consumed={consumed.carbs}
           goal={goals.carbs}
           color="hsl(var(--chart-3))"
         />
         <MacroBar
-          label="Fat"
+          label={t("nutrition.fat")}
           consumed={consumed.fat}
           goal={goals.fat}
           color="hsl(var(--chart-4))"

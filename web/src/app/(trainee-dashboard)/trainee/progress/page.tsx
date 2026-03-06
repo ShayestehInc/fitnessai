@@ -9,16 +9,18 @@ import {
   WeeklyAdherenceCard,
 } from "@/components/trainee-dashboard/trainee-progress-charts";
 import { WeightCheckInPanel } from "@/components/trainee-dashboard/weight-checkin-panel";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function TraineeProgressPage() {
+  const { t } = useLocale();
   const [weightDialogOpen, setWeightDialogOpen] = useState(false);
 
   return (
     <PageTransition>
       <div className="space-y-6">
         <PageHeader
-          title="Progress"
-          description="Track your training progress and body weight trends."
+          title={t("nav.progress")}
+          description={t("progress.description")}
         />
 
         <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">

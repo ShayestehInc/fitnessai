@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format-utils";
+import { useLocale } from "@/providers/locale-provider";
 
 interface UpcomingPayment {
   id: number;
@@ -23,6 +24,7 @@ interface UpcomingPayment {
 }
 
 export function UpcomingPaymentsList() {
+  const { t } = useLocale();
   const { data, isLoading, isError, refetch } = useQuery<UpcomingPayment[]>({
     queryKey: ["admin-upcoming-payments"],
     queryFn: () =>
@@ -54,8 +56,8 @@ export function UpcomingPaymentsList() {
     return (
       <EmptyState
         icon={CalendarClock}
-        title="No upcoming payments"
-        description="All subscription payments are up to date."
+        title={t("admin.noUpcomingPayments")}
+        description={t("admin.allUpToDate")}
       />
     );
   }

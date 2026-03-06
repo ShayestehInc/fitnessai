@@ -14,8 +14,10 @@ import { API_URLS } from "@/lib/constants";
 import { TraineeSearch } from "@/components/trainees/trainee-search";
 import { TraineeTable } from "@/components/trainees/trainee-table";
 import { TraineeTableSkeleton } from "@/components/trainees/trainee-table-skeleton";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function TraineesPage() {
+  const { t } = useLocale();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -33,20 +35,20 @@ export default function TraineesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Trainees"
-        description="Manage your training clients"
+        title={t("nav.trainees")}
+        description={t("trainees.description")}
         actions={
           <>
             {data && data.count > 0 && (
               <ExportButton
                 url={API_URLS.EXPORT_TRAINEES}
                 filename={`trainees_${new Date().toLocaleDateString("en-CA")}.csv`}
-                label="Export CSV"
+                label={t("common.exportCsv")}
                 aria-label="Export trainees as CSV"
               />
             )}
             <Button asChild>
-              <Link href="/invitations">Invite Trainee</Link>
+              <Link href="/invitations">{t("trainer.inviteTrainee")}</Link>
             </Button>
           </>
         }
@@ -59,18 +61,18 @@ export default function TraineesPage() {
       ) : data && data.results.length === 0 && !debouncedSearch ? (
         <EmptyState
           icon={Users}
-          title="No trainees yet"
-          description="Send an invitation to get your first trainee started."
+          title={t("trainees.noTraineesYet")}
+          description={t("invitations.inviteFirstDesc")}
           action={
             <Button asChild>
-              <Link href="/invitations">Send Invitation</Link>
+              <Link href="/invitations">{t("invitations.createInvitation")}</Link>
             </Button>
           }
         />
       ) : data && data.results.length === 0 && debouncedSearch ? (
         <EmptyState
           icon={Users}
-          title="No results"
+          title={t("messages.noResults")}
           description={`No trainees match "${debouncedSearch}"`}
           action={
             <Button

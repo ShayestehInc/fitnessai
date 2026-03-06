@@ -11,6 +11,7 @@ import { ExerciseDetailPanel } from "./exercise-detail-panel";
 import { CreateExercisePanel } from "./create-exercise-panel";
 import { MUSCLE_GROUP_LABELS, DIFFICULTY_LABELS, GOAL_LABELS, MuscleGroup } from "@/types/program";
 import type { Exercise, DifficultyLevel, GoalType } from "@/types/program";
+import { useLocale } from "@/providers/locale-provider";
 
 interface ExerciseListProps {
   exercises: Exercise[];
@@ -39,6 +40,7 @@ export function ExerciseList({
   goal,
   onGoalChange,
 }: ExerciseListProps) {
+  const { t } = useLocale();
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -61,7 +63,7 @@ export function ExerciseList({
             <Input
               value={searchValue}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search exercises..."
+              placeholder={t("exercises.searchPlaceholder")}
               className="pl-9"
             />
           </div>

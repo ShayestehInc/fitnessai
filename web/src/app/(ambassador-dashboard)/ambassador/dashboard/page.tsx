@@ -11,16 +11,18 @@ import { ReferralCodeCard } from "@/components/ambassador/referral-code-card";
 import { RecentReferralsList } from "@/components/ambassador/recent-referrals-list";
 import { useAmbassadorDashboard } from "@/hooks/use-ambassador";
 import type { AmbassadorDashboardData } from "@/types/ambassador";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function AmbassadorDashboardPage() {
+  const { t } = useLocale();
   const { data, isLoading, isError, refetch } = useAmbassadorDashboard();
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Ambassador Dashboard"
-          description="Track your referrals and earnings"
+          title={t("ambassador.dashboard")}
+          description={t("ambassador.referralsDesc")}
         />
         <AmbassadorDashboardSkeleton />
       </div>
@@ -31,8 +33,8 @@ export default function AmbassadorDashboardPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Ambassador Dashboard"
-          description="Track your referrals and earnings"
+          title={t("ambassador.dashboard")}
+          description={t("ambassador.referralsDesc")}
         />
         <ErrorState
           message="Failed to load dashboard"
@@ -53,8 +55,8 @@ export default function AmbassadorDashboardPage() {
     <PageTransition>
       <div className="space-y-6">
         <PageHeader
-          title="Ambassador Dashboard"
-          description="Track your referrals and earnings"
+          title={t("ambassador.dashboard")}
+          description={t("ambassador.referralsDesc")}
         />
         <DashboardEarningsCard data={dashboardData} />
         <EarningsChart data={dashboardData.monthly_earnings ?? []} />

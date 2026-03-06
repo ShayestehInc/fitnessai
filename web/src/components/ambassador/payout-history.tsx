@@ -9,8 +9,10 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { useAmbassadorPayouts } from "@/hooks/use-ambassador";
 import { formatCurrency } from "@/lib/format-utils";
 import type { AmbassadorPayout } from "@/types/ambassador";
+import { useLocale } from "@/providers/locale-provider";
 
 export function PayoutHistory() {
+  const { t } = useLocale();
   const { data, isLoading } = useAmbassadorPayouts();
 
   if (isLoading) {
@@ -39,8 +41,8 @@ export function PayoutHistory() {
         {payouts.length === 0 ? (
           <EmptyState
             icon={DollarSign}
-            title="No payouts yet"
-            description="Your payout history will appear here once you earn commissions."
+            title={t("ambassador.noPayouts")}
+            description={t("ambassador.noPayoutsDesc")}
           />
         ) : (
           <div className="space-y-3">

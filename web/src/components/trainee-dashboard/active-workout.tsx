@@ -25,6 +25,7 @@ import { ExerciseLogCard, type SetEntry } from "./exercise-log-card";
 import { WorkoutFinishDialog } from "./workout-finish-dialog";
 import { findTodaysWorkout, getTodayString, formatDuration } from "@/lib/schedule-utils";
 import type { TraineeViewScheduleExercise } from "@/types/trainee-view";
+import { useLocale } from "@/providers/locale-provider";
 
 /** Snapshot of program target data, captured once at workout start */
 interface ExerciseTarget {
@@ -73,6 +74,7 @@ function parseTarget(exercise: TraineeViewScheduleExercise): ExerciseTarget {
 }
 
 export function ActiveWorkout() {
+  const { t } = useLocale();
   const router = useRouter();
   const { data: programs, isLoading, isError, refetch } =
     useTraineeDashboardPrograms();
@@ -237,11 +239,11 @@ export function ActiveWorkout() {
       {
         onSuccess: () => {
           hasUnsavedRef.current = false;
-          toast.success("Workout saved!");
+          toast.success(t("workout.workoutSaved"));
           router.push("/trainee/dashboard");
         },
         onError: () => {
-          toast.error("Failed to save workout. Please try again.");
+          toast.error(t("workout.failedToSaveWorkout"));
         },
       },
     );
@@ -278,8 +280,8 @@ export function ActiveWorkout() {
     return (
       <EmptyState
         icon={Dumbbell}
-        title="No program assigned"
-        description="Your trainer hasn't assigned a program yet. Ask your trainer to set up your training plan."
+        title={t("workout.noProgram")}
+        description={t("workout.noProgramTraineeDesc")}
       />
     );
   }
@@ -292,8 +294,8 @@ export function ActiveWorkout() {
     return (
       <EmptyState
         icon={Dumbbell}
-        title="No exercises scheduled"
-        description="There are no exercises scheduled for today. Check your program for upcoming workouts."
+        title={t("workout.noExercisesScheduled")}
+        description={t("workout.noExercisesScheduledDesc")}
       />
     );
   }

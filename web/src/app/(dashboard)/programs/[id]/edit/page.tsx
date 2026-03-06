@@ -9,6 +9,7 @@ import { ProgramBuilder } from "@/components/programs/program-builder";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { useProgram } from "@/hooks/use-programs";
+import { useLocale } from "@/providers/locale-provider";
 
 function BackLink() {
   return (
@@ -26,6 +27,7 @@ interface EditProgramPageProps {
 }
 
 export default function EditProgramPage({ params }: EditProgramPageProps) {
+  const { t } = useLocale();
   const { id } = use(params);
   const programId = parseInt(id, 10);
   const validId = !isNaN(programId) && programId > 0 ? programId : 0;
@@ -37,7 +39,7 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       <div className="space-y-6">
         <div className="space-y-4">
           <BackLink />
-          <PageHeader title="Edit Program" />
+          <PageHeader title={t("programs.editProgram")} />
         </div>
         <ErrorState message="Invalid program ID" />
       </div>
@@ -49,7 +51,7 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       <div className="space-y-6">
         <div className="space-y-4">
           <BackLink />
-          <PageHeader title="Edit Program" />
+          <PageHeader title={t("programs.editProgram")} />
         </div>
         <LoadingSpinner label="Loading program..." />
       </div>
@@ -61,7 +63,7 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       <div className="space-y-6">
         <div className="space-y-4">
           <BackLink />
-          <PageHeader title="Edit Program" />
+          <PageHeader title={t("programs.editProgram")} />
         </div>
         <ErrorState
           message="Failed to load program"
@@ -76,7 +78,7 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       <div className="space-y-4">
         <BackLink />
         <PageHeader
-          title="Edit Program"
+          title={t("programs.editProgram")}
           description={data.name}
         />
       </div>

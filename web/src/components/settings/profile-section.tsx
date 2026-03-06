@@ -21,8 +21,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocale } from "@/providers/locale-provider";
 
 export function ProfileSection() {
+  const { t } = useLocale();
   const { user } = useAuth();
   const updateProfile = useUpdateProfile();
   const uploadImage = useUploadProfileImage();
@@ -48,8 +50,8 @@ export function ProfileSection() {
         business_name: form.businessName.trim(),
       },
       {
-        onSuccess: () => toast.success("Profile updated"),
-        onError: () => toast.error("Failed to update profile"),
+        onSuccess: () => toast.success(t("toast.profileUpdated")),
+        onError: () => toast.error(t("error.failedToUpdateProfile")),
       },
     );
   }, [form, updateProfile]);
@@ -60,7 +62,7 @@ export function ProfileSection() {
       if (!file) return;
 
       if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image must be under 5MB");
+        toast.error(t("error.imageTooLarge"));
         return;
       }
 
@@ -71,18 +73,18 @@ export function ProfileSection() {
         "image/webp",
       ];
       if (!allowed.includes(file.type)) {
-        toast.error("Only JPEG, PNG, GIF, and WebP are allowed");
+        toast.error(t("error.imageFormatJpgPngGifWebp"));
         return;
       }
 
       const input = e.target;
       uploadImage.mutate(file, {
         onSuccess: () => {
-          toast.success("Profile image updated");
+          toast.success(t("toast.profileImageUpdated"));
           input.value = "";
         },
         onError: () => {
-          toast.error("Failed to upload image");
+          toast.error(t("error.failedToUploadImage"));
           input.value = "";
         },
       });
@@ -92,8 +94,8 @@ export function ProfileSection() {
 
   const handleImageRemove = useCallback(() => {
     deleteImage.mutate(undefined, {
-      onSuccess: () => toast.success("Profile image removed"),
-      onError: () => toast.error("Failed to remove image"),
+      onSuccess: () => toast.success(t("toast.profileImageRemoved")),
+      onError: () => toast.error(t("error.failedToRemoveImage")),
     });
   }, [deleteImage]);
 
@@ -107,7 +109,7 @@ export function ProfileSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profile</CardTitle>
+        <CardTitle>{t("settings.profile")}</CardTitle>
         <CardDescription>
           Update your personal information and profile image
         </CardDescription>
@@ -163,7 +165,7 @@ export function ProfileSection() {
         {/* Form Fields */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="firstName">First name</Label>
+            <Label htmlFor="firstName">{t("settings.firstName")}</Label>
             <Input
               id="firstName"
               value={form.firstName}
@@ -173,7 +175,7 @@ export function ProfileSection() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="lastName">Last name</Label>
+            <Label htmlFor="lastName">{t("settings.lastName")}</Label>
             <Input
               id="lastName"
               value={form.lastName}
@@ -186,7 +188,7 @@ export function ProfileSection() {
 
         {user?.role !== UserRole.TRAINEE && (
           <div className="space-y-2">
-            <Label htmlFor="businessName">Business name</Label>
+            <Label htmlFor="businessName">{t("settings.businessName")}</Label>
             <Input
               id="businessName"
               value={form.businessName}
@@ -198,7 +200,7 @@ export function ProfileSection() {
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t("settings.email")}</Label>
           <Input
             id="email"
             value={user?.email ?? ""}

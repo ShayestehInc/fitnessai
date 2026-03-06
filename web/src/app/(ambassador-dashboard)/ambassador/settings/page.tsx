@@ -9,6 +9,7 @@ import { AppearanceSection } from "@/components/settings/appearance-section";
 import { LanguageSelector } from "@/components/settings/language-selector";
 import { SecuritySection } from "@/components/settings/security-section";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocale } from "@/providers/locale-provider";
 
 function SettingsSkeleton() {
   return (
@@ -28,12 +29,13 @@ function SettingsSkeleton() {
 }
 
 export default function AmbassadorSettingsPage() {
+  const { t } = useLocale();
   const { user, isLoading, refreshUser } = useAuth();
 
   if (isLoading) {
     return (
       <div className="max-w-2xl space-y-6">
-        <PageHeader title="Settings" description="Manage your account" />
+        <PageHeader title={t("nav.settings")} description={t("settings.manageAccount")} />
         <SettingsSkeleton />
       </div>
     );
@@ -42,7 +44,7 @@ export default function AmbassadorSettingsPage() {
   if (!user) {
     return (
       <div className="max-w-2xl space-y-6">
-        <PageHeader title="Settings" description="Manage your account" />
+        <PageHeader title={t("nav.settings")} description={t("settings.manageAccount")} />
         <ErrorState
           message="Failed to load settings"
           onRetry={() => refreshUser()}
@@ -54,7 +56,7 @@ export default function AmbassadorSettingsPage() {
   return (
     <PageTransition>
       <div className="max-w-2xl space-y-6">
-        <PageHeader title="Settings" description="Manage your account" />
+        <PageHeader title={t("nav.settings")} description={t("settings.manageAccount")} />
         <ProfileSection />
         <AppearanceSection />
         <LanguageSelector />

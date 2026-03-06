@@ -5,8 +5,10 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { ProgramBuilder } from "@/components/programs/program-builder";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function NewProgramPage() {
+  const { t } = useLocale();
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -17,8 +19,8 @@ export default function NewProgramPage() {
           </Link>
         </Button>
         <PageHeader
-          title="Create Program"
-          description="Build a new workout program template"
+          title={t("programs.createProgram")}
+          description={t("programs.buildNew")}
         />
       </div>
       <ProgramBuilder />

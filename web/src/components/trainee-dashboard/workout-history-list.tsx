@@ -22,12 +22,14 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { useTraineeWorkoutHistory } from "@/hooks/use-trainee-dashboard";
 import { WorkoutDetailPanel } from "./workout-detail-panel";
+import { useLocale } from "@/providers/locale-provider";
 
 function formatVolume(volume: number): string {
   return new Intl.NumberFormat("en-US").format(Math.round(volume));
 }
 
 export function WorkoutHistoryList() {
+  const { t } = useLocale();
   const [page, setPage] = useState(1);
   const [detailId, setDetailId] = useState<number | null>(null);
 
@@ -61,8 +63,8 @@ export function WorkoutHistoryList() {
     return (
       <EmptyState
         icon={Dumbbell}
-        title="No workouts logged yet"
-        description="Start your first workout to see it here."
+        title={t("workout.noWorkoutsLogged")}
+        description={t("workout.noWorkoutsLoggedDesc")}
         action={
           <Button size="sm" asChild>
             <Link href="/trainee/workout">

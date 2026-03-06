@@ -7,6 +7,7 @@ import { ChatMessage } from "./chat-message";
 import { SuggestionChips } from "./suggestion-chips";
 import { TraineeSelector } from "./trainee-selector";
 import type { AiChatThreadDetail } from "@/types/ai-chat";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AiChatAreaProps {
   thread: AiChatThreadDetail | undefined;
@@ -29,6 +30,7 @@ export function AiChatArea({
   onSend,
   onDismissError,
 }: AiChatAreaProps) {
+  const { t } = useLocale();
   const [input, setInput] = useState("");
   const [traineeId, setTraineeId] = useState<number | undefined>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -131,7 +133,7 @@ export function AiChatArea({
               <BrainCircuit className="h-12 w-12 text-muted-foreground" />
             </div>
             <div className="text-center">
-              <h3 className="mb-1 text-lg font-semibold">AI Assistant</h3>
+              <h3 className="mb-1 text-lg font-semibold">{t("trainer.aiAssistant")}</h3>
               <p className="max-w-md text-sm text-muted-foreground">
                 Ask questions about your trainees, get insights, or generate
                 summaries. Select a trainee for context-specific answers.

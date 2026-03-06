@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ChatMessage as ChatMessageType } from "@/types/ai-chat";
+import { useLocale } from "@/providers/locale-provider";
 
 interface ChatMessageProps {
   message: ChatMessageType;
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
+  const { t } = useLocale();
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
 
@@ -21,10 +23,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
     try {
       await navigator.clipboard.writeText(message.content);
       setCopied(true);
-      toast.success("Copied to clipboard");
+      toast.success(t("common.copied"));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Failed to copy");
+      toast.error(t("error.failedToCopy"));
     }
   }, [message.content]);
 

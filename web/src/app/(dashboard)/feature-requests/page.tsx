@@ -10,8 +10,10 @@ import { Button } from "@/components/ui/button";
 import { FeatureRequestList } from "@/components/feature-requests/feature-request-list";
 import { FeatureListSkeleton } from "@/components/feature-requests/feature-list-skeleton";
 import type { FeatureRequestStatus } from "@/types/feature-request";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function FeatureRequestsPage() {
+  const { t } = useLocale();
   const [statusFilter, setStatusFilter] = useState<FeatureRequestStatus | "">("");
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch } = useFeatureRequests(
@@ -32,7 +34,7 @@ export default function FeatureRequestsPage() {
     return (
       <PageTransition>
         <div className="space-y-6">
-          <PageHeader title="Feature Requests" description="Suggest and vote on features" />
+          <PageHeader title={t("nav.featureRequests")} description={t("trainer.suggestAndVote")} />
           <FeatureListSkeleton />
         </div>
       </PageTransition>
@@ -43,7 +45,7 @@ export default function FeatureRequestsPage() {
     return (
       <PageTransition>
         <div className="space-y-6">
-          <PageHeader title="Feature Requests" description="Suggest and vote on features" />
+          <PageHeader title={t("nav.featureRequests")} description={t("trainer.suggestAndVote")} />
           <ErrorState message="Failed to load feature requests" onRetry={() => refetch()} />
         </div>
       </PageTransition>
@@ -53,7 +55,7 @@ export default function FeatureRequestsPage() {
   return (
     <PageTransition>
       <div className="space-y-6">
-        <PageHeader title="Feature Requests" description="Suggest and vote on features" />
+        <PageHeader title={t("nav.featureRequests")} description={t("trainer.suggestAndVote")} />
         <FeatureRequestList
           requests={data?.results ?? []}
           statusFilter={statusFilter}

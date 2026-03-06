@@ -5,6 +5,7 @@ import { MessageSquare, Loader2 } from "lucide-react";
 import { useStartConversation } from "@/hooks/use-messaging";
 import { useTrainee } from "@/hooks/use-trainees";
 import { ChatInput } from "./chat-input";
+import { useLocale } from "@/providers/locale-provider";
 
 interface NewConversationViewProps {
   traineeId: number;
@@ -15,6 +16,7 @@ export function NewConversationView({
   traineeId,
   onConversationCreated,
 }: NewConversationViewProps) {
+  const { t } = useLocale();
   const startConversation = useStartConversation();
   const { data: trainee, isLoading: isLoadingTrainee } = useTrainee(traineeId);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export function NewConversationView({
       <ChatInput
         onSend={handleSend}
         isSending={startConversation.isPending}
-        placeholder="Type your first message..."
+        placeholder={t("aiChat.typeFirstMessage")}
       />
     </div>
   );

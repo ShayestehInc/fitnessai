@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/providers/locale-provider";
 
 export interface SetEntry {
   set_number: number;
@@ -42,6 +43,7 @@ export function ExerciseLogCard({
   onAddSet,
   onRemoveSet,
 }: ExerciseLogCardProps) {
+  const { t } = useLocale();
   const completedSets = sets.filter((s) => s.completed).length;
 
   return (
@@ -65,7 +67,7 @@ export function ExerciseLogCard({
           aria-hidden="true"
         >
           <span>Set</span>
-          <span>Reps</span>
+          <span>{t("workout.reps")}</span>
           <span className="sm:hidden">Wt</span>
           <span className="hidden sm:inline">Weight ({unit})</span>
           <span />

@@ -20,6 +20,7 @@ import {
   PaymentHistoryTab,
   ChangeHistoryTab,
 } from "@/components/admin/subscription-history-tabs";
+import { useLocale } from "@/providers/locale-provider";
 
 interface SubscriptionDetailPanelProps {
   subscriptionId: number | null;
@@ -32,6 +33,7 @@ export function SubscriptionDetailPanel({
   open,
   onOpenChange,
 }: SubscriptionDetailPanelProps) {
+  const { t } = useLocale();
   const subscription = useAdminSubscription(subscriptionId ?? 0);
   const payments = usePaymentHistory(subscriptionId ?? 0);
   const changes = useChangeHistory(subscriptionId ?? 0);
@@ -76,7 +78,7 @@ export function SubscriptionDetailPanel({
         <Tabs defaultValue="overview">
           <div className="overflow-x-auto">
             <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="overview">{t("trainees.overview")}</TabsTrigger>
               <TabsTrigger value="payments">Payments</TabsTrigger>
               <TabsTrigger value="changes">Changes</TabsTrigger>
             </TabsList>
@@ -92,11 +94,11 @@ export function SubscriptionDetailPanel({
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground">Tier</p>
+                <p className="text-muted-foreground">{t("admin.tier")}</p>
                 <p className="font-medium">{data.tier}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Status</p>
+                <p className="text-muted-foreground">{t("common.status")}</p>
                 <p className="font-medium capitalize">
                   {data.status.replace(/_/g, " ")}
                 </p>
@@ -119,13 +121,13 @@ export function SubscriptionDetailPanel({
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground">Past Due</p>
+                <p className="text-muted-foreground">{t("admin.pastDue")}</p>
                 <p className="font-medium">
                   {formatCurrency(data.past_due_amount)}
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground">Trainees</p>
+                <p className="text-muted-foreground">{t("nav.trainees")}</p>
                 <p className="font-medium">
                   {data.trainee_count} /{" "}
                   {data.max_trainees <= 0 ? "Unlimited" : data.max_trainees}

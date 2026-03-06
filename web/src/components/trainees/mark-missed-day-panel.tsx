@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api-client";
 import { API_URLS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error-utils";
 import type { TraineeProgram } from "@/types/trainer";
+import { useLocale } from "@/providers/locale-provider";
 
 interface MarkMissedDayPanelProps {
   traineeId: number;
@@ -26,6 +27,7 @@ export function MarkMissedDayPanel({
   open,
   onOpenChange,
 }: MarkMissedDayPanelProps) {
+  const { t } = useLocale();
   const [selectedProgramId, setSelectedProgramId] = useState<number | null>(null);
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [action, setAction] = useState<"skip" | "push">("skip");
@@ -43,7 +45,7 @@ export function MarkMissedDayPanel({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trainee", traineeId] });
       queryClient.invalidateQueries({ queryKey: ["trainee-activity", traineeId] });
-      toast.success("Day marked as missed");
+      toast.success(t("trainees.dayMarkedMissed"));
       onOpenChange(false);
       setReason("");
     },
@@ -54,11 +56,11 @@ export function MarkMissedDayPanel({
     (e: React.FormEvent) => {
       e.preventDefault();
       if (!selectedProgramId) {
-        toast.error("Select a program first");
+        toast.error(t("trainees.selectProgramFirst"));
         return;
       }
       if (!date) {
-        toast.error("Select a date");
+        toast.error(t("trainees.selectDate"));
         return;
       }
       markMutation.mutate({
@@ -74,8 +76,8 @@ export function MarkMissedDayPanel({
     <SlideOverPanel
       open={open}
       onOpenChange={onOpenChange}
-      title="Mark Missed Day"
-      description="Record a day where the trainee missed their workout"
+      title={t("trainees.markMissedDay")}
+      description={t("trainees.markMissedDesc")}
       width="sm"
       footer={
         <>
@@ -106,7 +108,7 @@ export function MarkMissedDayPanel({
     >
       <form id="mark-missed-day-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="missed-program">Program</Label>
+          <Label htmlFor="missed-program">{t("trainees.missedProgram")}</Label>
           {activePrograms.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No active programs
@@ -122,7 +124,7 @@ export function MarkMissedDayPanel({
               }
               className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
             >
-              <option value="">Select program</option>
+              <option value="">{t("trainees.selectProgram")}</option>
               {activePrograms.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -133,7 +135,7 @@ export function MarkMissedDayPanel({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="missed-date">Date</Label>
+          <Label htmlFor="missed-date">{t("common.date")}</Label>
           <Input
             id="missed-date"
             type="date"
@@ -144,7 +146,7 @@ export function MarkMissedDayPanel({
         </div>
 
         <div className="space-y-2">
-          <Label>Action</Label>
+          <Label>{t("trainees.missedAction")}</Label>
           <div className="space-y-2">
             <label className="flex items-start gap-3 rounded-md border p-3 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
               <input
@@ -156,7 +158,7 @@ export function MarkMissedDayPanel({
                 className="mt-0.5"
               />
               <div>
-                <p className="text-sm font-medium">Skip</p>
+                <p className="text-sm font-medium">{t("trainees.missedSkip")}</p>
                 <p className="text-xs text-muted-foreground">
                   Mark as rest day with no schedule change
                 </p>
@@ -172,7 +174,7 @@ export function MarkMissedDayPanel({
                 className="mt-0.5"
               />
               <div>
-                <p className="text-sm font-medium">Push</p>
+                <p className="text-sm font-medium">{t("trainees.missedPush")}</p>
                 <p className="text-xs text-muted-foreground">
                   Shift all remaining program days forward by one day
                 </p>
@@ -182,7 +184,7 @@ export function MarkMissedDayPanel({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="missed-reason">Reason (optional)</Label>
+          <Label htmlFor="missed-reason">{t("trainees.missedReason")}</Label>
           <Input
             id="missed-reason"
             value={reason}

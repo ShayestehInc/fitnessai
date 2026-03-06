@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateAmbassador } from "@/hooks/use-admin-ambassadors";
 import { getErrorMessage } from "@/lib/error-utils";
+import { useLocale } from "@/providers/locale-provider";
 
 interface CreateAmbassadorPanelProps {
   open: boolean;
@@ -19,6 +20,7 @@ export function CreateAmbassadorPanel({
   open,
   onOpenChange,
 }: CreateAmbassadorPanelProps) {
+  const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -68,7 +70,7 @@ export function CreateAmbassadorPanel({
         },
         {
           onSuccess: () => {
-            toast.success("Ambassador created");
+            toast.success(t("admin.ambassadorCreated"));
             onOpenChange(false);
             setEmail("");
             setFirstName("");
@@ -88,8 +90,8 @@ export function CreateAmbassadorPanel({
     <SlideOverPanel
       open={open}
       onOpenChange={onOpenChange}
-      title="Add Ambassador"
-      description="Create a new ambassador account with referral capabilities."
+      title={t("admin.addAmbassador")}
+      description={t("admin.createAmbassadorDesc")}
       width="md"
       footer={
         <div className="flex w-full justify-end gap-2">
@@ -115,7 +117,7 @@ export function CreateAmbassadorPanel({
     >
       <form id="create-ambassador-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="amb-email">Email</Label>
+          <Label htmlFor="amb-email">{t("settings.email")}</Label>
           <Input
             id="amb-email"
             type="email"
@@ -134,7 +136,7 @@ export function CreateAmbassadorPanel({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="amb-first-name">First Name</Label>
+            <Label htmlFor="amb-first-name">{t("settings.firstName")}</Label>
             <Input
               id="amb-first-name"
               value={firstName}
@@ -150,7 +152,7 @@ export function CreateAmbassadorPanel({
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="amb-last-name">Last Name</Label>
+            <Label htmlFor="amb-last-name">{t("settings.lastName")}</Label>
             <Input
               id="amb-last-name"
               value={lastName}
@@ -168,7 +170,7 @@ export function CreateAmbassadorPanel({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="amb-password">Password</Label>
+          <Label htmlFor="amb-password">{t("auth.passwordLabel")}</Label>
           <Input
             id="amb-password"
             type="password"
@@ -177,7 +179,7 @@ export function CreateAmbassadorPanel({
               setPassword(e.target.value);
               setErrors((prev) => ({ ...prev, password: "" }));
             }}
-            placeholder="Min 8 characters"
+            placeholder={t("settings.minChars")}
             autoComplete="new-password"
             aria-invalid={Boolean(errors.password)}
           />
@@ -187,7 +189,7 @@ export function CreateAmbassadorPanel({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="amb-commission">Commission Rate (%)</Label>
+          <Label htmlFor="amb-commission">{t("admin.commissionRatePercent")}</Label>
           <Input
             id="amb-commission"
             type="number"

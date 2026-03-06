@@ -3,6 +3,7 @@
 import { Copy, Pencil, Trash2, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { MacroPreset } from "@/types/trainer";
+import { useLocale } from "@/providers/locale-provider";
 
 interface PresetCardProps {
   preset: MacroPreset;
@@ -17,6 +18,7 @@ export function PresetCard({
   onDelete,
   onCopy,
 }: PresetCardProps) {
+  const { t } = useLocale();
   const frequencyLabel =
     preset.frequency_per_week !== null
       ? preset.frequency_per_week === 7
@@ -70,10 +72,10 @@ export function PresetCard({
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-center">
-        <MacroCell label="Calories" value={preset.calories} unit="kcal" />
-        <MacroCell label="Protein" value={preset.protein} unit="g" />
-        <MacroCell label="Carbs" value={preset.carbs} unit="g" />
-        <MacroCell label="Fat" value={preset.fat} unit="g" />
+        <MacroCell label={t("nutrition.calories")} value={preset.calories} unit="kcal" />
+        <MacroCell label={t("nutrition.protein")} value={preset.protein} unit="g" />
+        <MacroCell label={t("nutrition.carbs")} value={preset.carbs} unit="g" />
+        <MacroCell label={t("nutrition.fat")} value={preset.fat} unit="g" />
       </div>
 
       {(frequencyLabel || preset.is_default) && (

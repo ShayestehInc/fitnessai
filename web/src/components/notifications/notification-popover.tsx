@@ -12,12 +12,14 @@ import { Separator } from "@/components/ui/separator";
 import { useNotifications, useMarkAsRead } from "@/hooks/use-notifications";
 import { NotificationItem, getNotificationTraineeId } from "./notification-item";
 import { Loader2 } from "lucide-react";
+import { useLocale } from "@/providers/locale-provider";
 
 interface NotificationPopoverProps {
   onClose: () => void;
 }
 
 export function NotificationPopover({ onClose }: NotificationPopoverProps) {
+  const { t } = useLocale();
   const router = useRouter();
   const { data, isLoading, isError, refetch } = useNotifications();
   const markAsRead = useMarkAsRead();
@@ -36,14 +38,14 @@ export function NotificationPopover({ onClose }: NotificationPopoverProps) {
       router.push(`/trainees/${traineeId}`);
     } else if (!n.is_read) {
       // Non-navigable notification: give feedback that it was marked as read
-      toast.success("Marked as read");
+      toast.success(t("notifications.markedRead"));
     }
   };
 
   return (
     <PopoverContent align="end" className="w-80 p-0">
       <div className="flex items-center justify-between px-4 py-3">
-        <h4 className="text-sm font-semibold">Notifications</h4>
+        <h4 className="text-sm font-semibold">{t("nav.notifications")}</h4>
       </div>
       <Separator />
       {isLoading ? (

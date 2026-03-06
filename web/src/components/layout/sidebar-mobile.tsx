@@ -13,6 +13,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { navGroups } from "./nav-links";
+import { useLocale } from "@/providers/locale-provider";
 
 interface SidebarMobileProps {
   open: boolean;
@@ -20,6 +21,7 @@ interface SidebarMobileProps {
 }
 
 export function SidebarMobile({ open, onOpenChange }: SidebarMobileProps) {
+  const { t } = useLocale();
   const pathname = usePathname();
   const { data: unreadData } = useMessagingUnreadCount();
   const unreadCount = unreadData?.unread_count ?? 0;
@@ -37,7 +39,7 @@ export function SidebarMobile({ open, onOpenChange }: SidebarMobileProps) {
               {group.label && (
                 <div className={cn("pb-1", groupIndex === 0 ? "pt-0" : "pt-4")}>
                   <span className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-                    {group.label}
+                    {t(group.label)}
                   </span>
                 </div>
               )}
@@ -61,7 +63,7 @@ export function SidebarMobile({ open, onOpenChange }: SidebarMobileProps) {
                       )}
                     >
                       <link.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span className="flex-1 truncate">{link.label}</span>
+                      <span className="flex-1 truncate">{t(link.label)}</span>
                       {isMessagesLink && unreadCount > 0 && (
                         <Badge
                           variant="destructive"

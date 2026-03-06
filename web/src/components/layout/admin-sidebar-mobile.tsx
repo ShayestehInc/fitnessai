@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { adminNavLinks } from "./admin-nav-links";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AdminSidebarMobileProps {
   open: boolean;
@@ -21,6 +22,7 @@ export function AdminSidebarMobile({
   open,
   onOpenChange,
 }: AdminSidebarMobileProps) {
+  const { t } = useLocale();
   const pathname = usePathname();
 
   return (
@@ -52,7 +54,7 @@ export function AdminSidebarMobile({
                 )}
               >
                 <link.icon className="h-4 w-4" aria-hidden="true" />
-                {link.label}
+                {t(link.label)}
               </Link>
             );
           })}

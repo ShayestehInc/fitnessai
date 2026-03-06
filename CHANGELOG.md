@@ -4,6 +4,21 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 55: Web i18n String Extraction
+
+### Added
+- Web: Extracted hardcoded English strings to i18n JSON message files across 150 components
+- Web: 728 `t()` translation calls replacing inline English text
+- Web: Expanded en.json, es.json, pt-BR.json from ~130 to ~580 translation keys each
+- Web: All navigation links (trainer, admin, ambassador, trainee sidebars) now use i18n keys
+- Web: Page titles, descriptions, button labels, form labels, placeholders, toast messages, empty/error states, and table headers fully internationalized
+- Web: Spanish (es) and Portuguese (pt-BR) translations for all new keys
+
+### Changed
+- Web: Nav link data files store i18n keys instead of English strings; sidebar components translate at render time
+
+---
+
 ## [2026-03-05] — Pipeline 54: Web Impersonation Spec Fix
 
 ### Fixed

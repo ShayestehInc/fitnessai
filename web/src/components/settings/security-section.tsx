@@ -15,8 +15,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocale } from "@/providers/locale-provider";
 
 export function SecuritySection() {
+  const { t } = useLocale();
   const changePassword = useChangePassword();
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -57,7 +59,7 @@ export function SecuritySection() {
         },
         {
           onSuccess: () => {
-            toast.success("Password changed successfully");
+            toast.success(t("toast.passwordChanged"));
             setCurrentPassword("");
             setNewPassword("");
             setConfirmPassword("");
@@ -81,10 +83,10 @@ export function SecuritySection() {
               if (Object.keys(newErrors).length > 0) {
                 setErrors(newErrors);
               } else {
-                toast.error("Failed to change password");
+                toast.error(t("error.failedToChangePassword"));
               }
             } else {
-              toast.error("Failed to change password");
+              toast.error(t("error.failedToChangePassword"));
             }
           },
         },
@@ -96,13 +98,13 @@ export function SecuritySection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Security</CardTitle>
-        <CardDescription>Update your password</CardDescription>
+        <CardTitle>{t("settings.security")}</CardTitle>
+        <CardDescription>{t("settings.updatePassword")}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="currentPassword">Current password</Label>
+            <Label htmlFor="currentPassword">{t("settings.currentPassword")}</Label>
             <Input
               id="currentPassword"
               type="password"
@@ -124,7 +126,7 @@ export function SecuritySection() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="newPassword">New password</Label>
+            <Label htmlFor="newPassword">{t("settings.newPassword")}</Label>
             <Input
               id="newPassword"
               type="password"
@@ -146,7 +148,7 @@ export function SecuritySection() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm new password</Label>
+            <Label htmlFor="confirmPassword">{t("settings.confirmPassword")}</Label>
             <Input
               id="confirmPassword"
               type="password"

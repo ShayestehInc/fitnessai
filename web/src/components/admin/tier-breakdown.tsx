@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TIER_COLORS } from "@/lib/admin-constants";
+import { useLocale } from "@/providers/locale-provider";
 
 interface TierBreakdownProps {
   tierBreakdown: Record<string, number>;
@@ -17,11 +18,12 @@ interface TierBreakdownProps {
 const TIER_ORDER = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
 
 export function TierBreakdown({ tierBreakdown }: TierBreakdownProps) {
+  const { t } = useLocale();
   if (!tierBreakdown || typeof tierBreakdown !== "object") {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Tier Breakdown</CardTitle>
+          <CardTitle className="text-base">{t("admin.tierBreakdown")}</CardTitle>
           <CardDescription>
             Trainer distribution across subscription tiers
           </CardDescription>
@@ -51,7 +53,7 @@ export function TierBreakdown({ tierBreakdown }: TierBreakdownProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Tier Breakdown</CardTitle>
+        <CardTitle className="text-base">{t("admin.tierBreakdown")}</CardTitle>
         <CardDescription>
           Trainer distribution across subscription tiers
         </CardDescription>

@@ -16,6 +16,7 @@ import { getErrorMessage } from "@/lib/error-utils";
 import { formatCurrency } from "@/lib/format-utils";
 import { SELECT_CLASSES_FULL_WIDTH } from "@/lib/admin-constants";
 import type { AdminSubscription } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 const TIERS = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
 const STATUSES = ["active", "past_due", "canceled", "trialing", "suspended"];
@@ -33,6 +34,7 @@ export function SubscriptionActionForms({
   actionMode,
   onActionChange,
 }: ActionFormsProps) {
+  const { t } = useLocale();
   const changeTier = useChangeTier();
   const changeStatus = useChangeStatus();
   const recordPayment = useRecordPayment();
@@ -73,7 +75,7 @@ export function SubscriptionActionForms({
   async function handleChangeTier() {
     if (!newTier) return;
     if (newTier === subscription.tier) {
-      toast.error("Please select a different tier");
+      toast.error(t("error.selectDifferentTier"));
       return;
     }
     try {
@@ -92,7 +94,7 @@ export function SubscriptionActionForms({
   async function handleChangeStatus() {
     if (!newStatus) return;
     if (newStatus === subscription.status) {
-      toast.error("Please select a different status");
+      toast.error(t("error.selectDifferentStatus"));
       return;
     }
     try {
@@ -112,7 +114,7 @@ export function SubscriptionActionForms({
     if (!paymentAmount) return;
     const amount = parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast.error("Amount must be a positive number");
+      toast.error(t("error.amountPositive"));
       return;
     }
     try {
@@ -134,7 +136,7 @@ export function SubscriptionActionForms({
         subscriptionId: subscription.id,
         admin_notes: notesValue,
       });
-      toast.success("Notes saved");
+      toast.success(t("toast.noteSaved"));
       resetAndClose();
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -194,12 +196,12 @@ export function SubscriptionActionForms({
               Select a different tier to make a change.
             </p>
           )}
-          <Label htmlFor="tier-reason">Reason</Label>
+          <Label htmlFor="tier-reason">{t("common.reason")}</Label>
           <textarea
             id="tier-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Reason for change"
+            placeholder={t("admin.reasonForChange")}
             rows={2}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
@@ -244,12 +246,12 @@ export function SubscriptionActionForms({
               Select a different status to make a change.
             </p>
           )}
-          <Label htmlFor="status-reason">Reason</Label>
+          <Label htmlFor="status-reason">{t("common.reason")}</Label>
           <textarea
             id="status-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Reason for change"
+            placeholder={t("admin.reasonForChange")}
             rows={2}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
@@ -286,12 +288,12 @@ export function SubscriptionActionForms({
             onChange={(e) => setPaymentAmount(e.target.value)}
             placeholder="79.00"
           />
-          <Label htmlFor="payment-desc">Description</Label>
+          <Label htmlFor="payment-desc">{t("common.description")}</Label>
           <Input
             id="payment-desc"
             value={paymentDescription}
             onChange={(e) => setPaymentDescription(e.target.value)}
-            placeholder="Manual payment"
+            placeholder={t("admin.manualPayment")}
           />
           <div className="flex gap-2">
             <Button
@@ -328,7 +330,7 @@ export function SubscriptionActionForms({
             maxLength={2000}
             rows={4}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            placeholder="Internal notes about this subscription..."
+            placeholder={t("admin.internalNotes")}
           />
           <p className="text-xs text-muted-foreground">
             {notesCharCount}/2000

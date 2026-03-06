@@ -20,12 +20,14 @@ import { RemoveTraineeDialog } from "@/components/trainees/remove-trainee-dialog
 import { ImpersonateTraineeButton } from "@/components/trainees/impersonate-trainee-button";
 import { MarkMissedDayPanel } from "@/components/trainees/mark-missed-day-panel";
 import { LayoutConfigSelector } from "@/components/trainees/layout-config-selector";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function TraineeDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t } = useLocale();
   const { id } = use(params);
   const traineeId = parseInt(id, 10);
   const isValidId = !isNaN(traineeId) && traineeId > 0;
@@ -149,10 +151,10 @@ export default function TraineeDetailPage({
         <Tabs defaultValue="overview">
           <div className="scrollbar-thin overflow-x-auto">
             <TabsList className="inline-flex w-max min-w-full justify-start">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="activity">Activity</TabsTrigger>
-              <TabsTrigger value="progress">Progress</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
+              <TabsTrigger value="overview">{t("trainees.overview")}</TabsTrigger>
+              <TabsTrigger value="activity">{t("trainees.activity")}</TabsTrigger>
+              <TabsTrigger value="progress">{t("nav.progress")}</TabsTrigger>
+              <TabsTrigger value="settings">{t("nav.settings")}</TabsTrigger>
             </TabsList>
           </div>
           <TabsContent value="overview" className="mt-4">

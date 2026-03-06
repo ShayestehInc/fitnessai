@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { useTraineeWeightHistory } from "@/hooks/use-trainee-dashboard";
 import { WeightCheckInPanel } from "./weight-checkin-panel";
+import { useLocale } from "@/providers/locale-provider";
 
 function CardSkeleton() {
   return (
@@ -31,6 +32,7 @@ function CardSkeleton() {
 }
 
 export function WeightTrendCard() {
+  const { t } = useLocale();
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data: checkIns, isLoading, isError, refetch } =
     useTraineeWeightHistory();
@@ -69,8 +71,8 @@ export function WeightTrendCard() {
           <CardContent>
             <EmptyState
               icon={Scale}
-              title="No weight data yet"
-              description="Log your first weight check-in to start tracking."
+              title={t("traineeView.noWeightData")}
+              description={t("traineeView.logFirstWeightStart")}
               action={
                 <Button size="sm" onClick={() => setDialogOpen(true)}>
                   <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />

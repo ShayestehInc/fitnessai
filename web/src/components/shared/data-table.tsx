@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useLocale } from "@/providers/locale-provider";
 
 export interface Column<T> {
   key: string;
@@ -43,6 +44,7 @@ export function DataTable<T>({
   rowAriaLabel,
   keyExtractor,
 }: DataTableProps<T>) {
+  const { t } = useLocale();
   const totalPages =
     totalCount !== undefined ? Math.ceil(totalCount / pageSize) : 1;
   const showPagination = totalCount !== undefined && totalPages > 1;
@@ -142,7 +144,7 @@ export function DataTable<T>({
               aria-label="Go to previous page"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Previous</span>
+              <span className="hidden sm:inline">{t("common.previous")}</span>
             </Button>
             <Button
               variant="outline"
@@ -152,7 +154,7 @@ export function DataTable<T>({
               disabled={page >= totalPages}
               aria-label="Go to next page"
             >
-              <span className="hidden sm:inline">Next</span>
+              <span className="hidden sm:inline">{t("common.next")}</span>
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           </nav>

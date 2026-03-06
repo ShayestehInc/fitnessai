@@ -8,12 +8,14 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { Achievement } from "@/types/trainee-dashboard";
+import { useLocale } from "@/providers/locale-provider";
 
 interface AchievementsGridProps {
   achievements: Achievement[];
 }
 
 export function AchievementsGrid({ achievements }: AchievementsGridProps) {
+  const { t } = useLocale();
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {achievements.map((achievement) => (
@@ -24,6 +26,7 @@ export function AchievementsGrid({ achievements }: AchievementsGridProps) {
 }
 
 function AchievementCard({ achievement }: { achievement: Achievement }) {
+  const { t } = useLocale();
   const progressPercentage =
     achievement.criteria_value > 0
       ? Math.min(
@@ -70,7 +73,7 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
           ) : (
             <div className="mt-2 space-y-1">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Progress</span>
+                <span>{t("nav.progress")}</span>
                 <span>
                   {achievement.progress} / {achievement.criteria_value}
                 </span>

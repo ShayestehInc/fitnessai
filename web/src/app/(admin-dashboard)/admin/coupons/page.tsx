@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SELECT_CLASSES } from "@/lib/admin-constants";
 import type { AdminCoupon, AdminCouponListItem } from "@/types/admin";
+import { useLocale } from "@/providers/locale-provider";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Status" },
@@ -39,6 +40,7 @@ const APPLIES_TO_OPTIONS = [
 ];
 
 export default function AdminCouponsPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -78,8 +80,8 @@ export default function AdminCouponsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Coupons"
-        description="Manage discount coupons"
+        title={t("admin.coupons")}
+        description={t("ambassador.couponsDesc")}
         actions={
           <Button onClick={handleCreate}>
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -90,7 +92,7 @@ export default function AdminCouponsPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input
-          placeholder="Search by code..."
+          placeholder={t("admin.searchByCode")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="w-full sm:max-w-sm"
@@ -153,7 +155,7 @@ export default function AdminCouponsPage() {
       {coupons.data && coupons.data.length === 0 && (
         <EmptyState
           icon={Ticket}
-          title="No coupons found"
+          title={t("admin.noCoupons")}
           description={
             debouncedSearch || statusFilter || typeFilter || appliesToFilter
               ? "No coupons match your filters."
@@ -161,7 +163,7 @@ export default function AdminCouponsPage() {
           }
           action={
             !debouncedSearch && !statusFilter && !typeFilter && !appliesToFilter ? (
-              <Button onClick={handleCreate}>Create Coupon</Button>
+              <Button onClick={handleCreate}>{t("admin.createCoupon")}</Button>
             ) : undefined
           }
         />

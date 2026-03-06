@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { SetEntry } from "./exercise-log-card";
+import { useLocale } from "@/providers/locale-provider";
 
 interface WorkoutFinishDialogProps {
   open: boolean;
@@ -34,6 +35,7 @@ export function WorkoutFinishDialog({
   onConfirm,
   isPending,
 }: WorkoutFinishDialogProps) {
+  const { t } = useLocale();
   const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
   const completedSets = exercises.reduce(
     (sum, ex) => sum + ex.sets.filter((s) => s.completed).length,
@@ -96,7 +98,7 @@ export function WorkoutFinishDialog({
               role="region"
             >
               <div className="flex justify-between gap-2 text-sm">
-                <span className="shrink-0 text-muted-foreground">Workout</span>
+                <span className="shrink-0 text-muted-foreground">{t("nav.workout")}</span>
                 <span className="min-w-0 truncate text-right font-medium" title={workoutName}>{workoutName}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -104,7 +106,7 @@ export function WorkoutFinishDialog({
                 <span className="font-medium">{duration}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Exercises</span>
+                <span className="text-muted-foreground">{t("trainer.exercises")}</span>
                 <span className="font-medium">{exercises.length}</span>
               </div>
               <div className="flex justify-between text-sm">

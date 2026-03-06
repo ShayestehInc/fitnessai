@@ -20,8 +20,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CalendarSkeleton } from "@/components/calendar/calendar-skeleton";
 import { getErrorMessage } from "@/lib/error-utils";
 import type { CalendarConnection } from "@/types/calendar";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function CalendarPage() {
+  const { t } = useLocale();
   const connections = useCalendarConnections();
   const events = useCalendarEvents();
   const googleAuth = useGoogleCalendarAuth();
@@ -53,7 +55,7 @@ export default function CalendarPage() {
     return (
       <PageTransition>
         <div className="space-y-6">
-          <PageHeader title="Calendar" description="Connect and manage your calendars" />
+          <PageHeader title={t("nav.calendar")} description={t("calendar.description")} />
           <CalendarSkeleton />
         </div>
       </PageTransition>
@@ -64,7 +66,7 @@ export default function CalendarPage() {
     return (
       <PageTransition>
         <div className="space-y-6">
-          <PageHeader title="Calendar" description="Connect and manage your calendars" />
+          <PageHeader title={t("nav.calendar")} description={t("calendar.description")} />
           <ErrorState message="Failed to load calendar data" onRetry={() => connections.refetch()} />
         </div>
       </PageTransition>
@@ -80,7 +82,7 @@ export default function CalendarPage() {
   return (
     <PageTransition>
       <div className="space-y-6">
-        <PageHeader title="Calendar" description="Connect and manage your calendars" />
+        <PageHeader title={t("nav.calendar")} description={t("calendar.description")} />
 
         {/* Connections */}
         <div className="grid gap-4 sm:grid-cols-2">
@@ -120,8 +122,8 @@ export default function CalendarPage() {
           {!conns.find((c) => c.provider === "google") && (
             <Card>
               <CardHeader>
-                <CardTitle>Google Calendar</CardTitle>
-                <CardDescription>Connect your Google Calendar</CardDescription>
+                <CardTitle>{t("calendar.google")}</CardTitle>
+                <CardDescription>{t("calendar.connectGoogle")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button onClick={handleConnectGoogle} disabled={googleAuth.isPending}>
@@ -140,7 +142,7 @@ export default function CalendarPage() {
         {hasConnections && (
           <Card>
             <CardHeader>
-              <CardTitle>Upcoming Events</CardTitle>
+              <CardTitle>{t("calendar.upcomingEvents")}</CardTitle>
             </CardHeader>
             <CardContent>
               {events.isLoading ? (
@@ -181,8 +183,8 @@ export default function CalendarPage() {
         {!hasConnections && (
           <EmptyState
             icon={CalendarDays}
-            title="Connect your calendar"
-            description="Connect your calendar to see upcoming events and manage your schedule."
+            title={t("calendar.connectCalendar")}
+            description={t("calendar.connectDesc")}
             action={
               <Button onClick={handleConnectGoogle}>
                 <Link2 className="mr-2 h-4 w-4" />

@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { DollarSign } from "lucide-react";
 import { tooltipContentStyle } from "@/lib/chart-utils";
 import type { MonthlyRevenuePoint } from "@/types/analytics";
+import { useLocale } from "@/providers/locale-provider";
 
 interface RevenueChartProps {
   data: MonthlyRevenuePoint[];
@@ -55,6 +56,7 @@ function formatExactAmount(value: number): string {
 }
 
 export function RevenueChart({ data }: RevenueChartProps) {
+  const { t } = useLocale();
   const hasAnyRevenue = data.some((d) => {
     const parsed = parseFloat(d.amount);
     return !Number.isNaN(parsed) && parsed > 0;
@@ -69,8 +71,8 @@ export function RevenueChart({ data }: RevenueChartProps) {
         <CardContent>
           <EmptyState
             icon={DollarSign}
-            title="No revenue data yet"
-            description="Monthly revenue will appear here once you receive payments."
+            title={t("analytics.noRevenueData")}
+            description={t("analytics.revenueDesc")}
           />
         </CardContent>
       </Card>

@@ -8,8 +8,10 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ProgramViewer } from "@/components/trainee-dashboard/program-viewer";
 import { useTraineeDashboardPrograms } from "@/hooks/use-trainee-dashboard";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function ProgramPage() {
+  const { t } = useLocale();
   const { data: programs, isLoading, isError, refetch } =
     useTraineeDashboardPrograms();
 
@@ -17,8 +19,8 @@ export default function ProgramPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="My Program"
-          description="Your assigned workout program"
+          title={t("nav.myProgram")}
+          description={t("workout.myProgramDesc")}
         />
         <LoadingSpinner label="Loading program..." />
       </div>
@@ -30,8 +32,8 @@ export default function ProgramPage() {
       <PageTransition>
         <div className="space-y-6">
           <PageHeader
-            title="My Program"
-            description="Your assigned workout program"
+            title={t("nav.myProgram")}
+            description={t("workout.myProgramDesc")}
           />
           <ErrorState
             message="Failed to load your program. Please try again."
@@ -47,13 +49,13 @@ export default function ProgramPage() {
       <PageTransition>
         <div className="space-y-6">
           <PageHeader
-            title="My Program"
-            description="Your assigned workout program"
+            title={t("nav.myProgram")}
+            description={t("workout.myProgramDesc")}
           />
           <EmptyState
             icon={Dumbbell}
-            title="No program assigned"
-            description="Your trainer hasn't assigned a workout program yet. Check back soon!"
+            title={t("workout.noProgram")}
+            description={t("workout.noProgramTraineeShort")}
           />
         </div>
       </PageTransition>
@@ -64,8 +66,8 @@ export default function ProgramPage() {
     <PageTransition>
       <div className="space-y-6">
         <PageHeader
-          title="My Program"
-          description="Your assigned workout program"
+          title={t("nav.myProgram")}
+          description={t("workout.myProgramDesc")}
         />
         <ProgramViewer programs={programs} />
       </div>

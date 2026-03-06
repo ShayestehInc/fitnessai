@@ -10,8 +10,10 @@ import { ErrorState } from "@/components/shared/error-state";
 import { ExerciseList } from "@/components/exercises/exercise-list";
 import { ExerciseGridSkeleton } from "@/components/exercises/exercise-grid-skeleton";
 import type { MuscleGroup, DifficultyLevel, GoalType } from "@/types/program";
+import { useLocale } from "@/providers/locale-provider";
 
 export default function ExercisesPage() {
+  const { t } = useLocale();
   const [search, setSearch] = useState("");
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | "">("");
   const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel | "">("");
@@ -75,7 +77,7 @@ export default function ExercisesPage() {
     return (
       <PageTransition>
         <div className="space-y-6">
-          <PageHeader title="Exercise Bank" description="Browse and manage exercises" />
+          <PageHeader title={t("nav.exercises")} description={t("exercises.description")} />
           <ExerciseGridSkeleton />
         </div>
       </PageTransition>
@@ -86,7 +88,7 @@ export default function ExercisesPage() {
     return (
       <PageTransition>
         <div className="space-y-6">
-          <PageHeader title="Exercise Bank" description="Browse and manage exercises" />
+          <PageHeader title={t("nav.exercises")} description={t("exercises.description")} />
           <ErrorState message="Failed to load exercises" onRetry={() => refetch()} />
         </div>
       </PageTransition>
@@ -97,7 +99,7 @@ export default function ExercisesPage() {
     <PageTransition>
       <div className="space-y-6">
         <PageHeader
-          title="Exercise Bank"
+          title={t("nav.exercises")}
           description={
             totalCount > 0
               ? `${totalCount} exercises available`

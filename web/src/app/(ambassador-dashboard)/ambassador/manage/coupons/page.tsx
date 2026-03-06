@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 import { SELECT_CLASSES, COUPON_STATUS_VARIANT } from "@/lib/admin-constants";
+import { useLocale } from "@/providers/locale-provider";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Status" },
@@ -45,6 +46,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AmbassadorCouponsPage() {
+  const { t } = useLocale();
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -90,7 +92,7 @@ export default function AmbassadorCouponsPage() {
         valid_until: null,
         description: formData.description,
       });
-      toast.success("Coupon created successfully");
+      toast.success(t("admin.couponCreated"));
       setCreateOpen(false);
       setFormData({
         code: "",
@@ -109,7 +111,7 @@ export default function AmbassadorCouponsPage() {
     async (id: number) => {
       try {
         await deleteCoupon.mutateAsync(id);
-        toast.success("Coupon deleted");
+        toast.success(t("admin.couponDeleted"));
       } catch (error) {
         toast.error(getErrorMessage(error));
       }
@@ -120,8 +122,8 @@ export default function AmbassadorCouponsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Coupons"
-        description="Create and manage discount coupons"
+        title={t("admin.coupons")}
+        description={t("admin.couponsDesc")}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -132,7 +134,7 @@ export default function AmbassadorCouponsPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input
-          placeholder="Search by code..."
+          placeholder={t("admin.searchByCode")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="max-w-sm"
@@ -171,7 +173,7 @@ export default function AmbassadorCouponsPage() {
       {coupons.data && coupons.data.length === 0 && (
         <EmptyState
           icon={Ticket}
-          title="No coupons found"
+          title={t("admin.noCoupons")}
           description={
             debouncedSearch || statusFilter
               ? "No coupons match your filters."
@@ -192,12 +194,12 @@ export default function AmbassadorCouponsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Uses</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("invitations.code")}</TableHead>
+                <TableHead>{t("common.type")}</TableHead>
+                <TableHead>{t("admin.value")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
+                <TableHead>{t("admin.uses")}</TableHead>
+                <TableHead className="text-right">{t("common.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -274,14 +276,14 @@ export default function AmbassadorCouponsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Coupon</DialogTitle>
+            <DialogTitle>{t("admin.createCoupon")}</DialogTitle>
             <DialogDescription>
               Create a new discount coupon for trainers or trainees.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="coupon-code">Code</Label>
+              <Label htmlFor="coupon-code">{t("invitations.code")}</Label>
               <Input
                 id="coupon-code"
                 value={formData.code}
@@ -296,7 +298,7 @@ export default function AmbassadorCouponsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="coupon-type">Type</Label>
+                <Label htmlFor="coupon-type">{t("common.type")}</Label>
                 <select
                   id="coupon-type"
                   value={formData.coupon_type}
@@ -305,13 +307,13 @@ export default function AmbassadorCouponsPage() {
                   }
                   className={SELECT_CLASSES}
                 >
-                  <option value="percent">Percentage</option>
-                  <option value="fixed">Fixed Amount</option>
-                  <option value="free_trial">Free Trial</option>
+                  <option value="percent">{t("admin.percentage")}</option>
+                  <option value="fixed">{t("admin.fixedAmount")}</option>
+                  <option value="free_trial">{t("admin.freeTrial")}</option>
                 </select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="coupon-value">Value</Label>
+                <Label htmlFor="coupon-value">{t("admin.value")}</Label>
                 <Input
                   id="coupon-value"
                   type="number"
@@ -334,7 +336,7 @@ export default function AmbassadorCouponsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="coupon-applies">Applies To</Label>
+                <Label htmlFor="coupon-applies">{t("admin.appliesTo")}</Label>
                 <select
                   id="coupon-applies"
                   value={formData.applies_to}
@@ -343,13 +345,13 @@ export default function AmbassadorCouponsPage() {
                   }
                   className={SELECT_CLASSES}
                 >
-                  <option value="both">Both</option>
-                  <option value="trainer">Trainer Subscription</option>
-                  <option value="trainee">Trainee Coaching</option>
+                  <option value="both">{t("common.both")}</option>
+                  <option value="trainer">{t("admin.trainerSubscription")}</option>
+                  <option value="trainee">{t("admin.traineeCoaching")}</option>
                 </select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="coupon-max-uses">Max Uses (0 = unlimited)</Label>
+                <Label htmlFor="coupon-max-uses">{t("admin.maxUses")}</Label>
                 <Input
                   id="coupon-max-uses"
                   type="number"
@@ -361,14 +363,14 @@ export default function AmbassadorCouponsPage() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="coupon-desc">Description (optional)</Label>
+              <Label htmlFor="coupon-desc">{t("common.descriptionOptional")}</Label>
               <Input
                 id="coupon-desc"
                 value={formData.description}
                 onChange={(e) =>
                   setFormData((d) => ({ ...d, description: e.target.value }))
                 }
-                placeholder="Internal description"
+                placeholder={t("admin.internalDesc")}
               />
             </div>
             {formError && (
