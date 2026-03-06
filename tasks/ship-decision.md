@@ -1,47 +1,60 @@
-# Ship Decision: Nutrition Phase 2 — FoodItem, MealLog, Fat Mode
+# Ship Decision: Nutrition Phase 3 — LBM Formula Engine & SHREDDED/MASSIVE Templates
 
 ## Verdict: SHIP
 ## Confidence: HIGH
 ## Quality Score: 8/10
 
 ## Summary
-Nutrition Phase 2 is production-ready. All critical and major issues from code review were fixed across 3 fix rounds. QA passed 15/15 acceptance criteria with HIGH confidence. Security audit found no new vulnerabilities. Architecture aligns with existing patterns (8/10).
+Nutrition Phase 3 is production-ready. All 14 acceptance criteria pass. Two HIGH-severity IDOR vulnerabilities were found and fixed during the audit sweep. 40 unit tests verify the formula engine with known reference values.
 
-## Verification Details
+## Acceptance Criteria: 14/14 PASS
+- AC-1: calculate_shredded_macros returns accurate daily + per-meal targets (PASS)
+- AC-2: SHREDDED produces 22% deficit, 1.3g/lb LBM protein (PASS)
+- AC-3: MASSIVE produces 12% surplus, 1.1g/lb LBM protein (PASS)
+- AC-4: SHREDDED supports low/medium/high carb day types (PASS)
+- AC-5: MASSIVE supports training/rest day types (PASS)
+- AC-6: Per-meal splitting with front-loaded carbs (PASS)
+- AC-7: _apply_shredded_ruleset generates correct NutritionDayPlan (PASS)
+- AC-8: _apply_massive_ruleset generates correct NutritionDayPlan (PASS)
+- AC-9: Boer formula fallback when body fat missing (PASS)
+- AC-10: Migration updates templates with real rulesets (PASS)
+- AC-11: Mobile day plan screen with meal cards + day type badge (PASS)
+- AC-12: Mobile week view with color-coded day types (PASS)
+- AC-13: Recalculate endpoint regenerates plans on parameter change (PASS)
+- AC-14: 40 unit tests with known reference values (PASS)
 
-### System Checks
-- **Django check:** 0 issues (verified)
-- **Flutter analyze:** 0 errors (229 issues, all pre-existing warnings — no new issues from this feature)
+## Security Issues Fixed
+1. IDOR on NutritionDayPlanViewSet.list() — trainer could access any trainee's plans
+2. IDOR on NutritionDayPlanViewSet.week() — same issue
+3. Provider error silencing — now properly throws, shows error state
 
-### Critical Bug Fixes Verified
-1. **3 IDOR vulnerabilities** on summary, active_assignment, barcode_lookup — all fixed with parent_trainer ownership checks
-2. **N+1 query in MealLogSerializer** — fixed via `_cached_entries()` method
-3. **Missing FoodItem access control in quick_add** — fixed with `Q(is_public=True) | Q(created_by=user.parent_trainer)` filter
-4. **Silent exception swallow** on date parse — replaced with `qs.none()` + warning log
-5. **ProtectedError crash** on FoodItem delete — caught and returns 409 Conflict
-6. **Missing pagination** on MealLogViewSet — added 20/page
-
-### Report Summary
+## Report Summary
 | Report | Score | Verdict |
 |--------|-------|---------|
-| Code Review (after fixes) | 8/10 | APPROVE |
-| QA Report | 15/15 AC | HIGH confidence |
-| UX Audit | 8/10 | All states handled |
-| Security Audit | 8/10 | CONDITIONAL PASS |
+| Code Review | 8/10 | APPROVE |
+| QA Report | 14/14 AC | HIGH confidence |
+| Security Audit | 9/10 | PASS |
 | Architecture Review | 8/10 | APPROVE |
-| Hacker Report | 8/10 | 0 dead UI, 0 visual bugs |
+| UX Audit | 8/10 | All states handled |
+| Hacker Report | 7/10 | 4 logic bugs fixed |
 
-### Remaining Concerns
-1. **Pre-existing:** Hardcoded RapidAPI key in `food_search_repository.dart:5` — not introduced in this PR, flagged for separate remediation
-2. **Deferred:** MealCard and FoodItem search widgets are built but not yet wired into existing NutritionScreen/AddFoodScreen — planned for Phase 3 integration
-3. **Minor:** 2 pre-existing dev dependency warnings in pubspec.yaml (json_serializable, build_runner)
+## Remaining Concerns (non-blocking)
+1. Day/week plan screens are registered but entry points from nutrition home are planned for Phase 4
+2. Hardcoded macro colors (Colors.blue/orange/red) should move to theme — minor
+3. Mobile widget files exceed 150-line convention — cleanup in follow-up
+4. No rate limiting on recalculate endpoint — acceptable at current scale
 
 ## What Was Built
-- **FoodItem model** with Exercise-pattern visibility (is_public + created_by), full macro fields, barcode support, auto-calculated calories
-- **MealLog + MealLogEntry** structured relational model supporting both food_item FK and freeform custom_name entries
-- **FoodItemViewSet** with search, barcode lookup, recent foods, CRUD with ownership/visibility checks
-- **MealLogViewSet** with date filtering, daily summary aggregation (DB-level Sum/Count), quick-add with auto-created containers, entry deletion
-- **Fat Mode badge** widget with tooltip explanation of total_fat vs added_fat
-- **MealCard widget** with expandable entries, macro chips (P/C/F), swipe-to-delete with a11y semantics
-- **Riverpod providers** for food item search (with 300ms debounce) and meal log state (with optimistic deletes and rollback)
-- **6 new serializers** and **2 new Flutter repositories** following existing patterns
+- **LBM Formula Engine** in MacroCalculatorService with frozen dataclass returns
+- **SHREDDED template**: 22% deficit, 1.3g/lb LBM protein, 3 day types (low/medium/high carb)
+- **MASSIVE template**: 12% surplus, 1.1g/lb LBM protein, 2 day types (training/rest)
+- **Boer formula** fallback for missing body fat percentage
+- **Per-meal distribution** with front-loaded carbs and exact remainder handling
+- **Profile enrichment** pulling sex/height/age/activity from UserProfile
+- **Day plan screen** with date navigation, daily totals, per-meal cards, all UX states
+- **Week plan screen** with 7-day overview, day type badges, macro summaries
+- **Recalculate endpoint** regenerating 7 days of plans (skips overridden)
+- **Seed migration** replacing placeholder rulesets with formula metadata
+- **40 unit tests** covering all formula functions, edge cases, and meal distribution
+- **IDOR security fixes** on day plan list/week endpoints
+- **Error handling fixes** — repository returns typed values, providers throw on error
