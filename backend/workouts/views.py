@@ -2418,8 +2418,16 @@ class NutritionTemplateAssignmentViewSet(viewsets.ModelViewSet[NutritionTemplate
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        # Scope template lookup: trainers can only use system templates or their own
+        template_qs = NutritionTemplate.objects.all()
+        if user.is_trainer():
+            from django.db.models import Q
+            template_qs = template_qs.filter(
+                Q(is_system=True) | Q(created_by=user),
+            )
+
         try:
-            template = NutritionTemplate.objects.get(pk=template_id)
+            template = template_qs.get(pk=template_id)
         except NutritionTemplate.DoesNotExist:
             return Response(
                 {'error': 'Template not found.'},

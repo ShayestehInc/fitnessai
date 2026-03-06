@@ -43,16 +43,85 @@ class _TemplateAssignmentScreenState
       appBar: AppBar(
         title: const Text('Assign Nutrition Template'),
       ),
-      body: templatesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
-        data: (templates) => _buildForm(context, templates),
+      body: PopScope(
+        canPop: !_isSubmitting,
+        child: templatesAsync.when(
+          loading: () => Center(
+            child: Semantics(
+              label: 'Loading nutrition templates',
+              child: const CircularProgressIndicator(),
+            ),
+          ),
+          error: (_, __) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Failed to load templates.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.tonal(
+                    onPressed: () =>
+                        ref.invalidate(nutritionTemplatesProvider),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          data: (templates) => _buildForm(context, templates),
+        ),
       ),
     );
   }
 
   Widget _buildForm(
       BuildContext context, List<NutritionTemplateModel> templates) {
+    if (templates.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.restaurant_menu_outlined,
+                size: 48,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.4),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No templates available',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Create one from the web dashboard first.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                    ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -105,9 +174,16 @@ class _TemplateAssignmentScreenState
         border: OutlineInputBorder(),
         hintText: 'Select a template',
       ),
+      isExpanded: true,
       items: templates.map((t) {
-        final label = t.isSystem ? '${t.name} (System)' : t.name;
-        return DropdownMenuItem(value: t, child: Text(label));
+        final suffix = t.isSystem ? ' (System)' : '';
+        return DropdownMenuItem(
+          value: t,
+          child: Text(
+            '${t.name}$suffix',
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
       }).toList(),
       onChanged: (value) => setState(() => _selectedTemplate = value),
     );
@@ -118,18 +194,20 @@ class _TemplateAssignmentScreenState
       children: [
         TextField(
           controller: _bodyWeightController,
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Body Weight (lbs)',
+            helperText: 'Required. Used to calculate macro targets.',
             border: OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _bodyFatController,
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Body Fat % (optional)',
+            helperText: 'If known, improves lean body mass calculation.',
             border: OutlineInputBorder(),
           ),
         ),
@@ -139,6 +217,7 @@ class _TemplateAssignmentScreenState
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
             labelText: 'Meals Per Day',
+            helperText: 'Between 1 and 10.',
             border: OutlineInputBorder(),
           ),
         ),
@@ -172,6 +251,18 @@ class _TemplateAssignmentScreenState
             'Rest Days',
             _restDayType,
             (v) => setState(() => _restDayType = v!),
+          ),
+        ],
+        if (_scheduleMethod == 'weekly_rotation') ...[
+          const SizedBox(height: 12),
+          Text(
+            'Day types will rotate automatically across the week based on the template configuration.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
           ),
         ],
       ],
@@ -219,19 +310,60 @@ class _TemplateAssignmentScreenState
   Future<void> _submit() async {
     if (_selectedTemplate == null) return;
 
+    final weight = double.tryParse(_bodyWeightController.text.trim());
+    if (weight == null || weight <= 0 || weight > 1000) {
+      String message;
+      if (weight == null || _bodyWeightController.text.trim().isEmpty) {
+        message = 'Body weight is required';
+      } else if (weight <= 0) {
+        message = 'Body weight must be a positive number';
+      } else {
+        message = 'Body weight must be under 1,000 lbs';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+
+    final bfText = _bodyFatController.text.trim();
+    if (bfText.isNotEmpty) {
+      final bfVal = double.tryParse(bfText);
+      if (bfVal == null || bfVal < 1 || bfVal > 70) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Body fat % must be between 1 and 70'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+        return;
+      }
+    }
+
+    final mealsPerDay = int.tryParse(_mealsPerDayController.text.trim());
+    if (mealsPerDay == null || mealsPerDay < 1 || mealsPerDay > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Meals per day must be between 1 and 10'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     final params = <String, dynamic>{
-      'meals_per_day': int.tryParse(_mealsPerDayController.text) ?? 4,
+      'meals_per_day': mealsPerDay,
+      'body_weight_lbs': weight,
     };
-    final weight = double.tryParse(_bodyWeightController.text);
-    if (weight != null) params['body_weight_lbs'] = weight;
-    final bf = double.tryParse(_bodyFatController.text);
+    final bf = double.tryParse(_bodyFatController.text.trim());
     if (bf != null) {
       params['body_fat_pct'] = bf;
-      if (weight != null) {
-        params['lbm_lbs'] = weight * (1 - bf / 100);
-      }
+      params['lbm_lbs'] = weight * (1 - bf / 100);
     }
 
     final schedule = <String, dynamic>{
@@ -252,22 +384,29 @@ class _TemplateAssignmentScreenState
         fatMode: _fatMode,
       );
 
-      setState(() => _isSubmitting = false);
-
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nutrition template assigned')),
-      );
-      context.pop();
-    } on Exception catch (e) {
       setState(() => _isSubmitting = false);
-
-      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('Nutrition template assigned'),
+            ],
+          ),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+      context.pop();
+    } on Exception {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to assign template. Please try again.'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

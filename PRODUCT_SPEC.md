@@ -933,6 +933,24 @@ Notification preference controls, local reminder scheduling, help & support scre
 **Pipeline Results:**
 - Quality Score: SHIP
 
+### 4.32 Nutrition Phase 5: Wire Template Assignment into Trainer Detail Screen (Pipeline 46) -- COMPLETED (2026-03-05)
+
+Wired the orphaned TemplateAssignmentScreen into the trainer's trainee detail screen Nutrition tab.
+
+**What was built:**
+- `_NutritionTemplateSection` widget in trainee detail Nutrition tab
+- "Assign Nutrition Template" button when no active assignment exists
+- Assignment summary card (template name, fat mode, creation date) when assignment is active
+- Reassign flow with provider invalidation for instant refresh
+- `traineeActiveAssignmentProvider` (autoDispose.family) for trainer-side lookup
+- Body weight validation (required, 0-1000 range), body fat % (1-70), meals per day (1-10)
+- Full UX states: loading spinner, error with retry, empty template list, success confirmation
+- PopScope to prevent back navigation during submission
+- Semantics labels for accessibility
+
+**Pipeline Results:**
+- Quality Score: 8/10 SHIP
+
 ### 4.31 Nutrition Phase 4: Wire Plan Screens into Navigation (Pipeline 45) -- COMPLETED (2026-03-05)
 
 Connected the orphaned DayPlanScreen and WeekPlanScreen to the trainee nutrition screen via a meal plan card.

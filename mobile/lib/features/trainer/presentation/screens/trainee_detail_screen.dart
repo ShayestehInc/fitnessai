@@ -20,6 +20,8 @@ import 'edit_trainee_goals_screen.dart';
 import 'remove_trainee_screen.dart';
 import 'dart:math' as math;
 import '../../data/repositories/trainer_repository.dart';
+import '../../../nutrition/presentation/providers/nutrition_template_provider.dart';
+import '../../../nutrition/data/models/nutrition_template_models.dart';
 
 class TraineeDetailScreen extends ConsumerStatefulWidget {
   final int traineeId;
@@ -385,24 +387,36 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
   }
 
   Widget _buildNutritionTab(TraineeDetailModel trainee) {
-    return _MacroPresetsTab(
-      traineeId: trainee.id,
-      traineeName: trainee.firstName ?? 'Trainee',
-      onEditPreset: (preset, onComplete) => _showEditPresetDialogWithCallback(
-        context,
-        trainee,
-        preset,
-        onComplete,
-      ),
-      onAddPreset: (onComplete) => _showEditPresetDialogWithCallback(
-        context,
-        trainee,
-        null,
-        onComplete,
-      ),
-      loadPresets: () => _loadMacroPresets(trainee.id),
-      loadAllPresets: _loadAllMacroPresets,
-      copyPreset: (presetId, targetTraineeId) => _copyMacroPreset(presetId, targetTraineeId),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: _NutritionTemplateSection(traineeId: trainee.id),
+        ),
+        Expanded(
+          child: _MacroPresetsTab(
+            traineeId: trainee.id,
+            traineeName: trainee.firstName ?? 'Trainee',
+            onEditPreset: (preset, onComplete) =>
+                _showEditPresetDialogWithCallback(
+              context,
+              trainee,
+              preset,
+              onComplete,
+            ),
+            onAddPreset: (onComplete) => _showEditPresetDialogWithCallback(
+              context,
+              trainee,
+              null,
+              onComplete,
+            ),
+            loadPresets: () => _loadMacroPresets(trainee.id),
+            loadAllPresets: _loadAllMacroPresets,
+            copyPreset: (presetId, targetTraineeId) =>
+                _copyMacroPreset(presetId, targetTraineeId),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1821,6 +1835,258 @@ class _ActionButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _NutritionTemplateSection extends ConsumerWidget {
+  final int traineeId;
+
+  const _NutritionTemplateSection({required this.traineeId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final assignmentAsync =
+        ref.watch(traineeActiveAssignmentProvider(traineeId));
+
+    return assignmentAsync.when(
+      loading: () => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Center(
+            child: Semantics(
+              label: 'Loading nutrition template assignment',
+              child: const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+        ),
+      ),
+      error: (error, __) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline, color: theme.colorScheme.error, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Could not load nutrition template',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => ref.invalidate(
+                    traineeActiveAssignmentProvider(traineeId)),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (assignment) {
+        if (assignment == null) {
+          return _buildAssignButton(context, ref, theme);
+        }
+        return _buildAssignmentCard(context, ref, theme, assignment);
+      },
+    );
+  }
+
+  Widget _buildAssignButton(BuildContext context, WidgetRef ref, ThemeData theme) {
+    return Semantics(
+      button: true,
+      label: 'Assign nutrition template to trainee',
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.3),
+          ),
+        ),
+        child: InkWell(
+          onTap: () async {
+            await context.push('/nutrition/template-assignment/$traineeId');
+            ref.invalidate(traineeActiveAssignmentProvider(traineeId));
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                Icons.assignment_outlined,
+                color: theme.colorScheme.primary,
+                size: 32,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Assign Nutrition Template',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Auto-calculate macros based on body composition',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            ],
+          ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  Widget _buildAssignmentCard(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    NutritionTemplateAssignmentModel assignment,
+  ) {
+    return Semantics(
+      label: 'Active nutrition template: ${assignment.templateName}',
+      child: Card(
+      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.15),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Active: ${assignment.templateName}',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: [
+                if (assignment.fatMode != 'total_fat')
+                  _infoChip(theme, 'Fat: ${_humanFatMode(assignment.fatMode)}'),
+                _infoChip(
+                  theme,
+                  'Since ${_formatDate(assignment.createdAt)}',
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Reassign Template?'),
+                        content: const Text(
+                          'This will replace the current nutrition template. '
+                          'The trainee\'s macro targets will be recalculated.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: const Text('Reassign'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return;
+                    if (!context.mounted) return;
+                    await context
+                        .push('/nutrition/template-assignment/$traineeId');
+                    ref.invalidate(traineeActiveAssignmentProvider(traineeId));
+                  },
+                  child: const Text('Reassign'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      ),
+    );
+  }
+
+  Widget _infoChip(ThemeData theme, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+        ),
+      ),
+    );
+  }
+
+  String _humanFatMode(String fatMode) {
+    switch (fatMode) {
+      case 'total_fat':
+        return 'Total Fat';
+      case 'added_fat':
+        return 'Added Fat';
+      default:
+        return fatMode;
+    }
+  }
+
+  String _formatDate(String? isoDate) {
+    if (isoDate == null || isoDate.isEmpty) return 'Unknown';
+    final parsed = DateTime.tryParse(isoDate);
+    if (parsed == null) return isoDate.split('T').first;
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
   }
 }
 
