@@ -104,18 +104,49 @@ class EventService:
         ).order_by('starts_at')[:limit]
 
     @staticmethod
+    def _get_non_banned_trainee_ids(trainer: User) -> list[int]:
+        """Return active trainee IDs excluding community-banned users."""
+        from ..models import UserBan
+
+        banned_ids = set(
+            UserBan.objects.filter(
+                trainer=trainer, is_active=True,
+            ).values_list('user_id', flat=True)
+        )
+
+        trainee_ids = list(
+            User.objects.filter(
+                parent_trainer=trainer,
+                role=User.Role.TRAINEE,
+                is_active=True,
+            ).values_list('id', flat=True)
+        )
+
+        if banned_ids:
+            trainee_ids = [uid for uid in trainee_ids if uid not in banned_ids]
+
+        return trainee_ids
+
+    @staticmethod
+    def _get_rsvpd_user_ids(event: CommunityEvent) -> list[int]:
+        """Return user IDs with going or maybe RSVP for an event."""
+        return list(
+            EventRSVP.objects.filter(
+                event=event,
+                status__in=[
+                    EventRSVP.RSVPStatus.GOING,
+                    EventRSVP.RSVPStatus.MAYBE,
+                ],
+            ).values_list('user_id', flat=True)
+        )
+
+    @staticmethod
     def notify_event_created(event: CommunityEvent) -> None:
         """Push notification to all trainer's trainees about a new event."""
         try:
             from core.services.notification_service import send_push_to_group
 
-            trainee_ids = list(
-                User.objects.filter(
-                    parent_trainer=event.trainer,
-                    role=User.Role.TRAINEE,
-                    is_active=True,
-                ).values_list('id', flat=True)
-            )
+            trainee_ids = EventService._get_non_banned_trainee_ids(event.trainer)
             if not trainee_ids:
                 return
 
@@ -133,27 +164,30 @@ class EventService:
             logger.warning("Failed to send event created notifications", exc_info=True)
 
     @staticmethod
-    def notify_event_updated(event: CommunityEvent) -> None:
+    def notify_event_updated(
+        event: CommunityEvent,
+        changed_fields: set[str],
+    ) -> None:
         """Push notification to RSVP'd users (going/maybe) about an event update."""
         try:
             from core.services.notification_service import send_push_to_group
 
-            rsvpd_user_ids = list(
-                EventRSVP.objects.filter(
-                    event=event,
-                    status__in=[
-                        EventRSVP.RSVPStatus.GOING,
-                        EventRSVP.RSVPStatus.MAYBE,
-                    ],
-                ).values_list('user_id', flat=True)
-            )
+            rsvpd_user_ids = EventService._get_rsvpd_user_ids(event)
             if not rsvpd_user_ids:
                 return
+
+            # Build a descriptive body based on what changed
+            change_parts: list[str] = []
+            if changed_fields & {'starts_at', 'ends_at'}:
+                change_parts.append('time changed')
+            if 'meeting_url' in changed_fields:
+                change_parts.append('meeting link updated')
+            change_desc = ' — ' + ', '.join(change_parts) if change_parts else ''
 
             send_push_to_group(
                 user_ids=rsvpd_user_ids,
                 title='Event Updated',
-                body=event.title,
+                body=f'{event.title}{change_desc}',
                 data={
                     'type': 'community_event_updated',
                     'event_id': str(event.id),
@@ -169,15 +203,7 @@ class EventService:
         try:
             from core.services.notification_service import send_push_to_group
 
-            rsvpd_user_ids = list(
-                EventRSVP.objects.filter(
-                    event=event,
-                    status__in=[
-                        EventRSVP.RSVPStatus.GOING,
-                        EventRSVP.RSVPStatus.MAYBE,
-                    ],
-                ).values_list('user_id', flat=True)
-            )
+            rsvpd_user_ids = EventService._get_rsvpd_user_ids(event)
             if not rsvpd_user_ids:
                 return
 
@@ -198,34 +224,48 @@ class EventService:
     def send_event_reminders() -> int:
         """
         Send push notifications to users with 'going' RSVP for events
-        starting within the next 15 minutes.
+        starting within the next 5 minutes (matching the cron interval).
+
+        The cron schedule should be `*/5 * * * *` (every 5 minutes).
+        Using a 5-minute window ensures each event matches exactly one
+        cron run, preventing duplicate reminder sends.
 
         Returns the number of events for which reminders were sent.
-        Designed to be called by a management command on a cron schedule.
         """
-        now = timezone.now()
-        reminder_window_end = now + timezone.timedelta(minutes=15)
+        from core.services.notification_service import send_push_to_group
 
-        events = CommunityEvent.objects.filter(
-            status=CommunityEvent.EventStatus.SCHEDULED,
-            starts_at__gt=now,
-            starts_at__lte=reminder_window_end,
-        ).select_related('trainer')
+        now = timezone.now()
+        reminder_window_end = now + timezone.timedelta(minutes=5)
+
+        events = list(
+            CommunityEvent.objects.filter(
+                status=CommunityEvent.EventStatus.SCHEDULED,
+                starts_at__gt=now,
+                starts_at__lte=reminder_window_end,
+            ).select_related('trainer')
+        )
+
+        if not events:
+            return 0
+
+        # Batch: fetch all RSVPs for matched events in one query
+        event_ids = [e.id for e in events]
+        rsvps = (
+            EventRSVP.objects.filter(
+                event_id__in=event_ids,
+                status=EventRSVP.RSVPStatus.GOING,
+            ).values_list('event_id', 'user_id')
+        )
+        event_user_map: dict[int, list[int]] = {}
+        for event_id, user_id in rsvps:
+            event_user_map.setdefault(event_id, []).append(user_id)
 
         reminded_count = 0
         for event in events:
+            going_user_ids = event_user_map.get(event.id, [])
+            if not going_user_ids:
+                continue
             try:
-                from core.services.notification_service import send_push_to_group
-
-                going_user_ids = list(
-                    EventRSVP.objects.filter(
-                        event=event,
-                        status=EventRSVP.RSVPStatus.GOING,
-                    ).values_list('user_id', flat=True)
-                )
-                if not going_user_ids:
-                    continue
-
                 send_push_to_group(
                     user_ids=going_user_ids,
                     title='Event Reminder',

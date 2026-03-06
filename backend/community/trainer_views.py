@@ -569,12 +569,13 @@ class TrainerEventDetailView(views.APIView):
         # Notify RSVP'd users if time/location changed (fire-and-forget)
         if should_notify and event.status == CommunityEvent.EventStatus.SCHEDULED:
             from .services.event_service import EventService
-            EventService.notify_event_updated(event)
+            EventService.notify_event_updated(event, changed_fields=changed_fields)
 
         response_serializer = CommunityEventSerializer(event, context={'request': request})
         return Response(response_serializer.data)
 
     def delete(self, request: Request, pk: int) -> Response:
+        """Cancel an event (transitions to CANCELLED status, does not hard-delete)."""
         user = cast(User, request.user)
         try:
             event = CommunityEvent.objects.get(id=pk, trainer=user)
@@ -587,7 +588,8 @@ class TrainerEventDetailView(views.APIView):
         # Notify RSVP'd users about cancellation (fire-and-forget)
         EventService.notify_event_cancelled(event)
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = CommunityEventSerializer(event, context={'request': request})
+        return Response(serializer.data)
 
 
 class TrainerEventStatusView(views.APIView):

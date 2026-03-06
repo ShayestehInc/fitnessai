@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,10 +37,14 @@ class PushNotificationService {
     if (_initialized) return;
     _initialized = true;
 
-    try {
-      await Firebase.initializeApp();
-    } catch (_) {
-      // Firebase may already be initialized
+    if (Firebase.apps.isEmpty) {
+      try {
+        await Firebase.initializeApp();
+      } catch (e) {
+        debugPrint('Firebase initialization failed: $e');
+        _initialized = false;
+        return;
+      }
     }
 
     await _initLocalNotifications();
@@ -124,8 +130,8 @@ class PushNotificationService {
           'platform': _getPlatform(),
         },
       );
-    } catch (_) {
-      // Token registration is best-effort; will retry on next app launch
+    } catch (e) {
+      debugPrint('FCM token registration failed: $e');
     }
   }
 
@@ -215,21 +221,20 @@ class PushNotificationService {
     }
   }
 
-  /// Encode notification data as a simple key=value payload string.
+  /// Encode notification data as JSON string for local notification payload.
   String _buildPayload(Map<String, dynamic> data) {
-    return data.entries.map((e) => '${e.key}=${e.value}').join('&');
+    return jsonEncode(data);
   }
 
-  /// Parse the payload string back to a map.
+  /// Parse the JSON payload string back to a map.
   Map<String, dynamic> _parsePayload(String payload) {
-    final map = <String, dynamic>{};
-    for (final pair in payload.split('&')) {
-      final idx = pair.indexOf('=');
-      if (idx > 0) {
-        map[pair.substring(0, idx)] = pair.substring(idx + 1);
-      }
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map<String, dynamic>) return decoded;
+      return <String, dynamic>{};
+    } on FormatException {
+      return <String, dynamic>{};
     }
-    return map;
   }
 
   String _getPlatform() {

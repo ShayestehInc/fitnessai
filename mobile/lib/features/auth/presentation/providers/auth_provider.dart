@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/services/push_notification_service.dart';
@@ -58,7 +59,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
       );
       // Register device for push notifications after successful login
-      _pushService.initialize();
+      unawaited(_pushService.initialize());
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -87,7 +88,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         isLoading: false,
       );
-      _pushService.initialize();
+      unawaited(_pushService.initialize());
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -155,7 +156,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         isLoading: false,
       );
-      _pushService.initialize();
+      unawaited(_pushService.initialize());
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -186,7 +187,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         isLoading: false,
       );
-      _pushService.initialize();
+      unawaited(_pushService.initialize());
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -206,7 +207,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         isLoading: false,
       );
-      _pushService.initialize();
+      unawaited(_pushService.initialize());
     } else {
       state = state.copyWith(
         isLoading: false,
