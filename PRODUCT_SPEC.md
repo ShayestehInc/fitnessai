@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-03-04 (Pipeline 42: Notification Preferences, Local Reminders & Dead UI Cleanup)
+> Last updated: 2026-03-05 (Pipeline 48: FCM Push Notifications for Community Events)
 
 ---
 
@@ -264,7 +264,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Community feed moderation | ✅ Done | Shipped 2026-02-16: Author delete + trainer moderation via impersonation |
 | Achievement toast on new badge | 🟡 Partial | Backend returns new_achievements data; mobile toast wiring deferred to workout flow update |
 | Leaderboards | ✅ Done | Shipped 2026-02-16: Trainer-configurable ranked leaderboards with workout count and streak metrics, dense ranking, opt-in/opt-out, skeleton loading, empty/error states |
-| Push notifications (FCM) | ✅ Done | Shipped 2026-02-16: Firebase Cloud Messaging with device token management, announcement/comment notifications, platform-specific detection |
+| Push notifications (FCM) | ✅ Done | Shipped 2026-02-16: Firebase Cloud Messaging with device token management, announcement/comment notifications, platform-specific detection. Shipped 2026-03-05 (Pipeline 48): Community event notifications (created/updated/cancelled/reminder), cron-based reminders, community_event preference toggle, deep links to event detail |
 | Rich text / markdown | ✅ Done | Shipped 2026-02-16: Content format support on posts and announcements with flutter_markdown rendering |
 | Image attachments | ✅ Done | Shipped 2026-02-16: Multipart image upload (JPEG/PNG/WebP, 5MB), UUID filenames, full-screen pinch-to-zoom viewer, client/server validation |
 | Comment threads | ✅ Done | Shipped 2026-02-16: Flat comment system with pagination, author/trainer delete, real-time count updates, push notifications |
@@ -932,6 +932,20 @@ Notification preference controls, local reminder scheduling, help & support scre
 
 **Pipeline Results:**
 - Quality Score: SHIP
+
+### 4.34 FCM Push Notifications for Community Events (Pipeline 48) -- COMPLETED (2026-03-05)
+
+Wired FCM push notifications end-to-end for community events: backend sends notifications on event create/update/cancel with cron-based reminders, mobile initializes Firebase on login, displays foreground notifications via flutter_local_notifications, and deep links to event detail on tap.
+
+**What was built:**
+- Backend: 4 notification dispatch methods in EventService (created, updated, cancelled, reminder), management command `send_event_reminders` for `*/5 * * * *` cron, `community_event` notification preference category, event status state machine with valid transition enforcement
+- Mobile: Full PushNotificationService rewrite — Firebase init with graceful degradation, local notification display with iOS presentAlert, deep link navigation for event/announcement/community notification types, stream subscription lifecycle management
+- Auth integration: Token registration on all 5 login paths (email, register, Google, Apple, impersonation), token deactivation on logout/delete/impersonation switch
+- Preferences: "Community Events" toggle in notification preferences screen (trainee Updates section)
+- Security: Banned users excluded from notifications, impersonation token leak fixed, serializer field audit
+
+**Pipeline Results:**
+- Quality Score: 9/10 SHIP
 
 ### 4.33 Community Events — Trainer Create & Trainee RSVP (Pipeline 47) -- COMPLETED (2026-03-05)
 

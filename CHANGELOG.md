@@ -4,6 +4,33 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 48: FCM Push Notifications for Community Events
+
+### Added
+- Backend: 4 notification dispatch methods in EventService (created, updated, cancelled, reminder)
+- Backend: `send_event_reminders` management command for cron-based reminders (`*/5 * * * *`)
+- Backend: `community_event` notification preference category with migration
+- Backend: Event status state machine (`_VALID_TRANSITIONS`) with ValueError on invalid transitions
+- Mobile: Full PushNotificationService — Firebase init, local notification display, deep link navigation
+- Mobile: Stream subscription lifecycle management (cancel on deactivate, re-subscribe on init)
+- Mobile: "Community Events" toggle in notification preferences (trainee Updates section)
+- Auth: Push token registration on all 5 login paths (email, register, Google, Apple, impersonation)
+- Auth: Push token deactivation on logout, account deletion, and impersonation identity switch
+
+### Fixed
+- Duplicate reminder sends (narrowed cron window to 10-15 min matching 5-min interval)
+- Fragile local notification payload encoding (switched to JSON)
+- Firebase init error handling (graceful degradation with `_initialized` reset)
+- Stream subscription leak on login/logout cycles (store and cancel `StreamSubscription` refs)
+- Impersonation token leak (deactivate before switching identity)
+- Banned users receiving event notifications (excluded via UserBan query)
+- N+1 queries in reminder command (batched RSVP fetch)
+- False-positive update notifications (compare old vs new field values)
+- Deep link paths corrected (event detail, announcements)
+- Missing `community_event` field in NotificationPreferenceSerializer
+
+---
+
 ## [2026-03-05] — Pipeline 47: Community Events — Trainer Create & Trainee RSVP
 
 ### Added
