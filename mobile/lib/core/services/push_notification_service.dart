@@ -249,6 +249,15 @@ class PushNotificationService {
         case 'community_activity':
           router.push('/community');
           break;
+        case 'churn_alert':
+          final traineeId = data['trainee_id'] as String?;
+          if (traineeId != null) {
+            router.push('/trainer/trainees/$traineeId');
+          }
+          break;
+        case 're_engagement':
+          router.push('/home');
+          break;
         default:
           break;
       }
