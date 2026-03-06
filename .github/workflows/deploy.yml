@@ -68,7 +68,11 @@ jobs:
             docker exec fitnessai_nginx nginx -s reload
 
             echo "=== Running migrations ==="
-            docker exec fitnessai_backend python manage.py migrate --noinput
+            docker exec fitnessai_backend python manage.py migrate --noinput || {
+              echo "=== Migration failed, attempting to fake partially-applied migrations ==="
+              docker exec fitnessai_backend python manage.py migrate community 0006 --fake --noinput
+              docker exec fitnessai_backend python manage.py migrate --noinput
+            }
 
             echo "=== Loading exercise bank ==="
             docker exec fitnessai_backend python manage.py loaddata workouts/fixtures/exercises.json
