@@ -60,7 +60,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Password reset via email | ✅ Done | Shipped 2026-02-14: Forgot/Reset screens, Djoser email integration, password strength indicator |
 | Password change (in-app) | ✅ Done | Shipped 2026-02-14: Settings → Security → Change Password, calls Djoser set_password, autofill hints, strength indicator |
 | 4-step onboarding wizard | ✅ Done | About You → Activity → Goal → Diet |
-| Apple/Google social auth | 🟡 Partial | Backend configured, mobile not wired |
+| Apple/Google social auth | ✅ Done | Backend + mobile fully wired: Google Sign-In and Sign In with Apple buttons on login/register screens, auth provider handles token exchange |
 | Server URL configuration | ✅ Done | For multi-deployment support |
 
 ### 3.2 Workout System
