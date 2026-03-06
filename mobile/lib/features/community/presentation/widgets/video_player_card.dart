@@ -20,6 +20,7 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
   bool _isInitialized = false;
   bool _isPlaying = false;
   bool _hasError = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -28,7 +29,9 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
   }
 
   Future<void> _initializePlayer() async {
-    if (_controller != null) return;
+    if (_controller != null || _isLoading) return;
+
+    setState(() => _isLoading = true);
 
     final controller = VideoPlayerController.networkUrl(
       Uri.parse(widget.video.url),
@@ -43,13 +46,17 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
       setState(() {
         _controller = controller;
         _isInitialized = true;
+        _isLoading = false;
       });
       controller.addListener(_onPlayerStateChanged);
       await controller.setVolume(0); // Start muted in feed
       await controller.play();
     } catch (_) {
       if (mounted) {
-        setState(() => _hasError = true);
+        setState(() {
+          _hasError = true;
+          _isLoading = false;
+        });
       }
       controller.dispose();
     }
@@ -96,7 +103,9 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return ClipRRect(
+    return Semantics(
+      label: 'Video attachment. Tap to play, long press for fullscreen.',
+      child: ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: AspectRatio(
         aspectRatio: _isInitialized
@@ -126,8 +135,8 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
               if (_hasError)
                 _buildErrorOverlay(theme),
 
-              // Play button overlay (when not playing)
-              if (!_isPlaying && !_hasError)
+              // Loading spinner (while video initializes)
+              if (_isLoading && !_hasError)
                 Container(
                   width: 56,
                   height: 56,
@@ -135,10 +144,35 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
                     color: Colors.black.withValues(alpha: 0.6),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 36,
+                  child: const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Play button overlay (when not playing and not loading)
+              if (!_isPlaying && !_hasError && !_isLoading)
+                Semantics(
+                  label: 'Play video',
+                  button: true,
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                   ),
                 ),
 
@@ -170,23 +204,31 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
               // Mute indicator (bottom-left, when playing muted)
               if (_isInitialized && _controller != null && _controller!.value.volume == 0)
                 Positioned(
-                  bottom: 8,
-                  left: 8,
-                  child: GestureDetector(
-                    onTap: () {
-                      _controller!.setVolume(1);
-                      setState(() {});
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(
-                        Icons.volume_off,
-                        color: Colors.white,
-                        size: 18,
+                  bottom: 4,
+                  left: 4,
+                  child: Semantics(
+                    label: 'Unmute video',
+                    button: true,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        _controller!.setVolume(1);
+                        setState(() {});
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.volume_off,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -195,20 +237,28 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
               // Fullscreen button (bottom-right, when playing)
               if (_isInitialized)
                 Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: _openFullscreen,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(
-                        Icons.fullscreen,
-                        color: Colors.white,
-                        size: 20,
+                  bottom: 4,
+                  right: 4,
+                  child: Semantics(
+                    label: 'Open fullscreen video',
+                    button: true,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _openFullscreen,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.fullscreen,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -216,6 +266,7 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -235,18 +286,27 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
 
   Widget _buildErrorOverlay(ThemeData theme) {
     return Container(
-      color: Colors.black.withValues(alpha: 0.5),
+      color: Colors.black.withValues(alpha: 0.6),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.error_outline,
-              color: theme.colorScheme.error,
+              color: Colors.white70,
               size: 32,
             ),
             const SizedBox(height: 4),
+            const Text(
+              'Video failed to load',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 8),
             GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () {
                 setState(() {
                   _hasError = false;
@@ -256,11 +316,22 @@ class _VideoPlayerCardState extends State<VideoPlayerCard> {
                 });
                 _initializePlayer();
               },
-              child: Text(
-                'Tap to retry',
-                style: TextStyle(
-                  color: theme.colorScheme.onError,
-                  fontSize: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Tap to retry',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),

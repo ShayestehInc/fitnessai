@@ -18,6 +18,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from core.permissions import IsTrainee
+from core.throttles import MediaUploadThrottle
 from users.models import User
 
 from .models import (
@@ -225,10 +226,16 @@ class CommunityFeedView(views.APIView):
     """
     GET  /api/community/feed/ -- paginated feed scoped to trainer group.
          Query params: ?space=<id>, ?sort=latest|popular
-    POST /api/community/feed/ -- create a text post (with optional images).
+    POST /api/community/feed/ -- create a text post (with optional images/videos).
     """
     permission_classes = [IsAuthenticated, IsTrainee]
     parser_classes = [MultiPartParser, JSONParser]
+
+    def get_throttles(self) -> list[Any]:
+        """Apply stricter rate limit on POST (media upload) requests."""
+        if self.request.method == 'POST':
+            return [MediaUploadThrottle()]
+        return super().get_throttles()
 
     def get(self, request: Request) -> Response:
         user = cast(User, request.user)
@@ -429,6 +436,12 @@ class CommunityPostDeleteView(views.APIView):
             post.image.delete(save=False)
         for post_image in post.images.all():
             post_image.image.delete(save=False)
+
+        # Delete video files and thumbnails
+        for post_video in post.videos.all():
+            post_video.file.delete(save=False)
+            if post_video.thumbnail:
+                post_video.thumbnail.delete(save=False)
 
         post.delete()
 

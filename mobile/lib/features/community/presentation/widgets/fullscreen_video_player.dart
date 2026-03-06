@@ -14,7 +14,7 @@ class FullscreenVideoPlayer extends StatefulWidget {
 }
 
 class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
-  late final VideoPlayerController _controller;
+  late VideoPlayerController _controller;
   bool _isInitialized = false;
   bool _showControls = true;
   bool _hasError = false;
@@ -96,9 +96,14 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
             Positioned(
               top: MediaQuery.of(context).padding.top + 8,
               left: 8,
-              child: IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+              child: Semantics(
+                label: 'Close fullscreen video',
+                button: true,
+                child: IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  tooltip: 'Close',
+                ),
               ),
             ),
           ],
@@ -127,7 +132,10 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Seek bar
-            SliderTheme(
+            Semantics(
+              label: 'Video seek bar',
+              slider: true,
+            child: SliderTheme(
               data: SliderThemeData(
                 trackHeight: 3,
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
@@ -147,6 +155,7 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
                   _controller.seekTo(newPosition);
                 },
               ),
+            ),
             ),
 
             // Controls row
@@ -169,6 +178,7 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
                       _startControlsTimer();
                     }
                   },
+                  tooltip: isPlaying ? 'Pause' : 'Play',
                   icon: Icon(
                     isPlaying ? Icons.pause : Icons.play_arrow,
                     color: Colors.white,
@@ -182,6 +192,7 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
                     final vol = _controller.value.volume;
                     _controller.setVolume(vol > 0 ? 0 : 1);
                   },
+                  tooltip: _controller.value.volume > 0 ? 'Mute' : 'Unmute',
                   icon: Icon(
                     _controller.value.volume > 0
                         ? Icons.volume_up
@@ -211,7 +222,14 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
         const SizedBox(height: 12),
         TextButton(
           onPressed: () {
-            setState(() => _hasError = false);
+            _controller.dispose();
+            _controller = VideoPlayerController.networkUrl(
+              Uri.parse(widget.videoUrl),
+            );
+            setState(() {
+              _hasError = false;
+              _isInitialized = false;
+            });
             _initialize();
           },
           child: const Text('Retry', style: TextStyle(color: Colors.white)),

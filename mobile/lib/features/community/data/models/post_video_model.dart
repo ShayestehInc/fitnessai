@@ -28,8 +28,9 @@ class PostVideoModel {
   }
 
   /// Format duration as M:SS (e.g., "1:05" or "0:32").
+  /// Returns empty string for null or non-positive durations.
   String get formattedDuration {
-    if (duration == null) return '';
+    if (duration == null || duration! <= 0) return '';
     final totalSeconds = duration!.round();
     final minutes = totalSeconds ~/ 60;
     final seconds = totalSeconds % 60;

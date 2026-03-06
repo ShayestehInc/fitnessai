@@ -200,8 +200,16 @@ REST_FRAMEWORK = {
         'user': '120/minute',
         'registration': '5/hour',
         'messaging': '30/minute',
+        'media_upload': '20/hour',
     },
 }
+
+# File upload size limits
+# Django default DATA_UPLOAD_MAX_MEMORY_SIZE is 2.5 MB.
+# Files larger than this go to temp disk. We cap the overall upload
+# at 60 MB (slightly above our 50 MB video limit to allow for multipart overhead).
+DATA_UPLOAD_MAX_MEMORY_SIZE = 60 * 1024 * 1024  # 60 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 MB — files above this use temp storage
 
 # CORS - Only allow all origins in development; restrict in production
 if DEBUG:

@@ -24,14 +24,12 @@ ALLOWED_VIDEO_TYPES: frozenset[str] = frozenset({
 ALLOWED_VIDEO_EXTENSIONS: frozenset[str] = frozenset({
     '.mp4', '.m4v', '.mov', '.webm',
 })
-# Magic bytes for video container formats
-_VIDEO_MAGIC_BYTES: dict[bytes, str] = {
-    b'\x00\x00\x00': 'mp4/mov',       # ftyp box (offset varies, but starts with 00 00 00)
-    b'\x1a\x45\xdf\xa3': 'webm/mkv',  # EBML header
-}
 MAX_VIDEO_SIZE: int = 50 * 1024 * 1024  # 50 MB
 MAX_VIDEO_DURATION: float = 60.0  # 60 seconds
 MAX_VIDEOS_PER_POST: int = 3
+# When ffprobe is unavailable we cannot verify duration, so enforce a
+# much stricter file-size cap to limit damage from long videos.
+_FALLBACK_MAX_SIZE_NO_FFPROBE: int = 15 * 1024 * 1024  # 15 MB
 
 
 @dataclass(frozen=True)
@@ -141,6 +139,16 @@ def validate_video(video_file: UploadedFile) -> VideoMetadata:
     filename = video_file.name or ''
     ext = os.path.splitext(filename)[1].lower()
 
+    # Reject empty files
+    if file_size == 0:
+        return VideoMetadata(
+            is_valid=False,
+            error_message='Video file is empty (0 bytes).',
+            duration=None,
+            file_size=0,
+            thumbnail_bytes=None,
+        )
+
     # Check file extension
     if ext not in ALLOWED_VIDEO_EXTENSIONS:
         return VideoMetadata(
@@ -225,12 +233,24 @@ def validate_video(video_file: UploadedFile) -> VideoMetadata:
         )
 
     # If ffprobe is not available, we can't verify duration.
-    # Log a warning but allow the upload — the file passed magic byte and
-    # extension validation. Duration will be null in the database.
+    # Enforce a stricter file-size cap to limit abuse potential.
     if duration is None:
+        if file_size > _FALLBACK_MAX_SIZE_NO_FFPROBE:
+            size_mb = file_size / (1024 * 1024)
+            fallback_mb = _FALLBACK_MAX_SIZE_NO_FFPROBE / (1024 * 1024)
+            return VideoMetadata(
+                is_valid=False,
+                error_message=(
+                    f'Video is {size_mb:.1f}MB. Maximum is {fallback_mb:.0f}MB '
+                    f'(duration verification unavailable).'
+                ),
+                duration=None,
+                file_size=file_size,
+                thumbnail_bytes=None,
+            )
         logger.warning(
             "Could not extract video duration (ffprobe unavailable?). "
-            "Allowing upload for file '%s' (%d bytes).",
+            "Allowing upload for file '%s' (%d bytes) under fallback size limit.",
             filename, file_size,
         )
 

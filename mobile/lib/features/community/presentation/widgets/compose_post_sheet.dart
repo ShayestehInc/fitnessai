@@ -118,15 +118,17 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
             _buildVideoPreviews(theme),
           ],
           // Upload progress
-          if (_isSubmitting && _uploadProgress > 0) ...[
+          if (_isSubmitting) ...[
             const SizedBox(height: 8),
             LinearProgressIndicator(
-              value: _uploadProgress,
+              value: _uploadProgress > 0 ? _uploadProgress : null,
               backgroundColor: theme.dividerColor,
             ),
             const SizedBox(height: 4),
             Text(
-              '${(_uploadProgress * 100).toInt()}% uploaded',
+              _uploadProgress > 0
+                  ? '${(_uploadProgress * 100).toInt()}% uploaded'
+                  : 'Preparing upload...',
               style: TextStyle(
                 fontSize: 11,
                 color: theme.textTheme.bodySmall?.color,
@@ -251,19 +253,27 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
                 ),
               ),
               Positioned(
-                top: 2,
-                right: 2,
-                child: GestureDetector(
-                  onTap: () =>
-                      setState(() => _imagePaths.removeAt(index)),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: Colors.black54,
-                      shape: BoxShape.circle,
+                top: 0,
+                right: 0,
+                child: Semantics(
+                  label: 'Remove image ${index + 1}',
+                  button: true,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () =>
+                        setState(() => _imagePaths.removeAt(index)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close,
+                            size: 14, color: Colors.white),
+                      ),
                     ),
-                    child: const Icon(Icons.close,
-                        size: 14, color: Colors.white),
                   ),
                 ),
               ),
@@ -379,19 +389,27 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
                     ),
                   ),
                   Positioned(
-                    top: 2,
-                    right: 2,
-                    child: GestureDetector(
-                      onTap: () =>
-                          setState(() => _videoPaths.removeAt(index)),
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
-                          shape: BoxShape.circle,
+                    top: 0,
+                    right: 0,
+                    child: Semantics(
+                      label: 'Remove video ${index + 1}',
+                      button: true,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () =>
+                            setState(() => _videoPaths.removeAt(index)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close,
+                                size: 14, color: Colors.white),
+                          ),
                         ),
-                        child: const Icon(Icons.close,
-                            size: 14, color: Colors.white),
                       ),
                     ),
                   ),
