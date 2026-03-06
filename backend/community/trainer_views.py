@@ -505,6 +505,11 @@ class TrainerEventListCreateView(generics.ListCreateAPIView[CommunityEvent]):
             is_recurring=data.get('is_recurring', False),
             recurrence_rule=data.get('recurrence_rule', {}),
         )
+
+        # Send push notification to all trainees (fire-and-forget)
+        from .services.event_service import EventService
+        EventService.notify_event_created(event)
+
         response_serializer = CommunityEventSerializer(
             event, context={'request': request},
         )
@@ -544,21 +549,46 @@ class TrainerEventDetailView(views.APIView):
         except CommunityEvent.DoesNotExist:
             return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Prevent editing cancelled or completed events.
+        if event.status in (
+            CommunityEvent.EventStatus.CANCELLED,
+            CommunityEvent.EventStatus.COMPLETED,
+        ):
+            return Response(
+                {'error': f'Cannot update a {event.status} event.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         serializer = CommunityEventCreateSerializer(data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
+
+        # Track which notify-relevant fields actually changed (value differs)
+        notify_fields = {'starts_at', 'ends_at', 'meeting_url'}
+        actually_changed: set[str] = set()
 
         update_fields: list[str] = ['updated_at']
         for field in ('title', 'description', 'event_type', 'starts_at', 'ends_at',
                        'meeting_url', 'max_attendees', 'is_recurring', 'recurrence_rule'):
             if field in serializer.validated_data:
-                setattr(event, field, serializer.validated_data[field])
-                update_fields.append(field)
+                new_value = serializer.validated_data[field]
+                if getattr(event, field) != new_value:
+                    if field in notify_fields:
+                        actually_changed.add(field)
+                    setattr(event, field, new_value)
+                    update_fields.append(field)
 
         event.save(update_fields=update_fields)
+
+        # Notify RSVP'd users if time/location actually changed (fire-and-forget)
+        if actually_changed and event.status == CommunityEvent.EventStatus.SCHEDULED:
+            from .services.event_service import EventService
+            EventService.notify_event_updated(event, changed_fields=actually_changed)
+
         response_serializer = CommunityEventSerializer(event, context={'request': request})
         return Response(response_serializer.data)
 
     def delete(self, request: Request, pk: int) -> Response:
+        """Cancel an event (transitions to CANCELLED status, does not hard-delete)."""
         user = cast(User, request.user)
         try:
             event = CommunityEvent.objects.get(id=pk, trainer=user)
@@ -566,8 +596,19 @@ class TrainerEventDetailView(views.APIView):
             return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         from .services.event_service import EventService
-        EventService.transition_status(event, CommunityEvent.EventStatus.CANCELLED)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        try:
+            EventService.transition_status(event, CommunityEvent.EventStatus.CANCELLED)
+        except ValueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Notify RSVP'd users about cancellation (fire-and-forget)
+        EventService.notify_event_cancelled(event)
+
+        serializer = CommunityEventSerializer(event, context={'request': request})
+        return Response(serializer.data)
 
 
 class TrainerEventStatusView(views.APIView):
@@ -593,7 +634,18 @@ class TrainerEventStatusView(views.APIView):
             )
 
         from .services.event_service import EventService
-        EventService.transition_status(event, new_status)
+        try:
+            EventService.transition_status(event, new_status)
+        except ValueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Notify RSVP'd users if event was cancelled via status transition
+        if new_status == CommunityEvent.EventStatus.CANCELLED:
+            EventService.notify_event_cancelled(event)
+
         serializer = CommunityEventSerializer(event, context={'request': request})
         return Response(serializer.data)
 

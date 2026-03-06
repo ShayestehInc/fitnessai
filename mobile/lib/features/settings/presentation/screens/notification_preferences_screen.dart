@@ -1,6 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -108,6 +109,12 @@ const _traineeSections = [
         subtitle: 'When you earn a new achievement',
         icon: Icons.emoji_events_outlined,
       ),
+      _CategoryMeta(
+        key: 'community_event',
+        label: 'Community Events',
+        subtitle: 'New events, updates, cancellations, and reminders',
+        icon: Icons.event_outlined,
+      ),
     ],
   ),
   _Section(
@@ -138,13 +145,29 @@ class NotificationPreferencesScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationPreferencesScreenState
-    extends ConsumerState<NotificationPreferencesScreen> {
+    extends ConsumerState<NotificationPreferencesScreen>
+    with WidgetsBindingObserver {
   bool _osNotificationsEnabled = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkOsPermission();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-check OS permission when the user returns from system settings.
+    if (state == AppLifecycleState.resumed) {
+      _checkOsPermission();
+    }
   }
 
   Future<void> _checkOsPermission() async {
@@ -207,11 +230,13 @@ class _NotificationPreferencesScreenState
           Expanded(
             child: prefsAsync.when(
               loading: () => const _ShimmerSkeleton(),
-              error: (error, _) => _ErrorCard(
-                message: error.toString(),
-                onRetry: () =>
-                    ref.invalidate(notificationPreferencesProvider),
-              ),
+              error: (error, _) {
+                debugPrint('Notification prefs load error: $error');
+                return _ErrorCard(
+                  onRetry: () =>
+                      ref.invalidate(notificationPreferencesProvider),
+                );
+              },
               data: (prefs) => ListView.builder(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 itemCount: sections.length,
@@ -241,6 +266,17 @@ class _OsPermissionBanner extends StatelessWidget {
 
   const _OsPermissionBanner({required this.onOpenSettings});
 
+  Future<void> _openNotificationSettings() async {
+    // On iOS, once the user has denied permission, re-requesting via
+    // requestPermission() silently returns denied without showing a dialog.
+    // We must send the user to system settings instead.
+    final uri = Uri.parse('app-settings:');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+    onOpenSettings();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -254,13 +290,14 @@ class _OsPermissionBanner extends StatelessWidget {
           Icon(
             Icons.notifications_off_outlined,
             color: theme.colorScheme.onErrorContainer,
+            semanticLabel: 'Notifications disabled',
             size: 20,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Notifications are disabled at the system level. '
-              'Enable them in your device settings to receive alerts.',
+              'Notifications are turned off. '
+              'Tap "Open Settings" to enable them so you never miss an update.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onErrorContainer,
               ),
@@ -269,16 +306,13 @@ class _OsPermissionBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Semantics(
             button: true,
-            label: 'Enable notifications',
+            label: 'Open notification settings',
             child: AdaptiveTappable(
-              onTap: () async {
-                await FirebaseMessaging.instance.requestPermission();
-                onOpenSettings();
-              },
+              onTap: _openNotificationSettings,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Text(
-                  'Enable',
+                  'Open Settings',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: theme.colorScheme.onErrorContainer,
                     fontWeight: FontWeight.w600,
@@ -328,17 +362,22 @@ class _SectionWidget extends StatelessWidget {
         ),
         ...section.categories.map((cat) {
           final enabled = preferences[cat.key] ?? true;
-          return SwitchListTile.adaptive(
-            secondary: Icon(cat.icon, size: 22),
-            title: Text(cat.label),
-            subtitle: Text(
-              cat.subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+          return Semantics(
+            toggled: enabled,
+            label: '${cat.label} notifications',
+            hint: cat.subtitle,
+            child: SwitchListTile.adaptive(
+              secondary: Icon(cat.icon, size: 22),
+              title: Text(cat.label),
+              subtitle: Text(
+                cat.subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
+              value: enabled,
+              onChanged: (value) => onToggle(cat.key, value),
             ),
-            value: enabled,
-            onChanged: (value) => onToggle(cat.key, value),
           );
         }),
         const Divider(height: 1, indent: 16, endIndent: 16),
@@ -425,10 +464,9 @@ class _ShimmerSkeleton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ErrorCard extends StatelessWidget {
-  final String message;
   final VoidCallback onRetry;
 
-  const _ErrorCard({required this.message, required this.onRetry});
+  const _ErrorCard({required this.onRetry});
 
   @override
   Widget build(BuildContext context) {

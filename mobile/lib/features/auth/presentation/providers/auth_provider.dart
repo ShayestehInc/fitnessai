@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/api_client.dart';
+import '../../../../core/services/push_notification_service.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/models/user_model.dart';
 
@@ -12,7 +14,8 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);
-  return AuthNotifier(repository);
+  final pushService = ref.watch(pushNotificationServiceProvider);
+  return AuthNotifier(repository, pushService);
 });
 
 class AuthState {
@@ -41,19 +44,22 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
+  final PushNotificationService _pushService;
 
-  AuthNotifier(this._repository) : super(AuthState());
+  AuthNotifier(this._repository, this._pushService) : super(AuthState());
 
   Future<void> login(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     final result = await _repository.login(email, password);
-    
+
     if (result['success'] == true) {
       state = state.copyWith(
         user: result['user'] as UserModel,
         isLoading: false,
       );
+      // Register device for push notifications after successful login
+      unawaited(_pushService.initialize());
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -76,12 +82,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
       role: role,
       referralCode: referralCode,
     );
-    
+
     if (result['success'] == true) {
       state = state.copyWith(
         user: result['user'] as UserModel,
         isLoading: false,
       );
+      unawaited(_pushService.initialize());
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -91,6 +98,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    await _pushService.deactivateToken();
     await _repository.logout();
     state = AuthState();
   }
@@ -117,6 +125,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<Map<String, dynamic>> deleteAccount() async {
     state = state.copyWith(isLoading: true, error: null);
 
+    await _pushService.deactivateToken();
     final result = await _repository.deleteAccount();
 
     if (result['success'] == true) {
@@ -131,12 +140,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Set tokens directly and load user (for admin impersonation)
+  /// Set tokens directly and load user (for admin/trainer impersonation).
+  /// Deactivates the current push token first so the device is not left
+  /// registered under the previous user, which would cause the impersonator
+  /// to receive the impersonated user's notifications after ending the session.
   Future<void> setTokensAndLoadUser(
     String accessToken,
     String refreshToken,
   ) async {
     state = state.copyWith(isLoading: true, error: null);
+
+    // Deactivate push token for the current user before switching identity.
+    await _pushService.deactivateToken();
 
     final result = await _repository.setTokensAndLoadUser(
       accessToken,
@@ -148,6 +163,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         isLoading: false,
       );
+      unawaited(_pushService.initialize());
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -178,6 +194,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         isLoading: false,
       );
+      unawaited(_pushService.initialize());
     } else {
       state = state.copyWith(
         isLoading: false,
@@ -197,6 +214,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         isLoading: false,
       );
+      unawaited(_pushService.initialize());
     } else {
       state = state.copyWith(
         isLoading: false,
