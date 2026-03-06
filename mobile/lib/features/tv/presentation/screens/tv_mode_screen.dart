@@ -7,6 +7,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../workout_log/presentation/providers/workout_provider.dart';
 import '../providers/tv_mode_provider.dart';
+import '../widgets/tv_empty_states.dart';
 import '../widgets/tv_exercise_card.dart';
 import '../widgets/tv_progress_bar.dart';
 import '../widgets/tv_rest_timer.dart';
@@ -29,27 +30,37 @@ class _TvModeScreenState extends ConsumerState<TvModeScreen> {
   void initState() {
     super.initState();
     WakelockPlus.enable();
-    // Use landscape-preferred but don't force it.
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
       DeviceOrientation.portraitUp,
     ]);
-    // Immersive mode for TV-like display.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
     _loadWorkout();
+  }
+
+  @override
+  void dispose() {
+    WakelockPlus.disable();
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
   }
 
   void _loadWorkout() {
     final workoutState = ref.read(workoutStateProvider);
 
-    if (workoutState.isLoading) {
-      // Wait for workout provider to load.
-      Future.microtask(() {
-        ref.read(workoutStateProvider.notifier).loadInitialData().then((_) {
-          if (mounted) _initFromWorkoutState();
-        });
+    if (workoutState.isLoading || workoutState.programs.isEmpty) {
+      Future.microtask(() async {
+        try {
+          await ref.read(workoutStateProvider.notifier).loadInitialData();
+        } on Exception {
+          if (mounted) {
+            ref.read(tvModeProvider.notifier).setError('no_workout');
+          }
+          return;
+        }
+        if (mounted) _initFromWorkoutState();
       });
     } else {
       _initFromWorkoutState();
@@ -65,36 +76,19 @@ class _TvModeScreenState extends ConsumerState<TvModeScreen> {
       tvNotifier.setError(_resolveEmptyReason(workoutState));
       return;
     }
-
     tvNotifier.loadWorkout(todaysWorkout.exercises);
   }
 
   String _resolveEmptyReason(WorkoutState workoutState) {
-    if (workoutState.activeProgram == null) {
-      return 'no_program';
-    }
+    if (workoutState.activeProgram == null) return 'no_program';
     final week = workoutState.selectedWeek;
     if (week == null) return 'no_workout';
-    final todayWorkout = week.workouts
-        .where((w) => w.isToday)
-        .firstOrNull;
-    if (todayWorkout != null && todayWorkout.isRestDay) {
-      return 'rest_day';
-    }
+    final todayWorkout = week.workouts.where((w) => w.isToday).firstOrNull;
+    if (todayWorkout != null && todayWorkout.isRestDay) return 'rest_day';
     return 'no_workout';
   }
 
-  @override
-  void dispose() {
-    WakelockPlus.disable();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    super.dispose();
-  }
-
-  void _handleExit() {
-    context.pop();
-  }
+  void _handleExit() => context.pop();
 
   @override
   Widget build(BuildContext context) {
@@ -105,202 +99,68 @@ class _TvModeScreenState extends ConsumerState<TvModeScreen> {
       backgroundColor: AppTheme.zinc950,
       body: SafeArea(
         child: tvState.isLoading
-            ? _buildLoading()
+            ? const TvLoadingView()
             : tvState.error != null
-                ? _buildEmptyOrError(tvState.error!, workoutState)
+                ? TvEmptyView(
+                    reason: tvState.error!,
+                    workoutState: workoutState,
+                    onExit: _handleExit,
+                  )
                 : tvState.workoutComplete
-                    ? _buildComplete(tvState)
-                    : _buildWorkoutView(tvState, workoutState),
+                    ? TvCompleteView(
+                        tvState: tvState,
+                        onExit: _handleExit,
+                      )
+                    : _TvWorkoutView(
+                        tvState: tvState,
+                        workoutState: workoutState,
+                        onExit: _handleExit,
+                      ),
       ),
     );
   }
+}
 
-  Widget _buildLoading() {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 64,
-            height: 64,
-            child: CircularProgressIndicator(
-              strokeWidth: 4,
-              color: AppTheme.primary,
-            ),
-          ),
-          SizedBox(height: 24),
-          Text(
-            'Loading workout...',
-            style: TextStyle(
-              fontSize: 24,
-              color: AppTheme.zinc400,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+/// Active workout display with exercises, rest timer, and complete button.
+class _TvWorkoutView extends ConsumerWidget {
+  final TvModeState tvState;
+  final WorkoutState workoutState;
+  final VoidCallback onExit;
 
-  Widget _buildEmptyOrError(String reason, WorkoutState workoutState) {
-    final IconData icon;
-    final String title;
-    final String subtitle;
+  const _TvWorkoutView({
+    required this.tvState,
+    required this.workoutState,
+    required this.onExit,
+  });
 
-    switch (reason) {
-      case 'no_program':
-        icon = Icons.fitness_center_outlined;
-        title = 'No Program Assigned';
-        subtitle = 'Ask your trainer to assign a workout program.';
-      case 'rest_day':
-        icon = Icons.self_improvement_outlined;
-        title = 'Rest Day';
-        subtitle = _buildNextWorkoutHint(workoutState);
-      default:
-        icon = Icons.event_busy_outlined;
-        title = 'No Workout Today';
-        subtitle = 'Check your program for upcoming workouts.';
-    }
-
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(28),
-            decoration: const BoxDecoration(
-              color: AppTheme.zinc800,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 72, color: AppTheme.zinc400),
-          ),
-          const SizedBox(height: 32),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.foreground,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            subtitle,
-            style: const TextStyle(fontSize: 20, color: AppTheme.zinc400),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-          _buildExitButton(),
-        ],
-      ),
-    );
-  }
-
-  String _buildNextWorkoutHint(WorkoutState workoutState) {
-    final week = workoutState.selectedWeek;
-    if (week == null) return 'Enjoy your recovery!';
-    final nextWorkout = week.workouts
-        .where((w) => !w.isToday && !w.isRestDay && !w.isCompleted)
-        .firstOrNull;
-    if (nextWorkout != null) {
-      return 'Next up: ${nextWorkout.name} (${nextWorkout.exerciseCount} exercises)';
-    }
-    return 'Enjoy your recovery!';
-  }
-
-  Widget _buildComplete(TvModeState tvState) {
-    final minutes = tvState.elapsed.inMinutes;
-    final seconds = tvState.elapsed.inSeconds.remainder(60);
-
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.emoji_events_rounded,
-            size: 96,
-            color: Color(0xFFF59E0B),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Workout Complete!',
-            style: TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.foreground,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '${tvState.totalExercises} exercises \u2022 ${tvState.totalSets} sets \u2022 ${minutes}m ${seconds}s',
-            style: const TextStyle(
-              fontSize: 24,
-              color: AppTheme.zinc300,
-            ),
-          ),
-          const SizedBox(height: 48),
-          _buildExitButton(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExitButton() {
-    return SizedBox(
-      width: 220,
-      height: 56,
-      child: ElevatedButton.icon(
-        onPressed: _handleExit,
-        icon: const Icon(Icons.arrow_back_rounded, size: 24),
-        label: const Text(
-          'EXIT TV MODE',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.zinc700,
-          foregroundColor: AppTheme.foreground,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWorkoutView(TvModeState tvState, WorkoutState workoutState) {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          // Header
           TvWorkoutHeader(
             programName: workoutState.activeProgram?.name ?? 'Workout',
             dayName: workoutState.todaysWorkout?.name ?? 'Today',
             elapsed: tvState.elapsed,
-            onExit: _handleExit,
+            onExit: onExit,
           ),
           const SizedBox(height: 16),
-          // Progress bar
           TvProgressBar(
             fraction: tvState.progressFraction,
             completedExercises: tvState.completedExercises,
             totalExercises: tvState.totalExercises,
           ),
           const SizedBox(height: 16),
-          // Main content: exercises + rest timer
-          Expanded(child: _buildMainContent(tvState)),
-          // Complete set button
+          Expanded(child: _buildMainContent(ref)),
           if (!tvState.isResting && !tvState.workoutComplete)
-            _buildCompleteSetButton(tvState),
+            _buildCompleteSetButton(ref),
         ],
       ),
     );
   }
 
-  Widget _buildMainContent(TvModeState tvState) {
+  Widget _buildMainContent(WidgetRef ref) {
     if (tvState.isResting) {
       return Center(
         child: TvRestTimer(
@@ -316,11 +176,9 @@ class _TvModeScreenState extends ConsumerState<TvModeScreen> {
     return ListView.builder(
       itemCount: tvState.exercises.length,
       itemBuilder: (context, index) {
-        final exerciseState = tvState.exercises[index];
-        final isCurrent = index == tvState.currentExerciseIndex;
         return TvExerciseCard(
-          exerciseState: exerciseState,
-          isCurrent: isCurrent,
+          exerciseState: tvState.exercises[index],
+          isCurrent: index == tvState.currentExerciseIndex,
           onTap: () =>
               ref.read(tvModeProvider.notifier).jumpToExercise(index),
         );
@@ -328,13 +186,11 @@ class _TvModeScreenState extends ConsumerState<TvModeScreen> {
     );
   }
 
-  Widget _buildCompleteSetButton(TvModeState tvState) {
+  Widget _buildCompleteSetButton(WidgetRef ref) {
     final current = tvState.currentExercise;
     if (current == null) return const SizedBox.shrink();
 
-    final nextSet = current.sets
-        .where((s) => !s.completed)
-        .firstOrNull;
+    final nextSet = current.sets.where((s) => !s.completed).firstOrNull;
     if (nextSet == null) return const SizedBox.shrink();
 
     return Padding(
@@ -343,8 +199,7 @@ class _TvModeScreenState extends ConsumerState<TvModeScreen> {
         width: double.infinity,
         height: 72,
         child: ElevatedButton(
-          onPressed: () =>
-              ref.read(tvModeProvider.notifier).completeSet(),
+          onPressed: () => ref.read(tvModeProvider.notifier).completeSet(),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppTheme.primary,
             foregroundColor: AppTheme.primaryForeground,

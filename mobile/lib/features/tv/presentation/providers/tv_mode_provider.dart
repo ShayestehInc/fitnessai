@@ -190,10 +190,14 @@ class TvModeNotifier extends StateNotifier<TvModeState> {
   }
 
   void _advanceToNextExercise() {
-    final nextIdx = state.exercises.indexWhere(
+    // Look forward first, then wrap around from the beginning.
+    var nextIdx = state.exercises.indexWhere(
       (e) => !e.allSetsCompleted,
       state.currentExerciseIndex + 1,
     );
+    if (nextIdx == -1) {
+      nextIdx = state.exercises.indexWhere((e) => !e.allSetsCompleted);
+    }
     if (nextIdx != -1) {
       state = state.copyWith(currentExerciseIndex: nextIdx);
     }
