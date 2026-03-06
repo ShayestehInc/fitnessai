@@ -42,7 +42,17 @@ class OfflineNutritionRepository {
         final result =
             await _onlineRepo.confirmAndSave(parsedData, date: date);
         if (result['success'] == true) {
-          return const OfflineSaveResult.onlineSuccess();
+          // Forward new_achievements from the API response so callers
+          // can show achievement celebrations.
+          final responseData = result['data'];
+          final newAchievements = responseData is Map
+              ? responseData['new_achievements'] as List<dynamic>?
+              : null;
+          return OfflineSaveResult.onlineSuccess(
+            data: newAchievements != null
+                ? {'new_achievements': newAchievements}
+                : null,
+          );
         }
         return OfflineSaveResult.failure(
           result['error']?.toString() ?? 'Failed to save nutrition',

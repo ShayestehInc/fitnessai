@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/achievement_toast_service.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
+import '../../../community/data/models/achievement_model.dart';
 import '../providers/nutrition_provider.dart';
 
 class WeightCheckInScreen extends ConsumerStatefulWidget {
@@ -271,6 +273,8 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
           message: 'Weight check-in saved successfully!',
           type: ToastType.success,
         );
+        // Show achievement celebrations for any newly earned badges.
+        _showAchievementToasts(result.newAchievements);
       }
       // Trigger sync if online
       ref.read(syncServiceProvider)?.triggerSync();
@@ -282,6 +286,21 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
         message: result.error ?? 'Failed to save',
         type: ToastType.error,
       );
+    }
+  }
+
+  void _showAchievementToasts(List<dynamic>? rawAchievements) {
+    if (rawAchievements == null || rawAchievements.isEmpty) return;
+    try {
+      final achievements = rawAchievements
+          .whereType<Map<String, dynamic>>()
+          .map((json) => NewAchievementModel.fromJson(json))
+          .toList();
+      if (achievements.isNotEmpty) {
+        AchievementToastService.instance.showAchievements(achievements);
+      }
+    } catch (_) {
+      // Malformed achievement data — skip silently, don't break the flow.
     }
   }
 }

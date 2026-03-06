@@ -786,16 +786,24 @@ class DailyLogViewSet(viewsets.ModelViewSet[DailyLog]):
         daily_log.save()
 
         # Check achievements after nutrition logging (non-blocking)
+        new_achievements: list[object] = []
         try:
             from community.services.achievement_service import check_and_award_achievements
-            check_and_award_achievements(user, 'nutrition_logged')
+            new_achievements = check_and_award_achievements(user, 'nutrition_logged')
         except Exception:
             logger.exception("Achievement check failed after nutrition save for user %s", user.id)
 
-        # Return saved log
+        # Return saved log with any new achievements
         log_serializer = DailyLogSerializer(daily_log)
+        response_data = dict(log_serializer.data)
+        if new_achievements:
+            from community.serializers import NewAchievementSerializer
+            response_data['new_achievements'] = NewAchievementSerializer(
+                new_achievements, many=True,
+            ).data
+
         return Response(
-            log_serializer.data,
+            response_data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
         )
     
@@ -1480,19 +1488,33 @@ class WeightCheckInViewSet(viewsets.ModelViewSet[WeightCheckIn]):
         else:
             return WeightCheckIn.objects.none()
 
-    def perform_create(self, serializer: BaseSerializer[WeightCheckIn]) -> None:
-        """Set trainee to current user and check achievements."""
-        user = cast(User, self.request.user)
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Create weight check-in, check achievements, and include new badges in response."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = cast(User, request.user)
+        new_achievements: list[object] = []
+
         if user.is_trainee():
             serializer.save(trainee=user)
-            # Check achievements after weight check-in (non-blocking)
             try:
                 from community.services.achievement_service import check_and_award_achievements
-                check_and_award_achievements(user, 'weight_checkin')
+                new_achievements = check_and_award_achievements(user, 'weight_checkin')
             except Exception:
                 logger.exception("Achievement check failed after weight check-in for user %s", user.id)
         else:
             serializer.save()
+
+        response_data = serializer.data
+        if new_achievements:
+            from community.serializers import NewAchievementSerializer
+            response_data['new_achievements'] = NewAchievementSerializer(
+                new_achievements, many=True,
+            ).data
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(detail=False, methods=['get'], url_path='latest')
     def latest(self, request: Request) -> Response:

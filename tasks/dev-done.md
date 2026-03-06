@@ -1,40 +1,52 @@
-# Dev Done: Video Attachments on Community Posts
+# Dev Done: Achievement Toast on New Badge
 
-## Files Created
-- `backend/community/services/video_service.py` — Video validation + metadata extraction service (ffprobe/ffmpeg)
-- `backend/community/migrations/0007_add_post_video.py` — PostVideo table migration
-- `mobile/lib/features/community/data/models/post_video_model.dart` — PostVideoModel with formattedDuration
-- `mobile/lib/features/community/presentation/widgets/video_player_card.dart` — Inline video player card
-- `mobile/lib/features/community/presentation/widgets/fullscreen_video_player.dart` — Immersive fullscreen player
+## Summary
+Wired the existing `new_achievements` backend data through all mobile layers and built an animated celebration overlay that displays when users earn badges.
 
-## Files Modified
-- `backend/community/models.py` — Added PostVideo model with file, thumbnail, duration, file_size, sort_order
-- `backend/community/views.py` — Extended CommunityFeedView.post() for video upload, _serialize_posts for video output, prefetch_related('videos')
-- `backend/community/serializers/core_serializers.py` — CreatePostSerializer allows blank content (media-only posts)
-- `backend/community/admin.py` — PostVideo admin + inline on CommunityPost
-- `backend/Dockerfile` — Added ffmpeg to system dependencies
-- `mobile/lib/features/community/data/models/community_post_model.dart` — Added videos field, hasVideo getter
-- `mobile/lib/features/community/data/repositories/community_feed_repository.dart` — Video upload via multipart, onUploadProgress callback
-- `mobile/lib/features/community/presentation/providers/community_feed_provider.dart` — Pass videoPaths + progress callback
-- `mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart` — Video picker, previews, upload progress bar
-- `mobile/lib/features/community/presentation/widgets/community_post_card.dart` — Render VideoPlayerCard for videos
+## Files Changed
+
+### Backend
+| File | Change |
+|------|--------|
+| `backend/workouts/views.py` | WeightCheckInViewSet.create now calls `check_and_award_achievements(user, 'weight_checkin')` and returns `new_achievements` in the 201 response. Nutrition `confirm_and_save` now calls `check_and_award_achievements(user, 'nutrition_logged')` and returns `new_achievements`. |
+
+### Mobile — New Files
+| File | Purpose |
+|------|---------|
+| `mobile/lib/shared/widgets/achievement_celebration_overlay.dart` | Animated overlay widget with elastic scale entrance, pulsing gold glow, backdrop blur, tap/swipe dismiss, auto-dismiss after 4s, accessibility semantics. |
+| `mobile/lib/core/services/achievement_toast_service.dart` | Singleton queue manager. Uses `rootNavigatorKey` to find root Overlay. Sequential display with 500ms gap between achievements. |
+
+### Mobile — Modified Files
+| File | Change |
+|------|--------|
+| `mobile/lib/core/router/app_router.dart` | Made `_rootNavigatorKey` public as `rootNavigatorKey` so the toast service can access the root Overlay. |
+| `mobile/lib/core/database/offline_save_result.dart` | Added `newAchievements` getter to extract `new_achievements` from the data map. |
+| `mobile/lib/core/database/offline_nutrition_repository.dart` | Forwards `new_achievements` from online API response through `OfflineSaveResult.onlineSuccess(data:)`. |
+| `mobile/lib/features/workout_log/data/repositories/workout_repository.dart` | `submitPostWorkoutSurvey` now forwards `new_achievements` from API response. |
+| `mobile/lib/features/nutrition/data/repositories/nutrition_repository.dart` | `createWeightCheckIn` now forwards `new_achievements` from API response. |
+| `mobile/lib/features/logging/presentation/providers/logging_provider.dart` | Added `newAchievements` field to `LoggingState` and `copyWith`. Both `confirmAndSave` and `saveManualFoodEntry` populate it from offline/online results. |
+| `mobile/lib/features/workout_log/presentation/screens/active_workout_screen.dart` | Calls `_showAchievementToasts` after post-workout survey submission. |
+| `mobile/lib/features/nutrition/presentation/screens/weight_checkin_screen.dart` | Calls `_showAchievementToasts` after successful weight check-in save. |
+| `mobile/lib/features/logging/presentation/screens/ai_command_center_screen.dart` | Calls `_showAchievementToasts` after successful AI command center save. |
+| `mobile/lib/features/nutrition/presentation/screens/add_food_screen.dart` | Calls `_showAchievementToastsFromLogging` after manual save, AI confirm, and search food add. |
+| `mobile/lib/features/barcode_scanner/presentation/screens/food_result_screen.dart` | Inline achievement toast logic after successful barcode food save. |
 
 ## Key Decisions
-1. Used subprocess ffprobe/ffmpeg for video metadata (no Python package dependency). Graceful degradation if unavailable.
-2. Videos stored as FileField (not ImageField) with separate thumbnail ImageField.
-3. Max 3 videos per post, 50MB each, 60s max duration. Server validates all three constraints.
-4. Client-side pre-validation: file size check before upload, maxDuration on picker.
-5. Inline player: tap to play/pause, no autoplay. Fullscreen on long-press or icon tap.
-6. Upload progress: Dio's onSendProgress piped through provider to compose sheet's LinearProgressIndicator.
-7. Media-only posts allowed (content can be empty if images or videos attached).
+1. **Singleton toast service** — uses root navigator key from go_router to access the topmost Overlay, making it work from any screen without requiring BuildContext.
+2. **Queue-based sequential display** — multiple achievements show one after another with 500ms gap, not stacked simultaneously.
+3. **Data forwarding pattern** — `new_achievements` flows: API response -> repository -> OfflineSaveResult/Map -> provider state -> UI helper method -> AchievementToastService.
+4. **Gold accent (#FFD700)** with dark background overlay and backdrop blur for premium celebration feel.
+5. **4-second auto-dismiss** with tap-to-dismiss and swipe-up-to-dismiss as alternatives.
 
-## How to Test
-1. Create a post with video: compose → tap "Video" chip → pick from gallery → post
-2. Verify video appears in feed with thumbnail and duration badge
-3. Tap video to play inline, tap again to pause
-4. Long-press or tap fullscreen icon for immersive player
-5. Test video > 50MB rejected client-side
-6. Test video > 60s rejected server-side (if ffprobe available)
-7. Test post with both images and videos
-8. Test video-only post (no text, no images)
-9. Test upload progress bar appears during large video upload
+## Deviations from Ticket
+- None. All acceptance criteria addressed.
+
+## How to Manually Test
+1. **Workout flow**: Complete a workout and submit the post-workout survey. If an achievement is earned (e.g., first workout), the overlay should appear.
+2. **Weight check-in**: Log a weight check-in. If a weight streak achievement triggers, the overlay appears.
+3. **Nutrition — AI Command Center**: Use natural language to log food. Achievement overlay appears if earned.
+4. **Nutrition — Manual Entry**: Add food manually from the Add Food screen. Achievement overlay appears if earned.
+5. **Nutrition — Barcode**: Scan a barcode and add the food. Achievement overlay appears if earned.
+6. **Multiple achievements**: If multiple achievements are earned at once, they should display sequentially with a brief gap.
+7. **Dismiss**: Tap or swipe up on the overlay to dismiss early.
+8. **Offline**: Save nutrition while offline — achievements should NOT show (they only come from online responses).

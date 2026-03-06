@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/achievement_toast_service.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_search_bar.dart';
@@ -9,6 +10,7 @@ import '../../../../shared/widgets/adaptive/adaptive_segmented_control.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
+import '../../../community/data/models/achievement_model.dart';
 import '../../../logging/presentation/providers/logging_provider.dart';
 import '../providers/nutrition_provider.dart';
 import '../providers/food_search_provider.dart';
@@ -538,6 +540,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           message: 'Added "$foodName" to Meal $mealNumber',
           type: ToastType.success,
         );
+        _showAchievementToastsFromLogging();
         context.pop();
       } else if (mounted) {
         showAdaptiveToast(
@@ -839,6 +842,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
         type: ToastType.success,
         duration: const Duration(seconds: 2),
       );
+      _showAchievementToastsFromLogging();
       context.pop();
     } else if (mounted) {
       showAdaptiveToastWithAction(
@@ -1360,6 +1364,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
         message: 'Added "${food.name}" to Meal $mealNumber',
         type: ToastType.success,
       );
+      _showAchievementToastsFromLogging();
       context.pop();
     } else if (mounted) {
       showAdaptiveToast(
@@ -1367,6 +1372,23 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
         message: 'Failed to add food',
         type: ToastType.error,
       );
+    }
+  }
+
+  void _showAchievementToastsFromLogging() {
+    final loggingState = ref.read(loggingStateProvider);
+    final rawAchievements = loggingState.newAchievements;
+    if (rawAchievements == null || rawAchievements.isEmpty) return;
+    try {
+      final achievements = rawAchievements
+          .whereType<Map<String, dynamic>>()
+          .map((json) => NewAchievementModel.fromJson(json))
+          .toList();
+      if (achievements.isNotEmpty) {
+        AchievementToastService.instance.showAchievements(achievements);
+      }
+    } catch (_) {
+      // Malformed achievement data — skip silently.
     }
   }
 }

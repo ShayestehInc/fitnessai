@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/achievement_toast_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
+import '../../../community/data/models/achievement_model.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/classic_workout_layout.dart';
 import '../widgets/minimal_workout_layout.dart';
@@ -451,6 +453,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       setState(() => _savedLogId = result.logId);
     }
 
+    // Show achievement celebrations for any newly earned badges.
+    _showAchievementToasts(result.newAchievements);
+
     // If saved offline, show a toast to inform the user
     if (result.offline && mounted) {
       showAdaptiveToast(
@@ -462,6 +467,21 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
     // Trigger sync service to pick up new items if online
     ref.read(syncServiceProvider)?.triggerSync();
+  }
+
+  void _showAchievementToasts(List<dynamic>? rawAchievements) {
+    if (rawAchievements == null || rawAchievements.isEmpty) return;
+    try {
+      final achievements = rawAchievements
+          .whereType<Map<String, dynamic>>()
+          .map((json) => NewAchievementModel.fromJson(json))
+          .toList();
+      if (achievements.isNotEmpty) {
+        AchievementToastService.instance.showAchievements(achievements);
+      }
+    } catch (_) {
+      // Malformed achievement data — skip silently, don't break the flow.
+    }
   }
 }
 

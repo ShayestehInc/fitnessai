@@ -1,102 +1,84 @@
-# Feature: Video Attachments on Community Posts
+# Feature: Achievement Toast on New Badge
 
 ## Priority
 High
 
 ## User Story
-As a trainee or trainer, I want to attach short videos to community posts so that I can share workout clips, form checks, and progress videos with the community.
+As a trainee, I want to see a celebratory toast/overlay when I earn a new achievement badge so that I feel rewarded and motivated to continue my fitness journey.
 
 ## Acceptance Criteria
-- [ ] AC1: PostVideo model with file field, thumbnail field, duration, file_size, sort_order, and FK to CommunityPost
-- [ ] AC2: Migration creates PostVideo table with indexes on post FK and created_at
-- [ ] AC3: Backend validates video uploads: MP4/MOV/WebM only, max 50MB per file, max 60s duration, max 3 videos per post
-- [ ] AC4: Video duration extracted server-side using ffprobe (via python-ffmpeg or moviepy) and stored
-- [ ] AC5: Thumbnail auto-generated server-side from first frame and stored in thumbnail field
-- [ ] AC6: CommunityPostSerializer includes `videos` nested list with id, url, thumbnail_url, duration, sort_order
-- [ ] AC7: Post creation view accepts `videos` in multipart form alongside existing `images`
-- [ ] AC8: WebSocket `feed_new_post` broadcast includes video data
-- [ ] AC9: Mobile video picker allows selecting up to 3 videos from gallery (image_picker or file_picker)
-- [ ] AC10: Mobile compose sheet shows video thumbnails with duration badge, delete button, and upload progress bar
-- [ ] AC11: Mobile feed renders inline video player (video_player package) with play/pause overlay, no autoplay
-- [ ] AC12: Mobile tap-to-fullscreen video with native controls (play, pause, seek, mute, fullscreen exit)
+- [ ] AC1: `NewAchievementModel` already exists in mobile — parse `new_achievements` from post-workout survey API response
+- [ ] AC2: Parse `new_achievements` from weight check-in API response (backend needs to include it)
+- [ ] AC3: Parse `new_achievements` from nutrition save API response (backend needs to include it)
+- [ ] AC4: Achievement celebration overlay widget shows achievement icon (mapped from icon_name), name, and description
+- [ ] AC5: Overlay has celebratory animation — scale-in with glow effect, pulsing badge icon
+- [ ] AC6: Overlay auto-dismisses after 4 seconds, or user can tap to dismiss early
+- [ ] AC7: If multiple achievements earned at once, show them sequentially (queue-based)
+- [ ] AC8: Haptic feedback (success pattern) on achievement display
+- [ ] AC9: Celebration overlay works from any screen (uses global overlay/navigator key)
+- [ ] AC10: Offline workout submissions show achievements when synced (deferred — no achievement data available offline)
 
 ## Edge Cases
-1. User selects a video larger than 50MB — client-side validation rejects with toast, never uploads
-2. User selects a video longer than 60s — server-side validation rejects with 400 and clear error message; client-side pre-check if possible
-3. User selects unsupported format (AVI, FLV) — server-side 400 with format error; client-side filter in picker
-4. User mixes images and videos in same post — both should work, images shown in carousel, videos shown below
-5. Video upload fails mid-stream (network drop) — post creation fails, user sees error toast, can retry
-6. Server-side ffprobe unavailable — graceful degradation: skip duration/thumbnail extraction, store video without metadata, log warning
-7. Very large video on slow connection — progress indicator shows upload %, user can see it's working
-8. Video file is corrupt or zero-duration — server rejects with 400 "Invalid video file"
-9. Post with only videos (no images, no text) — allowed, content can be empty string
-10. Concurrent video + image uploads in same post — multipart form handles both file lists
+1. No achievements earned — no overlay shown, no errors
+2. Single achievement earned — overlay shown once, auto-dismisses
+3. Multiple achievements earned simultaneously — queued, shown one after another with brief delay
+4. User navigates away during overlay — overlay dismissed cleanly, no orphaned widgets
+5. Achievement icon_name not in icon map — falls back to default trophy icon (Icons.emoji_events)
+6. API response missing new_achievements key — treated as empty list, no overlay
+7. Achievement data malformed (missing name/description) — skip that achievement, log warning
+8. User on slow device — animations use hardware-accelerated transforms only
+9. Offline workout later syncs — sync handler does not have achievement data from server, skip toast
+10. Weight check-in and nutrition endpoints currently don't return new_achievements — backend needs update
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Video too large (>50MB) | Toast: "Video must be under 50MB" | Client prevents upload |
-| Video too long (>60s) | Toast: "Video must be 60 seconds or less" | Server returns 400 |
-| Invalid format | Toast: "Unsupported video format. Use MP4, MOV, or WebM" | Server returns 400 |
-| Too many videos (>3) | Toast: "Maximum 3 videos per post" | Client prevents selection |
-| Upload network failure | Toast: "Failed to upload. Please try again." | Dio error caught |
-| ffprobe missing on server | No user impact | Log warning, store video without thumbnail/duration |
-| Corrupt video file | Toast: "Could not process video file" | Server returns 400 |
+| API returns no new_achievements | Nothing | No overlay triggered |
+| Malformed achievement JSON | Nothing | Logs parse error, skips |
+| Icon name not found | Default trophy icon | Falls back gracefully |
+| User dismisses during animation | Overlay exits smoothly | Animation controller disposed |
+| Multiple rapid API calls with achievements | Sequential toasts | Queue prevents overlap |
 
 ## UX Requirements
-- **Compose sheet**: Video picker button next to existing image picker. Selected videos show as thumbnail cards with duration badge (e.g., "0:32") and X to remove. Upload progress bar per video during submission.
-- **Feed card**: Videos render below images (if both present). Single video: full-width player. Multiple videos: horizontal scroll or stacked. Play button overlay on thumbnail. Tap to play inline (muted initially), tap again to pause. Long-press or fullscreen button for immersive view.
-- **Fullscreen player**: Standard video controls (play/pause, seek bar, time display, mute toggle). Landscape support. Swipe down or X to dismiss.
-- **Loading state**: Thumbnail placeholder with spinner while video loads. Shimmer during feed load.
-- **Error state**: Broken video icon if video fails to load, with "Tap to retry" text.
-- **Empty state**: N/A (videos are optional on posts).
+- **Celebration overlay**: Full-width card sliding down from top (like iOS toast but larger and more celebratory). Achievement icon in a glowing circle, achievement name in bold, description below. Gold/amber accent color for the glow effect.
+- **Animation**: Scale-up entrance (0 to 1 with elastic curve). Subtle pulsing glow around the icon. Slide-up exit.
+- **Haptic**: Success haptic pattern on show.
+- **Timing**: 4-second display, 300ms entrance, 300ms exit. Sequential achievements have 500ms gap between them.
+- **Dismiss**: Tap anywhere on the overlay to dismiss early. Swipe up to dismiss.
+- **Accessibility**: VoiceOver/TalkBack announces "Achievement earned: [name]. [description]".
+- **Theming**: Uses app theme colors. Gold accent for the badge glow (#FFD700 with opacity).
 
 ## Technical Approach
 
-### Backend
-- **New model**: `PostVideo` in `backend/community/models.py` (mirrors PostImage pattern)
-  - Fields: `post` (FK), `file` (FileField), `thumbnail` (ImageField, nullable), `duration` (FloatField, nullable), `file_size` (PositiveIntegerField), `sort_order` (PositiveSmallIntegerField), `created_at`
-  - Upload path: `community/posts/videos/{year}/{month:02d}/{uuid}.{ext}`
-  - Thumbnail path: `community/posts/thumbnails/{year}/{month:02d}/{uuid}.jpg`
-- **New migration**: Add PostVideo table
-- **Video processing service**: `backend/community/services/video_service.py`
-  - `validate_video(file) -> VideoMetadata` — checks MIME type, file size, extracts duration via subprocess ffprobe
-  - `generate_thumbnail(file) -> bytes` — extracts first frame via subprocess ffprobe/ffmpeg
-  - Returns dataclass with duration, file_size, is_valid, error_message
-- **View changes**: `backend/community/views.py` — extend `CommunityFeedView.post()` to handle `videos` file list
-- **Serializer changes**: Add `PostVideoSerializer` and nest in `CommunityPostSerializer`
-- **Dependency**: `ffmpeg` must be available in Docker image (add to Dockerfile if missing). No Python package needed — use subprocess.
+### Backend Changes (minor)
+- `backend/workouts/views.py`: Weight check-in `perform_create` and nutrition save should return `new_achievements` in their response, same pattern as post-workout survey.
 
-### Mobile
-- **New dependency**: `video_player` package in `pubspec.yaml`
-- **Model update**: Add `PostVideoModel` in community models, add `videos` list to `CommunityPostModel`
-- **Repository update**: Include videos in multipart form data for post creation
-- **New widget**: `VideoPlayerCard` — inline player with play/pause overlay, thumbnail preview
-- **New widget**: `FullscreenVideoPlayer` — immersive player with native controls
-- **Compose sheet update**: Add video picker button, video preview cards with duration, progress indicator
-- **Post card update**: Render videos section below images
+### Mobile Changes
+- **New widget**: `achievement_celebration_overlay.dart` — the animated overlay widget
+- **New service**: `achievement_toast_service.dart` — singleton queue manager using a global overlay key. Accepts `List<NewAchievementModel>`, queues them, shows sequentially.
+- **Provider**: `achievement_toast_provider.dart` — Riverpod provider wrapping the service, exposed globally.
+- **Wiring in active_workout_screen.dart**: After `_submitPostWorkoutSurvey`, parse `new_achievements` from `OfflineSaveResult.data` and trigger the toast.
+- **Wiring in weight_checkin_screen.dart**: After successful check-in, parse `new_achievements` from response.
+- **Wiring in nutrition provider/screen**: After successful nutrition save, parse `new_achievements` from response.
+- **WorkoutRepository update**: `submitPostWorkoutSurvey` must forward `new_achievements` from response data.
+- **OfflineSaveResult**: Already carries arbitrary `data` map — achievements will flow through.
 
 ### Files to create
-- `backend/community/services/video_service.py`
-- `backend/community/migrations/NNNN_add_post_video.py` (auto-generated)
-- `mobile/lib/features/community/presentation/widgets/video_player_card.dart`
-- `mobile/lib/features/community/presentation/widgets/fullscreen_video_player.dart`
-- `mobile/lib/features/community/data/models/post_video_model.dart`
+- `mobile/lib/shared/widgets/achievement_celebration_overlay.dart`
+- `mobile/lib/core/services/achievement_toast_service.dart`
 
 ### Files to modify
-- `backend/community/models.py` — add PostVideo model
-- `backend/community/serializers/` — add PostVideoSerializer, update post serializer
-- `backend/community/views.py` — extend post creation for videos
-- `mobile/lib/features/community/data/models/community_post_model.dart` — add videos field
-- `mobile/lib/features/community/data/repositories/community_feed_repository.dart` — add video upload
-- `mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart` — video picker + preview
-- `mobile/lib/features/community/presentation/widgets/community_post_card.dart` — render videos
-- `mobile/pubspec.yaml` — add video_player dependency
+- `backend/workouts/views.py` — add new_achievements to weight check-in and nutrition responses
+- `mobile/lib/features/workout_log/data/repositories/workout_repository.dart` — forward new_achievements from API
+- `mobile/lib/core/database/offline_workout_repository.dart` — already forwards data, may need new_achievements key
+- `mobile/lib/features/workout_log/presentation/screens/active_workout_screen.dart` — trigger achievement toast
+- `mobile/lib/features/nutrition/presentation/screens/weight_checkin_screen.dart` — trigger achievement toast
+- `mobile/lib/features/community/presentation/widgets/achievement_badge.dart` — reuse icon map
+- `mobile/lib/features/community/data/models/achievement_model.dart` — already has NewAchievementModel
 
 ## Out of Scope
-- Video transcoding / adaptive bitrate streaming (CDN concern for later)
-- Video trimming in-app (users trim before selecting)
-- Video recording from camera (only gallery pick for now)
-- Web dashboard video upload (mobile-only this pipeline)
-- Video in direct messages
-- Video compression on-device beyond what the OS provides
+- Web dashboard achievement toasts
+- Push notification for achievements (separate feature)
+- Confetti particle system (keep it clean and professional)
+- Achievement sharing to social media
+- Offline achievement calculation

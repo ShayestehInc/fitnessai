@@ -230,7 +230,14 @@ class WorkoutRepository {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = response.data;
         final logId = responseData is Map ? responseData['log_id'] as int? : null;
-        return {'success': true, if (logId != null) 'log_id': logId};
+        final newAchievements = responseData is Map
+            ? responseData['new_achievements'] as List<dynamic>?
+            : null;
+        return {
+          'success': true,
+          if (logId != null) 'log_id': logId,
+          if (newAchievements != null) 'new_achievements': newAchievements,
+        };
       }
 
       return {'success': false, 'error': 'Failed to submit survey'};

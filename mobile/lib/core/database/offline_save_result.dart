@@ -38,4 +38,8 @@ class OfflineSaveResult {
 
   /// Convenience accessor for the server-assigned daily-log ID, if present.
   int? get logId => data?['log_id'] as int?;
+
+  /// Convenience accessor for newly earned achievements, if present.
+  List<dynamic>? get newAchievements =>
+      data?['new_achievements'] as List<dynamic>?;
 }

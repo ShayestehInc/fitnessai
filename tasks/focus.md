@@ -1,21 +1,21 @@
-# Focus: Video Attachments on Community Posts
+# Focus: Achievement Toast on New Badge
 
 ## Priority
-High — Last remaining community media feature. Videos are the most engaging content type.
+High — Completing partial feature from PRODUCT_SPEC. Backend already returns new_achievements data; mobile toast wiring needed.
 
 ## Context
-Community posts already support multi-image attachments (up to 10 images, 5MB each, JPEG/PNG/WebP).
-Video support follows the same patterns: PostVideo model, multipart upload, inline playback, fullscreen viewer.
+Backend achievement system is complete: Achievement/UserAchievement models, achievement_service.py checks and awards badges after workout completion, weight check-in, and nutrition logging. The post-workout survey API response already includes `new_achievements` data. Mobile has full achievement screen, badge widget, model, repository, and provider. The missing piece is: showing a celebratory toast/overlay when achievements are newly earned.
 
 ## Scope
-- Backend: PostVideo model, video validation (MP4/MOV/WebM, 50MB, 60s duration), upload handling in views, serializer updates
-- Mobile: Video picker integration, upload with progress, inline video player in feed, fullscreen playback, thumbnail generation
-- WebSocket: Include video data in real-time post broadcasts
+- Mobile only: No backend changes needed
+- Parse `new_achievements` from API responses (post-workout survey, weight check-in, nutrition save)
+- Show animated achievement celebration overlay
+- Sequential display for multiple achievements
+- Haptic feedback on celebration
 
 ## Success Criteria
-- User can attach up to 3 videos per post (alongside images)
-- Videos validated server-side (type, size, duration)
-- Inline video player in feed with play/pause, muted autoplay disabled
-- Tap video for fullscreen with controls
-- Video thumbnails shown in feed before playback
-- Upload progress indicator during post creation
+- After completing a workout that earns a badge, user sees animated achievement toast
+- Toast shows achievement icon, name, and description
+- Multiple achievements display sequentially
+- Auto-dismisses after a few seconds, tap to dismiss early
+- Works for workout, weight check-in, and nutrition triggers

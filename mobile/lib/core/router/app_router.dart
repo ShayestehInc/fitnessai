@@ -122,7 +122,9 @@ import '../../features/settings/presentation/screens/help_support_screen.dart';
 import 'adaptive_page.dart';
 
 // Navigation keys for branches
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
+/// Root navigator key — also used by [AchievementToastService] to find the
+/// topmost Overlay for showing celebration toasts from any screen.
+final rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 final _trainerShellNavigatorKey = GlobalKey<NavigatorState>();
 final _adminShellNavigatorKey = GlobalKey<NavigatorState>();
@@ -131,7 +133,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
-    navigatorKey: _rootNavigatorKey,
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     debugLogDiagnostics: true,
     routes: [
