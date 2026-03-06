@@ -262,7 +262,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Reaction system | ✅ Done | Shipped 2026-02-16: Fire/thumbs_up/heart toggle with optimistic updates and error rollback |
 | Auto-posts | ✅ Done | Shipped 2026-02-16: Automated community posts on workout completion and achievement earning |
 | Community feed moderation | ✅ Done | Shipped 2026-02-16: Author delete + trainer moderation via impersonation |
-| Achievement toast on new badge | 🟡 Partial | Backend returns new_achievements data; mobile toast wiring deferred to workout flow update |
+| Achievement toast on new badge | ✅ Done | Shipped 2026-03-05: Animated celebration overlay with elastic scale, pulsing gold glow, backdrop blur. Queue-based sequential display for multiple achievements. Wired into all 5 trigger flows (post-workout survey, weight check-in, AI nutrition, manual food, barcode scan). Haptic feedback, tap/swipe dismiss, 4s auto-dismiss, accessibility semantics. |
 | Leaderboards | ✅ Done | Shipped 2026-02-16: Trainer-configurable ranked leaderboards with workout count and streak metrics, dense ranking, opt-in/opt-out, skeleton loading, empty/error states |
 | Push notifications (FCM) | ✅ Done | Shipped 2026-02-16: Firebase Cloud Messaging with device token management, announcement/comment notifications, platform-specific detection. Shipped 2026-03-05 (Pipeline 48): Community event notifications (created/updated/cancelled/reminder), cron-based reminders, community_event preference toggle, deep links to event detail |
 | Rich text / markdown | ✅ Done | Shipped 2026-02-16: Content format support on posts and announcements with flutter_markdown rendering |

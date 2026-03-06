@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/achievement_toast_service.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
@@ -73,6 +74,8 @@ class _AICommandCenterScreenState
           message: 'Log saved successfully!',
           type: ToastType.success,
         );
+        // Show achievement celebrations for any newly earned badges.
+        showAchievementToastsFromRaw(loggingState.newAchievements);
       }
       Navigator.of(context).pop();
     } else if (mounted) {

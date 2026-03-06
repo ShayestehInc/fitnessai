@@ -44,6 +44,10 @@ class LoggingState {
   final String? error;
   final String? clarificationQuestion;
 
+  /// Raw achievement JSON from the backend response. The UI layer parses
+  /// this into [NewAchievementModel] instances for the celebration overlay.
+  final List<dynamic>? newAchievements;
+
   LoggingState({
     this.parsedData,
     this.isProcessing = false,
@@ -51,6 +55,7 @@ class LoggingState {
     this.savedOffline = false,
     this.error,
     this.clarificationQuestion,
+    this.newAchievements,
   });
 
   LoggingState copyWith({
@@ -60,6 +65,7 @@ class LoggingState {
     bool? savedOffline,
     String? error,
     String? clarificationQuestion,
+    List<dynamic>? newAchievements,
   }) {
     return LoggingState(
       parsedData: parsedData ?? this.parsedData,
@@ -68,6 +74,7 @@ class LoggingState {
       savedOffline: savedOffline ?? this.savedOffline,
       error: error,
       clarificationQuestion: clarificationQuestion,
+      newAchievements: newAchievements ?? this.newAchievements,
     );
   }
 }
@@ -149,7 +156,10 @@ class LoggingNotifier extends StateNotifier<LoggingState> {
       final offlineResult =
           await offlineRepo.confirmAndSave(parsedJson, date: date);
       if (offlineResult.success) {
-        state = LoggingState(savedOffline: offlineResult.offline);
+        state = LoggingState(
+          savedOffline: offlineResult.offline,
+          newAchievements: offlineResult.newAchievements,
+        );
         return true;
       } else {
         state = state.copyWith(
@@ -161,7 +171,11 @@ class LoggingNotifier extends StateNotifier<LoggingState> {
     } else {
       final result = await _repository.confirmAndSave(parsedJson, date: date);
       if (result['success'] == true) {
-        state = LoggingState();
+        final responseData = result['data'];
+        final newAchievements = responseData is Map
+            ? responseData['new_achievements'] as List<dynamic>?
+            : null;
+        state = LoggingState(newAchievements: newAchievements);
         return true;
       } else {
         state = state.copyWith(
@@ -215,7 +229,10 @@ class LoggingNotifier extends StateNotifier<LoggingState> {
       final offlineResult =
           await offlineRepo.confirmAndSave(parsedJson, date: date);
       if (offlineResult.success) {
-        state = LoggingState(savedOffline: offlineResult.offline);
+        state = LoggingState(
+          savedOffline: offlineResult.offline,
+          newAchievements: offlineResult.newAchievements,
+        );
         return true;
       } else {
         state = state.copyWith(
@@ -227,7 +244,11 @@ class LoggingNotifier extends StateNotifier<LoggingState> {
     } else {
       final result = await _repository.confirmAndSave(parsedJson, date: date);
       if (result['success'] == true) {
-        state = LoggingState();
+        final responseData = result['data'];
+        final newAchievements = responseData is Map
+            ? responseData['new_achievements'] as List<dynamic>?
+            : null;
+        state = LoggingState(newAchievements: newAchievements);
         return true;
       } else {
         state = state.copyWith(

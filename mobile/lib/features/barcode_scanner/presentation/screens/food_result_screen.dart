@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/achievement_toast_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/food_lookup_model.dart';
 import '../providers/barcode_provider.dart';
@@ -47,6 +48,13 @@ class _FoodResultScreenState extends ConsumerState<FoodResultScreen> {
     setState(() => _isSaving = false);
 
     if (result['success'] == true) {
+      // Show achievement celebrations for any newly earned badges.
+      final responseData = result['data'];
+      if (responseData is Map) {
+        showAchievementToastsFromRaw(
+          responseData['new_achievements'] as List<dynamic>?,
+        );
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Food added to your log'),

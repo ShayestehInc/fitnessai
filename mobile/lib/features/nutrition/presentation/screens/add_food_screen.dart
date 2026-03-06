@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/achievement_toast_service.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_search_bar.dart';
@@ -538,6 +539,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           message: 'Added "$foodName" to Meal $mealNumber',
           type: ToastType.success,
         );
+        _showAchievementToastsFromLogging();
         context.pop();
       } else if (mounted) {
         showAdaptiveToast(
@@ -839,6 +841,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
         type: ToastType.success,
         duration: const Duration(seconds: 2),
       );
+      _showAchievementToastsFromLogging();
       context.pop();
     } else if (mounted) {
       showAdaptiveToastWithAction(
@@ -1360,6 +1363,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
         message: 'Added "${food.name}" to Meal $mealNumber',
         type: ToastType.success,
       );
+      _showAchievementToastsFromLogging();
       context.pop();
     } else if (mounted) {
       showAdaptiveToast(
@@ -1368,6 +1372,11 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
         type: ToastType.error,
       );
     }
+  }
+
+  void _showAchievementToastsFromLogging() {
+    final loggingState = ref.read(loggingStateProvider);
+    showAchievementToastsFromRaw(loggingState.newAchievements);
   }
 }
 

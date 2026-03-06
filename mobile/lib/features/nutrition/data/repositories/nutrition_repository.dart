@@ -94,8 +94,15 @@ class NutritionRepository {
       );
 
       if (response.statusCode == 201) {
-        final checkIn = WeightCheckInModel.fromJson(response.data);
-        return {'success': true, 'checkIn': checkIn};
+        final responseData = response.data as Map<String, dynamic>;
+        final checkIn = WeightCheckInModel.fromJson(responseData);
+        final newAchievements =
+            responseData['new_achievements'] as List<dynamic>?;
+        return {
+          'success': true,
+          'checkIn': checkIn,
+          if (newAchievements != null) 'new_achievements': newAchievements,
+        };
       }
 
       return {'success': false, 'error': 'Failed to create weight check-in'};

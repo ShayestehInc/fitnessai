@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/sync_provider.dart';
+import '../../../../core/services/achievement_toast_service.dart';
 import '../../../../core/services/haptic_service.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
@@ -271,6 +272,8 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
           message: 'Weight check-in saved successfully!',
           type: ToastType.success,
         );
+        // Show achievement celebrations for any newly earned badges.
+        showAchievementToastsFromRaw(result.newAchievements);
       }
       // Trigger sync if online
       ref.read(syncServiceProvider)?.triggerSync();
@@ -284,6 +287,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
       );
     }
   }
+
 }
 
 class _UnitToggle extends StatelessWidget {
