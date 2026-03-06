@@ -597,15 +597,18 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                 Row(
                   children: [
                     DayTypeBadge(dayType: plan.dayType),
-                    const Spacer(),
-                    Text(
-                      plan.templateName,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.5),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        plan.templateName,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.5),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        textAlign: TextAlign.end,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
                     ),
                   ],
                 ),
