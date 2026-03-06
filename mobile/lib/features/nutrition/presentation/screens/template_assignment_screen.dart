@@ -45,7 +45,9 @@ class _TemplateAssignmentScreenState
       ),
       body: templatesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
+        error: (_, __) => const Center(
+          child: Text('Failed to load templates. Please try again.'),
+        ),
         data: (templates) => _buildForm(context, templates),
       ),
     );
@@ -53,6 +55,17 @@ class _TemplateAssignmentScreenState
 
   Widget _buildForm(
       BuildContext context, List<NutritionTemplateModel> templates) {
+    if (templates.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text(
+            'No templates available.\nCreate one from the web dashboard.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -220,10 +233,37 @@ class _TemplateAssignmentScreenState
     if (_selectedTemplate == null) return;
 
     final weight = double.tryParse(_bodyWeightController.text);
-    if (weight == null || weight <= 0) {
+    if (weight == null || weight <= 0 || weight > 1000) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Body weight is required'),
+          content: Text(weight != null && weight > 1000
+              ? 'Body weight must be under 1000 lbs'
+              : 'Body weight is required'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+
+    final bfText = _bodyFatController.text.trim();
+    if (bfText.isNotEmpty) {
+      final bfVal = double.tryParse(bfText);
+      if (bfVal == null || bfVal < 1 || bfVal > 70) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Body fat % must be between 1 and 70'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+        return;
+      }
+    }
+
+    final mealsPerDay = int.tryParse(_mealsPerDayController.text);
+    if (mealsPerDay == null || mealsPerDay < 1 || mealsPerDay > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Meals per day must be between 1 and 10'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -233,7 +273,7 @@ class _TemplateAssignmentScreenState
     setState(() => _isSubmitting = true);
 
     final params = <String, dynamic>{
-      'meals_per_day': int.tryParse(_mealsPerDayController.text) ?? 4,
+      'meals_per_day': mealsPerDay,
       'body_weight_lbs': weight,
     };
     final bf = double.tryParse(_bodyFatController.text);
@@ -260,22 +300,20 @@ class _TemplateAssignmentScreenState
         fatMode: _fatMode,
       );
 
-      setState(() => _isSubmitting = false);
-
       if (!mounted) return;
+      setState(() => _isSubmitting = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nutrition template assigned')),
       );
       context.pop();
-    } on Exception catch (e) {
-      setState(() => _isSubmitting = false);
-
+    } on Exception {
       if (!mounted) return;
+      setState(() => _isSubmitting = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: const Text('Failed to assign template. Please try again.'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

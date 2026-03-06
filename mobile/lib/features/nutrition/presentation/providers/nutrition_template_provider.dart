@@ -24,7 +24,7 @@ final activeAssignmentProvider =
 });
 
 /// Active template assignment for a specific trainee (trainer view).
-final traineeActiveAssignmentProvider = FutureProvider.family<
+final traineeActiveAssignmentProvider = FutureProvider.autoDispose.family<
     NutritionTemplateAssignmentModel?, int>(
   (ref, traineeId) async {
     final repo = ref.watch(nutritionTemplateRepositoryProvider);

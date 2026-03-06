@@ -1850,8 +1850,37 @@ class _NutritionTemplateSection extends ConsumerWidget {
         ref.watch(traineeActiveAssignmentProvider(traineeId));
 
     return assignmentAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      loading: () => const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(
+            child: SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      ),
+      error: (_, __) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline, color: theme.colorScheme.error, size: 20),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text('Failed to load template assignment'),
+              ),
+              TextButton(
+                onPressed: () => ref.invalidate(
+                    traineeActiveAssignmentProvider(traineeId)),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
       data: (assignment) {
         if (assignment == null) {
           return _buildAssignButton(context, ref, theme);
