@@ -92,30 +92,39 @@ class _TrainerEventFormScreenState
       ),
       body: PopScope(
         canPop: !_isSubmitting && !_isDeleting,
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildTitleField(),
-              const SizedBox(height: 16),
-              _buildDescriptionField(),
-              const SizedBox(height: 16),
-              _buildEventTypeSelector(),
-              const SizedBox(height: 16),
-              _buildDateTimeSection(),
-              const SizedBox(height: 16),
-              _buildVirtualToggle(),
-              if (_isVirtual) ...[
-                const SizedBox(height: 12),
-                _buildMeetingUrlField(),
-              ],
-              const SizedBox(height: 16),
-              _buildMaxAttendeesField(),
-              const SizedBox(height: 32),
-              _buildSubmitButton(),
-            ],
-          ),
+        child: Stack(
+          children: [
+            Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildTitleField(),
+                  const SizedBox(height: 16),
+                  _buildDescriptionField(),
+                  const SizedBox(height: 16),
+                  _buildEventTypeSelector(),
+                  const SizedBox(height: 16),
+                  _buildDateTimeSection(),
+                  const SizedBox(height: 16),
+                  _buildVirtualToggle(),
+                  if (_isVirtual) ...[
+                    const SizedBox(height: 12),
+                    _buildMeetingUrlField(),
+                  ],
+                  const SizedBox(height: 16),
+                  _buildMaxAttendeesField(),
+                  const SizedBox(height: 32),
+                  _buildSubmitButton(),
+                ],
+              ),
+            ),
+            if (_isDeleting)
+              ColoredBox(
+                color: Colors.black26,
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+          ],
         ),
       ),
     );
@@ -310,6 +319,9 @@ class _TrainerEventFormScreenState
           picked.year, picked.month, picked.day,
           _endsAt.hour, _endsAt.minute,
         );
+        if (_endsAt.isBefore(_startsAt)) {
+          _endsAt = _startsAt.add(const Duration(hours: 1));
+        }
       }
     });
   }
@@ -337,6 +349,9 @@ class _TrainerEventFormScreenState
           _endsAt.year, _endsAt.month, _endsAt.day,
           picked.hour, picked.minute,
         );
+        if (_endsAt.isBefore(_startsAt)) {
+          _endsAt = _startsAt.add(const Duration(hours: 1));
+        }
       }
     });
   }

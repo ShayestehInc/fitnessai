@@ -46,7 +46,7 @@ class EventListState {
     ..sort((a, b) => b.startsAt.compareTo(a.startsAt));
 
   List<CommunityEventModel> get cancelled => events
-      .where((e) => e.isCancelled && !e.isPast)
+      .where((e) => e.isCancelled)
       .toList()
     ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 }
@@ -91,8 +91,9 @@ class TraineeEventNotifier extends StateNotifier<EventListState> {
         final oldStatus = RsvpStatus.fromApi(e.myRsvp);
         final newCounts = Map<String, int>.from(e.attendeeCounts);
         if (oldStatus != null) {
+          final currentCount = newCounts[oldStatus.apiValue] ?? 0;
           newCounts[oldStatus.apiValue] =
-              (newCounts[oldStatus.apiValue] ?? 1) - 1;
+              currentCount > 0 ? currentCount - 1 : 0;
         }
         newCounts[status.apiValue] = (newCounts[status.apiValue] ?? 0) + 1;
         return e.copyWith(myRsvp: status.apiValue, attendeeCounts: newCounts);

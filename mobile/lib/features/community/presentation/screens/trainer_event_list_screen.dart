@@ -29,17 +29,21 @@ class _TrainerEventListScreenState
 
     return Scaffold(
       appBar: AppBar(title: const Text('Events')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await context.push<String>(
-            '/trainer/events/create',
-          );
-          if (result == 'created') {
-            ref.read(trainerEventProvider.notifier).loadEvents();
-          }
-        },
-        tooltip: 'Create event',
-        child: const Icon(Icons.add),
+      floatingActionButton: Semantics(
+        label: 'Create a new event',
+        button: true,
+        child: FloatingActionButton(
+          onPressed: () async {
+            final result = await context.push<String>(
+              '/trainer/events/create',
+            );
+            if (result == 'created') {
+              ref.read(trainerEventProvider.notifier).loadEvents();
+            }
+          },
+          tooltip: 'Create event',
+          child: const Icon(Icons.add),
+        ),
       ),
       body: _buildBody(context, state),
     );

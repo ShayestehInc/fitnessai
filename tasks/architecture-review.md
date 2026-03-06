@@ -1,47 +1,56 @@
-# Architecture Review: Wire Nutrition Template Assignment
+# Architecture Review: Community Events Feature
 
 ## Review Date: 2026-03-05
 
 ## Architectural Alignment
-- [x] Follows existing layered architecture
-- [x] Consistent with existing patterns
-- [x] No business logic in views
+- [x] Follows existing layered architecture (Screen -> Provider -> Repository -> ApiClient)
+- [x] Models properly typed with named constructors, no raw Maps
+- [x] State management correct (StateNotifier + State class)
+- [x] Consistent with existing codebase patterns
+- [x] No business logic in views/screens
 
-The feature follows the Screen -> Provider -> Repository -> ApiClient layering correctly:
+### Layer Breakdown
 
-- **Models** (`nutrition_template_models.dart`): Freezed data classes with proper JSON serialization. Located in `data/models/` as expected.
-- **Repository** (`nutrition_template_repository.dart`): Handles all HTTP calls via `ApiClient.dio`. Returns typed models, not raw maps. Follows the project's `datatypes.md` rule.
-- **Providers** (`nutrition_template_provider.dart`): Thin Riverpod wrappers over repository methods. Uses `FutureProvider`, `FutureProvider.family`, and `FutureProvider.autoDispose.family` appropriately.
-- **Screens**: `TemplateAssignmentScreen` is a `ConsumerStatefulWidget` (correct for form state). `_NutritionTemplateSection` is a `ConsumerWidget` (correct for display-only).
-- **Navigation**: Uses `go_router` with `context.push()` and `context.pop()`. Route registered in `app_router.dart` with path parameter parsing.
+- **Model** (`event_model.dart`): `CommunityEventModel` with `fromJson` factory, `copyWith`, and computed getters. `RsvpStatus` enum with API serialization. Uses `Map<String, int>` for attendee counts (typed, not raw dynamic). Follows same pattern as `CommunityPostModel`, `AnnouncementModel`, etc.
+- **Repository** (`event_repository.dart`): Clean separation of trainee vs trainer endpoints. Returns typed models, not raw maps. Follows the `datatypes.md` rule. All API calls go through `ApiClient.dio`.
+- **Providers** (`event_provider.dart`): `StateNotifier` + `EventListState` for both trainee and trainer. Optimistic updates for RSVP. `FutureProvider.autoDispose.family` for single event detail (deep link fallback). `autoDispose` on all providers -- correct.
+- **Widgets** (`event_card.dart`, `event_type_badge.dart`, `rsvp_button.dart`): Stateless, reusable, accept data + callbacks. Widget sizes are well within the 150-line limit.
+- **Screens** (`event_list_screen.dart`, `event_detail_screen.dart`, `trainer_event_list_screen.dart`, `trainer_event_form_screen.dart`): Use `ConsumerStatefulWidget` for stateful forms, `ConsumerWidget` for display. All screens under 300 lines except trainer form (now ~510 lines with Stack overlay fix).
+- **Routes** (`app_router.dart`): Registered at `/community/events`, `/community/events/:id`, `/trainer/events`, `/trainer/events/create`, `/trainer/events/:id/edit`. Uses `context.push` with pop results for create/edit/delete flows.
+- **API Constants** (`api_constants.dart`): All endpoints centralized. Consistent naming.
 
 ## Data Model Assessment
 | Concern | Status | Notes |
 |---------|--------|-------|
-| Schema changes backward-compatible | PASS | No schema changes in this feature; uses existing backend models |
-| Types correct | PASS | Freezed models match backend API contract. `@JsonKey` annotations align field names |
-| No type mismatches | PASS | `parameters` and `dayTypeSchedule` correctly typed as `Map<String, dynamic>` for flexible JSON |
-| Provider families keyed correctly | PASS | `traineeActiveAssignmentProvider` keyed by `int` traineeId |
+| Schema changes backward-compatible | PASS | No schema changes; model is a client-side DTO |
+| Types correct | PASS | All fields properly typed; `Map<String, int>` for counts, enums for RSVP |
+| No raw Maps or `dynamic` leaking into UI | PASS | `fromJson` converts everything to typed fields |
+| `copyWith` handles all mutation cases | PASS | Supports `clearRsvp` flag for nullable field |
+| Computed getters correct | PASS | `isPast`, `isHappeningNow`, `canJoinVirtual`, `isAtCapacity` all well-defined |
+| Provider keying correct | PASS | `eventDetailProvider` keyed by `int eventId` |
 
 ## Scalability Concerns
 | # | Area | Issue | Recommendation |
 |---|------|-------|----------------|
-| 1 | Provider memory | `dayPlanProvider` and `weekPlansProvider` were non-autoDispose `FutureProvider.family` keyed by date strings — unbounded cache growth as users browse dates | **FIXED**: Changed both to `FutureProvider.autoDispose.family` so entries are cleaned up when no longer watched |
-| 2 | Template list fetch | `nutritionTemplatesProvider` fetches all templates without pagination | Acceptable for now — template count is bounded (tens, not thousands). Add pagination if template count grows significantly |
-| 3 | Active assignment fetch | `getActiveAssignment` fetches all assignments then filters client-side for `isActive` | Minor — should add `?is_active=true` query param server-side. Acceptable while assignment count per trainee remains small |
+| 1 | Event list fetch | `getEvents()` fetches all events without pagination | Acceptable for now -- event count per trainer is bounded (tens to low hundreds). Add cursor-based pagination if event count grows significantly |
+| 2 | Computed getters on state | `upcoming`, `past`, `cancelled` re-sort on every access | Minor -- list sizes are small. Could memoize if this becomes a hot path |
+| 3 | Optimistic RSVP | Previous events snapshot kept in closure for rollback | Correct pattern; no memory concern since it's a single list copy |
+| 4 | `eventDetailProvider` | `autoDispose.family` keyed by event ID -- entries cleaned up when unwatched | Correct |
 
 ## Technical Debt
 | # | Description | Severity |
 |---|-------------|----------|
-| 1 | `_NutritionTemplateSection` is 192 lines, exceeding the 150-line widget rule. Should be extracted to its own file. However, the parent `trainee_detail_screen.dart` is 2967 lines — this is a pre-existing debt issue that requires a broader decomposition effort, not scoped to this feature. | Minor (pre-existing) |
-| 2 | `TemplateAssignmentScreen` is 322 lines. The form could be split into sub-widgets for template selector, parameter fields, schedule config, and fat mode selector. | Minor |
-| 3 | `_submit()` in `TemplateAssignmentScreen` calls repository directly via `ref.read(nutritionTemplateRepositoryProvider)` rather than through a dedicated mutation provider/notifier. This is consistent with existing patterns in the codebase (e.g., `trainee_list_screen.dart`, `invite_trainee_screen.dart`) but bypasses provider-level cache invalidation. The caller (`_NutritionTemplateSection`) compensates by calling `ref.invalidate()` after `context.push()` returns. | Minor (consistent with codebase) |
-| 4 | `createdAt` is typed as `String?` rather than `DateTime?` across all models. Date parsing happens ad-hoc in UI (`.split('T').first`). A `DateTime` type with a custom `JsonConverter` would be cleaner. | Minor (pre-existing pattern) |
+| 1 | `TrainerEventFormScreen` is ~510 lines. Should extract date/time picker section and event type selector into separate widget files. | Minor |
+| 2 | `_loadExistingEvent()` reads from provider in `initState` -- if provider is stale (disposed + recreated), the event won't be found and no error is shown. Should fallback to API fetch like `EventDetailScreen` does. | Medium |
+| 3 | The `EventListState` is shared between trainee and trainer providers but the computed getters (`upcoming`, `past`, `cancelled`) are coupled to the state class. If trainee and trainer need different grouping logic in the future, the state class would need to be split. | Low |
+| 4 | `_formatDateRange` and `_formatFullDateRange` are duplicated date-formatting logic. Could be extracted to a shared utility. | Low |
 
 ## Fixes Applied
-1. Changed `dayPlanProvider` and `weekPlansProvider` to use `autoDispose` to prevent unbounded memory growth when users browse different dates.
+1. **Fixed `DateTime.parse` crash on null/empty dates** in `event_model.dart` lines 55-56: Changed `DateTime.parse(json['starts_at'] as String? ?? '')` to `DateTime.tryParse(...)` with `DateTime.now()` fallback, matching the safe pattern already used for `createdAt`/`updatedAt` on lines 63-64.
+2. **Fixed negative RSVP count in optimistic update** in `event_provider.dart` line 95: Changed `(newCounts[oldStatus.apiValue] ?? 1) - 1` to clamp at 0, preventing display of negative attendee counts.
+3. **Fixed cancelled events disappearing** in `event_provider.dart`: The `cancelled` getter filtered by `!e.isPast`, causing past cancelled events to vanish from both the `cancelled` and `past` lists (since `past` also excludes cancelled). Removed the `!e.isPast` filter from `cancelled`.
 
 ## Architecture Score: 8/10
 ## Recommendation: APPROVE
 
-The feature is well-structured and follows all established patterns in the codebase. The layering is correct, types are sound, and state management uses Riverpod properly. The autoDispose fix addresses the only concrete scalability issue. Remaining items are minor and either pre-existing or consistent with current conventions.
+The feature follows all established architectural patterns correctly. The layering is clean, types are sound, state management uses Riverpod StateNotifier properly with optimistic updates and rollback. The three bugs fixed were implementation-level issues, not architectural problems. The remaining debt items are minor and consistent with existing codebase conventions.

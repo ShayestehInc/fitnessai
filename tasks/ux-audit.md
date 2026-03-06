@@ -1,53 +1,45 @@
-# UX Audit: Wire Nutrition Template Assignment
+# UX Audit: Community Events Feature
 
 ## Audit Date: 2026-03-05
 
 ## Usability Issues
 | # | Severity | Screen/Component | Issue | Recommendation |
 |---|----------|-----------------|-------|----------------|
-| 1 | Major | TemplateAssignmentScreen | Error state had no retry button -- users were stuck with "Failed to load templates. Please try again." but no way to retry without leaving the screen | Added retry button (FilledButton.tonal) and error icon for visual clarity |
-| 2 | Major | TemplateAssignmentScreen | Empty state was plain text with no icon or visual hierarchy -- felt broken rather than intentional | Added icon, title/subtitle hierarchy, and muted colors to convey "nothing here yet" clearly |
-| 3 | Major | TemplateAssignmentScreen | Submitting state did not prevent back navigation -- user could pop mid-request, leaving orphaned server calls | Wrapped body in PopScope with canPop tied to _isSubmitting |
-| 4 | Medium | TemplateAssignmentScreen | Success SnackBar used default color while errors used error color -- inconsistent feedback signaling | Added green background and check_circle icon to success SnackBar |
-| 5 | Medium | TemplateAssignmentScreen | Body weight validation gave "Body weight is required" for negative numbers -- confusing | Split into three messages: required, must be positive, must be under 1000 |
-| 6 | Medium | TemplateAssignmentScreen | Input fields had no helper text -- users had to guess valid ranges and purpose | Added helperText to all three parameter fields |
-| 7 | Minor | TemplateAssignmentScreen | Body weight keyboard type was TextInputType.number (integer-only on some platforms) | Changed to TextInputType.numberWithOptions(decimal: true) for decimal weights |
-| 8 | Minor | _NutritionTemplateSection | Error text used default color -- did not visually signal an error state | Applied theme.colorScheme.error to error text |
+| 1 | **Critical** | RSVP flow (backend) | Backend `TraineeEventRSVPView.post()` returned only `{'status': 'going'}` but mobile `EventRepository.rsvp()` calls `CommunityEventModel.fromJson()` expecting a full event object. This caused a runtime crash on every RSVP. | **FIXED.** Backend now returns the full event serializer response after RSVP, matching mobile expectations. |
+| 2 | **High** | Event update flow (backend) | Backend `TrainerEventDetailView` only defined `put` and `delete` methods, but mobile `EventRepository.updateEvent()` sends `PATCH`. All event updates from mobile would get 405 Method Not Allowed. | **FIXED.** Added `patch` method to `TrainerEventDetailView` with shared `_update()` helper that supports both PUT (full) and PATCH (partial). |
+| 3 | **Medium** | Event list (trainee, backend) | Backend `TraineeEventListView.get_queryset()` filtered to only `SCHEDULED`/`LIVE` events, but the mobile `EventListState` has `past` and `cancelled` computed lists. These sections would always be empty. | **FIXED.** Removed status filter from backend queryset so all event statuses are returned. |
+| 4 | **Medium** | RSVP on cancelled events | Mobile correctly dims the RSVP button and disables it for cancelled events, but the backend had no server-side guard. A crafted API call could RSVP to cancelled/completed events. | **FIXED.** `EventService.rsvp()` now raises `ValueError` for cancelled/completed events; view returns 409. |
+| 5 | **Minor** | TrainerEventListScreen | FAB missing Semantics wrapper -- screen readers may not announce its purpose clearly. | **FIXED.** Added `Semantics(label: 'Create a new event', button: true)` wrapper. |
 
 ## Accessibility Issues
 | # | WCAG Level | Issue | Fix |
 |---|------------|-------|-----|
-| 1 | A | No Semantics on loading spinner in _NutritionTemplateSection -- screen readers announce nothing useful | Added Semantics with label "Loading nutrition template assignment" |
-| 2 | A | No Semantics on loading spinner in TemplateAssignmentScreen | Added Semantics with label "Loading nutrition templates" |
-| 3 | A | No Semantics on the assign button card in _NutritionTemplateSection -- screen readers can't announce the tappable card's purpose | Added Semantics with button: true and descriptive label |
-| 4 | A | No Semantics on the active assignment card -- screen readers can't describe what template is active | Added Semantics with label including template name |
+| 1 | A | EventCard has Semantics -- good (label includes title, type, date; button: true) | No fix needed |
+| 2 | A | RsvpButton has Semantics -- good (label includes current status) | No fix needed |
+| 3 | A | EventListScreen loading skeleton has Semantics -- good | No fix needed |
+| 4 | A | FAB in TrainerEventListScreen was missing Semantics | FIXED |
 
 ## Missing States
-- [x] Loading / skeleton -- present in both files, now with Semantics labels
-- [x] Empty / zero data -- present (no templates available), improved with icon and hierarchy
-- [x] Error / failure -- present in both files; TemplateAssignmentScreen now has retry button
-- [x] Success / confirmation -- SnackBar shown on assignment, now with success color and icon
-- [x] Disabled / submitting -- FilledButton disabled while _isSubmitting, now also blocks back nav
-- [ ] Offline / degraded -- not handled (acceptable; network errors fall through to error state)
+- [x] Loading / skeleton -- present in EventListScreen (skeleton cards), TrainerEventListScreen (CircularProgressIndicator), EventDetailScreen (CircularProgressIndicator)
+- [x] Empty / zero data -- present in EventListScreen (_EmptyView with icon, text, pull-to-refresh), TrainerEventListScreen (_TrainerEmptyView with "Create Event" CTA)
+- [x] Error / failure -- present with retry buttons in both list screens; inline error banner for non-critical errors; SnackBars for RSVP failures with rollback
+- [x] Success / confirmation -- SnackBar feedback on create/update/delete/cancel/RSVP
+- [x] Disabled / submitting -- Submit button disabled and shows spinner during submission; PopScope blocks back nav during submit
+- [x] Cancelled event state -- Cancellation banner shown in detail screen, dimmed card in list, RSVP disabled
+- [x] Past event state -- "This event has ended" card shown, dimmed in list, RSVP section hidden
+- [x] At capacity state -- "Full" badge in card and detail, "Going" segment disabled when at capacity
+- [ ] Offline / degraded -- not handled (acceptable; errors fall through to error state)
 
-## Changes Made
+## Positive UX Findings
 
-### `mobile/lib/features/nutrition/presentation/screens/template_assignment_screen.dart`
-- Error state: added error icon, retry button (FilledButton.tonal), improved layout
-- Empty state: added restaurant_menu icon, title/subtitle with visual hierarchy and muted colors
-- Parameter fields: added helperText explaining purpose and valid ranges
-- Parameter fields: changed keyboard type to numberWithOptions(decimal: true) for weight/body fat
-- Body weight validation: split into three distinct error messages (required / positive / under 1000)
-- Success SnackBar: added green background and check_circle icon for consistency with error SnackBars
-- Loading spinner: wrapped in Semantics with descriptive label
-- PopScope: prevents back navigation during form submission
+1. **Optimistic RSVP updates** in `TraineeEventNotifier.rsvp()` with rollback on failure -- excellent UX pattern.
+2. **Smart date grouping** (Today/Tomorrow/This Week/Next Week/Later) in trainee event list.
+3. **Confirmation dialogs** for destructive actions (cancel event, delete event).
+4. **Virtual event join window** -- "Join Meeting" button only appears 15 minutes before and until end time.
+5. **Deep link support** -- `EventDetailScreen` falls back to API fetch when event not in cache.
+6. **Form validation** -- end-before-start check, URL format validation, max attendees min value.
+7. **Pull-to-refresh** on both list screens.
 
-### `mobile/lib/features/trainer/presentation/screens/trainee_detail_screen.dart`
-- _NutritionTemplateSection loading: wrapped CircularProgressIndicator in Semantics
-- _NutritionTemplateSection error: applied theme.colorScheme.error to error message text
-- _buildAssignButton: wrapped entire card in Semantics with button: true and descriptive label
-- _buildAssignmentCard: wrapped entire card in Semantics with label including active template name
+## Overall UX Score: 8/10
 
-## Overall UX Score: 7/10
-
-The feature covers all essential states and the form validation is thorough. The main gaps were accessibility (zero Semantics usage), a missing retry mechanism on the error state, and inconsistent success/error feedback styling. All have been addressed. Remaining gap is offline/degraded handling, which is acceptable given the app does not currently have an offline mode.
+The feature has comprehensive state handling, good accessibility, optimistic updates, and proper error rollback. The critical issue (RSVP response format mismatch) and high issue (PATCH method missing) would have caused runtime failures but are now fixed. Remaining gap is offline/degraded handling.
