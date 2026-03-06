@@ -1,28 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../../shared/widgets/achievement_celebration_overlay.dart'
+    show achievementIconMap;
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../data/models/achievement_model.dart';
-
-/// Map of Material icon name strings to IconData.
-/// This maps the backend `icon_name` field to actual Flutter icons.
-const Map<String, IconData> _iconMap = {
-  'directions_walk': Icons.directions_walk,
-  'fitness_center': Icons.fitness_center,
-  'local_fire_department': Icons.local_fire_department,
-  'military_tech': Icons.military_tech,
-  'bolt': Icons.bolt,
-  'whatshot': Icons.whatshot,
-  'stars': Icons.stars,
-  'monitor_weight': Icons.monitor_weight,
-  'trending_up': Icons.trending_up,
-  'insights': Icons.insights,
-  'restaurant': Icons.restaurant,
-  'emoji_food_beverage': Icons.emoji_food_beverage,
-  'workspace_premium': Icons.workspace_premium,
-  'school': Icons.school,
-  'emoji_events': Icons.emoji_events,
-};
 
 /// Single achievement badge tile for the grid.
 class AchievementBadge extends StatelessWidget {
@@ -34,7 +16,7 @@ class AchievementBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final earned = achievement.earned;
-    final iconData = _iconMap[achievement.iconName] ?? Icons.emoji_events;
+    final iconData = achievementIconMap[achievement.iconName] ?? Icons.emoji_events;
 
     return Semantics(
       label: earned
@@ -93,7 +75,7 @@ class AchievementBadge extends StatelessWidget {
   void _showDetail(BuildContext context) {
     final theme = Theme.of(context);
     final earned = achievement.earned;
-    final iconData = _iconMap[achievement.iconName] ?? Icons.emoji_events;
+    final iconData = achievementIconMap[achievement.iconName] ?? Icons.emoji_events;
 
     showAdaptiveBottomSheet(
       context: context,
