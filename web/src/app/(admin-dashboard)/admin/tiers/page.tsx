@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Layers, Loader2, Plus } from "lucide-react";
 import {
   useAdminTiers,
@@ -12,7 +13,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TierList } from "@/components/admin/tier-list";
-import { TierFormDialog } from "@/components/admin/tier-form-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -28,30 +28,23 @@ import { getErrorMessage } from "@/lib/error-utils";
 import type { AdminSubscriptionTier } from "@/types/admin";
 
 export default function AdminTiersPage() {
+  const router = useRouter();
   const tiers = useAdminTiers();
   const toggleActive = useToggleTierActive();
   const deleteTier = useDeleteTier();
   const seedDefaults = useSeedDefaultTiers();
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [formKey, setFormKey] = useState(0);
-  const [editingTier, setEditingTier] = useState<AdminSubscriptionTier | null>(
-    null,
-  );
   const [deleteTarget, setDeleteTarget] =
     useState<AdminSubscriptionTier | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   function handleCreate() {
-    setEditingTier(null);
-    setFormKey((k) => k + 1);
-    setFormOpen(true);
+    router.push("/admin/tiers/new");
   }
 
   function handleEdit(tier: AdminSubscriptionTier) {
-    setEditingTier(tier);
-    setFormOpen(true);
+    router.push(`/admin/tiers/${tier.id}/edit`);
   }
 
   async function handleToggleActive(id: number) {
@@ -144,13 +137,6 @@ export default function AdminTiersPage() {
           togglingId={togglingId}
         />
       )}
-
-      <TierFormDialog
-        key={editingTier?.id ?? `new-${formKey}`}
-        tier={editingTier}
-        open={formOpen}
-        onOpenChange={setFormOpen}
-      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog

@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserList } from "@/components/admin/user-list";
-import { CreateUserDialog } from "@/components/admin/create-user-dialog";
+import { CreateUserPanel } from "@/components/admin/create-user-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -123,7 +123,7 @@ export default function AdminUsersPage() {
         <UserList users={users.data} onRowClick={handleRowClick} />
       )}
 
-      <CreateUserDialog
+      <CreateUserPanel
         key={selectedUser?.id ?? `new-${formKey}`}
         user={selectedUser}
         open={dialogOpen}

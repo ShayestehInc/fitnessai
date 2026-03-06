@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { useTraineeWeightHistory } from "@/hooks/use-trainee-dashboard";
-import { WeightCheckInDialog } from "./weight-checkin-dialog";
+import { WeightCheckInPanel } from "./weight-checkin-panel";
 
 function CardSkeleton() {
   return (
@@ -80,7 +80,7 @@ export function WeightTrendCard() {
             />
           </CardContent>
         </Card>
-        <WeightCheckInDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+        <WeightCheckInPanel open={dialogOpen} onOpenChange={setDialogOpen} />
       </>
     );
   }
@@ -162,7 +162,7 @@ export function WeightTrendCard() {
           </Button>
         </CardFooter>
       </Card>
-      <WeightCheckInDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <WeightCheckInPanel open={dialogOpen} onOpenChange={setDialogOpen} />
     </>
   );
 }

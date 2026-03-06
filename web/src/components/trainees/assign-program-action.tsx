@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ChangeProgramDialog } from "./change-program-dialog";
+import { ChangeProgramPanel } from "./change-program-panel";
 
 interface AssignProgramActionProps {
   traineeId: number;
@@ -24,7 +24,7 @@ export function AssignProgramAction({
         <ClipboardList className="mr-2 h-4 w-4" />
         {currentProgramId ? "Change Program" : "Assign Program"}
       </Button>
-      <ChangeProgramDialog
+      <ChangeProgramPanel
         traineeId={traineeId}
         traineeName={traineeName}
         currentProgramId={currentProgramId}

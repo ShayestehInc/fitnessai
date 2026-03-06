@@ -21,7 +21,7 @@ test.describe("Feature Requests", () => {
     ).toBeVisible();
   });
 
-  test("should open submit dialog", async ({ page }) => {
+  test("should open submit panel", async ({ page }) => {
     await page
       .getByRole("button", { name: /submit|new|request/i })
       .first()

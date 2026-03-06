@@ -5,9 +5,14 @@ from .views import (
     CheckInTemplateViewSet,
     DailyLogViewSet,
     ExerciseViewSet,
+    FoodItemViewSet,
     HabitViewSet,
     MacroPresetViewSet,
+    MealLogViewSet,
+    NutritionDayPlanViewSet,
     NutritionGoalViewSet,
+    NutritionTemplateAssignmentViewSet,
+    NutritionTemplateViewSet,
     ProgressionSuggestionViewSet,
     ProgressPhotoViewSet,
     ProgramViewSet,
@@ -29,6 +34,11 @@ router.register(r'habits', HabitViewSet, basename='habit')
 router.register(r'progression-suggestions', ProgressionSuggestionViewSet, basename='progressionsuggestion')
 router.register(r'checkin-templates', CheckInTemplateViewSet, basename='checkintemplate')
 router.register(r'checkin-responses', CheckInResponseViewSet, basename='checkinresponse')
+router.register(r'nutrition-templates', NutritionTemplateViewSet, basename='nutritiontemplate')
+router.register(r'nutrition-template-assignments', NutritionTemplateAssignmentViewSet, basename='nutritiontemplateassignment')
+router.register(r'nutrition-day-plans', NutritionDayPlanViewSet, basename='nutritiondayplan')
+router.register(r'food-items', FoodItemViewSet, basename='fooditem')
+router.register(r'meal-logs', MealLogViewSet, basename='meallog')
 
 urlpatterns = [
     path('', include(router.urls)),

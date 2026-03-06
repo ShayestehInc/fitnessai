@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import '../../../../core/api/api_client.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../models/community_post_model.dart';
@@ -27,6 +26,8 @@ class CommunityWsService {
   static const Duration _reconnectDelay = Duration(seconds: 3);
 
   CommunityWsService(this._ref);
+
+  final Set<int> _subscribedSpaces = {};
 
   bool get isConnected => _isConnected;
 
@@ -56,6 +57,26 @@ class CommunityWsService {
     }
   }
 
+  /// Subscribe to a space-specific group for real-time updates.
+  void subscribeToSpace(int spaceId) {
+    if (!_isConnected || _subscribedSpaces.contains(spaceId)) return;
+    _channel?.sink.add(jsonEncode({
+      'type': 'subscribe_space',
+      'space_id': spaceId,
+    }));
+    _subscribedSpaces.add(spaceId);
+  }
+
+  /// Unsubscribe from a space-specific group.
+  void unsubscribeFromSpace(int spaceId) {
+    if (!_isConnected || !_subscribedSpaces.contains(spaceId)) return;
+    _channel?.sink.add(jsonEncode({
+      'type': 'unsubscribe_space',
+      'space_id': spaceId,
+    }));
+    _subscribedSpaces.remove(spaceId);
+  }
+
   /// Disconnect from the WebSocket.
   void disconnect() {
     _reconnectTimer?.cancel();
@@ -66,6 +87,7 @@ class CommunityWsService {
     _channel = null;
     _isConnected = false;
     _reconnectAttempts = 0;
+    _subscribedSpaces.clear();
   }
 
   void _onMessage(dynamic rawMessage) {

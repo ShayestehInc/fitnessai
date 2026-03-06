@@ -4,11 +4,15 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
+import '../../data/models/space_model.dart';
 import '../providers/community_feed_provider.dart';
+import '../providers/space_provider.dart';
 
-/// Bottom sheet for composing a new text post with optional image.
+/// Bottom sheet for composing a new text post with multi-image and space selector.
 class ComposePostSheet extends ConsumerStatefulWidget {
-  const ComposePostSheet({super.key});
+  final int? initialSpaceId;
+
+  const ComposePostSheet({super.key, this.initialSpaceId});
 
   @override
   ConsumerState<ComposePostSheet> createState() => _ComposePostSheetState();
@@ -18,7 +22,17 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
   final _controller = TextEditingController();
   bool _isSubmitting = false;
   bool _isMarkdown = false;
-  String? _imagePath;
+  final List<String> _imagePaths = [];
+  int? _selectedSpaceId;
+
+  static const int _maxImages = 10;
+  static const int _maxImageSizeBytes = 5 * 1024 * 1024;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSpaceId = widget.initialSpaceId;
+  }
 
   @override
   void dispose() {
@@ -30,6 +44,7 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final spacesState = ref.watch(spacesProvider);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -63,6 +78,11 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
             ),
           ),
           const SizedBox(height: 12),
+          // Space picker (if spaces exist)
+          if (spacesState.spaces.isNotEmpty) ...[
+            _buildSpacePicker(theme, spacesState.spaces),
+            const SizedBox(height: 8),
+          ],
           // Toolbar row
           _buildToolbar(theme),
           const SizedBox(height: 8),
@@ -83,10 +103,10 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
             ),
             onChanged: (_) => setState(() {}),
           ),
-          // Image preview
-          if (_imagePath != null) ...[
+          // Image previews
+          if (_imagePaths.isNotEmpty) ...[
             const SizedBox(height: 8),
-            _buildImagePreview(theme),
+            _buildImagePreviews(theme),
           ],
           const SizedBox(height: 16),
           SizedBox(
@@ -108,6 +128,30 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSpacePicker(ThemeData theme, List<SpaceModel> spaces) {
+    return DropdownButtonFormField<int?>(
+      value: _selectedSpaceId,
+      decoration: InputDecoration(
+        labelText: 'Post to',
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        isDense: true,
+      ),
+      items: [
+        const DropdownMenuItem<int?>(
+          value: null,
+          child: Text('General feed'),
+        ),
+        ...spaces.map((s) => DropdownMenuItem<int?>(
+              value: s.id,
+              child: Text('${s.emoji} ${s.name}'),
+            )),
+      ],
+      onChanged: (value) => setState(() => _selectedSpaceId = value),
     );
   }
 
@@ -138,68 +182,92 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
         // Image picker
         ActionChip(
           label: Text(
-            _imagePath != null ? 'Change Image' : 'Add Image',
+            _imagePaths.isNotEmpty
+                ? '${_imagePaths.length}/$_maxImages'
+                : 'Add Images',
             style: const TextStyle(fontSize: 12),
           ),
           avatar: const Icon(Icons.image_outlined, size: 18),
-          onPressed: _pickImage,
+          onPressed: _imagePaths.length < _maxImages ? _pickImages : null,
         ),
       ],
     );
   }
 
-  Widget _buildImagePreview(ThemeData theme) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.file(
-            File(_imagePath!),
-            height: 120,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          ),
-        ),
-        Positioned(
-          top: 4,
-          right: 4,
-          child: GestureDetector(
-            onTap: () => setState(() => _imagePath = null),
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Colors.black54,
-                shape: BoxShape.circle,
+  Widget _buildImagePreviews(ThemeData theme) {
+    return SizedBox(
+      height: 80,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _imagePaths.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          return Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  File(_imagePaths[index]),
+                  height: 80,
+                  width: 80,
+                  fit: BoxFit.cover,
+                ),
               ),
-              child: const Icon(Icons.close, size: 16, color: Colors.white),
-            ),
-          ),
-        ),
-      ],
+              Positioned(
+                top: 2,
+                right: 2,
+                child: GestureDetector(
+                  onTap: () =>
+                      setState(() => _imagePaths.removeAt(index)),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close,
+                        size: 14, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
   bool get _canSubmit =>
       !_isSubmitting && _controller.text.trim().isNotEmpty;
 
-  static const int _maxImageSizeBytes = 5 * 1024 * 1024; // 5 MB
-
-  Future<void> _pickImage() async {
+  Future<void> _pickImages() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
+    final remaining = _maxImages - _imagePaths.length;
+    if (remaining <= 0) return;
+
+    final picked = await picker.pickMultiImage(
       maxWidth: 1920,
       maxHeight: 1920,
       imageQuality: 85,
     );
-    if (picked != null && mounted) {
-      final fileSize = await File(picked.path).length();
+
+    if (picked.isEmpty || !mounted) return;
+
+    final toAdd = picked.take(remaining);
+    for (final file in toAdd) {
+      final fileSize = await File(file.path).length();
       if (fileSize > _maxImageSizeBytes) {
         if (!mounted) return;
-        showAdaptiveToast(context, message: 'Image must be under 5MB.', type: ToastType.error);
-        return;
+        showAdaptiveToast(
+          context,
+          message: 'Image "${file.name}" is over 5MB and was skipped.',
+          type: ToastType.error,
+        );
+        continue;
       }
-      setState(() => _imagePath = picked.path);
+      if (mounted) {
+        setState(() => _imagePaths.add(file.path));
+      }
     }
   }
 
@@ -213,7 +281,8 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
         await ref.read(communityFeedProvider.notifier).createPost(
               content: content,
               contentFormat: _isMarkdown ? 'markdown' : 'plain',
-              imagePath: _imagePath,
+              imagePaths: _imagePaths,
+              spaceId: _selectedSpaceId,
             );
 
     if (!mounted) return;
@@ -221,9 +290,12 @@ class _ComposePostSheetState extends ConsumerState<ComposePostSheet> {
 
     if (success) {
       Navigator.of(context).pop();
-      showAdaptiveToast(context, message: 'Posted!', type: ToastType.success);
+      showAdaptiveToast(context,
+          message: 'Posted!', type: ToastType.success);
     } else {
-      showAdaptiveToast(context, message: 'Failed to create post. Please try again.', type: ToastType.error);
+      showAdaptiveToast(context,
+          message: 'Failed to create post. Please try again.',
+          type: ToastType.error);
     }
   }
 }

@@ -8,7 +8,7 @@ import {
   WorkoutVolumeChart,
   WeeklyAdherenceCard,
 } from "@/components/trainee-dashboard/trainee-progress-charts";
-import { WeightCheckInDialog } from "@/components/trainee-dashboard/weight-checkin-dialog";
+import { WeightCheckInPanel } from "@/components/trainee-dashboard/weight-checkin-panel";
 
 export default function TraineeProgressPage() {
   const [weightDialogOpen, setWeightDialogOpen] = useState(false);
@@ -31,7 +31,7 @@ export default function TraineeProgressPage() {
         <WeeklyAdherenceCard />
       </div>
 
-      <WeightCheckInDialog
+      <WeightCheckInPanel
         open={weightDialogOpen}
         onOpenChange={setWeightDialogOpen}
       />

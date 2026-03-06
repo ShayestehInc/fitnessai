@@ -57,6 +57,42 @@ class ApiConstants {
   static String get weightCheckIns => '$apiBaseUrl/workouts/weight-checkins/';
   static String get latestWeightCheckIn => '$apiBaseUrl/workouts/weight-checkins/latest/';
 
+  // Nutrition template endpoints
+  static String get nutritionTemplates =>
+      '$apiBaseUrl/workouts/nutrition-templates/';
+  static String nutritionTemplateDetail(int id) =>
+      '$apiBaseUrl/workouts/nutrition-templates/$id/';
+  static String get systemNutritionTemplates =>
+      '$apiBaseUrl/workouts/nutrition-templates/system/';
+  static String get nutritionTemplateAssignments =>
+      '$apiBaseUrl/workouts/nutrition-template-assignments/';
+  static String nutritionTemplateAssignmentDetail(int id) =>
+      '$apiBaseUrl/workouts/nutrition-template-assignments/$id/';
+  static String get nutritionDayPlans =>
+      '$apiBaseUrl/workouts/nutrition-day-plans/';
+  static String get nutritionDayPlansWeek =>
+      '$apiBaseUrl/workouts/nutrition-day-plans/week/';
+  static String nutritionDayPlanOverride(int id) =>
+      '$apiBaseUrl/workouts/nutrition-day-plans/$id/override/';
+
+  // Food items endpoints
+  static String get foodItems => '$apiBaseUrl/workouts/food-items/';
+  static String foodItemDetail(int id) => '$apiBaseUrl/workouts/food-items/$id/';
+  static String foodItemBarcode(String barcode) =>
+      '$apiBaseUrl/workouts/food-items/barcode/$barcode/';
+  static String get recentFoodItems => '$apiBaseUrl/workouts/food-items/recent/';
+
+  // Meal log endpoints
+  static String get mealLogs => '$apiBaseUrl/workouts/meal-logs/';
+  static String get mealLogSummary => '$apiBaseUrl/workouts/meal-logs/summary/';
+  static String get mealLogQuickAdd => '$apiBaseUrl/workouts/meal-logs/quick-add/';
+  static String mealLogEntryDelete(int entryId) =>
+      '$apiBaseUrl/workouts/meal-logs/entries/$entryId/';
+
+  // Active nutrition template assignment
+  static String get activeNutritionAssignment =>
+      '$apiBaseUrl/workouts/nutrition-template-assignments/active/';
+
   // Macro presets endpoints
   static String get macroPresets => '$apiBaseUrl/workouts/macro-presets/';
   static String macroPreset(int id) => '$apiBaseUrl/workouts/macro-presets/$id/';
@@ -217,6 +253,22 @@ class ApiConstants {
   static String communityCommentDelete(int postId, int commentId) =>
       '$apiBaseUrl/community/feed/$postId/comments/$commentId/';
 
+  // Community spaces
+  static String get communitySpaces => '$apiBaseUrl/community/spaces/';
+  static String communitySpaceDetail(int spaceId) =>
+      '$apiBaseUrl/community/spaces/$spaceId/';
+  static String communitySpaceJoin(int spaceId) =>
+      '$apiBaseUrl/community/spaces/$spaceId/join/';
+  static String communitySpaceLeave(int spaceId) =>
+      '$apiBaseUrl/community/spaces/$spaceId/leave/';
+  static String communitySpaceMembers(int spaceId) =>
+      '$apiBaseUrl/community/spaces/$spaceId/members/';
+
+  // Community bookmarks
+  static String get communityBookmarkToggle => '$apiBaseUrl/community/bookmarks/toggle/';
+  static String get communityBookmarks => '$apiBaseUrl/community/bookmarks/';
+  static String get communityBookmarkCollections => '$apiBaseUrl/community/bookmark-collections/';
+
   // Community leaderboard
   static String get communityLeaderboard => '$apiBaseUrl/community/leaderboard/';
 
@@ -294,6 +346,45 @@ class ApiConstants {
   static String checkinTemplateAssign(int templateId) => '$apiBaseUrl/workouts/checkin-templates/$templateId/assign/';
   static String get checkinResponses => '$apiBaseUrl/workouts/checkin-responses/';
   static String get checkinResponsesPending => '$apiBaseUrl/workouts/checkin-responses/pending/';
+
+  // Community Classroom endpoints
+  static String get communityCourses => '$apiBaseUrl/community/courses/';
+  static String communityCourseDetail(int id) => '$apiBaseUrl/community/courses/$id/';
+  static String communityCourseEnroll(int id) => '$apiBaseUrl/community/courses/$id/enroll/';
+  static String get communityMyEnrollments => '$apiBaseUrl/community/my-enrollments/';
+  static String communityLessonProgress(int courseId, int lessonId) =>
+      '$apiBaseUrl/community/courses/$courseId/lessons/$lessonId/progress/';
+
+  // Community Events endpoints
+  static String get communityEvents => '$apiBaseUrl/community/events/';
+  static String communityEventDetail(int id) => '$apiBaseUrl/community/events/$id/';
+  static String communityEventRsvp(int id) => '$apiBaseUrl/community/events/$id/rsvp/';
+
+  // Community Report endpoint
+  static String get communityReport => '$apiBaseUrl/community/report/';
+
+  // Trainer Course endpoints
+  static String get trainerCourses => '$apiBaseUrl/trainer/courses/';
+  static String trainerCourseDetail(int id) => '$apiBaseUrl/trainer/courses/$id/';
+  static String trainerCourseLessons(int courseId) => '$apiBaseUrl/trainer/courses/$courseId/lessons/';
+  static String trainerLessonDetail(int courseId, int lessonId) =>
+      '$apiBaseUrl/trainer/courses/$courseId/lessons/$lessonId/';
+
+  // Trainer Event endpoints
+  static String get trainerEvents => '$apiBaseUrl/trainer/events/';
+  static String trainerEventDetail(int id) => '$apiBaseUrl/trainer/events/$id/';
+  static String trainerEventStatus(int id) => '$apiBaseUrl/trainer/events/$id/status/';
+
+  // Trainer Moderation endpoints
+  static String get trainerModerationReports => '$apiBaseUrl/trainer/moderation/reports/';
+  static String trainerReportReview(int id) => '$apiBaseUrl/trainer/moderation/reports/$id/review/';
+  static String get trainerModerationBans => '$apiBaseUrl/trainer/moderation/bans/';
+  static String trainerUnban(int userId) => '$apiBaseUrl/trainer/moderation/bans/$userId/';
+  static String get trainerAutoModRules => '$apiBaseUrl/trainer/moderation/rules/';
+  static String trainerAutoModRuleDetail(int id) => '$apiBaseUrl/trainer/moderation/rules/$id/';
+
+  // Trainer Community Config endpoint
+  static String get trainerCommunityConfig => '$apiBaseUrl/trainer/community-config/';
 
   // Headers (these can stay const)
   static const String contentType = 'application/json';

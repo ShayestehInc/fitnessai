@@ -31,7 +31,7 @@ test.describe("Exercise Bank", () => {
     ).toBeVisible();
   });
 
-  test("should open create exercise dialog", async ({ page }) => {
+  test("should open create exercise panel", async ({ page }) => {
     await page
       .getByRole("button", { name: /create exercise/i })
       .first()
@@ -42,7 +42,7 @@ test.describe("Exercise Bank", () => {
     ).toBeVisible();
   });
 
-  test("create dialog should validate required fields", async ({ page }) => {
+  test("create panel should validate required fields", async ({ page }) => {
     await page
       .getByRole("button", { name: /create exercise/i })
       .first()

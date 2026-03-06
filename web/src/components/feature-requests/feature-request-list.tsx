@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/empty-state";
 import { VoteWidget } from "./vote-widget";
-import { CreateFeatureRequestDialog } from "./create-feature-request-dialog";
+import { CreateFeatureRequestPanel } from "./create-feature-request-panel";
 import type { FeatureRequest, FeatureRequestStatus } from "@/types/feature-request";
 import {
   STATUS_LABELS,
@@ -135,7 +135,7 @@ export function FeatureRequestList({
         )}
       </div>
 
-      <CreateFeatureRequestDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateFeatureRequestPanel open={createOpen} onOpenChange={setCreateOpen} />
     </>
   );
 }

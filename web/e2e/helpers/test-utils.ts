@@ -45,7 +45,7 @@ export async function navigateVia(
 }
 
 /**
- * Check that a dialog opens with the expected title.
+ * Check that a dialog or slide-over panel opens with the expected title.
  */
 export async function expectDialogOpen(
   page: Page,
@@ -57,12 +57,22 @@ export async function expectDialogOpen(
 }
 
 /**
- * Close the currently open dialog.
+ * Alias for expectDialogOpen — works for both dialogs and slide-over panels.
+ */
+export const expectPanelOpen = expectDialogOpen;
+
+/**
+ * Close the currently open dialog or slide-over panel.
  */
 export async function closeDialog(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden({ timeout: 3000 });
 }
+
+/**
+ * Alias for closeDialog — works for both dialogs and slide-over panels.
+ */
+export const closePanel = closeDialog;
 
 /**
  * Assert empty state is shown.

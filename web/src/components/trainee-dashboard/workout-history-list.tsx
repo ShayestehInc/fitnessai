@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { useTraineeWorkoutHistory } from "@/hooks/use-trainee-dashboard";
-import { WorkoutDetailDialog } from "./workout-detail-dialog";
+import { WorkoutDetailPanel } from "./workout-detail-panel";
 
 function formatVolume(volume: number): string {
   return new Intl.NumberFormat("en-US").format(Math.round(volume));
@@ -158,7 +158,7 @@ export function WorkoutHistoryList() {
       </div>
 
       {detailId !== null && (
-        <WorkoutDetailDialog
+        <WorkoutDetailPanel
           open
           onOpenChange={(open) => {
             if (!open) setDetailId(null);

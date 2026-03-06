@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -18,6 +20,7 @@ class BarcodeScanScreen extends ConsumerStatefulWidget {
 
 class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
   late final MobileScannerController _controller;
+  StreamSubscription<BarcodeCapture>? _subscription;
   bool _hasNavigated = false;
 
   @override
@@ -28,10 +31,13 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
       facing: CameraFacing.back,
       torchEnabled: false,
     );
+    _subscription = _controller.barcodes.listen(_onBarcodeDetected);
+    _controller.start();
   }
 
   @override
   void dispose() {
+    _subscription?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -65,10 +71,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
       body: Stack(
         children: [
           // Camera viewfinder
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onBarcodeDetected,
-          ),
+          MobileScanner(controller: _controller),
 
           // Semi-transparent overlay with cutout
           const _ScannerOverlay(),
@@ -100,10 +103,11 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
                     icon: Icons.close,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
-                  ValueListenableBuilder<MobileScannerState>(
-                    valueListenable: _controller,
-                    builder: (_, state, __) {
-                      final bool isOn = state.torchState == TorchState.on;
+                  ListenableBuilder(
+                    listenable: _controller,
+                    builder: (_, __) {
+                      final bool isOn =
+                          _controller.value.torchState == TorchState.on;
                       return _ActionButton(
                         icon: isOn ? Icons.flash_on : Icons.flash_off,
                         onPressed: _toggleFlash,
@@ -172,7 +176,7 @@ class _OverlayPainter extends CustomPainter {
     );
 
     // Dark overlay
-    final overlayPaint = Paint()..color = Colors.black.withOpacity(0.55);
+    final overlayPaint = Paint()..color = Colors.black.withValues(alpha: 0.55);
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
       ..addRRect(cutout)

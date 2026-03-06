@@ -1059,3 +1059,440 @@ class CheckInResponse(models.Model):
 
     def __str__(self) -> str:
         return f"Check-in response by {self.trainee.email} on {self.submitted_at}"
+
+
+class NutritionTemplate(models.Model):
+    """
+    Template-driven nutrition system.
+    Defines meal structure, macro formulas, and day-type mappings.
+    System templates are immutable; trainers can create custom ones.
+    """
+
+    class TemplateType(models.TextChoices):
+        LEGACY = 'legacy', 'Legacy'
+        SHREDDED = 'shredded', 'Shredded'
+        MASSIVE = 'massive', 'Massive'
+        CARB_CYCLING = 'carb_cycling', 'Carb Cycling'
+        MACRO_EBOOK = 'macro_ebook', 'Macro Ebook'
+        CUSTOM = 'custom', 'Custom'
+
+    name = models.CharField(max_length=255)
+    template_type = models.CharField(
+        max_length=20,
+        choices=TemplateType.choices,
+        default=TemplateType.CUSTOM,
+    )
+    version = models.PositiveIntegerField(default=1)
+    ruleset = models.JSONField(
+        default=dict,
+        help_text=(
+            "Template-type-specific configuration: meal definitions, "
+            "formulas, day-type mappings, rounding rules"
+        ),
+    )
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_nutrition_templates',
+        help_text="Trainer who created this template (null for system templates)",
+    )
+    is_system = models.BooleanField(
+        default=False,
+        help_text="True for built-in system templates that cannot be edited",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'nutrition_templates'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['template_type']),
+            models.Index(fields=['is_system']),
+            models.Index(fields=['created_by']),
+        ]
+
+    def __str__(self) -> str:
+        system_tag = " [System]" if self.is_system else ""
+        return f"{self.name} ({self.get_template_type_display()}){system_tag}"
+
+
+class NutritionTemplateAssignment(models.Model):
+    """
+    Assigns a NutritionTemplate to a trainee with trainee-specific parameters.
+    Only one assignment per trainee can be active at a time.
+    """
+
+    class FatMode(models.TextChoices):
+        TOTAL_FAT = 'total_fat', 'Total Fat'
+        ADDED_FAT = 'added_fat', 'Added Fat'
+
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='nutrition_template_assignments',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    template = models.ForeignKey(
+        NutritionTemplate,
+        on_delete=models.PROTECT,
+        related_name='assignments',
+    )
+    parameters = models.JSONField(
+        default=dict,
+        help_text=(
+            "Trainee-specific parameters: "
+            "{body_weight_lbs, body_fat_pct, lbm_lbs, meals_per_day}"
+        ),
+    )
+    day_type_schedule = models.JSONField(
+        default=dict,
+        help_text=(
+            "Day-type scheduling config: "
+            "{method: 'training_based', training_days: 'high_carb', rest_days: 'low_carb'} "
+            "or {method: 'weekly_rotation', monday: 'high_carb', ...}"
+        ),
+    )
+    fat_mode = models.CharField(
+        max_length=20,
+        choices=FatMode.choices,
+        default=FatMode.TOTAL_FAT,
+    )
+    is_active = models.BooleanField(default=True)
+    activated_at = models.DateTimeField(auto_now_add=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'nutrition_template_assignments'
+        ordering = ['-activated_at']
+        indexes = [
+            models.Index(fields=['trainee', 'is_active']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trainee'],
+                condition=models.Q(is_active=True),
+                name='unique_active_nutrition_template_per_trainee',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        status = "Active" if self.is_active else "Inactive"
+        return f"{self.template.name} → {self.trainee.email} ({status})"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self.is_active:
+            NutritionTemplateAssignment.objects.filter(
+                trainee=self.trainee,
+                is_active=True,
+            ).exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
+
+
+class NutritionDayPlan(models.Model):
+    """
+    Server-generated per-date nutrition plan for a trainee.
+    Contains day-type-aware macro targets split across meals.
+    """
+
+    class DayType(models.TextChoices):
+        TRAINING = 'training', 'Training Day'
+        REST = 'rest', 'Rest Day'
+        HIGH_CARB = 'high_carb', 'High Carb Day'
+        MEDIUM_CARB = 'medium_carb', 'Medium Carb Day'
+        LOW_CARB = 'low_carb', 'Low Carb Day'
+        REFEED = 'refeed', 'Refeed Day'
+        MAINTENANCE = 'maintenance', 'Maintenance Day'
+        DIET_BREAK = 'diet_break', 'Diet Break Day'
+
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='nutrition_day_plans',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    date = models.DateField()
+    day_type = models.CharField(
+        max_length=20,
+        choices=DayType.choices,
+        default=DayType.TRAINING,
+    )
+    template_snapshot = models.JSONField(
+        default=dict,
+        help_text="Frozen copy of template + parameters at generation time",
+    )
+
+    total_protein = models.PositiveIntegerField(default=0)
+    total_carbs = models.PositiveIntegerField(default=0)
+    total_fat = models.PositiveIntegerField(default=0)
+    total_calories = models.PositiveIntegerField(default=0)
+
+    meals = models.JSONField(
+        default=list,
+        help_text=(
+            "Per-meal targets: "
+            "[{meal_number, name, protein, carbs, fat, calories}, ...]"
+        ),
+    )
+    fat_mode = models.CharField(
+        max_length=20,
+        choices=NutritionTemplateAssignment.FatMode.choices,
+        default=NutritionTemplateAssignment.FatMode.TOTAL_FAT,
+    )
+    is_overridden = models.BooleanField(
+        default=False,
+        help_text="True if a trainer manually overrode this day's plan",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'nutrition_day_plans'
+        ordering = ['-date']
+        indexes = [
+            models.Index(fields=['trainee', 'date']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trainee', 'date'],
+                name='unique_nutrition_day_plan_per_date',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.trainee.email} — {self.date} ({self.get_day_type_display()})"
+
+
+class FoodItem(models.Model):
+    """
+    Food database item.
+    Can be system defaults (is_public=True) or trainer-created custom foods.
+    Follows the same visibility pattern as Exercise.
+    """
+
+    class ServingUnit(models.TextChoices):
+        GRAMS = 'g', 'Grams'
+        OUNCES = 'oz', 'Ounces'
+        CUPS = 'cup', 'Cups'
+        TABLESPOONS = 'tbsp', 'Tablespoons'
+        TEASPOONS = 'tsp', 'Teaspoons'
+        PIECES = 'piece', 'Pieces'
+        SLICES = 'slice', 'Slices'
+        ML = 'ml', 'Milliliters'
+        FL_OZ = 'fl_oz', 'Fluid Ounces'
+        SCOOP = 'scoop', 'Scoops'
+        SERVING = 'serving', 'Servings'
+
+    name = models.CharField(max_length=255)
+    brand = models.CharField(max_length=255, blank=True, default='')
+    serving_size = models.FloatField(
+        default=1.0,
+        validators=[MinValueValidator(0.01)],
+        help_text="Amount per serving (e.g. 100 for 100g)",
+    )
+    serving_unit = models.CharField(
+        max_length=10,
+        choices=ServingUnit.choices,
+        default=ServingUnit.GRAMS,
+    )
+
+    # Macros per serving
+    calories = models.PositiveIntegerField(default=0)
+    protein = models.FloatField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Protein per serving in grams",
+    )
+    carbs = models.FloatField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Carbohydrates per serving in grams",
+    )
+    fat = models.FloatField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Fat per serving in grams",
+    )
+    fiber = models.FloatField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Fiber per serving in grams",
+    )
+    sugar = models.FloatField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Sugar per serving in grams",
+    )
+    sodium = models.FloatField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Sodium per serving in milligrams",
+    )
+
+    barcode = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text="UPC/EAN barcode for scanning",
+    )
+
+    is_public = models.BooleanField(
+        default=False,
+        help_text="True for system foods, False for trainer-created custom foods",
+    )
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_food_items',
+        help_text="Trainer who created this food item (null for system foods)",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'food_items'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['is_public']),
+            models.Index(fields=['created_by']),
+            models.Index(fields=['brand']),
+        ]
+
+    def __str__(self) -> str:
+        brand_str = f" ({self.brand})" if self.brand else ""
+        return f"{self.name}{brand_str}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        # Auto-calculate calories from macros if calories is 0 but macros are set
+        if self.calories == 0 and (self.protein > 0 or self.carbs > 0 or self.fat > 0):
+            self.calories = int(
+                (self.protein * 4) + (self.carbs * 4) + (self.fat * 9)
+            )
+        super().save(*args, **kwargs)
+
+
+class MealLog(models.Model):
+    """
+    Container for a single meal within a day.
+    A trainee can have multiple meals per day (e.g. Meal 1 = Breakfast, Meal 2 = Lunch).
+    """
+
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='meal_logs',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    date = models.DateField()
+    meal_number = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(6)],
+        help_text="Meal number (1-6)",
+    )
+    meal_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Optional label: Breakfast, Lunch, Snack, etc.",
+    )
+    logged_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'meal_logs'
+        ordering = ['date', 'meal_number']
+        indexes = [
+            models.Index(fields=['trainee', 'date']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trainee', 'date', 'meal_number'],
+                name='unique_meal_per_day',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        label = self.meal_name or f"Meal {self.meal_number}"
+        return f"{self.trainee.email} — {self.date} — {label}"
+
+
+class MealLogEntry(models.Model):
+    """
+    Individual food entry within a MealLog.
+    Can reference a FoodItem or be a freeform entry (custom_name with manual macros).
+    """
+
+    class FatMode(models.TextChoices):
+        TOTAL_FAT = 'total_fat', 'Total Fat'
+        ADDED_FAT = 'added_fat', 'Added Fat'
+
+    meal_log = models.ForeignKey(
+        MealLog,
+        on_delete=models.CASCADE,
+        related_name='entries',
+    )
+    food_item = models.ForeignKey(
+        FoodItem,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='meal_log_entries',
+        help_text="Reference to food database item (null for freeform entries)",
+    )
+    custom_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Name for freeform entries (used when food_item is null)",
+    )
+    quantity = models.FloatField(
+        default=1.0,
+        validators=[MinValueValidator(0.01)],
+        help_text="Number of servings consumed",
+    )
+    serving_unit = models.CharField(
+        max_length=10,
+        choices=FoodItem.ServingUnit.choices,
+        default=FoodItem.ServingUnit.SERVING,
+    )
+
+    # Computed macros (quantity * food_item macros, or manually entered for freeform)
+    calories = models.PositiveIntegerField(default=0)
+    protein = models.FloatField(default=0, validators=[MinValueValidator(0)])
+    carbs = models.FloatField(default=0, validators=[MinValueValidator(0)])
+    fat = models.FloatField(default=0, validators=[MinValueValidator(0)])
+
+    fat_mode = models.CharField(
+        max_length=20,
+        choices=FatMode.choices,
+        default=FatMode.TOTAL_FAT,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'meal_log_entries'
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['meal_log']),
+            models.Index(fields=['food_item']),
+        ]
+
+    def __str__(self) -> str:
+        name = self.food_item.name if self.food_item else self.custom_name
+        return f"{name} x{self.quantity}"
+
+    @property
+    def display_name(self) -> str:
+        if self.food_item:
+            return self.food_item.name
+        return self.custom_name or "Unknown food"

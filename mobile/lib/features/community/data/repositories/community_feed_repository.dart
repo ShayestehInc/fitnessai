@@ -11,29 +11,54 @@ class CommunityFeedRepository {
 
   CommunityFeedRepository(this._apiClient);
 
-  /// Fetch paginated community feed.
-  Future<CommunityFeedResponse> getFeed({int page = 1}) async {
+  /// Fetch paginated community feed with optional space filter and sort.
+  Future<CommunityFeedResponse> getFeed({
+    int page = 1,
+    int? spaceId,
+    String sort = 'latest',
+  }) async {
+    final params = <String, String>{
+      'page': '$page',
+      'sort': sort,
+    };
+    if (spaceId != null) {
+      params['space'] = '$spaceId';
+    }
+    final queryString = params.entries
+        .map((e) => '${e.key}=${e.value}')
+        .join('&');
+
     final response = await _apiClient.dio.get(
-      '${ApiConstants.communityFeed}?page=$page',
+      '${ApiConstants.communityFeed}?$queryString',
     );
     return CommunityFeedResponse.fromJson(
       response.data as Map<String, dynamic>,
     );
   }
 
-  /// Create a text post (with optional image and content format).
+  /// Create a text post with optional multiple images and space.
   Future<CommunityPostModel> createPost({
     required String content,
     String contentFormat = 'plain',
-    String? imagePath,
+    List<String> imagePaths = const [],
+    int? spaceId,
   }) async {
-    if (imagePath != null) {
-      // Multipart upload
-      final formData = FormData.fromMap({
+    if (imagePaths.isNotEmpty) {
+      final formMap = <String, dynamic>{
         'content': content,
         'content_format': contentFormat,
-        'image': await MultipartFile.fromFile(imagePath),
-      });
+      };
+      if (spaceId != null) {
+        formMap['space'] = spaceId;
+      }
+      // Add multiple images under 'images' key
+      final imageFiles = <MultipartFile>[];
+      for (final path in imagePaths) {
+        imageFiles.add(await MultipartFile.fromFile(path));
+      }
+      formMap['images'] = imageFiles;
+
+      final formData = FormData.fromMap(formMap);
       final response = await _apiClient.dio.post(
         ApiConstants.communityFeed,
         data: formData,
@@ -43,13 +68,17 @@ class CommunityFeedRepository {
       );
     }
 
-    // JSON post (no image)
+    // JSON post (no images)
+    final data = <String, dynamic>{
+      'content': content,
+      'content_format': contentFormat,
+    };
+    if (spaceId != null) {
+      data['space'] = spaceId;
+    }
     final response = await _apiClient.dio.post(
       ApiConstants.communityFeed,
-      data: {
-        'content': content,
-        'content_format': contentFormat,
-      },
+      data: data,
     );
     return CommunityPostModel.fromJson(response.data as Map<String, dynamic>);
   }
@@ -77,7 +106,7 @@ class CommunityFeedRepository {
   // Comments
   // -----------------------------------------------------------------------
 
-  /// Fetch comments for a post.
+  /// Fetch threaded comments for a post.
   Future<List<CommentModel>> getComments({
     required int postId,
     int page = 1,
@@ -100,14 +129,19 @@ class CommunityFeedRepository {
         .toList();
   }
 
-  /// Create a comment on a post.
+  /// Create a comment on a post, optionally as a reply.
   Future<CommentModel> createComment({
     required int postId,
     required String content,
+    int? parentCommentId,
   }) async {
+    final data = <String, dynamic>{'content': content};
+    if (parentCommentId != null) {
+      data['parent_comment'] = parentCommentId;
+    }
     final response = await _apiClient.dio.post(
       ApiConstants.communityPostComments(postId),
-      data: {'content': content},
+      data: data,
     );
     return CommentModel.fromJson(response.data as Map<String, dynamic>);
   }

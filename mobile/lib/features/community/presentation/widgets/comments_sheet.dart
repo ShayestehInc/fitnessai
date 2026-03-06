@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../data/models/comment_model.dart';
 import '../../data/repositories/community_feed_repository.dart';
 import '../providers/community_feed_provider.dart';
+import 'threaded_comment.dart';
 
-/// Bottom sheet that shows comments for a post.
+/// Bottom sheet that shows threaded comments for a post.
 class CommentsSheet extends ConsumerStatefulWidget {
   final int postId;
 
@@ -25,6 +25,8 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _error;
+  int? _replyingToId;
+  String? _replyingToName;
 
   @override
   void initState() {
@@ -73,15 +75,42 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       final comment = await repo.createComment(
         postId: widget.postId,
         content: content,
+        parentCommentId: _replyingToId,
       );
       if (!mounted) return;
-      setState(() {
-        _comments.add(comment);
-        _isSubmitting = false;
-      });
-      _controller.clear();
 
-      // Update comment count in feed
+      if (_replyingToId != null) {
+        // Add as reply to parent
+        setState(() {
+          _comments = _comments.map((c) {
+            if (c.id == _replyingToId) {
+              return CommentModel(
+                id: c.id,
+                postId: c.postId,
+                parentCommentId: c.parentCommentId,
+                authorId: c.authorId,
+                authorFirstName: c.authorFirstName,
+                authorLastName: c.authorLastName,
+                authorProfileImage: c.authorProfileImage,
+                content: c.content,
+                createdAt: c.createdAt,
+                replies: [...c.replies, comment],
+              );
+            }
+            return c;
+          }).toList();
+          _isSubmitting = false;
+          _replyingToId = null;
+          _replyingToName = null;
+        });
+      } else {
+        setState(() {
+          _comments.add(comment);
+          _isSubmitting = false;
+        });
+      }
+
+      _controller.clear();
       ref.read(communityFeedProvider.notifier).onNewComment(widget.postId);
 
       // Scroll to bottom
@@ -97,8 +126,17 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      showAdaptiveToast(context, message: 'Failed to post comment', type: ToastType.error);
+      showAdaptiveToast(context,
+          message: 'Failed to post comment', type: ToastType.error);
     }
+  }
+
+  int get _totalComments {
+    int count = _comments.length;
+    for (final c in _comments) {
+      count += c.replies.length;
+    }
+    return count;
   }
 
   @override
@@ -115,6 +153,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
             _buildHeader(theme),
             const Divider(height: 1),
             Expanded(child: _buildBody(theme)),
+            if (_replyingToId != null) _buildReplyBanner(theme),
             const Divider(height: 1),
             _buildInput(theme),
           ],
@@ -138,7 +177,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
           ),
           const SizedBox(width: 8),
           Text(
-            '(${_comments.length})',
+            '($_totalComments)',
             style: TextStyle(
               fontSize: 14,
               color: theme.textTheme.bodySmall?.color,
@@ -181,9 +220,45 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: _comments.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) => _CommentTile(
+      itemBuilder: (context, index) => ThreadedCommentTile(
         comment: _comments[index],
         onDelete: () => _deleteComment(index),
+        onReply: (parentId) {
+          final parent = _comments[index];
+          setState(() {
+            _replyingToId = parentId;
+            _replyingToName = parent.authorDisplayName;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildReplyBanner(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      color: theme.colorScheme.primary.withValues(alpha: 0.08),
+      child: Row(
+        children: [
+          Icon(Icons.reply, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Replying to $_replyingToName',
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => setState(() {
+              _replyingToId = null;
+              _replyingToName = null;
+            }),
+            child: Icon(Icons.close, size: 16, color: theme.disabledColor),
+          ),
+        ],
       ),
     );
   }
@@ -201,7 +276,9 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                 maxLines: 2,
                 minLines: 1,
                 decoration: InputDecoration(
-                  hintText: 'Write a comment...',
+                  hintText: _replyingToId != null
+                      ? 'Reply...'
+                      : 'Write a comment...',
                   counterText: '',
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -276,99 +353,8 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       setState(() => _comments.removeAt(index));
     } catch (_) {
       if (!mounted) return;
-      showAdaptiveToast(context, message: 'Failed to delete comment', type: ToastType.error);
+      showAdaptiveToast(context,
+          message: 'Failed to delete comment', type: ToastType.error);
     }
-  }
-}
-
-class _CommentTile extends ConsumerWidget {
-  final CommentModel comment;
-  final VoidCallback onDelete;
-
-  const _CommentTile({required this.comment, required this.onDelete});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final currentUserId = ref.watch(authStateProvider).user?.id;
-    final isAuthor = currentUserId == comment.authorId;
-
-    return Semantics(
-      label: '${comment.authorDisplayName} said: ${comment.content}',
-      child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: theme.colorScheme.primary,
-          backgroundImage: comment.authorProfileImage != null
-              ? NetworkImage(comment.authorProfileImage!)
-              : null,
-          child: comment.authorProfileImage == null
-              ? Text(
-                  comment.authorInitials,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    comment.authorDisplayName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: theme.textTheme.bodyLarge?.color,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _formatTimeAgo(comment.createdAt),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: theme.textTheme.bodySmall?.color,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                comment.content,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: theme.textTheme.bodyLarge?.color,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (isAuthor)
-          IconButton(
-            icon: Icon(Icons.close, size: 16, color: theme.disabledColor),
-            onPressed: onDelete,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-          ),
-      ],
-      ),
-    );
-  }
-
-  String _formatTimeAgo(DateTime dateTime) {
-    final diff = DateTime.now().difference(dateTime);
-    if (diff.inMinutes < 1) return 'now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays < 7) return '${diff.inDays}d';
-    return DateFormat('MMM d').format(dateTime);
   }
 }

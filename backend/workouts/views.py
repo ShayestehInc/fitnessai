@@ -31,10 +31,16 @@ from .models import (
     CheckInTemplate,
     DailyLog,
     Exercise,
+    FoodItem,
     Habit,
     HabitLog,
     MacroPreset,
+    MealLog,
+    MealLogEntry,
+    NutritionDayPlan,
     NutritionGoal,
+    NutritionTemplate,
+    NutritionTemplateAssignment,
     Program,
     ProgressionSuggestion,
     ProgressPhoto,
@@ -66,7 +72,13 @@ from .serializers import (
     MacroPresetSerializer,
     NaturalLanguageLogInputSerializer,
     NaturalLanguageLogResponseSerializer,
+    NutritionDayPlanOverrideSerializer,
+    NutritionDayPlanSerializer,
     NutritionGoalSerializer,
+    NutritionTemplateAssignmentCreateSerializer,
+    NutritionTemplateAssignmentSerializer,
+    NutritionTemplateCreateSerializer,
+    NutritionTemplateSerializer,
     ProgressionSuggestionSerializer,
     ProgressPhotoSerializer,
     ProgramSerializer,
@@ -78,6 +90,12 @@ from .serializers import (
     WorkoutDetailSerializer,
     WorkoutHistorySummarySerializer,
     WorkoutTemplateSerializer,
+    FoodItemCreateSerializer,
+    FoodItemSerializer,
+    MealLogEntrySerializer,
+    MealLogSerializer,
+    MealLogSummarySerializer,
+    QuickAddEntrySerializer,
 )
 from core.permissions import IsTrainer as IsTrainerPerm
 
@@ -2258,3 +2276,745 @@ class CheckInResponseViewSet(viewsets.ModelViewSet[CheckInResponse]):
         return Response({
             'assignments': CheckInAssignmentSerializer(assignments, many=True).data,
         })
+
+
+# ---------------------------------------------------------------
+# Nutrition Template System (Phase 1)
+# ---------------------------------------------------------------
+
+from .services.nutrition_plan_service import NutritionPlanService
+
+
+class NutritionTemplateViewSet(viewsets.ModelViewSet[NutritionTemplate]):
+    """
+    CRUD for NutritionTemplates.
+    Trainers can create custom templates; system templates are read-only.
+    """
+
+    serializer_class = NutritionTemplateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[NutritionTemplate]:
+        user = cast(User, self.request.user)
+        if user.is_admin():
+            return NutritionTemplate.objects.all().select_related('created_by')
+        if user.is_trainer():
+            from django.db.models import Q
+            return NutritionTemplate.objects.filter(
+                Q(is_system=True) | Q(created_by=user),
+            ).select_related('created_by')
+        # Trainees can list templates (read-only)
+        return NutritionTemplate.objects.filter(
+            is_system=True,
+        ).select_related('created_by')
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        user = cast(User, request.user)
+        if not (user.is_trainer() or user.is_admin()):
+            return Response(
+                {'error': 'Only trainers can create nutrition templates.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = NutritionTemplateCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        template = NutritionTemplate.objects.create(
+            name=serializer.validated_data['name'],
+            template_type=serializer.validated_data['template_type'],
+            ruleset=serializer.validated_data['ruleset'],
+            created_by=user,
+            is_system=False,
+        )
+        return Response(
+            NutritionTemplateSerializer(template).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        template = self.get_object()
+        if template.is_system:
+            return Response(
+                {'error': 'System templates cannot be modified.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        template = self.get_object()
+        if template.is_system:
+            return Response(
+                {'error': 'System templates cannot be deleted.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=['get'], url_path='system')
+    def system_templates(self, request: Request) -> Response:
+        """GET /api/workouts/nutrition-templates/system/ — list system templates only."""
+        qs = NutritionTemplate.objects.filter(
+            is_system=True,
+        ).select_related('created_by')
+        return Response(NutritionTemplateSerializer(qs, many=True).data)
+
+
+class NutritionTemplateAssignmentViewSet(viewsets.ModelViewSet[NutritionTemplateAssignment]):
+    """
+    Assign / update / list template assignments for trainees.
+    Trainers assign templates; trainees read their own.
+    """
+
+    serializer_class = NutritionTemplateAssignmentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[NutritionTemplateAssignment]:
+        user = cast(User, self.request.user)
+        qs = NutritionTemplateAssignment.objects.select_related(
+            'trainee', 'template',
+        )
+
+        if user.is_trainee():
+            return qs.filter(trainee=user)
+
+        if user.is_trainer():
+            qs = qs.filter(trainee__parent_trainer=user)
+            trainee_id = self.request.query_params.get('trainee_id')
+            if trainee_id:
+                qs = qs.filter(trainee_id=trainee_id)
+            return qs
+
+        # Admin
+        trainee_id = self.request.query_params.get('trainee_id')
+        if trainee_id:
+            qs = qs.filter(trainee_id=trainee_id)
+        return qs
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        user = cast(User, request.user)
+        if not (user.is_trainer() or user.is_admin()):
+            return Response(
+                {'error': 'Only trainers can assign nutrition templates.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = NutritionTemplateAssignmentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        trainee_id = serializer.validated_data['trainee_id']
+        template_id = serializer.validated_data['template_id']
+
+        # Verify trainee belongs to this trainer
+        try:
+            trainee = User.objects.get(pk=trainee_id, role=User.Role.TRAINEE)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Trainee not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if user.is_trainer() and trainee.parent_trainer_id != user.pk:
+            return Response(
+                {'error': 'This trainee does not belong to you.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            template = NutritionTemplate.objects.get(pk=template_id)
+        except NutritionTemplate.DoesNotExist:
+            return Response(
+                {'error': 'Template not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        assignment = NutritionTemplateAssignment(
+            trainee=trainee,
+            template=template,
+            parameters=serializer.validated_data.get('parameters', {}),
+            day_type_schedule=serializer.validated_data.get('day_type_schedule', {}),
+            fat_mode=serializer.validated_data.get(
+                'fat_mode',
+                NutritionTemplateAssignment.FatMode.TOTAL_FAT,
+            ),
+            is_active=True,
+        )
+        assignment.save()
+
+        return Response(
+            NutritionTemplateAssignmentSerializer(assignment).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=['get'], url_path='active')
+    def active_assignment(self, request: Request) -> Response:
+        """GET /api/workouts/nutrition-template-assignments/active/
+
+        Returns the trainee's currently active template assignment.
+        """
+        user = cast(User, request.user)
+
+        if user.is_trainee():
+            trainee = user
+        else:
+            trainee_id = request.query_params.get('trainee_id')
+            if not trainee_id:
+                return Response(
+                    {'error': 'trainee_id is required for trainers/admins.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                trainee = User.objects.get(pk=trainee_id, role=User.Role.TRAINEE)
+            except User.DoesNotExist:
+                return Response(
+                    {'error': 'Trainee not found.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        assignment = NutritionTemplateAssignment.objects.filter(
+            trainee=trainee, is_active=True,
+        ).select_related('trainee', 'template').first()
+
+        if not assignment:
+            return Response(
+                {'detail': 'No active nutrition template assignment.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(NutritionTemplateAssignmentSerializer(assignment).data)
+
+
+class NutritionDayPlanViewSet(viewsets.ReadOnlyModelViewSet[NutritionDayPlan]):
+    """
+    Read-only ViewSet for NutritionDayPlans.
+    Plans are auto-generated on read; trainers can override via PATCH.
+    """
+
+    serializer_class = NutritionDayPlanSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[NutritionDayPlan]:
+        user = cast(User, self.request.user)
+
+        if user.is_trainee():
+            return NutritionDayPlan.objects.filter(
+                trainee=user,
+            ).select_related('trainee')
+
+        if user.is_trainer():
+            qs = NutritionDayPlan.objects.filter(
+                trainee__parent_trainer=user,
+            ).select_related('trainee')
+            trainee_id = self.request.query_params.get('trainee_id')
+            if trainee_id:
+                qs = qs.filter(trainee_id=trainee_id)
+            return qs
+
+        # Admin
+        return NutritionDayPlan.objects.all().select_related('trainee')
+
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """GET /api/workouts/nutrition-day-plans/?date=YYYY-MM-DD
+
+        Auto-generates the plan if it doesn't exist yet.
+        """
+        user = cast(User, request.user)
+        date_str = request.query_params.get('date')
+        trainee_id = request.query_params.get('trainee_id')
+
+        if date_str:
+            try:
+                target_date = date.fromisoformat(date_str)
+            except ValueError:
+                return Response(
+                    {'error': 'Invalid date format. Use YYYY-MM-DD.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if user.is_trainee():
+                trainee = user
+            elif trainee_id:
+                try:
+                    trainee = User.objects.get(pk=trainee_id, role=User.Role.TRAINEE)
+                except User.DoesNotExist:
+                    return Response(
+                        {'error': 'Trainee not found.'},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+            else:
+                return Response(
+                    {'error': 'trainee_id is required for trainers/admins.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            service = NutritionPlanService()
+            plan = service.get_or_generate_day_plan(trainee, target_date)
+            if plan is None:
+                return Response(
+                    {'detail': 'No nutrition template or goal configured.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            return Response(NutritionDayPlanSerializer(plan).data)
+
+        return super().list(request, *args, **kwargs)
+
+    @action(detail=False, methods=['get'], url_path='week')
+    def week(self, request: Request) -> Response:
+        """GET /api/workouts/nutrition-day-plans/week/?start=YYYY-MM-DD"""
+        user = cast(User, request.user)
+        start_str = request.query_params.get('start')
+        trainee_id = request.query_params.get('trainee_id')
+
+        if not start_str:
+            return Response(
+                {'error': 'start query param is required (YYYY-MM-DD).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            start_date = date.fromisoformat(start_str)
+        except ValueError:
+            return Response(
+                {'error': 'Invalid date format. Use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        end_date = start_date + timedelta(days=6)
+
+        if user.is_trainee():
+            trainee = user
+        elif trainee_id:
+            try:
+                trainee = User.objects.get(pk=trainee_id, role=User.Role.TRAINEE)
+            except User.DoesNotExist:
+                return Response(
+                    {'error': 'Trainee not found.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
+            return Response(
+                {'error': 'trainee_id is required for trainers/admins.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        service = NutritionPlanService()
+        plans = service.regenerate_plans_for_range(trainee, start_date, end_date)
+        return Response(NutritionDayPlanSerializer(plans, many=True).data)
+
+    @action(detail=True, methods=['patch'], url_path='override')
+    def override(self, request: Request, pk: int = None) -> Response:
+        """PATCH /api/workouts/nutrition-day-plans/{id}/override/
+
+        Trainer manually overrides a day's macro plan.
+        """
+        user = cast(User, request.user)
+        if not (user.is_trainer() or user.is_admin()):
+            return Response(
+                {'error': 'Only trainers can override day plans.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        plan = self.get_object()
+        serializer = NutritionDayPlanOverrideSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        if 'total_protein' in data:
+            plan.total_protein = data['total_protein']
+        if 'total_carbs' in data:
+            plan.total_carbs = data['total_carbs']
+        if 'total_fat' in data:
+            plan.total_fat = data['total_fat']
+        if 'total_calories' in data:
+            plan.total_calories = data['total_calories']
+        if 'day_type' in data:
+            plan.day_type = data['day_type']
+        if 'meals' in data:
+            plan.meals = data['meals']
+
+        plan.is_overridden = True
+        plan.save()
+
+        return Response(NutritionDayPlanSerializer(plan).data)
+
+
+# ---------------------------------------------------------------
+# FoodItem & MealLog System (Phase 2)
+# ---------------------------------------------------------------
+
+
+class FoodItemPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class FoodItemViewSet(viewsets.ModelViewSet[FoodItem]):
+    """
+    CRUD for FoodItems.
+    System items are read-only. Trainers can create custom food items.
+    Search via ?search= query param.
+    """
+
+    serializer_class = FoodItemSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = FoodItemPagination
+
+    def get_queryset(self) -> QuerySet[FoodItem]:
+        from django.db.models import Q
+
+        user = cast(User, self.request.user)
+        qs = FoodItem.objects.select_related('created_by')
+
+        if user.is_admin():
+            pass  # admin sees all
+        elif user.is_trainer():
+            qs = qs.filter(Q(is_public=True) | Q(created_by=user))
+        elif user.is_trainee():
+            # Trainee sees system foods + their trainer's custom foods
+            qs = qs.filter(
+                Q(is_public=True) | Q(created_by=user.parent_trainer),
+            )
+        else:
+            qs = qs.filter(is_public=True)
+
+        # Search filter
+        search = self.request.query_params.get('search', '').strip()
+        if search and len(search) >= 2:
+            qs = qs.filter(
+                Q(name__icontains=search) | Q(brand__icontains=search),
+            )
+
+        return qs
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        user = cast(User, request.user)
+        if not (user.is_trainer() or user.is_admin()):
+            return Response(
+                {'error': 'Only trainers can create food items.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = FoodItemCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        food_item = FoodItem(
+            created_by=user,
+            is_public=False,
+            **serializer.validated_data,
+        )
+        food_item.save()
+
+        return Response(
+            FoodItemSerializer(food_item).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        food_item = self.get_object()
+        user = cast(User, request.user)
+
+        if food_item.is_public and not user.is_admin():
+            return Response(
+                {'error': 'System food items cannot be modified.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not food_item.is_public and food_item.created_by_id != user.pk and not user.is_admin():
+            return Response(
+                {'error': 'You can only modify your own food items.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        food_item = self.get_object()
+        user = cast(User, request.user)
+
+        if food_item.is_public and not user.is_admin():
+            return Response(
+                {'error': 'System food items cannot be deleted.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not food_item.is_public and food_item.created_by_id != user.pk and not user.is_admin():
+            return Response(
+                {'error': 'You can only delete your own food items.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=['get'], url_path=r'barcode/(?P<barcode>[^/.]+)')
+    def barcode_lookup(self, request: Request, barcode: str = '') -> Response:
+        """GET /api/workouts/food-items/barcode/<barcode>/"""
+        if not barcode.strip():
+            return Response(
+                {'error': 'Barcode is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        food_item = FoodItem.objects.filter(barcode=barcode.strip()).first()
+        if not food_item:
+            return Response(
+                {'error': 'No food item found for this barcode.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(FoodItemSerializer(food_item).data)
+
+    @action(detail=False, methods=['get'], url_path='recent')
+    def recent(self, request: Request) -> Response:
+        """GET /api/workouts/food-items/recent/
+
+        Returns recently used food items for the current user.
+        """
+        user = cast(User, request.user)
+
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can access recent foods.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Get distinct food_item IDs from recent MealLogEntries
+        recent_entry_ids = (
+            MealLogEntry.objects.filter(
+                meal_log__trainee=user,
+                food_item__isnull=False,
+            )
+            .order_by('-created_at')
+            .values_list('food_item_id', flat=True)[:50]
+        )
+
+        # Deduplicate while preserving order
+        seen: set[int] = set()
+        unique_ids: list[int] = []
+        for fid in recent_entry_ids:
+            if fid not in seen:
+                seen.add(fid)
+                unique_ids.append(fid)
+            if len(unique_ids) >= 20:
+                break
+
+        food_items = FoodItem.objects.filter(
+            id__in=unique_ids,
+        ).select_related('created_by')
+
+        # Preserve the recency order
+        id_to_item = {item.id: item for item in food_items}
+        ordered = [id_to_item[fid] for fid in unique_ids if fid in id_to_item]
+
+        return Response(FoodItemSerializer(ordered, many=True).data)
+
+
+class MealLogViewSet(viewsets.ModelViewSet[MealLog]):
+    """
+    CRUD for MealLogs (meal containers with nested entries).
+    Trainees manage their own meals; trainers can view their trainees' meals.
+    """
+
+    serializer_class = MealLogSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[MealLog]:
+        user = cast(User, self.request.user)
+        qs = MealLog.objects.prefetch_related(
+            'entries', 'entries__food_item',
+        )
+
+        if user.is_trainee():
+            qs = qs.filter(trainee=user)
+        elif user.is_trainer():
+            qs = qs.filter(trainee__parent_trainer=user)
+            trainee_id = self.request.query_params.get('trainee_id')
+            if trainee_id:
+                qs = qs.filter(trainee_id=trainee_id)
+        else:
+            trainee_id = self.request.query_params.get('trainee_id')
+            if trainee_id:
+                qs = qs.filter(trainee_id=trainee_id)
+
+        # Date filter
+        date_str = self.request.query_params.get('date')
+        if date_str:
+            try:
+                target_date = date.fromisoformat(date_str)
+                qs = qs.filter(date=target_date)
+            except ValueError:
+                pass
+
+        return qs
+
+    @action(detail=False, methods=['get'], url_path='summary')
+    def summary(self, request: Request) -> Response:
+        """GET /api/workouts/meal-logs/summary/?date=YYYY-MM-DD
+
+        Returns aggregated daily macro totals from MealLog entries.
+        """
+        user = cast(User, request.user)
+        date_str = request.query_params.get('date')
+
+        if not date_str:
+            return Response(
+                {'error': 'date query param is required (YYYY-MM-DD).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            target_date = date.fromisoformat(date_str)
+        except ValueError:
+            return Response(
+                {'error': 'Invalid date format. Use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if user.is_trainee():
+            trainee = user
+        else:
+            trainee_id = request.query_params.get('trainee_id')
+            if not trainee_id:
+                return Response(
+                    {'error': 'trainee_id is required for trainers/admins.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                trainee = User.objects.get(pk=trainee_id, role=User.Role.TRAINEE)
+            except User.DoesNotExist:
+                return Response(
+                    {'error': 'Trainee not found.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        from django.db.models import Sum, Count
+
+        aggregation = MealLogEntry.objects.filter(
+            meal_log__trainee=trainee,
+            meal_log__date=target_date,
+        ).aggregate(
+            total_calories=Sum('calories'),
+            total_protein=Sum('protein'),
+            total_carbs=Sum('carbs'),
+            total_fat=Sum('fat'),
+            entry_count=Count('id'),
+        )
+
+        meal_count = MealLog.objects.filter(
+            trainee=trainee, date=target_date,
+        ).count()
+
+        data = {
+            'date': target_date.isoformat(),
+            'total_calories': aggregation['total_calories'] or 0,
+            'total_protein': round(aggregation['total_protein'] or 0, 1),
+            'total_carbs': round(aggregation['total_carbs'] or 0, 1),
+            'total_fat': round(aggregation['total_fat'] or 0, 1),
+            'meal_count': meal_count,
+            'entry_count': aggregation['entry_count'] or 0,
+        }
+
+        return Response(MealLogSummarySerializer(data).data)
+
+    @action(detail=False, methods=['post'], url_path='quick-add')
+    def quick_add(self, request: Request) -> Response:
+        """POST /api/workouts/meal-logs/quick-add/
+
+        Quick-add a food entry. Auto-creates MealLog if needed.
+        """
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can log meals.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = QuickAddEntrySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        target_date = data['date']
+        meal_number = data['meal_number']
+
+        # Get or create the MealLog for this meal slot
+        meal_log, _ = MealLog.objects.get_or_create(
+            trainee=user,
+            date=target_date,
+            meal_number=meal_number,
+            defaults={'meal_name': data.get('meal_name', '')},
+        )
+
+        # Resolve food item if provided
+        food_item: FoodItem | None = None
+        food_item_id = data.get('food_item_id')
+        if food_item_id:
+            try:
+                food_item = FoodItem.objects.get(pk=food_item_id)
+            except FoodItem.DoesNotExist:
+                return Response(
+                    {'error': 'Food item not found.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # Calculate macros from food item * quantity, or use manual values
+        quantity = data.get('quantity', 1.0)
+        if food_item:
+            entry_calories = int(food_item.calories * quantity)
+            entry_protein = round(food_item.protein * quantity, 1)
+            entry_carbs = round(food_item.carbs * quantity, 1)
+            entry_fat = round(food_item.fat * quantity, 1)
+            custom_name = ''
+        else:
+            entry_calories = data.get('calories', 0)
+            entry_protein = data.get('protein', 0)
+            entry_carbs = data.get('carbs', 0)
+            entry_fat = data.get('fat', 0)
+            custom_name = data.get('custom_name', '')
+
+        entry = MealLogEntry.objects.create(
+            meal_log=meal_log,
+            food_item=food_item,
+            custom_name=custom_name,
+            quantity=quantity,
+            serving_unit=data.get('serving_unit', FoodItem.ServingUnit.SERVING),
+            calories=entry_calories,
+            protein=entry_protein,
+            carbs=entry_carbs,
+            fat=entry_fat,
+            fat_mode=data.get('fat_mode', MealLogEntry.FatMode.TOTAL_FAT),
+        )
+
+        # Return the full meal log with all entries
+        meal_log_refreshed = MealLog.objects.prefetch_related(
+            'entries', 'entries__food_item',
+        ).get(pk=meal_log.pk)
+
+        return Response(
+            MealLogSerializer(meal_log_refreshed).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=['delete'], url_path=r'entries/(?P<entry_id>\d+)')
+    def delete_entry(self, request: Request, entry_id: int = 0) -> Response:
+        """DELETE /api/workouts/meal-logs/entries/<entry_id>/"""
+        user = cast(User, request.user)
+
+        try:
+            entry = MealLogEntry.objects.select_related(
+                'meal_log', 'meal_log__trainee',
+            ).get(pk=entry_id)
+        except MealLogEntry.DoesNotExist:
+            return Response(
+                {'error': 'Entry not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Permission check
+        if user.is_trainee() and entry.meal_log.trainee_id != user.pk:
+            return Response(
+                {'error': 'You can only delete your own entries.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if user.is_trainer() and entry.meal_log.trainee.parent_trainer_id != user.pk:
+            return Response(
+                {'error': 'This trainee does not belong to you.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        entry.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

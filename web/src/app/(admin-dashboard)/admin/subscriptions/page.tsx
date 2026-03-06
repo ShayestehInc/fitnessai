@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SubscriptionList } from "@/components/admin/subscription-list";
-import { SubscriptionDetailDialog } from "@/components/admin/subscription-detail-dialog";
+import { SubscriptionDetailPanel } from "@/components/admin/subscription-detail-panel";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SELECT_CLASSES } from "@/lib/admin-constants";
@@ -159,7 +159,7 @@ export default function AdminSubscriptionsPage() {
         />
       )}
 
-      <SubscriptionDetailDialog
+      <SubscriptionDetailPanel
         key={selectedSubId ?? "none"}
         subscriptionId={selectedSubId}
         open={detailOpen}

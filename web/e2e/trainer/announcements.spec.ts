@@ -20,7 +20,7 @@ test.describe("Announcements", () => {
     ).toBeVisible();
   });
 
-  test("should open create dialog on button click", async ({ page }) => {
+  test("should open create panel on button click", async ({ page }) => {
     await page.getByRole("button", { name: /create|new announcement/i }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await expect(
@@ -28,7 +28,7 @@ test.describe("Announcements", () => {
     ).toBeVisible();
   });
 
-  test("create dialog should have title and message fields", async ({
+  test("create panel should have title and message fields", async ({
     page,
   }) => {
     await page.getByRole("button", { name: /create|new announcement/i }).click();
@@ -36,7 +36,7 @@ test.describe("Announcements", () => {
     await expect(page.getByLabel(/message|body/i)).toBeVisible();
   });
 
-  test("should close dialog on cancel", async ({ page }) => {
+  test("should close panel on cancel", async ({ page }) => {
     await page.getByRole("button", { name: /create|new announcement/i }).click();
     await page.getByRole("button", { name: /cancel/i }).click();
     await expect(page.getByRole("dialog")).toBeHidden();
