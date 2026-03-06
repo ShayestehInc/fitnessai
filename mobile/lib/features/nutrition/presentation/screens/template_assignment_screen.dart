@@ -244,27 +244,31 @@ class _TemplateAssignmentScreenState
     };
 
     final repo = ref.read(nutritionTemplateRepositoryProvider);
-    final result = await repo.createAssignment(
-      traineeId: widget.traineeId,
-      templateId: _selectedTemplate!.id,
-      parameters: params,
-      dayTypeSchedule: schedule,
-      fatMode: _fatMode,
-    );
+    try {
+      await repo.createAssignment(
+        traineeId: widget.traineeId,
+        templateId: _selectedTemplate!.id,
+        parameters: params,
+        dayTypeSchedule: schedule,
+        fatMode: _fatMode,
+      );
 
-    setState(() => _isSubmitting = false);
+      setState(() => _isSubmitting = false);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nutrition template assigned')),
       );
       context.pop();
-    } else {
+    } on Exception catch (e) {
+      setState(() => _isSubmitting = false);
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['error'] as String? ?? 'Assignment failed'),
+          content: Text(e.toString()),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

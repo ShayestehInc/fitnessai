@@ -117,6 +117,7 @@ class _DateNavigator extends StatelessWidget {
           IconButton(
             onPressed: onPrevious,
             icon: const Icon(Icons.chevron_left),
+            tooltip: 'Previous day',
             visualDensity: VisualDensity.compact,
           ),
           Expanded(
@@ -146,6 +147,7 @@ class _DateNavigator extends StatelessWidget {
           IconButton(
             onPressed: onNext,
             icon: const Icon(Icons.chevron_right),
+            tooltip: 'Next day',
             visualDensity: VisualDensity.compact,
           ),
         ],

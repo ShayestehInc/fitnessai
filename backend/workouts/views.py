@@ -2582,6 +2582,11 @@ class NutritionDayPlanViewSet(viewsets.ReadOnlyModelViewSet[NutritionDayPlan]):
                         {'error': 'Trainee not found.'},
                         status=status.HTTP_404_NOT_FOUND,
                     )
+                if user.is_trainer() and trainee.parent_trainer_id != user.pk:
+                    return Response(
+                        {'error': 'You do not have access to this trainee.'},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
             else:
                 return Response(
                     {'error': 'trainee_id is required for trainers/admins.'},
@@ -2631,6 +2636,11 @@ class NutritionDayPlanViewSet(viewsets.ReadOnlyModelViewSet[NutritionDayPlan]):
                 return Response(
                     {'error': 'Trainee not found.'},
                     status=status.HTTP_404_NOT_FOUND,
+                )
+            if user.is_trainer() and trainee.parent_trainer_id != user.pk:
+                return Response(
+                    {'error': 'You do not have access to this trainee.'},
+                    status=status.HTTP_403_FORBIDDEN,
                 )
         else:
             return Response(

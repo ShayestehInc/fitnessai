@@ -134,6 +134,7 @@ class _WeekNavigator extends StatelessWidget {
           IconButton(
             onPressed: onPrevious,
             icon: const Icon(Icons.chevron_left),
+            tooltip: 'Previous week',
             visualDensity: VisualDensity.compact,
           ),
           Expanded(
@@ -151,6 +152,7 @@ class _WeekNavigator extends StatelessWidget {
           IconButton(
             onPressed: onNext,
             icon: const Icon(Icons.chevron_right),
+            tooltip: 'Next week',
             visualDensity: VisualDensity.compact,
           ),
         ],

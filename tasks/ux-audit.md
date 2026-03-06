@@ -1,15 +1,14 @@
-# UX Audit: Nutrition Phase 2
+# UX Audit: Nutrition Phase 3 (LBM Formula Engine)
 
 ## Audit Date: 2026-03-05
 
-## Findings
-- MealCard: Has empty state, semantic labels, macro chips, swipe-to-delete with a11y
-- FatModeBadge: Clear visual distinction, tooltip explanation, color-coded
-- All widgets use centralized theme, no hardcoded colors
+## Accessibility Issues Fixed
+- Added tooltip labels to all navigation IconButtons (day_plan_screen, week_plan_screen)
 
-## Missing States (addressed)
-- [x] Empty state on meal card
-- [x] Semantic labels for screen readers on entry rows
-- [x] Add button has semanticLabel
+## Missing States
+- [x] Loading / skeleton — LoadingShimmer used
+- [x] Empty / zero data — _EmptyContent with icon + CTA
+- [x] Error / failure — _ErrorContent with retry button (providers now properly throw)
+- [x] Success / confirmation — Plans render correctly
 
-## UX Score: 8/10
+## Overall UX Score: 8/10

@@ -13,33 +13,21 @@ final nutritionTemplateRepositoryProvider =
 final nutritionTemplatesProvider =
     FutureProvider<List<NutritionTemplateModel>>((ref) async {
   final repo = ref.watch(nutritionTemplateRepositoryProvider);
-  final result = await repo.getTemplates();
-  if (result['success'] == true) {
-    return result['templates'] as List<NutritionTemplateModel>;
-  }
-  return [];
+  return repo.getTemplates();
 });
 
 /// Active template assignment for the current trainee.
 final activeAssignmentProvider =
     FutureProvider<NutritionTemplateAssignmentModel?>((ref) async {
   final repo = ref.watch(nutritionTemplateRepositoryProvider);
-  final result = await repo.getActiveAssignment();
-  if (result['success'] == true) {
-    return result['assignment'] as NutritionTemplateAssignmentModel?;
-  }
-  return null;
+  return repo.getActiveAssignment();
 });
 
 /// Day plan for a specific date.
 final dayPlanProvider = FutureProvider.family<NutritionDayPlanModel?, String>(
   (ref, date) async {
     final repo = ref.watch(nutritionTemplateRepositoryProvider);
-    final result = await repo.getDayPlan(date);
-    if (result['success'] == true) {
-      return result['plan'] as NutritionDayPlanModel?;
-    }
-    return null;
+    return repo.getDayPlan(date);
   },
 );
 
@@ -48,10 +36,6 @@ final weekPlansProvider =
     FutureProvider.family<List<NutritionDayPlanModel>, String>(
   (ref, startDate) async {
     final repo = ref.watch(nutritionTemplateRepositoryProvider);
-    final result = await repo.getWeekPlans(startDate);
-    if (result['success'] == true) {
-      return result['plans'] as List<NutritionDayPlanModel>;
-    }
-    return [];
+    return repo.getWeekPlans(startDate);
   },
 );
