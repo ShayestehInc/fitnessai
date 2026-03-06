@@ -206,7 +206,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Subscription management (web) | ✅ Done | Shipped 2026-02-19: Stripe Connect 3-state flow, plan overview |
 | Calendar integration (web) | ✅ Done | Shipped 2026-02-19: Google auth popup, connection cards, events list |
 | Layout config (web) | ✅ Done | Shipped 2026-02-19: 3 radio-style options with optimistic update |
-| Impersonation (web) | 🟡 Partial | Shipped 2026-02-19: Button + confirm dialog exist, token swap deferred to backend integration |
+| Impersonation (web) | ✅ Done | Shipped 2026-02-20: Full token swap, read-only trainee view, impersonation banner (Pipeline 27) |
 | Mark missed day (web) | ✅ Done | Shipped 2026-02-19: Skip/push radio, date picker, program selector |
 | Feature requests (web) | ✅ Done | Shipped 2026-02-19: Vote toggle, status filters, create dialog, comment hooks |
 | Leaderboard settings (web) | ✅ Done | Shipped 2026-02-19: Toggle switches with optimistic update |
@@ -568,7 +568,7 @@ Three workstreams: full feature parity for Trainer/Admin/Ambassador web dashboar
 **What was built:**
 
 **Workstream 1: Feature Parity (28 ACs)**
-- **Trainer Features**: Announcements (CRUD, pin sort, character counters), AI Chat (trainee selector, suggestion chips, clear dialog), Branding (12-preset color pickers, hex validation, logo upload/remove, live preview, unsaved changes guard), Exercise Bank (responsive grid, debounced search, muscle group filters, create/detail dialogs), Program Assignment (assign/change dialog), Edit Trainee Goals (4 macro fields with validation), Remove Trainee (REMOVE text match confirmation), Subscription Management (Stripe Connect 3-state flow), Calendar Integration (Google auth popup, events list), Layout Config (3 radio options, optimistic update), Impersonation (button + confirm dialog, token swap deferred), Mark Missed Day (skip/push radio, date picker), Feature Requests (vote toggle, status filters, create dialog), Leaderboard Settings (toggle switches, optimistic update)
+- **Trainer Features**: Announcements (CRUD, pin sort, character counters), AI Chat (trainee selector, suggestion chips, clear dialog), Branding (12-preset color pickers, hex validation, logo upload/remove, live preview, unsaved changes guard), Exercise Bank (responsive grid, debounced search, muscle group filters, create/detail dialogs), Program Assignment (assign/change dialog), Edit Trainee Goals (4 macro fields with validation), Remove Trainee (REMOVE text match confirmation), Subscription Management (Stripe Connect 3-state flow), Calendar Integration (Google auth popup, events list), Layout Config (3 radio options, optimistic update), Impersonation (full token swap, read-only trainee view, banner), Mark Missed Day (skip/push radio, date picker), Feature Requests (vote toggle, status filters, create dialog), Leaderboard Settings (toggle switches, optimistic update)
 - **Admin Features**: Ambassador Management (server-side search, CRUD, commission actions, bulk operations), Upcoming Payments & Past Due (severity color coding), Settings (platform config, security, profile/appearance/security sections)
 - **Ambassador Features**: Dashboard (earnings cards, referral code, recent referrals), Referrals (status filter, pagination), Payouts (Stripe Connect 3-state setup, history table), Settings (profile, referral code edit), Auth & Routing (middleware routing, layout with auth guards)
 

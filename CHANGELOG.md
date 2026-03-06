@@ -4,6 +4,13 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-05] — Pipeline 54: Web Impersonation Spec Fix
+
+### Fixed
+- PRODUCT_SPEC.md: Updated stale "Partial" status for web impersonation to "Done" -- the full token swap was completed in Pipeline 27 (2026-02-20) but the feature table and historical notes were not updated at the time
+
+---
+
 ## [2026-03-05] — Pipeline 53: TV Mode Gym Display
 
 ### Added
