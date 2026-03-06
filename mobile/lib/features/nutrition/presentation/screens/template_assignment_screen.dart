@@ -219,19 +219,27 @@ class _TemplateAssignmentScreenState
   Future<void> _submit() async {
     if (_selectedTemplate == null) return;
 
+    final weight = double.tryParse(_bodyWeightController.text);
+    if (weight == null || weight <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Body weight is required'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     final params = <String, dynamic>{
       'meals_per_day': int.tryParse(_mealsPerDayController.text) ?? 4,
+      'body_weight_lbs': weight,
     };
-    final weight = double.tryParse(_bodyWeightController.text);
-    if (weight != null) params['body_weight_lbs'] = weight;
     final bf = double.tryParse(_bodyFatController.text);
     if (bf != null) {
       params['body_fat_pct'] = bf;
-      if (weight != null) {
-        params['lbm_lbs'] = weight * (1 - bf / 100);
-      }
+      params['lbm_lbs'] = weight * (1 - bf / 100);
     }
 
     final schedule = <String, dynamic>{

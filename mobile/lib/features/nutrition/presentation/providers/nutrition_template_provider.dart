@@ -23,6 +23,15 @@ final activeAssignmentProvider =
   return repo.getActiveAssignment();
 });
 
+/// Active template assignment for a specific trainee (trainer view).
+final traineeActiveAssignmentProvider = FutureProvider.family<
+    NutritionTemplateAssignmentModel?, int>(
+  (ref, traineeId) async {
+    final repo = ref.watch(nutritionTemplateRepositoryProvider);
+    return repo.getActiveAssignment(traineeId: traineeId);
+  },
+);
+
 /// Day plan for a specific date.
 final dayPlanProvider = FutureProvider.family<NutritionDayPlanModel?, String>(
   (ref, date) async {
