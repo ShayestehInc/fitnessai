@@ -94,6 +94,8 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Weight check-ins | ✅ Done | |
 | Weight trend charts | ✅ Done | |
 | Food entry edit/delete | ✅ Done | Shipped 2026-02-14: Edit bottom sheet, backend endpoints with input whitelisting |
+| Structured meal logging (FoodItem + MealLog) | ✅ Done | Shipped 2026-03-05: FoodItem model, MealLog/MealLogEntry relational structure, quick-add, barcode lookup, daily summary |
+| Fat Mode toggle | ✅ Done | Shipped 2026-03-05: Total fat vs added fat tracking per entry, FatModeBadge widget |
 | Weekly workout progress | ✅ Done | Shipped 2026-02-14: Animated progress bar on home screen, API-driven |
 
 ### 3.4 Trainer Dashboard
@@ -930,6 +932,36 @@ Notification preference controls, local reminder scheduling, help & support scre
 
 **Pipeline Results:**
 - Quality Score: SHIP
+
+### 4.29 Nutrition Phase 2: FoodItem, MealLog, Fat Mode (Pipeline 43) -- COMPLETED (2026-03-05)
+
+Structured meal logging infrastructure replacing JSON blobs with relational FoodItem + MealLog/MealLogEntry models.
+
+**What was built:**
+
+**Backend**
+- `FoodItem` model following Exercise pattern (`is_public`, `created_by`) with full macro fields (protein, carbs, fat, fiber, sugar, sodium), barcode support, auto-calculated calories
+- `MealLog` + `MealLogEntry` relational models with UniqueConstraint on `(trainee, date, meal_number)`, supporting both food_item FK and freeform custom_name entries
+- `FoodItemViewSet` with search, barcode lookup, recent foods (deduped from usage), CRUD with ownership/visibility checks, ProtectedError handling (409 on in-use delete)
+- `MealLogViewSet` with date filtering, DB-level daily summary aggregation (Sum/Count), quick-add with auto-created containers, entry deletion
+- `active_assignment` action on `NutritionTemplateAssignmentViewSet`
+- Role-based `get_queryset()` with IDOR prevention on all endpoints (parent_trainer ownership checks)
+
+**Mobile**
+- Updated `FoodItemModel` (full Freezed model), added `MealLogModel`, `MealLogEntryModel`, `MealLogSummaryModel`
+- `FoodItemRepository` and `MealLogRepository` following existing pattern
+- `FoodItemSearchNotifier` with 300ms debounce, barcode lookup, recent foods
+- `MealLogNotifier` with parallel data loading, optimistic deletes with rollback
+- `MealCard` widget with expandable entries, macro chips (P/C/F), swipe-to-delete with a11y semantics
+- `FatModeBadge` widget with tooltip explanation of total_fat vs added_fat
+- 9 new API endpoints in `api_constants.dart`
+
+**Pipeline Results:**
+- Code Review: 8/10 APPROVE (3 IDOR + N+1 + 5 major issues all fixed in Round 1)
+- QA: 15/15 AC pass, HIGH confidence
+- Security: 8/10 CONDITIONAL PASS (pre-existing API key issue only)
+- Architecture: 8/10 APPROVE
+- Quality Score: 8/10 SHIP
 
 ### 4.15 Acceptance Criteria
 
