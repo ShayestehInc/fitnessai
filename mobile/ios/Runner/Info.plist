@@ -26,10 +26,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>FitnessAI uses the camera to scan food barcodes for nutrition tracking.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID for quick and secure sign in.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>FitnessAI reads your steps, active calories, heart rate, and weight to display your daily health summary and auto-import weight check-ins.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>FitnessAI writes workout data to Apple Health so your activity rings stay up to date.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Select photos to use as exercise images.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

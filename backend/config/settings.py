@@ -273,6 +273,7 @@ CALENDAR_ENCRYPTION_KEY = os.getenv('CALENDAR_ENCRYPTION_KEY', '')
 
 # Social Authentication (Google & Apple Sign-In)
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
+GOOGLE_IOS_CLIENT_ID = os.getenv('GOOGLE_IOS_CLIENT_ID', '')
 APPLE_CLIENT_ID = os.getenv('APPLE_CLIENT_ID', '')  # Bundle ID (e.g., com.yourapp.bundleid)
 APPLE_TEAM_ID = os.getenv('APPLE_TEAM_ID', '')
 

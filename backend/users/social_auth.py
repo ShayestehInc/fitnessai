@@ -31,26 +31,40 @@ def verify_google_token(token: str) -> dict[str, str]:
     Raises:
         SocialAuthError: If token verification fails
     """
-    try:
-        # Verify the token with Google
-        idinfo = id_token.verify_oauth2_token(  # type: ignore[no-untyped-call]
-            token,
-            google_requests.Request(),
-            settings.GOOGLE_CLIENT_ID
-        )
+    allowed_client_ids = [
+        cid for cid in [
+            settings.GOOGLE_CLIENT_ID,
+            settings.GOOGLE_IOS_CLIENT_ID,
+        ] if cid
+    ]
 
-        # Verify the issuer
-        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-            raise SocialAuthError('Invalid token issuer')
+    if not allowed_client_ids:
+        raise SocialAuthError('No Google client IDs configured on the server')
 
-        return {
-            'email': idinfo['email'],
-            'first_name': idinfo.get('given_name', ''),
-            'last_name': idinfo.get('family_name', ''),
-            'provider_uid': idinfo['sub'],
-        }
-    except ValueError as e:
-        raise SocialAuthError(f'Invalid Google token: {str(e)}')
+    # Try each allowed client ID — the token's audience must match one of them.
+    last_error: ValueError | None = None
+    for client_id in allowed_client_ids:
+        try:
+            idinfo = id_token.verify_oauth2_token(  # type: ignore[no-untyped-call]
+                token,
+                google_requests.Request(),
+                client_id,
+            )
+
+            if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+                raise SocialAuthError('Invalid token issuer')
+
+            return {
+                'email': idinfo['email'],
+                'first_name': idinfo.get('given_name', ''),
+                'last_name': idinfo.get('family_name', ''),
+                'provider_uid': idinfo['sub'],
+            }
+        except ValueError as e:
+            last_error = e
+            continue
+
+    raise SocialAuthError(f'Invalid Google token: {str(last_error)}')
 
 
 def get_apple_public_keys() -> dict[str, Any]:

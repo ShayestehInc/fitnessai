@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -129,12 +130,24 @@ final _shellNavigatorKey = GlobalKey<NavigatorState>();
 final _trainerShellNavigatorKey = GlobalKey<NavigatorState>();
 final _adminShellNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Converts [authStateProvider] changes into a [Listenable] so that
+/// [GoRouter.refreshListenable] can trigger redirect re-evaluation without
+/// recreating the entire router (which would reset navigation state).
+class _AuthRefreshNotifier extends ChangeNotifier {
+  _AuthRefreshNotifier(Ref ref) {
+    ref.listen<AuthState>(authStateProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final refreshNotifier = _AuthRefreshNotifier(ref);
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
+    refreshListenable: refreshNotifier,
     debugLogDiagnostics: true,
     routes: [
       // Splash screen
@@ -1320,7 +1333,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (context, state) {
-      final isLoggedIn = authState.user != null;
+      // Read current auth state on every redirect evaluation (not a
+      // captured snapshot) so the redirect always reflects the latest state.
+      final currentAuth = ref.read(authStateProvider);
+      final isLoggedIn = currentAuth.user != null;
       final isLoggingIn = state.matchedLocation == '/login';
       final isRegistering = state.matchedLocation == '/register';
       final isOnboarding = state.matchedLocation == '/onboarding';
@@ -1340,7 +1356,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // If logged in and on auth pages, redirect based on role and onboarding status
       if (isLoggingIn || isRegistering) {
-        final user = authState.user!;
+        final user = currentAuth.user!;
 
         // Admin goes to admin dashboard
         if (user.isAdmin) {
@@ -1366,7 +1382,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // If logged in trainee on main app but needs onboarding
-      if (isLoggedIn && authState.user!.isTrainee && !authState.user!.onboardingCompleted) {
+      if (isLoggedIn && currentAuth.user!.isTrainee && !currentAuth.user!.onboardingCompleted) {
         if (!isOnboarding) {
           return '/onboarding';
         }
