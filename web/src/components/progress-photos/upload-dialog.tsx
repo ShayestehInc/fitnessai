@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +46,39 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
   const [hips, setHips] = useState("");
   const [thighs, setThighs] = useState("");
 
+  const [dragging, setDragging] = useState(false);
   const uploadMutation = useUploadProgressPhoto();
+
+  const processFile = useCallback((selected: File) => {
+    if (!ALLOWED_TYPES.includes(selected.type)) {
+      toast.error("Only JPEG, PNG, and WebP files are supported");
+      return;
+    }
+    if (selected.size > MAX_FILE_SIZE) {
+      toast.error("Photo must be under 10MB");
+      return;
+    }
+    setFile(selected);
+    const url = URL.createObjectURL(selected);
+    setPreview(url);
+  }, []);
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) processFile(dropped);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+  }
 
   function resetForm() {
     setFile(null);
@@ -64,19 +96,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0];
     if (!selected) return;
-
-    if (!ALLOWED_TYPES.includes(selected.type)) {
-      toast.error("Only JPEG, PNG, and WebP files are supported");
-      return;
-    }
-    if (selected.size > MAX_FILE_SIZE) {
-      toast.error("Photo must be under 10MB");
-      return;
-    }
-
-    setFile(selected);
-    const url = URL.createObjectURL(selected);
-    setPreview(url);
+    processFile(selected);
   }
 
   function removeFile() {
@@ -157,10 +177,20 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 py-8 text-muted-foreground hover:border-muted-foreground/50 transition-colors"
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                className={cn(
+                  "mt-2 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-8 text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  dragging
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25 hover:border-muted-foreground/50",
+                )}
               >
                 <Camera className="h-5 w-5" />
-                <span className="text-sm">Click to select a photo</span>
+                <span className="text-sm">
+                  {dragging ? "Drop photo here" : "Click or drag a photo here"}
+                </span>
               </button>
             )}
           </div>
@@ -177,7 +207,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
                   aria-checked={category === opt.value}
                   onClick={() => setCategory(opt.value)}
                   className={cn(
-                    "rounded-lg border py-2 text-sm font-medium transition-colors",
+                    "rounded-lg border py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     category === opt.value
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border text-muted-foreground hover:bg-muted",

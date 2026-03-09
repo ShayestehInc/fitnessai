@@ -17,7 +17,9 @@ class PhotoDetailDialog extends StatelessWidget {
 
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
-      child: Column(
+      child: Semantics(
+        label: '${photo.categoryLabel} progress photo from ${photo.date}',
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ClipRRect(
@@ -51,6 +53,7 @@ class PhotoDetailDialog extends StatelessWidget {
           ),
           _InfoSection(photo: photo),
         ],
+      ),
       ),
     );
   }

@@ -123,20 +123,33 @@ export function PhotoDetailDialog({
           )}
 
           {!readOnly && (
-            <Button
-              variant={confirmingDelete ? "destructive" : "outline"}
-              size="sm"
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-              className="w-full"
-            >
-              {deleteMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
+            <div className="flex gap-2">
+              {confirmingDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmingDelete(false)}
+                  disabled={deleteMutation.isPending}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
               )}
-              {confirmingDelete ? "Confirm Delete" : "Delete Photo"}
-            </Button>
+              <Button
+                variant={confirmingDelete ? "destructive" : "outline"}
+                size="sm"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+                className={confirmingDelete ? "flex-1" : "w-full"}
+              >
+                {deleteMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                {confirmingDelete ? "Yes, Delete" : "Delete Photo"}
+              </Button>
+            </div>
           )}
         </div>
       </DialogContent>

@@ -1,36 +1,79 @@
-# UX Audit: Video Workout Layout
+# UX Audit: Progress Photos
 
-## Usability Issues
-| # | Severity | Screen/Component | Issue | Recommendation |
-|---|----------|-----------------|-------|----------------|
-| 1 | Major | `layout-config-selector.tsx` | Labels ("Classic", "Card", "Minimal", "Video") and descriptions are hardcoded English, not using `t()` i18n function. Only the card title/description use `t()`. | Wrap all LAYOUT_OPTIONS labels and descriptions in `t()` calls. |
-| 2 | Major | `video_workout_layout.dart` | All user-facing strings are hardcoded English ("Rest", "Skip", "Finish", "Total Time", "Sets", "Max Weight Logged", "Add Set", "Log It", "Current", "Lb"). No i18n support. | Use AppLocalizations or equivalent for all UI strings. |
-| 3 | Minor | `layout-config-selector.tsx` | Optimistic update fires immediately on click with no debounce. Rapid clicking cycles through options, sending multiple PATCH requests. | Debounce the mutation or disable buttons until previous mutation settles (already disabled during `isPending`, but `setSelected` is immediate so visual selection jumps ahead of server). |
-| 4 | Minor | `video_workout_layout.dart` | Weight unit is hardcoded as "Lb". Users on metric system see the wrong unit. | Pull unit preference from user profile and display "kg" or "Lb" accordingly. |
-| 5 | Minor | `exercise-video-player.tsx` | "Video unavailable" error text is hardcoded English, not i18n. | Use `t()` function. |
-| 6 | Minor | `video_workout_layout.dart` | The drag indicator at top of logging card suggests the card is draggable, but there is no drag-to-expand behavior. Misleading affordance. | Either implement drag-to-expand or remove the drag indicator. |
-| 7 | Minor | `layout-config-selector.tsx` | No error state shown if the initial query fails. `isLoading` shows skeleton, but `isError` is not handled -- the component silently shows the default "classic" selection if the fetch fails. | Add an error state with retry button. |
-| 8 | Minor | `exercise-detail-panel.tsx` | Several labels are hardcoded English ("Muscle Group", "Difficulty Level", "Training Goals", "Suitable For", "Edit Exercise", "Save", "Cancel"). Mix of i18n and hardcoded. | Consistently use `t()` for all user-facing strings. |
+## Issues Found & Fixed
 
-## Accessibility Issues
-| # | WCAG Level | Issue | Fix |
-|---|------------|-------|-----|
-| 1 | AA | `layout-config-selector.tsx`: Layout option buttons lack `aria-pressed` or `role="radio"` semantics. Screen readers cannot tell which option is selected. | Use `role="radiogroup"` on the container and `role="radio"` + `aria-checked` on each button. |
-| 2 | AA | `layout-config-selector.tsx`: No visible focus indicator on the layout option buttons. | Add `focus-visible:ring-2 focus-visible:ring-ring` to the button className. |
-| 3 | AA | `exercise-video-player.tsx`: YouTube iframe has redundant `title` and `aria-label` with identical text. | Remove `aria-label`; keep `title` for the iframe (standard practice). |
-| 4 | A | `video_workout_layout.dart`: Navigation chevrons and circle buttons use `GestureDetector` with no semantic label. Screen readers cannot identify them. | Wrap with `Semantics(label: ..., button: true)` or use `IconButton` with `tooltip`. |
-| 5 | A | `video_workout_layout.dart`: "Log It" button per set uses `GestureDetector` with no semantic label. | Add `Semantics(label: 'Log set ${setIndex + 1}', button: true)`. |
-| 6 | AA | `video_workout_layout.dart`: Text inputs in the dark logging card have no visible labels. Hint text alone is insufficient. | Add `Semantics(label: ...)` wrappers or use `InputDecoration.labelText`. |
-| 7 | AA | `exercise-detail-panel.tsx`: Raw `<select>` dropdowns instead of shadcn Select. Functional but inconsistent with rest of UI. | Consider using shadcn Select component for consistency and better keyboard UX. |
+### 1. Missing focus-visible rings on category filter buttons (Accessibility — High)
+**File:** `web/src/components/progress-photos/category-filter.tsx`
+**Issue:** Radio buttons in the category filter had no visible focus indicator for keyboard users. WCAG 2.4.7 requires visible focus indicators.
+**Fix:** Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` classes.
 
-## Missing States
-- [x] Loading / skeleton -- `layout-config-selector.tsx` has skeleton loading. Mobile video shows `CircularProgressIndicator` during video init.
-- [ ] Empty / zero data -- No handling for empty `exerciseLogs` in `video_workout_layout.dart`. If a workout has zero exercises, `_exercise` getter throws `RangeError`.
-- [x] Error / failure -- Video player has error state. Layout config mutation shows toast on error. Mobile video has `_videoError` fallback.
-- [x] Success / confirmation -- Toast on layout update. Haptic feedback on set completion.
-- [ ] Offline / degraded -- No offline handling. Video fails gracefully (handled), but layout config silently falls back to "classic" with no indication of failure.
-- [ ] Permission denied -- No handling if a non-trainer attempts to change layout config. API presumably returns 403 but component shows generic error toast only.
+### 2. Missing focus-visible rings on upload dialog category radio buttons (Accessibility — High)
+**File:** `web/src/components/progress-photos/upload-dialog.tsx`
+**Issue:** Category selector buttons (Front/Side/Back/Other) in the upload form had no keyboard focus indicator.
+**Fix:** Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring` classes.
 
-## Overall UX Score: 7/10
+### 3. No drag-and-drop support on file upload area (Usability — Medium)
+**File:** `web/src/components/progress-photos/upload-dialog.tsx`
+**Issue:** The upload drop zone only supported click-to-select. Users expect drag-and-drop for file uploads — this is standard in modern web apps (Stripe, Linear, etc.).
+**Fix:** Added `onDrop`, `onDragOver`, `onDragLeave` handlers with visual feedback (border color change, text change to "Drop photo here"). Extracted file validation into shared `processFile` callback to avoid duplication.
 
-The core UX is well-designed -- the video layout is visually polished with good gradients, haptic feedback, and animated transitions. The layout config selector is clean and intuitive. Main gaps: inconsistent i18n coverage across all components, missing accessibility semantics on interactive elements (especially mobile), no empty-state guard for zero exercises, and hardcoded weight units. None are ship-blockers, but the i18n and accessibility gaps should be addressed before shipping to a diverse user base.
+### 4. Generic empty state when category filter returns 0 results (UX Copy — Medium)
+**File:** `web/src/components/progress-photos/photo-grid.tsx`
+**Issue:** When a user selects "Front" filter and has no front photos, they saw "No progress photos yet" with "Start tracking your transformation..." — misleading because they may have photos in other categories. The "Take First Photo" CTA was also shown incorrectly.
+**Fix:** When a category filter is active (`category !== "all"`), show `No {category} photos` with description `No photos found in the "{category}" category. Try selecting a different category or upload a new photo.` CTA button only shows when on "All" tab.
+
+### 5. Delete confirmation has no cancel escape (Usability — Medium)
+**File:** `web/src/components/progress-photos/photo-detail-dialog.tsx`
+**Issue:** When user clicks "Delete Photo", it changes to "Confirm Delete" but there was no explicit cancel button. The only way to cancel was to close the entire dialog, losing context.
+**Fix:** Added a "Cancel" button next to "Yes, Delete" in the confirmation state. Both buttons are `flex-1` for equal sizing. Cancel resets `confirmingDelete` to false.
+
+### 6. Missing focus-visible rings on comparison view select elements (Accessibility — Medium)
+**File:** `web/src/components/progress-photos/comparison-view.tsx`
+**Issue:** The "Before" and "After" photo selector dropdowns had no visible focus ring for keyboard users.
+**Fix:** Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring` to both select elements.
+
+### 7. Comparison view placeholder not accessible to screen readers (Accessibility — Low)
+**File:** `web/src/components/progress-photos/comparison-view.tsx`
+**Issue:** The dashed-border placeholder area between photo selectors and the actual comparison was purely visual with no screen reader context.
+**Fix:** Added `role="status"`, `aria-label`, `aria-hidden="true"` on decorative elements, and a `sr-only` span with instructions.
+
+### 8. Measurement diffs not announced to screen readers (Accessibility — Low)
+**File:** `web/src/components/progress-photos/comparison-view.tsx`
+**Issue:** When measurement diffs appear after selecting two photos, screen readers wouldn't announce the new content.
+**Fix:** Added `aria-live="polite"` to the measurement changes container.
+
+### 9. Mobile category filter missing "Other" tab (Consistency — Medium)
+**File:** `mobile/lib/features/progress_photos/presentation/widgets/category_filter_bar.dart`
+**Issue:** Web category filter shows All/Front/Side/Back/Other, but mobile only showed All/Front/Side/Back. Photos uploaded with "Other" category would be invisible unless "All" was selected — confusing and inconsistent.
+**Fix:** Added `CategoryTab(label: 'Other', value: 'other')` to `defaultCategories`.
+
+### 10. Mobile photo detail dialog missing semantic label (Accessibility — Medium)
+**File:** `mobile/lib/features/progress_photos/presentation/widgets/photo_detail_dialog.dart`
+**Issue:** The dialog had no Semantics widget, so screen readers (TalkBack/VoiceOver) couldn't announce what the dialog contained.
+**Fix:** Wrapped the dialog's Column child in a `Semantics` widget with a descriptive label including category and date.
+
+## Issues Found & Not Fixed (need design decisions)
+
+### 1. Measurement diff color coding assumes "decrease = good" (UX — Low)
+**File:** `web/src/components/progress-photos/comparison-view.tsx`
+**Issue:** Green for decrease, amber for increase. But for arms/chest, increase is often the goal. Fixing this properly would require knowing the user's fitness goal (bulking vs cutting).
+**Recommendation:** Consider making the color neutral (both amber/gray) or adding a user preference. Not changed because it's a reasonable default for the majority of measurements (waist, hips, thighs).
+
+### 2. No photo crop/rotate before upload (UX Enhancement)
+Users may want to adjust photos before uploading. Would require a third-party image editor component (e.g., react-image-crop). Not in scope for this ticket.
+
+### 3. No bulk delete or multi-select on web grid (UX Enhancement)
+Users with many photos have no way to select and delete multiple photos at once. Would need a selection mode UI pattern. Consider for a future iteration.
+
+## States Checklist
+- [x] Loading — Skeleton grid on web, CircularProgressIndicator on mobile
+- [x] Empty (no photos at all) — Illustration + descriptive copy + CTA
+- [x] Empty (filtered, no results) — Category-specific message (FIXED)
+- [x] Error — Error card with retry button (web), error icon with retry (mobile)
+- [x] Success — Toast on upload/delete, auto-refresh via query invalidation
+- [x] Disabled — Compare button disabled when < 2 photos
+- [x] Read-only (trainer view) — No delete, no upload, no FAB, descriptive empty state
+
+## Overall UX Score: 8/10
+
+The Progress Photos feature has solid fundamentals: proper loading/empty/error states, good responsive grid layout, clean comparison view with measurement diffs, and a well-structured upload form. The main gaps were accessibility-related (missing focus indicators for keyboard users, screen reader context) and a few polish items (no drag-and-drop, ambiguous empty state when filtering, no cancel for delete confirmation). All have been fixed. The remaining suggestions are enhancements that would elevate from good to great but are not blockers.

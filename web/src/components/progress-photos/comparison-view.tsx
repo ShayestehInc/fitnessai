@@ -106,7 +106,7 @@ export function ComparisonView({
               <select
                 value={photo1Id ?? ""}
                 onChange={(e) => setPhoto1Id(e.target.value ? Number(e.target.value) : null)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Select before photo"
               >
                 <option value="">Select a photo</option>
@@ -122,7 +122,7 @@ export function ComparisonView({
               <select
                 value={photo2Id ?? ""}
                 onChange={(e) => setPhoto2Id(e.target.value ? Number(e.target.value) : null)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Select after photo"
               >
                 <option value="">Select a photo</option>
@@ -185,7 +185,7 @@ export function ComparisonView({
 
               {/* Measurement diffs */}
               {diffs.length > 0 && (
-                <div className="rounded-lg border p-4">
+                <div className="rounded-lg border p-4" aria-live="polite">
                   <h4 className="mb-3 text-sm font-semibold">
                     Measurement Changes
                   </h4>
@@ -219,10 +219,11 @@ export function ComparisonView({
               )}
             </>
           ) : (
-            <div className="flex items-center justify-center gap-4 py-12 text-muted-foreground">
-              <div className="h-32 w-24 rounded-lg border-2 border-dashed" />
-              <ArrowRight className="h-6 w-6" />
-              <div className="h-32 w-24 rounded-lg border-2 border-dashed" />
+            <div className="flex items-center justify-center gap-4 py-12 text-muted-foreground" role="status" aria-label="Select two photos above to compare">
+              <div className="h-32 w-24 rounded-lg border-2 border-dashed" aria-hidden="true" />
+              <ArrowRight className="h-6 w-6" aria-hidden="true" />
+              <div className="h-32 w-24 rounded-lg border-2 border-dashed" aria-hidden="true" />
+              <span className="sr-only">Select two photos above to see a side-by-side comparison</span>
             </div>
           )}
         </div>

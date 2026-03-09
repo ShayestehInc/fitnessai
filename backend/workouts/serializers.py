@@ -513,6 +513,14 @@ class RestDayCompleteSerializer(serializers.Serializer[dict[str, Any]]):
 class ProgressPhotoSerializer(serializers.ModelSerializer[ProgressPhoto]):
     """Serializer for ProgressPhoto model."""
 
+    ALLOWED_CONTENT_TYPES = ('image/jpeg', 'image/png', 'image/webp')
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+    ALLOWED_MEASUREMENT_KEYS = frozenset({
+        'waist', 'chest', 'arms', 'hips', 'thighs',
+        'waist_cm', 'chest_cm', 'arms_cm', 'hips_cm', 'thighs_cm',
+    })
+
     trainee_email = serializers.CharField(source='trainee.email', read_only=True)
     photo_url = serializers.SerializerMethodField()
 
@@ -524,6 +532,59 @@ class ProgressPhotoSerializer(serializers.ModelSerializer[ProgressPhoto]):
             'created_at', 'updated_at',
         ]
         read_only_fields = ['trainee', 'created_at', 'updated_at']
+
+    def validate_photo(self, value: Any) -> Any:
+        """Validate uploaded photo file type and size."""
+        if hasattr(value, 'content_type'):
+            if value.content_type not in self.ALLOWED_CONTENT_TYPES:
+                raise serializers.ValidationError(
+                    f"Invalid file type '{value.content_type}'. "
+                    f"Allowed: JPEG, PNG, WebP."
+                )
+        if hasattr(value, 'size') and value.size > self.MAX_FILE_SIZE:
+            raise serializers.ValidationError(
+                f"File too large ({value.size / (1024 * 1024):.1f} MB). "
+                f"Maximum allowed: 10 MB."
+            )
+        return value
+
+    def validate_measurements(self, value: Any) -> dict[str, float]:
+        """Validate measurements contains only allowed keys with numeric values."""
+        if isinstance(value, str):
+            import json
+            try:
+                value = json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                raise serializers.ValidationError("Invalid JSON for measurements.")
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Measurements must be a JSON object.")
+        if len(value) > 10:
+            raise serializers.ValidationError("Too many measurement fields (max 10).")
+        validated: dict[str, float] = {}
+        for key, val in value.items():
+            if key not in self.ALLOWED_MEASUREMENT_KEYS:
+                raise serializers.ValidationError(
+                    f"Unknown measurement key '{key}'. "
+                    f"Allowed: {', '.join(sorted(self.ALLOWED_MEASUREMENT_KEYS))}."
+                )
+            try:
+                numeric_val = float(val)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError(
+                    f"Measurement '{key}' must be a number, got '{val}'."
+                )
+            if numeric_val < 0 or numeric_val > 500:
+                raise serializers.ValidationError(
+                    f"Measurement '{key}' out of range (0-500)."
+                )
+            validated[key] = numeric_val
+        return validated
+
+    def validate_notes(self, value: str) -> str:
+        """Cap notes length server-side."""
+        if len(value) > 1000:
+            raise serializers.ValidationError("Notes must be 1000 characters or fewer.")
+        return value
 
     def get_photo_url(self, obj: ProgressPhoto) -> str | None:
         """Return full URL for the photo."""

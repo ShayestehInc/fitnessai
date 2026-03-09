@@ -100,14 +100,20 @@ export function PhotoGrid({ traineeId, readOnly = false }: PhotoGridProps) {
       ) : photos.length === 0 ? (
         <EmptyState
           icon={ImageIcon}
-          title="No progress photos yet"
+          title={
+            category !== "all"
+              ? `No ${category} photos`
+              : "No progress photos yet"
+          }
           description={
-            readOnly
-              ? "This trainee hasn't uploaded any progress photos."
-              : "Start tracking your transformation by uploading your first photo."
+            category !== "all"
+              ? `No photos found in the "${category}" category. Try selecting a different category or upload a new photo.`
+              : readOnly
+                ? "This trainee hasn't uploaded any progress photos."
+                : "Start tracking your transformation by uploading your first photo."
           }
           action={
-            !readOnly ? (
+            !readOnly && category === "all" ? (
               <Button onClick={() => setUploadOpen(true)} size="sm">
                 <Camera className="mr-2 h-4 w-4" />
                 Take First Photo

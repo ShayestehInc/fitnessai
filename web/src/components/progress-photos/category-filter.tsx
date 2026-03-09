@@ -26,7 +26,7 @@ export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
           aria-checked={selected === cat.value}
           onClick={() => onSelect(cat.value)}
           className={cn(
-            "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+            "rounded-full px-4 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             selected === cat.value
               ? "bg-primary text-primary-foreground"
               : "bg-muted text-muted-foreground hover:bg-muted/80",

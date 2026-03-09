@@ -26,6 +26,7 @@ class CategoryFilterBar extends StatelessWidget {
     CategoryTab(label: 'Front', value: 'front'),
     CategoryTab(label: 'Side', value: 'side'),
     CategoryTab(label: 'Back', value: 'back'),
+    CategoryTab(label: 'Other', value: 'other'),
   ];
 
   @override
