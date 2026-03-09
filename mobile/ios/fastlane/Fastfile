@@ -1,0 +1,57 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    # App Store Connect API Key
+    api_key = app_store_connect_api_key(
+      key_id: "WH6LJ6PVQT",
+      issuer_id: "c14268b2-09db-40a8-89ea-f1d8303dfe53",
+      key_filepath: File.expand_path("~/.appstoreconnect/AuthKey_WH6LJ6PVQT.p8"),
+    )
+
+    # Archive only (don't export yet)
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "FitnessAI.ipa",
+      skip_package_ipa: true,
+    )
+
+    # Strip simulator-only frameworks from the xcarchive before exporting
+    archive_path = lane_context[SharedValues::XCODEBUILD_ARCHIVE]
+    frameworks_path = File.join(archive_path, "Products", "Applications", "Runner.app", "Frameworks")
+    if Dir.exist?(frameworks_path)
+      Dir.glob(File.join(frameworks_path, "*.framework")).each do |fw|
+        binary = File.join(fw, File.basename(fw, ".framework"))
+        next unless File.exist?(binary)
+        otool_output = `otool -lv "#{binary}" 2>/dev/null`
+        if otool_output.include?("IOSSIMULATOR")
+          UI.message("Removing simulator-only framework: #{File.basename(fw)}")
+          FileUtils.rm_rf(fw)
+        end
+      end
+    end
+
+    # Now export the cleaned archive to IPA
+    gym(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "FitnessAI.ipa",
+      archive_path: archive_path,
+      skip_build_archive: true,
+    )
+
+    # Upload to TestFlight
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true,
+    )
+
+    UI.success("Uploaded to TestFlight!")
+  end
+end
