@@ -360,21 +360,25 @@ All 5 trainee-side bugs have been fixed and shipped.
 
 ### 4.2 Trainer-Selectable Workout Layouts — COMPLETED (2026-02-14)
 
-Trainers choose which workout logging UI their trainees see. Three variants:
+Trainers choose which workout logging UI their trainees see. Four variants:
 
 | Layout | Description | Best For |
 |--------|------------|----------|
 | `classic` | Scrollable list — all exercises visible with full sets tables | Experienced lifters who want overview |
 | `card` | One exercise at a time — swipe between exercises (existing PageView) | Beginners, simpler UX |
 | `minimal` | Compact collapsible list — circular progress, quick-complete | Speed loggers, high-volume training |
+| `video` | Full-screen exercise demo video background with compact logging card | Visual learners, immersive coaching |
 
 **What was built:**
-- New `WorkoutLayoutConfig` model (OneToOne per trainee, 3 layout choices, JSONField for future config)
+- New `WorkoutLayoutConfig` model (OneToOne per trainee, 4 layout choices, JSONField for future config)
 - Trainer API: `GET/PUT /api/trainer/trainees/<id>/layout-config/` with auto-create default
 - Trainee API: `GET /api/workouts/my-layout/` with graceful fallback to classic
 - Trainer UI: "Workout Display" section in trainee detail Overview tab with segmented control
+- Web: Layout config selector with 4 options (Classic, Card, Minimal, Video) matching backend enum
+- Web: Exercise video player component (YouTube embed + native `<video>` fallback) with iframe sandbox, lazy loading, ARIA labels
 - Active workout screen: layout switching via `_buildExerciseContent` switch statement
 - Two new layout widgets: `ClassicWorkoutLayout` (scrollable table), `MinimalWorkoutLayout` (collapsible list)
+- `VideoWorkoutLayout`: full-screen video background, gradient overlays, top info bar (timer, exercise, sets, progress), navigation chevrons + swipe, speed toggle (0.5x/1x), rest timer overlay, dark bottom logging card
 - Card layout uses existing PageView (no new widget needed)
 - Full row-level security, error states with retry, optimistic updates with rollback
 

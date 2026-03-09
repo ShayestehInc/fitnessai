@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, LayoutGrid, LayoutList, Rows3 } from "lucide-react";
+import { Loader2, LayoutGrid, LayoutList, Rows3, MonitorPlay } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -20,46 +20,52 @@ interface LayoutConfigSelectorProps {
 
 const LAYOUT_OPTIONS = [
   {
-    value: "default",
-    label: "Default",
-    description: "Standard workout layout",
+    value: "classic",
+    label: "Classic",
+    description: "Standard table layout",
     icon: LayoutGrid,
   },
   {
-    value: "compact",
-    label: "Compact",
-    description: "Condensed view for quick logging",
+    value: "card",
+    label: "Card",
+    description: "Swipeable card view",
     icon: LayoutList,
   },
   {
-    value: "detailed",
-    label: "Detailed",
-    description: "Expanded view with more info",
+    value: "minimal",
+    label: "Minimal",
+    description: "Condensed list view",
     icon: Rows3,
+  },
+  {
+    value: "video",
+    label: "Video",
+    description: "Full-screen exercise demo videos",
+    icon: MonitorPlay,
   },
 ] as const;
 
 export function LayoutConfigSelector({ traineeId }: LayoutConfigSelectorProps) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState("default");
+  const [selected, setSelected] = useState("classic");
 
-  const { data, isLoading } = useQuery<{ layout: string }>({
+  const { data, isLoading } = useQuery<{ layout_type: string }>({
     queryKey: ["trainee-layout", traineeId],
     queryFn: () =>
-      apiClient.get<{ layout: string }>(API_URLS.traineeLayoutConfig(traineeId)),
+      apiClient.get<{ layout_type: string }>(API_URLS.traineeLayoutConfig(traineeId)),
     enabled: traineeId > 0,
   });
 
   useEffect(() => {
-    if (data?.layout) {
-      setSelected(data.layout);
+    if (data?.layout_type) {
+      setSelected(data.layout_type);
     }
   }, [data]);
 
   const updateMutation = useMutation({
-    mutationFn: (layout: string) =>
-      apiClient.patch(API_URLS.traineeLayoutConfig(traineeId), { layout }),
+    mutationFn: (layout_type: string) =>
+      apiClient.patch(API_URLS.traineeLayoutConfig(traineeId), { layout_type }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["trainee-layout", traineeId],
@@ -85,8 +91,8 @@ export function LayoutConfigSelector({ traineeId }: LayoutConfigSelectorProps) {
           <Skeleton className="h-4 w-48" />
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-3">
-            {[1, 2, 3].map((i) => (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-24 w-full" />
             ))}
           </div>
@@ -100,11 +106,11 @@ export function LayoutConfigSelector({ traineeId }: LayoutConfigSelectorProps) {
       <CardHeader>
         <CardTitle>{t("trainees.workoutLayout")}</CardTitle>
         <CardDescription>
-          Choose how workouts appear for this trainee
+          {t("trainees.layoutDescription")}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {LAYOUT_OPTIONS.map((option) => {
             const Icon = option.icon;
             const isSelected = selected === option.value;

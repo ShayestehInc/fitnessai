@@ -4,6 +4,26 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-08] — Pipeline 56: Video Workout Layout End-to-End
+
+### Added
+- Backend: `video` choice added to `WorkoutLayoutConfig.LayoutType` TextChoices with migration
+- Web: Layout config selector shows 4 options (Classic, Card, Minimal, Video) matching backend enum
+- Web: `ExerciseVideoPlayer` component — YouTube embed + native `<video>` fallback with sandbox, lazy loading, ARIA labels
+- Web: Exercise detail panel integrates inline video player
+- Mobile: `VideoWorkoutLayout` — full-screen portrait video background, gradient overlays, top info bar, swipe/chevron navigation, speed toggle, rest timer overlay, compact dark logging card
+- i18n: `trainees.layoutDescription` key in en/es/pt-BR
+
+### Fixed
+- Web: Layout config values now match backend enum (`classic`/`card`/`minimal` not `default`/`compact`/`detailed`)
+- Web: Layout config field name corrected from `layout` to `layout_type`
+- Mobile: Video init race condition prevented via generation counter
+- Mobile: `_formatMuscleGroup` guarded against empty strings
+- Mobile: `SystemChrome` overlay style restored on dispose
+- Mobile: Exercise name overflow constrained with Flexible wrapper
+
+---
+
 ## [2026-03-05] — Pipeline 55: Web i18n String Extraction
 
 ### Added

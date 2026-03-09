@@ -231,6 +231,7 @@
     "changeProgram": "Cambiar Programa",
     "workoutLayout": "Diseño de Entrenamiento",
     "layoutUpdated": "Diseño actualizado",
+    "layoutDescription": "Elige cómo se muestran los entrenamientos para este alumno",
     "weightTrend": "Tendencia de Peso",
     "weightTrendDesc": "Peso corporal a lo largo del tiempo",
     "workoutVolume": "Volumen de Entrenamiento",

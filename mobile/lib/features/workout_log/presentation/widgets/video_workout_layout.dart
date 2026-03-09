@@ -57,6 +57,7 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
   bool _videoInitialized = false;
   bool _videoError = false;
   double _playbackSpeed = 1.0;
+  int _videoInitGeneration = 0;
 
   late List<List<TextEditingController>> _weightControllers;
   late List<List<TextEditingController>> _repsControllers;
@@ -112,6 +113,8 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // Restore system UI overlay style to default
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     _videoController?.dispose();
     for (final list in _weightControllers) {
       for (final c in list) {
@@ -165,6 +168,8 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
   // -------------------------------------------------------------------
 
   Future<void> _initVideo() async {
+    _videoInitGeneration++;
+    final generation = _videoInitGeneration;
     final old = _videoController;
     setState(() {
       _videoController = null;
@@ -179,21 +184,29 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
     final controller = VideoPlayerController.networkUrl(Uri.parse(url));
     try {
       await controller.initialize();
+      // If a newer init was triggered while we were awaiting, discard this one
+      if (generation != _videoInitGeneration || !mounted) {
+        controller.dispose();
+        return;
+      }
       controller.setLooping(true);
       controller.setPlaybackSpeed(_playbackSpeed);
       controller.setVolume(0);
-      if (mounted) {
-        setState(() {
-          _videoController = controller;
-          _videoInitialized = true;
-        });
+      setState(() {
+        _videoController = controller;
+        _videoInitialized = true;
+      });
+      try {
         await controller.play();
-      } else {
-        controller.dispose();
+      } catch (e) {
+        debugPrint('Video play failed: $e');
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('Video init failed: $e\n$st');
       controller.dispose();
-      if (mounted) setState(() => _videoError = true);
+      if (generation == _videoInitGeneration && mounted) {
+        setState(() => _videoError = true);
+      }
     }
   }
 
@@ -256,9 +269,9 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
   Widget _buildVideoArea() {
     return GestureDetector(
       onHorizontalDragEnd: (d) {
-        if (d.velocity.pixelsPerSecond.dx > 200) {
+        if (d.velocity.pixelsPerSecond.dx > 400) {
           _navigateExercise(-1);
-        } else if (d.velocity.pixelsPerSecond.dx < -200) {
+        } else if (d.velocity.pixelsPerSecond.dx < -400) {
           _navigateExercise(1);
         }
       },
@@ -420,19 +433,20 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
                     ),
                     const Spacer(),
                     // Exercise name + reps
-                    Column(
-                      children: [
-                        Text(
-                          _exercise.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            shadows: _textShadows,
+                    Flexible(
+                      child: Column(
+                        children: [
+                          Text(
+                            _exercise.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              shadows: _textShadows,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
                         Text(
                           '${_exercise.targetReps} Reps',
                           style: const TextStyle(
@@ -441,7 +455,8 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
                             shadows: _textShadows,
                           ),
                         ),
-                      ],
+                        ],
+                      ),
                     ),
                     const Spacer(),
                     // Sets
@@ -1018,6 +1033,7 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
   String _formatMuscleGroup(String group) {
     return group
         .split('_')
+        .where((w) => w.isNotEmpty)
         .map((w) => w[0].toUpperCase() + w.substring(1))
         .join(' ');
   }
