@@ -19,7 +19,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.conf import settings
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, cast
 
 from core.permissions import IsTrainee
@@ -1838,7 +1838,8 @@ class ProgressPhotoPagination(PageNumberPagination):
 class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
     """
     ViewSet for progress photo CRUD.
-    Trainees manage their own photos. Trainers can view their trainees' photos.
+    Trainees manage their own photos. Trainers have read-only access to
+    their trainees' photos.
 
     Query parameters:
     - category: Filter by photo category (front, side, back, other)
@@ -1858,10 +1859,14 @@ class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
         if user.is_trainee():
             qs = ProgressPhoto.objects.filter(trainee=user).select_related('trainee')
         elif user.is_trainer():
-            trainee_id = self.request.query_params.get('trainee_id')
-            if trainee_id:
+            trainee_id_str = self.request.query_params.get('trainee_id')
+            if trainee_id_str:
+                try:
+                    trainee_id_int = int(trainee_id_str)
+                except ValueError:
+                    return ProgressPhoto.objects.none()
                 qs = ProgressPhoto.objects.filter(
-                    trainee_id=trainee_id,
+                    trainee_id=trainee_id_int,
                     trainee__parent_trainer=user,
                 ).select_related('trainee')
             else:
@@ -1873,18 +1878,56 @@ class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
 
         # Apply optional filters.
         category = self.request.query_params.get('category')
-        if category and category in ('front', 'side', 'back', 'other'):
+        if category and category in ProgressPhoto.PhotoCategory.values:
             qs = qs.filter(category=category)
 
         date_from = self.request.query_params.get('date_from')
         if date_from:
-            qs = qs.filter(date__gte=date_from)
+            try:
+                datetime.strptime(date_from, '%Y-%m-%d')
+                qs = qs.filter(date__gte=date_from)
+            except ValueError:
+                pass  # Ignore invalid date — returns unfiltered
 
         date_to = self.request.query_params.get('date_to')
         if date_to:
-            qs = qs.filter(date__lte=date_to)
+            try:
+                datetime.strptime(date_to, '%Y-%m-%d')
+                qs = qs.filter(date__lte=date_to)
+            except ValueError:
+                pass
 
         return qs
+
+    def create(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Only trainees can create progress photos."""
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can upload progress photos.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Only trainees can update their own photos."""
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can update progress photos.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Only trainees can delete their own photos."""
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can delete progress photos.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
 
     def perform_create(self, serializer: BaseSerializer[ProgressPhoto]) -> None:
         """Set trainee to current user."""

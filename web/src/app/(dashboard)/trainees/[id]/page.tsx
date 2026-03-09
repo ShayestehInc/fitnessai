@@ -157,7 +157,7 @@ export default function TraineeDetailPage({
               <TabsTrigger value="progress">{t("nav.progress")}</TabsTrigger>
               <TabsTrigger value="photos">
                 <Camera className="mr-1.5 h-4 w-4" />
-                Photos
+                {t("trainees.photos")}
               </TabsTrigger>
               <TabsTrigger value="settings">{t("nav.settings")}</TabsTrigger>
             </TabsList>

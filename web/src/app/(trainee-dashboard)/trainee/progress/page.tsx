@@ -35,7 +35,7 @@ export default function TraineeProgressPage() {
 
         {/* Progress Photos */}
         <div className="rounded-lg border p-4 sm:p-6">
-          <h2 className="mb-4 text-lg font-semibold">Progress Photos</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t("progress.photos")}</h2>
           <PhotoGrid />
         </div>
       </div>

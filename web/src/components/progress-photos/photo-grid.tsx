@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, ImageIcon } from "lucide-react";
+import { Camera, GitCompare, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { CategoryFilter } from "./category-filter";
 import { PhotoDetailDialog } from "./photo-detail-dialog";
 import { UploadDialog } from "./upload-dialog";
+import { ComparisonView } from "./comparison-view";
 import { useProgressPhotos } from "@/hooks/use-progress-photos";
 import type { ProgressPhoto, PhotoCategory } from "@/types/progress";
 
@@ -34,6 +35,7 @@ export function PhotoGrid({ traineeId, readOnly = false }: PhotoGridProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<ProgressPhoto | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useProgressPhotos({
     category,
@@ -68,12 +70,23 @@ export function PhotoGrid({ traineeId, readOnly = false }: PhotoGridProps) {
       {/* Header with filter and add button */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <CategoryFilter selected={category} onSelect={handleCategoryChange} />
-        {!readOnly && (
-          <Button onClick={() => setUploadOpen(true)} size="sm">
-            <Camera className="mr-2 h-4 w-4" />
-            Add Photo
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCompareOpen(true)}
+            disabled={photos.length < 2}
+          >
+            <GitCompare className="mr-2 h-4 w-4" />
+            Compare
           </Button>
-        )}
+          {!readOnly && (
+            <Button onClick={() => setUploadOpen(true)} size="sm">
+              <Camera className="mr-2 h-4 w-4" />
+              Add Photo
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -127,7 +140,7 @@ export function PhotoGrid({ traineeId, readOnly = false }: PhotoGridProps) {
                       {photo.photo_url ? (
                         <img
                           src={photo.photo_url}
-                          alt=""
+                          alt={`${photo.category} progress photo`}
                           className="h-full w-full object-cover transition-transform group-hover:scale-105"
                           loading="lazy"
                         />
@@ -189,6 +202,12 @@ export function PhotoGrid({ traineeId, readOnly = false }: PhotoGridProps) {
       {!readOnly && (
         <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
       )}
+
+      <ComparisonView
+        photos={photos}
+        open={compareOpen}
+        onOpenChange={setCompareOpen}
+      />
     </div>
   );
 }
