@@ -189,7 +189,11 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
           _videoController = controller;
           _videoInitialized = true;
         });
-        await controller.play();
+        try {
+          await controller.play();
+        } catch (e) {
+          debugPrint('Video play failed: $e');
+        }
       } else {
         controller.dispose();
       }
