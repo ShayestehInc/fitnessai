@@ -25,8 +25,8 @@ class ActivityRingsCard extends ConsumerWidget {
     final caloriesGoal = homeState.caloriesGoal;
     final steps = metrics?.steps ?? 0;
     // Rough conversion: ~7 active calories per active minute
-    static const _calsPerMinute = 7;
-    final activeMinutes = ((metrics?.activeCalories ?? 0) / _calsPerMinute).round();
+    const calsPerMinute = 7;
+    final activeMinutes = ((metrics?.activeCalories ?? 0) / calsPerMinute).round();
 
     final calProgress = caloriesGoal > 0 ? caloriesConsumed / caloriesGoal : 0.0;
     final stepProgress = steps / _stepsGoal;
