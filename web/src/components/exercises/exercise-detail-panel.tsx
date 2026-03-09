@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Dumbbell, ExternalLink, Pencil, Loader2 } from "lucide-react";
+import { Dumbbell, Pencil, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { getErrorMessage } from "@/lib/error-utils";
 import { MUSCLE_GROUP_LABELS, DIFFICULTY_LABELS, GOAL_LABELS } from "@/types/program";
 import { cn } from "@/lib/utils";
 import { FileUploadField } from "./file-upload-field";
+import { ExerciseVideoPlayer } from "./exercise-video-player";
 import type { Exercise, DifficultyLevel, GoalType } from "@/types/program";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -30,13 +31,6 @@ interface ExerciseDetailPanelProps {
   exercise: Exercise | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-function extractYouTubeId(url: string): string | null {
-  const match = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-  );
-  return match ? match[1] : null;
 }
 
 export function ExerciseDetailPanel({
@@ -142,7 +136,6 @@ export function ExerciseDetailPanel({
 
   if (!exercise) return null;
 
-  const ytId = exercise.video_url ? extractYouTubeId(exercise.video_url) : null;
   const displayImageUrl = editing ? form.image_url : exercise.image_url;
 
   const panelTitle = editing ? "Edit Exercise" : exercise.name;
@@ -375,23 +368,8 @@ export function ExerciseDetailPanel({
             </div>
           )}
 
-          {ytId && (
-            <a
-              href={exercise.video_url!}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-accent"
-            >
-              <img
-                src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
-                alt="Video thumbnail"
-                className="h-16 w-24 rounded object-cover"
-              />
-              <div className="flex items-center gap-1 text-sm font-medium text-primary">
-                <ExternalLink className="h-4 w-4" />
-                Watch Video
-              </div>
-            </a>
+          {exercise.video_url && (
+            <ExerciseVideoPlayer videoUrl={exercise.video_url} />
           )}
         </div>
       )}

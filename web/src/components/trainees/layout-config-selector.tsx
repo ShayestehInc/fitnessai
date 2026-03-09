@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, LayoutGrid, LayoutList, Rows3 } from "lucide-react";
+import { Loader2, LayoutGrid, LayoutList, Rows3, MonitorPlay } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,12 @@ const LAYOUT_OPTIONS = [
     label: "Detailed",
     description: "Expanded view with more info",
     icon: Rows3,
+  },
+  {
+    value: "video",
+    label: "Video",
+    description: "Full-screen exercise demo videos",
+    icon: MonitorPlay,
   },
 ] as const;
 
@@ -85,8 +91,8 @@ export function LayoutConfigSelector({ traineeId }: LayoutConfigSelectorProps) {
           <Skeleton className="h-4 w-48" />
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-3">
-            {[1, 2, 3].map((i) => (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-24 w-full" />
             ))}
           </div>
@@ -104,7 +110,7 @@ export function LayoutConfigSelector({ traineeId }: LayoutConfigSelectorProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {LAYOUT_OPTIONS.map((option) => {
             const Icon = option.icon;
             const isSelected = selected === option.value;

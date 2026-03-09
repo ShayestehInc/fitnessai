@@ -267,6 +267,7 @@ class WorkoutLayoutConfig(models.Model):
         CLASSIC = 'classic', 'Classic'
         CARD = 'card', 'Card'
         MINIMAL = 'minimal', 'Minimal'
+        VIDEO = 'video', 'Video'
 
     trainee = models.OneToOneField(
         'users.User',
