@@ -43,6 +43,8 @@ export function ExerciseVideoPlayer({ videoUrl }: ExerciseVideoPlayerProps) {
             allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-presentation"
+            referrerPolicy="no-referrer"
             className="absolute inset-0 h-full w-full"
             aria-label="Exercise demonstration video"
           />
