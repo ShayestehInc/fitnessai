@@ -31,4 +31,5 @@ class LayoutConfigModel {
   bool get isClassic => layoutType == 'classic';
   bool get isCard => layoutType == 'card';
   bool get isMinimal => layoutType == 'minimal';
+  bool get isVideo => layoutType == 'video';
 }

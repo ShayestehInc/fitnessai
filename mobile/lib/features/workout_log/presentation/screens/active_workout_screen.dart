@@ -11,6 +11,7 @@ import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/classic_workout_layout.dart';
 import '../widgets/minimal_workout_layout.dart';
+import '../widgets/video_workout_layout.dart';
 import '../../../exercises/presentation/widgets/exercise_video_player.dart';
 import 'readiness_survey_screen.dart';
 import 'post_workout_survey_screen.dart';
@@ -179,6 +180,25 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   Widget _buildWorkoutScreen() {
+    // Video layout takes over the entire screen (no AppBar).
+    if (_layoutType == 'video') {
+      return VideoWorkoutLayout(
+        workoutName: widget.workout.name,
+        exerciseLogs: _exerciseLogs,
+        currentExerciseIndex: _currentExerciseIndex,
+        onExerciseChanged: (index) =>
+            setState(() => _currentExerciseIndex = index),
+        workoutDuration: _workoutDuration,
+        isResting: _isResting,
+        restSecondsRemaining: _restSecondsRemaining,
+        onSkipRest: _skipRest,
+        onSetCompleted: _completeSet,
+        onAddSet: _addSet,
+        onFinish: _finishWorkout,
+        onExit: () => _showExitConfirmation(context),
+      );
+    }
+
     final theme = Theme.of(context);
 
     return Scaffold(
