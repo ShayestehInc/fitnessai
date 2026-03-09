@@ -3,6 +3,7 @@ Serializers for workout and nutrition models.
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from rest_framework import serializers
@@ -551,7 +552,6 @@ class ProgressPhotoSerializer(serializers.ModelSerializer[ProgressPhoto]):
     def validate_measurements(self, value: Any) -> dict[str, float]:
         """Validate measurements contains only allowed keys with numeric values."""
         if isinstance(value, str):
-            import json
             try:
                 value = json.loads(value)
             except (json.JSONDecodeError, TypeError):

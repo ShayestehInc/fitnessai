@@ -9,8 +9,13 @@ import '../../../../core/l10n/l10n_extension.dart';
 
 /// Screen that lets the user select two progress photos and compare them
 /// side-by-side with a slider overlay and measurement diffs.
+///
+/// Accepts an optional [traineeId] for trainer view (read-only comparison
+/// of a specific trainee's photos).
 class ComparisonScreen extends ConsumerStatefulWidget {
-  const ComparisonScreen({super.key});
+  final int? traineeId;
+
+  const ComparisonScreen({super.key, this.traineeId});
 
   @override
   ConsumerState<ComparisonScreen> createState() => _ComparisonScreenState();
@@ -23,7 +28,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final photosAsync = ref.watch(photosProvider);
+    final photosAsync = ref.watch(photosProvider(widget.traineeId));
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -52,7 +57,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
                 Text(error.toString(), style: theme.textTheme.bodySmall),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => ref.invalidate(photosProvider),
+                  onPressed: () => ref.invalidate(photosProvider(widget.traineeId)),
                   child: Text(context.l10n.commonRetry),
                 ),
               ],

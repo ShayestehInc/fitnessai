@@ -1873,6 +1873,18 @@ class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
                 qs = ProgressPhoto.objects.filter(
                     trainee__parent_trainer=user,
                 ).select_related('trainee')
+        elif user.is_admin():
+            trainee_id_str = self.request.query_params.get('trainee_id')
+            if trainee_id_str:
+                try:
+                    trainee_id_int = int(trainee_id_str)
+                except ValueError:
+                    return ProgressPhoto.objects.none()
+                qs = ProgressPhoto.objects.filter(
+                    trainee_id=trainee_id_int,
+                ).select_related('trainee')
+            else:
+                qs = ProgressPhoto.objects.all().select_related('trainee')
         else:
             return ProgressPhoto.objects.none()
 
@@ -1933,6 +1945,19 @@ class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
         """Set trainee to current user."""
         serializer.save(trainee=self.request.user)
 
+    def perform_destroy(self, instance: ProgressPhoto) -> None:
+        """Delete the photo file from storage before removing the DB record."""
+        if instance.photo and instance.photo.name:
+            try:
+                default_storage.delete(instance.photo.name)
+            except Exception:
+                logger.warning(
+                    "Failed to delete photo file %s for ProgressPhoto %d",
+                    instance.photo.name,
+                    instance.pk,
+                )
+        instance.delete()
+
     @action(detail=False, methods=['get'], url_path='compare')
     def compare(self, request: Request) -> Response:
         """
@@ -1958,17 +1983,18 @@ class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
             )
 
         queryset = self.get_queryset()
-        try:
-            photo1 = queryset.get(id=photo1_int)
-            photo2 = queryset.get(id=photo2_int)
-        except ProgressPhoto.DoesNotExist:
+        photos = list(queryset.filter(id__in=[photo1_int, photo2_int]))
+        if len(photos) != 2:
             return Response(
                 {'error': 'One or both photos not found'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Ensure consistent order: photo1 first, photo2 second.
+        photos.sort(key=lambda p: (p.id != photo1_int, p.id))
+
         serializer = ProgressPhotoSerializer(
-            [photo1, photo2], many=True, context={'request': request},
+            photos, many=True, context={'request': request},
         )
         return Response({'photos': serializer.data})
 

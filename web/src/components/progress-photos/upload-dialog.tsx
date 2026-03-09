@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,14 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
 
   const [dragging, setDragging] = useState(false);
   const uploadMutation = useUploadProgressPhoto();
+
+  // Revoke object URL on unmount to prevent memory leaks.
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const processFile = useCallback((selected: File) => {
     if (!ALLOWED_TYPES.includes(selected.type)) {

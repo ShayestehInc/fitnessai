@@ -35,6 +35,14 @@ export function ComparisonView({
   const [photo1Id, setPhoto1Id] = useState<number | null>(null);
   const [photo2Id, setPhoto2Id] = useState<number | null>(null);
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setPhoto1Id(null);
+      setPhoto2Id(null);
+    }
+    onOpenChange(nextOpen);
+  }
+
   const photo1 = useMemo(
     () => photos.find((p) => p.id === photo1Id) ?? null,
     [photos, photo1Id],
@@ -61,7 +69,7 @@ export function ComparisonView({
 
   if (photos.length < 2) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Compare Photos</DialogTitle>
@@ -89,7 +97,7 @@ export function ComparisonView({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Compare Progress</DialogTitle>
