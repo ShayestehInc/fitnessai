@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../../../../core/api/api_client.dart';
@@ -9,11 +11,12 @@ class ProgressPhotoRepository {
 
   ProgressPhotoRepository(this._apiClient);
 
-  /// Fetch progress photos with optional category and date range filters.
+  /// Fetch progress photos with optional category, date range, and trainee filters.
   Future<Map<String, dynamic>> fetchPhotos({
     String? category,
     String? dateFrom,
     String? dateTo,
+    int? traineeId,
   }) async {
     try {
       final queryParams = <String, dynamic>{};
@@ -25,6 +28,9 @@ class ProgressPhotoRepository {
       }
       if (dateTo != null) {
         queryParams['date_to'] = dateTo;
+      }
+      if (traineeId != null) {
+        queryParams['trainee_id'] = traineeId;
       }
 
       final response = await _apiClient.dio.get(
@@ -75,11 +81,8 @@ class ProgressPhotoRepository {
         'notes': notes,
       };
 
-      // Flatten measurements into top-level form fields so the API can
-      // reconstruct the JSON object server-side, or send as JSON string.
       if (measurements.isNotEmpty) {
-        formDataMap['measurements'] =
-            measurements.map((k, v) => MapEntry(k, v.toString())).toString();
+        formDataMap['measurements'] = jsonEncode(measurements);
       }
 
       final formData = FormData.fromMap(formDataMap);

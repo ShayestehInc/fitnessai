@@ -1,30 +1,30 @@
-# Dev Done: Trainee Dashboard Visual Redesign
+# Dev Done: Progress Photos Bug Fixes & Web Dashboard
 
-## Summary
-Full visual redesign of the trainee home screen. Decomposed the 1,418-line monolith into 13 focused widget files (<150 lines each) + a slim orchestrator. Matches the premium dark fitness app aesthetic from the inspiration screenshot.
+## Date: 2026-03-09
 
-## Files Created (13 new)
-- `constants/dashboard_colors.dart` — Ring colors, badge colors, health accents, trend indicators
-- `widgets/dashboard_header.dart` — "Hey, Chris!" greeting, date, avatar, coach badge, notification bell
-- `widgets/week_calendar_strip.dart` — Horizontal 7-day strip with selected day circle and workout dots
-- `widgets/todays_workouts_section.dart` — Section with horizontal scrollable workout cards
-- `widgets/workout_card.dart` — 200x240 card with gradient pattern, difficulty badge, duration circle
-- `widgets/activity_rings_card.dart` — Triple concentric Apple Watch-style rings with stats
-- `widgets/activity_ring_painter.dart` — CustomPainter for the three concentric arcs
-- `widgets/health_metrics_row.dart` — Heart rate (with waveform) + Sleep (placeholder) side-by-side
-- `widgets/weight_log_card.dart` — Latest weight, trend, "Weight In" CTA, "View All"
-- `widgets/leaderboard_teaser_card.dart` — Trophy icon + "See where you rank" CTA
-- `widgets/dashboard_shimmer.dart` — Full shimmer skeleton matching layout
-- `widgets/dashboard_error_banner.dart` — Error banner with retry
-- `widgets/dashboard_section_header.dart` — Reusable "Title + View All" header
+## Files Changed
 
-## Files Modified (1)
-- `screens/home_screen.dart` — Full rewrite: 1,418 → ~140 lines. Slim orchestrator composing widget imports.
+### Mobile Bug Fixes
+- `mobile/lib/features/progress_photos/presentation/screens/photo_gallery_screen.dart` — Fixed category tabs, added trainer view mode
+- `mobile/lib/features/progress_photos/presentation/screens/add_photo_screen.dart` — Fixed 4th category option to "Other"
+- `mobile/lib/features/progress_photos/data/repositories/progress_photo_repository.dart` — Fixed measurements JSON encoding, added trainee_id support
+- `mobile/lib/features/progress_photos/presentation/providers/progress_photo_provider.dart` — Added viewingTraineeIdProvider
+- `mobile/lib/core/router/app_router.dart` — Route params for trainee_id/trainee_name
 
-## Key Decisions
-- No new packages — activity rings use hand-rolled CustomPainter
-- Sleep card is "Coming Soon" placeholder (no sleep data in HealthMetrics yet)
-- Calendar strip is visual-only (date selection doesn't filter data — future ticket)
-- Workout cards use gradient pattern background (no real exercise images yet)
-- Weight displayed in lbs (default for US user base)
-- All existing cards preserved: PendingCheckinBanner, ProgressionAlertCard, HabitsSummaryCard, QuickLogCard
+### Backend
+- `backend/workouts/views.py` — Pagination + category/date filters on ProgressPhotoViewSet
+
+### Web Dashboard (New)
+- `web/src/lib/constants.ts` — Progress photo API URLs
+- `web/src/types/progress.ts` — ProgressPhoto types
+- `web/src/hooks/use-progress-photos.ts` — React Query hooks
+- `web/src/components/progress-photos/` — 5 new components (category-filter, photo-grid, photo-detail-dialog, upload-dialog, comparison-view)
+- `web/src/app/(trainee-dashboard)/trainee/progress/page.tsx` — Added PhotoGrid section
+- `web/src/app/(dashboard)/trainees/[id]/page.tsx` — Added Photos tab
+
+## How to Test
+1. Mobile: Settings → Progress Photos → verify category tabs All/Front/Side/Back
+2. Mobile: Add Photo → verify Front/Side/Back/Other options
+3. Mobile: As trainer → trainee detail → Progress Photos → see trainee's photos (read-only)
+4. Web: Trainee Progress page → "Progress Photos" section with upload/delete/filter
+5. Web: Trainer trainee detail → "Photos" tab (read-only)

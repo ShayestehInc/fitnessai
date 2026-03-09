@@ -1094,10 +1094,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/progress-photos',
         name: 'progress-photos',
-        pageBuilder: (context, state) => adaptivePage(
-          key: state.pageKey,
-          child: const PhotoGalleryScreen(),
-        ),
+        pageBuilder: (context, state) {
+          final traineeIdStr = state.uri.queryParameters['trainee_id'];
+          final traineeId = traineeIdStr != null
+              ? int.tryParse(traineeIdStr)
+              : null;
+          final traineeName = state.uri.queryParameters['trainee_name'];
+          return adaptivePage(
+            key: state.pageKey,
+            child: PhotoGalleryScreen(
+              traineeId: traineeId,
+              traineeName: traineeName,
+            ),
+          );
+        },
       ),
       GoRoute(
         path: '/progress-photos/add',

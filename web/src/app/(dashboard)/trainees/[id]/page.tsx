@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, User, Pencil, Trash2, CalendarOff, MessageSquare } from "lucide-react";
+import { ArrowLeft, User, Pencil, Trash2, CalendarOff, MessageSquare, Camera } from "lucide-react";
 import { useTrainee } from "@/hooks/use-trainees";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { RemoveTraineeDialog } from "@/components/trainees/remove-trainee-dialog
 import { ImpersonateTraineeButton } from "@/components/trainees/impersonate-trainee-button";
 import { MarkMissedDayPanel } from "@/components/trainees/mark-missed-day-panel";
 import { LayoutConfigSelector } from "@/components/trainees/layout-config-selector";
+import { PhotoGrid } from "@/components/progress-photos/photo-grid";
 import { useLocale } from "@/providers/locale-provider";
 
 export default function TraineeDetailPage({
@@ -154,6 +155,10 @@ export default function TraineeDetailPage({
               <TabsTrigger value="overview">{t("trainees.overview")}</TabsTrigger>
               <TabsTrigger value="activity">{t("trainees.activity")}</TabsTrigger>
               <TabsTrigger value="progress">{t("nav.progress")}</TabsTrigger>
+              <TabsTrigger value="photos">
+                <Camera className="mr-1.5 h-4 w-4" />
+                Photos
+              </TabsTrigger>
               <TabsTrigger value="settings">{t("nav.settings")}</TabsTrigger>
             </TabsList>
           </div>
@@ -165,6 +170,9 @@ export default function TraineeDetailPage({
           </TabsContent>
           <TabsContent value="progress" className="mt-4">
             <TraineeProgressTab traineeId={trainee.id} />
+          </TabsContent>
+          <TabsContent value="photos" className="mt-4">
+            <PhotoGrid traineeId={trainee.id} readOnly />
           </TabsContent>
           <TabsContent value="settings" className="mt-4">
             <LayoutConfigSelector traineeId={trainee.id} />

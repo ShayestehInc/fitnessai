@@ -9,6 +9,7 @@ import {
   WeeklyAdherenceCard,
 } from "@/components/trainee-dashboard/trainee-progress-charts";
 import { WeightCheckInPanel } from "@/components/trainee-dashboard/weight-checkin-panel";
+import { PhotoGrid } from "@/components/progress-photos/photo-grid";
 import { useLocale } from "@/providers/locale-provider";
 
 export default function TraineeProgressPage() {
@@ -31,6 +32,12 @@ export default function TraineeProgressPage() {
         </div>
 
         <WeeklyAdherenceCard />
+
+        {/* Progress Photos */}
+        <div className="rounded-lg border p-4 sm:p-6">
+          <h2 className="mb-4 text-lg font-semibold">Progress Photos</h2>
+          <PhotoGrid />
+        </div>
       </div>
 
       <WeightCheckInPanel

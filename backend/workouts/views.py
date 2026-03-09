@@ -1829,31 +1829,62 @@ class WorkoutTemplateViewSet(viewsets.ModelViewSet[WorkoutTemplate]):
 # ============================================================
 
 
+class ProgressPhotoPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
 class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
     """
     ViewSet for progress photo CRUD.
-    Trainees manage their own photos.
+    Trainees manage their own photos. Trainers can view their trainees' photos.
+
+    Query parameters:
+    - category: Filter by photo category (front, side, back, other)
+    - date_from: Filter photos from this date (YYYY-MM-DD)
+    - date_to: Filter photos until this date (YYYY-MM-DD)
+    - trainee_id: (Trainer only) Filter by specific trainee
+    - page: Page number for pagination
     """
     serializer_class = ProgressPhotoSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    pagination_class = ProgressPhotoPagination
 
     def get_queryset(self) -> QuerySet[ProgressPhoto]:
-        """Return photos for the current trainee."""
+        """Return photos filtered by user role and query parameters."""
         user = cast(User, self.request.user)
         if user.is_trainee():
-            return ProgressPhoto.objects.filter(trainee=user).select_related('trainee')
+            qs = ProgressPhoto.objects.filter(trainee=user).select_related('trainee')
         elif user.is_trainer():
             trainee_id = self.request.query_params.get('trainee_id')
             if trainee_id:
-                return ProgressPhoto.objects.filter(
+                qs = ProgressPhoto.objects.filter(
                     trainee_id=trainee_id,
                     trainee__parent_trainer=user,
                 ).select_related('trainee')
-            return ProgressPhoto.objects.filter(
-                trainee__parent_trainer=user,
-            ).select_related('trainee')
-        return ProgressPhoto.objects.none()
+            else:
+                qs = ProgressPhoto.objects.filter(
+                    trainee__parent_trainer=user,
+                ).select_related('trainee')
+        else:
+            return ProgressPhoto.objects.none()
+
+        # Apply optional filters.
+        category = self.request.query_params.get('category')
+        if category and category in ('front', 'side', 'back', 'other'):
+            qs = qs.filter(category=category)
+
+        date_from = self.request.query_params.get('date_from')
+        if date_from:
+            qs = qs.filter(date__gte=date_from)
+
+        date_to = self.request.query_params.get('date_to')
+        if date_to:
+            qs = qs.filter(date__lte=date_to)
+
+        return qs
 
     def perform_create(self, serializer: BaseSerializer[ProgressPhoto]) -> None:
         """Set trainee to current user."""

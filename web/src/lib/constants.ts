@@ -297,6 +297,12 @@ export const API_URLS = {
   traineeDeleteMealEntry: (logId: number) =>
     `${API_BASE}/api/workouts/daily-logs/${logId}/delete-meal-entry/`,
 
+  // Progress Photos
+  PROGRESS_PHOTOS: `${API_BASE}/api/workouts/progress-photos/`,
+  progressPhotoDetail: (id: number) =>
+    `${API_BASE}/api/workouts/progress-photos/${id}/`,
+  progressPhotoCompare: `${API_BASE}/api/workouts/progress-photos/compare/`,
+
   // WebSocket
   wsMessaging: (conversationId: number) =>
     `${WS_BASE}/ws/messaging/${conversationId}/`,

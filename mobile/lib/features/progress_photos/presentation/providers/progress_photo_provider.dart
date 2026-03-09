@@ -14,14 +14,20 @@ final progressPhotoRepositoryProvider =
 /// Currently selected category filter for the gallery.
 final selectedCategoryProvider = StateProvider<String>((ref) => 'all');
 
-/// Fetches progress photos filtered by the currently selected category.
+/// Optional trainee ID when a trainer is viewing a specific trainee's photos.
+final viewingTraineeIdProvider = StateProvider<int?>((ref) => null);
+
+/// Fetches progress photos filtered by the currently selected category
+/// and optional trainee ID (for trainer viewing trainee photos).
 final photosProvider =
     FutureProvider.autoDispose<List<ProgressPhotoModel>>((ref) async {
   final repo = ref.watch(progressPhotoRepositoryProvider);
   final category = ref.watch(selectedCategoryProvider);
+  final traineeId = ref.watch(viewingTraineeIdProvider);
 
   final result = await repo.fetchPhotos(
     category: category == 'all' ? null : category,
+    traineeId: traineeId,
   );
 
   if (result['success'] == true) {

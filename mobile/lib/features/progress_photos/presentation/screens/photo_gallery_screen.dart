@@ -9,28 +9,62 @@ import '../widgets/photo_grid_tile.dart';
 /// Gallery screen showing progress photos in a grid, grouped by date.
 ///
 /// Provides category filter tabs (All, Front, Side, Back) and a FAB to add
-/// new photos.
-class PhotoGalleryScreen extends ConsumerWidget {
-  const PhotoGalleryScreen({super.key});
+/// new photos. When [traineeId] is provided, shows that trainee's photos
+/// in read-only mode (trainer view).
+class PhotoGalleryScreen extends ConsumerStatefulWidget {
+  final int? traineeId;
+  final String? traineeName;
 
-  static const List<_CategoryTab> _categories = [
-    _CategoryTab(label: 'All', value: 'all'),
-    _CategoryTab(label: 'All', value: 'all'),
-    _CategoryTab(label: 'All', value: 'all'),
-    _CategoryTab(label: 'All', value: 'all'),
-  ];
+  const PhotoGalleryScreen({
+    super.key,
+    this.traineeId,
+    this.traineeName,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PhotoGalleryScreen> createState() =>
+      _PhotoGalleryScreenState();
+}
+
+class _PhotoGalleryScreenState extends ConsumerState<PhotoGalleryScreen> {
+  static const List<_CategoryTab> _categories = [
+    _CategoryTab(label: 'All', value: 'all'),
+    _CategoryTab(label: 'Front', value: 'front'),
+    _CategoryTab(label: 'Side', value: 'side'),
+    _CategoryTab(label: 'Back', value: 'back'),
+  ];
+
+  bool get _isTrainerView => widget.traineeId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    // Set the trainee ID in the provider for trainer view.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(viewingTraineeIdProvider.notifier).state = widget.traineeId;
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final photosAsync = ref.watch(photosProvider);
+
+    final title = _isTrainerView && widget.traineeName != null
+        ? "${widget.traineeName}'s Photos"
+        : 'Progress Photos';
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
-        title: const Text('Progress Photos'),
+        title: Text(title),
         actions: [
           IconButton(
             icon: const Icon(Icons.compare),
@@ -67,11 +101,14 @@ class PhotoGalleryScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/progress-photos/add'),
-        icon: const Icon(Icons.add_a_photo),
-        label: const Text('Add Photo'),
-      ),
+      // Only show FAB for trainee's own photos, not trainer view.
+      floatingActionButton: _isTrainerView
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.push('/progress-photos/add'),
+              icon: const Icon(Icons.add_a_photo),
+              label: const Text('Add Photo'),
+            ),
     );
   }
 
@@ -129,8 +166,9 @@ class PhotoGalleryScreen extends ConsumerWidget {
                   return PhotoGridTile(
                     photo: photo,
                     onTap: () => _showPhotoDetail(context, photo, ref),
-                    onLongPress: () =>
-                        _confirmDelete(context, photo, ref),
+                    onLongPress: _isTrainerView
+                        ? null
+                        : () => _confirmDelete(context, photo, ref),
                   );
                 },
               ),
@@ -155,12 +193,16 @@ class PhotoGalleryScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No progress photos yet',
+              _isTrainerView
+                  ? 'No progress photos yet'
+                  : 'No progress photos yet',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              'Take your first photo to start tracking your transformation.',
+              _isTrainerView
+                  ? 'This trainee hasn\'t uploaded any progress photos.'
+                  : 'Take your first photo to start tracking your transformation.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.textTheme.bodySmall?.color,
@@ -218,7 +260,11 @@ class PhotoGalleryScreen extends ConsumerWidget {
   ) {
     showDialog(
       context: context,
-      builder: (context) => _PhotoDetailDialog(photo: photo, ref: ref),
+      builder: (context) => _PhotoDetailDialog(
+        photo: photo,
+        ref: ref,
+        isTrainerView: _isTrainerView,
+      ),
     );
   }
 
@@ -259,10 +305,12 @@ class PhotoGalleryScreen extends ConsumerWidget {
 class _PhotoDetailDialog extends StatelessWidget {
   final ProgressPhotoModel photo;
   final WidgetRef ref;
+  final bool isTrainerView;
 
   const _PhotoDetailDialog({
     required this.photo,
     required this.ref,
+    this.isTrainerView = false,
   });
 
   @override
