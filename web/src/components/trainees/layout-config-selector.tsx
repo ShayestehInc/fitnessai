@@ -20,21 +20,21 @@ interface LayoutConfigSelectorProps {
 
 const LAYOUT_OPTIONS = [
   {
-    value: "default",
-    label: "Default",
-    description: "Standard workout layout",
+    value: "classic",
+    label: "Classic",
+    description: "Standard table layout",
     icon: LayoutGrid,
   },
   {
-    value: "compact",
-    label: "Compact",
-    description: "Condensed view for quick logging",
+    value: "card",
+    label: "Card",
+    description: "Swipeable card view",
     icon: LayoutList,
   },
   {
-    value: "detailed",
-    label: "Detailed",
-    description: "Expanded view with more info",
+    value: "minimal",
+    label: "Minimal",
+    description: "Condensed list view",
     icon: Rows3,
   },
   {
@@ -48,24 +48,24 @@ const LAYOUT_OPTIONS = [
 export function LayoutConfigSelector({ traineeId }: LayoutConfigSelectorProps) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState("default");
+  const [selected, setSelected] = useState("classic");
 
-  const { data, isLoading } = useQuery<{ layout: string }>({
+  const { data, isLoading } = useQuery<{ layout_type: string }>({
     queryKey: ["trainee-layout", traineeId],
     queryFn: () =>
-      apiClient.get<{ layout: string }>(API_URLS.traineeLayoutConfig(traineeId)),
+      apiClient.get<{ layout_type: string }>(API_URLS.traineeLayoutConfig(traineeId)),
     enabled: traineeId > 0,
   });
 
   useEffect(() => {
-    if (data?.layout) {
-      setSelected(data.layout);
+    if (data?.layout_type) {
+      setSelected(data.layout_type);
     }
   }, [data]);
 
   const updateMutation = useMutation({
-    mutationFn: (layout: string) =>
-      apiClient.patch(API_URLS.traineeLayoutConfig(traineeId), { layout }),
+    mutationFn: (layout_type: string) =>
+      apiClient.patch(API_URLS.traineeLayoutConfig(traineeId), { layout_type }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["trainee-layout", traineeId],
@@ -106,7 +106,7 @@ export function LayoutConfigSelector({ traineeId }: LayoutConfigSelectorProps) {
       <CardHeader>
         <CardTitle>{t("trainees.workoutLayout")}</CardTitle>
         <CardDescription>
-          Choose how workouts appear for this trainee
+          {t("trainees.layoutDescription")}
         </CardDescription>
       </CardHeader>
       <CardContent>

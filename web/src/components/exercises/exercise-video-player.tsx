@@ -9,13 +9,9 @@ interface ExerciseVideoPlayerProps {
 
 function extractYouTubeId(url: string): string | null {
   const match = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/|youtube-nocookie\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
   );
   return match ? match[1] : null;
-}
-
-function isDirectVideoUrl(url: string): boolean {
-  return /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url);
 }
 
 export function ExerciseVideoPlayer({ videoUrl }: ExerciseVideoPlayerProps) {
@@ -23,9 +19,12 @@ export function ExerciseVideoPlayer({ videoUrl }: ExerciseVideoPlayerProps) {
 
   if (error) {
     return (
-      <div className="flex h-48 w-full items-center justify-center rounded-lg bg-muted">
+      <div
+        className="flex h-48 w-full items-center justify-center rounded-lg bg-muted"
+        role="alert"
+      >
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <VideoOff className="h-8 w-8" />
+          <VideoOff className="h-8 w-8" aria-hidden="true" />
           <p className="text-sm">Video unavailable</p>
         </div>
       </div>
@@ -40,36 +39,19 @@ export function ExerciseVideoPlayer({ videoUrl }: ExerciseVideoPlayerProps) {
         <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
           <iframe
             src={`https://www.youtube-nocookie.com/embed/${ytId}`}
-            title="Exercise video"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            title="Exercise demonstration video"
+            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+            loading="lazy"
             className="absolute inset-0 h-full w-full"
-            onError={() => setError(true)}
+            aria-label="Exercise demonstration video"
           />
         </div>
       </div>
     );
   }
 
-  if (isDirectVideoUrl(videoUrl)) {
-    return (
-      <div className="overflow-hidden rounded-lg bg-black">
-        <video
-          src={videoUrl}
-          controls
-          loop
-          muted
-          playsInline
-          className="w-full"
-          onError={() => setError(true)}
-        >
-          Your browser does not support the video element.
-        </video>
-      </div>
-    );
-  }
-
-  // Unknown URL format — try as direct video, fall back on error
+  // Direct video URL or unknown format — try as native <video>
   return (
     <div className="overflow-hidden rounded-lg bg-black">
       <video
@@ -78,8 +60,10 @@ export function ExerciseVideoPlayer({ videoUrl }: ExerciseVideoPlayerProps) {
         loop
         muted
         playsInline
+        preload="metadata"
         className="w-full"
         onError={() => setError(true)}
+        aria-label="Exercise demonstration video"
       >
         Your browser does not support the video element.
       </video>

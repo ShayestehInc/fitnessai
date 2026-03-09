@@ -279,7 +279,7 @@ class WorkoutLayoutConfig(models.Model):
         max_length=20,
         choices=LayoutType.choices,
         default=LayoutType.CLASSIC,
-        help_text="Which workout UI the trainee sees: classic (table), card (swipe), minimal (list)"
+        help_text="Which workout UI the trainee sees: classic (table), card (swipe), minimal (list), video (demo videos)"
     )
     config_options = models.JSONField(
         default=dict,

@@ -1,21 +1,25 @@
-# Dev Done: Web Impersonation Token Swap -- Spec Fix
+# Dev Done: Video Workout Layout — End-to-End Activation
 
 ## Summary
-The web impersonation full token swap feature was already fully implemented in Pipeline 27 (2026-02-20). No code changes were needed. Only PRODUCT_SPEC.md had stale references that were updated.
+Added 'video' layout type across the full stack: backend enum + migration, web layout config selector with video option, web exercise video player component, and mobile video-first workout layout widget.
 
 ## Files Changed
-- `PRODUCT_SPEC.md` -- Fixed 2 stale references:
-  - Line 209: Changed from "Partial" to "Done" with accurate description
-  - Line 571: Updated historical note to reflect completed token swap
 
-## Existing Implementation (already complete)
-- `web/src/components/trainees/impersonate-trainee-button.tsx` -- Button + confirm dialog, API call, token swap
-- `web/src/components/layout/trainer-impersonation-banner.tsx` -- Banner with End Impersonation, token restore
-- `web/src/app/(trainee-view)/layout.tsx` -- Layout guard, banner display
-- `web/src/app/(trainee-view)/trainee-view/page.tsx` -- Read-only trainee view with 4 cards
-- `web/src/components/trainee-view/` -- ProfileCard, ProgramCard, NutritionCard, WeightCard
-- `web/src/hooks/use-trainee-view.ts` -- React Query hooks for trainee data
-- `web/src/types/trainee-view.ts` -- TypeScript types including TrainerImpersonationState
-- `web/src/lib/constants.ts` -- API URL constants for impersonation endpoints
-- `web/src/lib/token-manager.ts` -- Token storage/retrieval utilities
-- `backend/trainer/views.py` -- StartImpersonationView, EndImpersonationView
+### Backend
+- `backend/trainer/models.py` — Added `VIDEO = 'video', 'Video'` to `LayoutType` TextChoices, updated help_text
+- `backend/trainer/migrations/0008_alter_workoutlayoutconfig_layout_type.py` — Auto-generated migration with updated help_text
+
+### Web
+- `web/src/components/trainees/layout-config-selector.tsx` — Added Video option; FIXED pre-existing bugs: values now match backend enum, field name corrected from `layout` to `layout_type`, localized description string
+- `web/src/components/exercises/exercise-video-player.tsx` — New reusable player: YouTube embed detection + native video fallback. Added lazy loading, preload metadata, ARIA labels. Removed misleading iframe onError and duplicated JSX.
+- `web/src/components/exercises/exercise-detail-panel.tsx` — Integrated ExerciseVideoPlayer
+
+### Mobile
+- `video_workout_layout.dart` — FIXED: exception logging, formatMuscleGroup guard, SystemChrome restore, swipe threshold
+- `active_workout_screen.dart` — Wired up VideoWorkoutLayout
+- `layout_config_model.dart` — Added isVideo getter
+
+## Review Fixes Applied (Round 1)
+- Critical #1-3: Web layout values/field name match backend, removed misleading iframe onError
+- Major #4-9: YouTube regex expanded, dead code removed, exception logged, empty string guard, help_text updated, SystemChrome restored
+- Minor #10-16: lazy loading, autoplay removed from allow, ARIA labels, deduplicated JSX, localized string, swipe threshold increased

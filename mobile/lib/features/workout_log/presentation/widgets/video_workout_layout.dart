@@ -112,6 +112,8 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // Restore system UI overlay style to default
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     _videoController?.dispose();
     for (final list in _weightControllers) {
       for (final c in list) {
@@ -191,7 +193,8 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
       } else {
         controller.dispose();
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('Video init failed: $e\n$st');
       controller.dispose();
       if (mounted) setState(() => _videoError = true);
     }
@@ -256,9 +259,9 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
   Widget _buildVideoArea() {
     return GestureDetector(
       onHorizontalDragEnd: (d) {
-        if (d.velocity.pixelsPerSecond.dx > 200) {
+        if (d.velocity.pixelsPerSecond.dx > 400) {
           _navigateExercise(-1);
-        } else if (d.velocity.pixelsPerSecond.dx < -200) {
+        } else if (d.velocity.pixelsPerSecond.dx < -400) {
           _navigateExercise(1);
         }
       },
@@ -1018,6 +1021,7 @@ class _VideoWorkoutLayoutState extends State<VideoWorkoutLayout>
   String _formatMuscleGroup(String group) {
     return group
         .split('_')
+        .where((w) => w.isNotEmpty)
         .map((w) => w[0].toUpperCase() + w.substring(1))
         .join(' ');
   }

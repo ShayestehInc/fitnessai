@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='workoutlayoutconfig',
             name='layout_type',
-            field=models.CharField(choices=[('classic', 'Classic'), ('card', 'Card'), ('minimal', 'Minimal'), ('video', 'Video')], default='classic', help_text='Which workout UI the trainee sees: classic (table), card (swipe), minimal (list)', max_length=20),
+            field=models.CharField(choices=[('classic', 'Classic'), ('card', 'Card'), ('minimal', 'Minimal'), ('video', 'Video')], default='classic', help_text='Which workout UI the trainee sees: classic (table), card (swipe), minimal (list), video (demo videos)', max_length=20),
         ),
     ]
