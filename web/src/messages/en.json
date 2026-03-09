@@ -231,6 +231,7 @@
     "changeProgram": "Change Program",
     "workoutLayout": "Workout Layout",
     "layoutUpdated": "Layout updated",
+    "layoutDescription": "Choose how workouts appear for this trainee",
     "weightTrend": "Weight Trend",
     "weightTrendDesc": "Body weight over time",
     "workoutVolume": "Workout Volume",

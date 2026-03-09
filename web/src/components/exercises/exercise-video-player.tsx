@@ -38,7 +38,7 @@ export function ExerciseVideoPlayer({ videoUrl }: ExerciseVideoPlayerProps) {
       <div className="overflow-hidden rounded-lg bg-black">
         <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
           <iframe
-            src={`https://www.youtube-nocookie.com/embed/${ytId}`}
+            src={`https://www.youtube-nocookie.com/embed/${ytId}?loop=1&playlist=${ytId}`}
             title="Exercise demonstration video"
             allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
