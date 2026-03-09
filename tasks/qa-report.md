@@ -1,42 +1,67 @@
-# QA Report: Video Workout Layout
-
-## Date: 2026-03-08
+# QA Report: Progress Photos
 
 ## Test Results
-- Static Analysis (flutter analyze): 371 issues total (pre-existing), **0 errors** in video layout files
-  - 1 minor `prefer_const_constructors` info in `exercise_video_player.dart:94`
-- Backend: Verified by code inspection (no DB available for test suite)
+- Total: 38
+- Passed: 38
+- Failed: 0
+
+## Test Coverage
+
+| # | Test Class | Tests | Description |
+|---|-----------|-------|-------------|
+| 1 | TraineeListPhotosTests | 2 | Trainee lists own photos; empty list |
+| 2 | TraineeCreatePhotoTests | 3 | Create with all fields; minimal fields; auto-assigns trainee |
+| 3 | TraineeDeletePhotoTests | 1 | Delete own photo |
+| 4 | TraineeIsolationTests | 2 | Cannot see or delete other trainee's photos |
+| 5 | TrainerReadAccessTests | 2 | Trainer sees trainee photos with/without trainee_id |
+| 6 | TrainerCannotSeeOtherTrainerTraineeTests | 2 | Trainer scoped to own trainees only |
+| 7 | TrainerCannotCUDTests | 3 | Trainer gets 403 on create/update/delete |
+| 8 | InvalidDateParamTests | 3 | Invalid dates handled; valid date range filters correctly |
+| 9 | CompareEndpointTests | 7 | Valid compare; missing params; not-owned photos; nonexistent; non-numeric IDs; trainer compare |
+| 10 | PaginationTests | 4 | Default page size 20; custom page_size; max 50 cap; second page |
+| 11 | CategoryFilterTests | 5 | Filter front/back/other; invalid category; trainer + category |
+| 12 | UnauthenticatedAccessTests | 2 | 401 on list and create |
+| 13 | TrainerInvalidTraineeIdTests | 2 | Non-numeric and nonexistent trainee_id |
+
+## Bugs Found
+| # | Severity | Description | Status |
+|---|----------|-------------|--------|
+| 1 | Major | **Compare endpoint crashes (500) on non-numeric photo IDs** — `photo1`/`photo2` query params were passed as strings directly to `queryset.get(id=...)`. Non-numeric values like `"abc"` caused an unhandled `ValueError`. This confirms review finding N-M3. | FIXED — Added `int()` validation with 400 response in `views.py:1950-1955`. |
 
 ## Acceptance Criteria Verification
 
-- [x] Backend: `WorkoutLayoutConfig.LayoutType` includes `'video'` as valid choice -- **PASS** (`backend/trainer/models.py:270`: `VIDEO = 'video', 'Video'`)
-- [x] Backend: Migration adds new choice without data loss -- **PASS** (`0008_alter_workoutlayoutconfig_layout_type.py` uses `AlterField` on choices only; no data migration, no column change, existing rows unaffected)
-- [x] Backend: `GET /api/workouts/my-layout/` can return `layout_type: 'video'` -- **PASS** (`MyLayoutConfigView` in `survey_views.py:430-453` reads from `WorkoutLayoutConfig` model which now includes 'video' as a valid choice)
-- [x] Backend: `PATCH /api/trainer/trainees/{id}/layout-config/` accepts `layout_type: 'video'` -- **PASS** (`TraineeLayoutConfigView` in `trainer/views.py:1456-1492` uses `WorkoutLayoutConfigSerializer` which validates against `LayoutType.choices`, now including 'video')
-- [x] Web: Layout config selector shows 4 options (Classic, Card, Minimal, Video) -- **PASS** (`layout-config-selector.tsx:21-46`: `LAYOUT_OPTIONS` array has 4 entries, grid is `sm:grid-cols-4`)
-- [x] Web: Video option has appropriate icon, label, description -- **PASS** (icon: `MonitorPlay`, label: `"Video"`, description: `"Full-screen exercise demo videos"`)
-- [x] Web: Selecting Video persists to backend and shows as selected on reload -- **PASS** (mutation calls `apiClient.patch`, `onSuccess` invalidates query, `useEffect` syncs `selected` state from fetched `data.layout_type`)
-- [x] Web: Exercise detail panel shows inline video player -- **PASS** (`exercise-detail-panel.tsx:371-373`: renders `<ExerciseVideoPlayer>` when `exercise.video_url` is truthy, in view mode)
-- [x] Web: Video player loops, shows controls -- **PARTIAL PASS** (see Bug #1 -- native `<video>` has `loop` and `controls`, but YouTube embed does NOT have `loop=1` parameter)
-- [x] Mobile: When backend returns `layout_type: 'video'`, VideoWorkoutLayout renders -- **PASS** (`active_workout_screen.dart:184-199`: `if (_layoutType == 'video')` renders `VideoWorkoutLayout`)
+### Mobile Bug Fixes
+- [x] AC-1: Gallery category filter tabs show "All / Front / Side / Back" — PASS
+- [x] AC-2: Add Photo category options show "Front / Side / Back / Other" — PASS
+- [x] AC-3: Trainer navigates to trainee photos with `trainee_id` and sees trainee's photos — PASS
+- [x] AC-4: Measurements sent as proper JSON object — PASS
+- [x] AC-5: Trainer viewing trainee photos cannot delete — PASS
+- [x] AC-6: Gallery shows trainee name when trainer views — PASS
+- [x] AC-7: Add Photo FAB hidden for trainer view — PASS
 
-## Edge Cases
+### Web Dashboard — Trainee
+- [x] AC-8: Trainee web portal has Progress Photos section — PASS
+- [x] AC-9: Photo grid grouped by date — PASS
+- [x] AC-10: Category filter tabs work — PASS
+- [x] AC-11: Click photo opens detail dialog — PASS
+- [x] AC-12: Upload dialog with file/category/date/measurements/notes — PASS
+- [x] AC-13: Upload sends multipart, refreshes grid — PASS
+- [x] AC-14: Delete with confirmation — PASS
+- [x] AC-15: Compare button opens comparison view — PASS
+- [x] AC-16: Measurement diffs in comparison — PASS
 
-- [x] Exercise has no video_url -- fallback handled? -- **PASS** (Mobile: `_initVideo()` returns early if `url == null || url.isEmpty`, `_buildFallback()` shows gradient with muscle group color. Web: `exercise-detail-panel.tsx:371` conditionally renders player only when `exercise.video_url` is truthy)
-- [x] YouTube URL + direct MP4 URL -- both handled? -- **PARTIAL PASS** (Web: `exercise-video-player.tsx:10-15` extracts YouTube ID and renders iframe, falls back to `<video>` for MP4. Mobile: `VideoPlayerController.networkUrl()` handles direct MP4 only; YouTube URLs will fail to initialize and show `_videoError=true` fallback icon -- see Bug #2)
-- [x] Video fails to load -- error state shown? -- **PASS** (Web: `error` state shows `VideoOff` icon with "Video unavailable" text. Mobile: `_videoError=true` shows `Icons.videocam_off` icon in fallback gradient; workout logging continues unblocked)
-- [x] Layout change mid-workout -- handled? -- **PASS** (`_fetchLayoutConfig()` runs once in `initState()` and caches `_layoutType` for the session. Layout only changes on next workout start as specified)
-- [x] Old mobile app version -- falls through to classic default? -- **PASS** (`_buildExerciseContent` switch in `active_workout_screen.dart:371-380` has `default:` case that falls through to `ClassicWorkoutLayout`. `LayoutConfigModel.fromJson` defaults to `'classic'` if `layout_type` is null)
+### Web Dashboard — Trainer
+- [x] AC-17: Trainee detail has Photos tab — PASS
+- [x] AC-18: Photos tab shows trainee's photos — PASS
+- [x] AC-19: Category filter on trainer photos tab — PASS
+- [x] AC-20: Trainer detail dialog is read-only — PASS
+- [x] AC-21: Comparison accessible from trainer tab — PASS
+- [x] AC-22: Empty state for no photos — PASS
 
-## Bugs Found
-
-| # | Severity | Description |
-|---|----------|-------------|
-| 1 | Minor | Web: YouTube embed iframe in `exercise-video-player.tsx:41` does not include `loop=1` parameter. Acceptance criterion says "Video player loops" but YouTube embeds will not loop. Native `<video>` correctly has `loop`. Fix: change iframe src to include `?loop=1&playlist={ytId}`. |
-| 2 | Medium | Mobile: `VideoWorkoutLayout` uses `VideoPlayerController.networkUrl()` which cannot play YouTube URLs. If a trainer sets a YouTube URL as the exercise video, the mobile video layout will show the error fallback (videocam_off icon) instead of the video. The web player handles this correctly with an iframe. Mitigated by graceful fallback -- workout logging is not blocked. |
-| 3 | Medium | Web: `layout-config-selector.tsx:109` references i18n key `trainees.layoutDescription` which does NOT exist in any of the 3 locale files (en.json, es.json, pt-BR.json). This will render an empty string or a raw key depending on the i18n library's missing-key behavior. |
-| 4 | Minor | Mobile: `video_workout_layout.dart` lines 195 and 201 contain `debugPrint()` calls. While `debugPrint` is stripped in release builds, the project convention says "No debug prints." These should be removed or replaced with a proper logger. |
+### Pagination
+- [ ] AC-23: Mobile pagination with infinite scroll — FAIL (no infinite scroll on mobile; backend pagination works but mobile fetches single page)
+- [x] AC-24: Web pagination with page navigation — PASS
 
 ## Confidence Level: HIGH
 
-All 10 acceptance criteria pass or partially pass. The 2 medium bugs (YouTube on mobile, missing i18n key) are real but do not block the core feature. The YouTube issue on mobile is mitigated by a graceful fallback. The missing i18n key needs a quick fix to avoid showing a raw key or blank description to users.
+All backend endpoints are thoroughly tested with 38 passing tests covering permissions, filtering, pagination, edge cases, and security boundaries. One real bug was found and fixed (non-numeric compare IDs causing 500). The only failing AC is AC-23 (mobile infinite scroll), which is a frontend-only gap — the backend pagination is fully functional.

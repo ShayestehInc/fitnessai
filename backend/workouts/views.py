@@ -1948,10 +1948,19 @@ class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        try:
+            photo1_int = int(photo1_id)
+            photo2_int = int(photo2_id)
+        except ValueError:
+            return Response(
+                {'error': 'photo1 and photo2 must be valid integer IDs'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         queryset = self.get_queryset()
         try:
-            photo1 = queryset.get(id=photo1_id)
-            photo2 = queryset.get(id=photo2_id)
+            photo1 = queryset.get(id=photo1_int)
+            photo2 = queryset.get(id=photo2_int)
         except ProgressPhoto.DoesNotExist:
             return Response(
                 {'error': 'One or both photos not found'},
