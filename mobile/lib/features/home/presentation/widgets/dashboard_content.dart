@@ -126,8 +126,8 @@ class DashboardContent extends StatelessWidget {
       try {
         final d = DateTime.parse(w.date);
         days.add(d.weekday);
-      } catch (_) {
-        // Date parsing is best-effort for dot indicators
+      } catch (e) {
+        debugPrint('Failed to parse workout date: $e');
       }
     }
     return days;
