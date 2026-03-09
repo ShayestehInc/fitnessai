@@ -4,6 +4,27 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-08] — Pipeline 57: Trainee Dashboard Visual Redesign
+
+### Added
+- Mobile: Premium dark-themed trainee home dashboard replacing 1,418-line monolith with 14 focused widget files
+- Mobile: `DashboardHeader` — "Hey, {name}!" greeting with date, avatar, coach badge, notification bell
+- Mobile: `WeekCalendarStrip` — horizontal 7-day strip with selected day highlight and workout dots
+- Mobile: `TodaysWorkoutsSection` — horizontal scrollable workout cards with gradient backgrounds, difficulty badges, duration circles
+- Mobile: `ActivityRingsCard` — Apple Watch-style triple concentric rings (calories/steps/activity) with CustomPainter
+- Mobile: `HealthMetricsRow` — side-by-side Heart Rate (with waveform) and Sleep (placeholder) cards
+- Mobile: `WeightLogCard` — latest weight display with trend indicator and "Weight In" CTA
+- Mobile: `LeaderboardTeaserCard` — trophy icon linking to community leaderboard
+- Mobile: `DashboardShimmer` — full shimmer skeleton matching dashboard layout
+- Mobile: `DashboardColors` — centralized dashboard color constants
+
+### Changed
+- Mobile: `home_screen.dart` reduced from 1,418 to 109 lines (slim orchestrator pattern)
+- Mobile: All existing cards preserved (PendingCheckinBanner, ProgressionAlertCard, HabitsSummaryCard, QuickLogCard)
+- Mobile: Pull-to-refresh debounce guard prevents duplicate loads
+
+---
+
 ## [2026-03-08] — Pipeline 56: Video Workout Layout End-to-End
 
 ### Added

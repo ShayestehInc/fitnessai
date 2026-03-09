@@ -97,6 +97,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Structured meal logging (FoodItem + MealLog) | ✅ Done | Shipped 2026-03-05: FoodItem model, MealLog/MealLogEntry relational structure, quick-add, barcode lookup, daily summary |
 | Fat Mode toggle | ✅ Done | Shipped 2026-03-05: Total fat vs added fat tracking per entry, FatModeBadge widget |
 | Weekly workout progress | ✅ Done | Shipped 2026-02-14: Animated progress bar on home screen, API-driven |
+| Trainee dashboard redesign | ✅ Done | Shipped 2026-03-08 (Pipeline 57): Premium dark-themed home screen with greeting header, week calendar strip, horizontal workout cards, Apple Watch-style activity rings (calories/steps/activity), heart rate + sleep cards, weight log with CTA, leaderboard teaser. Decomposed from 1,418-line monolith to 14 focused widget files. |
 
 ### 3.4 Trainer Dashboard
 | Feature | Status | Notes |

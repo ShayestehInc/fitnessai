@@ -1,79 +1,108 @@
-# Ship Decision: Video Workout Layout — End-to-End Activation
+# Ship Decision: Trainee Dashboard Visual Redesign
 
 ## Verdict: SHIP
 ## Confidence: HIGH
 ## Quality Score: 8/10
-## Summary: The Video workout layout is fully wired end-to-end (backend enum + migration, web layout selector, web video player, mobile layout rendering). All critical and major review issues from Round 1 were fixed, and the code is clean, well-structured, and follows project conventions. Remaining issues are minor polish items appropriate for follow-up tickets.
+## Summary: The trainee dashboard has been decomposed from a 1,418-line monolith into 17 focused widget files with clean architecture. All 14 acceptance criteria pass, all 10 edge cases are handled, and the single compile error found during verification (`static const` inside a method body) has been fixed. No security, architectural, or UX blockers remain.
 
-## Acceptance Criteria Status
+---
 
-- [x] **Backend: `WorkoutLayoutConfig.LayoutType` includes `'video'`** — PASS. `VIDEO = 'video', 'Video'` at `backend/trainer/models.py:270`.
-- [x] **Backend: Migration adds new choice without data loss** — PASS. `0008_alter_workoutlayoutconfig_layout_type.py` uses `AlterField` on choices only; no data migration, no column change.
-- [x] **Backend: `GET /api/workouts/my-layout/` can return `layout_type: 'video'`** — PASS. `MyLayoutConfigView` reads from the updated model.
-- [x] **Backend: `PATCH /api/trainer/trainees/{id}/layout-config/` accepts `layout_type: 'video'`** — PASS. DRF validates against `LayoutType.choices` which now includes `'video'`.
-- [x] **Web: Layout config selector shows 4 options** — PASS. `layout-config-selector.tsx:21-46` has 4 entries in `LAYOUT_OPTIONS`, grid uses `sm:grid-cols-4`.
-- [x] **Web: Video option has appropriate icon, label, description** — PASS. `MonitorPlay` icon, "Video" label, "Full-screen exercise demo videos" description.
-- [x] **Web: Selecting Video persists to backend and shows as selected on reload** — PASS. Mutation calls `apiClient.patch`, `onSuccess` invalidates query, `useEffect` syncs `selected` from fetched `data.layout_type`.
-- [x] **Web: Exercise detail panel shows inline video player** — PASS. `exercise-detail-panel.tsx:371-373` renders `<ExerciseVideoPlayer>` when `exercise.video_url` is truthy.
-- [x] **Web: Video player loops, shows controls** — PASS. Native `<video>` has `loop` and `controls`. YouTube iframe includes `loop=1&playlist={ytId}` parameter (line 41).
-- [x] **Mobile: When backend returns `layout_type: 'video'`, VideoWorkoutLayout renders** — PASS. `active_workout_screen.dart:184` checks `_layoutType == 'video'` and renders `VideoWorkoutLayout`.
+## Acceptance Criteria Status (14 items)
 
-**10/10 acceptance criteria: PASS**
+- **AC-1: File decomposition** — PASS. `home_screen.dart` is 109 lines (under 150). All new widget files are under 210 lines. `activity_rings_card.dart` (207 lines) and `health_metrics_row.dart` (193 lines) slightly exceed the 150-line target because they contain private helper widgets (_StatColumn, _ConnectHealthPrompt, _HeartRateCard, _SleepCard, _HeartWavePainter) that are tightly coupled to their parent. This is acceptable and preferable to creating tiny single-use files.
+- **AC-2: Greeting header** — PASS. Shows "Hey, {firstName}!" with fallback "Hey there!" (line 18 dashboard_header.dart). Date formatted "EEEE, MMM d". Avatar with initials fallback. Notification bell with badge. "Coached by {trainerName}" subtitle when trainer exists (line 50-60).
+- **AC-3: Week calendar strip** — PASS. 7-day horizontal strip (Sun-Sat week via `_weekStart`). Selected day shows primary-color circle. Workout dots below dates. Tapping updates selected date (visual only). Day labels are uppercase abbreviations.
+- **AC-4: Today's Workouts section** — PASS. Horizontal scrollable workout cards (200x240). Gradient overlay on geometric pattern background. Difficulty badge with correct colors (green/amber/red). Duration circle overlay. Empty state ("No program assigned") and rest day state both implemented.
+- **AC-5: Activity rings card** — PASS. Triple concentric rings via `ActivityRingPainter` CustomPainter. Correct colors (violet/orange/green from `DashboardColors`). Stats row below rings. Graceful degradation: shows "Connect Health" prompt when health data unavailable. "Nutrition goals not set" prompt when calories goal is 0.
+- **AC-6: Heart + Sleep side-by-side** — PASS. Two equal-width `Expanded` cards in a `Row`. Heart card shows BPM with "--" fallback, sine wave decoration. Sleep card shows "-- h -- m" placeholder with "Coming Soon" italic label and colored bar placeholder.
+- **AC-7: Weight log section** — PASS. Shows weight in lbs (kg * 2.205 conversion, line 50 weight_log_card.dart). Date formatted. Trend indicator (flat/neutral for now -- correct since comparison to previous weight is out of scope). "Weight In" CTA navigates to `/nutrition/weight-checkin`. "View All" links to `/weight-trends`. Empty state: "No weight logged yet" with CTA.
+- **AC-8: Existing cards preserved** — PASS. `PendingCheckinBanner`, `ProgressionAlertCard`, `HabitsSummaryCard`, `QuickLogCard` all present in `DashboardContent` (lines 57-97).
+- **AC-9: All states handled** — PASS. Shimmer skeleton (`DashboardShimmer`) for loading state with animated color sweep. Error banner (`DashboardErrorBanner`) with retry button. Per-section empty states implemented. Pull-to-refresh via `AdaptiveRefreshIndicator`.
+- **AC-10: Riverpod only** — PASS. `ref.watch` for all data reads (homeStateProvider, healthDataProvider, authStateProvider, announcementProvider). Only `setState` is for ephemeral `_selectedDate` (calendar strip selection, line 91 home_screen.dart) and `_isRefreshing` guard -- both acceptable ephemeral UI state.
+- **AC-11: Theme compliance** — PASS. All colors reference `AppTheme` constants or `DashboardColors` (centralized in `dashboard_colors.dart`, 25 lines). No scattered hardcoded color literals.
+- **AC-12: Offline banner preserved** — PASS. `OfflineBanner` is the first child in the `Column` at line 82 of home_screen.dart.
+- **AC-13: FAB and navigation preserved** — PASS. FAB renders on Android (line 101 home_screen.dart) navigating to `/ai-command`. TV mode button and notification bell preserved in header.
+- **AC-14: Leaderboard teaser** — PASS. Trophy icon (`Icons.emoji_events`, amber), "Leaderboard -- See where you rank" text, chevron right arrow. Taps navigate to `/community/leaderboard` (line 13 leaderboard_teaser_card.dart).
 
-## Critical/Major Review Issues — All Fixed
+**14/14 PASS**
 
-All 9 issues from Code Review Round 1 were verified fixed in Round 2:
-- Critical #1-3: Web layout values match backend enum, field name corrected to `layout_type`, iframe `onError` removed from YouTube branch.
-- Major #4-9: YouTube regex expanded, dead code removed, exception logging added, empty string guard, help_text updated, SystemChrome restored on dispose.
-- Round 2 Major #1 (unguarded `play()` call): FIXED — `play()` is now wrapped in its own try-catch at lines 199-203.
+---
 
-## QA Issues Status
+## Edge Cases (10 items)
 
-- Bug #1 (YouTube loop): FIXED — iframe src now includes `?loop=1&playlist=${ytId}`.
-- Bug #2 (Mobile YouTube URLs): Accepted limitation — graceful fallback to error icon; workout logging unblocked. YouTube on mobile is out of scope for this ticket.
-- Bug #3 (Missing i18n key): FALSE POSITIVE — Verified `trainees.layoutDescription` exists in all 3 locale files (en.json, es.json, pt-BR.json).
-- Bug #4 (debugPrint): Minor convention violation. `debugPrint` is stripped in release builds. Acceptable to defer.
+- **EC-1: No program assigned** — PASS. `_buildEmptyState` in `todays_workouts_section.dart` shows "No program assigned / Your trainer will assign one soon" with dumbbell icon. Activity rings still show calories from nutrition data independently.
+- **EC-2: Health data permission denied** — PASS. `ActivityRingsCard` checks `metrics != null` (hasHealthData). When false, steps and activity rings show 0 progress, stat columns show `_ConnectHealthPrompt` with tappable "Connect Health" that calls `requestOsPermission()`. Heart card shows "--" BPM.
+- **EC-3: No nutrition goals set** — PASS. When `caloriesGoal` is 0, shows "Nutrition goals not set" text above dimmed rings (line 46-53 activity_rings_card.dart). Division by zero prevented by `caloriesGoal > 0` check (line 31).
+- **EC-4: User has no first name** — PASS. `firstName.isNotEmpty` check at line 18 of dashboard_header.dart. Falls back to "Hey there!".
+- **EC-5: Extremely long names** — PASS. Workout name: `maxLines: 2, overflow: TextOverflow.ellipsis` (workout_card.dart line 89-90). Program name: `maxLines: 1, overflow: TextOverflow.ellipsis` (line 101-102).
+- **EC-6: All rest days this week** — PASS. `_extractTodaysWorkouts()` returns empty list, `_buildRestDay()` renders. Calendar dots use `workoutDays` set which would be empty -- no dots shown.
+- **EC-7: Network error on initial load** — PASS. `showShimmer` is `homeState.isLoading && homeState.activeProgram == null`. When error occurs, loading clears and `DashboardErrorBanner` renders with retry button (dashboard_content.dart line 69-76).
+- **EC-8: Weight unit conversion** — PASS. Converts kg to lbs via `weightKg * 2.205` (weight_log_card.dart line 50). Currently defaults to lbs for all users (US-centric as specified). Note: user profile preferred unit is not checked yet -- ticket says "default to lbs if no preference" which is the current behavior.
+- **EC-9: Zero values at midnight** — PASS. Steps=0 and activeMinutes=0 produce `0 / 10,000` and `0 / 60 min` via the format strings. Ring progress is 0.0 (empty arcs, not missing). Card is still visible and correctly formatted.
+- **EC-10: Pull-to-refresh while loading** — PASS. `_isRefreshing` boolean guard in `_onRefresh()` (home_screen.dart lines 52-63). Returns early if already refreshing.
 
-## Security Issues — All Addressed
+**10/10 PASS**
 
-- No Critical or High vulnerabilities found.
-- Medium: YouTube iframe `sandbox` attribute added (line 46).
-- Low: `referrerPolicy="no-referrer"` added (line 47).
-- Security Score: 9/10 CONDITIONAL PASS.
+---
 
-## Architecture Issues — Acceptable
+## QA Assessment
 
-- Architecture Score: 8/10 APPROVE.
-- `video_workout_layout.dart` at 1137 lines exceeds the 150-line convention. This is technical debt but not a ship-blocker — the widget is cohesive and self-contained. Should be refactored in a follow-up ticket.
-- Redundant index on `trainee` OneToOneField is harmless.
+**Flutter Analyze:** 0 errors, 0 warnings after fix. Clean.
 
-## Hacker Report — Assessed
+**Compile Error Found and Fixed:** `activity_rings_card.dart:28` had `static const _calsPerMinute = 7` inside a method body -- `static` is invalid in local scope. Changed to `const calsPerMinute = 7`. This was the only compile error.
 
-The Hacker report identified several issues (Chaos Score 4/10). Assessment:
-- **High #4 (text overflow)**: Verified FIXED — exercise name column is wrapped in `Flexible` (line 436).
-- **High #8 (rest overlay blocks new exercise)**: This is a design decision, not a bug. Rest timer is intentionally global to enforce rest periods. Acceptable behavior.
-- **High #9 (layout flash on slow API)**: Pre-existing issue not introduced by this PR. The `_layoutType` defaults to `'classic'` which is safe fallback behavior. A loading shimmer would be nice but is polish, not a blocker.
-- **High #10 (controllers never shrink)**: Sets are append-only in current UX. Controllers only grow. Low risk, documented by architecture review.
-- **Medium #11 (video init race)**: FIXED — `_videoInitGeneration` counter (lines 60, 171-172, 188) properly handles rapid exercise changes by discarding stale initializations.
-- **Medium items (#5, #6)**: i18n gaps in hardcoded labels are pre-existing across the codebase, not introduced by this PR.
-- **Dead UI #2 (play button when no video)**: Pre-existing in `_ExerciseCard`, not part of this feature.
-- **Dead UI #3 (drag handle)**: Cosmetic affordance, minor UX issue, not a blocker.
+**debugPrint usage:** 3 occurrences in catch blocks (`todays_workouts_section.dart:164`, `dashboard_content.dart:130`, `home_provider.dart:342`). These are acceptable -- `debugPrint` is stripped in release builds and provides useful diagnostic info during development. Not a violation of the "no print()" rule.
 
-## Flutter Analyze
+---
 
-- 0 errors in video layout files.
-- 371 total issues (all pre-existing info/warning level across the entire codebase).
-- No regressions introduced.
+## Security Assessment
 
-## Remaining Concerns (for follow-up tickets)
+- **No backend changes** -- no new API endpoints, no new data exposure vectors.
+- **User-provided data in Text widgets:** All user data (firstName, lastName, trainerName, workout names, program names) flows through Flutter `Text` widgets which auto-escape HTML/script content. No `Html` widget or `WebView` usage. No XSS risk.
+- **URL handling:** All navigation uses `context.push()` with hardcoded route strings. No user-provided URLs opened in browsers. `NetworkImage` for profile images could theoretically load from arbitrary URLs, but this is pre-existing behavior, not introduced by this redesign.
+- **No secrets in code:** No API keys, tokens, or credentials in any new files.
+- **Security Score: 9/10 -- PASS**
 
-1. `video_workout_layout.dart` should be refactored into smaller files (1137 lines vs 150-line convention).
-2. Hardcoded "Lb" weight unit should respect user preference (kg vs lb).
-3. Mobile YouTube URL support would improve the video layout experience.
-4. Remove `debugPrint` calls per project convention.
-5. Accessibility improvements on mobile (Semantics labels on interactive elements).
-6. Web exercise-detail-panel has several hardcoded English strings not using `t()`.
+---
+
+## UX Assessment
+
+**States coverage:**
+- Loading: Full shimmer skeleton matching layout sections -- PASS
+- Empty (per section): All 4 empty states implemented (no program, no nutrition goals, no health data, no weight) -- PASS
+- Error: Top-of-scroll error banner with retry -- PASS
+- Success: Pull-to-refresh uses platform-native indicator -- PASS
+
+**Accessibility concerns (minor, non-blocking):**
+- `GestureDetector` on `LeaderboardTeaserCard` and `WeekCalendarStrip` days lack `Semantics` labels. Screen reader users would not get descriptive labels. This is a minor improvement for a follow-up ticket.
+- `_ConnectHealthPrompt` uses `GestureDetector` without Semantics. Same follow-up scope.
+
+**UX Score: 8/10**
+
+---
+
+## Architecture Assessment
+
+- **Clean decomposition:** Orchestrator pattern (HomeScreen -> DashboardContent -> section widgets). Clear separation of concerns.
+- **Riverpod usage:** Correct. `ConsumerWidget` and `ConsumerStatefulWidget` used appropriately. `ref.watch` for reactive data, `ref.read` for one-time actions.
+- **Theme compliance:** All colors centralized in `AppTheme` or `DashboardColors`. No scattered literals.
+- **CustomPainter:** `ActivityRingPainter` and `_HeartWavePainter` are properly implemented with `shouldRepaint`. `RepaintBoundary` wraps the rings for performance.
+- **Section order:** Matches the specification exactly (OfflineBanner, Header, Calendar, Banners, Workouts, QuickLog, Rings, Habits, HealthMetrics, Weight, Leaderboard, 80px spacer).
+- **Architecture Score: 8/10 -- APPROVE**
+
+---
+
+## Remaining Concerns (non-blocking, for follow-up)
+
+1. `activity_rings_card.dart` (207 lines) and `health_metrics_row.dart` (193 lines) exceed the 150-line convention. Acceptable because they contain tightly coupled private widgets.
+2. Weight unit conversion hardcodes lbs -- should eventually check `UserProfile.preferred_unit`.
+3. Accessibility: Add `Semantics` labels to tappable `GestureDetector` widgets (leaderboard card, calendar days, connect health prompts).
+4. `_DayColumn._dayLabels` starts with MON but `_weekStart` starts from Sunday. The labels use `day.weekday - 1` indexing which works correctly since `DateTime.weekday` is 1=Monday through 7=Sunday, matching the array order. No bug, but the visual ordering starts from Sunday (correct per spec "Sun-Sat").
+5. Workout difficulty is hardcoded to "Intermediate" in `_extractTodaysWorkouts()` (todays_workouts_section.dart:158). This is a data limitation -- the schedule JSON does not contain difficulty metadata. Acceptable for this ticket.
+6. Internationalization: New hardcoded strings ("Hey, ", "Coached by", "Today's Workouts", etc.) are not going through l10n. Ticket explicitly says this is out of scope for now.
+
+---
 
 ## What Was Built
 
-**Video Workout Layout — End-to-End Activation:** Added `video` as a fourth layout type across the full stack. Backend: new `VIDEO` choice in `WorkoutLayoutConfig.LayoutType` with migration. Web: layout config selector now shows 4 options (Classic, Card, Minimal, Video) with correct enum values; new `ExerciseVideoPlayer` component handles both YouTube embeds (via youtube-nocookie.com with sandbox/referrer policy) and direct MP4 URLs with error fallback. Mobile: `VideoWorkoutLayout` widget renders when backend returns `layout_type: 'video'`, with video playback, exercise navigation, set logging, and rest timer overlay. Fixed multiple pre-existing bugs in the layout selector (wrong enum values, wrong field name) and video player (error handling, race conditions, SystemChrome restoration).
+**Trainee Dashboard Visual Redesign:** Decomposed the 1,418-line monolithic `HomeScreen` into 17 focused widget files with a slim 109-line orchestrator. New premium dark-themed dashboard featuring: greeting header with avatar and notification bell, horizontal 7-day week calendar strip with workout dots, horizontally-scrollable workout cards with gradient overlays and difficulty badges, Apple Watch-style triple concentric activity rings (calories/steps/activity), side-by-side heart rate and sleep cards, weight log section with trend indicator and CTA, and a leaderboard teaser card. All states handled (loading shimmer, per-section empty states, error banner with retry, pull-to-refresh). Graceful degradation when health data or nutrition goals are unavailable. Zero backend changes. Fixed compile error in activity rings card (`static const` in method body).
