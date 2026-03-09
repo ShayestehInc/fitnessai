@@ -31,6 +31,7 @@ class ActivityRingsCard extends ConsumerWidget {
     final actProgress = activeMinutes / _activityGoal;
 
     final hasHealthData = metrics != null;
+    final hasNutritionGoals = caloriesGoal > 0;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -40,6 +41,14 @@ class ActivityRingsCard extends ConsumerWidget {
       ),
       child: Column(
         children: [
+          if (!hasNutritionGoals)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Nutrition goals not set',
+                style: TextStyle(color: AppTheme.zinc500, fontSize: 12),
+              ),
+            ),
           // Rings
           RepaintBoundary(
             child: SizedBox(
@@ -161,24 +170,36 @@ class _StatColumn extends StatelessWidget {
   }
 }
 
-class _ConnectHealthPrompt extends StatelessWidget {
+class _ConnectHealthPrompt extends ConsumerWidget {
   final String label;
   const _ConnectHealthPrompt({required this.label});
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Text(
-          '--',
-          style: TextStyle(color: AppTheme.zinc500, fontSize: 13),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(color: AppTheme.zinc500, fontSize: 10),
-        ),
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onTap: () => ref.read(healthDataProvider.notifier).requestOsPermission(),
+      child: Column(
+        children: [
+          const Text(
+            '--',
+            style: TextStyle(color: AppTheme.zinc500, fontSize: 13),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(color: AppTheme.zinc500, fontSize: 10),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Connect Health',
+            style: TextStyle(
+              color: AppTheme.primary,
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

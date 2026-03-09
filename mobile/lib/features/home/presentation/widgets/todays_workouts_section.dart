@@ -160,8 +160,8 @@ class TodaysWorkoutsSection extends StatelessWidget {
           }
         }
       }
-    } catch (_) {
-      // Gracefully handle malformed schedule JSON
+    } catch (e) {
+      debugPrint('Failed to parse schedule JSON: $e');
     }
 
     if (workouts.isEmpty && !state.todayIsRestDay) {
