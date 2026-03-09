@@ -204,6 +204,7 @@
     "activityLog": "Activity Log",
     "activityDesc": "Daily tracking overview",
     "progressTab": "Progress",
+    "photos": "Photos",
     "noActivityData": "No activity data",
     "workout": "Workout",
     "food": "Food",
@@ -664,7 +665,8 @@
     "noWorkoutData": "No workout data yet",
     "workoutLogFirst": "Complete your first workout to see volume trends.",
     "weeklyProgress": "Weekly Progress",
-    "weeklyAdherenceAppear": "Your weekly adherence will appear here once you have an assigned program."
+    "weeklyAdherenceAppear": "Your weekly adherence will appear here once you have an assigned program.",
+    "photos": "Progress Photos"
   },
   "achievements": {
     "title": "Achievements",

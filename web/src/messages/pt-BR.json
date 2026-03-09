@@ -204,6 +204,7 @@
     "activityLog": "Registro de Atividade",
     "activityDesc": "Resumo de acompanhamento diário",
     "progressTab": "Progresso",
+    "photos": "Fotos",
     "noActivityData": "Sem dados de atividade",
     "workout": "Treino",
     "food": "Comida",
@@ -664,7 +665,8 @@
     "noWorkoutData": "Sem dados de treino ainda",
     "workoutLogFirst": "Complete seu primeiro treino para ver tendências de volume.",
     "weeklyProgress": "Progresso Semanal",
-    "weeklyAdherenceAppear": "Sua aderência semanal aparecerá aqui quando você tiver um programa atribuído."
+    "weeklyAdherenceAppear": "Sua aderência semanal aparecerá aqui quando você tiver um programa atribuído.",
+    "photos": "Fotos de Progresso"
   },
   "achievements": {
     "title": "Conquistas",

@@ -14,14 +14,17 @@ final progressPhotoRepositoryProvider =
 /// Currently selected category filter for the gallery.
 final selectedCategoryProvider = StateProvider<String>((ref) => 'all');
 
-/// Fetches progress photos filtered by the currently selected category.
-final photosProvider =
-    FutureProvider.autoDispose<List<ProgressPhotoModel>>((ref) async {
+/// Fetches progress photos filtered by category and optional trainee ID.
+/// Uses a family provider keyed by trainee ID to avoid global state leaks.
+/// Pass `null` for the trainee's own photos, or a trainee ID for trainer view.
+final photosProvider = FutureProvider.autoDispose
+    .family<List<ProgressPhotoModel>, int?>((ref, traineeId) async {
   final repo = ref.watch(progressPhotoRepositoryProvider);
   final category = ref.watch(selectedCategoryProvider);
 
   final result = await repo.fetchPhotos(
     category: category == 'all' ? null : category,
+    traineeId: traineeId,
   );
 
   if (result['success'] == true) {
@@ -32,9 +35,6 @@ final photosProvider =
 });
 
 /// Provider for uploading a progress photo.
-///
-/// Returns a [StateNotifierProvider] that tracks the upload state so the UI
-/// can show loading / error feedback.
 final uploadPhotoProvider =
     StateNotifierProvider.autoDispose<UploadPhotoNotifier, AsyncValue<void>>(
   (ref) {
@@ -69,7 +69,7 @@ class UploadPhotoNotifier extends StateNotifier<AsyncValue<void>> {
 
     if (result['success'] == true) {
       state = const AsyncValue.data(null);
-      // Invalidate the photos list so it re-fetches.
+      // Invalidate both own photos and any trainee-scoped photos.
       _ref.invalidate(photosProvider);
       return true;
     }
@@ -101,18 +101,20 @@ final comparePhotosProvider = FutureProvider.autoDispose
 
 /// Provider for deleting a progress photo.
 final deletePhotoProvider =
-    StateNotifierProvider.autoDispose<DeletePhotoNotifier, AsyncValue<void>>(
-  (ref) {
+    StateNotifierProvider.autoDispose
+        .family<DeletePhotoNotifier, AsyncValue<void>, int?>(
+  (ref, traineeId) {
     final repo = ref.watch(progressPhotoRepositoryProvider);
-    return DeletePhotoNotifier(repo, ref);
+    return DeletePhotoNotifier(repo, ref, traineeId);
   },
 );
 
 class DeletePhotoNotifier extends StateNotifier<AsyncValue<void>> {
   final ProgressPhotoRepository _repo;
   final Ref _ref;
+  final int? _traineeId;
 
-  DeletePhotoNotifier(this._repo, this._ref)
+  DeletePhotoNotifier(this._repo, this._ref, this._traineeId)
       : super(const AsyncValue.data(null));
 
   Future<bool> delete(int photoId) async {

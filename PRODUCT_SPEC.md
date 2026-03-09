@@ -1,7 +1,7 @@
 # PRODUCT_SPEC.md — FitnessAI Product Specification
 
 > Living document. Describes what the product does, what's built, what's broken, and what's next.
-> Last updated: 2026-03-05 (Pipeline 51: Churn Push Notifications via FCM)
+> Last updated: 2026-03-09 (Pipeline 58: Progress Photos)
 
 ---
 
@@ -98,6 +98,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Fat Mode toggle | ✅ Done | Shipped 2026-03-05: Total fat vs added fat tracking per entry, FatModeBadge widget |
 | Weekly workout progress | ✅ Done | Shipped 2026-02-14: Animated progress bar on home screen, API-driven |
 | Trainee dashboard redesign | ✅ Done | Shipped 2026-03-08 (Pipeline 57): Premium dark-themed home screen with greeting header, week calendar strip, horizontal workout cards, Apple Watch-style activity rings (calories/steps/activity), heart rate + sleep cards, weight log with CTA, leaderboard teaser. Decomposed from 1,418-line monolith to 14 focused widget files. |
+| Progress photos | ✅ Done | Shipped 2026-03-09 (Pipeline 58): Full CRUD across web + mobile. Upload with category (front/side/back/other), date, measurements, notes. Photo grid with date grouping, category filter, pagination. Side-by-side comparison view. Trainer read-only access. Server-side file/measurement validation. 38 backend tests. |
 
 ### 3.4 Trainer Dashboard
 | Feature | Status | Notes |

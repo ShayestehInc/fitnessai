@@ -4,6 +4,35 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-09] — Pipeline 58: Progress Photos
+
+### Added
+- Web: Full progress photos UI — photo grid with date grouping, category filter (All/Front/Side/Back/Other), pagination, upload dialog with drag-and-drop, photo detail dialog with delete confirmation, side-by-side comparison view with measurement diffs
+- Web: Progress photos tab on trainee detail page (trainer read-only view)
+- Web: Progress photos section on trainee progress page
+- Backend: Server-side photo upload validation (JPEG/PNG/WebP, 10MB limit), measurements allowlist with range checks, notes length limit
+- Backend: Admin role support in ProgressPhotoViewSet, orphaned file cleanup on delete, optimized compare endpoint
+- Mobile: Fixed category tabs (was showing 4x "All"), added "Other" category
+- Mobile: Family provider pattern for trainee-scoped photo state (fixes global state leak)
+- Mobile: Fixed ComparisonScreen to respect trainee_id parameter
+- Tests: 38 comprehensive backend tests covering CRUD, permissions, IDOR prevention, filtering, pagination, edge cases
+- i18n: Progress photos translations for en/es/pt-BR
+
+### Fixed
+- Auth bypass: trainers could previously create/update/delete photos via direct API calls
+- IDOR: trainers could view photos of trainees not assigned to them
+- Measurements encoding: mobile was sending `{waist: 75.0}` string instead of JSON
+- Compare endpoint crash on non-numeric photo IDs
+- Web comparison view stale state across dialog open/close cycles
+- Web upload dialog memory leak (unreleased object URLs)
+
+### Security
+- Added server-side file type/size validation (was frontend-only)
+- Added measurements JSON injection protection with key allowlist
+- Added notes length limit (was unbounded)
+
+---
+
 ## [2026-03-08] — Pipeline 57: Trainee Dashboard Visual Redesign
 
 ### Added

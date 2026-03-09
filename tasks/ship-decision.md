@@ -1,108 +1,141 @@
-# Ship Decision: Trainee Dashboard Visual Redesign
+# Ship Decision: Progress Photos — Critical Bug Fixes & Web Dashboard
 
 ## Verdict: SHIP
 ## Confidence: HIGH
 ## Quality Score: 8/10
-## Summary: The trainee dashboard has been decomposed from a 1,418-line monolith into 17 focused widget files with clean architecture. All 14 acceptance criteria pass, all 10 edge cases are handled, and the single compile error found during verification (`static const` inside a method body) has been fixed. No security, architectural, or UX blockers remain.
+
+## Summary
+The Progress Photos feature is production-ready. All 4 critical security issues from Round 1 (auth bypass/IDOR, global state leak, date injection, measurements encoding) are fixed. Both HIGH security vulnerabilities (unvalidated file uploads, unvalidated measurements JSON) are fixed with proper server-side validation. The web dashboard is fully functional with upload, delete, filter, pagination, comparison, and proper trainer read-only views. Mobile bug fixes (category tabs, trainer view, FAB hiding) are all verified. 23 of 24 acceptance criteria pass.
 
 ---
 
-## Acceptance Criteria Status (14 items)
+## Test Results
+- Backend: 785 tests ran, 783 passed, 2 errors (pre-existing `mcp_server` import errors -- `ModuleNotFoundError: No module named 'mcp'` -- excluded per instructions)
+- Frontend (TypeScript): `tsc --noEmit` passed with zero errors
+- New tests: 38 progress photo tests, all passing -- covering permissions, filtering, pagination, edge cases, security boundaries
 
-- **AC-1: File decomposition** — PASS. `home_screen.dart` is 109 lines (under 150). All new widget files are under 210 lines. `activity_rings_card.dart` (207 lines) and `health_metrics_row.dart` (193 lines) slightly exceed the 150-line target because they contain private helper widgets (_StatColumn, _ConnectHealthPrompt, _HeartRateCard, _SleepCard, _HeartWavePainter) that are tightly coupled to their parent. This is acceptable and preferable to creating tiny single-use files.
-- **AC-2: Greeting header** — PASS. Shows "Hey, {firstName}!" with fallback "Hey there!" (line 18 dashboard_header.dart). Date formatted "EEEE, MMM d". Avatar with initials fallback. Notification bell with badge. "Coached by {trainerName}" subtitle when trainer exists (line 50-60).
-- **AC-3: Week calendar strip** — PASS. 7-day horizontal strip (Sun-Sat week via `_weekStart`). Selected day shows primary-color circle. Workout dots below dates. Tapping updates selected date (visual only). Day labels are uppercase abbreviations.
-- **AC-4: Today's Workouts section** — PASS. Horizontal scrollable workout cards (200x240). Gradient overlay on geometric pattern background. Difficulty badge with correct colors (green/amber/red). Duration circle overlay. Empty state ("No program assigned") and rest day state both implemented.
-- **AC-5: Activity rings card** — PASS. Triple concentric rings via `ActivityRingPainter` CustomPainter. Correct colors (violet/orange/green from `DashboardColors`). Stats row below rings. Graceful degradation: shows "Connect Health" prompt when health data unavailable. "Nutrition goals not set" prompt when calories goal is 0.
-- **AC-6: Heart + Sleep side-by-side** — PASS. Two equal-width `Expanded` cards in a `Row`. Heart card shows BPM with "--" fallback, sine wave decoration. Sleep card shows "-- h -- m" placeholder with "Coming Soon" italic label and colored bar placeholder.
-- **AC-7: Weight log section** — PASS. Shows weight in lbs (kg * 2.205 conversion, line 50 weight_log_card.dart). Date formatted. Trend indicator (flat/neutral for now -- correct since comparison to previous weight is out of scope). "Weight In" CTA navigates to `/nutrition/weight-checkin`. "View All" links to `/weight-trends`. Empty state: "No weight logged yet" with CTA.
-- **AC-8: Existing cards preserved** — PASS. `PendingCheckinBanner`, `ProgressionAlertCard`, `HabitsSummaryCard`, `QuickLogCard` all present in `DashboardContent` (lines 57-97).
-- **AC-9: All states handled** — PASS. Shimmer skeleton (`DashboardShimmer`) for loading state with animated color sweep. Error banner (`DashboardErrorBanner`) with retry button. Per-section empty states implemented. Pull-to-refresh via `AdaptiveRefreshIndicator`.
-- **AC-10: Riverpod only** — PASS. `ref.watch` for all data reads (homeStateProvider, healthDataProvider, authStateProvider, announcementProvider). Only `setState` is for ephemeral `_selectedDate` (calendar strip selection, line 91 home_screen.dart) and `_isRefreshing` guard -- both acceptable ephemeral UI state.
-- **AC-11: Theme compliance** — PASS. All colors reference `AppTheme` constants or `DashboardColors` (centralized in `dashboard_colors.dart`, 25 lines). No scattered hardcoded color literals.
-- **AC-12: Offline banner preserved** — PASS. `OfflineBanner` is the first child in the `Column` at line 82 of home_screen.dart.
-- **AC-13: FAB and navigation preserved** — PASS. FAB renders on Android (line 101 home_screen.dart) navigating to `/ai-command`. TV mode button and notification bell preserved in header.
-- **AC-14: Leaderboard teaser** — PASS. Trophy icon (`Icons.emoji_events`, amber), "Leaderboard -- See where you rank" text, chevron right arrow. Taps navigate to `/community/leaderboard` (line 13 leaderboard_teaser_card.dart).
+## Acceptance Criteria Status (24 items)
 
-**14/14 PASS**
+### Mobile Bug Fixes (AC-1 through AC-7): ALL PASS
+- AC-1: Gallery filter tabs show All/Front/Side/Back -- PASS
+- AC-2: Add Photo categories show Front/Side/Back/Other -- PASS
+- AC-3: Trainer sees trainee's photos via trainee_id routing -- PASS
+- AC-4: Measurements sent as proper JSON (jsonEncode/JSON.stringify) -- PASS
+- AC-5: Trainer cannot delete (403 on backend, UI hides delete) -- PASS
+- AC-6: Gallery header shows trainee name -- PASS
+- AC-7: FAB hidden for trainer view -- PASS
 
----
+### Web Dashboard -- Trainee (AC-8 through AC-16): ALL PASS
+- AC-8: Progress Photos section on trainee progress page -- PASS
+- AC-9: Photo grid grouped by date -- PASS
+- AC-10: Category filter tabs work -- PASS
+- AC-11: Click photo opens detail dialog -- PASS
+- AC-12: Upload dialog with file/category/date/measurements/notes + drag-and-drop -- PASS
+- AC-13: Upload sends multipart, refreshes grid via query invalidation -- PASS
+- AC-14: Delete with confirmation + cancel button -- PASS
+- AC-15: Compare button opens comparison view -- PASS
+- AC-16: Measurement diffs in comparison view -- PASS
 
-## Edge Cases (10 items)
+### Web Dashboard -- Trainer (AC-17 through AC-22): ALL PASS
+- AC-17: Trainee detail page has Photos tab -- PASS
+- AC-18: Photos tab shows trainee's photos in grid -- PASS
+- AC-19: Category filter on trainer photos tab -- PASS
+- AC-20: Trainer detail dialog is read-only (no delete) -- PASS
+- AC-21: Comparison view accessible from trainer tab -- PASS
+- AC-22: Empty state "No progress photos yet" -- PASS
 
-- **EC-1: No program assigned** — PASS. `_buildEmptyState` in `todays_workouts_section.dart` shows "No program assigned / Your trainer will assign one soon" with dumbbell icon. Activity rings still show calories from nutrition data independently.
-- **EC-2: Health data permission denied** — PASS. `ActivityRingsCard` checks `metrics != null` (hasHealthData). When false, steps and activity rings show 0 progress, stat columns show `_ConnectHealthPrompt` with tappable "Connect Health" that calls `requestOsPermission()`. Heart card shows "--" BPM.
-- **EC-3: No nutrition goals set** — PASS. When `caloriesGoal` is 0, shows "Nutrition goals not set" text above dimmed rings (line 46-53 activity_rings_card.dart). Division by zero prevented by `caloriesGoal > 0` check (line 31).
-- **EC-4: User has no first name** — PASS. `firstName.isNotEmpty` check at line 18 of dashboard_header.dart. Falls back to "Hey there!".
-- **EC-5: Extremely long names** — PASS. Workout name: `maxLines: 2, overflow: TextOverflow.ellipsis` (workout_card.dart line 89-90). Program name: `maxLines: 1, overflow: TextOverflow.ellipsis` (line 101-102).
-- **EC-6: All rest days this week** — PASS. `_extractTodaysWorkouts()` returns empty list, `_buildRestDay()` renders. Calendar dots use `workoutDays` set which would be empty -- no dots shown.
-- **EC-7: Network error on initial load** — PASS. `showShimmer` is `homeState.isLoading && homeState.activeProgram == null`. When error occurs, loading clears and `DashboardErrorBanner` renders with retry button (dashboard_content.dart line 69-76).
-- **EC-8: Weight unit conversion** — PASS. Converts kg to lbs via `weightKg * 2.205` (weight_log_card.dart line 50). Currently defaults to lbs for all users (US-centric as specified). Note: user profile preferred unit is not checked yet -- ticket says "default to lbs if no preference" which is the current behavior.
-- **EC-9: Zero values at midnight** — PASS. Steps=0 and activeMinutes=0 produce `0 / 10,000` and `0 / 60 min` via the format strings. Ring progress is 0.0 (empty arcs, not missing). Card is still visible and correctly formatted.
-- **EC-10: Pull-to-refresh while loading** — PASS. `_isRefreshing` boolean guard in `_onRefresh()` (home_screen.dart lines 52-63). Returns early if already refreshing.
+### Pagination (AC-23 through AC-24): 1 PASS, 1 FAIL
+- AC-23: Mobile infinite scroll pagination -- **FAIL** (backend pagination works, mobile UI fetches single page without infinite scroll)
+- AC-24: Web pagination with page navigation -- PASS
 
-**10/10 PASS**
-
----
-
-## QA Assessment
-
-**Flutter Analyze:** 0 errors, 0 warnings after fix. Clean.
-
-**Compile Error Found and Fixed:** `activity_rings_card.dart:28` had `static const _calsPerMinute = 7` inside a method body -- `static` is invalid in local scope. Changed to `const calsPerMinute = 7`. This was the only compile error.
-
-**debugPrint usage:** 3 occurrences in catch blocks (`todays_workouts_section.dart:164`, `dashboard_content.dart:130`, `home_provider.dart:342`). These are acceptable -- `debugPrint` is stripped in release builds and provides useful diagnostic info during development. Not a violation of the "no print()" rule.
+**23/24 PASS** -- AC-23 is non-blocking; the feature is functional with the first 20 photos displayed. Infinite scroll is a UX enhancement for follow-up.
 
 ---
 
-## Security Assessment
+## Security Verification
+- All CRITICAL/HIGH security issues fixed:
+  - C1: Auth bypass (trainer could CUD on other trainers' trainees) -- FIXED
+  - C2: Global state leak (photosProvider not scoped) -- FIXED
+  - C3: Date filter injection -- FIXED (validation added)
+  - C4: Measurements .toString() -- FIXED (jsonEncode)
+  - SEC-1: File upload type validation -- FIXED (allowlist: JPEG/PNG/WebP, 10MB limit)
+  - SEC-2: Measurements JSONField injection -- FIXED (allowlisted keys, numeric validation, range 0-500)
+  - SEC-3: Notes length limit -- FIXED (1000 char server-side limit)
+  - Hacker Critical: Comparison screen ignores trainee_id -- FIXED
+  - QA Bug: Compare endpoint 500 on non-numeric IDs -- FIXED
+- No secrets, API keys, or tokens in source code or git diff
+- IDOR prevention verified: `get_queryset()` scopes by role in all paths
+- Security audit score: 8/10, CONDITIONAL PASS (conditions met)
 
-- **No backend changes** -- no new API endpoints, no new data exposure vectors.
-- **User-provided data in Text widgets:** All user data (firstName, lastName, trainerName, workout names, program names) flows through Flutter `Text` widgets which auto-escape HTML/script content. No `Html` widget or `WebView` usage. No XSS risk.
-- **URL handling:** All navigation uses `context.push()` with hardcoded route strings. No user-provided URLs opened in browsers. `NetworkImage` for profile images could theoretically load from arbitrary URLs, but this is pre-existing behavior, not introduced by this redesign.
-- **No secrets in code:** No API keys, tokens, or credentials in any new files.
-- **Security Score: 9/10 -- PASS**
+## Architecture Verification
+- Architecture score: 8/10, APPROVED
+- Admin role gap in `get_queryset()` -- FIXED
+- Orphaned file cleanup on delete -- FIXED (perform_destroy with storage.delete)
+- Compare endpoint consolidated to single query -- FIXED
+- Follows existing layered patterns across backend, web, and mobile
+- No N+1 queries (select_related used on all paths)
+- Proper pagination (20/page, max 50)
 
----
-
-## UX Assessment
-
-**States coverage:**
-- Loading: Full shimmer skeleton matching layout sections -- PASS
-- Empty (per section): All 4 empty states implemented (no program, no nutrition goals, no health data, no weight) -- PASS
-- Error: Top-of-scroll error banner with retry -- PASS
-- Success: Pull-to-refresh uses platform-native indicator -- PASS
-
-**Accessibility concerns (minor, non-blocking):**
-- `GestureDetector` on `LeaderboardTeaserCard` and `WeekCalendarStrip` days lack `Semantics` labels. Screen reader users would not get descriptive labels. This is a minor improvement for a follow-up ticket.
-- `_ConnectHealthPrompt` uses `GestureDetector` without Semantics. Same follow-up scope.
-
-**UX Score: 8/10**
-
----
-
-## Architecture Assessment
-
-- **Clean decomposition:** Orchestrator pattern (HomeScreen -> DashboardContent -> section widgets). Clear separation of concerns.
-- **Riverpod usage:** Correct. `ConsumerWidget` and `ConsumerStatefulWidget` used appropriately. `ref.watch` for reactive data, `ref.read` for one-time actions.
-- **Theme compliance:** All colors centralized in `AppTheme` or `DashboardColors`. No scattered literals.
-- **CustomPainter:** `ActivityRingPainter` and `_HeartWavePainter` are properly implemented with `shouldRepaint`. `RepaintBoundary` wraps the rings for performance.
-- **Section order:** Matches the specification exactly (OfflineBanner, Header, Calendar, Banners, Workouts, QuickLog, Rings, Habits, HealthMetrics, Weight, Leaderboard, 80px spacer).
-- **Architecture Score: 8/10 -- APPROVE**
+## Audit Scores
+| Audit | Score | Verdict |
+|-------|-------|---------|
+| Code Review R2 | 7/10 | APPROVE |
+| QA | HIGH confidence | 38/38 passing, 0 failures |
+| UX Audit | 8/10 | Accessibility fixes applied |
+| Security Audit | 8/10 | CONDITIONAL PASS (conditions met) |
+| Architecture | 8/10 | APPROVE |
+| Hacker | 6/10 | 3 bugs found and fixed |
 
 ---
 
 ## Remaining Concerns (non-blocking, for follow-up)
 
-1. `activity_rings_card.dart` (207 lines) and `health_metrics_row.dart` (193 lines) exceed the 150-line convention. Acceptable because they contain tightly coupled private widgets.
-2. Weight unit conversion hardcodes lbs -- should eventually check `UserProfile.preferred_unit`.
-3. Accessibility: Add `Semantics` labels to tappable `GestureDetector` widgets (leaderboard card, calendar days, connect health prompts).
-4. `_DayColumn._dayLabels` starts with MON but `_weekStart` starts from Sunday. The labels use `day.weekday - 1` indexing which works correctly since `DateTime.weekday` is 1=Monday through 7=Sunday, matching the array order. No bug, but the visual ordering starts from Sunday (correct per spec "Sun-Sat").
-5. Workout difficulty is hardcoded to "Intermediate" in `_extractTodaysWorkouts()` (todays_workouts_section.dart:158). This is a data limitation -- the schedule JSON does not contain difficulty metadata. Acceptable for this ticket.
-6. Internationalization: New hardcoded strings ("Hey, ", "Coached by", "Today's Workouts", etc.) are not going through l10n. Ticket explicitly says this is out of scope for now.
+1. **AC-23 (Mobile infinite scroll):** Backend pagination works but mobile UI fetches a single page. Should be addressed in a follow-up ticket.
+2. **Compare limited to current page (web):** ComparisonView only accesses photos on the current page (max 20). Cross-page comparison not possible. UX limitation for v1.
+3. **Mobile repository returns `Map<String, dynamic>`:** Violates `.claude/rules/datatypes.md` but is the established pattern across all mobile repositories. Cross-cutting refactor, not scoped to this feature.
+4. **Silent date filter validation:** Invalid `date_from`/`date_to` silently ignored. Architecture review deemed acceptable for optional filter parameters.
+5. **No rate limiting on upload endpoint:** Low severity since authentication is required.
+6. **Unused `useComparePhotos` hook:** Dead code on web -- comparison view does client-side diff instead of using the backend `/compare/` endpoint.
+7. **Date timezone edge case:** `new Date("2026-03-01")` can show as previous day in western time zones. Minor.
 
 ---
 
 ## What Was Built
 
-**Trainee Dashboard Visual Redesign:** Decomposed the 1,418-line monolithic `HomeScreen` into 17 focused widget files with a slim 109-line orchestrator. New premium dark-themed dashboard featuring: greeting header with avatar and notification bell, horizontal 7-day week calendar strip with workout dots, horizontally-scrollable workout cards with gradient overlays and difficulty badges, Apple Watch-style triple concentric activity rings (calories/steps/activity), side-by-side heart rate and sleep cards, weight log section with trend indicator and CTA, and a leaderboard teaser card. All states handled (loading shimmer, per-section empty states, error banner with retry, pull-to-refresh). Graceful degradation when health data or nutrition goals are unavailable. Zero backend changes. Fixed compile error in activity rings card (`static const` in method body).
+**Progress Photos -- Critical Bug Fixes & Web Dashboard**
+
+### Mobile Bug Fixes
+- Fixed category filter tabs showing 4x "All" -> All/Front/Side/Back/Other
+- Fixed Add Photo showing duplicate "Side" -> Front/Side/Back/Other
+- Fixed trainer seeing empty gallery instead of trainee's photos (trainee_id routing)
+- Fixed measurements sent as `.toString()` instead of proper JSON
+- Added trainer read-only mode (no delete, no FAB, header shows trainee name)
+- Fixed comparison screen ignoring trainee_id parameter
+- Extracted CategoryFilterBar and PhotoDetailDialog into separate widget files
+
+### Web Dashboard -- Trainee Progress Photos
+- Photo grid grouped by date with category filter tabs (All/Front/Side/Back/Other)
+- Upload dialog with drag-and-drop, file type/size validation, category/date/measurements/notes
+- Photo detail dialog with full-size image, measurements display, delete with confirmation + cancel
+- Comparison view with before/after photo selectors and measurement diffs (color-coded)
+- Pagination with Previous/Next page navigation
+- Full loading skeleton, empty state with CTA, filtered-empty state, error state with retry
+- Accessibility: focus-visible rings, aria-labels, aria-live regions, screen reader support
+
+### Web Dashboard -- Trainer Photos Tab
+- New "Photos" tab on trainee detail page (5th tab)
+- Read-only photo grid with category filter
+- Photo detail dialog without delete button
+- Comparison view accessible from trainer tab
+- Empty state when trainee has no photos
+
+### Backend Enhancements
+- Pagination (20/page, max 50) on ProgressPhotoViewSet
+- Category and date range query filters
+- Compare endpoint with integer validation and single-query optimization
+- Server-side file type validation (JPEG/PNG/WebP allowlist, 10MB limit)
+- Server-side measurements validation (allowlisted keys, numeric values, range 0-500, max 10 fields)
+- Server-side notes length limit (1000 chars)
+- Admin role support in get_queryset()
+- File cleanup on photo deletion (storage.delete before DB delete)
+- 38 new comprehensive tests covering permissions, filtering, pagination, edge cases, and security

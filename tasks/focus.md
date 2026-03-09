@@ -1,34 +1,19 @@
-# Focus: Trainee Dashboard Redesign
+# Focus: Progress Photos Bug Fixes & Web Dashboard
 
 ## Priority
-HIGH — The trainee home screen is the most-used screen in the app. A premium visual redesign directly impacts daily engagement and perceived product quality.
-
-## Inspiration
-Dark fitness app dashboard (reference screenshot) featuring:
-1. **Greeting header** with avatar, date, XP/gamification badge, notification bell
-2. **Horizontal week calendar strip** — scrollable days with selected day highlighted (blue border), dots for activity
-3. **Today's Workouts** — horizontal scrollable workout cards with exercise images, difficulty badges (Intermediate/Beginner), workout name, program name, duration circle overlay
-4. **Activity rings** — Apple Watch-style concentric rings for calories, steps, and activity minutes with progress against daily goals
-5. **Health cards** — Heart rate (BPM with waveform) + Sleep (duration with timeline bar) side-by-side
-6. **Weight Log** — Recent weight entry with date/time, weight value, "Weight in" CTA button, "View all" link
-7. **Leaderboard** — Community ranking teaser at bottom
+HIGH — Progress Photos feature exists but has 4 critical mobile bugs (broken category filters, broken trainer view, measurements format issue) and zero web dashboard implementation. Trainers cannot view trainee progress photos from either mobile or web.
 
 ## What Already Exists
-- Home screen at `mobile/lib/features/home/presentation/screens/home_screen.dart` (1,418 lines)
-- Nutrition rings (calorie + macros) — need to become activity rings style
-- Health data integration (HealthKit/Health Connect) for steps, sleep, HR
-- Weight check-in API and separate trends screen
-- Weekly progress data
-- Program + next workout display
-- Leaderboard API at `/api/community/leaderboard/`
-- All backend APIs are ready — no new endpoints needed
+- Backend: ProgressPhoto model, serializer, viewset, compare endpoint — all working
+- Mobile: Gallery, Add, Comparison screens — all exist but have critical bugs
+- Mobile: Router, providers, repository — all wired up
 
-## Key Constraint
-This is a VISUAL REDESIGN of the existing home screen, not a feature addition. All data sources already exist. Focus on:
-- Premium dark theme aesthetic matching the inspiration
-- Better visual hierarchy and information density
-- Horizontal week calendar for date navigation
-- Apple Watch-style activity rings
-- Workout cards with images instead of plain text
-- Side-by-side health metric cards
-- Weight log with quick entry CTA
+## What's Broken
+1. Gallery category filter tabs are all duplicates ("All" x4 instead of All/Front/Side/Back)
+2. Add photo category options missing "Other" (duplicate "Side" instead)
+3. Trainer view ignores trainee_id query parameter — trainers see nothing
+4. Measurements sent as string repr instead of JSON
+
+## What's Missing
+- Web dashboard: zero progress photos implementation
+- Pagination on photo gallery

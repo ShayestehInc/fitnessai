@@ -19,7 +19,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.conf import settings
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, cast
 
 from core.permissions import IsTrainee
@@ -1829,35 +1829,134 @@ class WorkoutTemplateViewSet(viewsets.ModelViewSet[WorkoutTemplate]):
 # ============================================================
 
 
+class ProgressPhotoPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
 class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
     """
     ViewSet for progress photo CRUD.
-    Trainees manage their own photos.
+    Trainees manage their own photos. Trainers have read-only access to
+    their trainees' photos.
+
+    Query parameters:
+    - category: Filter by photo category (front, side, back, other)
+    - date_from: Filter photos from this date (YYYY-MM-DD)
+    - date_to: Filter photos until this date (YYYY-MM-DD)
+    - trainee_id: (Trainer only) Filter by specific trainee
+    - page: Page number for pagination
     """
     serializer_class = ProgressPhotoSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    pagination_class = ProgressPhotoPagination
 
     def get_queryset(self) -> QuerySet[ProgressPhoto]:
-        """Return photos for the current trainee."""
+        """Return photos filtered by user role and query parameters."""
         user = cast(User, self.request.user)
         if user.is_trainee():
-            return ProgressPhoto.objects.filter(trainee=user).select_related('trainee')
+            qs = ProgressPhoto.objects.filter(trainee=user).select_related('trainee')
         elif user.is_trainer():
-            trainee_id = self.request.query_params.get('trainee_id')
-            if trainee_id:
-                return ProgressPhoto.objects.filter(
-                    trainee_id=trainee_id,
+            trainee_id_str = self.request.query_params.get('trainee_id')
+            if trainee_id_str:
+                try:
+                    trainee_id_int = int(trainee_id_str)
+                except ValueError:
+                    return ProgressPhoto.objects.none()
+                qs = ProgressPhoto.objects.filter(
+                    trainee_id=trainee_id_int,
                     trainee__parent_trainer=user,
                 ).select_related('trainee')
-            return ProgressPhoto.objects.filter(
-                trainee__parent_trainer=user,
-            ).select_related('trainee')
-        return ProgressPhoto.objects.none()
+            else:
+                qs = ProgressPhoto.objects.filter(
+                    trainee__parent_trainer=user,
+                ).select_related('trainee')
+        elif user.is_admin():
+            trainee_id_str = self.request.query_params.get('trainee_id')
+            if trainee_id_str:
+                try:
+                    trainee_id_int = int(trainee_id_str)
+                except ValueError:
+                    return ProgressPhoto.objects.none()
+                qs = ProgressPhoto.objects.filter(
+                    trainee_id=trainee_id_int,
+                ).select_related('trainee')
+            else:
+                qs = ProgressPhoto.objects.all().select_related('trainee')
+        else:
+            return ProgressPhoto.objects.none()
+
+        # Apply optional filters.
+        category = self.request.query_params.get('category')
+        if category and category in ProgressPhoto.PhotoCategory.values:
+            qs = qs.filter(category=category)
+
+        date_from = self.request.query_params.get('date_from')
+        if date_from:
+            try:
+                datetime.strptime(date_from, '%Y-%m-%d')
+                qs = qs.filter(date__gte=date_from)
+            except ValueError:
+                pass  # Ignore invalid date — returns unfiltered
+
+        date_to = self.request.query_params.get('date_to')
+        if date_to:
+            try:
+                datetime.strptime(date_to, '%Y-%m-%d')
+                qs = qs.filter(date__lte=date_to)
+            except ValueError:
+                pass
+
+        return qs
+
+    def create(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Only trainees can create progress photos."""
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can upload progress photos.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Only trainees can update their own photos."""
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can update progress photos.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Only trainees can delete their own photos."""
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can delete progress photos.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
 
     def perform_create(self, serializer: BaseSerializer[ProgressPhoto]) -> None:
         """Set trainee to current user."""
         serializer.save(trainee=self.request.user)
+
+    def perform_destroy(self, instance: ProgressPhoto) -> None:
+        """Delete the photo file from storage before removing the DB record."""
+        if instance.photo and instance.photo.name:
+            try:
+                default_storage.delete(instance.photo.name)
+            except Exception:
+                logger.warning(
+                    "Failed to delete photo file %s for ProgressPhoto %d",
+                    instance.photo.name,
+                    instance.pk,
+                )
+        instance.delete()
 
     @action(detail=False, methods=['get'], url_path='compare')
     def compare(self, request: Request) -> Response:
@@ -1874,18 +1973,28 @@ class ProgressPhotoViewSet(viewsets.ModelViewSet[ProgressPhoto]):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        queryset = self.get_queryset()
         try:
-            photo1 = queryset.get(id=photo1_id)
-            photo2 = queryset.get(id=photo2_id)
-        except ProgressPhoto.DoesNotExist:
+            photo1_int = int(photo1_id)
+            photo2_int = int(photo2_id)
+        except ValueError:
+            return Response(
+                {'error': 'photo1 and photo2 must be valid integer IDs'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        queryset = self.get_queryset()
+        photos = list(queryset.filter(id__in=[photo1_int, photo2_int]))
+        if len(photos) != 2:
             return Response(
                 {'error': 'One or both photos not found'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Ensure consistent order: photo1 first, photo2 second.
+        photos.sort(key=lambda p: (p.id != photo1_int, p.id))
+
         serializer = ProgressPhotoSerializer(
-            [photo1, photo2], many=True, context={'request': request},
+            photos, many=True, context={'request': request},
         )
         return Response({'photos': serializer.data})
 
