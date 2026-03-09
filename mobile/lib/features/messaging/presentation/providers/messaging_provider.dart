@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/conversation_model.dart';
@@ -355,8 +356,21 @@ class ChatNotifier extends StateNotifier<ChatState> {
         isSending: false,
       );
       return true;
+    } on DioException catch (e) {
+      final serverError = e.response?.data;
+      final errorMsg = serverError is Map && serverError.containsKey('error')
+          ? serverError['error'] as String
+          : 'Failed to send message.';
+      state = state.copyWith(
+        messages: state.messages.map((m) {
+          if (m.id == tempId) return m.copyWith(isSendFailed: true);
+          return m;
+        }).toList(),
+        isSending: false,
+        error: errorMsg,
+      );
+      return false;
     } catch (e) {
-      // Mark optimistic message as failed
       state = state.copyWith(
         messages: state.messages.map((m) {
           if (m.id == tempId) return m.copyWith(isSendFailed: true);
