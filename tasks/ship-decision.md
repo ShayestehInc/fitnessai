@@ -1,4 +1,4 @@
-# Ship Decision: Auto-tagging Pipeline (v6.5 Step 13)
+# Ship Decision: Voice Memo Parsing + Video Analysis (v6.5 Step 14)
 
 ## Verdict: SHIP
 
@@ -8,13 +8,13 @@
 
 ## Summary
 
-Complete AI-powered exercise auto-tagging with draft/edit/retry workflow. GPT-4o generates v6.5 tags, trainer reviews/edits, then applies atomically with version increment + DecisionLog + UndoSnapshot.
+Voice memo transcription (OpenAI Whisper) + NLP parsing pipeline, and video exercise analysis (GPT-4o Vision) with form scoring and rep counting. Both features follow trainee-owned, AI-powered workflow with proper validation and error handling.
 
 ## What Was Built
 
-- ExerciseTagDraft model with status lifecycle (draft/applied/rejected)
-- Auto-tagging service with AI call, validation, draft management
-- AI prompt for structured exercise classification across all v6.5 tag fields
-- 7 API endpoints: request, get draft, edit, apply, reject, retry, history
-- 22 tests with mocked AI covering service + API + validation
-- Fixed UndoSnapshot from Step 12 (invalid decision_log FK, missing PLAN scope)
+- VoiceMemo model with status lifecycle + Whisper transcription + NLP parsing
+- VideoAnalysis model with GPT-4o Vision form analysis + exercise matching
+- File validation (format, size) for both audio and video
+- DecisionLog on video analysis confirmation
+- 7 API endpoints (3 voice memo, 4 video analysis)
+- 24 tests with mocked AI
