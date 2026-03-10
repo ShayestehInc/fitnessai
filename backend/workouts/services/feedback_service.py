@@ -273,19 +273,26 @@ def _create_notification(
         'missed_sessions': f"Missed sessions alert for {trainee_name}",
     }
 
-    return TrainerNotification.objects.create(
-        trainer=trainer,
-        notification_type=notification_type,
-        title=title_map.get(rule.rule_type, f"Alert for {trainee_name}"),
-        message=reason,
-        data={
-            'trainee_id': trainee.pk,
-            'feedback_id': str(feedback.pk),
-            'session_id': str(feedback.active_session_id),
-            'rule_type': rule.rule_type,
-            'rule_id': str(rule.pk),
-        },
-    )
+    try:
+        return TrainerNotification.objects.create(
+            trainer=trainer,
+            notification_type=notification_type,
+            title=title_map.get(rule.rule_type, f"Alert for {trainee_name}"),
+            message=reason,
+            data={
+                'trainee_id': trainee.pk,
+                'feedback_id': str(feedback.pk),
+                'session_id': str(feedback.active_session_id),
+                'rule_type': rule.rule_type,
+                'rule_id': str(rule.pk),
+            },
+        )
+    except Exception:
+        logger.exception(
+            "Failed to create notification for rule %s (trainer=%s, trainee=%s)",
+            rule.pk, trainer.pk, trainee.pk,
+        )
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -333,26 +340,33 @@ def log_pain_event(
         for rule in rules:
             min_pain = int(rule.threshold_value.get('min_pain_score', 7))
             if pain_score >= min_pain:
-                # Create a minimal feedback-like notification
                 trainee_name = trainee.get_full_name() or trainee.email
-                notification = TrainerNotification.objects.create(
-                    trainer=trainer,
-                    notification_type='general',
-                    title=f"Pain report from {trainee_name}",
-                    message=f"Pain score {pain_score}/10 in {body_region}",
-                    data={
-                        'trainee_id': trainee.pk,
-                        'pain_event_id': str(pain_event.pk),
-                        'rule_type': 'pain_report',
-                        'rule_id': str(rule.pk),
-                    },
-                )
+                notification_id: str | None = None
+                try:
+                    notification = TrainerNotification.objects.create(
+                        trainer=trainer,
+                        notification_type='general',
+                        title=f"Pain report from {trainee_name}",
+                        message=f"Pain score {pain_score}/10 in {body_region}",
+                        data={
+                            'trainee_id': trainee.pk,
+                            'pain_event_id': str(pain_event.pk),
+                            'rule_type': 'pain_report',
+                            'rule_id': str(rule.pk),
+                        },
+                    )
+                    notification_id = str(notification.pk)
+                except Exception:
+                    logger.exception(
+                        "Failed to create pain notification for rule %s",
+                        rule.pk,
+                    )
                 triggered_rules.append(TriggeredRule(
                     rule_id=str(rule.pk),
                     rule_type='pain_report',
                     notification_method=rule.notification_method,
                     reason=f"Pain score {pain_score} ≥ {min_pain} ({body_region})",
-                    notification_id=str(notification.pk),
+                    notification_id=notification_id,
                 ))
 
     return PainEventResult(

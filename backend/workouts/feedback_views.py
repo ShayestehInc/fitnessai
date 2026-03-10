@@ -102,15 +102,11 @@ class SessionFeedbackViewSet(
             )
 
         # Check for existing feedback
-        if hasattr(active_session, 'feedback'):
-            try:
-                active_session.feedback  # noqa: B018 — access to trigger DoesNotExist
-                return Response(
-                    {'detail': 'Feedback already submitted for this session.'},
-                    status=status.HTTP_409_CONFLICT,
-                )
-            except SessionFeedback.DoesNotExist:
-                pass
+        if SessionFeedback.objects.filter(active_session=active_session).exists():
+            return Response(
+                {'detail': 'Feedback already submitted for this session.'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         serializer = SubmitFeedbackInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
