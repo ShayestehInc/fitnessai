@@ -12,6 +12,8 @@ from typing import Any
 from django.db.models import QuerySet
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -84,6 +86,11 @@ _ERROR_STATUS_MAP: dict[str, int] = {
 }
 
 
+class ActiveSessionPagination(PageNumberPagination):
+    page_size = 20
+    max_page_size = 100
+
+
 class ActiveSessionViewSet(viewsets.GenericViewSet[ActiveSession]):
     """
     ViewSet for managing active workout sessions.
@@ -99,6 +106,7 @@ class ActiveSessionViewSet(viewsets.GenericViewSet[ActiveSession]):
       - GET  /sessions/active/     — get current active session
     """
     permission_classes = [IsAuthenticated]
+    pagination_class = ActiveSessionPagination
     lookup_field = 'pk'
 
     def get_serializer_class(self) -> type[BaseSerializer[Any]]:
@@ -131,6 +139,15 @@ class ActiveSessionViewSet(viewsets.GenericViewSet[ActiveSession]):
 
         status_filter = request.query_params.get('status')
         if status_filter:
+            valid_statuses = {choice[0] for choice in ActiveSession.Status.choices}
+            if status_filter not in valid_statuses:
+                return Response(
+                    {
+                        'error': 'invalid_status',
+                        'message': f'Invalid status filter. Must be one of: {", ".join(sorted(valid_statuses))}',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             qs = qs.filter(status=status_filter)
 
         qs = qs.order_by('-created_at')
@@ -267,8 +284,16 @@ class ActiveSessionViewSet(viewsets.GenericViewSet[ActiveSession]):
     def _resolve_trainee(self, request: Request) -> Any:
         """
         Resolve the effective trainee for the request.
-        Supports trainer impersonation: if trainer/admin is impersonating,
-        the impersonated user is available via request.user (handled by middleware).
-        For direct trainee access, returns request.user.
+
+        Enforces trainee-only access (C2 fix):
+        - Impersonation swaps request.user to the trainee via JWT, so
+          request.user.role == 'TRAINEE' when impersonating.
+        - Non-impersonating trainers/admins get 403.
         """
-        return request.user
+        user = request.user
+        if user.role != 'TRAINEE':
+            raise PermissionDenied(
+                'Only trainees can access session endpoints. '
+                'Use impersonation to act on behalf of a trainee.'
+            )
+        return user

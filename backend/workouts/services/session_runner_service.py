@@ -9,6 +9,7 @@ select_for_update() to prevent race conditions.
 """
 from __future__ import annotations
 
+import datetime
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
@@ -157,12 +158,19 @@ def start_session(
             extra={'active_session_id': str(existing.pk)},
         )
 
-    # Validate plan session
+    # Validate plan session and ownership (C1: IDOR fix)
     try:
         plan_session = PlanSession.objects.select_related('week__plan').get(
             pk=plan_session_id,
         )
     except PlanSession.DoesNotExist:
+        raise SessionError(
+            error_code='plan_session_not_found',
+            message='Plan session not found.',
+        )
+
+    # Verify the plan session belongs to this trainee via PlanSession -> PlanWeek -> TrainingPlan
+    if plan_session.week.plan.trainee_id != trainee_id:
         raise SessionError(
             error_code='plan_session_not_found',
             message='Plan session not found.',
@@ -202,9 +210,8 @@ def start_session(
         set_logs_to_create: list[ActiveSetLog] = []
         for slot in slots:
             prescription = _get_prescription_for_slot(slot, trainee_id)
-            is_last_set_map = {slot.sets: True}
             for set_num in range(1, slot.sets + 1):
-                is_last = set_num in is_last_set_map
+                is_last = (set_num == slot.sets)
                 rest = get_rest_duration(
                     plan_slot=slot,
                     set_number=set_num,
@@ -298,23 +305,28 @@ def log_set(
         session = (
             ActiveSession.objects
             .select_for_update()
+            .select_related('plan_session', 'trainee')
             .get(pk=active_session_id)
         )
         _validate_session_mutable(session)
 
+        # Fetch all set logs for this session once (M2/M8: avoid redundant queries)
+        all_set_logs = list(
+            ActiveSetLog.objects
+            .select_for_update()
+            .filter(active_session=session)
+            .select_related('plan_slot', 'exercise')
+            .order_by('plan_slot__order', 'set_number')
+        )
+
         # Find the specific set log
-        try:
-            set_log = (
-                ActiveSetLog.objects
-                .select_for_update()
-                .select_related('plan_slot')
-                .get(
-                    active_session=session,
-                    plan_slot_id=slot_id,
-                    set_number=set_number,
-                )
-            )
-        except ActiveSetLog.DoesNotExist:
+        set_log: ActiveSetLog | None = None
+        for sl in all_set_logs:
+            if str(sl.plan_slot_id) == str(slot_id) and sl.set_number == set_number:
+                set_log = sl
+                break
+
+        if set_log is None:
             raise SessionError(
                 error_code='set_not_found',
                 message=f'Set {set_number} for slot {slot_id} not found.',
@@ -341,10 +353,11 @@ def log_set(
             'notes', 'set_completed_at',
         ])
 
-        # Auto-advance current_slot_index
-        _maybe_advance_slot_index(session)
+        # Auto-advance current_slot_index using in-memory set_logs (M2 fix)
+        _maybe_advance_slot_index(session, set_logs=all_set_logs)
 
-    return get_session_status(active_session_id)
+    # Build status from in-memory data instead of re-fetching (M8 fix)
+    return _build_session_status(session)
 
 
 def skip_set(
@@ -361,21 +374,27 @@ def skip_set(
         session = (
             ActiveSession.objects
             .select_for_update()
+            .select_related('plan_session', 'trainee')
             .get(pk=active_session_id)
         )
         _validate_session_mutable(session)
 
-        try:
-            set_log = (
-                ActiveSetLog.objects
-                .select_for_update()
-                .get(
-                    active_session=session,
-                    plan_slot_id=slot_id,
-                    set_number=set_number,
-                )
-            )
-        except ActiveSetLog.DoesNotExist:
+        # Fetch all set logs once (M2/M8: avoid redundant queries)
+        all_set_logs = list(
+            ActiveSetLog.objects
+            .select_for_update()
+            .filter(active_session=session)
+            .select_related('plan_slot', 'exercise')
+            .order_by('plan_slot__order', 'set_number')
+        )
+
+        set_log: ActiveSetLog | None = None
+        for sl in all_set_logs:
+            if str(sl.plan_slot_id) == str(slot_id) and sl.set_number == set_number:
+                set_log = sl
+                break
+
+        if set_log is None:
             raise SessionError(
                 error_code='set_not_found',
                 message=f'Set {set_number} for slot {slot_id} not found.',
@@ -392,9 +411,11 @@ def skip_set(
         set_log.set_completed_at = timezone.now()
         set_log.save(update_fields=['status', 'skip_reason', 'set_completed_at'])
 
-        _maybe_advance_slot_index(session)
+        # Use in-memory set_logs (M2 fix)
+        _maybe_advance_slot_index(session, set_logs=all_set_logs)
 
-    return get_session_status(active_session_id)
+    # Build status from in-memory data instead of re-fetching (M8 fix)
+    return _build_session_status(session)
 
 
 def complete_session(
@@ -435,7 +456,7 @@ def complete_session(
         now = timezone.now()
         session.status = ActiveSession.Status.COMPLETED
         session.completed_at = now
-        session.save(update_fields=['status', 'completed_at', 'updated_at'])
+        session.save(update_fields=['status', 'completed_at'])
 
         # Create LiftSetLog entries for completed sets
         completed_logs = [sl for sl in set_logs if sl.status == ActiveSetLog.Status.COMPLETED]
@@ -506,7 +527,7 @@ def abandon_session(
         session.status = ActiveSession.Status.ABANDONED
         session.completed_at = now
         session.abandon_reason = reason
-        session.save(update_fields=['status', 'completed_at', 'abandon_reason', 'updated_at'])
+        session.save(update_fields=['status', 'completed_at', 'abandon_reason'])
 
         set_logs = list(
             ActiveSetLog.objects
@@ -692,10 +713,11 @@ def _get_prescription_for_slot(slot: PlanSlot, trainee_id: int) -> NextPrescript
     """
     try:
         return compute_next_prescription(slot=slot, trainee_id=trainee_id)
-    except Exception:
-        logger.warning(
-            "Progression engine failed for slot %s, falling back to base prescription.",
+    except (ValueError, LookupError, TypeError, AttributeError) as exc:
+        logger.error(
+            "Progression engine failed for slot %s: %s — falling back to base prescription.",
             slot.pk,
+            str(exc),
             exc_info=True,
         )
         return NextPrescription(
@@ -717,49 +739,67 @@ def _get_prescription_for_slot(slot: PlanSlot, trainee_id: int) -> NextPrescript
 
 
 def _auto_abandon_stale_sessions(trainee_id: int) -> None:
-    """Auto-abandon in_progress sessions older than 4 hours."""
+    """Auto-abandon in_progress sessions older than 4 hours.
+
+    Uses transaction.atomic() with select_for_update() to prevent
+    concurrent requests from creating duplicate LiftSetLog entries (C4 fix).
+    """
     cutoff = timezone.now() - timedelta(hours=_STALE_SESSION_HOURS)
-    stale_sessions = ActiveSession.objects.filter(
-        trainee_id=trainee_id,
-        status=ActiveSession.Status.IN_PROGRESS,
-        started_at__lt=cutoff,
-    )
-    for session in stale_sessions:
-        session.status = ActiveSession.Status.ABANDONED
-        session.completed_at = timezone.now()
-        session.abandon_reason = 'auto_abandoned_stale'
-        session.save(update_fields=['status', 'completed_at', 'abandon_reason', 'updated_at'])
 
-        # Save any completed sets from stale session
-        completed_logs = list(
-            ActiveSetLog.objects
+    with transaction.atomic():
+        stale_sessions = list(
+            ActiveSession.objects
+            .select_for_update()
             .filter(
-                active_session=session,
-                status=ActiveSetLog.Status.COMPLETED,
+                trainee_id=trainee_id,
+                status=ActiveSession.Status.IN_PROGRESS,
+                started_at__lt=cutoff,
             )
-            .select_related('plan_slot', 'exercise')
-        )
-        if completed_logs:
-            session_date = (session.started_at or timezone.now()).date()
-            _create_lift_set_logs(completed_logs, trainee_id, session_date)
-
-        logger.info(
-            "Auto-abandoned stale session %s for trainee %s",
-            session.pk, trainee_id,
         )
 
+        for session in stale_sessions:
+            now = timezone.now()
+            session.status = ActiveSession.Status.ABANDONED
+            session.completed_at = now
+            session.abandon_reason = 'auto_abandoned_stale'
+            session.save(update_fields=['status', 'completed_at', 'abandon_reason'])
 
-def _maybe_advance_slot_index(session: ActiveSession) -> None:
+            # Save any completed sets from stale session
+            completed_logs = list(
+                ActiveSetLog.objects
+                .filter(
+                    active_session=session,
+                    status=ActiveSetLog.Status.COMPLETED,
+                )
+                .select_related('plan_slot', 'exercise')
+            )
+            if completed_logs:
+                session_date = (session.started_at or now).date()
+                _create_lift_set_logs(completed_logs, trainee_id, session_date)
+
+            logger.info(
+                "Auto-abandoned stale session %s for trainee %s",
+                session.pk, trainee_id,
+            )
+
+
+def _maybe_advance_slot_index(
+    session: ActiveSession,
+    set_logs: list[ActiveSetLog] | None = None,
+) -> None:
     """
     Check if all sets for the current slot are done (completed or skipped).
     If so, advance current_slot_index to the next slot with pending sets.
+
+    If ``set_logs`` is provided, uses them instead of hitting the DB again (M2 fix).
     """
-    set_logs = list(
-        ActiveSetLog.objects
-        .filter(active_session=session)
-        .select_related('plan_slot')
-        .order_by('plan_slot__order', 'set_number')
-    )
+    if set_logs is None:
+        set_logs = list(
+            ActiveSetLog.objects
+            .filter(active_session=session)
+            .select_related('plan_slot')
+            .order_by('plan_slot__order', 'set_number')
+        )
 
     # Group by slot order
     slot_orders: list[int] = []
@@ -782,7 +822,7 @@ def _maybe_advance_slot_index(session: ActiveSession) -> None:
         if has_pending:
             if session.current_slot_index != idx:
                 session.current_slot_index = idx
-                session.save(update_fields=['current_slot_index', 'updated_at'])
+                session.save(update_fields=['current_slot_index'])
             return
 
     # All slots done — set to last index
@@ -790,27 +830,31 @@ def _maybe_advance_slot_index(session: ActiveSession) -> None:
         final_idx = len(slot_orders) - 1
         if session.current_slot_index != final_idx:
             session.current_slot_index = final_idx
-            session.save(update_fields=['current_slot_index', 'updated_at'])
+            session.save(update_fields=['current_slot_index'])
 
 
 def _create_lift_set_logs(
     completed_logs: list[ActiveSetLog],
     trainee_id: int,
-    session_date: Any,
+    session_date: datetime.date,
 ) -> list[LiftSetLog]:
     """
     Create permanent LiftSetLog entries from completed ActiveSetLog entries.
+    Uses bulk_create for efficiency (M3 fix), then updates LiftMax per entry.
     Returns the created LiftSetLog objects.
     """
     from workouts.services.max_load_service import MaxLoadService
 
-    lift_set_logs: list[LiftSetLog] = []
+    if not completed_logs:
+        return []
+
+    lsl_objects: list[LiftSetLog] = []
     for asl in completed_logs:
         load_value = asl.completed_load_value or Decimal('0')
         load_unit = asl.completed_load_unit or 'lb'
         reps = asl.completed_reps or 0
 
-        lsl = LiftSetLog(
+        lsl_objects.append(LiftSetLog(
             trainee_id=trainee_id,
             exercise=asl.exercise,
             session_date=session_date,
@@ -822,11 +866,12 @@ def _create_lift_set_logs(
             rpe=asl.rpe,
             notes=asl.notes,
             standardization_pass=True,
-        )
-        lsl.save()
-        lift_set_logs.append(lsl)
+        ))
 
-        # Update LiftMax from qualifying sets
+    lift_set_logs = LiftSetLog.objects.bulk_create(lsl_objects)
+
+    # Update LiftMax from qualifying sets (must be done per-entry)
+    for lsl in lift_set_logs:
         MaxLoadService.update_max_from_set(lsl)
 
     return lift_set_logs
@@ -885,11 +930,37 @@ def _run_progression_evaluation(
                 'new_prescription': event_result.new_prescription,
                 'reason_codes': event_result.reason_codes,
             })
-        except Exception:
-            logger.warning(
-                "Progression evaluation failed for slot %s",
+        except (ValueError, LookupError, TypeError, AttributeError) as exc:
+            logger.error(
+                "Progression evaluation failed for slot %s: %s",
                 slot_key,
+                str(exc),
                 exc_info=True,
             )
+            # Record the failure in DecisionLog for audit trail (M4 fix)
+            DecisionLog.objects.create(
+                actor_type=DecisionLog.ActorType.SYSTEM,
+                actor_id=actor_id,
+                decision_type='progression_evaluation_failed',
+                context={
+                    'slot_id': slot_key,
+                    'exercise_id': plan_slot.exercise_id,
+                    'error': str(exc),
+                },
+                inputs_snapshot={
+                    'trainee_id': trainee_id,
+                    'completed_sets': len(completed_in_slot),
+                },
+                final_choice={'action': 'progression_skipped'},
+                reason_codes=['progression_error'],
+            )
+            # Include failure in results so the user knows (M4 fix)
+            results.append({
+                'slot_id': slot_key,
+                'event_type': 'error',
+                'old_prescription': {},
+                'new_prescription': {},
+                'reason_codes': ['progression_evaluation_failed'],
+            })
 
     return results

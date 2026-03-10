@@ -72,6 +72,32 @@
 10. Plan deleted mid-session -> SET_NULL, session survives
 11. Pending sets remaining on complete -> 400 with count
 
+## Review Fixes Applied (Round 1)
+
+### Critical Issues Fixed
+
+- **C1 (IDOR on PlanSession):** Added ownership check in `start_session()` — after fetching the PlanSession, verifies `plan_session.week.plan.trainee_id == trainee_id`. Returns opaque 404 if not owned.
+- **C2 (No role enforcement):** `_resolve_trainee()` now checks `request.user.role == 'TRAINEE'` and raises `PermissionDenied` (403) for trainers/admins not impersonating. Impersonation works because the JWT swaps request.user to the trainee.
+- **C3 (N+1 in serializer):** `ActiveSessionSerializer` now computes counts from prefetched `set_logs.all()` in memory instead of issuing 5 separate DB queries per session. Uses a `_get_cached_logs()` helper.
+- **C4 (Stale session race):** `_auto_abandon_stale_sessions()` now wrapped in `transaction.atomic()` with `select_for_update()` on the stale sessions queryset.
+
+### Major Issues Fixed
+
+- **M1 (is_last_set_map hack):** Replaced `is_last_set_map = {slot.sets: True}` with simple `is_last = (set_num == slot.sets)`.
+- **M2 (Extra DB query in \_maybe_advance_slot_index):** Function now accepts optional `set_logs` parameter. `log_set()` and `skip_set()` pass in-memory set_logs.
+- **M3 (Per-row INSERT for LiftSetLog):** `_create_lift_set_logs()` now uses `bulk_create()` for all LiftSetLog entries (1 INSERT instead of N). MaxLoadService calls still run per-entry after bulk create.
+- **M4 (Silent progression failures):** Narrowed exception types to `(ValueError, LookupError, TypeError, AttributeError)`. On failure, creates a DecisionLog entry for audit trail and includes the failure in `progression_results`.
+- **M5 (Bare Exception in \_get_prescription_for_slot):** Narrowed to same specific exception types. Changed log level from WARNING to ERROR.
+- **M6 (No pagination):** Added `ActiveSessionPagination` (page_size=20, max=100) to the viewset.
+- **M7 (Fragile rest_seconds=90 detection):** Documented the limitation in a code comment. Noted that a proper fix requires a schema change (nullable override field).
+- **M8 (Double-fetch on log_set/skip_set):** `log_set()` and `skip_set()` now fetch all set_logs once with `select_for_update()` + `select_related`, find the target in memory, and call `_build_session_status()` from in-memory data instead of re-fetching.
+
+### Minor Issues Fixed
+
+- **m2:** Changed `session_date` parameter type from `Any` to `datetime.date`.
+- **m4:** Added validation of `status` query param against `ActiveSession.Status.choices`. Returns 400 for invalid values.
+- **m6:** Removed `'updated_at'` from all `update_fields` lists (Django auto_now fields are auto-included).
+
 ## How to Test
 
 ```bash

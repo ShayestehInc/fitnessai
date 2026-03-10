@@ -91,23 +91,33 @@ class ActiveSessionSerializer(serializers.ModelSerializer[ActiveSession]):
         read_only_fields = fields
 
     def get_total_sets(self, obj: ActiveSession) -> int:
-        return obj.set_logs.count()
+        # Use prefetched set_logs to avoid extra DB queries (C3 fix)
+        return len(self._get_cached_logs(obj))
 
     def get_completed_sets(self, obj: ActiveSession) -> int:
-        return obj.set_logs.filter(status=ActiveSetLog.Status.COMPLETED).count()
+        logs = self._get_cached_logs(obj)
+        return sum(1 for sl in logs if sl.status == ActiveSetLog.Status.COMPLETED)
 
     def get_skipped_sets(self, obj: ActiveSession) -> int:
-        return obj.set_logs.filter(status=ActiveSetLog.Status.SKIPPED).count()
+        logs = self._get_cached_logs(obj)
+        return sum(1 for sl in logs if sl.status == ActiveSetLog.Status.SKIPPED)
 
     def get_pending_sets(self, obj: ActiveSession) -> int:
-        return obj.set_logs.filter(status=ActiveSetLog.Status.PENDING).count()
+        logs = self._get_cached_logs(obj)
+        return sum(1 for sl in logs if sl.status == ActiveSetLog.Status.PENDING)
 
     def get_progress_pct(self, obj: ActiveSession) -> float:
-        total = obj.set_logs.count()
+        logs = self._get_cached_logs(obj)
+        total = len(logs)
         if total == 0:
             return 0.0
-        done = obj.set_logs.exclude(status=ActiveSetLog.Status.PENDING).count()
+        done = sum(1 for sl in logs if sl.status != ActiveSetLog.Status.PENDING)
         return round(done / total * 100, 1)
+
+    def _get_cached_logs(self, obj: ActiveSession) -> list[ActiveSetLog]:
+        """Return prefetched set_logs without hitting the DB."""
+        # .all() on a prefetched manager uses the cache, not a new query.
+        return list(obj.set_logs.all())
 
 
 class ActiveSessionListSerializer(serializers.ModelSerializer[ActiveSession]):

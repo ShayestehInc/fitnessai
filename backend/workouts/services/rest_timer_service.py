@@ -53,6 +53,10 @@ _BETWEEN_EXERCISE_BONUS = 30
 
 # The default rest_seconds on PlanSlot — if it matches this value we treat it
 # as "not explicitly set by the trainer" and fall through to role/modality defaults.
+# KNOWN LIMITATION (M7): If a trainer intentionally sets rest to exactly 90s,
+# it will be treated as "not explicitly set" and may be overridden by modality/role
+# defaults. A proper fix would require a nullable rest_seconds_override field or a
+# boolean flag on PlanSlot. For now, this edge case is accepted and documented.
 _PLAN_SLOT_DEFAULT_REST = 90
 
 
