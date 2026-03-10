@@ -268,13 +268,13 @@ class TraineeProgressExportTests(TestCase):
 
     def test_export_with_weight_checkin(self) -> None:
         WeightCheckIn.objects.create(
-            user=self.trainee,
+            trainee=self.trainee,
             date=timezone.now().date(),
-            weight=Decimal('185.5'),
+            weight_kg=185.5,
         )
         result = export_trainee_progress_csv(self.trainer, self.trainee.pk, days=90)
         self.assertGreaterEqual(result.row_count, 1)
-        self.assertIn('185.5', result.content)
+        self.assertIn('185.5', result.content)  # weight_kg value
         self.assertIn('Weight Check-in', result.content)
 
     def test_export_with_e1rm_history(self) -> None:

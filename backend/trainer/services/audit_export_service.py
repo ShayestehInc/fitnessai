@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -236,7 +237,7 @@ def export_trainee_progress_csv(
     # Weight check-ins
     checkins = (
         WeightCheckIn.objects.filter(
-            user=trainee,
+            trainee=trainee,
             date__gte=start_date,
         )
         .order_by('-date')
@@ -246,9 +247,9 @@ def export_trainee_progress_csv(
             str(wc.date),
             'Weight Check-in',
             '',
-            str(wc.weight),
-            wc.unit if hasattr(wc, 'unit') else 'lb',
-            _sanitize_csv_value(wc.notes) if hasattr(wc, 'notes') and wc.notes else '',
+            str(wc.weight_kg),
+            'kg',
+            _sanitize_csv_value(wc.notes) if wc.notes else '',
         ])
         row_count += 1
 
@@ -301,7 +302,7 @@ def _get_trainee_or_raise(trainer: User, trainee_id: int) -> User:
 def _safe_trainee_name(trainee: User) -> str:
     """Return a filesystem-safe trainee identifier."""
     name = trainee.get_full_name() or trainee.email.split('@')[0]
-    return name.replace(' ', '_').replace('/', '_')[:30]
+    return re.sub(r'[^a-zA-Z0-9_-]', '_', name)[:30]
 
 
 def _summarize_json(data: dict[str, Any] | list[Any] | None) -> str:
