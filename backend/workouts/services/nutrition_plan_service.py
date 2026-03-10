@@ -2,23 +2,28 @@
 Nutrition Plan Service — generates per-date NutritionDayPlans
 from a trainee's active NutritionTemplateAssignment.
 
-Supports legacy (flat NutritionGoal) and custom template rulesets.
+Supports legacy (flat NutritionGoal), SHREDDED, MASSIVE, CARB_CYCLING,
+and custom template rulesets.
 """
 from __future__ import annotations
 
 import datetime
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from django.db.models import Q
 
 from workouts.models import (
+    DecisionLog,
     NutritionDayPlan,
     NutritionGoal,
     NutritionTemplate,
     NutritionTemplateAssignment,
     Program,
 )
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from users.models import User
@@ -174,7 +179,9 @@ class NutritionPlanService:
         if template.template_type == NutritionTemplate.TemplateType.MASSIVE:
             return self._apply_massive_ruleset(parameters, day_type)
 
-        # For carb_cycling / macro_ebook — Phase 4+
+        if template.template_type == NutritionTemplate.TemplateType.CARB_CYCLING:
+            return self._apply_carb_cycling_ruleset(parameters, day_type)
+
         if template.ruleset:
             return self._apply_custom_ruleset(
                 template.ruleset, parameters, day_type,
@@ -311,7 +318,7 @@ class NutritionPlanService:
             'day_type_schedule': assignment.day_type_schedule,
         }
 
-        plan, _ = NutritionDayPlan.objects.update_or_create(
+        plan, created = NutritionDayPlan.objects.update_or_create(
             trainee=trainee,
             date=date,
             defaults={
@@ -326,6 +333,23 @@ class NutritionPlanService:
                 'is_overridden': False,
             },
         )
+
+        # Log the decision
+        if created:
+            self._log_nutrition_decision(
+                trainee=trainee,
+                date=date,
+                template=template,
+                day_type=day_type,
+                parameters=parameters,
+                totals={
+                    'protein': total_protein,
+                    'carbs': total_carbs,
+                    'fat': total_fat,
+                    'calories': total_calories,
+                },
+            )
+
         return plan
 
     def _generate_from_legacy(
@@ -595,6 +619,94 @@ class NutritionPlanService:
             for m in result.meals
         ]
 
+    def _apply_carb_cycling_ruleset(
+        self,
+        parameters: dict,
+        day_type: str,
+    ) -> list[MealTarget]:
+        """Apply the CARB_CYCLING formula engine.
+
+        Day-type macro splits:
+        - high_carb / training: 40P / 40C / 20F
+        - medium_carb:          40P / 30C / 30F
+        - low_carb / rest:      45P / 15C / 40F
+
+        Uses body weight to compute total calories via activity multiplier.
+        """
+        bw_kg = float(parameters.get('body_weight_kg', 0))
+        bw_lbs = float(parameters.get('body_weight_lbs', 0))
+        if bw_kg <= 0 and bw_lbs > 0:
+            bw_kg = bw_lbs / 2.205
+        if bw_kg <= 0:
+            bw_kg = 75.0  # fallback
+
+        activity_level = str(parameters.get('activity_level', 'moderately_active'))
+        meals_per_day = int(parameters.get('meals_per_day', 4))
+        if meals_per_day < 1:
+            meals_per_day = 4
+
+        # BMR estimate (Mifflin-St Jeor simplified)
+        sex = str(parameters.get('sex', 'male'))
+        height_cm = float(parameters.get('height_cm', 175.0))
+        age = int(parameters.get('age', 30))
+
+        if sex == 'female':
+            bmr = 10 * bw_kg + 6.25 * height_cm - 5 * age - 161
+        else:
+            bmr = 10 * bw_kg + 6.25 * height_cm - 5 * age + 5
+
+        # Activity multiplier
+        multipliers = {
+            'sedentary': 1.2,
+            'lightly_active': 1.375,
+            'moderately_active': 1.55,
+            'very_active': 1.725,
+            'extremely_active': 1.9,
+        }
+        tdee = bmr * multipliers.get(activity_level, 1.55)
+
+        # Carb cycling day-type ratios
+        carb_day = day_type
+        if day_type in ('training', 'training_day'):
+            carb_day = 'high_carb'
+        elif day_type in ('rest', 'rest_day'):
+            carb_day = 'low_carb'
+        elif day_type not in ('low_carb', 'medium_carb', 'high_carb'):
+            carb_day = 'medium_carb'
+
+        if carb_day == 'high_carb':
+            p_pct, c_pct, f_pct = 0.40, 0.40, 0.20
+            cal_adjust = 1.05  # slight surplus on high days
+        elif carb_day == 'medium_carb':
+            p_pct, c_pct, f_pct = 0.40, 0.30, 0.30
+            cal_adjust = 1.0
+        else:  # low_carb
+            p_pct, c_pct, f_pct = 0.45, 0.15, 0.40
+            cal_adjust = 0.90  # slight deficit on low days
+
+        total_calories = int(tdee * cal_adjust)
+        total_protein = int((total_calories * p_pct) / 4)
+        total_carbs = int((total_calories * c_pct) / 4)
+        total_fat = int((total_calories * f_pct) / 9)
+
+        # Distribute evenly across meals
+        per_p = total_protein // meals_per_day
+        per_c = total_carbs // meals_per_day
+        per_f = total_fat // meals_per_day
+        per_cal = total_calories // meals_per_day
+
+        return [
+            MealTarget(
+                meal_number=i + 1,
+                name=f"Meal {i + 1}",
+                protein=per_p,
+                carbs=per_c,
+                fat=per_f,
+                calories=per_cal,
+            )
+            for i in range(meals_per_day)
+        ]
+
     def _apply_custom_ruleset(
         self,
         ruleset: dict,
@@ -650,3 +762,45 @@ class NutritionPlanService:
                 )
             )
         return targets
+
+    @staticmethod
+    def _log_nutrition_decision(
+        *,
+        trainee: User,
+        date: datetime.date,
+        template: NutritionTemplate,
+        day_type: str,
+        parameters: dict,
+        totals: dict[str, int],
+    ) -> None:
+        """Log nutrition day plan generation to DecisionLog."""
+        try:
+            DecisionLog.objects.create(
+                actor_type=DecisionLog.ActorType.SYSTEM,
+                decision_type='nutrition_day_plan_generated',
+                context={
+                    'trainee_id': trainee.pk,
+                    'date': str(date),
+                },
+                inputs_snapshot={
+                    'template_id': template.pk,
+                    'template_type': template.template_type,
+                    'day_type': day_type,
+                    'parameters': {
+                        k: v for k, v in parameters.items()
+                        if isinstance(v, (int, float, str, bool))
+                    },
+                },
+                constraints_applied={
+                    'template_type': template.template_type,
+                    'day_type': day_type,
+                },
+                options_considered=[],
+                final_choice=totals,
+                reason_codes=['nutrition_plan_generated'],
+            )
+        except Exception:
+            logger.exception(
+                "Failed to log nutrition decision for trainee %s on %s",
+                trainee.pk, date,
+            )

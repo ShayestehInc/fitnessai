@@ -1,39 +1,38 @@
-# Focus: Trainer Packet v6.5 — Step 9: End-of-Session Feedback + Trainer Routing Rules
+# Focus: Trainer Packet v6.5 — Step 10: Food Swap Engine + Nutrition DecisionLog
 
 ## Priority
 
-Critical — Step 9 of the v6.5 build order. Closes the feedback loop: trainee rates their session, reports pain, and the system automatically routes alerts to their trainer based on configurable rules.
+Critical — Step 10 of the v6.5 build order. Most nutrition infrastructure already exists (templates, fat toggle, meal logging). This step completes the food swap recommendation system and wires DecisionLog into nutrition decisions.
 
 ## What to Build
 
-### 1. SessionFeedback Model
+### 1. Food Swap Service
 
-- Links to ActiveSession (one feedback per session)
-- completion_state, 6 rating scales (1-5), friction_reasons JSON, recovery_concern boolean, notes
+- `get_food_swaps(food_item_id, mode, limit)` → returns ranked food alternatives
+- Three modes: `same_category` (same food group), `same_macros` (similar P/C/F ratio), `explore` (discover new foods)
+- Similarity scoring based on macro profile (calorie-normalized P/C/F distance)
+- DecisionLog for every swap recommendation
+- UndoSnapshot for executed swaps
 
-### 2. PainEvent Model
+### 2. Food Swap API Endpoints
 
-- Trainee pain/discomfort tracking: body_region, side, pain_score (1-10), sensation_type, onset_phase, warmup_effect
+- GET /food-items/{id}/swaps/?mode=same_macros&limit=10
+- POST /meal-logs/{id}/entries/{entry_id}/swap/ — execute a food swap in a meal log
 
-### 3. TrainerRoutingRule Model
+### 3. CARB_CYCLING Ruleset
 
-- Configurable alert rules: low_rating, pain_report, missed_sessions, high_difficulty, recovery_concern
-- Threshold values, notification method, is_active flag
+- Implement the carb cycling formula in nutrition_plan_service
+- High-carb days (training), low-carb days (rest), medium days (light training)
+- Macro ratios shift based on day type
 
-### 4. Feedback Service
+### 4. Nutrition DecisionLog Integration
 
-- submit_feedback → evaluates routing rules → creates trainer notifications
-- Pain event logging, feedback/pain history queries
-
-### 5. API Endpoints
-
-- POST/GET /sessions/{id}/feedback/
-- CRUD /pain-events/
-- CRUD /trainer-routing-rules/
-- GET /trainer-routing-rules/defaults/
+- Wire DecisionLog into day plan generation (nutrition_plan_service)
+- Log macro calculations with inputs (BW, BF%, template, day_type) and outputs (P/C/F targets)
 
 ## What NOT to Build
 
-- Mobile UI (separate step)
-- AI-powered feedback analysis
-- Push notifications (use existing TrainerNotification model)
+- System food database seed (separate effort)
+- Mobile UI for food swaps (separate step)
+- Natural language food parsing improvements
+- MACRO_EBOOK ruleset (not yet specified)

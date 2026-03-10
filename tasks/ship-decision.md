@@ -1,4 +1,4 @@
-# Ship Decision: Session Feedback + Trainer Routing Rules (v6.5 Step 9)
+# Ship Decision: Food Swap Engine + Nutrition DecisionLog (v6.5 Step 10)
 
 ## Verdict: SHIP
 
@@ -8,13 +8,8 @@
 
 ## Summary
 
-Session Feedback system is complete with 3 models (SessionFeedback, PainEvent, TrainerRoutingRule), feedback service with routing rule evaluation, 9 API endpoints, and 30 tests. All critical/major review issues fixed. No security vulnerabilities.
-
-## Remaining Concerns
-
-- Serializers use ModelSerializer instead of rest_framework_dataclasses (minor convention deviation)
-- Tests not executed against DB (Docker not running) — imports verified
+Food swap engine with 3 recommendation modes, swap execution with UndoSnapshot, CARB_CYCLING ruleset, and DecisionLog integration. 25 tests. No new models/migrations needed.
 
 ## What Was Built
 
-End-of-session feedback system (v6.5 Step 9): SessionFeedback model with 6 rating scales (1-5), PainEvent model with 17 body regions and pain scoring, TrainerRoutingRule model with 6 configurable alert types (low_rating, pain_report, high_difficulty, recovery_concern, form_breakdown, missed_sessions). Feedback service evaluates routing rules on submission and creates TrainerNotifications when thresholds are exceeded. Standalone pain event logging with rule evaluation. 9 REST API endpoints with role-based access (trainee submit/log, trainer/admin CRUD on rules). Default routing rule initialization for trainers.
+Food swap recommendation engine (v6.5 Step 10): calorie-normalized macro similarity scoring with 3 swap modes (same_macros, same_category, explore), swap execution with UndoSnapshot for undo support, DecisionLog audit trail for all swap decisions. CARB_CYCLING template type with Mifflin-St Jeor BMR and 3 day types. Nutrition DecisionLog on plan generation. 2 new API endpoints.
