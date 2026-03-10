@@ -90,13 +90,14 @@ class CohortAnalysisView(APIView):
         except (ValueError, TypeError):
             threshold = 70.0
 
+        clamped_days = max(7, min(365, days))
         comparisons = get_cohort_analysis(
             trainer=request.user,
             days=days,
             threshold=threshold,
         )
         return Response({
-            'period_days': days,
+            'period_days': clamped_days,
             'threshold': threshold,
             'comparisons': [asdict(c) for c in comparisons],
         }, status=status.HTTP_200_OK)

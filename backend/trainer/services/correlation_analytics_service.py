@@ -687,6 +687,20 @@ def _get_exercise_progressions(
         trainee_id=trainee_id,
     ).select_related('exercise')
 
+    # Batch session counts to avoid N+1 queries
+    session_counts_qs = (
+        LiftSetLog.objects.filter(
+            trainee_id=trainee_id,
+            session_date__gte=start_date,
+        )
+        .values('exercise_id')
+        .annotate(session_count=Count('session_date', distinct=True))
+    )
+    session_count_map: dict[int, int] = {
+        row['exercise_id']: row['session_count']
+        for row in session_counts_qs
+    }
+
     progressions: list[ExerciseProgression] = []
 
     for lm in lift_maxes:
@@ -707,18 +721,7 @@ def _get_exercise_progressions(
             continue
 
         change_pct = ((e1rm_current - e1rm_start) / e1rm_start) * 100
-
-        # Count training sessions for this exercise
-        session_count = (
-            LiftSetLog.objects.filter(
-                trainee_id=trainee_id,
-                exercise=lm.exercise,
-                session_date__gte=start_date,
-            )
-            .values('session_date')
-            .distinct()
-            .count()
-        )
+        session_count = session_count_map.get(lm.exercise_id, 0)
 
         if abs(change_pct) < 2:
             trend = 'plateau'
