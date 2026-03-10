@@ -4151,6 +4151,13 @@ class PlanSlotViewSet(
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        # Resolve trainer_id for privacy check
+        swap_trainer_id = (
+            request.user.pk
+            if request.user.role in ('TRAINER', 'ADMIN')
+            else slot.session.week.plan.trainee.parent_trainer_id
+        )
+
         result = execute_swap(
             slot=slot,
             new_exercise_id=data['new_exercise_id'],
@@ -4159,6 +4166,7 @@ class PlanSlotViewSet(
             plan_id=str(slot.session.week.plan_id),
             week_id=str(slot.session.week_id),
             session_id=str(slot.session_id),
+            trainer_id=swap_trainer_id,
         )
 
         return Response({

@@ -193,6 +193,7 @@ def execute_swap(
     plan_id: str = '',
     week_id: str = '',
     session_id: str = '',
+    trainer_id: int | None = None,
 ) -> SwapResult:
     """
     Execute an exercise swap on a plan slot.
@@ -201,12 +202,17 @@ def execute_swap(
     Preserves the existing set/rep/rest prescription.
 
     Raises:
-        ValueError: If new exercise doesn't exist or is already in the session.
+        ValueError: If new exercise doesn't exist, is private, or is already in the session.
     """
+    # Privacy check: only allow swapping to public or trainer-owned exercises
+    privacy_q = Q(is_public=True)
+    if trainer_id:
+        privacy_q |= Q(created_by_id=trainer_id)
+
     try:
-        new_exercise = Exercise.objects.get(pk=new_exercise_id)
+        new_exercise = Exercise.objects.get(privacy_q, pk=new_exercise_id)
     except Exercise.DoesNotExist:
-        raise ValueError(f"Exercise with id={new_exercise_id} not found.")
+        raise ValueError(f"Exercise with id={new_exercise_id} not found or not accessible.")
 
     # Check for duplicate in same session
     session_exercise_ids = set(
