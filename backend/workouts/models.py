@@ -3484,3 +3484,201 @@ class ExerciseTagDraft(models.Model):
 
     def __str__(self) -> str:
         return f"TagDraft({self.exercise.name}, {self.status})"
+
+
+class VoiceMemo(models.Model):
+    """
+    Voice memo upload for workout/nutrition logging via speech.
+    Transcribed via OpenAI Whisper, then parsed through natural language parser.
+    v6.5 Step 14.
+    """
+
+    class Status(models.TextChoices):
+        UPLOADED = 'uploaded', 'Uploaded'
+        TRANSCRIBING = 'transcribing', 'Transcribing'
+        TRANSCRIBED = 'transcribed', 'Transcribed'
+        PARSED = 'parsed', 'Parsed'
+        FAILED = 'failed', 'Failed'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='voice_memos',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    audio_file = models.FileField(
+        upload_to='voice_memos/%Y/%m/',
+        help_text="Audio file (MP3, WAV, M4A, WebM). Max 25MB.",
+    )
+    duration_seconds = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Audio duration in seconds.",
+    )
+    audio_format = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Audio format (mp3, wav, m4a, webm).",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.UPLOADED,
+    )
+
+    # Transcription
+    transcript = models.TextField(
+        blank=True,
+        default='',
+        help_text="Transcribed text from audio.",
+    )
+    transcription_confidence = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Whisper transcription confidence (0-1).",
+    )
+    transcription_language = models.CharField(
+        max_length=10,
+        blank=True,
+        default='',
+        help_text="Detected language code (e.g., 'en').",
+    )
+
+    # Parsed result
+    parsed_result = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Structured result from natural language parser.",
+    )
+
+    # Linkage
+    daily_log = models.ForeignKey(
+        'workouts.DailyLog',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='voice_memos',
+        help_text="DailyLog created from this voice memo.",
+    )
+
+    error_message = models.TextField(
+        blank=True,
+        default='',
+        help_text="Error details if transcription or parsing failed.",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'voice_memos'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['trainee', '-created_at']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self) -> str:
+        return f"VoiceMemo({self.trainee_id}, {self.status})"
+
+
+class VideoAnalysis(models.Model):
+    """
+    Video upload for exercise form analysis via AI vision.
+    Analyzed via GPT-4o vision to detect exercise, count reps, score form.
+    v6.5 Step 14.
+    """
+
+    class Status(models.TextChoices):
+        UPLOADED = 'uploaded', 'Uploaded'
+        ANALYZING = 'analyzing', 'Analyzing'
+        ANALYZED = 'analyzed', 'Analyzed'
+        CONFIRMED = 'confirmed', 'Confirmed'
+        FAILED = 'failed', 'Failed'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='video_analyses',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    video_file = models.FileField(
+        upload_to='video_analysis/%Y/%m/',
+        help_text="Video file (MP4, MOV, WebM). Max 50MB.",
+    )
+    duration_seconds = models.FloatField(
+        null=True,
+        blank=True,
+    )
+    thumbnail = models.ImageField(
+        upload_to='video_analysis/thumbs/%Y/%m/',
+        null=True,
+        blank=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.UPLOADED,
+    )
+
+    # Analysis results
+    exercise_detected = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text="Exercise name detected by AI.",
+    )
+    exercise = models.ForeignKey(
+        'workouts.Exercise',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_analyses',
+        help_text="Matched exercise from library.",
+    )
+    rep_count = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of reps detected.",
+    )
+    form_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Form quality score (0-10).",
+    )
+    observations = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of form observations from AI.",
+    )
+    confidence = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Overall analysis confidence (0-1).",
+    )
+    raw_ai_response = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Full AI response for debugging.",
+    )
+
+    error_message = models.TextField(
+        blank=True,
+        default='',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'video_analyses'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['trainee', '-created_at']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self) -> str:
+        return f"VideoAnalysis({self.trainee_id}, {self.exercise_detected or 'unknown'})"
