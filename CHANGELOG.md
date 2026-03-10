@@ -4,6 +4,19 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-10] — Pipeline 68: v6.5 Step 11 (Trainer Copilot + Daily Digest)
+
+### Added
+
+- Backend: DailyDigest model — per-trainer daily summary with aggregated metrics, highlights, concerns, action items
+- Backend: DigestPreference model — configurable delivery settings (method, hour, timezone, content toggles)
+- Backend: Daily digest service — aggregates TraineeActivitySummary, pain events, recovery concerns into structured digest
+- Backend: Message drafting service — 5 template types (encouragement, check_in, missed_workout, pain_follow_up, goal_update)
+- Backend: 5 new API endpoints: POST generate digest, GET history, GET/PATCH preferences, GET detail (auto-marks read), POST draft message
+- Backend: 20 tests covering digest generation, preferences, history, message drafting, API endpoints
+
+---
+
 ## [2026-03-10] — Pipeline 67: v6.5 Step 10 (Food Swap Engine + Nutrition DecisionLog)
 
 ### Added
