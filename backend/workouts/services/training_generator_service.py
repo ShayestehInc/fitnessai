@@ -542,11 +542,7 @@ def _a5_set_structure(
     modality_by_slug: dict[str, SetStructureModality],
 ) -> DecisionLog:
     """A5: Assign sets/reps/rest and default modality based on slot role and goal."""
-    from workouts.services.modality_service import (
-        assign_default_modality_to_specs,
-        compute_volume_contribution,
-        get_default_modality_slug,
-    )
+    from workouts.services.modality_service import assign_default_modality_to_specs
 
     structures: list[dict[str, Any]] = []
 

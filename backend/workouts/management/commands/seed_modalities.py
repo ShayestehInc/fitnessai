@@ -183,9 +183,9 @@ class Command(BaseCommand):
                 modality=modality,
                 condition_field=g_data['condition_field'],
                 condition_operator=g_data['condition_operator'],
-                condition_value=g_data['condition_value'],
                 defaults={
                     'rule_type': g_data['rule_type'],
+                    'condition_value': g_data['condition_value'],
                     'error_message': g_data['error_message'],
                     'is_active': True,
                 },

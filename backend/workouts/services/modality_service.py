@@ -12,7 +12,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from workouts.services.training_generator_service import SlotSpec
 
 from django.db import transaction
 from django.db.models import QuerySet
@@ -281,9 +284,12 @@ def validate_modality_for_slot(
     Returns list of violations (empty = modality is valid).
     """
     violations: list[GuardrailViolation] = []
-    guardrails: QuerySet[ModalityGuardrail] = modality.guardrails.filter(is_active=True)
+    # Use .all() to leverage prefetch_related, then filter in Python
+    # This avoids re-hitting the DB when guardrails are already prefetched
+    all_guardrails = modality.guardrails.all()
+    active_guardrails = [g for g in all_guardrails if g.is_active]
 
-    for guardrail in guardrails:
+    for guardrail in active_guardrails:
         actual_value = _resolve_field_value(
             condition_field=guardrail.condition_field,
             exercise=exercise,
@@ -333,8 +339,14 @@ def get_modality_recommendations(
     Return ranked list of modalities for a slot, with guardrail violations.
     Sorted by: valid first, then by score descending.
     """
+    from django.db.models import Prefetch
     modalities = list(
-        SetStructureModality.objects.prefetch_related('guardrails').all()
+        SetStructureModality.objects.prefetch_related(
+            Prefetch(
+                'guardrails',
+                queryset=ModalityGuardrail.objects.filter(is_active=True),
+            ),
+        ).all()
     )
 
     recommendations: list[ModalityRecommendation] = []
@@ -451,6 +463,8 @@ def apply_modality_to_slot(
     Raises ValueError if guardrails are violated and override is False.
     """
     exercise = slot.exercise
+    # Count total active guardrails for audit trail
+    total_guardrails = len([g for g in modality.guardrails.all() if g.is_active])
     violations = validate_modality_for_slot(
         modality=modality,
         exercise=exercise,
@@ -526,7 +540,8 @@ def apply_modality_to_slot(
                 'reason': reason,
             },
             constraints_applied={
-                'guardrails_checked': len(violations) + (0 if violations else 0),
+                'guardrails_checked': total_guardrails,
+                'guardrails_violated': len(violations),
                 'guardrails_overridden': guardrails_overridden,
             },
             options_considered=[],
@@ -572,7 +587,7 @@ def prefetch_system_modalities() -> dict[str, SetStructureModality]:
 
 
 def assign_default_modality_to_specs(
-    all_specs: list[Any],  # list[SlotSpec] — uses Any to avoid circular import
+    all_specs: list[SlotSpec],
     goal: str,
     deload_week_numbers: set[int],
     modality_by_slug: dict[str, SetStructureModality],
@@ -584,8 +599,8 @@ def assign_default_modality_to_specs(
     straight_sets = modality_by_slug.get('straight-sets')
 
     for spec in all_specs:
-        # Determine if this spec's session is in a deload week
-        is_deload = getattr(spec.session, 'week', None) and hasattr(spec.session.week, 'week_number') and spec.session.week.week_number in deload_week_numbers
+        # session.week is always set by A3 — no defensive checks needed
+        is_deload = spec.session.week.week_number in deload_week_numbers
 
         slug = get_default_modality_slug(goal, spec.slot_role, is_deload)
         modality = modality_by_slug.get(slug, straight_sets)

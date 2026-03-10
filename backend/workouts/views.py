@@ -113,6 +113,7 @@ from .serializers import (
     MealLogEntrySerializer,
     MealLogSerializer,
     MealLogSummarySerializer,
+    PlanSessionSerializer,
     PlanSlotSerializer,
     PlanSlotWriteSerializer,
     QuickAddEntrySerializer,
@@ -4232,12 +4233,34 @@ class PlanSlotViewSet(
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        # Scope modality lookup to user's visible modalities (row-level security)
+        user = request.user
+        visibility_q = Q(is_system=True)
+        if user.role == 'ADMIN':
+            visibility_q = Q()  # Admin sees all
+        elif user.role == 'TRAINER':
+            visibility_q = Q(is_system=True) | Q(created_by=user)
+        else:
+            # Trainee: system + their trainer's
+            if user.parent_trainer_id is not None:
+                visibility_q |= Q(created_by_id=user.parent_trainer_id)
+
         try:
-            modality = SetStructureModality.objects.get(pk=data['modality_id'])
+            modality = SetStructureModality.objects.prefetch_related(
+                'guardrails',
+            ).filter(visibility_q).get(pk=data['modality_id'])
         except SetStructureModality.DoesNotExist:
             return Response(
-                {'detail': f"Modality with id={data['modality_id']} not found."},
+                {'detail': f"Modality with id={data['modality_id']} not found or not accessible."},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Restrict guardrail override to TRAINER/ADMIN
+        override = data.get('override_guardrails', False)
+        if override and user.role == 'TRAINEE':
+            return Response(
+                {'detail': 'Trainees cannot override guardrails.'},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         try:
@@ -4245,7 +4268,7 @@ class PlanSlotViewSet(
                 slot=slot,
                 modality=modality,
                 actor_id=request.user.pk,
-                override_guardrails=data.get('override_guardrails', False),
+                override_guardrails=override,
                 modality_details=data.get('modality_details'),
                 reason=data.get('reason', ''),
             )
@@ -4329,6 +4352,7 @@ class PlanSessionViewSet(
     Retrieve plan sessions. Supports volume summary action.
     """
     permission_classes = [IsAuthenticated]
+    serializer_class = PlanSessionSerializer
 
     def get_queryset(self) -> QuerySet[PlanSession]:
         user = self.request.user
