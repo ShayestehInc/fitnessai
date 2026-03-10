@@ -42,6 +42,14 @@ from .correlation_views import (
     CorrelationOverviewView,
     TraineePatternsView,
 )
+from .audit_views import (
+    AuditSummaryView,
+    AuditTimelineView,
+    DecisionLogExportView,
+    TraineeNutritionExportView,
+    TraineeProgressExportView,
+    TraineeWorkoutExportView,
+)
 from community.trainer_views import (
     TrainerAnnouncementListCreateView,
     TrainerAnnouncementDetailView,
@@ -179,4 +187,14 @@ urlpatterns = [
 
     # Community Config (Admin Builder)
     path('community-config/', TrainerCommunityConfigView.as_view(), name='trainer-community-config'),
+
+    # Audit trail (v6.5 Step 16)
+    path('audit/summary/', AuditSummaryView.as_view(), name='audit-summary'),
+    path('audit/timeline/', AuditTimelineView.as_view(), name='audit-timeline'),
+
+    # Comprehensive exports (v6.5 Step 16)
+    path('export/decision-logs/', DecisionLogExportView.as_view(), name='export-decision-logs'),
+    path('export/trainee/<int:trainee_id>/workout-history/', TraineeWorkoutExportView.as_view(), name='export-trainee-workout'),
+    path('export/trainee/<int:trainee_id>/nutrition-history/', TraineeNutritionExportView.as_view(), name='export-trainee-nutrition'),
+    path('export/trainee/<int:trainee_id>/progress/', TraineeProgressExportView.as_view(), name='export-trainee-progress'),
 ]
