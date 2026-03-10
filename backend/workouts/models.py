@@ -1882,3 +1882,260 @@ class DecisionLog(models.Model):
     @property
     def is_undoable(self) -> bool:
         return self.undo_snapshot is not None and not self.undo_snapshot.is_reverted
+
+
+# ---------------------------------------------------------------------------
+# v6.5 Step 3: LiftSetLog + LiftMax
+# Per-set performance tracking and estimated max system.
+# Replaces unstructured DailyLog.workout_data JSON for lift data.
+# Powers: workload engine, progression, load prescription, analytics.
+# ---------------------------------------------------------------------------
+
+
+class LiftSetLog(models.Model):
+    """
+    Records a single completed set during training.
+    Every set the trainee performs gets one row — this is the raw performance data
+    that feeds e1RM estimation, workload calculation, and progression decisions.
+    """
+
+    class LoadEntryMode(models.TextChoices):
+        TOTAL_LOAD = 'total_load', 'Total Load'
+        PER_HAND = 'per_hand', 'Per Hand'
+        BODYWEIGHT_PLUS_EXTERNAL = 'bodyweight_plus_external', 'Bodyweight + External'
+
+    class LoadUnit(models.TextChoices):
+        LB = 'lb', 'Pounds'
+        KG = 'kg', 'Kilograms'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Who and what
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='lift_set_logs',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name='lift_set_logs',
+    )
+    session_date = models.DateField(
+        help_text="The date this set was performed.",
+    )
+    set_number = models.PositiveIntegerField(
+        help_text="Ordinal within the exercise for this session (1-based).",
+    )
+
+    # What the user entered
+    entered_load_value = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0,
+        help_text="The load value as the user typed it.",
+    )
+    entered_load_unit = models.CharField(
+        max_length=5,
+        choices=LoadUnit.choices,
+        default=LoadUnit.LB,
+    )
+    load_entry_mode = models.CharField(
+        max_length=30,
+        choices=LoadEntryMode.choices,
+        default=LoadEntryMode.TOTAL_LOAD,
+        help_text="How the user entered the load (total, per-hand, bodyweight+external).",
+    )
+
+    # Canonical (normalized for workload math)
+    canonical_external_load_value = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0,
+        help_text="Normalized external load for workload math. "
+                  "Per-hand entries are doubled. BW+external is just the external portion.",
+    )
+    canonical_external_load_unit = models.CharField(
+        max_length=5,
+        choices=LoadUnit.choices,
+        default=LoadUnit.LB,
+    )
+    workload_eligible = models.BooleanField(
+        default=True,
+        help_text="False if no valid load×reps representation exists (e.g., timed-only set).",
+    )
+
+    # Performance
+    completed_reps = models.PositiveIntegerField(
+        default=0,
+        help_text="Reps actually completed.",
+    )
+    completed_time_seconds = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Duration for timed sets (planks, carries, etc.).",
+    )
+    completed_distance_meters = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Distance for carries, sprints, etc.",
+    )
+    rpe = models.DecimalField(
+        max_digits=3,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Rate of Perceived Exertion (1-10, half-points allowed).",
+    )
+    standardization_pass = models.BooleanField(
+        default=False,
+        help_text="Did this set meet the exercise's standardization criteria? "
+                  "Only passing sets update e1RM. Default False (fail-closed).",
+    )
+
+    # Workload (computed, stored for fast queries)
+    set_workload_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="canonical_external_load × completed_reps (or 0 if not workload_eligible).",
+    )
+    set_workload_unit = models.CharField(
+        max_length=10,
+        default='lb_reps',
+        help_text="Unit of workload: lb_reps or kg_reps.",
+    )
+
+    tempo_modifier = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Tempo prescription if any (e.g., '3-1-2-0' = eccentric-pause-concentric-pause).",
+    )
+
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'lift_set_logs'
+        ordering = ['session_date', 'set_number']
+        indexes = [
+            models.Index(fields=['trainee', 'session_date']),
+            models.Index(fields=['trainee', 'exercise']),
+            models.Index(fields=['exercise', 'session_date']),
+            models.Index(fields=['session_date']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trainee', 'exercise', 'session_date', 'set_number'],
+                name='unique_set_per_exercise_per_session',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"Set {self.set_number}: {self.exercise.name} "
+            f"{self.canonical_external_load_value}{self.canonical_external_load_unit} "
+            f"x{self.completed_reps} @ RPE {self.rpe or '?'}"
+        )
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Auto-compute canonical load and workload on save."""
+        self._compute_canonical_load()
+        self._compute_workload()
+        super().save(*args, **kwargs)
+
+    def _compute_canonical_load(self) -> None:
+        """Normalize entered load to canonical external load."""
+        value = self.entered_load_value
+        if self.load_entry_mode == self.LoadEntryMode.PER_HAND:
+            value = value * 2
+        # For bodyweight+external, canonical is just the external portion (already correct)
+        self.canonical_external_load_value = value
+        self.canonical_external_load_unit = self.entered_load_unit
+
+    def _compute_workload(self) -> None:
+        """Compute set workload = canonical_load × completed_reps."""
+        if not self.workload_eligible or self.completed_reps == 0:
+            self.set_workload_value = 0
+            return
+        self.set_workload_value = self.canonical_external_load_value * self.completed_reps
+        self.set_workload_unit = f"{self.canonical_external_load_unit}_reps"
+
+
+class LiftMax(models.Model):
+    """
+    Cached estimated maxes per exercise per trainee.
+    Updated automatically when a qualifying LiftSetLog is saved.
+    Drives load prescription and progression decisions.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='lift_maxes',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name='lift_maxes',
+    )
+
+    # Estimated 1RM
+    e1rm_current = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0,
+        help_text="Current estimated 1RM from best qualifying set.",
+    )
+    e1rm_history = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {date, value, source_set_id, formula}.",
+    )
+
+    # Training max
+    tm_current = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0,
+        help_text="Training max = e1RM × tm_percentage. Coach-editable.",
+    )
+    tm_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=90,
+        help_text="TM as percentage of e1RM (default 90%). Range: 80-100.",
+        validators=[MinValueValidator(80), MaxValueValidator(100)],
+    )
+    tm_history = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {date, value, reason, trigger}.",
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'lift_maxes'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trainee', 'exercise'],
+                name='unique_max_per_exercise_per_trainee',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['trainee']),
+            models.Index(fields=['exercise']),
+        ]
+
+    def __str__(self) -> str:
+        return f"LiftMax({self.exercise.name}) e1RM={self.e1rm_current} TM={self.tm_current}"

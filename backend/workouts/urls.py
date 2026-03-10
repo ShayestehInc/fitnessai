@@ -8,6 +8,8 @@ from .views import (
     ExerciseViewSet,
     FoodItemViewSet,
     HabitViewSet,
+    LiftMaxViewSet,
+    LiftSetLogViewSet,
     MacroPresetViewSet,
     MealLogViewSet,
     NutritionDayPlanViewSet,
@@ -41,6 +43,8 @@ router.register(r'nutrition-day-plans', NutritionDayPlanViewSet, basename='nutri
 router.register(r'food-items', FoodItemViewSet, basename='fooditem')
 router.register(r'meal-logs', MealLogViewSet, basename='meallog')
 router.register(r'decision-logs', DecisionLogViewSet, basename='decisionlog')
+router.register(r'lift-set-logs', LiftSetLogViewSet, basename='liftsetlog')
+router.register(r'lift-maxes', LiftMaxViewSet, basename='liftmax')
 
 urlpatterns = [
     path('', include(router.urls)),
