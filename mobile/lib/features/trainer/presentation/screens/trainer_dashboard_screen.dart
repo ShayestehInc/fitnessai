@@ -341,6 +341,15 @@ class TrainerDashboardScreen extends ConsumerWidget {
                       loading: () => _buildCarouselShimmer(),
                       error: (e, _) => Text(context.l10n.featureReqErrore),
                     ),
+                    const SizedBox(height: 12),
+                    _buildAnalyticsCard(
+                      context,
+                      icon: Icons.upload_file,
+                      color: Colors.green,
+                      title: 'Import Programs',
+                      subtitle: 'Import programs from spreadsheets or files',
+                      route: '/program-import',
+                    ),
                     const SizedBox(height: 24),
 
                     // Exercises Carousel
@@ -385,15 +394,6 @@ class TrainerDashboardScreen extends ConsumerWidget {
                       title: 'Decision Log',
                       subtitle: 'View and override AI-driven decisions',
                       route: '/decision-log',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildAnalyticsCard(
-                      context,
-                      icon: Icons.upload_file,
-                      color: Colors.green,
-                      title: 'Import Programs',
-                      subtitle: 'Import programs from spreadsheets or files',
-                      route: '/program-import',
                     ),
                     const SizedBox(height: 24),
 
@@ -487,7 +487,10 @@ class TrainerDashboardScreen extends ConsumerWidget {
     required String route,
   }) {
     final theme = Theme.of(context);
-    return InkWell(
+    return Semantics(
+      button: true,
+      label: 'Navigate to $title',
+      child: InkWell(
       onTap: () => context.push(route),
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -537,6 +540,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

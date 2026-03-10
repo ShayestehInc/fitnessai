@@ -109,8 +109,18 @@ class DashboardContent extends StatelessWidget {
             child: WeightLogCard(),
           ),
 
-          // v6.5 Feature Cards
-          const SizedBox(height: 16),
+          // v6.5 Feature Cards — Performance
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Performance',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 8),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: TrainingPlansCard(),
@@ -128,17 +138,29 @@ class DashboardContent extends StatelessWidget {
           const SizedBox(height: 8),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
+            child: FeedbackHistoryCard(),
+          ),
+
+          // v6.5 Feature Cards — AI Tools
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'AI Tools',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
             child: VoiceMemosCard(),
           ),
           const SizedBox(height: 8),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: VideoAnalysisCard(),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: FeedbackHistoryCard(),
           ),
 
           const SizedBox(height: 16),
