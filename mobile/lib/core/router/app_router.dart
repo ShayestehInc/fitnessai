@@ -100,6 +100,31 @@ import '../../features/habits/presentation/screens/habit_checklist_screen.dart';
 import '../../features/habits/presentation/screens/habit_manager_screen.dart';
 import '../../features/progression/presentation/screens/progression_screen.dart';
 import '../../features/progression/presentation/screens/deload_screen.dart';
+// v6.5 feature imports
+import '../../features/session_runner/presentation/screens/session_runner_screen.dart';
+import '../../features/session_runner/presentation/screens/session_summary_screen.dart';
+import '../../features/session_runner/data/models/session_models.dart';
+import '../../features/lift_tracking/presentation/screens/lift_history_screen.dart';
+import '../../features/lift_tracking/presentation/screens/lift_max_screen.dart';
+import '../../features/lift_tracking/presentation/screens/workload_screen.dart';
+import '../../features/session_feedback/presentation/screens/session_feedback_screen.dart';
+import '../../features/session_feedback/presentation/screens/pain_log_screen.dart';
+import '../../features/session_feedback/presentation/screens/feedback_history_screen.dart';
+import '../../features/training_plans/presentation/screens/my_plans_screen.dart';
+import '../../features/training_plans/presentation/screens/plan_detail_screen.dart';
+import '../../features/training_plans/presentation/screens/plan_session_screen.dart';
+import '../../features/decision_log/presentation/screens/decision_log_screen.dart';
+import '../../features/trainer_analytics/presentation/screens/correlation_screen.dart';
+import '../../features/trainer_analytics/presentation/screens/trainee_patterns_screen.dart';
+import '../../features/trainer_analytics/presentation/screens/audit_trail_screen.dart';
+import '../../features/voice_memos/presentation/screens/voice_memo_list_screen.dart';
+import '../../features/voice_memos/presentation/screens/voice_memo_detail_screen.dart';
+import '../../features/video_analysis/presentation/screens/video_analysis_list_screen.dart';
+import '../../features/video_analysis/presentation/screens/video_analysis_detail_screen.dart';
+import '../../features/program_import/presentation/screens/program_import_screen.dart';
+import '../../features/program_import/presentation/screens/import_review_screen.dart';
+import '../../features/auto_tagging/presentation/screens/auto_tag_screen.dart';
+import '../../features/auto_tagging/presentation/screens/tag_history_screen.dart';
 import '../../features/sharing/presentation/screens/share_preview_screen.dart';
 import '../../features/checkins/data/models/checkin_models.dart';
 import '../../features/checkins/presentation/screens/checkin_form_screen.dart';
@@ -1216,6 +1241,277 @@ final routerProvider = Provider<GoRouter>((ref) {
           key: state.pageKey,
           child: const WatchSyncScreen(),
         ),
+      ),
+
+      // --- v6.5 Feature Routes ---
+
+      // Session Runner
+      GoRoute(
+        path: '/session-runner',
+        name: 'session-runner',
+        pageBuilder: (context, state) {
+          final sessionId = state.uri.queryParameters['session_id'];
+          final planSessionId = state.uri.queryParameters['plan_session_id'];
+          return adaptivePage(
+            key: state.pageKey,
+            child: SessionRunnerScreen(
+              sessionId: sessionId,
+              planSessionId: planSessionId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/session-summary',
+        name: 'session-summary',
+        pageBuilder: (context, state) {
+          final summary = state.extra! as SessionSummaryModel;
+          return adaptivePage(
+            key: state.pageKey,
+            child: SessionSummaryScreen(summary: summary),
+          );
+        },
+      ),
+
+      // Lift Tracking
+      GoRoute(
+        path: '/lift-history/:exerciseId',
+        name: 'lift-history',
+        pageBuilder: (context, state) {
+          final exerciseId = int.parse(state.pathParameters['exerciseId']!);
+          final exerciseName = state.uri.queryParameters['name'] ?? 'Exercise';
+          return adaptivePage(
+            key: state.pageKey,
+            child: LiftHistoryScreen(
+              exerciseId: exerciseId,
+              exerciseName: exerciseName,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/lift-maxes',
+        name: 'lift-maxes',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const LiftMaxScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/workload',
+        name: 'workload',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const WorkloadScreen(),
+        ),
+      ),
+
+      // Session Feedback
+      GoRoute(
+        path: '/session-feedback/:sessionPk',
+        name: 'session-feedback',
+        pageBuilder: (context, state) {
+          final sessionPk = int.parse(state.pathParameters['sessionPk']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: SessionFeedbackScreen(sessionPk: sessionPk),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/pain-log',
+        name: 'pain-log',
+        pageBuilder: (context, state) {
+          final exerciseIdStr = state.uri.queryParameters['exercise_id'];
+          final sessionIdStr = state.uri.queryParameters['session_id'];
+          final returnResult = state.uri.queryParameters['return_result'] == 'true';
+          return adaptivePage(
+            key: state.pageKey,
+            child: PainLogScreen(
+              exerciseId: exerciseIdStr != null ? int.tryParse(exerciseIdStr) : null,
+              activeSessionId: sessionIdStr != null ? int.tryParse(sessionIdStr) : null,
+              returnResult: returnResult,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/feedback-history',
+        name: 'feedback-history',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const FeedbackHistoryScreen(),
+        ),
+      ),
+
+      // Training Plans
+      GoRoute(
+        path: '/my-plans',
+        name: 'my-plans',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const MyPlansScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/plan-detail/:planId',
+        name: 'plan-detail',
+        pageBuilder: (context, state) {
+          final planId = int.parse(state.pathParameters['planId']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: PlanDetailScreen(planId: planId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/plan-session/:sessionId',
+        name: 'plan-session',
+        pageBuilder: (context, state) {
+          final sessionId = int.parse(state.pathParameters['sessionId']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: PlanSessionScreen(sessionId: sessionId),
+          );
+        },
+      ),
+
+      // Decision Log
+      GoRoute(
+        path: '/decision-log',
+        name: 'decision-log',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const DecisionLogScreen(),
+        ),
+      ),
+
+      // Trainer Analytics (correlations, patterns, audit)
+      GoRoute(
+        path: '/trainer/correlations',
+        name: 'trainer-correlations',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const CorrelationScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/trainer/trainee-patterns/:traineeId',
+        name: 'trainer-trainee-patterns',
+        pageBuilder: (context, state) {
+          final traineeId = int.parse(state.pathParameters['traineeId']!);
+          final traineeName = state.uri.queryParameters['name'] ?? 'Trainee';
+          return adaptivePage(
+            key: state.pageKey,
+            child: TraineePatternsScreen(
+              traineeId: traineeId,
+              traineeName: traineeName,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/trainer/audit-trail',
+        name: 'trainer-audit-trail',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AuditTrailScreen(),
+        ),
+      ),
+
+      // Voice Memos
+      GoRoute(
+        path: '/voice-memos',
+        name: 'voice-memos',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const VoiceMemoListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/voice-memos/:id',
+        name: 'voice-memo-detail',
+        pageBuilder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: VoiceMemoDetailScreen(memoId: id),
+          );
+        },
+      ),
+
+      // Video Analysis
+      GoRoute(
+        path: '/video-analysis',
+        name: 'video-analysis',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const VideoAnalysisListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/video-analysis/:id',
+        name: 'video-analysis-detail',
+        pageBuilder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return adaptivePage(
+            key: state.pageKey,
+            child: VideoAnalysisDetailScreen(analysisId: id),
+          );
+        },
+      ),
+
+      // Program Import
+      GoRoute(
+        path: '/program-import',
+        name: 'program-import',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const ProgramImportScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/program-import/:id/review',
+        name: 'import-review',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return adaptivePage(
+            key: state.pageKey,
+            child: ImportReviewScreen(importId: id),
+          );
+        },
+      ),
+
+      // Auto-Tagging
+      GoRoute(
+        path: '/auto-tag/:exerciseId',
+        name: 'auto-tag',
+        pageBuilder: (context, state) {
+          final exerciseId = int.parse(state.pathParameters['exerciseId']!);
+          final exerciseName = state.uri.queryParameters['name'] ?? 'Exercise';
+          return adaptivePage(
+            key: state.pageKey,
+            child: AutoTagScreen(
+              exerciseId: exerciseId,
+              exerciseName: exerciseName,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/tag-history/:exerciseId',
+        name: 'tag-history',
+        pageBuilder: (context, state) {
+          final exerciseId = int.parse(state.pathParameters['exerciseId']!);
+          final exerciseName = state.uri.queryParameters['name'] ?? 'Exercise';
+          return adaptivePage(
+            key: state.pageKey,
+            child: TagHistoryScreen(
+              exerciseId: exerciseId,
+              exerciseName: exerciseName,
+            ),
+          );
+        },
       ),
 
       // Settings routes

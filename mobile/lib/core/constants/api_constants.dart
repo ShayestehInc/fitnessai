@@ -333,6 +333,39 @@ class ApiConstants {
   static String applyDeload(int programId) => '$apiBaseUrl/workouts/programs/$programId/apply-deload/';
   static String exportPdf(int programId) => '$apiBaseUrl/workouts/programs/$programId/export-pdf/';
 
+  // Lift tracking endpoints
+  static String get liftSetLogs => '$apiBaseUrl/workouts/lift-set-logs/';
+  static String get liftMaxes => '$apiBaseUrl/workouts/lift-maxes/';
+  static String get liftMaxHistory => '$apiBaseUrl/workouts/lift-maxes/history/';
+  static String get workloadSession => '$apiBaseUrl/workouts/workload/session/';
+  static String get workloadWeekly => '$apiBaseUrl/workouts/workload/weekly/';
+  static String get workloadTrends => '$apiBaseUrl/workouts/workload/trends/';
+
+  // Training Plan endpoints
+  static String get trainingPlans => '$apiBaseUrl/workouts/training-plans/';
+  static String trainingPlanDetail(int id) =>
+      '$apiBaseUrl/workouts/training-plans/$id/';
+  static String get planSessions => '$apiBaseUrl/workouts/plan-sessions/';
+  static String planSessionDetail(int id) =>
+      '$apiBaseUrl/workouts/plan-sessions/$id/';
+  static String get planSlots => '$apiBaseUrl/workouts/plan-slots/';
+  static String planSlotDetail(int id) =>
+      '$apiBaseUrl/workouts/plan-slots/$id/';
+  static String get splitTemplates => '$apiBaseUrl/workouts/split-templates/';
+  static String get modalities => '$apiBaseUrl/workouts/modalities/';
+
+  // Progression Profile endpoints
+  static String get progressionProfiles =>
+      '$apiBaseUrl/workouts/progression-profiles/';
+  static String progressionProfileDetail(int id) =>
+      '$apiBaseUrl/workouts/progression-profiles/$id/';
+  static String get progressionSuggestionsList =>
+      '$apiBaseUrl/workouts/progression-suggestions/';
+  static String progressionSuggestionApprove(int id) =>
+      '$apiBaseUrl/workouts/progression-suggestions/$id/approve/';
+  static String progressionSuggestionDismiss(int id) =>
+      '$apiBaseUrl/workouts/progression-suggestions/$id/dismiss/';
+
   // Progress photo endpoints
   static String get progressPhotos => '$apiBaseUrl/workouts/progress-photos/';
   static String get progressPhotosCompare => '$apiBaseUrl/workouts/progress-photos/compare/';
@@ -387,6 +420,113 @@ class ApiConstants {
 
   // Trainer Community Config endpoint
   static String get trainerCommunityConfig => '$apiBaseUrl/trainer/community-config/';
+
+  // Session runner endpoints
+  static String get sessions => '$apiBaseUrl/workouts/sessions/';
+  static String get sessionsActive => '$apiBaseUrl/workouts/sessions/active/';
+  static String get sessionsStart => '$apiBaseUrl/workouts/sessions/start/';
+  static String sessionDetail(String id) =>
+      '$apiBaseUrl/workouts/sessions/$id/';
+  static String sessionLogSet(String id) =>
+      '$apiBaseUrl/workouts/sessions/$id/log-set/';
+  static String sessionSkipSet(String id) =>
+      '$apiBaseUrl/workouts/sessions/$id/skip-set/';
+  static String sessionComplete(String id) =>
+      '$apiBaseUrl/workouts/sessions/$id/complete/';
+  static String sessionAbandon(String id) =>
+      '$apiBaseUrl/workouts/sessions/$id/abandon/';
+
+  // Lift logging detail endpoints (v6.5)
+  static String liftSetLogDetail(String id) =>
+      '$apiBaseUrl/workouts/lift-set-logs/$id/';
+  static String liftMaxDetail(String id) =>
+      '$apiBaseUrl/workouts/lift-maxes/$id/';
+  static String get liftMaxPrescribe => '$apiBaseUrl/workouts/lift-maxes/prescribe/';
+
+  // Workload exercise endpoint (v6.5)
+  static String get workloadExercise => '$apiBaseUrl/workouts/workload/exercise/';
+
+  // Session feedback endpoints (v6.5)
+  static String get sessionFeedback => '$apiBaseUrl/workouts/session-feedback/';
+  static String sessionFeedbackSubmit(String sessionId) =>
+      '$apiBaseUrl/workouts/session-feedback/submit/$sessionId/';
+  static String sessionFeedbackForSession(String sessionId) =>
+      '$apiBaseUrl/workouts/session-feedback/for-session/$sessionId/';
+  static String get painEvents => '$apiBaseUrl/workouts/pain-events/';
+  static String get painEventLog => '$apiBaseUrl/workouts/pain-events/log/';
+  static String get routingRules => '$apiBaseUrl/workouts/routing-rules/';
+  static String get routingRulesDefaults => '$apiBaseUrl/workouts/routing-rules/defaults/';
+  static String get routingRulesInitialize => '$apiBaseUrl/workouts/routing-rules/initialize/';
+
+  // Voice memo endpoints (v6.5)
+  static String get voiceMemoUpload => '$apiBaseUrl/workouts/voice-memos/';
+  static String get voiceMemoList => '$apiBaseUrl/workouts/voice-memos/list/';
+  static String voiceMemoDetail(String id) =>
+      '$apiBaseUrl/workouts/voice-memos/$id/';
+
+  // Video analysis endpoints (v6.5)
+  static String get videoAnalysisUpload => '$apiBaseUrl/workouts/video-analysis/';
+  static String get videoAnalysisList => '$apiBaseUrl/workouts/video-analysis/list/';
+  static String videoAnalysisDetail(String id) =>
+      '$apiBaseUrl/workouts/video-analysis/$id/';
+  static String videoAnalysisConfirm(String id) =>
+      '$apiBaseUrl/workouts/video-analysis/$id/confirm/';
+
+  // Decision log endpoints (v6.5)
+  static String get decisionLogs => '$apiBaseUrl/workouts/decision-logs/';
+  static String decisionLogDetail(String id) =>
+      '$apiBaseUrl/workouts/decision-logs/$id/';
+  static String decisionLogUndo(String id) =>
+      '$apiBaseUrl/workouts/decision-logs/$id/undo/';
+
+  // Program import endpoints (v6.5)
+  static String get programImports => '$apiBaseUrl/workouts/program-imports/';
+  static String get programImportUpload => '$apiBaseUrl/workouts/program-imports/upload/';
+  static String programImportDetail(String draftId) =>
+      '$apiBaseUrl/workouts/program-imports/$draftId/';
+  static String programImportConfirm(String draftId) =>
+      '$apiBaseUrl/workouts/program-imports/$draftId/confirm/';
+
+  // Exercise auto-tagging endpoints (v6.5)
+  static String exerciseAutoTag(int exerciseId) =>
+      '$apiBaseUrl/workouts/exercises/$exerciseId/auto-tag/';
+  static String exerciseAutoTagDraft(int exerciseId) =>
+      '$apiBaseUrl/workouts/exercises/$exerciseId/auto-tag-draft/';
+  static String exerciseAutoTagApply(int exerciseId) =>
+      '$apiBaseUrl/workouts/exercises/$exerciseId/auto-tag-draft/apply/';
+  static String exerciseAutoTagReject(int exerciseId) =>
+      '$apiBaseUrl/workouts/exercises/$exerciseId/auto-tag-draft/reject/';
+  static String exerciseAutoTagRetry(int exerciseId) =>
+      '$apiBaseUrl/workouts/exercises/$exerciseId/auto-tag-draft/retry/';
+  static String exerciseTagHistory(int exerciseId) =>
+      '$apiBaseUrl/workouts/exercises/$exerciseId/tag-history/';
+
+  // Trainer analytics endpoints (v6.5)
+  static String get trainerAnalyticsCorrelations =>
+      '$apiBaseUrl/trainer/analytics/correlations/';
+  static String trainerTraineePatterns(int traineeId) =>
+      '$apiBaseUrl/trainer/analytics/trainee/$traineeId/patterns/';
+  static String get trainerCohortAnalysis =>
+      '$apiBaseUrl/trainer/analytics/cohort/';
+  static String get trainerAnalyticsRevenue => '$apiBaseUrl/trainer/analytics/revenue/';
+  static String get trainerAnalyticsAdherenceTrends =>
+      '$apiBaseUrl/trainer/analytics/adherence/trends/';
+
+  // Trainer audit endpoints (v6.5)
+  static String get trainerAuditSummary => '$apiBaseUrl/trainer/audit/summary/';
+  static String get trainerAuditTimeline => '$apiBaseUrl/trainer/audit/timeline/';
+
+  // Trainer comprehensive export endpoints (v6.5)
+  static String get trainerExportDecisionLogs => '$apiBaseUrl/trainer/export/decision-logs/';
+  static String get trainerExportPayments => '$apiBaseUrl/trainer/export/payments/';
+  static String get trainerExportSubscribers => '$apiBaseUrl/trainer/export/subscribers/';
+  static String get trainerExportTrainees => '$apiBaseUrl/trainer/export/trainees/';
+  static String trainerExportTraineeWorkout(int traineeId) =>
+      '$apiBaseUrl/trainer/export/trainee/$traineeId/workout-history/';
+  static String trainerExportTraineeNutrition(int traineeId) =>
+      '$apiBaseUrl/trainer/export/trainee/$traineeId/nutrition-history/';
+  static String trainerExportTraineeProgress(int traineeId) =>
+      '$apiBaseUrl/trainer/export/trainee/$traineeId/progress/';
 
   // Headers (these can stay const)
   static const String contentType = 'application/json';
