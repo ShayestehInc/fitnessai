@@ -7,6 +7,7 @@ import uuid
 from typing import Any
 
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -325,6 +326,7 @@ class Exercise(models.Model):
             models.Index(fields=['stance']),
             models.Index(fields=['plane']),
             models.Index(fields=['primary_muscle_group']),
+            GinIndex(fields=['pattern_tags'], name='exercises_pattern_tags_gin'),
         ]
 
     def __str__(self) -> str:
@@ -1798,7 +1800,7 @@ class DecisionLog(models.Model):
 
     # Who made the decision
     actor_type = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=ActorType.choices,
         help_text="Who/what triggered this decision.",
     )
@@ -1833,7 +1835,7 @@ class DecisionLog(models.Model):
         help_text="Filters and constraints that narrowed the options.",
     )
     options_considered = models.JSONField(
-        default=dict,
+        default=list,
         help_text="Top N options with score breakdown: [{option, score, reasons}, ...].",
     )
     final_choice = models.JSONField(

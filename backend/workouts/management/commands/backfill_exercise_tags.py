@@ -119,10 +119,11 @@ class Command(BaseCommand):
 
     def handle(self, *args: object, **options: object) -> None:
         dry_run = bool(options.get('dry_run', False))
-        exercises = Exercise.objects.all()
-        updated_count = 0
+        total_count = Exercise.objects.count()
+        to_update: list[Exercise] = []
+        update_fields = {'primary_muscle_group', 'muscle_contribution_map', 'pattern_tags'}
 
-        for exercise in exercises:
+        for exercise in Exercise.objects.iterator(chunk_size=500):
             changed = False
             name_lower = exercise.name.lower()
 
@@ -145,7 +146,6 @@ class Command(BaseCommand):
                     changed = True
 
             if changed:
-                updated_count += 1
                 if dry_run:
                     self.stdout.write(
                         f"  [DRY RUN] {exercise.name}: "
@@ -153,15 +153,12 @@ class Command(BaseCommand):
                         f"tags={exercise.pattern_tags}, "
                         f"map_keys={list(exercise.muscle_contribution_map.keys()) if exercise.muscle_contribution_map else []}"
                     )
-                else:
-                    exercise.save(update_fields=[
-                        'primary_muscle_group',
-                        'muscle_contribution_map',
-                        'pattern_tags',
-                        'updated_at',
-                    ])
+                to_update.append(exercise)
+
+        if not dry_run and to_update:
+            Exercise.objects.bulk_update(to_update, list(update_fields), batch_size=200)
 
         action = "Would update" if dry_run else "Updated"
         self.stdout.write(self.style.SUCCESS(
-            f"{action} {updated_count} of {exercises.count()} exercises."
+            f"{action} {len(to_update)} of {total_count} exercises."
         ))

@@ -37,7 +37,7 @@ from .models import (
 class ExerciseSerializer(serializers.ModelSerializer[Exercise]):
     """Serializer for Exercise model — includes v6.5 ExerciseCard tag fields."""
 
-    created_by_email = serializers.CharField(source='created_by.email', read_only=True)
+    created_by_email = serializers.CharField(source='created_by.email', read_only=True, default=None)
 
     class Meta:
         model = Exercise

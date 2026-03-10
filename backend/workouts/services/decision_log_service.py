@@ -22,6 +22,7 @@ class DecisionResult:
     """Return type for log_decision — never return raw dicts."""
     decision_id: UUID
     undo_snapshot_id: UUID | None
+    before_state: dict[str, Any] | None = None
 
 
 class DecisionLogService:
@@ -60,7 +61,7 @@ class DecisionLogService:
         reason_codes: list[str],
         actor: User | None = None,
         constraints_applied: dict[str, Any] | None = None,
-        options_considered: list[dict[str, Any]] | dict[str, Any] | None = None,
+        options_considered: list[dict[str, Any]] | None = None,
         override_info: dict[str, Any] | None = None,
         undo_scope: str | None = None,
         before_state: dict[str, Any] | None = None,
@@ -102,7 +103,7 @@ class DecisionLogService:
             context=context,
             inputs_snapshot=inputs_snapshot,
             constraints_applied=constraints_applied or {},
-            options_considered=options_considered or {},
+            options_considered=options_considered or [],
             final_choice=final_choice,
             reason_codes=reason_codes,
             override_info=override_info,
@@ -122,7 +123,12 @@ class DecisionLogService:
         actor: User | None = None,
     ) -> DecisionResult:
         """
-        Revert a decision by restoring the before_state from its UndoSnapshot.
+        Mark a decision as reverted and return the before_state.
+
+        This service marks the UndoSnapshot as reverted and logs the undo action,
+        but does NOT automatically restore domain objects. The caller must use
+        the returned before_state to apply the actual restoration — different
+        decision types require different restoration logic.
 
         Creates a NEW DecisionLog entry recording the undo action itself.
 
@@ -151,19 +157,20 @@ class DecisionLogService:
             else DecisionLog.ActorType.SYSTEM
         )
 
-        undo_decision = DecisionLog.objects.create(
+        undo_log = DecisionLog.objects.create(
             actor_type=actor_type,
             actor=actor,
             decision_type='undo',
             context=decision.context,
             inputs_snapshot={'reverted_decision_id': str(decision_id)},
             constraints_applied={},
-            options_considered={},
+            options_considered=[],
             final_choice={'restored_state': snapshot.before_state},
             reason_codes=['manual_undo'],
         )
 
         return DecisionResult(
-            decision_id=undo_decision.id,
+            decision_id=undo_log.id,
             undo_snapshot_id=None,
+            before_state=snapshot.before_state,
         )

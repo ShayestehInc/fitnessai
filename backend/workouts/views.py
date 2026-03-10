@@ -132,6 +132,8 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
             # Trainees see only public exercises
             queryset = Exercise.objects.filter(is_public=True)
 
+        queryset = queryset.select_related('created_by')
+
         # Apply filters from query parameters
         muscle_group = self.request.query_params.get('muscle_group')
         if muscle_group:
@@ -207,12 +209,15 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
         return queryset.order_by('muscle_group', 'name')
 
     def perform_create(self, serializer: BaseSerializer[Exercise]) -> None:
-        """Set created_by to current user if trainer."""
+        """Only trainers (custom) and admins (public) can create exercises."""
         user = cast(User, self.request.user)
         if user.is_trainer():
             serializer.save(created_by=user, is_public=False)
-        else:
+        elif user.is_admin():
             serializer.save(is_public=True)
+        else:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only trainers and admins can create exercises.")
 
     @action(detail=True, methods=['post'], url_path='upload-image', parser_classes=[MultiPartParser, FormParser])
     def upload_image(self, request: Request, pk: int = None) -> Response:
@@ -3249,19 +3254,25 @@ class MealLogViewSet(
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class DecisionLogPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 200
+
+
 class DecisionLogViewSet(viewsets.ReadOnlyModelViewSet[DecisionLog]):
     """
     Read-only ViewSet for DecisionLog entries (v6.5 audit trail).
 
-    Trainers see decisions for their trainees + system decisions in their context.
-    Admins see all. Trainees see decisions about themselves.
+    Trainers see decisions they made + decisions about their trainees.
+    Admins see all. Trainees see only decisions where they are the actor.
 
-    Supports filtering by decision_type, actor_type, and date range.
-    Includes an undo action: POST /api/workouts/decision-logs/{id}/undo/
+    Filtering: ?decision_type=, ?actor_type=, ?date_from=, ?date_to=
+    Undo action: POST /api/workouts/decision-logs/{id}/undo/
     """
     serializer_class = DecisionLogSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = PageNumberPagination
+    pagination_class = DecisionLogPagination
 
     def get_queryset(self) -> QuerySet[DecisionLog]:
         user = cast(User, self.request.user)
@@ -3269,51 +3280,65 @@ class DecisionLogViewSet(viewsets.ReadOnlyModelViewSet[DecisionLog]):
         if user.is_admin():
             queryset = DecisionLog.objects.all()
         elif user.is_trainer():
-            # Trainer sees decisions they made + system decisions for their trainees
-            trainee_ids = list(
-                User.objects.filter(parent_trainer=user).values_list('id', flat=True)
-            )
+            # Trainer sees: decisions they made + decisions about their trainees
+            # Uses subquery to avoid materializing all trainee IDs into memory
+            trainee_subquery = User.objects.filter(
+                parent_trainer=user
+            ).values('id')
             queryset = DecisionLog.objects.filter(
                 models.Q(actor=user)
-                | models.Q(actor_id__in=trainee_ids)
-                | models.Q(actor__isnull=True, actor_type=DecisionLog.ActorType.SYSTEM)
+                | models.Q(actor_id__in=trainee_subquery)
             )
         else:
-            # Trainee sees only decisions about themselves
-            queryset = DecisionLog.objects.filter(
-                models.Q(actor=user)
-                | models.Q(actor__isnull=True, actor_type=DecisionLog.ActorType.SYSTEM)
-            )
+            # Trainee sees ONLY decisions where they are the actor
+            queryset = DecisionLog.objects.filter(actor=user)
 
         queryset = queryset.select_related('actor', 'undo_snapshot')
 
-        # Filters
+        # Filters with validation
         decision_type = self.request.query_params.get('decision_type')
         if decision_type:
             queryset = queryset.filter(decision_type=decision_type)
 
         actor_type = self.request.query_params.get('actor_type')
         if actor_type:
-            queryset = queryset.filter(actor_type=actor_type)
+            valid_actor_types = {c[0] for c in DecisionLog.ActorType.choices}
+            if actor_type in valid_actor_types:
+                queryset = queryset.filter(actor_type=actor_type)
+            else:
+                return queryset.none()
 
         date_from = self.request.query_params.get('date_from')
         if date_from:
-            queryset = queryset.filter(timestamp__date__gte=date_from)
+            try:
+                parsed = datetime.strptime(date_from, '%Y-%m-%d').date()
+                queryset = queryset.filter(timestamp__date__gte=parsed)
+            except ValueError:
+                return queryset.none()
 
         date_to = self.request.query_params.get('date_to')
         if date_to:
-            queryset = queryset.filter(timestamp__date__lte=date_to)
+            try:
+                parsed = datetime.strptime(date_to, '%Y-%m-%d').date()
+                queryset = queryset.filter(timestamp__date__lte=parsed)
+            except ValueError:
+                return queryset.none()
 
-        return queryset
+        return queryset.order_by('-timestamp')
 
     @action(detail=True, methods=['post'], url_path='undo')
-    def undo(self, request: Request, pk: str = None) -> Response:
+    def undo(self, request: Request, pk: str | None = None) -> Response:
         """
-        Revert a decision by restoring the before_state from its UndoSnapshot.
+        Mark a decision as reverted and return the before_state for the caller to apply.
 
         POST /api/workouts/decision-logs/{id}/undo/
 
-        Creates a new DecisionLog entry recording the undo action itself.
+        Returns the before_state so the caller (frontend or service) can apply
+        the actual state restoration. The undo itself is logged as a new DecisionLog.
+
+        NOTE: This endpoint does NOT automatically restore domain objects. The caller
+        must use the returned before_state to update the relevant objects. This is by
+        design — different decision types require different restoration logic.
         """
         user = cast(User, request.user)
 
@@ -3352,8 +3377,9 @@ class DecisionLogViewSet(viewsets.ReadOnlyModelViewSet[DecisionLog]):
 
         return Response(
             {
-                'message': 'Decision successfully reverted.',
+                'message': 'Decision marked as reverted.',
                 'undo_decision_id': str(result.decision_id),
+                'before_state': result.before_state,
             },
             status=status.HTTP_200_OK,
         )
