@@ -1,158 +1,85 @@
-# Ship Decision: ExerciseCard Rich Tagging + DecisionLog + UndoSnapshot Foundation (v6.5)
+# Ship Decision: Pipeline 60 — LiftSetLog + LiftMax + Max/Load Engine
 
 ## Verdict: SHIP
 ## Confidence: HIGH
-## Quality Score: 8/10
+## Quality Score: 9/10
 
 ## Summary
-The v6.5 foundation layer is production-ready. All ExerciseCard tag fields, DecisionLog, and UndoSnapshot models are properly defined with correct choices, defaults, indexes, and row-level security. The DecisionLogService uses dataclass returns and atomic transactions, the backfill command uses bulk_update with iterator, and the undo endpoint has proper scope checks preventing IDOR.
+All 10 acceptance criteria are met. Every critical and major issue from code review has been fixed. Security audit passed. Django system checks pass with zero issues. The implementation is production-ready.
 
 ---
 
 ## Acceptance Criteria Verification
 
-### ExerciseCard Enrichment: ALL PASS
-- [x] `pattern_tags` ArrayField with PatternTag choices (16 movement patterns) — models.py:197
-- [x] `athletic_skill_tags` ArrayField with AthleticSkillTag choices (19 skills) — models.py:204
-- [x] `athletic_attribute_tags` ArrayField with AthleticAttributeTag choices (10 attributes) — models.py:211
-- [x] `muscle_contribution_map` JSONField — models.py:233
-- [x] `stance` CharField with 13 Stance choices — models.py:240
-- [x] `plane` CharField with 4 Plane choices — models.py:248
-- [x] `rom_bias` CharField with 4 RomBias choices — models.py:256
-- [x] `equipment_required` ArrayField — models.py:264
-- [x] `equipment_optional` ArrayField — models.py:271
-- [x] `athletic_constraints` JSONField — models.py:278
-- [x] `standardization_block` JSONField — models.py:286
-- [x] `swap_seed_ids` JSONField — models.py:293
-- [x] All new fields nullable/have defaults (blank=True, default=list/dict) — no existing exercises broken
-- [x] ExerciseSerializer includes all v6.5 fields — serializers.py:44-55
-- [x] ExerciseViewSet supports filtering by pattern_tags (overlap), stance, plane, rom_bias, primary_muscle_group, equipment_required — views.py:166-208
-- [x] Validation: muscle_contribution_map weights sum to 1.0 (tolerance 0.01) — serializers.py:59-78
-- [x] Validation: pattern_tags, athletic_skill_tags, athletic_attribute_tags validated against allowed choices — serializers.py:80-114
-- [x] DB indexes: GinIndex on pattern_tags, Index on stance, plane, primary_muscle_group — models.py:321-330
-- [x] `version` field for versioning — models.py:301
+| # | Criterion | Status | Evidence |
+|---|-----------|--------|----------|
+| 1 | LiftSetLog model with all v6.5 fields | PASS | models.py:1895-2068 — exercise FK, weight, reps, RPE, standardization_pass, load entry modes, canonical load, workload fields, UUID PK |
+| 2 | LiftMax model with e1RM, TM, history arrays | PASS | models.py:2070-2142 — e1rm_current, e1rm_history, tm_current, tm_percentage, tm_history, unique constraint |
+| 3 | MaxLoadService with e1RM estimation, TM calc, load prescription | PASS | max_load_service.py — Epley+Brzycki conservative, smoothing, TM calc, equipment rounding |
+| 4 | Only standardization-passing sets update e1RM | PASS | max_load_service.py:324 checks standardization_pass; default=False (fail-closed, models.py:1994); read-only in serializer (serializers.py:1237) |
+| 5 | LiftSetLog CRUD API (trainees create, trainers read) | PASS | views.py:3407-3487 — Create+List+Retrieve only (no update/delete), trainee-only create guard |
+| 6 | LiftMax read API with history endpoint | PASS | views.py:3532-3558 — detail=False action with exercise_id query param |
+| 7 | Load prescription endpoint | PASS | views.py:3560-3625 — trainee_id validated through serializer (serializers.py:1290-1293) |
+| 8 | Row-level security on all endpoints | PASS | Both viewsets scope querysets by role (admin=all, trainer=their trainees, trainee=self). Prescribe checks parent_trainer ownership. |
+| 9 | Proper indexes for performance | PASS | 4 indexes + unique constraint on LiftSetLog; 2 indexes + unique constraint on LiftMax |
+| 10 | Service methods return dataclasses, not dicts | PASS | E1RMEstimate and LoadPrescription are frozen dataclasses |
 
-### DecisionLog Model: ALL PASS
-- [x] UUID primary key — models.py:1798
-- [x] timestamp (auto_now_add) — models.py:1799
-- [x] actor_type (system/trainer/user) with TextChoices — models.py:1793-1796, 1802
-- [x] actor FK to User, nullable, SET_NULL — models.py:1807-1814
-- [x] decision_type CharField — models.py:1817
-- [x] context JSONField — models.py:1822
-- [x] inputs_snapshot JSONField — models.py:1829
-- [x] constraints_applied JSONField — models.py:1833
-- [x] options_considered JSONField — models.py:1837
-- [x] final_choice JSONField — models.py:1841
-- [x] reason_codes ArrayField — models.py:1845
-- [x] override_info JSONField nullable — models.py:1853
-- [x] undo_snapshot OneToOneField to UndoSnapshot, nullable — models.py:1860
-- [x] DecisionLogSerializer is fully read-only (read_only_fields = fields) — serializers.py:147
-- [x] DecisionLogViewSet is ReadOnlyModelViewSet — views.py:3263
-- [x] Filtering by decision_type, actor_type, date_from, date_to — views.py:3299-3325
-- [x] Row-level security: admins see all, trainers see own + trainee decisions, trainees see only own — views.py:3280-3294
-- [x] NO blanket system decision access for non-admins — VERIFIED (system decisions where actor=None only visible to admins)
-- [x] Proper indexes on decision_type, actor_type, timestamp, actor — models.py:1872-1876
+## Edge Case Verification
 
-### UndoSnapshot Model: ALL PASS
-- [x] UUID primary key — models.py:1753
-- [x] scope choices (slot/session/week/exercise/nutrition_day) — models.py:1746-1751
-- [x] before_state JSONField — models.py:1759
-- [x] after_state JSONField — models.py:1762
-- [x] created_at DateTimeField — models.py:1765
-- [x] reverted_at nullable — models.py:1766
-- [x] is_reverted property — models.py:1780-1782
-- [x] Undo endpoint: POST /api/workouts/decision-logs/{id}/undo/ — views.py:3329
-- [x] Undo creates new DecisionLog recording the undo action — decision_log_service.py:160-170
-- [x] Already-reverted returns 409 Conflict — views.py:3375-3379
-- [x] Non-undoable returns 400 — decision_log_service.py:143
+| # | Edge Case | Status | Evidence |
+|---|-----------|--------|----------|
+| 1 | 0 reps — no e1RM update | PASS | max_load_service.py:326 |
+| 2 | RPE=10 with 1 rep = true max | PASS | max_load_service.py:122-128 |
+| 3 | >15 reps capped at 15 | PASS | max_load_service.py:131 |
+| 4 | Bodyweight exercise (canonical load may be 0) | PASS | No e1RM update when load <= 0 (line 328) |
+| 5 | Per-hand entry — canonical load doubled | PASS | models.py:2055-2056 |
+| 6 | No existing LiftMax — create on first qualifying set | PASS | max_load_service.py:340-343 (get_or_create) |
+| 7 | e1RM going down — smoothing prevents wild swings | PASS | max_load_service.py:67 (SMOOTHING_FLOOR_FACTOR = 0.90) |
+| 8 | Prescription with no LiftMax — null with reason | PASS | views.py:3609-3614 |
 
-### DecisionLogService: ALL PASS
-- [x] Returns `DecisionResult` frozen dataclass (not dict) — decision_log_service.py:20-25
-- [x] `undo_decision` returns `before_state` in result — decision_log_service.py:172-176
-- [x] Uses `@transaction.atomic` on both methods — decision_log_service.py:53, 119
-- [x] Partial undo fields raises ValueError — decision_log_service.py:82-85
-- [x] select_related('undo_snapshot') on undo lookup — decision_log_service.py:138
+## Review Issues — All Fixed
 
-### Undo Endpoint Security: ALL PASS
-- [x] Only trainers and admins can undo (403 for trainees) — views.py:3346-3350
-- [x] IDOR protection: verifies decision is within user's queryset scope — views.py:3362
-- [x] UUID format validation — views.py:3353-3359
-
-### Migration & Seed Data: ALL PASS
-- [x] backfill_exercise_tags uses `bulk_update` with batch_size=200 — backfill_exercise_tags.py:159
-- [x] Uses `iterator(chunk_size=500)` for memory efficiency — backfill_exercise_tags.py:126
-- [x] Supports --dry-run flag — backfill_exercise_tags.py:114-118
-- [x] Maps legacy muscle_group to primary_muscle_group + contribution map — backfill_exercise_tags.py:23-56
-- [x] Name-based heuristics for pattern_tags — backfill_exercise_tags.py:59-107
-
-### URL Registration: PASS
-- [x] decision-logs registered in router — urls.py:43
-
----
+| Issue | Severity | Status | Fix |
+|-------|----------|--------|-----|
+| C1: No ownership guard on update/delete | Critical | FIXED | ViewSet now uses Create+List+Retrieve mixins only (no update/delete) |
+| C2: trainee_id bypasses serializer | Critical | FIXED | trainee_id added to LiftMaxPrescribeSerializer (serializers.py:1290-1293) |
+| M1: Unbounded history arrays | Major | FIXED | MAX_HISTORY_ENTRIES=200, trimming in update_max_from_set (lines 362-363, 374-375) |
+| M2: Race condition on concurrent updates | Major | FIXED | select_for_update() on line 346 |
+| M3: standardization_pass default=True | Major | FIXED | Changed to default=False (models.py:1994) |
+| M4: History endpoint URL deviation | Major | FIXED | Changed to detail=False with exercise_id query param (views.py:3532) |
+| M5: No pagination on LiftMaxViewSet | Major | FIXED | LiftMaxPagination added (views.py:3489-3491, 3508) |
+| M6: Type hint mismatch | Major | FIXED | validate_entered_load_value uses Decimal types (serializers.py:1243) |
 
 ## Security Verification
-- No secrets, API keys, or tokens in any reviewed files
-- Row-level security enforced in DecisionLogViewSet.get_queryset() — trainers scoped to own + trainees
-- IDOR protection on undo endpoint via queryset scope check
-- DecisionLog is read-only (ReadOnlyModelViewSet + read_only_fields on serializer)
-- Input validation on all tag fields, muscle_contribution_map, and filter parameters
-- Invalid filter values return empty querysets (not unfiltered data)
 
-## Architecture Verification
-- Business logic in services (DecisionLogService), not views — correct layering
-- Dataclass returns per project rules (no raw dicts from services)
-- select_related('created_by') on ExerciseViewSet, select_related('actor', 'undo_snapshot') on DecisionLogViewSet
-- All new fields backward-compatible (defaults/nullable)
-- GinIndex for ArrayField queries, standard indexes for CharFields
-- Pagination on DecisionLogViewSet
+- standardization_pass in read_only_fields — VERIFIED (serializers.py:1237)
+- workload_eligible in read_only_fields — VERIFIED (serializers.py:1236)
+- No secrets or credentials in any code — VERIFIED
+- Row-level security on all endpoints — VERIFIED
+- trainee_id validated through serializer — VERIFIED
+- Race condition mitigated with select_for_update — VERIFIED
+- Security audit score: 9/10, recommendation: PASS
 
----
+## Django System Checks
+
+```
+System check identified no issues (0 silenced).
+```
 
 ## Remaining Concerns (non-blocking)
 
-1. **System decision visibility gap:** System decisions (actor=None) about a trainee's plan are only visible to admins, not to the trainee's trainer. The trainer query filters by actor identity, not by context (e.g., plan_id belonging to their trainee). This is acceptable for the foundation layer since no system decisions are being created yet — when the swap/progression engines are built (Steps 3-5), the DecisionLogViewSet scoping should be extended to also check context fields.
-
-2. **Trainee DecisionLog access is actor-only:** Trainees can only see decisions where they are the actor. System-generated decisions about their program (actor=None) are invisible to them. This matches the ticket specification but may need revisiting when the decision engine is active.
-
-3. **No pagination on backfill command's bulk_update:** The `to_update` list accumulates all exercises in memory before calling `bulk_update`. For very large exercise libraries (10k+), this could use significant memory. The `batch_size=200` on bulk_update mitigates the DB side, but the Python list still holds all objects. Low risk for current data volumes.
+1. **Architecture review artifact is from Pipeline 59** — The `tasks/architecture-review.md` covers ExerciseCard/DecisionLog, not Pipeline 60. The Pipeline 60 code follows the same approved patterns (service layer, dataclass returns, select_related, row-level security).
+2. **Minor: `__str__` N+1** — LiftSetLog.__str__ accesses exercise.name without prefetch guarantee. Acceptable; can add select_related in admin config.
+3. **Minor: Extra DB query for latest_unit** — prescribe_for_trainee queries LiftSetLog for unit. Low impact given prescription is not high-frequency.
 
 ---
 
 ## What Was Built
 
-**ExerciseCard Rich Tagging + DecisionLog + UndoSnapshot Foundation (v6.5 Step 1)**
+**LiftSetLog + LiftMax + Max/Load Engine (v6.5 Step 3)**
 
-### Exercise Model Enrichment
-- 16 movement pattern tags (knee_dominant through carries)
-- 19 athletic skill tags (jumps, sprints, throws, Olympic derivatives)
-- 10 athletic attribute tags (power, elasticity, speed, agility, etc.)
-- 21 detailed muscle groups replacing the legacy 10-group taxonomy
-- Muscle contribution map with sum-to-1.0 validation
-- Stance (13 positions), Plane (4), ROM Bias (4) classifications
-- Equipment required/optional arrays
-- Athletic constraints JSON (impact, ground contacts, space, surface, skill demand)
-- Standardization block JSON (what_counts, feel_checks, fail_flags, default_dials, assess_hooks)
-- Swap seed IDs for pre-computed swap candidates
-- Version field for edit tracking
-- GinIndex on pattern_tags, indexes on stance/plane/primary_muscle_group
-
-### DecisionLog + UndoSnapshot Models
-- Full audit trail for every automated decision: inputs, constraints, options considered, final choice, reason codes
-- UndoSnapshot with before/after state, scope (slot/session/week/exercise/nutrition_day), revert tracking
-- Read-only API with filtering by decision_type, actor_type, date range
-- Undo endpoint with IDOR protection, double-undo prevention (409), proper actor logging
-
-### DecisionLogService
-- Atomic log_decision and undo_decision methods
-- Frozen dataclass return type (DecisionResult)
-- Partial undo field validation
-
-### ExerciseViewSet Enhancements
-- Tag-based filtering: pattern_tags (overlap), stance, plane, rom_bias, primary_muscle_group, equipment_required
-- Input validation on all filter parameters (invalid values return empty queryset)
-
-### Backfill Management Command
-- Maps legacy muscle_group to detailed taxonomy
-- Name-based heuristic pattern tag assignment
-- Memory-efficient: iterator(chunk_size=500) + bulk_update(batch_size=200)
-- Dry-run support
+- **LiftSetLog model** — Per-set performance records with UUID PKs, load entry modes (total/per-hand/bodyweight+external), auto-computed canonical load and workload, standardization gate (fail-closed), RPE tracking, and 4 composite indexes.
+- **LiftMax model** — Per-exercise per-trainee estimated maxes with e1RM/TM current values and capped history arrays (max 200 entries), unique constraint on (trainee, exercise).
+- **MaxLoadService** — e1RM estimation (conservative lower of Epley/Brzycki), rep capping at 15, RPE=10 true max, smoothing (max +15%/-10%), TM calculation with bounds validation, equipment-rounded load prescription, auto-update from qualifying sets with row-level locking.
+- **REST API** — LiftSetLog create+read (immutable for audit integrity), LiftMax read-only with history and prescribe endpoints, pagination on both viewsets, date range and exercise filters, trainee_id filter for trainers/admins.
+- **Security** — standardization_pass and workload_eligible server-controlled (read-only), trainee_id validated through serializer, concurrent updates serialized with select_for_update, generic error messages prevent information leakage.
