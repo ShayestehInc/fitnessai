@@ -465,3 +465,127 @@ class AIChatMessage(models.Model):
     def __str__(self) -> str:
         preview = self.content[:50] if self.content else ''
         return f"[{self.role}] {preview}"
+
+
+# ---------------------------------------------------------------------------
+# Daily Digest (v6.5 Step 11)
+# ---------------------------------------------------------------------------
+
+
+class DigestPreference(models.Model):
+    """
+    Trainer preferences for daily digest delivery.
+    One per trainer.
+    """
+
+    class DeliveryMethod(models.TextChoices):
+        IN_APP = 'in_app', 'In-App Only'
+        EMAIL = 'email', 'Email Only'
+        BOTH = 'both', 'Both'
+        DISABLED = 'disabled', 'Disabled'
+
+    trainer = models.OneToOneField(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='digest_preference',
+        limit_choices_to={'role': 'TRAINER'},
+    )
+    delivery_method = models.CharField(
+        max_length=20,
+        choices=DeliveryMethod.choices,
+        default=DeliveryMethod.IN_APP,
+    )
+    delivery_hour = models.PositiveSmallIntegerField(
+        default=7,
+        help_text="Hour of day (0-23) to deliver digest in trainer's timezone.",
+    )
+    timezone = models.CharField(
+        max_length=50,
+        default='America/New_York',
+    )
+    include_nutrition = models.BooleanField(default=True)
+    include_workouts = models.BooleanField(default=True)
+    include_pain_reports = models.BooleanField(default=True)
+    include_at_risk = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'digest_preferences'
+
+    def __str__(self) -> str:
+        return f"DigestPref({self.trainer.email}, {self.delivery_method})"
+
+
+class DailyDigest(models.Model):
+    """
+    Generated daily digest for a trainer.
+    Contains AI-generated summary of trainee activity.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainer = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='daily_digests',
+        limit_choices_to={'role': 'TRAINER'},
+    )
+    date = models.DateField(
+        help_text="The date this digest summarizes.",
+    )
+
+    # Aggregated metrics
+    total_trainees = models.PositiveIntegerField(default=0)
+    active_trainees = models.PositiveIntegerField(
+        default=0,
+        help_text="Trainees who logged anything today.",
+    )
+    workouts_completed = models.PositiveIntegerField(default=0)
+    workouts_missed = models.PositiveIntegerField(default=0)
+    pain_reports = models.PositiveIntegerField(default=0)
+    avg_compliance_pct = models.FloatField(
+        default=0.0,
+        help_text="Average nutrition compliance across trainees (0-100).",
+    )
+
+    # AI-generated content
+    summary_text = models.TextField(
+        blank=True,
+        default='',
+        help_text="AI-generated narrative summary of the day.",
+    )
+    highlights = models.JSONField(
+        default=list,
+        help_text="List of notable events: PRs, streaks, milestones.",
+    )
+    concerns = models.JSONField(
+        default=list,
+        help_text="List of concerns: missed sessions, pain reports, drops.",
+    )
+    action_items = models.JSONField(
+        default=list,
+        help_text="Suggested actions for the trainer.",
+    )
+
+    # Delivery tracking
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'daily_digests'
+        ordering = ['-date']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trainer', 'date'],
+                name='unique_digest_per_trainer_per_date',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['trainer', '-date']),
+        ]
+
+    def __str__(self) -> str:
+        return f"Digest({self.trainer.email}, {self.date})"
