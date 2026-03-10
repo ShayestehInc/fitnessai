@@ -1,57 +1,40 @@
-# Focus: Trainer Packet v6.5 — Step 3: LiftSetLog + LiftMax + e1RM/TM + Load Prescription
+# Focus: Trainer Packet v6.5 — Step 4: Workload Engine
 
 ## Priority
-Critical — Step 3 of the v6.5 build order. The LiftSetLog replaces unstructured JSON workout logging with relational per-set tracking. LiftMax enables intelligent load prescription. Together they power: progression, workload engine, session runner, and analytics.
+Critical — Step 4 of the v6.5 build order. Aggregates per-set data (from LiftSetLog) into exercise, session, and weekly workload totals. Enables workload trending, muscle-group distribution, and progressive overload tracking.
 
 ## What to Build
 
-### 1. LiftSetLog Model
-Per-set performance tracking (replaces DailyLog.workout_data JSON for structured lift data):
-- `exercise` FK to Exercise
-- `trainee` FK to User
-- `session_date` DateField
-- `set_number` PositiveIntegerField
-- `exercise_id`, `weight`, `reps_completed` (or `time_seconds` for timed sets)
-- `rpe` optional (Rate of Perceived Exertion, 1-10)
-- `standardization_pass` BooleanField (did this set meet the exercise's standardization criteria)
-- `entered_load_value`, `entered_load_unit` (what the user typed)
-- `load_entry_mode` (total_load / per_hand / bodyweight_plus_external)
-- `canonical_external_load_value`, `canonical_external_load_unit` (normalized for workload math)
-- `workload_eligible` BooleanField (valid for workload calculations)
-- `completed_reps`, `completed_time_seconds`, `completed_distance_meters` (optional)
-- `set_workload_value`, `set_workload_unit`, `workload_formula_id`
-- `notes` optional TextField
-- Log every set via DecisionLogService when system prescribes load
+### 1. WorkloadFactTemplate Model
+Deterministic "cool fact" templates shown after exercise/session completion:
+- `scope` (exercise/session), `template_text` with placeholders, `condition_rules` JSON, `priority`, `is_active`
 
-### 2. LiftMax Model
-Per-exercise cached strength maxes:
-- `trainee` FK to User
-- `exercise` FK to Exercise (unique_together with trainee)
-- `e1rm_current` DecimalField — estimated 1RM from best qualifying set
-- `e1rm_history` JSONField — list of {date, value, source_set_id}
-- `tm_current` DecimalField — training max (typically 85-95% of e1RM)
-- `tm_history` JSONField — list of {date, value, reason}
-- `anchor` DecimalField — MaxGroup anchor for seeding
-- `variation_ratios` JSONField — for MaxGroup seeding from anchor
+### 2. Workload Aggregation Service
+- `compute_exercise_workload(trainee, exercise, session_date)` → dataclass
+- `compute_session_workload(trainee, session_date)` → dataclass
+- `compute_weekly_workload(trainee, week_start, week_end)` → dataclass
+- `compute_workload_by_muscle_group(trainee, date_range)` → dict
+- `compute_workload_by_pattern(trainee, date_range)` → dict
 
-### 3. MaxLoadService (in services/)
-- `estimate_e1rm(weight, reps, formula)` → Decimal (Epley, Brzycki, choose conservative)
-- `smooth_e1rm_update(current_e1rm, new_estimate)` → Decimal (only update if passes standardization)
-- `calculate_tm(e1rm, percentage=0.90)` → Decimal
-- `prescribe_load(tm, target_percent, rounding_increment=2.5)` → Decimal
-- `round_to_equipment(load, increment)` → Decimal (round to nearest plate increment)
-- Only sets passing standardization update e1RM
+### 3. Workload Trend Service
+- `compute_acute_chronic_ratio(trainee, as_of_date)` → Decimal
+- `detect_spike(trainee, threshold)` / `detect_dip(trainee, threshold)` → bool
+- `get_weekly_deltas(trainee, weeks_back)` → list
 
-### 4. API Endpoints
-- CRUD for LiftSetLog (trainees create, trainers read their trainees')
-- GET /api/workouts/lift-maxes/ — trainee's current maxes
-- GET /api/workouts/lift-maxes/{exercise_id}/history/ — e1RM history for charting
-- POST /api/workouts/lift-maxes/prescribe/ — get recommended load for exercise+target
+### 4. Workload Fact Service
+- Deterministic fact selection from template library
+- Template rendering with context data
 
-### 5. Migration
+### 5. API Endpoints
+- GET /api/workouts/workload/exercise/ — exercise workload for a session
+- GET /api/workouts/workload/session/ — session workload summary
+- GET /api/workouts/workload/weekly/ — weekly workload with breakdowns
+- GET /api/workouts/workload/trends/ — trend data with ACWR
+- CRUD for WorkloadFactTemplate (trainer)
 
 ## What NOT to Build
-- Workload engine aggregation (Step 4)
 - Session runner UI (Step 8)
-- Progression engine (Step 7)
-- Mobile UI for lift logging (future pipeline — current workout_log screen still works with DailyLog)
+- Progression engine integration (Step 7)
+- Set structure counting multipliers (Step 6 — modality library)
+- WorkloadFormula registry (overkill — one formula exists: load × reps)
+- Snapshot models for caching (can add later if performance requires it)

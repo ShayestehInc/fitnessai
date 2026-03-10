@@ -33,6 +33,7 @@ from .models import (
     ProgressPhoto,
     UndoSnapshot,
     WeightCheckIn,
+    WorkloadFactTemplate,
     WorkoutTemplate,
 )
 
@@ -1291,3 +1292,26 @@ class LiftMaxPrescribeSerializer(serializers.Serializer[None]):
         required=False,
         help_text="Required for trainers/admins. Ignored for trainees.",
     )
+
+
+# ---------------------------------------------------------------------------
+# Workload Engine serializers (v6.5 Step 4)
+# ---------------------------------------------------------------------------
+
+class WorkloadFactTemplateSerializer(serializers.ModelSerializer[WorkloadFactTemplate]):
+    """CRUD serializer for workload fact templates."""
+
+    class Meta:
+        model = WorkloadFactTemplate
+        fields = [
+            'id',
+            'scope',
+            'template_text',
+            'condition_rules',
+            'priority',
+            'is_active',
+            'created_by',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']

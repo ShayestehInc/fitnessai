@@ -39,6 +39,7 @@ from .models import (
     LiftMax,
     LiftSetLog,
     MacroPreset,
+    WorkloadFactTemplate,
     MealLog,
     MealLogEntry,
     NutritionDayPlan,
@@ -98,6 +99,7 @@ from .serializers import (
     LiftMaxPrescribeSerializer,
     LiftMaxSerializer,
     LiftSetLogSerializer,
+    WorkloadFactTemplateSerializer,
     FoodItemCreateSerializer,
     FoodItemSerializer,
     MealLogEntrySerializer,
@@ -111,6 +113,7 @@ from .services.daily_log_service import DailyLogService
 from .services.decision_log_service import DecisionLogService
 from .services.max_load_service import MaxLoadService
 from .services.natural_language_parser import NaturalLanguageParserService
+from .services.workload_service import WorkloadAggregationService, WorkloadTrendService
 
 
 class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
@@ -3622,4 +3625,267 @@ class LiftMaxViewSet(viewsets.ReadOnlyModelViewSet[LiftMax]):
             'exercise_id': prescription.exercise_id,
             'exercise_name': prescription.exercise_name,
             'reason': prescription.reason,
+        })
+
+
+# ---------------------------------------------------------------------------
+# Workload Engine ViewSets (v6.5 Step 4)
+# ---------------------------------------------------------------------------
+
+class WorkloadFactTemplateViewSet(viewsets.ModelViewSet[WorkloadFactTemplate]):
+    """
+    CRUD for workload fact templates.
+
+    Trainers manage their own templates. Admins manage all.
+    System defaults (created_by=null) are visible to everyone.
+    """
+    serializer_class = WorkloadFactTemplateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[WorkloadFactTemplate]:
+        user = cast(User, self.request.user)
+
+        if user.is_admin():
+            return WorkloadFactTemplate.objects.all()
+        elif user.is_trainer():
+            # Trainer sees system defaults + their own
+            return WorkloadFactTemplate.objects.filter(
+                Q(created_by__isnull=True) | Q(created_by=user)
+            )
+        else:
+            # Trainees can read but not modify
+            return WorkloadFactTemplate.objects.filter(
+                Q(created_by__isnull=True) | Q(created_by=user.parent_trainer)
+            )
+
+    def perform_create(self, serializer: BaseSerializer[WorkloadFactTemplate]) -> None:
+        user = cast(User, self.request.user)
+        if user.is_trainee():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only trainers and admins can create fact templates.")
+        serializer.save(created_by=user)
+
+    def perform_update(self, serializer: BaseSerializer[WorkloadFactTemplate]) -> None:
+        user = cast(User, self.request.user)
+        instance = self.get_object()
+        if user.is_trainee():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only trainers and admins can update fact templates.")
+        if not user.is_admin() and instance.created_by_id != user.id:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only edit your own templates.")
+        serializer.save()
+
+    def perform_destroy(self, instance: WorkloadFactTemplate) -> None:
+        user = cast(User, self.request.user)
+        if user.is_trainee():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only trainers and admins can delete fact templates.")
+        if not user.is_admin() and instance.created_by_id != user.id:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only delete your own templates.")
+        instance.delete()
+
+
+class WorkloadViewSet(viewsets.ViewSet):
+    """
+    Workload aggregation and trend endpoints (v6.5 Step 4).
+
+    All endpoints are read-only computations from LiftSetLog data.
+    Row-level security: trainees see own data, trainers see their trainees'.
+
+    Endpoints:
+    - GET /exercise/?exercise_id=&session_date=&trainee_id= — exercise workload
+    - GET /session/?session_date=&trainee_id= — session workload summary
+    - GET /weekly/?week_start=&trainee_id= — weekly workload with breakdowns
+    - GET /trends/?trainee_id=&weeks_back= — trend data with ACWR
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _resolve_trainee(self, request: Request) -> User | None:
+        """Resolve the trainee for workload computation, enforcing row-level security."""
+        user = cast(User, request.user)
+
+        if user.is_trainee():
+            return user
+
+        trainee_id = request.query_params.get('trainee_id')
+        if not trainee_id:
+            return None
+
+        try:
+            trainee = User.objects.get(id=int(trainee_id), role='TRAINEE')
+        except (User.DoesNotExist, ValueError):
+            return None
+
+        # Row-level security: trainer can only see their own trainees
+        if user.is_trainer() and trainee.parent_trainer_id != user.id:
+            return None
+
+        return trainee
+
+    @action(detail=False, methods=['get'], url_path='exercise')
+    def exercise(self, request: Request) -> Response:
+        """GET /api/workouts/workload/exercise/?exercise_id=&session_date=&trainee_id="""
+        trainee = self._resolve_trainee(request)
+        if trainee is None:
+            return Response(
+                {'error': 'trainee_id is required (or invalid).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        exercise_id = request.query_params.get('exercise_id')
+        session_date_str = request.query_params.get('session_date')
+
+        if not exercise_id or not session_date_str:
+            return Response(
+                {'error': 'exercise_id and session_date are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            parsed_date = datetime.strptime(session_date_str, '%Y-%m-%d').date()
+            exercise_id_int = int(exercise_id)
+        except ValueError:
+            return Response(
+                {'error': 'Invalid exercise_id or session_date format (YYYY-MM-DD).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = WorkloadAggregationService.compute_exercise_workload(
+            trainee_id=trainee.id,
+            exercise_id=exercise_id_int,
+            session_date=parsed_date,
+        )
+
+        return Response({
+            'exercise_id': result.exercise_id,
+            'exercise_name': result.exercise_name,
+            'session_date': str(result.session_date),
+            'total_workload': str(result.total_workload),
+            'unit': result.unit,
+            'set_count': result.set_count,
+            'rep_total': result.rep_total,
+            'comparison_delta': str(result.comparison_delta) if result.comparison_delta is not None else None,
+            'comparison_date': str(result.comparison_date) if result.comparison_date else None,
+            'fact_text': result.fact_text,
+        })
+
+    @action(detail=False, methods=['get'], url_path='session')
+    def session(self, request: Request) -> Response:
+        """GET /api/workouts/workload/session/?session_date=&trainee_id="""
+        trainee = self._resolve_trainee(request)
+        if trainee is None:
+            return Response(
+                {'error': 'trainee_id is required (or invalid).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        session_date_str = request.query_params.get('session_date')
+        if not session_date_str:
+            return Response(
+                {'error': 'session_date is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            parsed_date = datetime.strptime(session_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'error': 'Invalid session_date format (YYYY-MM-DD).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = WorkloadAggregationService.compute_session_workload(
+            trainee_id=trainee.id,
+            session_date=parsed_date,
+        )
+
+        return Response({
+            'trainee_id': result.trainee_id,
+            'session_date': str(result.session_date),
+            'total_workload': str(result.total_workload),
+            'unit': result.unit,
+            'exercise_count': result.exercise_count,
+            'total_sets': result.total_sets,
+            'total_reps': result.total_reps,
+            'top_exercises': result.top_exercises,
+            'week_to_date_workload': str(result.week_to_date_workload),
+            'comparison_delta': str(result.comparison_delta) if result.comparison_delta is not None else None,
+            'comparison_date': str(result.comparison_date) if result.comparison_date else None,
+            'fact_text': result.fact_text,
+        })
+
+    @action(detail=False, methods=['get'], url_path='weekly')
+    def weekly(self, request: Request) -> Response:
+        """GET /api/workouts/workload/weekly/?week_start=&trainee_id="""
+        trainee = self._resolve_trainee(request)
+        if trainee is None:
+            return Response(
+                {'error': 'trainee_id is required (or invalid).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        week_start: date | None = None
+        week_start_str = request.query_params.get('week_start')
+        if week_start_str:
+            try:
+                week_start = datetime.strptime(week_start_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response(
+                    {'error': 'Invalid week_start format (YYYY-MM-DD).'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        result = WorkloadAggregationService.compute_weekly_workload(
+            trainee_id=trainee.id,
+            week_start=week_start,
+        )
+
+        return Response({
+            'trainee_id': result.trainee_id,
+            'week_start': str(result.week_start),
+            'week_end': str(result.week_end),
+            'total_workload': str(result.total_workload),
+            'unit': result.unit,
+            'session_count': result.session_count,
+            'by_muscle_group': {k: str(v) for k, v in result.by_muscle_group.items()},
+            'by_pattern': {k: str(v) for k, v in result.by_pattern.items()},
+            'prior_week_delta': str(result.prior_week_delta) if result.prior_week_delta is not None else None,
+            'daily_breakdown': result.daily_breakdown,
+        })
+
+    @action(detail=False, methods=['get'], url_path='trends')
+    def trends(self, request: Request) -> Response:
+        """GET /api/workouts/workload/trends/?trainee_id=&weeks_back="""
+        trainee = self._resolve_trainee(request)
+        if trainee is None:
+            return Response(
+                {'error': 'trainee_id is required (or invalid).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        weeks_back = 8
+        weeks_str = request.query_params.get('weeks_back')
+        if weeks_str:
+            try:
+                weeks_back = min(int(weeks_str), 52)  # Cap at 1 year
+            except ValueError:
+                weeks_back = 8
+
+        result = WorkloadTrendService.compute_trend(
+            trainee_id=trainee.id,
+            weeks_back=weeks_back,
+        )
+
+        return Response({
+            'trainee_id': result.trainee_id,
+            'as_of_date': str(result.as_of_date),
+            'rolling_7_day': str(result.rolling_7_day),
+            'rolling_28_day': str(result.rolling_28_day),
+            'acute_chronic_ratio': str(result.acute_chronic_ratio) if result.acute_chronic_ratio is not None else None,
+            'trend_direction': result.trend_direction,
+            'spike_flag': result.spike_flag,
+            'dip_flag': result.dip_flag,
+            'weekly_deltas': result.weekly_deltas,
         })

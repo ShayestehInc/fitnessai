@@ -20,6 +20,8 @@ from .views import (
     ProgressPhotoViewSet,
     ProgramViewSet,
     WeightCheckInViewSet,
+    WorkloadFactTemplateViewSet,
+    WorkloadViewSet,
     WorkoutTemplateViewSet,
 )
 from .survey_views import ReadinessSurveyView, PostWorkoutSurveyView, MyLayoutConfigView
@@ -45,6 +47,8 @@ router.register(r'meal-logs', MealLogViewSet, basename='meallog')
 router.register(r'decision-logs', DecisionLogViewSet, basename='decisionlog')
 router.register(r'lift-set-logs', LiftSetLogViewSet, basename='liftsetlog')
 router.register(r'lift-maxes', LiftMaxViewSet, basename='liftmax')
+router.register(r'workload-facts', WorkloadFactTemplateViewSet, basename='workloadfacttemplate')
+router.register(r'workload', WorkloadViewSet, basename='workload')
 
 urlpatterns = [
     path('', include(router.urls)),
