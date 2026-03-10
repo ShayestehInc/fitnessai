@@ -13,7 +13,7 @@ from __future__ import annotations
 import csv
 import io
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from django.db import transaction
@@ -156,11 +156,7 @@ def parse_csv_and_create_draft(
         total_weeks=total_weeks,
         total_sessions=total_sessions,
         total_slots=total_slots,
-        status=(
-            ProgramImportDraft.Status.PENDING_REVIEW
-            if not errors
-            else ProgramImportDraft.Status.PENDING_REVIEW
-        ),
+        status=ProgramImportDraft.Status.PENDING_REVIEW,
     )
 
     return ParseResult(
@@ -219,15 +215,19 @@ def _validate_and_build(
         if row.get('exercise_name', '').strip()
     }
 
-    # Lookup exercises
+    # Lookup exercises (case-insensitive)
     from django.db.models import Q
-    exercises = Exercise.objects.filter(
-        Q(name__in=exercise_names) & (
+    from django.db.models.functions import Lower
+    lower_names = {n.lower() for n in exercise_names}
+    exercises = Exercise.objects.annotate(
+        name_lower=Lower('name'),
+    ).filter(
+        Q(name_lower__in=lower_names) & (
             Q(is_public=True) | Q(created_by=trainer)
         )
     )
     exercise_map: dict[str, int] = {
-        e.name.lower(): e.pk for e in exercises
+        e.name_lower: e.pk for e in exercises  # type: ignore[attr-defined]
     }
 
     # Check for missing exercises

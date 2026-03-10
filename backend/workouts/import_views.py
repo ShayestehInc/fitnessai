@@ -8,6 +8,7 @@ Two-phase workflow:
 from __future__ import annotations
 
 from rest_framework import serializers, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -91,7 +92,6 @@ def _require_trainer(request: Request) -> User:
     """Verify user is a trainer. Raises 403 if not."""
     user = request.user
     if user.role != 'TRAINER':
-        from rest_framework.exceptions import PermissionDenied
         raise PermissionDenied("Only trainers can manage program imports.")
     return user
 
@@ -134,7 +134,10 @@ class ProgramImportListView(APIView):
 
     def get(self, request: Request) -> Response:
         trainer = _require_trainer(request)
-        limit = min(int(request.query_params.get('limit', '20')), 100)
+        try:
+            limit = min(int(request.query_params.get('limit', '20')), 100)
+        except (ValueError, TypeError):
+            limit = 20
         drafts = list_drafts(trainer=trainer, limit=limit)
         ser = DraftListItemSerializer(drafts, many=True)
         return Response(ser.data)
