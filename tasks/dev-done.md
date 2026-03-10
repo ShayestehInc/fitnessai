@@ -1,51 +1,43 @@
-# Dev Done: LiftSetLog + LiftMax + Max/Load Engine
+# Dev Done: Workload Engine — Aggregation, Trends, and Facts
 
 ## Date: 2026-03-09
 
 ## Files Changed
 
 ### Modified
-- `backend/workouts/models.py` — Added LiftSetLog and LiftMax models with UUID PKs, proper indexes, unique constraints, and auto-computed canonical load/workload on save
-- `backend/workouts/serializers.py` — Added LiftSetLogSerializer (create/read), LiftMaxSerializer (read-only), LiftMaxPrescribeSerializer (input validation)
-- `backend/workouts/views.py` — Added LiftSetLogViewSet (full CRUD with row-level security) and LiftMaxViewSet (read-only with history + prescribe actions)
-- `backend/workouts/urls.py` — Registered `lift-set-logs` and `lift-maxes` routes
+- `backend/workouts/models.py` — Added WorkloadFactTemplate model
+- `backend/workouts/serializers.py` — Added WorkloadFactTemplateSerializer
+- `backend/workouts/views.py` — Added WorkloadFactTemplateViewSet (CRUD) and WorkloadViewSet (aggregation + trends)
+- `backend/workouts/urls.py` — Registered `workload-facts` and `workload` routes
 
 ### Created
-- `backend/workouts/services/max_load_service.py` — MaxLoadService with e1RM estimation (Epley/Brzycki conservative), smoothing, TM calculation, load prescription with equipment rounding, auto-update from qualifying sets
-- `backend/workouts/migrations/0020_liftmax_liftsetlog.py` — Migration for new models
+- `backend/workouts/services/workload_service.py` — WorkloadAggregationService, WorkloadTrendService, WorkloadFactService
+- `backend/workouts/migrations/0022_workloadfacttemplate.py` — Migration
 
 ## Key Decisions
-1. LiftSetLog.save() auto-computes canonical_external_load_value (per-hand entries doubled) and set_workload_value (load × reps)
-2. MaxLoadService.estimate_e1rm() takes conservative approach: lower of Epley/Brzycki formulas
-3. e1RM smoothing: max 15% increase, max 10% decrease per update — prevents wild swings from bad data
-4. Reps capped at 15 for e1RM estimation — formulas unreliable above that
-5. RPE=10 with 1 rep → weight IS the 1RM (no formula needed)
-6. update_max_from_set() auto-creates LiftMax on first qualifying set via get_or_create
-7. Only standardization-passing sets with >0 reps and >0 load update e1RM
-8. Prescribe endpoint returns null with reason when no LiftMax exists (not an error)
-9. All service methods return frozen dataclasses (E1RMEstimate, LoadPrescription), not dicts
-10. Row-level security: trainees see own data, trainers see their trainees', admins see all
+1. No snapshot/cache models — compute on read for simplicity. Can optimize later if needed.
+2. No WorkloadFormula registry — only one formula exists (load × reps), already computed on LiftSetLog.save()
+3. Muscle distribution uses Exercise.muscle_contribution_map; falls back to primary_muscle_group if no map; "unclassified" if neither
+4. Pattern distribution splits workload evenly across all pattern_tags for multi-tagged exercises
+5. Week boundary: Monday-Sunday (ISO standard)
+6. ACWR requires ≥28 days of data — returns null otherwise
+7. Spike/dip detection uses configurable thresholds (ACWR > 1.3 = spike, < 0.8 = dip)
+8. Fact selection is deterministic: templates sorted by priority, first match wins
+9. SafeFormatDict for template rendering — missing placeholders become empty strings
+10. All service methods return frozen dataclasses
 
 ## New API Endpoints
-- `GET/POST /api/workouts/lift-set-logs/` — List/create set logs
-- `GET/PUT/PATCH/DELETE /api/workouts/lift-set-logs/{id}/` — Set log detail
-- `GET /api/workouts/lift-maxes/` — List trainee's current maxes
-- `GET /api/workouts/lift-maxes/{id}/` — Max detail
-- `GET /api/workouts/lift-maxes/{id}/history/` — e1RM + TM history for charting
-- `POST /api/workouts/lift-maxes/prescribe/` — Load prescription
-
-### Filters
-- LiftSetLog: `?exercise_id=`, `?session_date=`, `?date_from=`, `?date_to=`, `?trainee_id=` (trainer/admin)
-- LiftMax: `?trainee_id=` (trainer/admin)
+- `GET /api/workouts/workload/exercise/?exercise_id=&session_date=&trainee_id=` — exercise workload
+- `GET /api/workouts/workload/session/?session_date=&trainee_id=` — session workload summary
+- `GET /api/workouts/workload/weekly/?week_start=&trainee_id=` — weekly with muscle/pattern breakdowns
+- `GET /api/workouts/workload/trends/?trainee_id=&weeks_back=` — ACWR, spike/dip flags, weekly deltas
+- CRUD `/api/workouts/workload-facts/` — fact template management (trainer/admin)
 
 ## How to Test
 1. `python manage.py migrate`
-2. Create a trainee user
-3. `POST /api/workouts/lift-set-logs/` with exercise, reps, load
-4. Verify canonical_external_load and workload are auto-computed
-5. Verify LiftMax was auto-created with e1RM and TM
-6. `GET /api/workouts/lift-maxes/` — check current maxes
-7. `GET /api/workouts/lift-maxes/{id}/history/` — check history arrays
-8. `POST /api/workouts/lift-maxes/prescribe/` — verify load prescription
-9. Log a per-hand set — verify canonical load is doubled
-10. Log a set with standardization_pass=False — verify e1RM not updated
+2. Create trainee, log sets via lift-set-logs endpoint
+3. `GET /api/workouts/workload/exercise/?exercise_id=1&session_date=2026-03-09` — verify aggregation
+4. `GET /api/workouts/workload/session/?session_date=2026-03-09` — verify session total + top exercises
+5. `GET /api/workouts/workload/weekly/` — verify muscle/pattern breakdowns
+6. `GET /api/workouts/workload/trends/` — verify ACWR, trend direction
+7. Create WorkloadFactTemplate, verify fact selection in exercise/session responses

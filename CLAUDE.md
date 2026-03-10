@@ -82,6 +82,7 @@ ADMIN (Super Admin — platform owner)
 | `UndoSnapshot` | workouts | Before/after state snapshots for reverting decisions. Linked to DecisionLog |
 | `LiftSetLog` | workouts | Per-set performance tracking. UUID PK, auto-computed canonical load/workload, standardization gate for e1RM |
 | `LiftMax` | workouts | Cached e1RM + Training Max per exercise per trainee. Auto-updated from qualifying sets. History arrays |
+| `WorkloadFactTemplate` | workouts | Deterministic cool fact templates for exercise/session completion. Priority-based selection, condition rules |
 | `Program` | workouts | Assigned to trainee. `schedule` JSONField = weeks→days→exercises |
 | `DailyLog` | workouts | Daily log. `nutrition_data` + `workout_data` JSONFields |
 | `NutritionGoal` | workouts | Daily macro targets (can be trainer-adjusted) |
@@ -124,7 +125,7 @@ features/
 |------|-----------|--------------|
 | Auth | `/api/auth/` | `jwt/create/`, `jwt/refresh/`, `users/me/` |
 | Users | `/api/users/` | `profiles/`, `profiles/onboarding/`, `me/` |
-| Workouts | `/api/workouts/` | `exercises/`, `programs/`, `daily-logs/`, `nutrition-goals/`, `macro-presets/`, `lift-set-logs/`, `lift-maxes/` |
+| Workouts | `/api/workouts/` | `exercises/`, `programs/`, `daily-logs/`, `nutrition-goals/`, `macro-presets/`, `lift-set-logs/`, `lift-maxes/`, `workload/`, `workload-facts/` |
 | AI Parse | `/api/workouts/daily-logs/` | `parse-natural-language/`, `confirm-and-save/` |
 | Surveys | `/api/workouts/surveys/` | `readiness/`, `post-workout/` |
 | Trainer | `/api/trainer/` | `dashboard/`, `trainees/`, `invitations/`, `impersonate/`, `ai/chat/` |

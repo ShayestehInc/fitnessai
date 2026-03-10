@@ -2139,3 +2139,61 @@ class LiftMax(models.Model):
 
     def __str__(self) -> str:
         return f"LiftMax({self.exercise.name}) e1RM={self.e1rm_current} TM={self.tm_current}"
+
+
+class WorkloadFactTemplate(models.Model):
+    """
+    Library of deterministic "cool fact" templates shown to trainees
+    after completing an exercise or session.
+
+    Selection is deterministic: same workload data = same fact every time.
+    Templates are prioritized — highest priority matching template wins.
+    """
+
+    class Scope(models.TextChoices):
+        EXERCISE = 'exercise', 'Exercise'
+        SESSION = 'session', 'Session'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    scope = models.CharField(
+        max_length=10,
+        choices=Scope.choices,
+        help_text="When this fact is shown: after an exercise or at end of session.",
+    )
+    template_text = models.TextField(
+        help_text="Template with placeholders: {exercise_name}, {total_workload}, "
+                  "{total_reps}, {set_count}, {unit}, {delta_percent}, {week_total}, "
+                  "{top_exercise}, {muscle_group}.",
+    )
+    condition_rules = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Rules for when to select this template. "
+                  "E.g., {'min_workload': 1000, 'has_comparison': true, 'delta_positive': true}.",
+    )
+    priority = models.PositiveIntegerField(
+        default=100,
+        help_text="Lower number = higher priority. First matching template wins.",
+    )
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='workload_fact_templates',
+        help_text="Trainer who created this template (null = system default).",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'workload_fact_templates'
+        ordering = ['priority', 'scope']
+        indexes = [
+            models.Index(fields=['scope', 'is_active', 'priority']),
+        ]
+
+    def __str__(self) -> str:
+        return f"WorkloadFact({self.scope}, priority={self.priority}): {self.template_text[:60]}"
