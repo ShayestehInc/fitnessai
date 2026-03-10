@@ -4,6 +4,25 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-10] — Pipeline 70: v6.5 Step 13 (Auto-tagging Pipeline)
+
+### Added
+
+- Backend: ExerciseTagDraft model — AI-generated tag suggestions with confidence scores, reasoning, retry tracking
+- Backend: Auto-tagging service — GPT-4o generates v6.5 ExerciseCard tags (pattern_tags, muscle groups, stance, plane, ROM bias, equipment, athletic tags)
+- Backend: AI response validation — filters invalid enum values, normalizes muscle_contribution_map to sum=1.0
+- Backend: Draft/edit/retry workflow — trainers can edit AI suggestions, retry for new attempt, apply atomically with version increment
+- Backend: DecisionLog + UndoSnapshot on tag application for full auditability
+- Backend: 7 API endpoints: request auto-tag, get/edit draft, apply, reject, retry, tag history
+- Backend: 22 tests with mocked AI covering service layer, validation, and API
+- Backend: Added PLAN scope to UndoSnapshot for program imports
+
+### Fixed
+
+- Backend: Removed invalid `decision_log` FK kwarg from UndoSnapshot creation in import service
+
+---
+
 ## [2026-03-10] — Pipeline 69: v6.5 Step 12 (Import Pipeline — Draft/Confirm)
 
 ### Added

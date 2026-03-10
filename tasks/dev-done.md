@@ -1,29 +1,35 @@
-# Dev Done: Import Pipeline (Draft/Confirm) — v6.5 Step 12
+# Dev Done: Auto-tagging Pipeline — v6.5 Step 13
 
 ## Files Created
 
-- `backend/workouts/services/program_import_service.py` — Full import service: parse CSV, validate, create draft, confirm (atomic plan creation), reject, get, list
-- `backend/workouts/import_views.py` — 4 API views: upload, list, detail (GET+DELETE), confirm
-- `backend/workouts/migrations/0029_program_import_draft.py` — Migration for ProgramImportDraft
-- `backend/workouts/tests/test_program_import.py` — 24 tests (10 parse, 4 confirm, 5 draft mgmt, 9 API)
+- `backend/workouts/services/auto_tagging_service.py` — Full auto-tagging service: request, retry, apply, reject, edit, history
+- `backend/workouts/auto_tag_views.py` — 7 API views for auto-tag workflow
+- `backend/workouts/migrations/0030_exercise_tag_draft.py` — ExerciseTagDraft model
+- `backend/workouts/migrations/0031_alter_undosnapshot_scope.py` — Added 'plan' scope
+- `backend/workouts/tests/test_auto_tagging.py` — 22 tests (mocked AI)
 
 ## Files Modified
 
-- `backend/workouts/models.py` — Added `ProgramImportDraft` model (UUID PK, status lifecycle, raw_csv, parsed_data, validation fields, training_plan FK)
-- `backend/workouts/urls.py` — Added 4 routes under /program-imports/
+- `backend/workouts/models.py` — Added ExerciseTagDraft model, added PLAN scope to UndoSnapshot
+- `backend/workouts/urls.py` — Added 6 routes for auto-tag endpoints
+- `backend/workouts/ai_prompts.py` — Added `get_exercise_auto_tag_prompt()` with full v6.5 taxonomy
+- `backend/workouts/services/program_import_service.py` — Fixed UndoSnapshot: removed invalid `decision_log` kwarg, used PLAN scope
 
 ## Key Decisions
 
-- Used path-based views (not ViewSet) since the import workflow is action-oriented, not CRUD
-- Inline serializers in views file — small, tightly coupled to these specific views
-- Draft always created even with errors (allows trainer to see what went wrong)
-- CSV exercises matched case-insensitively
-- Confirm atomically creates TrainingPlan + PlanWeeks + PlanSessions + PlanSlots + DecisionLog + UndoSnapshot
+- AI response validated against Exercise TextChoices enums — invalid values filtered, MCM normalized to sum=1.0
+- Draft/edit/retry pattern: trainers can edit AI suggestions before applying
+- Retry rejects old draft and creates new one with incremented retry_count
+- Apply increments Exercise.version + creates DecisionLog + UndoSnapshot
+- OpenAI gpt-4o with JSON response format + temperature 0.3 for determinism
+- All tests mock `_call_ai_for_tags` to avoid API dependency
 
 ## Endpoints
 
-- POST /api/workouts/program-imports/upload/ — Upload CSV, create draft
-- GET /api/workouts/program-imports/ — List recent drafts
-- GET /api/workouts/program-imports/{draft_id}/ — Get draft details
-- POST /api/workouts/program-imports/{draft_id}/confirm/ — Execute import
-- DELETE /api/workouts/program-imports/{draft_id}/ — Reject/discard draft
+- POST /api/workouts/exercises/{id}/auto-tag/ — Request AI tagging
+- GET /api/workouts/exercises/{id}/auto-tag-draft/ — Get current draft
+- PATCH /api/workouts/exercises/{id}/auto-tag-draft/ — Edit draft
+- POST /api/workouts/exercises/{id}/auto-tag-draft/apply/ — Apply tags to exercise
+- POST /api/workouts/exercises/{id}/auto-tag-draft/reject/ — Reject draft
+- POST /api/workouts/exercises/{id}/auto-tag-draft/retry/ — Retry AI
+- GET /api/workouts/exercises/{id}/tag-history/ — Version history

@@ -1748,6 +1748,7 @@ class UndoSnapshot(models.Model):
         SLOT = 'slot', 'Slot'
         SESSION = 'session', 'Session'
         WEEK = 'week', 'Week'
+        PLAN = 'plan', 'Plan'
         EXERCISE = 'exercise', 'Exercise'
         NUTRITION_DAY = 'nutrition_day', 'Nutrition Day'
 
@@ -3382,3 +3383,104 @@ class ProgramImportDraft(models.Model):
 
     def __str__(self) -> str:
         return f"ImportDraft({self.plan_name or 'Unnamed'}, {self.status})"
+
+
+class ExerciseTagDraft(models.Model):
+    """
+    AI-generated exercise tag suggestions for trainer review.
+    Draft/edit/retry workflow: request → AI generates → trainer reviews → apply or reject.
+    v6.5 Step 13.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = 'draft', 'Draft'
+        APPLIED = 'applied', 'Applied'
+        REJECTED = 'rejected', 'Rejected'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    exercise = models.ForeignKey(
+        'workouts.Exercise',
+        on_delete=models.CASCADE,
+        related_name='tag_drafts',
+    )
+    requested_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='tag_draft_requests',
+        limit_choices_to={'role__in': ['TRAINER', 'ADMIN']},
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+
+    # Drafted tag values
+    pattern_tags = ArrayField(
+        models.CharField(max_length=50),
+        default=list,
+        blank=True,
+    )
+    athletic_skill_tags = ArrayField(
+        models.CharField(max_length=50),
+        default=list,
+        blank=True,
+    )
+    athletic_attribute_tags = ArrayField(
+        models.CharField(max_length=50),
+        default=list,
+        blank=True,
+    )
+    primary_muscle_group = models.CharField(max_length=30, blank=True, default='')
+    secondary_muscle_groups = ArrayField(
+        models.CharField(max_length=30),
+        default=list,
+        blank=True,
+    )
+    muscle_contribution_map = models.JSONField(default=dict, blank=True)
+    stance = models.CharField(max_length=40, blank=True, default='')
+    plane = models.CharField(max_length=20, blank=True, default='')
+    rom_bias = models.CharField(max_length=20, blank=True, default='')
+    equipment_required = ArrayField(
+        models.CharField(max_length=100),
+        default=list,
+        blank=True,
+    )
+    equipment_optional = ArrayField(
+        models.CharField(max_length=100),
+        default=list,
+        blank=True,
+    )
+
+    # AI metadata
+    confidence_scores = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Per-field confidence: {field_name: 0.0-1.0}",
+    )
+    ai_reasoning = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Per-field reasoning from AI: {field_name: 'explanation'}",
+    )
+
+    retry_count = models.PositiveSmallIntegerField(default=0)
+    exercise_version_at_creation = models.PositiveIntegerField(
+        default=1,
+        help_text="Exercise.version when this draft was created.",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'exercise_tag_drafts'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['exercise', '-created_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['requested_by']),
+        ]
+
+    def __str__(self) -> str:
+        return f"TagDraft({self.exercise.name}, {self.status})"

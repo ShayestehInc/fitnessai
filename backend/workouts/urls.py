@@ -43,6 +43,14 @@ from .import_views import (
     ProgramImportListView,
     ProgramImportUploadView,
 )
+from .auto_tag_views import (
+    ApplyDraftView,
+    AutoTagDraftView,
+    RejectDraftView,
+    RequestAutoTagView,
+    RetryDraftView,
+    TagHistoryView,
+)
 
 router = DefaultRouter()
 router.register(r'exercises', ExerciseViewSet, basename='exercise')
@@ -90,4 +98,12 @@ urlpatterns = [
     path('program-imports/upload/', ProgramImportUploadView.as_view(), name='program-import-upload'),
     path('program-imports/<str:draft_id>/', ProgramImportDetailView.as_view(), name='program-import-detail'),
     path('program-imports/<str:draft_id>/confirm/', ProgramImportConfirmView.as_view(), name='program-import-confirm'),
+
+    # Exercise auto-tagging (v6.5 Step 13)
+    path('exercises/<int:exercise_id>/auto-tag/', RequestAutoTagView.as_view(), name='exercise-auto-tag'),
+    path('exercises/<int:exercise_id>/auto-tag-draft/', AutoTagDraftView.as_view(), name='exercise-auto-tag-draft'),
+    path('exercises/<int:exercise_id>/auto-tag-draft/apply/', ApplyDraftView.as_view(), name='exercise-auto-tag-apply'),
+    path('exercises/<int:exercise_id>/auto-tag-draft/reject/', RejectDraftView.as_view(), name='exercise-auto-tag-reject'),
+    path('exercises/<int:exercise_id>/auto-tag-draft/retry/', RetryDraftView.as_view(), name='exercise-auto-tag-retry'),
+    path('exercises/<int:exercise_id>/tag-history/', TagHistoryView.as_view(), name='exercise-tag-history'),
 ]
