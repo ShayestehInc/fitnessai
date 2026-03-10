@@ -3358,6 +3358,13 @@ class DecisionLogViewSet(viewsets.ReadOnlyModelViewSet[DecisionLog]):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # IDOR protection: verify the decision is within the user's queryset scope
+        if not self.get_queryset().filter(id=decision_uuid).exists():
+            return Response(
+                {'error': 'Decision not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         try:
             result = DecisionLogService.undo_decision(
                 decision_id=decision_uuid,

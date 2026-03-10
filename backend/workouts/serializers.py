@@ -54,7 +54,7 @@ class ExerciseSerializer(serializers.ModelSerializer[Exercise]):
             'version',
             'is_public', 'created_by', 'created_by_email', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'version']
+        read_only_fields = ['created_at', 'updated_at', 'version', 'is_public', 'created_by']
 
     def validate_muscle_contribution_map(self, value: dict[str, float]) -> dict[str, float]:
         """Validate that muscle contribution weights sum to 1.0."""
