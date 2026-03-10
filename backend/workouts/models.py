@@ -2729,6 +2729,9 @@ class ProgressionProfile(models.Model):
     class Meta:
         db_table = 'progression_profiles'
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['is_system', 'created_by']),
+        ]
 
     def __str__(self) -> str:
         return f"{self.name} ({self.progression_type})"

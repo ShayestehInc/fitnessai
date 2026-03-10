@@ -839,6 +839,7 @@ def apply_progression(
     actor_id: int | None = None,
     trainee_id: int,
     actor_type: str = 'user',
+    reason: str = '',
 ) -> ProgressionEventResult:
     """
     Apply a computed prescription to a slot. Creates ProgressionEvent + DecisionLog.
@@ -879,6 +880,7 @@ def apply_progression(
                 'slot_id': str(slot.pk),
                 'exercise_id': slot.exercise_id,
                 'trainee_id': trainee_id,
+                'reason': reason,
             },
             inputs_snapshot={
                 'progression_type': prescription.progression_type,

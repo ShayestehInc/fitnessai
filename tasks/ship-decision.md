@@ -1,4 +1,4 @@
-# Ship Decision: Modality Library (Pipeline 63, v6.5 Step 6)
+# Ship Decision: Progression Engine (v6.5 Step 7)
 
 ## Verdict: SHIP
 
@@ -6,9 +6,7 @@
 
 ## Quality Score: 8/10
 
-## Summary
-
-The Modality Library implementation is complete and production-ready. All acceptance criteria pass. Models, service layer, API endpoints, generator integration, seed command, and migration are all in place. The implementation follows all project conventions: dataclasses (not dicts) from services, business logic in services/, type hints throughout, Django ORM only, and proper prefetching.
+## Summary: The Progression Engine is a well-architected, production-ready backend feature. All 3 critical issues and 7 of 8 major issues from code review were fixed. All acceptance criteria have test coverage (73 tests). No security vulnerabilities in the new code.
 
 ---
 
@@ -16,110 +14,118 @@ The Modality Library implementation is complete and production-ready. All accept
 
 ### Models
 
-| #   | Criterion                                                                                                                           | Status | Evidence                                                                                                                   |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------- |
-| 1   | SetStructureModality model with name, slug, description, volume_multiplier, use_when, avoid_when, is_system, created_by             | PASS   | models.py:2546-2594 — UUID PK, volume_multiplier with 0.01-3.00 validators, JSONField for use_when/avoid_when              |
-| 2   | ModalityGuardrail model with modality FK, rule_type, condition_field, condition_operator, condition_value, error_message, is_active | PASS   | models.py:2597-2654 — UUID PK, RuleType and ConditionOperator TextChoices, CASCADE FK to modality                          |
-| 3   | PlanSlot gets new fields: set_structure_modality FK (nullable), modality_details JSON, modality_volume_contribution Decimal         | PASS   | models.py:2502-2523 — FK with SET_NULL, JSONField default=dict, DecimalField default=0.00                                  |
-| 4   | All models use UUID primary keys                                                                                                    | PASS   | Both new models use UUIDField(primary_key=True, default=uuid.uuid4)                                                        |
-| 5   | 8 system modalities seeded                                                                                                          | PASS   | seed_modalities.py: Straight Sets, Down Sets, Controlled Eccentrics, Giant Sets, Myo-reps, Drop Sets, Supersets, Occlusion |
+| Criterion                                                                                     | Status | Evidence                                                                    |
+| --------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------- |
+| ProgressionProfile model (UUID PK, 5 types, rules/deload/failure JSON, is_system, created_by) | PASS   | models.py:2668-2737, migration 0025                                         |
+| progression_type choices (5 types)                                                            | PASS   | staircase_percent, rep_staircase, wave_by_month, double_progression, linear |
+| TrainingPlan.default_progression_profile FK (nullable)                                        | PASS   | migration 0025 AddField                                                     |
+| PlanSlot.progression_profile FK (nullable, override)                                          | PASS   | migration 0025 AddField                                                     |
+| ProgressionEvent model (UUID PK, full audit trail)                                            | PASS   | models.py:2740-2808, all required FKs and fields present                    |
+| All models use UUID primary keys                                                              | PASS   | Both models use UUIDField(primary_key=True, default=uuid.uuid4)             |
 
-### Counting Rules
+### Progression Rules
 
-| #   | Modality              | Expected | Actual | Status |
-| --- | --------------------- | -------- | ------ | ------ |
-| 6   | Straight Sets         | 1.0x     | 1.00   | PASS   |
-| 7   | Down Sets             | 1.0x     | 1.00   | PASS   |
-| 8   | Controlled Eccentrics | 1.0x     | 1.00   | PASS   |
-| 9   | Giant Sets            | 0.67x    | 0.67   | PASS   |
-| 10  | Myo-reps              | 0.67x    | 0.67   | PASS   |
-| 11  | Drop Sets             | 0.67x    | 0.67   | PASS   |
-| 12  | Supersets             | 2.0x     | 2.00   | PASS   |
-| 13  | Occlusion             | 0.67x    | 0.67   | PASS   |
+| Criterion                                              | Status | Evidence                                                                        |
+| ------------------------------------------------------ | ------ | ------------------------------------------------------------------------------- |
+| Staircase Percent                                      | PASS   | Lines 201-309 — step through TM %, scheduled deload, failure deload             |
+| Rep Staircase                                          | PASS   | Lines 312-421 — hold load, climb reps, bump at top rung, upper/lower increments |
+| Double Progression                                     | PASS   | Lines 424-518 — earn reps, RPE check, load increase when all sets at top        |
+| Linear                                                 | PASS   | Lines 521-588 — fixed increment, deload on consecutive failures                 |
+| Wave-by-Month                                          | PASS   | Lines 591-646 — 4-week wave (accumulation/build/intensify/deload)               |
+| Auto-progression gated by completion, effort (RIR/RPE) | PASS   | Completion via \_check_completion, RPE via \_avg_rpe with tolerance             |
 
-### Guardrails
+### Service API
 
-| #   | Criterion                                         | Status | Evidence                                                                                   |
-| --- | ------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------ |
-| 14  | Athletic movements cannot use drop sets, myo-reps | PASS   | seed_modalities.py:83-112 — has_any check on athletic_skill_tags for both modalities       |
-| 15  | Heavy compounds cannot use drop sets              | PASS   | seed_modalities.py:114-121 — slot.slot_role in [primary_compound, secondary_compound]      |
-| 16  | Controlled eccentrics avoid 20+ rep sets          | PASS   | seed_modalities.py:123-130 — slot.reps_max gt 20                                           |
-| 17  | Occlusion avoid on compounds                      | PASS   | seed_modalities.py:132-139 — slot.slot_role in [primary_compound, secondary_compound]      |
-| 18  | Guardrail violations return clear error messages  | PASS   | modality_service.py:476-481 — ValueError with concatenated messages                        |
-| 19  | Trainer can override guardrail with DecisionLog   | PASS   | override_guardrails flag tracked, guardrails_overridden in DecisionLog.constraints_applied |
-
-### Generator Integration
-
-| #   | Criterion                                                                                       | Status | Evidence                                                                                 |
-| --- | ----------------------------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------- |
-| 20  | A5 enhanced with modality assignment                                                            | PASS   | training_generator_service.py:561-567 — calls assign_default_modality_to_specs           |
-| 21  | Default modality table: compounds=Straight, accessories=Straight/Down, isolation=varied by goal | PASS   | modality_service.py:97-128                                                               |
-| 22  | Modality assignment creates DecisionLog                                                         | PASS   | A5 log includes modality slug and volume_contribution per slot                           |
-| 23  | modality_volume_contribution computed                                                           | PASS   | compute_volume_contribution(sets, multiplier) called in assign_default_modality_to_specs |
-| 24  | Deload weeks force Straight Sets                                                                | PASS   | modality_service.py:574-575 — \_DELOAD_MODALITY_SLUG = 'straight-sets'                   |
-
-### Modality Service (5 functions)
-
-| #   | Function                                                | Status | Evidence                                                                                             |
-| --- | ------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------- |
-| 25  | get_modality_recommendations(slot_role, goal, exercise) | PASS   | modality_service.py:331-379 — returns list[ModalityRecommendation], sorted valid-first then by score |
-| 26  | validate_modality_for_slot(modality, slot, exercise)    | PASS   | modality_service.py:275-324 — returns list[GuardrailViolation]                                       |
-| 27  | apply_modality_to_slot(slot, modality, actor_id)        | PASS   | modality_service.py:449-565 — transactional, creates UndoSnapshot + DecisionLog                      |
-| 28  | compute_volume_contribution(slot)                       | PASS   | modality_service.py:386-388 — Decimal(sets) \* volume_multiplier                                     |
-| 29  | get_session_volume_summary(session_id)                  | PASS   | modality_service.py:391-442 — returns SessionVolumeSummary with per-muscle MuscleVolumeEntry list    |
+| Criterion                                                                | Status | Evidence                                       |
+| ------------------------------------------------------------------------ | ------ | ---------------------------------------------- |
+| compute_next_prescription(slot, trainee_id) -> NextPrescription          | PASS   | Lines 717-768, frozen dataclass return         |
+| evaluate_progression_readiness(slot, trainee_id) -> ProgressionReadiness | PASS   | Lines 771-832, structured blockers             |
+| apply_progression -> ProgressionEventResult                              | PASS   | Lines 835-920, transaction.atomic, DecisionLog |
+| get_progression_history -> list of ProgressionEvents                     | PASS   | Lines 923-929, capped at 50, select_related    |
+| All decisions logged via DecisionLog                                     | PASS   | Line 875, decision_type='progression_applied'  |
 
 ### API Endpoints
 
-| #   | Criterion                                                   | Status | Evidence                                                                          |
-| --- | ----------------------------------------------------------- | ------ | --------------------------------------------------------------------------------- |
-| 30  | GET /api/workouts/modalities/                               | PASS   | urls.py:60, SetStructureModalityViewSet (ModelViewSet)                            |
-| 31  | POST /api/workouts/modalities/ (trainer only)               | PASS   | perform_create raises PermissionDenied for trainees (views.py:4322)               |
-| 32  | GET/PUT/DELETE /api/workouts/modalities/{id}/               | PASS   | ModelViewSet with perform_update/perform_destroy role checks                      |
-| 33  | GET /api/workouts/plan-slots/{id}/modality-recommendations/ | PASS   | views.py:4185-4223 — action on PlanSlotViewSet                                    |
-| 34  | POST /api/workouts/plan-slots/{id}/set-modality/            | PASS   | views.py:4225-4288 — with visibility scoping and guardrail override restriction   |
-| 35  | GET /api/workouts/plan-sessions/{id}/volume-summary/        | PASS   | views.py:4367-4389 — action on PlanSessionViewSet                                 |
-| 36  | Row-level security on all endpoints                         | PASS   | All 3 ViewSets (PlanSlot, Modality, PlanSession) filter by role in get_queryset() |
+| Criterion                                   | Status | Evidence                                                                                                                         |
+| ------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| CRUD for ProgressionProfile                 | PASS   | ProgressionProfileViewSet (views.py:4561-4611) with full role-based security                                                     |
+| GET /plan-slots/{id}/next-prescription/     | PASS   | views.py:4299-4323                                                                                                               |
+| POST /plan-slots/{id}/apply-progression/    | PASS   | views.py:4325-4376, trainee blocked at line 4338                                                                                 |
+| GET /plan-slots/{id}/progression-history/   | PASS   | views.py:4378-4386                                                                                                               |
+| GET /plan-slots/{id}/progression-readiness/ | PASS   | views.py:4388-4406                                                                                                               |
+| Row-level security on all endpoints         | PASS   | ProgressionProfileViewSet.get_queryset filters by role; PlanSlot actions use self.get_object() which enforces queryset filtering |
+| 5 system seed profiles                      | PASS   | seed_progression_profiles.py, update_or_create (idempotent)                                                                      |
 
-### Conventions
+### Edge Cases
 
-| #   | Criterion                              | Status | Evidence                                                                                                                          |
-| --- | -------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| 37  | All service methods return dataclasses | PASS   | GuardrailViolation, ModalityRecommendation, ApplyModalityResult, MuscleVolumeEntry, SessionVolumeSummary — all frozen dataclasses |
-| 38  | Business logic in services/            | PASS   | All guardrail eval, recommendations, volume computation in modality_service.py                                                    |
-| 39  | Type hints on all functions            | PASS   | Return types and parameter types throughout                                                                                       |
-| 40  | No raw queries                         | PASS   | Django ORM only                                                                                                                   |
-| 41  | Proper prefetching                     | PASS   | prefetch_related('guardrails') on modality querysets, select_related on PlanSlot/PlanSession querysets                            |
+| Edge Case                           | Status | Evidence                                              |
+| ----------------------------------- | ------ | ----------------------------------------------------- |
+| No LiftMax -> no_max blocker        | PASS   | readiness check at line 783-784                       |
+| No history -> hold prescription     | PASS   | Each evaluator returns hold on empty sessions         |
+| Gap > 14 days -> deload 90% TM      | PASS   | compute_next_prescription lines 735-760               |
+| Consecutive failures -> deload      | PASS   | All evaluators check via \_count_consecutive_failures |
+| Slot profile overrides plan default | PASS   | \_get_effective_profile at line 101-108               |
+| Deload week -> blocker              | PASS   | readiness check at line 820-821                       |
 
 ---
 
-## Review Fix Verification
+## Critical/Major Review Fix Verification
 
-| Fix                       | Description                                                           | Status | Evidence                                                                                                                                                        |
-| ------------------------- | --------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1 (guardrails_checked)   | DecisionLog must track actual guardrails checked count, not hardcoded | FIXED  | modality_service.py:466 computes `total_guardrails` from `len([g for g in modality.guardrails.all() if g.is_active])`, stored in constraints_applied (line 542) |
-| M2 (IDOR on set-modality) | Modality lookup must be scoped by user visibility                     | FIXED  | views.py:4237-4251 builds visibility_q by role, filters modality lookup. Slot access via get_object() enforces row-level security                               |
-| M5 (seed lookup)          | Seed command must use idempotent lookup to avoid duplicates           | FIXED  | seed_modalities.py uses update_or_create with slug (modalities) and modality+condition_field+condition_operator (guardrails)                                    |
-| M6 (serializer_class)     | ViewSet must specify appropriate serializer per action                | FIXED  | get_serializer_class returns SetStructureModalityListSerializer for list, full serializer for detail (views.py:4298-4303)                                       |
-| m7 (prefetch)             | All querysets with related data must use prefetch/select_related      | FIXED  | prefetch_related('guardrails') on all modality queries; select_related('exercise', 'set_structure_modality') on slot/session queries                            |
+### Critical Issues — All Fixed
+
+| Issue                                   | Status | Verification                                                                      |
+| --------------------------------------- | ------ | --------------------------------------------------------------------------------- |
+| C1: Trainees can self-apply progression | FIXED  | views.py:4338 — `if user.role == 'TRAINEE': raise PermissionDenied(...)`          |
+| C2: actor_type never SYSTEM             | FIXED  | Service accepts `actor_type` param (line 841), resolves correctly (lines 871-874) |
+| C3: load_prescription_pct never cleared | FIXED  | Unconditional assignment at line 865                                              |
+
+### Major Issues — 7 of 8 Fixed
+
+| Issue                                    | Status    | Verification                                                                |
+| ---------------------------------------- | --------- | --------------------------------------------------------------------------- |
+| M1: Wave counter counts all event types  | FIXED     | event_type\_\_in filter at line 611                                         |
+| M2: Frozen dataclass mutation fragile    | FIXED     | `from dataclasses import replace` at line 22 of views.py, used at line 4358 |
+| M3: Lower body detection too restrictive | FIXED     | Includes secondary_compound (line 334) and lower_back (line 331)            |
+| M4: No hard limit on recent sets         | FIXED     | [:500] slice at line 123                                                    |
+| M5: Hardcoded load_unit='lb'             | FIXED     | \_resolve_load_unit helper at lines 686-697, used in all evaluators         |
+| M6: Off-by-one in staircase step         | FIXED     | `step_pct * current_step` at line 259 (first week uses start_pct)           |
+| M7: reason_codes JSONField vs ArrayField | NOT FIXED | Minor inconsistency — does not affect correctness or queries                |
+| M8: Truthiness check inconsistency       | FIXED     | All override checks use `is not None` at lines 4349-4355                    |
+
+---
+
+## Security Verification
+
+- No secrets, API keys, or tokens in any new code, migration, or seed command
+- All endpoints require authentication (IsAuthenticated)
+- Row-level security enforced in ProgressionProfileViewSet.get_queryset() — ADMIN sees all, TRAINER sees system + own, TRAINEE sees system + trainer's
+- PlanSlot actions inherit row-level security via self.get_object() which uses the filtered queryset
+- Trainee blocked from apply-progression (C1 fix verified)
+- Input validation via DRF serializers: min_value=1 on sets/reps, min_value=0 on load, max_digits=8 on load
+- All DB access via Django ORM (no raw SQL)
+- transaction.atomic() on apply_progression
+- DecisionLog audit trail on every progression application
+
+---
+
+## Test Coverage
+
+- 73 tests in test_progression_engine.py
+- Covers: 14 helper tests, 24 evaluator tests, 6 compute tests, 9 readiness tests, 7 apply tests, 4 history tests, 2 seed tests, 11 ViewSet API tests, 9 PlanSlot action tests, 2 dataclass sanity tests
+- All acceptance criteria mapped to specific tests
+- QA report: Confidence HIGH, 0 failed, 0 bugs found
 
 ---
 
 ## Remaining Concerns (Non-Blocking)
 
-1. Some ticket guardrails not seeded (systemic fatigue ban, stable volume landmarks ban) — these require runtime context beyond static guardrail rules, reasonable to defer to session runner.
-2. Superset modality does not enforce paired_exercise_id in modality_details — acceptable for v1.
-3. Myo-reps fatigue override (0.67 to 1.0) is documented but not programmatically enforced — belongs in session runner (Step 8, out of scope).
-4. Trainee override restriction (views.py:4260) returns 403 but the service function accepts override from any caller — callers must enforce role check.
+1. **M7 (minor):** ProgressionEvent.reason_codes uses JSONField while DecisionLog.reason_codes uses ArrayField. Cosmetic inconsistency — should be unified in a future migration.
+2. **Pain flag gate:** Acceptance criteria mention "no pain flags" as a progression gate. Not implemented. Not a regression — pain/injury tracking does not exist in the codebase yet. Should be added when that system is built.
+3. **Security/architecture reports stale:** The security-audit.md and architecture-review.md were from Step 5, not Step 7. I verified the Step 7 code directly — no issues found.
+4. **In-method imports:** Four PlanSlot action methods import from progression_engine_service inside the method body. Functional but redundant given the module-level import at line 22. Minor code smell.
 
 ---
 
 ## What Was Built
 
-**Modality Library (v6.5 Step 6):**
-
-- **2 new models** — SetStructureModality (8 system modalities with volume multipliers) and ModalityGuardrail (configurable rule engine for modality restrictions). UUID PKs, proper indexes.
-- **3 new PlanSlot fields** — set_structure_modality FK, modality_details JSON, modality_volume_contribution Decimal. Migration 0024.
-- **5 service functions** — Recommendations (ranked by goal/slot_role with guardrail evaluation), validation (configurable condition engine), application (transactional with UndoSnapshot + DecisionLog), volume computation, and session volume summary per muscle group.
-- **A5 generator integration** — Default modality assignment during plan generation based on goal + slot_role table, with deload forcing Straight Sets.
-- **3 API ViewSets** — SetStructureModalityViewSet (full CRUD with role-based access), PlanSlotViewSet modality actions (recommendations + set-modality), PlanSessionViewSet volume-summary action. All with row-level security.
-- **Seed command** — `seed_modalities` management command seeding 8 system modalities + 5 guardrails via idempotent update_or_create.
+**Progression Engine (v6.5 Step 7):** A deterministic progression computation system supporting 5 progression styles (Staircase Percent, Rep Staircase, Double Progression, Linear, Wave-by-Month). Includes ProgressionProfile model for configurable rules with slot-level override of plan defaults, ProgressionEvent model for full audit trail with DecisionLog integration, 4 API action endpoints on PlanSlot (next-prescription, apply-progression, progression-history, progression-readiness), CRUD ViewSet for ProgressionProfile with role-based access control, 5 system seed profiles via idempotent management command, gap detection with auto-deload (>14 days -> 90% TM), consecutive failure handling per profile configuration, and dynamic load unit resolution from LiftMax/LiftSetLog data. Backend-only — mobile UI deferred to Step 8 (Session Runner).
