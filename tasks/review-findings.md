@@ -1,15 +1,15 @@
-# Code Review: LiftSetLog + LiftMax + Max/Load Engine (Pipeline 60)
+# Code Review: Workload Engine — Aggregation, Trends, and Facts (Pipeline 61)
 
 ## Review Date
 2026-03-09
 
 ## Files Reviewed
-- `backend/workouts/models.py` (lines 1887–2142) — LiftSetLog, LiftMax models
-- `backend/workouts/services/max_load_service.py` — full file (302 lines)
-- `backend/workouts/serializers.py` (lines 1193–1292) — LiftSetLogSerializer, LiftMaxSerializer, LiftMaxPrescribeSerializer
-- `backend/workouts/views.py` (lines 3402–3627) — LiftSetLogPagination, LiftSetLogViewSet, LiftMaxViewSet
-- `backend/workouts/urls.py` — router registrations
-- `backend/workouts/migrations/0020_liftmax_liftsetlog.py`
+- `backend/workouts/services/workload_service.py` (full, 721 lines)
+- `backend/workouts/models.py` (WorkloadFactTemplate, lines 2144-2200)
+- `backend/workouts/serializers.py` (WorkloadFactTemplateSerializer, lines 1301-1317)
+- `backend/workouts/views.py` (WorkloadFactTemplateViewSet + WorkloadViewSet, lines 3635-3891)
+- `backend/workouts/urls.py` (full, 59 lines)
+- `tasks/next-ticket.md`
 
 ---
 
@@ -17,77 +17,62 @@
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| C1 | `views.py:3482-3484` | **No ownership guard on update/delete.** `LiftSetLogViewSet` inherits `ModelViewSet` which provides `update`, `partial_update`, and `destroy`. `perform_update` has no role check — a trainer whose queryset includes the set log can modify a trainee's historical performance data. More importantly, **there is no `perform_destroy` override at all** — any user whose `get_queryset` includes the record can delete set logs. Trainers can delete their trainees' set logs silently. Deleting a set log leaves orphaned `source_set_id` references in `LiftMax.e1rm_history`. Set logs are historical records and should likely not be deletable, or at minimum require explicit ownership + audit. | 1) Restrict the viewset to `CreateModelMixin + ListModelMixin + RetrieveModelMixin` only (remove update/delete), OR 2) Add explicit ownership checks: only the trainee who created the set can update, and disallow deletion entirely. If update/delete are needed, add `perform_destroy` with an audit trail and cascade logic to recompute e1RM. |
-| C2 | `views.py:3564` | **`trainee_id` in prescribe endpoint bypasses serializer validation.** `trainee_id` is read directly from `request.data` instead of being defined in `LiftMaxPrescribeSerializer`. If a client sends `trainee_id: "abc"` or `trainee_id: null`, `User.objects.get(id=trainee_id)` raises an unhandled `ValueError` or `TypeError`, producing a 500 response (and potentially leaking stack trace info in DEBUG mode). | Add `trainee_id = serializers.IntegerField(required=False)` to `LiftMaxPrescribeSerializer` and read from `serializer.validated_data`. |
-
----
+| C1 | `workload_service.py:631-634` | **WorkloadFactService ignores trainer scoping.** `select_and_render()` queries ALL active templates regardless of who created them. A trainer's custom fact templates leak to every trainee on the platform. This violates row-level security and tenant isolation. | Pass `trainee_id` or `trainer_id` into `select_and_render()`. Filter templates to `Q(created_by__isnull=True) | Q(created_by=trainee.parent_trainer)` — matching the ViewSet's queryset logic. Update all call sites (lines 161, 308) to pass the trainer context. |
+| C2 | `workload_service.py:694-713` | **Template injection via `str.format_map()`.** Trainer-authored `template_text` is rendered with `str.format_map()`. While `SafeFormatDict` handles missing keys, `format_map` can access object attributes via format spec (e.g., `{exercise_name.__class__.__init__.__globals__}`). Since trainers control `template_text`, this is a real injection vector that could leak internal Python object info. | Replace `str.format_map()` with `string.Template.safe_substitute()` which only supports `$variable` substitution and has no attribute access. Alternatively, use a regex-based replacer: `re.sub(r'\{(\w+)\}', lambda m: safe.get(m.group(1), ''), template_text)`. |
+| C3 | `workload_service.py:636` | **Unbounded queryset iteration for fact selection.** `for template in templates:` loads ALL matching templates into memory with no limit. If a trainer creates hundreds of templates (or an attacker floods via API), this is an unbounded loop consuming memory and CPU. | Add a reasonable limit: `.order_by('priority')[:50]` or use `.iterator()` with a hard cap. |
 
 ## Major Issues (should fix)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| M1 | `models.py:2098-2101, 2118-2121` | **Unbounded JSONField arrays.** `e1rm_history` and `tm_history` grow without limit. Every qualifying set appends to `e1rm_history`. A trainee doing 4 sets of squats 3x/week for a year = ~624 entries per exercise. Multiply by 20+ exercises = 12,000+ entries across all LiftMax records. The arrays are serialized in full on every LiftMax API response. | Cap history at a reasonable length (e.g., 200 entries per array) and trim oldest entries on append in `update_max_from_set`. Alternatively, move history to a separate related model with proper pagination. |
-| M2 | `max_load_service.py:271-274` | **Race condition on concurrent e1RM updates.** Two concurrent `update_max_from_set` calls for the same trainee+exercise: both call `get_or_create`, both read the same `e1rm_current`, both compute smoothed values, last writer wins. The earlier writer's history entry and e1RM update are silently overwritten. `@transaction.atomic` prevents partial writes but not lost updates. | After `get_or_create`, re-fetch with `select_for_update()`: `lift_max = LiftMaxModel.objects.select_for_update().get(pk=lift_max.pk)` to serialize concurrent updates at the DB level. |
-| M3 | `models.py:1994-1998` | **`standardization_pass` defaults to `True` (fail-open).** Every set is assumed to pass standardization by default. If the mobile client doesn't send this field, all sets will update e1RM — including sets with poor form that should not qualify. This is particularly dangerous before the mobile UI implements standardization criteria. | Default to `False` (fail-closed). Sets must be explicitly marked as standardization-passing. This prevents premature e1RM pollution from unvalidated sets. |
-| M4 | `views.py:3527-3540` | **History endpoint URL deviates from ticket spec.** The ticket specifies `GET /api/workouts/lift-maxes/{exercise_id}/history/`. The implementation uses `@action(detail=True)` which produces `GET /api/workouts/lift-maxes/{lift_max_uuid}/history/`. The client must know the LiftMax UUID, not the exercise ID. This is less ergonomic — the frontend naturally has the exercise ID, not the LiftMax PK. | Change to `@action(detail=False)` with `exercise_id` as a required query param, or add a custom URL route that takes `exercise_id` and looks up the LiftMax. |
-| M5 | `views.py:3509, 3490` | **No pagination on LiftMaxViewSet.** `ReadOnlyModelViewSet` does not include pagination by default. An admin listing all LiftMax records, or a trainer with many trainees, will get an unbounded response. | Add `pagination_class = LiftSetLogPagination` (or a dedicated one) to `LiftMaxViewSet`. |
-| M6 | `serializers.py:1245-1248` | **Type hint mismatch: `validate_entered_load_value` returns `float` but field is `DecimalField`.** DRF `DecimalField` produces `Decimal` objects after validation. The return type annotation says `float`, which is incorrect and could mislead type checkers. | Change signature to `def validate_entered_load_value(self, value: Decimal) -> Decimal:`. Same for the parameter type. |
-
----
+| M1 | `workload_service.py:150-152, 252, 362-363` | **Mixed unit edge case not handled (ticket edge case #3).** The implementation takes `unit` from the first set and applies it to the entire aggregate. If a trainee has sets in both `lb_reps` and `kg_reps` in the same session, the total workload is a meaningless sum of incompatible units. The ticket explicitly requires: "aggregate separately by unit, flag mixed." | Either: (a) group aggregation by `set_workload_unit` and return per-unit totals, or (b) convert to canonical unit before summing, or (c) at minimum add a `mixed_units: bool` flag to the response. The ticket requires (a) or at least a flag. |
+| M2 | `workload_service.py:420, 456` | **Double full-queryset iteration in `compute_weekly_workload`.** `_compute_muscle_distribution` and `_compute_pattern_distribution` each execute the full queryset via `sets.iterator(chunk_size=500)`. Combined with aggregation queries above, `compute_weekly_workload` issues ~6 DB round-trips. | Prefetch sets into a list once and pass the list to both methods. Or combine both distributions into a single iteration pass. |
+| M3 | `views.py:3668-3677` | **`perform_update` calls `self.get_object()` redundantly.** DRF already calls `get_object()` before `perform_update`. Calling it again is a redundant DB query and introduces a TOCTOU race — the object fetched inside `perform_update` could differ from what DRF is saving. | Use `serializer.instance` instead of `self.get_object()`. |
+| M4 | `views.py:3657-3659` | **Trainee with no `parent_trainer` sees unexpected results.** If `user.parent_trainer` is `None`, the filter `Q(created_by=user.parent_trainer)` becomes `Q(created_by=None)`, matching ALL system defaults (already matched by the first Q) plus any template where `created_by` is null. Not a security hole but produces confusing duplicate results. | Guard: if `user.parent_trainer is None`, only return `Q(created_by__isnull=True)`. |
+| M5 | `views.py:3761-3772, 3804-3817, 3845-3856, 3881-3891` | **Manual dict serialization violates project conventions.** All four `WorkloadViewSet` actions manually construct Response dicts from dataclass fields. This violates `.claude/rules/datatypes.md` which requires `rest_framework_dataclasses` for API responses. It also means no schema validation on responses, inconsistent serialization, and duplicated code. | Create proper serializers: `ExerciseWorkloadSerializer`, `SessionWorkloadSerializer`, `WeeklyWorkloadSerializer`, `WorkloadTrendSerializer` using `rest_framework_dataclasses`. |
+| M6 | `views.py:3872` | **`weeks_back` allows 0 and negative values.** `min(int(weeks_str), 52)` caps at 52 but doesn't prevent `weeks_back=0` (useless, returns one entry) or negative values (computes future dates in `_get_weekly_deltas`). | Use `max(1, min(int(weeks_str), 52))` to enforce a valid range. |
 
 ## Minor Issues (nice to fix)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| m1 | `views.py:3486-3487` | **Redundant `get_serializer_class` override.** Returns `LiftSetLogSerializer` which is already set as `serializer_class` on line 3417. | Remove the override — it adds noise with no behavior change. |
-| m2 | `views.py:3603-3608` | **Extra DB query for `latest_unit` on every prescribe call.** Queries `LiftSetLog` to find the trainee's most recent unit for this exercise. This is a per-request DB hit that could be avoided. | Store `preferred_unit` on `LiftMax` model, updated alongside e1RM in `update_max_from_set`. |
-| m3 | `max_load_service.py:180` | **No bounds check on `percentage` parameter.** `calculate_tm` accepts any Decimal. Negative or >100 values would produce nonsensical results. The model has validators (80-100), but the service method doesn't enforce this. | Add `assert Decimal("0") < percentage <= Decimal("100")` or raise `ValueError`. |
-| m4 | `models.py:2039-2044` | **`__str__` accesses `self.exercise.name` without prefetch guarantee.** In admin list views or debugging, this triggers an N+1 query per LiftSetLog instance. | Acceptable for debugging; just note it in admin config with `select_related`. |
-| m5 | `max_load_service.py:283` | **Orphaned history references.** `e1rm_history` entries store `source_set_id` pointing to LiftSetLog UUIDs. If set logs are deleted (see C1), these become dangling references. | Not a bug if deletion is prevented (see C1 fix). Document that history entries reference set IDs that must be preserved. |
-| m6 | `serializers.py:1240-1243` | **`validate_completed_reps` is redundant.** `completed_reps` is a `PositiveIntegerField` — Django/DRF already reject negative values at the model and serializer level. | Remove the custom validator or keep it as defense-in-depth (acceptable either way). |
-
----
+| m1 | `workload_service.py:14` | `from typing import Any` used in 6 places. Project rules require strict typing; `dict[str, Any]` should be narrowed. | Use `dict[str, str \| Decimal \| None]` for context, or a typed `FactContext` dataclass. |
+| m2 | `workload_service.py:48` | `top_exercises: list[dict[str, Any]]` in `SessionWorkload` dataclass. Raw dicts violate "never return dict" rule. | Create a `TopExercise` dataclass: `exercise_name: str, workload: Decimal, unit: str`. |
+| m3 | `workload_service.py:374` | `daily_breakdown` values are `str(d['workload'])` — Decimal-to-string conversion happens in the service layer. | Keep as `Decimal` in the dataclass; serialize at the view/serializer layer. |
+| m4 | `views.py:3663-3664, 3671-3672, 3681-3682` | `from rest_framework.exceptions import PermissionDenied` imported inline in 3 methods. | Move to module-level imports. |
+| m5 | `serializers.py:1306-1317` | `condition_rules` JSONField has no validation. A trainer could submit arbitrary JSON with unsupported keys that silently do nothing. | Add `validate_condition_rules()` method that whitelists allowed keys: `min_workload`, `max_workload`, `has_comparison`, `delta_positive`, `min_sets`, `always`. |
+| m6 | `workload_service.py:584` | `_get_weekly_deltas` makes N+1 DB queries — one `_rolling_workload` call per week. For `weeks_back=52`, that's 53 queries. | Consider a single grouped query and compute deltas in Python. |
+| m7 | `workload_service.py:81` | `weekly_deltas: list[dict[str, Any]]` in `WorkloadTrend` dataclass. Same dict-not-dataclass violation. | Create a `WeeklyDelta` dataclass. |
 
 ## Security Concerns
 
-1. **C1 (IDOR on update/delete)** — Primary security issue. A trainer can modify their trainee's set logs (tampering with historical performance data), and any permitted user can delete records with no audit trail.
-2. **C2 (unvalidated `trainee_id`)** — Causes 500 errors with malformed input. In DEBUG mode, stack traces could leak internal paths and model structure.
-3. **Good practice:** The `prescribe` endpoint correctly masks authorization failures as 404s (prevents user enumeration). Row-level security in `get_queryset` is correctly implemented for all three roles.
-4. **No secrets or credentials** found in any reviewed files.
+1. **Template injection (C2):** `str.format_map()` with trainer-controlled template text allows Python attribute access via format specs. Severity: Medium-High.
+2. **Fact template scoping (C1):** Cross-trainer data leakage through unscoped fact templates. Templates are "just text" but still violate tenant isolation.
+3. **Row-level security in `_resolve_trainee()` is correctly implemented** — trainees see own data, trainers only their trainees, admins see all. No IDOR here.
+4. **No rate limiting** on compute-heavy endpoints (trends with `weeks_back=52` triggers 53 DB queries). Not critical for now but worth noting.
 
 ## Performance Concerns
 
-1. **M1 (unbounded history arrays)** — Performance degrades over time as JSON serialization of large arrays becomes expensive on every API response.
-2. **M2 (race condition)** — Concurrent set logging produces incorrect e1RM values under load.
-3. **M5 (no pagination on LiftMax)** — Unbounded responses for admin/trainer users.
-4. **Indexes are well-designed** — Composite indexes cover the main query patterns. Unique constraint on (trainee, exercise, session_date, set_number) is correct.
-5. `select_related('exercise', 'trainee')` is correctly used in both viewsets.
+1. **Trend endpoint:** `weeks_back=52` triggers 53 individual DB queries via `_rolling_workload`. Each is simple but the volume adds up.
+2. **Muscle/pattern distribution:** Full Python-side iteration of all sets. For high-volume trainees (thousands of sets/week), this will be slow. Could use conditional aggregation at the DB level.
+3. **No caching:** All computations are on-read. Ticket says "optimize later" which is acceptable for now, but should be tracked.
 
----
+## Quality Score: 5/10
 
-## Acceptance Criteria Verification
+**Rationale:** The architecture is fundamentally sound — clean service layer separation, proper dataclasses for return types, good use of Django ORM aggregation, well-designed fact selection algorithm, and correct row-level security in the ViewSet. However:
+- The template injection vulnerability (C2) is a real security risk
+- The fact template scoping leak (C1) breaks tenant isolation
+- The completely unhandled mixed-units edge case (M1) contradicts an explicit ticket requirement
+- Manual dict serialization in views (M5) violates a mandatory project convention
+- The unbounded template iteration (C3) is a denial-of-service vector
 
-| Criterion | Status | Notes |
-|-----------|--------|-------|
-| LiftSetLog model with all v6.5 fields | PASS | All fields present with correct types, computed fields, indexes |
-| LiftMax model with e1RM, TM, history | PASS | Complete with unique constraint and validators |
-| MaxLoadService with e1RM estimation | PASS | Epley + Brzycki, conservative min, rep capping, RPE=10 handling |
-| Only standardization-passing sets update e1RM | PASS | Correctly checked in `update_max_from_set` (but default=True is risky, see M3) |
-| LiftSetLog CRUD API | PARTIAL | CRUD works but update/delete lack ownership guards (C1) |
-| LiftMax read API with history endpoint | PARTIAL | Works but URL pattern deviates from ticket (M4) |
-| Load prescription endpoint | PARTIAL | Works but unvalidated trainee_id (C2) |
-| Row-level security on all endpoints | PARTIAL | get_queryset is correct for all roles; update/delete ownership gap (C1) |
-| Proper indexes for performance | PASS | Four indexes + unique constraint cover query patterns well |
-| Service methods return dataclasses, not dicts | PASS | `E1RMEstimate` and `LoadPrescription` are frozen dataclasses |
-
----
-
-## Quality Score: 6/10
-
-The core implementation is strong — the service layer is clean, the math is correct, the dataclass pattern is well-applied, and the model design is thoughtful. However, the IDOR risk on update/delete (C1), the unvalidated input bypass (C2), the race condition (M2), and the fail-open standardization default (M3) are real issues that would cause problems in production. The history endpoint URL mismatch (M4) will create frontend integration friction.
+The happy path works well, but the implementation doesn't meet its own ticket's edge case requirements or the project's mandatory coding conventions.
 
 ## Recommendation: REQUEST CHANGES
 
-**Must fix before merge:** C1, C2
-**Should fix before merge:** M1, M2, M3, M4, M5, M6
-**Can defer:** m1–m6
+**Blocking items that must be fixed:**
+1. C1 — Scope fact template queries by trainer (security)
+2. C2 — Replace `str.format_map()` with safe template rendering (security)
+3. C3 — Cap template iteration (reliability)
+4. M1 — Handle mixed units per ticket requirement (correctness)
+5. M5 — Use `rest_framework_dataclasses` serializers per project rules (convention)

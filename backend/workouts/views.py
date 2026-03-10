@@ -24,6 +24,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 from core.permissions import IsTrainee
+from rest_framework.exceptions import PermissionDenied
 
 from users.models import User
 from .models import (
@@ -3653,36 +3654,33 @@ class WorkloadFactTemplateViewSet(viewsets.ModelViewSet[WorkloadFactTemplate]):
                 Q(created_by__isnull=True) | Q(created_by=user)
             )
         else:
-            # Trainees can read but not modify
-            return WorkloadFactTemplate.objects.filter(
-                Q(created_by__isnull=True) | Q(created_by=user.parent_trainer)
-            )
+            # Trainees can read but not modify — see system defaults + their trainer's
+            if user.parent_trainer_id is not None:
+                return WorkloadFactTemplate.objects.filter(
+                    Q(created_by__isnull=True) | Q(created_by_id=user.parent_trainer_id)
+                )
+            return WorkloadFactTemplate.objects.filter(created_by__isnull=True)
 
     def perform_create(self, serializer: BaseSerializer[WorkloadFactTemplate]) -> None:
         user = cast(User, self.request.user)
         if user.is_trainee():
-            from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Only trainers and admins can create fact templates.")
         serializer.save(created_by=user)
 
     def perform_update(self, serializer: BaseSerializer[WorkloadFactTemplate]) -> None:
         user = cast(User, self.request.user)
-        instance = self.get_object()
         if user.is_trainee():
-            from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Only trainers and admins can update fact templates.")
-        if not user.is_admin() and instance.created_by_id != user.id:
-            from rest_framework.exceptions import PermissionDenied
+        instance = serializer.instance
+        if not user.is_admin() and instance and instance.created_by_id != user.id:
             raise PermissionDenied("You can only edit your own templates.")
         serializer.save()
 
     def perform_destroy(self, instance: WorkloadFactTemplate) -> None:
         user = cast(User, self.request.user)
         if user.is_trainee():
-            from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Only trainers and admins can delete fact templates.")
         if not user.is_admin() and instance.created_by_id != user.id:
-            from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You can only delete your own templates.")
         instance.delete()
 
@@ -3756,6 +3754,7 @@ class WorkloadViewSet(viewsets.ViewSet):
             trainee_id=trainee.id,
             exercise_id=exercise_id_int,
             session_date=parsed_date,
+            trainer_id=trainee.parent_trainer_id,
         )
 
         return Response({
@@ -3764,6 +3763,7 @@ class WorkloadViewSet(viewsets.ViewSet):
             'session_date': str(result.session_date),
             'total_workload': str(result.total_workload),
             'unit': result.unit,
+            'mixed_units': result.mixed_units,
             'set_count': result.set_count,
             'rep_total': result.rep_total,
             'comparison_delta': str(result.comparison_delta) if result.comparison_delta is not None else None,
@@ -3799,6 +3799,7 @@ class WorkloadViewSet(viewsets.ViewSet):
         result = WorkloadAggregationService.compute_session_workload(
             trainee_id=trainee.id,
             session_date=parsed_date,
+            trainer_id=trainee.parent_trainer_id,
         )
 
         return Response({
@@ -3806,6 +3807,7 @@ class WorkloadViewSet(viewsets.ViewSet):
             'session_date': str(result.session_date),
             'total_workload': str(result.total_workload),
             'unit': result.unit,
+            'mixed_units': result.mixed_units,
             'exercise_count': result.exercise_count,
             'total_sets': result.total_sets,
             'total_reps': result.total_reps,
@@ -3869,7 +3871,7 @@ class WorkloadViewSet(viewsets.ViewSet):
         weeks_str = request.query_params.get('weeks_back')
         if weeks_str:
             try:
-                weeks_back = min(int(weeks_str), 52)  # Cap at 1 year
+                weeks_back = max(1, min(int(weeks_str), 52))  # 1-52 weeks
             except ValueError:
                 weeks_back = 8
 

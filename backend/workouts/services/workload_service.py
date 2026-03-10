@@ -8,6 +8,7 @@ Selects deterministic cool facts from WorkloadFactTemplate library.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -30,6 +31,7 @@ class ExerciseWorkload:
     unit: str
     set_count: int
     rep_total: int
+    mixed_units: bool  # True if sets have different workload units
     comparison_delta: Decimal | None  # vs last exposure, as percentage
     comparison_date: date | None
     fact_text: str | None
@@ -42,6 +44,7 @@ class SessionWorkload:
     session_date: date
     total_workload: Decimal
     unit: str
+    mixed_units: bool
     exercise_count: int
     total_sets: int
     total_reps: int
@@ -97,6 +100,12 @@ class WorkloadAggregationService:
     """
 
     @staticmethod
+    def _detect_mixed_units(sets: QuerySet) -> bool:
+        """Check if a queryset contains sets with different workload units."""
+        distinct_units = sets.values_list('set_workload_unit', flat=True).distinct()
+        return distinct_units.count() > 1
+
+    @staticmethod
     def _get_eligible_sets(
         trainee_id: int,
         session_date: date | None = None,
@@ -129,6 +138,7 @@ class WorkloadAggregationService:
         trainee_id: int,
         exercise_id: int,
         session_date: date,
+        trainer_id: int | None = None,
     ) -> ExerciseWorkload:
         """Compute total workload for one exercise in one session."""
         sets = cls._get_eligible_sets(
@@ -147,10 +157,11 @@ class WorkloadAggregationService:
         set_count = agg['set_count'] or 0
         rep_total = agg['rep_total'] or 0
 
-        # Determine unit from first set
+        # Determine unit and check for mixed units
         first_set = sets.first()
         unit = first_set.set_workload_unit if first_set else 'lb_reps'
         exercise_name = first_set.exercise.name if first_set else ''
+        mixed_units = cls._detect_mixed_units(sets) if set_count > 0 else False
 
         # Find comparable: last time this exercise was done before this session
         comparison_delta, comparison_date = cls._find_exercise_comparison(
@@ -168,6 +179,7 @@ class WorkloadAggregationService:
                 'unit': unit,
                 'delta_percent': comparison_delta,
             },
+            trainer_id=trainer_id,
         )
 
         return ExerciseWorkload(
@@ -178,6 +190,7 @@ class WorkloadAggregationService:
             unit=unit,
             set_count=set_count,
             rep_total=rep_total,
+            mixed_units=mixed_units,
             comparison_delta=comparison_delta,
             comparison_date=comparison_date,
             fact_text=fact_text,
@@ -230,6 +243,7 @@ class WorkloadAggregationService:
         cls,
         trainee_id: int,
         session_date: date,
+        trainer_id: int | None = None,
     ) -> SessionWorkload:
         """Compute total workload for an entire session (all exercises)."""
         sets = cls._get_eligible_sets(
@@ -247,9 +261,10 @@ class WorkloadAggregationService:
         total_sets = agg['total_sets'] or 0
         total_reps = agg['total_reps'] or 0
 
-        # Unit from first set
+        # Unit from first set + mixed units check
         first_set = sets.first()
         unit = first_set.set_workload_unit if first_set else 'lb_reps'
+        mixed_units = cls._detect_mixed_units(sets) if total_sets > 0 else False
 
         # Top exercises by workload
         exercise_totals = (
@@ -317,6 +332,7 @@ class WorkloadAggregationService:
                 'week_total': week_to_date,
                 'delta_percent': comparison_delta,
             },
+            trainer_id=trainer_id,
         )
 
         return SessionWorkload(
@@ -324,6 +340,7 @@ class WorkloadAggregationService:
             session_date=session_date,
             total_workload=total_workload,
             unit=unit,
+            mixed_units=mixed_units,
             exercise_count=exercise_count,
             total_sets=total_sets,
             total_reps=total_reps,
@@ -375,8 +392,7 @@ class WorkloadAggregationService:
         }
 
         # Muscle group and pattern breakdowns
-        by_muscle = cls._compute_muscle_distribution(sets)
-        by_pattern = cls._compute_pattern_distribution(sets)
+        by_muscle, by_pattern = cls._compute_distributions(sets)
 
         # Prior week comparison
         prior_start = week_start - timedelta(days=7)
@@ -408,14 +424,17 @@ class WorkloadAggregationService:
         )
 
     @staticmethod
-    def _compute_muscle_distribution(sets: QuerySet) -> dict[str, Decimal]:
+    def _compute_distributions(
+        sets: QuerySet,
+    ) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
         """
-        Distribute set workloads across muscle groups using muscle_contribution_map.
+        Single-pass computation of both muscle group and pattern distributions.
 
-        If an exercise has no contribution map, 100% goes to primary_muscle_group.
-        If neither exists, attributed to 'unclassified'.
+        Muscle: uses muscle_contribution_map, falls back to primary_muscle_group.
+        Pattern: splits workload evenly across all pattern_tags.
         """
         muscle_totals: dict[str, Decimal] = {}
+        pattern_totals: dict[str, Decimal] = {}
 
         for s in sets.iterator(chunk_size=500):
             exercise = s.exercise
@@ -424,6 +443,7 @@ class WorkloadAggregationService:
             if workload <= 0:
                 continue
 
+            # Muscle distribution
             contrib_map = exercise.muscle_contribution_map
             if contrib_map:
                 for muscle, weight in contrib_map.items():
@@ -437,38 +457,23 @@ class WorkloadAggregationService:
                     muscle_totals.get('unclassified', Decimal('0')) + workload
                 )
 
-        # Quantize for clean output
-        return {
-            k: v.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            # Pattern distribution
+            tags = exercise.pattern_tags
+            if tags:
+                share = workload / Decimal(len(tags))
+                for tag in tags:
+                    pattern_totals[tag] = pattern_totals.get(tag, Decimal('0')) + share
+
+        quantize = Decimal('0.01')
+        muscle_result = {
+            k: v.quantize(quantize, rounding=ROUND_HALF_UP)
             for k, v in sorted(muscle_totals.items(), key=lambda x: x[1], reverse=True)
         }
-
-    @staticmethod
-    def _compute_pattern_distribution(sets: QuerySet) -> dict[str, Decimal]:
-        """
-        Distribute set workloads across movement patterns using pattern_tags.
-
-        Workload is split evenly across all tags for exercises with multiple.
-        Exercises with no pattern_tags are skipped.
-        """
-        pattern_totals: dict[str, Decimal] = {}
-
-        for s in sets.iterator(chunk_size=500):
-            exercise = s.exercise
-            workload = s.set_workload_value
-            tags = exercise.pattern_tags
-
-            if workload <= 0 or not tags:
-                continue
-
-            share = workload / Decimal(len(tags))
-            for tag in tags:
-                pattern_totals[tag] = pattern_totals.get(tag, Decimal('0')) + share
-
-        return {
-            k: v.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        pattern_result = {
+            k: v.quantize(quantize, rounding=ROUND_HALF_UP)
             for k, v in sorted(pattern_totals.items(), key=lambda x: x[1], reverse=True)
         }
+        return muscle_result, pattern_result
 
 
 # ---------------------------------------------------------------------------
@@ -619,19 +624,35 @@ class WorkloadFactService:
     5. Render template text with context data
     """
 
+    # Max templates to evaluate for fact selection (prevents DoS)
+    MAX_TEMPLATES_EVALUATED: int = 50
+
     @classmethod
     def select_and_render(
         cls,
         scope: str,
         context: dict[str, Any],
+        trainer_id: int | None = None,
     ) -> str | None:
-        """Select the best matching fact template and render it."""
+        """
+        Select the best matching fact template and render it.
+
+        Templates are scoped: system defaults (created_by=null) + trainer's own.
+        """
         from workouts.models import WorkloadFactTemplate
 
-        templates = WorkloadFactTemplate.objects.filter(
+        qs = WorkloadFactTemplate.objects.filter(
             scope=scope,
             is_active=True,
-        ).order_by('priority')
+        )
+
+        # Scope by trainer: system defaults + trainer's own templates
+        if trainer_id is not None:
+            qs = qs.filter(Q(created_by__isnull=True) | Q(created_by_id=trainer_id))
+        else:
+            qs = qs.filter(created_by__isnull=True)
+
+        templates = qs.order_by('priority')[:cls.MAX_TEMPLATES_EVALUATED]
 
         for template in templates:
             if cls._evaluate_conditions(template.condition_rules, context):
@@ -690,12 +711,17 @@ class WorkloadFactService:
 
         return True
 
-    @staticmethod
-    def _render(template_text: str, context: dict[str, Any]) -> str:
-        """
-        Render template text with context placeholders.
+    # Regex to match {word_chars_only} — no dots, underscores are OK
+    _PLACEHOLDER_RE = re.compile(r'\{(\w+)\}')
 
-        Uses safe string formatting — missing keys result in empty strings.
+    @classmethod
+    def _render(cls, template_text: str, context: dict[str, Any]) -> str:
+        """
+        Render template text with context placeholders using safe regex substitution.
+
+        Only supports simple {key} placeholders — no attribute access, format specs,
+        or nested lookups. This prevents injection via trainer-authored templates.
+        Missing keys become empty strings.
         """
         # Build safe context with string conversions
         safe: dict[str, str] = {}
@@ -707,14 +733,7 @@ class WorkloadFactService:
             else:
                 safe[key] = str(value)
 
-        try:
-            return template_text.format_map(SafeFormatDict(safe))
-        except (KeyError, ValueError, IndexError):
-            return template_text
+        def replacer(match: re.Match[str]) -> str:
+            return safe.get(match.group(1), '')
 
-
-class SafeFormatDict(dict):  # type: ignore[type-arg]
-    """Dict that returns empty string for missing keys in str.format_map()."""
-
-    def __missing__(self, key: str) -> str:
-        return ''
+        return cls._PLACEHOLDER_RE.sub(replacer, template_text)
