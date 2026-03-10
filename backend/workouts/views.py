@@ -3091,6 +3091,58 @@ class FoodItemViewSet(viewsets.ModelViewSet[FoodItem]):
 
         return Response(FoodItemSerializer(ordered, many=True).data)
 
+    @action(detail=True, methods=['get'], url_path='swaps')
+    def swaps(self, request: Request, pk: str | None = None) -> Response:
+        """GET /api/workouts/food-items/{id}/swaps/?mode=same_macros&limit=10
+
+        Returns food swap recommendations for this food item.
+        """
+        from workouts.services.food_swap_service import get_food_swaps
+
+        user = cast(User, request.user)
+        mode = request.query_params.get('mode', 'same_macros')
+        try:
+            limit = int(request.query_params.get('limit', '10'))
+        except ValueError:
+            limit = 10
+        limit = min(max(limit, 1), 50)
+
+        try:
+            result = get_food_swaps(
+                food_item_id=int(pk),  # type: ignore[arg-type]
+                mode=mode,
+                limit=limit,
+                user=user,
+                actor_id=user.pk,
+            )
+        except ValueError as exc:
+            return Response(
+                {'detail': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({
+            'source_food_id': result.source_food_id,
+            'source_food_name': result.source_food_name,
+            'mode': result.mode,
+            'candidates': [
+                {
+                    'food_item_id': c.food_item_id,
+                    'name': c.name,
+                    'brand': c.brand,
+                    'calories': c.calories,
+                    'protein': c.protein,
+                    'carbs': c.carbs,
+                    'fat': c.fat,
+                    'serving_size': c.serving_size,
+                    'serving_unit': c.serving_unit,
+                    'similarity_score': c.similarity_score,
+                    'match_reason': c.match_reason,
+                }
+                for c in result.candidates
+            ],
+        })
+
 
 class MealLogPagination(PageNumberPagination):
     page_size = 20
@@ -3285,6 +3337,62 @@ class MealLogViewSet(
 
         entry.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['post'], url_path=r'entries/(?P<entry_id>\d+)/swap')
+    def swap_entry(self, request: Request, entry_id: str = '') -> Response:
+        """POST /api/workouts/meal-logs/entries/<entry_id>/swap/
+
+        Execute a food swap: replace the entry's food with a new one.
+        Body: {"new_food_item_id": 123, "quantity": 1.5}
+        """
+        from workouts.services.food_swap_service import execute_food_swap
+
+        user = cast(User, request.user)
+        if not user.is_trainee():
+            return Response(
+                {'error': 'Only trainees can swap food entries.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        new_food_item_id = request.data.get('new_food_item_id')
+        if not new_food_item_id:
+            return Response(
+                {'error': 'new_food_item_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        quantity = request.data.get('quantity')
+        if quantity is not None:
+            try:
+                quantity = float(quantity)
+            except (TypeError, ValueError):
+                return Response(
+                    {'error': 'quantity must be a number.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            result = execute_food_swap(
+                entry_id=int(entry_id),
+                new_food_item_id=int(new_food_item_id),
+                quantity=quantity,
+                user=user,
+                actor_id=user.pk,
+            )
+        except ValueError as exc:
+            return Response(
+                {'detail': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({
+            'entry_id': result.entry_id,
+            'old_food_name': result.old_food_name,
+            'new_food_name': result.new_food_name,
+            'old_macros': result.old_macros,
+            'new_macros': result.new_macros,
+            'undo_snapshot_id': result.undo_snapshot_id,
+        })
 
 
 class DecisionLogPagination(PageNumberPagination):
