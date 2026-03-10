@@ -4331,11 +4331,11 @@ class PlanSlotViewSet(
 
         slot = self.get_object()
         trainee = slot.session.week.plan.trainee
-
-        # Restrict trainees from applying progression
         user = request.user
-        if user.role == 'TRAINEE' and user.pk != trainee.pk:
-            raise PermissionDenied("Cannot apply progression for another trainee.")
+
+        # Only trainers and admins can apply progression
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Only trainers and admins can apply progression.")
 
         serializer = ApplyProgressionInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -4344,22 +4344,18 @@ class PlanSlotViewSet(
         prescription = compute_next_prescription(slot=slot, trainee_id=trainee.pk)
 
         # Apply trainer overrides if provided
-        if overrides.get('override_sets'):
-            prescription = NextPrescription(
-                **{**prescription.__dict__, 'sets': overrides['override_sets']}
-            )
-        if overrides.get('override_reps_min'):
-            prescription = NextPrescription(
-                **{**prescription.__dict__, 'reps_min': overrides['override_reps_min']}
-            )
-        if overrides.get('override_reps_max'):
-            prescription = NextPrescription(
-                **{**prescription.__dict__, 'reps_max': overrides['override_reps_max']}
-            )
+        from dataclasses import replace
+        override_kwargs: dict[str, Any] = {}
+        if overrides.get('override_sets') is not None:
+            override_kwargs['sets'] = overrides['override_sets']
+        if overrides.get('override_reps_min') is not None:
+            override_kwargs['reps_min'] = overrides['override_reps_min']
+        if overrides.get('override_reps_max') is not None:
+            override_kwargs['reps_max'] = overrides['override_reps_max']
         if overrides.get('override_load') is not None:
-            prescription = NextPrescription(
-                **{**prescription.__dict__, 'load_value': overrides['override_load']}
-            )
+            override_kwargs['load_value'] = overrides['override_load']
+        if override_kwargs:
+            prescription = replace(prescription, **override_kwargs)
 
         result = apply_prog(
             slot=slot,

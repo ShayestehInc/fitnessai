@@ -120,7 +120,7 @@ def _get_recent_sets(
             trainee_id=trainee_id,
             exercise_id=exercise_id,
             session_date__gte=cutoff,
-        ).order_by('-session_date', 'set_number')
+        ).order_by('-session_date', 'set_number')[:500]
     )
 
 
@@ -177,7 +177,7 @@ def _avg_rpe(session_sets: list[LiftSetLog]) -> Decimal | None:
     rpe_values = [s.rpe for s in session_sets if s.rpe is not None and s.rpe > 0]
     if not rpe_values:
         return None
-    return sum(rpe_values) / len(rpe_values)
+    return (sum(rpe_values) / len(rpe_values)).quantize(Decimal('0.1'))
 
 
 def _count_consecutive_failures(
@@ -214,6 +214,7 @@ def _evaluate_staircase_percent(
     start_pct = Decimal(str(rules.get('start_pct', 75)))
     deload_rules = profile.deload_rules
     failure_rules = profile.failure_rules
+    load_unit = _resolve_load_unit(lift_max, sessions)
 
     # Determine current week in cycle from progression events
     events = list(
@@ -234,10 +235,8 @@ def _evaluate_staircase_percent(
         deload_intensity_drop = Decimal(str(deload_rules.get('intensity_drop_pct', 10)))
         new_pct = start_pct - deload_intensity_drop
         load_value = None
-        load_unit = 'lb'
         if lift_max and lift_max.tm_current:
             load_value = _round_load(lift_max.tm_current * new_pct / 100)
-            load_unit = 'lb'
 
         return NextPrescription(
             slot_id=str(slot.pk),
@@ -256,16 +255,14 @@ def _evaluate_staircase_percent(
             confidence='high',
         )
 
-    # Normal progression: advance to next step
-    new_pct = start_pct + (step_pct * (current_step + 1))
+    # Normal progression: advance to next step (M6 fix: first week uses start_pct)
+    new_pct = start_pct + (step_pct * current_step)
     if new_pct > Decimal('100'):
         new_pct = Decimal('100')
 
     load_value = None
-    load_unit = 'lb'
     if lift_max and lift_max.tm_current:
         load_value = _round_load(lift_max.tm_current * new_pct / 100)
-        load_unit = 'lb'
 
     # Check if it's deload week (step == work_weeks)
     is_deload_step = current_step >= work_weeks - 1
@@ -329,11 +326,16 @@ def _evaluate_rep_staircase(
     failure_rules = profile.failure_rules
 
     # Determine body region for load increment
-    is_lower = slot.slot_role in ('primary_compound',) and slot.exercise.primary_muscle_group in (
+    _LOWER_BODY_MUSCLES = {
         'quads', 'hamstrings', 'glutes', 'calves', 'hip_adductors', 'hip_abductors',
-        'hip_flexors', 'spinal_erectors',
+        'hip_flexors', 'spinal_erectors', 'lower_back',
+    }
+    is_lower = (
+        slot.slot_role in ('primary_compound', 'secondary_compound')
+        and slot.exercise.primary_muscle_group in _LOWER_BODY_MUSCLES
     )
     load_increment = load_increment_lower if is_lower else load_increment_upper
+    load_unit = _resolve_load_unit(lift_max, sessions)
 
     # Get last session's performance
     if not sessions:
@@ -364,7 +366,7 @@ def _evaluate_rep_staircase(
                 reps_min=slot.reps_min,
                 reps_max=slot.reps_min,  # Reset to bottom rung
                 load_value=new_load,
-                load_unit='lb',
+                load_unit=load_unit,
                 load_percentage=None,
                 reason_codes=['consecutive_failures', 'load_reduced'],
                 reason_display=f"Failure: reducing load {reduction_pct}% and resetting reps.",
@@ -388,7 +390,7 @@ def _evaluate_rep_staircase(
                 reps_min=slot.reps_min,
                 reps_max=slot.reps_min,  # Reset to bottom rung
                 load_value=new_load,
-                load_unit='lb',
+                load_unit=load_unit,
                 load_percentage=None,
                 reason_codes=['top_rung_reached', 'load_increased'],
                 reason_display=f"Top rung reached ({max_reps_in_last} reps). Load +{load_increment}lb, reps reset to {slot.reps_min}.",
@@ -408,7 +410,7 @@ def _evaluate_rep_staircase(
                 reps_min=new_reps,
                 reps_max=new_reps,
                 load_value=current_load,
-                load_unit='lb',
+                load_unit=load_unit,
                 load_percentage=None,
                 reason_codes=['rep_climb', f'reps_{new_reps}'],
                 reason_display=f"Rep staircase: {max_reps_in_last} → {new_reps} reps.",
@@ -434,6 +436,7 @@ def _evaluate_double_progression(
     target_rpe = Decimal(str(rules.get('target_rpe', 8)))  # RPE 8 = ~2 RIR
     lock_in = rules.get('lock_in', 'practical')  # strict, practical, hybrid
     failure_rules = profile.failure_rules
+    load_unit = _resolve_load_unit(lift_max, sessions)
 
     if not sessions:
         return _hold_prescription(slot, 'double_progression', ['no_history'])
@@ -462,7 +465,7 @@ def _evaluate_double_progression(
             reps_min=slot.reps_min,
             reps_max=slot.reps_max,
             load_value=new_load,
-            load_unit='lb',
+            load_unit=load_unit,
             load_percentage=None,
             reason_codes=['all_sets_at_top', 'effort_on_target', 'load_increased'],
             reason_display=f"All sets hit {slot.reps_max} reps. Load +{load_increment}lb → {new_load}.",
@@ -488,7 +491,7 @@ def _evaluate_double_progression(
                 reps_min=slot.reps_min,
                 reps_max=slot.reps_max,
                 load_value=new_load,
-                load_unit='lb',
+                load_unit=load_unit,
                 load_percentage=None,
                 reason_codes=['consecutive_failures', 'load_reduced'],
                 reason_display=f"Regression: reducing load {reduction_pct}%.",
@@ -507,7 +510,7 @@ def _evaluate_double_progression(
         reps_min=slot.reps_min,
         reps_max=slot.reps_max,
         load_value=current_load,
-        load_unit='lb',
+        load_unit=load_unit,
         load_percentage=None,
         reason_codes=['working_in_range'],
         reason_display=f"Continue working in {slot.reps_min}-{slot.reps_max} rep range.",
@@ -529,6 +532,7 @@ def _evaluate_linear(
     increment = Decimal(str(rules.get('increment_lb', 5)))
     frequency = rules.get('frequency', 'session')  # session or weekly
     failure_rules = profile.failure_rules
+    load_unit = _resolve_load_unit(lift_max, sessions)
 
     if not sessions:
         return _hold_prescription(slot, 'linear', ['no_history'])
@@ -554,7 +558,7 @@ def _evaluate_linear(
                 reps_min=slot.reps_min,
                 reps_max=slot.reps_max,
                 load_value=new_load,
-                load_unit='lb',
+                load_unit=load_unit,
                 load_percentage=None,
                 reason_codes=['consecutive_failures', 'deload_triggered'],
                 reason_display=f"Deload: {consecutive_failures} failures. Dropping {deload_pct}%.",
@@ -574,7 +578,7 @@ def _evaluate_linear(
             reps_min=slot.reps_min,
             reps_max=slot.reps_max,
             load_value=new_load,
-            load_unit='lb',
+            load_unit=load_unit,
             load_percentage=None,
             reason_codes=['session_completed', 'load_increased'],
             reason_display=f"Completed. Load +{increment}lb → {new_load}.",
@@ -598,11 +602,14 @@ def _evaluate_wave_by_month(
     week_percentages = rules.get('week_percentages', [75, 80, 85, 65])
     week_reps = rules.get('week_reps', [10, 8, 5, 10])
     week_sets = rules.get('week_sets', [5, 4, 5, 3])
+    load_unit = _resolve_load_unit(lift_max, sessions)
 
-    # Determine current week in wave from progression events
+    # Determine current week in wave from progression events (only count progression/deload)
     events = list(
-        ProgressionEvent.objects.filter(plan_slot=slot)
-        .order_by('-created_at')[:8]
+        ProgressionEvent.objects.filter(
+            plan_slot=slot,
+            event_type__in=['progression', 'deload'],
+        ).order_by('-created_at')[:8]
     )
     progression_count = len(events)
     wave_length = len(week_percentages)
@@ -648,6 +655,7 @@ def _hold_prescription(
     slot: PlanSlot,
     progression_type: str,
     reason_codes: list[str],
+    load_unit: str = 'lb',
 ) -> NextPrescription:
     """Return a hold prescription (no changes)."""
     return NextPrescription(
@@ -660,7 +668,7 @@ def _hold_prescription(
         reps_min=slot.reps_min,
         reps_max=slot.reps_max,
         load_value=None,
-        load_unit='lb',
+        load_unit=load_unit,
         load_percentage=slot.load_prescription_pct,
         reason_codes=reason_codes,
         reason_display="Hold: no changes to current prescription.",
@@ -674,6 +682,20 @@ def _get_last_load(session_sets: list[LiftSetLog]) -> Decimal | None:
         if s.canonical_external_load_value and s.canonical_external_load_value > 0:
             return s.canonical_external_load_value
     return None
+
+
+def _resolve_load_unit(
+    lift_max: LiftMax | None,
+    sessions: list[list[LiftSetLog]],
+) -> str:
+    """Determine load unit from LiftMax or recent set logs. Defaults to 'lb'."""
+    if lift_max and hasattr(lift_max, 'load_unit') and lift_max.load_unit:
+        return str(lift_max.load_unit)
+    for session_sets in sessions:
+        for s in session_sets:
+            if hasattr(s, 'canonical_external_load_unit') and s.canonical_external_load_unit:
+                return str(s.canonical_external_load_unit)
+    return 'lb'
 
 
 # ---------------------------------------------------------------------------
@@ -717,6 +739,7 @@ def compute_next_prescription(
         if gap_days > _GAP_THRESHOLD_DAYS:
             # Deload after long gap
             lift_max = _get_lift_max(trainee_id, slot.exercise_id)
+            gap_load_unit = _resolve_load_unit(lift_max, sessions)
             load_value = None
             if lift_max and lift_max.tm_current:
                 load_value = _round_load(lift_max.tm_current * Decimal('0.90'))
@@ -730,7 +753,7 @@ def compute_next_prescription(
                 reps_min=slot.reps_min,
                 reps_max=slot.reps_max,
                 load_value=load_value,
-                load_unit='lb',
+                load_unit=gap_load_unit,
                 load_percentage=Decimal('90'),
                 reason_codes=['training_gap', f'gap_{gap_days}_days'],
                 reason_display=f"Training gap ({gap_days} days). Resuming at 90% TM.",
@@ -816,6 +839,7 @@ def apply_progression(
     prescription: NextPrescription,
     actor_id: int | None = None,
     trainee_id: int,
+    actor_type: str = 'user',
 ) -> ProgressionEventResult:
     """
     Apply a computed prescription to a slot. Creates ProgressionEvent + DecisionLog.
@@ -838,17 +862,18 @@ def apply_progression(
         slot.sets = prescription.sets
         slot.reps_min = prescription.reps_min
         slot.reps_max = prescription.reps_max
-        if prescription.load_percentage:
-            slot.load_prescription_pct = prescription.load_percentage
+        slot.load_prescription_pct = prescription.load_percentage
         slot.save(update_fields=[
             'sets', 'reps_min', 'reps_max', 'load_prescription_pct', 'updated_at',
         ])
 
         # Create DecisionLog
+        resolved_actor_type = (
+            DecisionLog.ActorType.SYSTEM if actor_type == 'system'
+            else DecisionLog.ActorType.USER
+        )
         log = DecisionLog.objects.create(
-            actor_type=(
-                DecisionLog.ActorType.USER if actor_id else DecisionLog.ActorType.SYSTEM
-            ),
+            actor_type=resolved_actor_type,
             actor_id=actor_id,
             decision_type='progression_applied',
             context={
