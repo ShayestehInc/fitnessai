@@ -102,19 +102,19 @@ class SessionRunnerTestBase(TestCase):
         self.exercise_bench = Exercise.objects.create(
             name="Bench Press",
             primary_muscle_group="chest",
-            equipment="barbell",
+            equipment_required=["barbell"],
             is_public=True,
         )
         self.exercise_squat = Exercise.objects.create(
             name="Barbell Squat",
             primary_muscle_group="quads",
-            equipment="barbell",
+            equipment_required=["barbell"],
             is_public=True,
         )
         self.exercise_curl = Exercise.objects.create(
             name="Bicep Curl",
             primary_muscle_group="biceps",
-            equipment="dumbbell",
+            equipment_required=["dumbbell"],
             is_public=True,
         )
 
@@ -1162,7 +1162,7 @@ class RestTimerTests(TestCase):
         self.exercise = Exercise.objects.create(
             name="Test Exercise RT",
             primary_muscle_group="chest",
-            equipment="barbell",
+            equipment_required=["barbell"],
             is_public=True,
         )
         self.plan = TrainingPlan.objects.create(

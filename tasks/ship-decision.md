@@ -129,3 +129,50 @@
 ## What Was Built
 
 **Progression Engine (v6.5 Step 7):** A deterministic progression computation system supporting 5 progression styles (Staircase Percent, Rep Staircase, Double Progression, Linear, Wave-by-Month). Includes ProgressionProfile model for configurable rules with slot-level override of plan defaults, ProgressionEvent model for full audit trail with DecisionLog integration, 4 API action endpoints on PlanSlot (next-prescription, apply-progression, progression-history, progression-readiness), CRUD ViewSet for ProgressionProfile with role-based access control, 5 system seed profiles via idempotent management command, gap detection with auto-deload (>14 days -> 90% TM), consecutive failure handling per profile configuration, and dynamic load unit resolution from LiftMax/LiftSetLog data. Backend-only — mobile UI deferred to Step 8 (Session Runner).
+
+---
+
+---
+
+# Ship Decision: Session Runner (v6.5 Step 8)
+
+## Verdict: NO-SHIP
+
+## Confidence: HIGH
+
+## Quality Score: 5/10
+
+## Summary: All 63 Session Runner tests fail due to a test setup bug (`Exercise()` created with non-existent `equipment` kwarg instead of `equipment_required`), resulting in zero verified test coverage. Without passing tests, the feature cannot ship.
+
+## Remaining Concerns
+
+### Critical — Must Fix Before Re-Verification
+
+1. **ALL 63 TESTS FAIL (Blocker).** Every test in `backend/workouts/tests/test_session_runner.py` errors with `TypeError: Exercise() got unexpected keyword arguments: 'equipment'`. The Exercise model uses `equipment_required` and `equipment_optional`, not `equipment`. The test helper creates Exercise instances with the wrong field name (lines 105, 111, 117, 1165). This means there is **zero verified test coverage** for the entire Session Runner feature — service logic, API endpoints, edge cases, security guards, and race condition handling are all unverified.
+
+2. **QA Report is for Step 7 (Progression Engine), not Step 8 (Session Runner).** The `tasks/qa-report.md` file documents 73 tests for the Progression Engine, not the Session Runner. No QA report exists for the feature under review.
+
+### Non-Blocking — Verified as Addressed
+
+- All 4 critical code review issues (C1: IDOR on PlanSession, C2: missing role enforcement, C3: N+1 in serializer, C4: stale cleanup race) were properly fixed and verified in re-review (score raised from 5/10 to 8/10, APPROVE).
+- Security audit passed (9/10, PASS). H1 (unbounded notes field) fixed. No secrets, no injection, no IDOR remaining.
+- Architecture review passed (8/10, APPROVE). Redundant query bug and duplicated lookup logic found and fixed.
+- Django system checks pass (`python manage.py check` — 0 issues).
+- UX audit passed (9/10, backend-only scope, API response design is clean).
+- Production code quality appears solid based on spot-checking: correct `select_for_update` usage, IDOR protection, role enforcement, bulk_create for LiftSetLog, proper error codes.
+
+### Low Priority — Acceptable Tech Debt
+
+- `progression_results` typed as `list[dict[str, Any]]` instead of frozen dataclass (m3).
+- Rest timer sentinel value ambiguity at 90s (M7, documented).
+
+## Required Fix for SHIP
+
+1. Fix `equipment` -> `equipment_required` in all `Exercise.objects.create()` calls in `test_session_runner.py` (lines 105, 111, 117, 1165).
+2. Re-run the full test suite — all 63 tests must pass.
+3. Write a proper QA report for Step 8 (Session Runner).
+4. Re-run Final Verifier.
+
+## What Was Built: [for the changelog]
+
+Session Runner backend (v6.5 Step 8): ActiveSession and ActiveSetLog models with UUID PKs, session lifecycle service (start/log-set/skip-set/complete/abandon), rest timer service with slot-role defaults and modality overrides, 8 REST API endpoints with JWT auth and trainee-only role enforcement, progression engine integration on session completion, stale session auto-abandonment (4h threshold), race condition protection via select_for_update and DB partial unique constraints, DecisionLog audit trail on all state transitions.
