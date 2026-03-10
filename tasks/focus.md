@@ -1,38 +1,33 @@
-# Focus: Trainer Packet v6.5 — Step 10: Food Swap Engine + Nutrition DecisionLog
+# Focus: Trainer Packet v6.5 — Step 12: Import Pipeline (Draft/Confirm)
 
 ## Priority
 
-Critical — Step 10 of the v6.5 build order. Most nutrition infrastructure already exists (templates, fat toggle, meal logging). This step completes the food swap recommendation system and wires DecisionLog into nutrition decisions.
+Critical — Step 12 of the v6.5 build order. Enables trainers to bulk import training programs from CSV/JSON with a two-phase draft→confirm workflow.
 
 ## What to Build
 
-### 1. Food Swap Service
+### 1. ProgramImportDraft Model
 
-- `get_food_swaps(food_item_id, mode, limit)` → returns ranked food alternatives
-- Three modes: `same_category` (same food group), `same_macros` (similar P/C/F ratio), `explore` (discover new foods)
-- Similarity scoring based on macro profile (calorie-normalized P/C/F distance)
-- DecisionLog for every swap recommendation
-- UndoSnapshot for executed swaps
+- Stores uploaded file content, parsed preview, validation errors
+- Status: pending_review, confirmed, rejected, expired
+- FK to trainer, optional trainee
+- JSONField for parsed data and errors
 
-### 2. Food Swap API Endpoints
+### 2. Import Service
 
-- GET /food-items/{id}/swaps/?mode=same_macros&limit=10
-- POST /meal-logs/{id}/entries/{entry_id}/swap/ — execute a food swap in a meal log
+- `parse_csv_to_draft()` — Parse CSV into structured plan preview
+- `validate_draft()` — Validate exercises exist, rep ranges valid, etc.
+- `confirm_import()` — Atomic creation of TrainingPlan/PlanWeek/PlanSession/PlanSlot + DecisionLog
 
-### 3. CARB_CYCLING Ruleset
+### 3. API Endpoints
 
-- Implement the carb cycling formula in nutrition_plan_service
-- High-carb days (training), low-carb days (rest), medium days (light training)
-- Macro ratios shift based on day type
-
-### 4. Nutrition DecisionLog Integration
-
-- Wire DecisionLog into day plan generation (nutrition_plan_service)
-- Log macro calculations with inputs (BW, BF%, template, day_type) and outputs (P/C/F targets)
+- POST /program-imports/upload/ — Accept CSV, create draft
+- GET /program-imports/{draft_id}/ — Get draft for review
+- POST /program-imports/{draft_id}/confirm/ — Execute import
+- DELETE /program-imports/{draft_id}/ — Reject/discard draft
 
 ## What NOT to Build
 
-- System food database seed (separate effort)
-- Mobile UI for food swaps (separate step)
-- Natural language food parsing improvements
-- MACRO_EBOOK ruleset (not yet specified)
+- Mobile UI for import
+- JSON file import (CSV only for now)
+- Exercise auto-creation (exercises must pre-exist)

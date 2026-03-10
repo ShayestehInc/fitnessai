@@ -37,6 +37,12 @@ from .feedback_views import (
     TrainerRoutingRuleViewSet,
 )
 from .survey_views import ReadinessSurveyView, PostWorkoutSurveyView, MyLayoutConfigView
+from .import_views import (
+    ProgramImportConfirmView,
+    ProgramImportDetailView,
+    ProgramImportListView,
+    ProgramImportUploadView,
+)
 
 router = DefaultRouter()
 router.register(r'exercises', ExerciseViewSet, basename='exercise')
@@ -78,4 +84,10 @@ urlpatterns = [
     path('surveys/readiness/', ReadinessSurveyView.as_view(), name='readiness-survey'),
     path('surveys/post-workout/', PostWorkoutSurveyView.as_view(), name='post-workout-survey'),
     path('my-layout/', MyLayoutConfigView.as_view(), name='my-layout-config'),
+
+    # Program imports (v6.5 Step 12)
+    path('program-imports/', ProgramImportListView.as_view(), name='program-import-list'),
+    path('program-imports/upload/', ProgramImportUploadView.as_view(), name='program-import-upload'),
+    path('program-imports/<str:draft_id>/', ProgramImportDetailView.as_view(), name='program-import-detail'),
+    path('program-imports/<str:draft_id>/confirm/', ProgramImportConfirmView.as_view(), name='program-import-confirm'),
 ]
