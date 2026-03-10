@@ -183,6 +183,11 @@ python manage.py migrate && python manage.py runserver
 # Mobile
 cd mobile && flutter pub get && flutter run -d ios
 
+# Deploy to TestFlight (Fastlane)
+cd mobile/ios && fastlane beta
+# Fastfile: mobile/ios/fastlane/Fastfile
+# Uses App Store Connect API key from ~/.appstoreconnect/AuthKey_WH6LJ6PVQT.p8
+
 # Seed data
 docker-compose exec backend python manage.py seed_admin
 docker-compose exec backend python manage.py seed_default_trainer

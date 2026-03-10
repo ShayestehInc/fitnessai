@@ -13,6 +13,7 @@ from .models import (
     CheckInResponse,
     CheckInTemplate,
     DailyLog,
+    DecisionLog,
     Exercise,
     FoodItem,
     Habit,
@@ -27,24 +28,123 @@ from .models import (
     Program,
     ProgressionSuggestion,
     ProgressPhoto,
+    UndoSnapshot,
     WeightCheckIn,
     WorkoutTemplate,
 )
 
 
 class ExerciseSerializer(serializers.ModelSerializer[Exercise]):
-    """Serializer for Exercise model."""
+    """Serializer for Exercise model — includes v6.5 ExerciseCard tag fields."""
 
     created_by_email = serializers.CharField(source='created_by.email', read_only=True)
 
     class Meta:
         model = Exercise
         fields = [
-            'id', 'name', 'description', 'video_url', 'image_url', 'muscle_group',
-            'difficulty_level', 'suitable_for_goals', 'category',
-            'is_public', 'created_by', 'created_by_email', 'created_at', 'updated_at'
+            'id', 'name', 'aliases', 'description', 'video_url', 'image_url',
+            'muscle_group', 'difficulty_level', 'suitable_for_goals', 'category',
+            # v6.5 tag fields
+            'pattern_tags', 'athletic_skill_tags', 'athletic_attribute_tags',
+            'primary_muscle_group', 'secondary_muscle_groups',
+            'muscle_contribution_map',
+            'stance', 'plane', 'rom_bias',
+            'equipment_required', 'equipment_optional',
+            'athletic_constraints', 'standardization_block', 'swap_seed_ids',
+            'version',
+            'is_public', 'created_by', 'created_by_email', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'version']
+
+    def validate_muscle_contribution_map(self, value: dict[str, float]) -> dict[str, float]:
+        """Validate that muscle contribution weights sum to 1.0."""
+        if not value:
+            return value
+
+        valid_groups = {c[0] for c in Exercise.DetailedMuscleGroup.choices}
+        invalid_keys = set(value.keys()) - valid_groups
+        if invalid_keys:
+            raise serializers.ValidationError(
+                f"Invalid muscle groups: {sorted(invalid_keys)}. "
+                f"Valid options: {sorted(valid_groups)}"
+            )
+
+        total = sum(value.values())
+        if abs(total - 1.0) > 0.01:
+            raise serializers.ValidationError(
+                f"Muscle contribution weights must sum to 1.0 (got {total:.4f})."
+            )
+
+        return value
+
+    def validate_pattern_tags(self, value: list[str]) -> list[str]:
+        """Validate pattern tags against allowed choices."""
+        if not value:
+            return value
+        valid_tags = {c[0] for c in Exercise.PatternTag.choices}
+        invalid = set(value) - valid_tags
+        if invalid:
+            raise serializers.ValidationError(
+                f"Invalid pattern tags: {sorted(invalid)}. Valid options: {sorted(valid_tags)}"
+            )
+        return value
+
+    def validate_athletic_skill_tags(self, value: list[str]) -> list[str]:
+        """Validate athletic skill tags against allowed choices."""
+        if not value:
+            return value
+        valid_tags = {c[0] for c in Exercise.AthleticSkillTag.choices}
+        invalid = set(value) - valid_tags
+        if invalid:
+            raise serializers.ValidationError(
+                f"Invalid athletic skill tags: {sorted(invalid)}. Valid options: {sorted(valid_tags)}"
+            )
+        return value
+
+    def validate_athletic_attribute_tags(self, value: list[str]) -> list[str]:
+        """Validate athletic attribute tags against allowed choices."""
+        if not value:
+            return value
+        valid_tags = {c[0] for c in Exercise.AthleticAttributeTag.choices}
+        invalid = set(value) - valid_tags
+        if invalid:
+            raise serializers.ValidationError(
+                f"Invalid athletic attribute tags: {sorted(invalid)}. Valid options: {sorted(valid_tags)}"
+            )
+        return value
+
+
+class UndoSnapshotSerializer(serializers.ModelSerializer[UndoSnapshot]):
+    """Read-only serializer for UndoSnapshot."""
+
+    is_reverted = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = UndoSnapshot
+        fields = [
+            'id', 'scope', 'before_state', 'after_state',
+            'created_at', 'reverted_at', 'is_reverted',
+        ]
+        read_only_fields = fields
+
+
+class DecisionLogSerializer(serializers.ModelSerializer[DecisionLog]):
+    """Read-only serializer for DecisionLog with nested undo snapshot."""
+
+    undo_snapshot = UndoSnapshotSerializer(read_only=True)
+    actor_email = serializers.CharField(source='actor.email', read_only=True, default=None)
+    is_undoable = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = DecisionLog
+        fields = [
+            'id', 'timestamp', 'actor_type', 'actor', 'actor_email',
+            'decision_type', 'context',
+            'inputs_snapshot', 'constraints_applied',
+            'options_considered', 'final_choice', 'reason_codes',
+            'override_info', 'undo_snapshot', 'is_undoable',
+        ]
+        read_only_fields = fields
 
 
 class ProgramSerializer(serializers.ModelSerializer[Program]):

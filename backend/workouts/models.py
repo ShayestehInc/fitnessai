@@ -3,17 +3,24 @@ Workout and nutrition models for Fitness AI platform.
 """
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class Exercise(models.Model):
     """
-    Exercise library (Workout Bank).
+    Exercise library (Workout Bank) — the "ExerciseCard" from Trainer Packet v6.5.
     Can be system defaults (is_public=True) or trainer custom exercises.
+
+    Rich tagging enables: exercise selection, swap system, workload-by-muscle analytics,
+    program coverage checks, and safety filtering.
     """
+
+    # --- Legacy muscle group (kept for backwards compatibility) ---
     class MuscleGroup(models.TextChoices):
         CHEST = 'chest', 'Chest'
         BACK = 'back', 'Back'
@@ -25,28 +32,139 @@ class Exercise(models.Model):
         CARDIO = 'cardio', 'Cardio'
         FULL_BODY = 'full_body', 'Full Body'
         OTHER = 'other', 'Other'
-    
+
+    # --- v6.5 Tag Taxonomy choices ---
+
+    class PatternTag(models.TextChoices):
+        KNEE_DOMINANT = 'knee_dominant', 'Knee Dominant'
+        HIP_DOMINANT = 'hip_dominant', 'Hip Dominant'
+        HORIZONTAL_PUSH = 'horizontal_push', 'Horizontal Push'
+        HORIZONTAL_PULL = 'horizontal_pull', 'Horizontal Pull'
+        VERTICAL_PUSH = 'vertical_push', 'Vertical Push'
+        VERTICAL_PULL = 'vertical_pull', 'Vertical Pull'
+        TRUNK_ANTI_EXTENSION = 'trunk_anti_extension', 'Trunk Anti-Extension'
+        TRUNK_ANTI_FLEXION = 'trunk_anti_flexion', 'Trunk Anti-Flexion'
+        TRUNK_ANTI_ROTATION = 'trunk_anti_rotation', 'Trunk Anti-Rotation'
+        TRUNK_ROTATION = 'trunk_rotation', 'Trunk Rotation'
+        TRUNK_LATERAL_FLEXION = 'trunk_lateral_flexion', 'Trunk Lateral Flexion'
+        TRUNK_ANTI_LATERAL_FLEXION = 'trunk_anti_lateral_flexion', 'Trunk Anti-Lateral Flexion'
+        PELVIS_FLEXION_EMPHASIS = 'pelvis_flexion_emphasis', 'Pelvis Flexion Emphasis'
+        PELVIS_EXTENSION_EMPHASIS = 'pelvis_extension_emphasis', 'Pelvis Extension Emphasis'
+        LOCOMOTION = 'locomotion', 'Locomotion'
+        CARRIES = 'carries', 'Carries'
+
+    class AthleticSkillTag(models.TextChoices):
+        JUMP_VERTICAL = 'jump_vertical', 'Jump Vertical'
+        JUMP_HORIZONTAL = 'jump_horizontal', 'Jump Horizontal'
+        JUMP_LATERAL = 'jump_lateral', 'Jump Lateral'
+        HOP_SINGLE_LEG_VERTICAL = 'hop_single_leg_vertical', 'Hop Single-Leg Vertical'
+        HOP_SINGLE_LEG_HORIZONTAL = 'hop_single_leg_horizontal', 'Hop Single-Leg Horizontal'
+        BOUND_ALTERNATING = 'bound_alternating', 'Bound Alternating'
+        LANDING_AND_DECELERATION = 'landing_and_deceleration', 'Landing and Deceleration'
+        SPRINT_ACCELERATION = 'sprint_acceleration', 'Sprint Acceleration'
+        SPRINT_MAX_VELOCITY = 'sprint_max_velocity', 'Sprint Max Velocity'
+        CHANGE_OF_DIRECTION_CUT = 'change_of_direction_cut', 'Change of Direction Cut'
+        SHUFFLE_AND_LATERAL = 'shuffle_and_lateral', 'Shuffle and Lateral Movement'
+        THROW_OVERHEAD = 'throw_overhead', 'Throw Overhead'
+        THROW_ROTATIONAL = 'throw_rotational', 'Throw Rotational'
+        THROW_CHEST_PASS = 'throw_chest_pass', 'Throw Chest Pass'
+        OLYMPIC_LIFT_DERIVATIVE = 'olympic_lift_derivative', 'Olympic Lift Derivative'
+        UPPER_BODY_PLYOMETRIC = 'upper_body_plyometric', 'Upper-Body Plyometric'
+        MEDICINE_BALL_SLAM = 'medicine_ball_slam', 'Medicine Ball Slam'
+        MEDICINE_BALL_SCOOP_TOSS = 'medicine_ball_scoop_toss', 'Medicine Ball Scoop Toss'
+        REACTIVE_AGILITY_CUE_BASED = 'reactive_agility_cue_based', 'Reactive Agility Cue-Based'
+
+    class AthleticAttributeTag(models.TextChoices):
+        POWER = 'power', 'Power'
+        ELASTICITY = 'elasticity', 'Elasticity'
+        RATE_OF_FORCE_DEVELOPMENT = 'rate_of_force_development', 'Rate of Force Development'
+        REACTIVE_STRENGTH_INDEX = 'reactive_strength_index', 'Reactive Strength Index'
+        SPEED_LINEAR = 'speed_linear', 'Speed Linear'
+        AGILITY_MULTI_DIRECTIONAL = 'agility_multi_directional', 'Agility Multi-Directional'
+        COORDINATION = 'coordination', 'Coordination'
+        STIFFNESS = 'stiffness', 'Stiffness'
+        DECELERATION_CAPACITY = 'deceleration_capacity', 'Deceleration Capacity'
+        WORK_CAPACITY = 'work_capacity', 'Work Capacity'
+
+    class DetailedMuscleGroup(models.TextChoices):
+        QUADS = 'quads', 'Quads'
+        HAMSTRINGS = 'hamstrings', 'Hamstrings'
+        GLUTES = 'glutes', 'Glutes'
+        CALVES = 'calves', 'Calves'
+        HIP_ADDUCTORS = 'hip_adductors', 'Hip Adductors'
+        HIP_ABDUCTORS = 'hip_abductors', 'Hip Abductors'
+        HIP_FLEXORS = 'hip_flexors', 'Hip Flexors'
+        SPINAL_ERECTORS = 'spinal_erectors', 'Spinal Erectors'
+        LATS = 'lats', 'Lats'
+        MID_BACK = 'mid_back', 'Mid-Back'
+        UPPER_TRAPS = 'upper_traps', 'Upper Traps'
+        REAR_DELTS = 'rear_delts', 'Rear Delts'
+        SIDE_DELTS = 'side_delts', 'Side Delts'
+        FRONT_DELTS = 'front_delts', 'Front Delts'
+        CHEST = 'chest', 'Chest'
+        TRICEPS = 'triceps', 'Triceps'
+        BICEPS = 'biceps', 'Biceps'
+        FOREARMS_AND_GRIP = 'forearms_and_grip', 'Forearms and Grip'
+        ABS_RECTUS = 'abs_rectus', 'Abs (Rectus)'
+        OBLIQUES = 'obliques', 'Obliques'
+        DEEP_CORE = 'deep_core', 'Deep Core'
+
+    class Stance(models.TextChoices):
+        SUPINE = 'supine', 'Supine'
+        PRONE = 'prone', 'Prone'
+        QUADRUPED = 'quadruped', 'Quadruped'
+        TALL_KNEELING = 'tall_kneeling', 'Tall-Kneeling'
+        HALF_KNEELING = 'half_kneeling', 'Half-Kneeling'
+        SEATED_SUPPORTED = 'seated_supported', 'Seated Supported'
+        STANDING_SUPPORTED = 'standing_supported', 'Standing (Rack/Machine-Supported)'
+        BILATERAL_STANDING = 'bilateral_standing', 'Bilateral Standing (Symmetrical)'
+        STAGGERED = 'staggered', 'Staggered (Split-Stance, Both Feet Down)'
+        SPLIT_SQUAT_LUNGE = 'split_squat_lunge', 'Split Squat / Lunge (True Unilateral Bias)'
+        SINGLE_LEG = 'single_leg', 'Single-Leg (True Single Support)'
+        ATHLETIC_MULTIDIRECTIONAL = 'athletic_multidirectional', 'Athletic / Multidirectional'
+        HANG_SUPPORT = 'hang_support', 'Hang / Support'
+
+    class Plane(models.TextChoices):
+        SAGITTAL = 'sagittal', 'Sagittal (Forward/Back)'
+        FRONTAL = 'frontal', 'Frontal (Side-to-Side)'
+        TRANSVERSE = 'transverse', 'Transverse (Rotation)'
+        MIXED = 'mixed', 'Mixed / Multi-Planar'
+
+    class RomBias(models.TextChoices):
+        LENGTHENED = 'lengthened', 'Lengthened Bias (Peak Tension in Stretched Position)'
+        MID_RANGE = 'mid_range', 'Mid-Range Bias (Peak Tension Near Middle)'
+        SHORTENED = 'shortened', 'Shortened Bias (Peak Tension Near Shortened Position)'
+        MIXED = 'mixed', 'Mixed (Unclear or Blended)'
+
+    # --- Core fields ---
     name = models.CharField(max_length=255)
+    aliases = ArrayField(
+        models.CharField(max_length=255),
+        default=list,
+        blank=True,
+        help_text="Alternative names for this exercise",
+    )
     description = models.TextField(blank=True)
     video_url = models.URLField(blank=True, null=True)
     image_url = models.URLField(
         max_length=2048,
         blank=True,
         null=True,
-        help_text="Thumbnail image URL for this exercise"
+        help_text="Thumbnail image URL for this exercise",
     )
     muscle_group = models.CharField(
         max_length=20,
         choices=MuscleGroup.choices,
-        default=MuscleGroup.OTHER
+        default=MuscleGroup.OTHER,
+        help_text="Legacy single muscle group. Use muscle_contribution_map for v6.5+ logic.",
     )
-    
+
     # If is_public=False, this exercise belongs to a specific trainer
     is_public = models.BooleanField(
         default=True,
-        help_text="True for system defaults, False for trainer custom exercises"
+        help_text="True for system defaults, False for trainer custom exercises",
     )
-    
+
     class DifficultyLevel(models.TextChoices):
         BEGINNER = 'beginner', 'Beginner'
         INTERMEDIATE = 'intermediate', 'Intermediate'
@@ -57,23 +175,131 @@ class Exercise(models.Model):
         choices=DifficultyLevel.choices,
         null=True,
         blank=True,
-        help_text="Exercise difficulty: beginner (machines/cables), intermediate (free weights), advanced (complex/specialty)"
+        help_text="Exercise difficulty: beginner (machines/cables), intermediate (free weights), advanced (complex/specialty)",
     )
 
     suitable_for_goals = models.JSONField(
         default=list,
         blank=True,
-        help_text=(
-            "Training goals this exercise is best suited for. "
-            "Values from: build_muscle, fat_loss, strength, endurance, recomp, general_fitness"
-        ),
+        help_text="Training goals this exercise is best suited for.",
     )
 
     category = models.CharField(
         max_length=100,
         blank=True,
         default='',
-        help_text="KILO category or custom classification (e.g., 'Squat', 'Press', 'Cable Fly')"
+        help_text="KILO category or custom classification (e.g., 'Squat', 'Press', 'Cable Fly')",
+    )
+
+    # --- v6.5 ExerciseCard Tag Fields ---
+
+    pattern_tags = ArrayField(
+        models.CharField(max_length=50, choices=PatternTag.choices),
+        default=list,
+        blank=True,
+        help_text="Movement intent tags (e.g., knee_dominant, horizontal_push). Drives program coverage.",
+    )
+
+    athletic_skill_tags = ArrayField(
+        models.CharField(max_length=50, choices=AthleticSkillTag.choices),
+        default=list,
+        blank=True,
+        help_text="Athletic skill tags (e.g., jump_vertical, sprint_acceleration). Can be empty.",
+    )
+
+    athletic_attribute_tags = ArrayField(
+        models.CharField(max_length=50, choices=AthleticAttributeTag.choices),
+        default=list,
+        blank=True,
+        help_text="Athletic attribute tags (e.g., power, elasticity). Can be empty.",
+    )
+
+    primary_muscle_group = models.CharField(
+        max_length=30,
+        choices=DetailedMuscleGroup.choices,
+        blank=True,
+        default='',
+        help_text="Primary target muscle from the detailed v6.5 taxonomy.",
+    )
+
+    secondary_muscle_groups = ArrayField(
+        models.CharField(max_length=30, choices=DetailedMuscleGroup.choices),
+        default=list,
+        blank=True,
+        help_text="Secondary muscles worked by this exercise.",
+    )
+
+    muscle_contribution_map = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Map of {detailed_muscle_group: weight}. Weights must sum to 1.0. "
+                  "E.g., {'quads': 0.6, 'glutes': 0.3, 'calves': 0.1}",
+    )
+
+    stance = models.CharField(
+        max_length=40,
+        choices=Stance.choices,
+        blank=True,
+        default='',
+        help_text="How the user stands/positions during the exercise.",
+    )
+
+    plane = models.CharField(
+        max_length=20,
+        choices=Plane.choices,
+        blank=True,
+        default='',
+        help_text="Primary movement plane (sagittal, frontal, transverse, mixed).",
+    )
+
+    rom_bias = models.CharField(
+        max_length=20,
+        choices=RomBias.choices,
+        blank=True,
+        default='',
+        help_text="Where peak tension occurs in the range of motion.",
+    )
+
+    equipment_required = ArrayField(
+        models.CharField(max_length=100),
+        default=list,
+        blank=True,
+        help_text="Equipment that MUST be available (e.g., ['barbell', 'squat_rack']).",
+    )
+
+    equipment_optional = ArrayField(
+        models.CharField(max_length=100),
+        default=list,
+        blank=True,
+        help_text="Equipment that enhances the exercise but isn't required.",
+    )
+
+    athletic_constraints = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Constraint flags: {impact_level, ground_contacts_level, "
+                  "space_required, surface_required, skill_demand}. "
+                  "Values: low/moderate/high or true/false or small/medium/large.",
+    )
+
+    standardization_block = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Execution standards: {what_counts[], feel_checks[], fail_flags[], "
+                  "default_dials[], assess_hooks[]}. Defines rep quality and safety.",
+    )
+
+    swap_seed_ids = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Pre-computed swap candidates: {recommended_same_muscle_ids[], "
+                  "recommended_same_pattern_ids[]}.",
+    )
+
+    # --- Versioning (per v6.5 spec) ---
+    version = models.PositiveIntegerField(
+        default=1,
+        help_text="Version number, incremented on each edit.",
     )
 
     created_by = models.ForeignKey(
@@ -83,7 +309,7 @@ class Exercise(models.Model):
         blank=True,
         related_name='created_exercises',
         limit_choices_to={'role': 'TRAINER'},
-        help_text="Trainer who created this exercise (null for public/system exercises)"
+        help_text="Trainer who created this exercise (null for public/system exercises)",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -96,8 +322,11 @@ class Exercise(models.Model):
             models.Index(fields=['is_public']),
             models.Index(fields=['created_by']),
             models.Index(fields=['muscle_group', 'difficulty_level']),
+            models.Index(fields=['stance']),
+            models.Index(fields=['plane']),
+            models.Index(fields=['primary_muscle_group']),
         ]
-    
+
     def __str__(self) -> str:
         return self.name
 
@@ -1496,3 +1725,158 @@ class MealLogEntry(models.Model):
         if self.food_item:
             return self.food_item.name
         return self.custom_name or "Unknown food"
+
+
+# ---------------------------------------------------------------------------
+# v6.5 Foundation: DecisionLog + UndoSnapshot
+# Every automated decision must be explainable, overrideable, persisted, and
+# logged with undo. These models form the audit backbone for ALL future
+# decision-engine features (progression, swaps, deloads, imports, AI summaries).
+# ---------------------------------------------------------------------------
+
+
+class UndoSnapshot(models.Model):
+    """
+    Stores the before/after state so a decision can be reverted.
+    Full-state snapshots (not diffs) for simplicity and reliability.
+    """
+
+    class Scope(models.TextChoices):
+        SLOT = 'slot', 'Slot'
+        SESSION = 'session', 'Session'
+        WEEK = 'week', 'Week'
+        EXERCISE = 'exercise', 'Exercise'
+        NUTRITION_DAY = 'nutrition_day', 'Nutrition Day'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    scope = models.CharField(
+        max_length=20,
+        choices=Scope.choices,
+        help_text="Granularity of what was changed.",
+    )
+    before_state = models.JSONField(
+        help_text="Full state snapshot before the decision was applied.",
+    )
+    after_state = models.JSONField(
+        help_text="Full state snapshot after the decision was applied.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    reverted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when this snapshot was used to revert. Null if not yet reverted.",
+    )
+
+    class Meta:
+        db_table = 'undo_snapshots'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        status = "reverted" if self.reverted_at else "active"
+        return f"UndoSnapshot({self.scope}, {status}) {self.id}"
+
+    @property
+    def is_reverted(self) -> bool:
+        return self.reverted_at is not None
+
+
+class DecisionLog(models.Model):
+    """
+    Logs every automated decision the system makes.
+    Required fields per v6.5 spec:
+      inputs_snapshot → options_considered → filters_applied →
+      scoring → final_choice → reason_codes → override_events → undo_pointer
+    """
+
+    class ActorType(models.TextChoices):
+        SYSTEM = 'system', 'System'
+        TRAINER = 'trainer', 'Trainer'
+        USER = 'user', 'User'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    # Who made the decision
+    actor_type = models.CharField(
+        max_length=10,
+        choices=ActorType.choices,
+        help_text="Who/what triggered this decision.",
+    )
+    actor = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='decision_logs',
+        help_text="The user who triggered (null for system-triggered decisions).",
+    )
+
+    # What was decided
+    decision_type = models.CharField(
+        max_length=100,
+        help_text="Type of decision: exercise_swap, progression, deload_rewrite, "
+                  "load_prescription, plan_generation, undo, etc.",
+    )
+    context = models.JSONField(
+        default=dict,
+        help_text="Where the decision applies: {plan_id, week_id, session_id, slot_id} "
+                  "or {nutrition_day_id}.",
+    )
+
+    # Decision trail
+    inputs_snapshot = models.JSONField(
+        default=dict,
+        help_text="Canonical snapshot of all inputs used to make the decision.",
+    )
+    constraints_applied = models.JSONField(
+        default=dict,
+        help_text="Filters and constraints that narrowed the options.",
+    )
+    options_considered = models.JSONField(
+        default=dict,
+        help_text="Top N options with score breakdown: [{option, score, reasons}, ...].",
+    )
+    final_choice = models.JSONField(
+        default=dict,
+        help_text="The option that was selected.",
+    )
+    reason_codes = ArrayField(
+        models.CharField(max_length=100),
+        default=list,
+        blank=True,
+        help_text="Machine-readable reason codes (e.g., ['fatigue_high', 'pain_flag']).",
+    )
+
+    # Override tracking
+    override_info = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="If a trainer/user overrode this decision: {overridden_by, original_choice, reason}.",
+    )
+
+    # Undo support
+    undo_snapshot = models.OneToOneField(
+        UndoSnapshot,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='decision',
+        help_text="Snapshot for reverting this decision. Null if not undoable.",
+    )
+
+    class Meta:
+        db_table = 'decision_logs'
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['decision_type']),
+            models.Index(fields=['actor_type']),
+            models.Index(fields=['timestamp']),
+            models.Index(fields=['actor']),
+        ]
+
+    def __str__(self) -> str:
+        return f"DecisionLog({self.decision_type}, {self.actor_type}) {self.id}"
+
+    @property
+    def is_undoable(self) -> bool:
+        return self.undo_snapshot is not None and not self.undo_snapshot.is_reverted

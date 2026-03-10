@@ -1,110 +1,109 @@
-# Feature: Progress Photos — Critical Bug Fixes & Web Dashboard
+# Feature: ExerciseCard Rich Tagging + DecisionLog + UndoSnapshot Foundation
 
 ## Priority
-HIGH — The progress photos feature is partially built but has 4 critical bugs that make the trainer flow completely broken, and has zero web dashboard support. Every fitness app needs working progress photos — trainers use them to assess client body composition changes.
+Critical — This is Step 1 of the Trainer Packet v6.5 implementation. Every subsequent feature (swap system, decision engine, workload engine, progression profiles, session runner) depends on these foundation models.
 
 ## User Story
-As a **trainer**, I want to view my trainees' progress photos from both mobile and web so that I can assess their body composition changes over time and provide better coaching.
+As a **trainer**, I want exercises to have rich, standardized tags (movement patterns, muscle contribution maps, stance, plane, ROM bias) so that the system can intelligently select, swap, and program exercises based on structured data rather than just names and basic muscle groups.
 
-As a **trainee**, I want to upload and compare my progress photos with working category filters so that I can track my physical transformation accurately.
+As a **trainer**, I want every automated decision the system makes to be logged with full context (inputs, options considered, final choice, reason codes) and undoable, so that I can understand why the AI made a change and revert it if needed.
 
 ## Acceptance Criteria
 
-### Mobile Bug Fixes
-- [ ] AC-1: Gallery category filter tabs show "All / Front / Side / Back" (not 4x "All")
-- [ ] AC-2: Add Photo category options show "Front / Side / Back / Other" (not duplicate "Side")
-- [ ] AC-3: When trainer navigates from trainee detail to progress photos with `trainee_id`, they see that trainee's photos (not their own empty gallery)
-- [ ] AC-4: Measurements are sent as proper JSON object to the API (not `.toString()` string representation)
-- [ ] AC-5: Trainer viewing trainee photos cannot delete them (read-only view)
-- [ ] AC-6: Gallery shows "X's Progress Photos" when trainer is viewing a trainee's photos
-- [ ] AC-7: Add Photo FAB is hidden when trainer is viewing trainee photos (trainee uploads their own)
+### ExerciseCard Enrichment
+- [ ] Exercise model has `pattern_tags` ArrayField with exact choices from trainer packet taxonomy
+- [ ] Exercise model has `athletic_skill_tags` ArrayField with exact choices from packet
+- [ ] Exercise model has `athletic_attribute_tags` ArrayField with exact choices from packet
+- [ ] Exercise model has `muscle_contribution_map` JSONField (dict of muscle_group→weight, weights sum to 1.0)
+- [ ] Exercise model has `stance` CharField with choices from packet taxonomy
+- [ ] Exercise model has `plane` CharField with choices from packet taxonomy
+- [ ] Exercise model has `rom_bias` CharField with choices from packet taxonomy
+- [ ] Exercise model has `equipment_required` ArrayField of strings
+- [ ] Exercise model has `equipment_optional` ArrayField of strings
+- [ ] Exercise model has `athletic_constraints` JSONField with impact_level, ground_contacts_level, space_required, surface_required, skill_demand
+- [ ] Exercise model has `standardization_block` JSONField with what_counts[], feel_checks[], fail_flags[], default_dials[], assess_hooks[]
+- [ ] Exercise model has `swap_seed_ids` JSONField with recommended_same_muscle_ids[], recommended_same_pattern_ids[]
+- [ ] All new fields are nullable/have defaults so existing exercises don't break
+- [ ] ExerciseSerializer includes all new fields
+- [ ] ExerciseViewSet supports filtering by pattern_tags, muscle_group (from contribution map), stance, plane
+- [ ] API endpoint for exercise search supports new tag-based filtering
+- [ ] Validation: muscle_contribution_map weights must sum to 1.0 (within tolerance of 0.01)
+- [ ] DB indexes on pattern_tags and stance for query performance
 
-### Web Dashboard — Trainee Progress Photos Page
-- [ ] AC-8: Trainee web portal has "Progress Photos" nav link in sidebar
-- [ ] AC-9: Trainee progress photos page shows photo grid grouped by date
-- [ ] AC-10: Category filter tabs (All / Front / Side / Back) filter the grid
-- [ ] AC-11: Click photo opens detail dialog with full-size image and measurements
-- [ ] AC-12: "Add Photo" button opens upload dialog with file input, category selector, date picker, measurements form, notes
-- [ ] AC-13: Upload sends multipart form data and refreshes grid on success
-- [ ] AC-14: Delete button on photo detail dialog with confirmation
-- [ ] AC-15: "Compare" button opens comparison view with two photo selectors and side-by-side display
-- [ ] AC-16: Measurement diffs displayed in comparison view (e.g., "Waist: -3 cm")
+### DecisionLog Model
+- [ ] DecisionLog model exists with UUID primary key
+- [ ] Fields: timestamp, actor_type (system/trainer/user), actor_id (FK to User nullable)
+- [ ] Fields: context (JSONField), decision_type (CharField), inputs_snapshot (JSONField)
+- [ ] Fields: constraints_applied (JSONField), options_considered (JSONField), final_choice (JSONField)
+- [ ] Fields: reason_codes (ArrayField), override_info (JSONField nullable)
+- [ ] Fields: undo_pointer (OneToOneField to UndoSnapshot, nullable)
+- [ ] DecisionLog is read-only for trainees, full CRUD for trainers/admins
+- [ ] API: GET /api/workouts/decision-logs/ with filtering by decision_type, actor_type, date range
+- [ ] API: GET /api/workouts/decision-logs/{id}/ detail view
+- [ ] Row-level security: trainers only see decisions for their trainees
 
-### Web Dashboard — Trainer Progress Photos Tab
-- [ ] AC-17: Trainee detail page has "Photos" tab (5th tab alongside Overview/Analytics/Nutrition/Activity)
-- [ ] AC-18: Photos tab shows trainee's progress photos in grid layout
-- [ ] AC-19: Category filter and date range filter on photos tab
-- [ ] AC-20: Click photo opens detail dialog (read-only — no delete for trainer)
-- [ ] AC-21: Comparison view accessible from trainer's photos tab
-- [ ] AC-22: Empty state when trainee has no photos ("No progress photos yet")
+### UndoSnapshot Model
+- [ ] UndoSnapshot model exists with UUID primary key
+- [ ] Fields: scope (slot/session/week), before_state (JSONField), after_state (JSONField)
+- [ ] Fields: decision (ForeignKey to DecisionLog), created_at (DateTimeField)
+- [ ] API: POST /api/workouts/decision-logs/{id}/undo/ — reverts to before_state
+- [ ] Undo creates a new DecisionLog entry recording the undo action itself
+- [ ] Row-level security matches DecisionLog
 
-### Pagination
-- [ ] AC-23: Mobile gallery uses paginated API (20 per page) with infinite scroll
-- [ ] AC-24: Web gallery uses paginated API with page navigation
+### Migration & Seed Data
+- [ ] Django migration creates all new fields and models cleanly
+- [ ] Migration is reversible
+- [ ] Existing exercises are not broken (all new fields have defaults or are nullable)
+- [ ] Management command `backfill_exercise_tags` maps existing muscle_group to pattern_tags and muscle_contribution_map for common exercises
 
 ## Edge Cases
-1. What happens when trainee has 0 photos? → Empty state with CTA to take first photo
-2. What happens when trainee has 200+ photos? → Pagination (20/page)
-3. What happens when image upload fails mid-way? → Error toast, photo not added to gallery
-4. What happens when trainer views trainee with no photos? → Empty state "No progress photos yet"
-5. What happens when photo file exceeds 10MB? → Client-side validation error before upload
-6. What happens when trainee deletes all photos then tries to compare? → "Need at least 2 photos" empty state
-7. What happens when category filter returns 0 results? → "No photos in this category" empty state
-8. What happens with network error during gallery load? → Error state with retry button
-9. What happens when trainer navigates to trainee photos while impersonating? → Should work (read-only)
-10. What happens when trainee_id in URL is invalid? → Error state, not crash
+1. Exercise with no tags set — all tag fields are optional, exercise still works normally
+2. muscle_contribution_map with weights not summing to 1.0 — serializer validation rejects with clear error
+3. muscle_contribution_map with unknown muscle group key — validation against allowed muscle group list
+4. DecisionLog with no UndoSnapshot — undo endpoint returns 400 "This decision cannot be undone"
+5. Undo on already-undone decision — returns 400 "This decision has already been reverted"
+6. Filtering exercises by multiple pattern_tags — uses overlap (__overlap) for "any of these tags"
+7. Trainer trying to see another trainer's DecisionLogs — row-level security returns empty queryset
+8. Empty standardization_block — allowed, just means no standardization data yet
+9. Concurrent undo attempts — database-level check prevents double-undo
+10. Exercise with swap_seed_ids pointing to deleted exercises — gracefully ignored
 
 ## Error States
 | Trigger | User Sees | System Does |
 |---------|-----------|-------------|
-| Upload network failure | "Failed to upload photo. Please try again." toast | Rolls back optimistic update |
-| Gallery load failure | Error card with retry button | Catches exception, shows error state |
-| Delete failure | "Failed to delete photo" toast | Reverts deletion, photo reappears |
-| Invalid file type | "Only JPEG, PNG, and WebP files are supported" | Client-side validation |
-| File too large | "Photo must be under 10MB" | Client-side validation |
-| Compare with <2 photos | "Take at least 2 progress photos to compare" | Shows empty state with CTA |
-| Invalid trainee_id | Error state with back button | Catches 404/403 |
+| Invalid muscle_contribution_map (sum != 1.0) | "Muscle contribution weights must sum to 1.0" | Returns 400 |
+| Unknown pattern_tag value | "Invalid pattern tag: X. Valid options: ..." | Returns 400 |
+| Undo on non-undoable decision | "This decision cannot be undone" | Returns 400 |
+| Double undo attempt | "This decision has already been reverted" | Returns 409 |
+| Unauthorized DecisionLog access | Standard 403 | Returns 403 |
 
 ## UX Requirements
-- **Loading state:** Skeleton grid matching photo tile layout
-- **Empty state:** Illustration/icon + "Start tracking your transformation" + CTA button
-- **Error state:** Error icon + message + retry button
-- **Success feedback:** Toast on upload success, grid auto-refreshes
-- **Mobile behavior:** Grid adapts to screen width (2 columns on phone, 3 on tablet)
-- **Trainer view:** Read-only badge/indicator, no FAB, header shows trainee name
+- **Loading state:** N/A (backend only this pipeline)
+- **Empty state:** Exercises with no tags show empty arrays/null in API responses
+- **Error state:** Clear validation error messages with field-level details
+- **Success feedback:** Standard 200/201 responses
 
 ## Technical Approach
-
-### Files to Modify (Mobile Bug Fixes):
-- `mobile/lib/features/progress_photos/presentation/screens/photo_gallery_screen.dart` — Fix category tabs, add trainee_id support, pagination, trainer read-only mode
-- `mobile/lib/features/progress_photos/presentation/screens/add_photo_screen.dart` — Fix category options (Other instead of duplicate Side)
-- `mobile/lib/features/progress_photos/data/repositories/progress_photo_repository.dart` — Fix measurements JSON encoding, add trainee_id param, add pagination params
-- `mobile/lib/features/progress_photos/presentation/providers/progress_photo_provider.dart` — Add trainee_id parameter support
-
-### Files to Create (Web):
-- `web/src/app/(trainee-dashboard)/trainee/progress-photos/page.tsx` — Trainee progress photos page
-- `web/src/components/progress-photos/photo-grid.tsx` — Reusable photo grid component
-- `web/src/components/progress-photos/photo-detail-dialog.tsx` — Full-size photo dialog
-- `web/src/components/progress-photos/upload-dialog.tsx` — Photo upload dialog
-- `web/src/components/progress-photos/comparison-view.tsx` — Side-by-side comparison
-- `web/src/components/progress-photos/category-filter.tsx` — Category tab filter
-- `web/src/components/trainees/trainee-photos-tab.tsx` — Trainer's trainee photos tab
-- `web/src/hooks/use-progress-photos.ts` — React Query hooks for progress photos API
-- `web/src/types/progress-photos.ts` — TypeScript types
-
-### Files to Modify (Web):
-- `web/src/app/(trainee-dashboard)/trainee/` sidebar/nav — Add Progress Photos link
-- `web/src/app/(dashboard)/trainees/[id]/page.tsx` — Add Photos tab
-- `web/src/components/trainees/trainee-detail-tabs.tsx` or equivalent — Wire photos tab
-
-### Backend:
-- `backend/workouts/views.py` — Add pagination to ProgressPhotoViewSet (PageNumberPagination)
-- Potentially add image size validation in serializer
+- **Files to modify:**
+  - `backend/workouts/models.py` — Add fields to Exercise, add DecisionLog + UndoSnapshot models
+  - `backend/workouts/serializers.py` — Update ExerciseSerializer, add DecisionLog/UndoSnapshot serializers
+  - `backend/workouts/views.py` — Update ExerciseViewSet filters, add DecisionLogViewSet
+  - `backend/workouts/urls.py` — Register new routes
+  - New migration file
+- **Files to create:**
+  - `backend/workouts/management/commands/backfill_exercise_tags.py` — Seed command
+  - `backend/workouts/services/decision_log_service.py` — Service for creating DecisionLog + UndoSnapshot entries
+- **Key design decisions:**
+  - Add fields to existing Exercise model (not a separate ExerciseCard model) to avoid data migration complexity
+  - Use PostgreSQL ArrayField for tags (enables __contains and __overlap lookups)
+  - DecisionLog uses JSONField for flexible context storage (different decision types have different context shapes)
+  - UndoSnapshot stores full before/after state as JSON (not diffs) for simplicity and reliability
 
 ## Out of Scope
-- Video progress recordings (photos only)
-- AI body composition analysis
-- Social sharing of progress photos
-- Automatic photo reminders/scheduling
-- Photo annotation/markup
-- Before/after collage generation
+- Mobile UI for tags (future pipeline)
+- Auto-tagging service (Step 11 in build order)
+- Exercise swap system UI (Step 5)
+- LiftSetLog/LiftMax (Step 3)
+- Workload engine (Step 4)
+- Pain triage models (Step 8-9)
+- SessionFeedback model (Step 9)

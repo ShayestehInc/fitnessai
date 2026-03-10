@@ -30,6 +30,7 @@ from .models import (
     CheckInResponse,
     CheckInTemplate,
     DailyLog,
+    DecisionLog,
     Exercise,
     FoodItem,
     Habit,
@@ -90,6 +91,7 @@ from .serializers import (
     WorkoutDetailSerializer,
     WorkoutHistorySummarySerializer,
     WorkoutTemplateSerializer,
+    DecisionLogSerializer,
     FoodItemCreateSerializer,
     FoodItemSerializer,
     MealLogEntrySerializer,
@@ -100,6 +102,7 @@ from .serializers import (
 from core.permissions import IsTrainer as IsTrainerPerm
 
 from .services.daily_log_service import DailyLogService
+from .services.decision_log_service import DecisionLogService
 from .services.natural_language_parser import NaturalLanguageParserService
 
 
@@ -157,6 +160,49 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
                 queryset = queryset.filter(suitable_for_goals__contains=[goal])
             else:
                 return queryset.none()
+
+        # v6.5 tag-based filters
+        pattern_tags = self.request.query_params.get('pattern_tags')
+        if pattern_tags:
+            tag_list = [t.strip() for t in pattern_tags.split(',') if t.strip()]
+            queryset = queryset.filter(pattern_tags__overlap=tag_list)
+
+        stance = self.request.query_params.get('stance')
+        if stance:
+            valid_stances = {c[0] for c in Exercise.Stance.choices}
+            if stance in valid_stances:
+                queryset = queryset.filter(stance=stance)
+            else:
+                return queryset.none()
+
+        plane = self.request.query_params.get('plane')
+        if plane:
+            valid_planes = {c[0] for c in Exercise.Plane.choices}
+            if plane in valid_planes:
+                queryset = queryset.filter(plane=plane)
+            else:
+                return queryset.none()
+
+        rom_bias = self.request.query_params.get('rom_bias')
+        if rom_bias:
+            valid_biases = {c[0] for c in Exercise.RomBias.choices}
+            if rom_bias in valid_biases:
+                queryset = queryset.filter(rom_bias=rom_bias)
+            else:
+                return queryset.none()
+
+        primary_muscle = self.request.query_params.get('primary_muscle_group')
+        if primary_muscle:
+            valid_muscles = {c[0] for c in Exercise.DetailedMuscleGroup.choices}
+            if primary_muscle in valid_muscles:
+                queryset = queryset.filter(primary_muscle_group=primary_muscle)
+            else:
+                return queryset.none()
+
+        equipment = self.request.query_params.get('equipment_required')
+        if equipment:
+            eq_list = [e.strip() for e in equipment.split(',') if e.strip()]
+            queryset = queryset.filter(equipment_required__contains=eq_list)
 
         return queryset.order_by('muscle_group', 'name')
 
@@ -3201,3 +3247,113 @@ class MealLogViewSet(
 
         entry.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DecisionLogViewSet(viewsets.ReadOnlyModelViewSet[DecisionLog]):
+    """
+    Read-only ViewSet for DecisionLog entries (v6.5 audit trail).
+
+    Trainers see decisions for their trainees + system decisions in their context.
+    Admins see all. Trainees see decisions about themselves.
+
+    Supports filtering by decision_type, actor_type, and date range.
+    Includes an undo action: POST /api/workouts/decision-logs/{id}/undo/
+    """
+    serializer_class = DecisionLogSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = PageNumberPagination
+
+    def get_queryset(self) -> QuerySet[DecisionLog]:
+        user = cast(User, self.request.user)
+
+        if user.is_admin():
+            queryset = DecisionLog.objects.all()
+        elif user.is_trainer():
+            # Trainer sees decisions they made + system decisions for their trainees
+            trainee_ids = list(
+                User.objects.filter(parent_trainer=user).values_list('id', flat=True)
+            )
+            queryset = DecisionLog.objects.filter(
+                models.Q(actor=user)
+                | models.Q(actor_id__in=trainee_ids)
+                | models.Q(actor__isnull=True, actor_type=DecisionLog.ActorType.SYSTEM)
+            )
+        else:
+            # Trainee sees only decisions about themselves
+            queryset = DecisionLog.objects.filter(
+                models.Q(actor=user)
+                | models.Q(actor__isnull=True, actor_type=DecisionLog.ActorType.SYSTEM)
+            )
+
+        queryset = queryset.select_related('actor', 'undo_snapshot')
+
+        # Filters
+        decision_type = self.request.query_params.get('decision_type')
+        if decision_type:
+            queryset = queryset.filter(decision_type=decision_type)
+
+        actor_type = self.request.query_params.get('actor_type')
+        if actor_type:
+            queryset = queryset.filter(actor_type=actor_type)
+
+        date_from = self.request.query_params.get('date_from')
+        if date_from:
+            queryset = queryset.filter(timestamp__date__gte=date_from)
+
+        date_to = self.request.query_params.get('date_to')
+        if date_to:
+            queryset = queryset.filter(timestamp__date__lte=date_to)
+
+        return queryset
+
+    @action(detail=True, methods=['post'], url_path='undo')
+    def undo(self, request: Request, pk: str = None) -> Response:
+        """
+        Revert a decision by restoring the before_state from its UndoSnapshot.
+
+        POST /api/workouts/decision-logs/{id}/undo/
+
+        Creates a new DecisionLog entry recording the undo action itself.
+        """
+        user = cast(User, request.user)
+
+        # Only trainers and admins can undo
+        if not (user.is_trainer() or user.is_admin()):
+            return Response(
+                {'error': 'Only trainers and admins can undo decisions.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            from uuid import UUID
+            decision_uuid = UUID(str(pk))
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Invalid decision ID format.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            result = DecisionLogService.undo_decision(
+                decision_id=decision_uuid,
+                actor=user,
+            )
+        except ValueError as e:
+            error_msg = str(e)
+            if "already been reverted" in error_msg:
+                return Response(
+                    {'error': error_msg},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            return Response(
+                {'error': error_msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                'message': 'Decision successfully reverted.',
+                'undo_decision_id': str(result.decision_id),
+            },
+            status=status.HTTP_200_OK,
+        )
