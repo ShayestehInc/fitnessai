@@ -7,11 +7,11 @@ Each step creates a DecisionLog entry for full auditability.
 Pipeline Steps:
     A1: SELECT_PROGRAM_LENGTH — pick weeks count
     A2: SELECT_SPLIT_TEMPLATE — pick split based on frequency/goal
-    A3: BUILD_WEEKLY_SLOT_SKELETON — create PlanWeek/PlanSession/PlanSlot records
-    A4: ASSIGN_SLOT_ROLE — tag each slot (primary_compound, secondary, accessory, isolation)
+    A3: BUILD_WEEKLY_SLOT_SKELETON — create PlanWeek/PlanSession records + SlotSpec list
+    A4: ASSIGN_SLOT_ROLE — tag each spec (primary_compound, secondary, accessory, isolation)
     A5: SET_SET_STRUCTURE — assign sets/reps/rest per role and goal
-    A6: SELECT_EXERCISE — fill slots from exercise pool
-    A7: BUILD_SWAP_RECOMMENDATIONS — pre-compute swap candidates per slot
+    A6: SELECT_EXERCISE — fill specs from exercise pool
+    A7: BUILD_SWAP_RECOMMENDATIONS — pre-compute swap candidates per spec
 """
 from __future__ import annotations
 
@@ -31,7 +31,6 @@ from workouts.models import (
     PlanWeek,
     SplitTemplate,
     TrainingPlan,
-    UndoSnapshot,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,6 +62,24 @@ class GeneratePlanResult:
     sessions_count: int
     slots_count: int
     decision_log_ids: list[str]
+
+
+@dataclass
+class SlotSpec:
+    """
+    In-memory slot specification used during pipeline construction.
+    Avoids creating PlanSlot model instances with null exercise_id.
+    Converted to PlanSlot only after A6 assigns an exercise.
+    """
+    session: PlanSession
+    order: int
+    slot_role: str
+    sets: int
+    reps_min: int
+    reps_max: int
+    rest_seconds: int
+    exercise: Exercise | None = None
+    swap_options_cache: dict[str, Any] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -119,13 +136,13 @@ _COMPOUND_CATEGORIES: set[str] = {
 
 # Default day indices per days_per_week
 _DEFAULT_DAY_INDICES: dict[int, list[int]] = {
-    1: [0],  # Mon
-    2: [0, 3],  # Mon, Thu
-    3: [0, 2, 4],  # Mon, Wed, Fri
-    4: [0, 1, 3, 4],  # Mon, Tue, Thu, Fri
-    5: [0, 1, 2, 3, 4],  # Mon–Fri
-    6: [0, 1, 2, 3, 4, 5],  # Mon–Sat
-    7: [0, 1, 2, 3, 4, 5, 6],  # Every day
+    1: [0],
+    2: [0, 3],
+    3: [0, 2, 4],
+    4: [0, 1, 3, 4],
+    5: [0, 1, 2, 3, 4],
+    6: [0, 1, 2, 3, 4, 5],
+    7: [0, 1, 2, 3, 4, 5, 6],
 }
 
 # Duration weeks recommendations based on goal
@@ -166,8 +183,12 @@ def _log_decision(
     options: list[dict[str, Any]],
     final_choice: dict[str, Any],
     reason_codes: list[str],
+    total_options_count: int | None = None,
 ) -> DecisionLog:
     """Create a DecisionLog entry for a pipeline step."""
+    stored_options = options[:20]
+    if total_options_count is not None and total_options_count > 20:
+        final_choice['_total_options_count'] = total_options_count
     return DecisionLog.objects.create(
         actor_type=DecisionLog.ActorType.SYSTEM,
         actor_id=actor_id,
@@ -175,10 +196,104 @@ def _log_decision(
         context=context,
         inputs_snapshot=inputs_snapshot,
         constraints_applied=constraints,
-        options_considered=options[:20],  # Cap stored options
+        options_considered=stored_options,
         final_choice=final_choice,
         reason_codes=reason_codes,
     )
+
+
+def _slot_count_for_muscles(muscle_count: int) -> int:
+    """Determine how many exercise slots for a session based on muscle group count."""
+    if muscle_count <= 1:
+        return 5
+    elif muscle_count == 2:
+        return 6
+    elif muscle_count <= 4:
+        return 7
+    else:
+        return 8  # Full body
+
+
+def _pick_exercise(
+    pool: list[Exercise],
+    slot_role: str,
+    used_ids: set[int],
+) -> Exercise | None:
+    """Pick the best exercise from pool for the given slot role."""
+    available = [ex for ex in pool if ex.id not in used_ids]
+    if not available:
+        available = list(pool)
+    if not available:
+        return None
+
+    is_compound_role = slot_role in (
+        PlanSlot.SlotRole.PRIMARY_COMPOUND,
+        PlanSlot.SlotRole.SECONDARY_COMPOUND,
+    )
+
+    if is_compound_role:
+        compounds = [ex for ex in available if _is_compound(ex)]
+        if compounds:
+            return compounds[0]
+
+    if slot_role == PlanSlot.SlotRole.ISOLATION:
+        isolations = [ex for ex in available if not _is_compound(ex)]
+        if isolations:
+            return isolations[0]
+
+    return available[0]
+
+
+def _prefetch_exercise_pool(
+    session_defs: list[dict[str, Any]],
+    difficulty: str,
+    trainer_id: int | None,
+) -> tuple[dict[str, list[Exercise]], list[Exercise]]:
+    """
+    Prefetch ALL exercises for the plan in a single query.
+    Returns (pool_by_muscle_group, all_exercises).
+    """
+    all_muscle_groups: set[str] = set()
+    for sdef in session_defs:
+        for mg in sdef.get('muscle_groups', []):
+            all_muscle_groups.add(mg)
+
+    privacy_q = Q(is_public=True)
+    if trainer_id:
+        privacy_q |= Q(created_by_id=trainer_id)
+
+    diff_q = Q(difficulty_level=difficulty) | Q(difficulty_level__isnull=True) | Q(difficulty_level='')
+    exercises = list(
+        Exercise.objects.filter(
+            Q(primary_muscle_group__in=all_muscle_groups) & privacy_q & diff_q
+        ).only(
+            'id', 'name', 'primary_muscle_group', 'category',
+            'pattern_tags', 'swap_seed_ids', 'equipment_required',
+        )
+    )
+
+    pool: dict[str, list[Exercise]] = {}
+    for ex in exercises:
+        pool.setdefault(ex.primary_muscle_group, []).append(ex)
+
+    # Fallback to legacy muscle_group if v6.5 field is empty
+    if not pool:
+        legacy_exercises = list(
+            Exercise.objects.filter(
+                Q(muscle_group__in=all_muscle_groups) & privacy_q
+            ).only('id', 'name', 'muscle_group', 'category', 'pattern_tags', 'swap_seed_ids')
+        )
+        for ex in legacy_exercises:
+            pool.setdefault(ex.muscle_group, []).append(ex)
+        exercises = legacy_exercises
+
+    if not pool:
+        raise ValueError(
+            "No exercises found in database matching the required muscle groups. "
+            "Seed exercises before generating a plan."
+        )
+
+    return pool, exercises
 
 
 # ---------------------------------------------------------------------------
@@ -205,9 +320,7 @@ def _a1_select_program_length(
             'requested_weeks': request.duration_weeks,
         },
         constraints={},
-        options=[
-            {'weeks': weeks, 'reason': reason},
-        ],
+        options=[{'weeks': weeks, 'reason': reason}],
         final_choice={'weeks': weeks},
         reason_codes=[reason],
     )
@@ -247,7 +360,6 @@ def _a2_select_split_template(
     )
 
     if not candidates:
-        # Widen search: any template with matching days
         candidates = list(
             SplitTemplate.objects.filter(
                 is_system=True,
@@ -261,7 +373,6 @@ def _a2_select_split_template(
             "Seed system templates first."
         )
 
-    # Prefer goal match
     goal_match = [c for c in candidates if c.goal_type == request.goal]
     selected = goal_match[0] if goal_match else candidates[0]
 
@@ -282,6 +393,7 @@ def _a2_select_split_template(
         options=options,
         final_choice={'template_id': str(selected.pk), 'name': selected.name},
         reason_codes=['goal_match' if selected in goal_match else 'default_selection'],
+        total_options_count=len(candidates),
     )
     return selected, log
 
@@ -292,15 +404,14 @@ def _a3_build_skeleton(
     weeks_count: int,
     day_indices: list[int],
     trainer_id: int | None,
-) -> tuple[list[PlanWeek], list[PlanSession], list[PlanSlot], DecisionLog]:
-    """A3: Create PlanWeek, PlanSession, PlanSlot skeleton records."""
+) -> tuple[list[PlanWeek], list[PlanSession], list[SlotSpec], DecisionLog]:
+    """A3: Create PlanWeek and PlanSession records, return SlotSpec list (no PlanSlot yet)."""
     session_defs: list[dict[str, Any]] = split_template.session_definitions
     if not isinstance(session_defs, list) or not session_defs:
         raise ValueError(
             f"SplitTemplate {split_template.pk} has invalid session_definitions."
         )
 
-    # Ensure we have enough day indices
     if not day_indices:
         day_indices = _DEFAULT_DAY_INDICES.get(
             split_template.days_per_week,
@@ -309,7 +420,7 @@ def _a3_build_skeleton(
 
     all_weeks: list[PlanWeek] = []
     all_sessions: list[PlanSession] = []
-    all_slots: list[PlanSlot] = []
+    all_specs: list[SlotSpec] = []
 
     for wk_num in range(1, weeks_count + 1):
         is_deload = weeks_count >= 4 and wk_num % 4 == 0
@@ -327,7 +438,6 @@ def _a3_build_skeleton(
 
     PlanWeek.objects.bulk_create(all_weeks)
 
-    # Build sessions for each week
     for week in all_weeks:
         for session_idx, session_def in enumerate(session_defs):
             day_idx = day_indices[session_idx % len(day_indices)]
@@ -343,30 +453,23 @@ def _a3_build_skeleton(
 
     PlanSession.objects.bulk_create(all_sessions)
 
-    # Build empty slots per session based on muscle groups in session_def
+    # Build SlotSpec (not PlanSlot) for each session
     for session in all_sessions:
-        # Find the matching session_def
         session_def = session_defs[session.order % len(session_defs)]
         muscle_groups: list[str] = session_def.get('muscle_groups', [])
-
-        # Determine slot count based on muscle group count
         slot_count = _slot_count_for_muscles(len(muscle_groups))
 
         for slot_idx in range(slot_count):
-            slot = PlanSlot(
+            spec = SlotSpec(
                 session=session,
-                exercise_id=None,  # Filled in A6
                 order=slot_idx + 1,
                 slot_role=PlanSlot.SlotRole.ACCESSORY,  # Assigned in A4
-                sets=3,  # Set in A5
-                reps_min=8,  # Set in A5
-                reps_max=12,  # Set in A5
-                rest_seconds=60,  # Set in A5
+                sets=3,
+                reps_min=8,
+                reps_max=12,
+                rest_seconds=60,
             )
-            all_slots.append(slot)
-
-    # We can't bulk_create slots yet because exercise is required (PROTECT).
-    # We'll create them after A6. Store as list for now.
+            all_specs.append(spec)
 
     log = _log_decision(
         decision_type='plan_generation_a3_skeleton',
@@ -382,69 +485,53 @@ def _a3_build_skeleton(
         final_choice={
             'weeks': len(all_weeks),
             'sessions': len(all_sessions),
-            'slots_planned': len(all_slots),
+            'slots_planned': len(all_specs),
         },
         reason_codes=['skeleton_built'],
     )
-    return all_weeks, all_sessions, all_slots, log
-
-
-def _slot_count_for_muscles(muscle_count: int) -> int:
-    """Determine how many exercise slots for a session based on muscle group count."""
-    if muscle_count <= 1:
-        return 5
-    elif muscle_count == 2:
-        return 6
-    elif muscle_count <= 4:
-        return 7
-    else:
-        return 8  # Full body
+    return all_weeks, all_sessions, all_specs, log
 
 
 def _a4_assign_slot_roles(
-    all_slots: list[PlanSlot],
-    session_defs: list[dict[str, Any]],
-    all_sessions: list[PlanSession],
+    all_specs: list[SlotSpec],
     trainer_id: int | None,
     plan_id: str,
 ) -> DecisionLog:
     """A4: Tag each slot with a role based on position in session."""
     role_map = {
-        0: PlanSlot.SlotRole.PRIMARY_COMPOUND,
-        1: PlanSlot.SlotRole.SECONDARY_COMPOUND,
+        1: PlanSlot.SlotRole.PRIMARY_COMPOUND,
+        2: PlanSlot.SlotRole.SECONDARY_COMPOUND,
     }
 
     assignments: list[dict[str, Any]] = []
 
-    for slot in all_slots:
-        if slot.order <= 2:
-            role = role_map.get(slot.order - 1, PlanSlot.SlotRole.ACCESSORY)
-        elif slot.order <= 4:
+    for spec in all_specs:
+        if spec.order <= 2:
+            role = role_map.get(spec.order, PlanSlot.SlotRole.ACCESSORY)
+        elif spec.order <= 4:
             role = PlanSlot.SlotRole.ACCESSORY
         else:
             role = PlanSlot.SlotRole.ISOLATION
 
-        slot.slot_role = role
-        assignments.append({
-            'slot_order': slot.order,
-            'role': role,
-        })
+        spec.slot_role = role
+        assignments.append({'slot_order': spec.order, 'role': role})
 
     log = _log_decision(
         decision_type='plan_generation_a4_slot_roles',
         actor_id=trainer_id,
         context={'plan_id': plan_id},
-        inputs_snapshot={'total_slots': len(all_slots)},
+        inputs_snapshot={'total_slots': len(all_specs)},
         constraints={},
         options=[],
         final_choice={'assignments': assignments[:50]},
         reason_codes=['position_based'],
+        total_options_count=len(assignments),
     )
     return log
 
 
 def _a5_set_structure(
-    all_slots: list[PlanSlot],
+    all_specs: list[SlotSpec],
     goal: str,
     trainer_id: int | None,
     plan_id: str,
@@ -452,23 +539,21 @@ def _a5_set_structure(
     """A5: Assign sets/reps/rest based on slot role and goal."""
     structures: list[dict[str, Any]] = []
 
-    for slot in all_slots:
-        key = (goal, slot.slot_role)
+    for spec in all_specs:
+        key = (goal, spec.slot_role)
         scheme = _SCHEME.get(key)
         if scheme is None:
-            scheme = _DEFAULT_SCHEME.get(
-                slot.slot_role, (3, 8, 12, 60)
-            )
+            scheme = _DEFAULT_SCHEME.get(spec.slot_role, (3, 8, 12, 60))
 
         sets, reps_min, reps_max, rest = scheme
-        slot.sets = sets
-        slot.reps_min = reps_min
-        slot.reps_max = reps_max
-        slot.rest_seconds = rest
+        spec.sets = sets
+        spec.reps_min = reps_min
+        spec.reps_max = reps_max
+        spec.rest_seconds = rest
 
         structures.append({
-            'slot_order': slot.order,
-            'role': slot.slot_role,
+            'slot_order': spec.order,
+            'role': spec.slot_role,
             'sets': sets,
             'reps': f'{reps_min}-{reps_max}',
             'rest': rest,
@@ -478,243 +563,169 @@ def _a5_set_structure(
         decision_type='plan_generation_a5_set_structure',
         actor_id=trainer_id,
         context={'plan_id': plan_id},
-        inputs_snapshot={'goal': goal, 'total_slots': len(all_slots)},
+        inputs_snapshot={'goal': goal, 'total_slots': len(all_specs)},
         constraints={},
         options=[],
         final_choice={'structures': structures[:50]},
         reason_codes=['goal_based_scheme'],
+        total_options_count=len(structures),
     )
     return log
 
 
 def _a6_select_exercises(
-    all_slots: list[PlanSlot],
+    all_specs: list[SlotSpec],
     all_sessions: list[PlanSession],
     session_defs: list[dict[str, Any]],
-    difficulty: str,
+    pool: dict[str, list[Exercise]],
     trainer_id: int | None,
     plan_id: str,
 ) -> DecisionLog:
-    """A6: Fill each slot with an exercise from the pool."""
-    # Collect all needed muscle groups
-    all_muscle_groups: set[str] = set()
-    for sdef in session_defs:
-        for mg in sdef.get('muscle_groups', []):
-            all_muscle_groups.add(mg)
+    """A6: Fill each spec with an exercise from the pool.
 
-    # Prefetch exercise pool using primary_muscle_group (v6.5 field)
-    privacy_q = Q(is_public=True)
-    if trainer_id:
-        privacy_q |= Q(created_by_id=trainer_id)
-
-    diff_q = Q(difficulty_level=difficulty) | Q(difficulty_level__isnull=True) | Q(difficulty_level='')
-    exercises = list(
-        Exercise.objects.filter(
-            Q(primary_muscle_group__in=all_muscle_groups) & privacy_q & diff_q
-        ).only(
-            'id', 'name', 'primary_muscle_group', 'category',
-            'pattern_tags', 'swap_seed_ids', 'equipment_required',
-        )
-    )
-
-    # Build pool by primary_muscle_group
-    pool: dict[str, list[Exercise]] = {}
-    for ex in exercises:
-        pool.setdefault(ex.primary_muscle_group, []).append(ex)
-
-    # Also build fallback pool by legacy muscle_group
-    if not pool:
-        legacy_exercises = list(
-            Exercise.objects.filter(
-                Q(muscle_group__in=all_muscle_groups) & privacy_q
-            ).only('id', 'name', 'muscle_group', 'category', 'pattern_tags', 'swap_seed_ids')
-        )
-        for ex in legacy_exercises:
-            pool.setdefault(ex.muscle_group, []).append(ex)
-
-    if not pool:
-        raise ValueError(
-            "No exercises found in database matching the required muscle groups. "
-            "Seed exercises before generating a plan."
-        )
-
-    used_ids: set[int] = set()
+    Used_ids resets per week to allow exercise repetition across weeks
+    while ensuring variety within a single week.
+    """
     assignments: list[dict[str, Any]] = []
 
-    # Group slots by session
-    session_slot_map: dict[str, list[PlanSlot]] = {}
-    for slot in all_slots:
-        session_slot_map.setdefault(str(slot.session_id), []).append(slot)
+    # Group specs by session
+    session_spec_map: dict[str, list[SlotSpec]] = {}
+    for spec in all_specs:
+        session_spec_map.setdefault(str(spec.session.pk), []).append(spec)
 
+    # Group sessions by week for per-week used_ids reset
+    week_session_map: dict[str, list[PlanSession]] = {}
     for session in all_sessions:
-        session_def = session_defs[session.order % len(session_defs)]
-        muscle_groups: list[str] = session_def.get('muscle_groups', [])
-        slots = session_slot_map.get(str(session.pk), [])
+        week_session_map.setdefault(str(session.week_id), []).append(session)
 
-        if not muscle_groups:
-            continue
+    for _week_id, week_sessions in week_session_map.items():
+        # Reset used_ids per week — exercises repeat across weeks (same program)
+        # but stay unique within a single week for variety
+        used_ids: set[int] = set()
 
-        # Distribute slots across muscle groups
-        for i, slot in enumerate(slots):
-            mg = muscle_groups[i % len(muscle_groups)]
-            mg_pool = pool.get(mg, [])
+        for session in week_sessions:
+            session_def = session_defs[session.order % len(session_defs)]
+            muscle_groups: list[str] = session_def.get('muscle_groups', [])
+            specs = session_spec_map.get(str(session.pk), [])
 
-            # Pick best available exercise
-            exercise = _pick_exercise(mg_pool, slot.slot_role, used_ids)
+            if not muscle_groups:
+                continue
 
-            if exercise is None:
-                # Widen: try any muscle group in this session
-                for alt_mg in muscle_groups:
-                    exercise = _pick_exercise(pool.get(alt_mg, []), slot.slot_role, used_ids)
-                    if exercise:
-                        break
+            for i, spec in enumerate(specs):
+                mg = muscle_groups[i % len(muscle_groups)]
+                mg_pool = pool.get(mg, [])
 
-            if exercise is None:
-                # Last resort: pick from any pool
-                for any_pool in pool.values():
-                    exercise = _pick_exercise(any_pool, slot.slot_role, set())
-                    if exercise:
-                        break
+                exercise = _pick_exercise(mg_pool, spec.slot_role, used_ids)
 
-            if exercise is None:
-                raise ValueError(
-                    f"Cannot fill slot {slot.order} for session '{session.label}'. "
-                    "Insufficient exercises in database."
-                )
+                if exercise is None:
+                    for alt_mg in muscle_groups:
+                        exercise = _pick_exercise(pool.get(alt_mg, []), spec.slot_role, used_ids)
+                        if exercise:
+                            break
 
-            slot.exercise = exercise
-            used_ids.add(exercise.id)
-            assignments.append({
-                'session_label': session.label,
-                'slot_order': slot.order,
-                'exercise_id': exercise.id,
-                'exercise_name': exercise.name,
-                'muscle_group': mg,
-            })
+                if exercise is None:
+                    for any_pool in pool.values():
+                        exercise = _pick_exercise(any_pool, spec.slot_role, set())
+                        if exercise:
+                            break
+
+                if exercise is None:
+                    raise ValueError(
+                        f"Cannot fill slot {spec.order} for session '{session.label}'. "
+                        "Insufficient exercises in database."
+                    )
+
+                spec.exercise = exercise
+                used_ids.add(exercise.id)
+                assignments.append({
+                    'session_label': session.label,
+                    'slot_order': spec.order,
+                    'exercise_id': exercise.id,
+                    'exercise_name': exercise.name,
+                    'muscle_group': mg,
+                })
 
     log = _log_decision(
         decision_type='plan_generation_a6_exercise_selection',
         actor_id=trainer_id,
         context={'plan_id': plan_id},
         inputs_snapshot={
-            'difficulty': difficulty,
-            'muscle_groups': sorted(all_muscle_groups),
-            'pool_size': len(exercises),
+            'muscle_groups': sorted(pool.keys()),
+            'pool_size': sum(len(v) for v in pool.values()),
         },
         constraints={'privacy': 'public_or_trainer'},
         options=[],
         final_choice={'assignments': assignments[:100]},
         reason_codes=['pool_selection'],
+        total_options_count=len(assignments),
     )
     return log
 
 
-def _pick_exercise(
-    pool: list[Exercise],
-    slot_role: str,
-    used_ids: set[int],
-) -> Exercise | None:
-    """Pick the best exercise from pool for the given slot role."""
-    # Prefer unused exercises
-    available = [ex for ex in pool if ex.id not in used_ids]
-    if not available:
-        available = list(pool)
-    if not available:
-        return None
-
-    # For compound roles, prefer compound exercises
-    is_compound_role = slot_role in (
-        PlanSlot.SlotRole.PRIMARY_COMPOUND,
-        PlanSlot.SlotRole.SECONDARY_COMPOUND,
-    )
-
-    if is_compound_role:
-        compounds = [ex for ex in available if _is_compound(ex)]
-        if compounds:
-            return compounds[0]
-
-    # For isolation roles, prefer non-compounds
-    if slot_role == PlanSlot.SlotRole.ISOLATION:
-        isolations = [ex for ex in available if not _is_compound(ex)]
-        if isolations:
-            return isolations[0]
-
-    return available[0]
-
-
 def _a7_build_swap_recommendations(
-    all_slots: list[PlanSlot],
+    all_specs: list[SlotSpec],
+    all_exercises: list[Exercise],
     trainer_id: int | None,
     plan_id: str,
 ) -> DecisionLog:
-    """A7: Pre-compute swap candidates for each slot."""
-    # Collect all exercise IDs to fetch swap_seed_ids
-    exercise_ids = [slot.exercise_id for slot in all_slots if slot.exercise_id]
-    exercises_by_id: dict[int, Exercise] = {}
+    """A7: Pre-compute swap candidates for each spec.
 
-    if exercise_ids:
-        exercises = Exercise.objects.filter(
-            pk__in=exercise_ids,
-        ).only(
-            'id', 'primary_muscle_group', 'pattern_tags', 'swap_seed_ids',
-        )
-        exercises_by_id = {ex.id: ex for ex in exercises}
+    Uses in-memory exercise pool instead of per-slot DB queries.
+    Falls back to swap_seed_ids when available.
+    """
+    exercises_by_id: dict[int, Exercise] = {ex.id: ex for ex in all_exercises}
+    plan_exercise_ids: set[int] = {
+        spec.exercise.id for spec in all_specs if spec.exercise
+    }
 
-    privacy_q = Q(is_public=True)
-    if trainer_id:
-        privacy_q |= Q(created_by_id=trainer_id)
+    # Build in-memory pools for batch swap computation
+    by_muscle: dict[str, list[int]] = {}
+    by_pattern: dict[str, list[int]] = {}
+    all_ids: list[int] = []
 
-    # Track used exercise IDs within the plan to prevent duplicates
-    plan_exercise_ids = set(exercise_ids)
+    for ex in all_exercises:
+        all_ids.append(ex.id)
+        if ex.primary_muscle_group:
+            by_muscle.setdefault(ex.primary_muscle_group, []).append(ex.id)
+        for tag in (ex.pattern_tags or []):
+            by_pattern.setdefault(tag, []).append(ex.id)
+
     swap_count = 0
 
-    for slot in all_slots:
-        if not slot.exercise_id:
+    for spec in all_specs:
+        if not spec.exercise:
             continue
 
-        exercise = exercises_by_id.get(slot.exercise_id)
-        if not exercise:
-            continue
+        exercise = spec.exercise
+        seeds = exercises_by_id.get(exercise.id)
+        seed_data = (seeds.swap_seed_ids or {}) if seeds else {}
 
-        # Use pre-computed swap_seed_ids if available
-        seeds = exercise.swap_seed_ids or {}
-        same_muscle_ids = seeds.get('recommended_same_muscle_ids', [])
-        same_pattern_ids = seeds.get('recommended_same_pattern_ids', [])
-
-        # If no seeds, compute dynamically
+        # Same muscle
+        same_muscle_ids = seed_data.get('recommended_same_muscle_ids', [])
         if not same_muscle_ids and exercise.primary_muscle_group:
-            same_muscle_qs = Exercise.objects.filter(
-                privacy_q,
-                primary_muscle_group=exercise.primary_muscle_group,
-            ).exclude(
-                pk=exercise.pk,
-            ).exclude(
-                pk__in=plan_exercise_ids,
-            ).values_list('pk', flat=True)[:_MAX_SWAP_PER_TAB]
-            same_muscle_ids = list(same_muscle_qs)
+            same_muscle_ids = [
+                eid for eid in by_muscle.get(exercise.primary_muscle_group, [])
+                if eid != exercise.id and eid not in plan_exercise_ids
+            ]
 
+        # Same pattern
+        same_pattern_ids = seed_data.get('recommended_same_pattern_ids', [])
         if not same_pattern_ids and exercise.pattern_tags:
-            same_pattern_qs = Exercise.objects.filter(
-                privacy_q,
-                pattern_tags__overlap=exercise.pattern_tags,
-            ).exclude(
-                pk=exercise.pk,
-            ).exclude(
-                pk__in=plan_exercise_ids,
-            ).values_list('pk', flat=True)[:_MAX_SWAP_PER_TAB]
-            same_pattern_ids = list(same_pattern_qs)
+            seen: set[int] = set()
+            same_pattern_ids = []
+            for tag in exercise.pattern_tags:
+                for eid in by_pattern.get(tag, []):
+                    if eid != exercise.id and eid not in plan_exercise_ids and eid not in seen:
+                        same_pattern_ids.append(eid)
+                        seen.add(eid)
 
-        # Explore all: broader search
-        explore_qs = Exercise.objects.filter(
-            privacy_q,
-        ).exclude(
-            pk=exercise.pk,
-        ).exclude(
-            pk__in=plan_exercise_ids,
-        ).values_list('pk', flat=True)[:_MAX_SWAP_PER_TAB]
-        explore_ids = list(explore_qs)
+        # Explore all
+        explore_ids = [
+            eid for eid in all_ids
+            if eid != exercise.id and eid not in plan_exercise_ids
+        ]
 
-        slot.swap_options_cache = {
+        spec.swap_options_cache = {
             'same_muscle': same_muscle_ids[:_MAX_SWAP_PER_TAB],
             'same_pattern': same_pattern_ids[:_MAX_SWAP_PER_TAB],
             'explore': explore_ids[:_MAX_SWAP_PER_TAB],
@@ -725,13 +736,36 @@ def _a7_build_swap_recommendations(
         decision_type='plan_generation_a7_swap_recommendations',
         actor_id=trainer_id,
         context={'plan_id': plan_id},
-        inputs_snapshot={'total_slots': len(all_slots)},
+        inputs_snapshot={'total_slots': len(all_specs)},
         constraints={},
         options=[],
         final_choice={'slots_with_swaps': swap_count},
         reason_codes=['swap_cache_built'],
     )
     return log
+
+
+def _specs_to_plan_slots(all_specs: list[SlotSpec]) -> list[PlanSlot]:
+    """Convert SlotSpecs to PlanSlot model instances for bulk_create."""
+    slots: list[PlanSlot] = []
+    for spec in all_specs:
+        if spec.exercise is None:
+            raise ValueError(
+                f"SlotSpec at order={spec.order} has no exercise assigned. "
+                "Pipeline step A6 must run before creating PlanSlots."
+            )
+        slots.append(PlanSlot(
+            session=spec.session,
+            exercise=spec.exercise,
+            order=spec.order,
+            slot_role=spec.slot_role,
+            sets=spec.sets,
+            reps_min=spec.reps_min,
+            reps_max=spec.reps_max,
+            rest_seconds=spec.rest_seconds,
+            swap_options_cache=spec.swap_options_cache,
+        ))
+    return slots
 
 
 # ---------------------------------------------------------------------------
@@ -781,8 +815,15 @@ def generate_training_plan(request: GeneratePlanRequest) -> GeneratePlanResult:
 
         session_defs: list[dict[str, Any]] = split_template.session_definitions
 
-        # A3: Build skeleton
-        all_weeks, all_sessions, all_slots, log_a3 = _a3_build_skeleton(
+        # Prefetch exercise pool once (shared between A6 and A7)
+        pool, all_exercises = _prefetch_exercise_pool(
+            session_defs=session_defs,
+            difficulty=request.difficulty,
+            trainer_id=request.trainer_id,
+        )
+
+        # A3: Build skeleton (weeks + sessions + SlotSpecs)
+        all_weeks, all_sessions, all_specs, log_a3 = _a3_build_skeleton(
             plan=plan,
             split_template=split_template,
             weeks_count=weeks_count,
@@ -793,9 +834,7 @@ def generate_training_plan(request: GeneratePlanRequest) -> GeneratePlanResult:
 
         # A4: Assign slot roles
         log_a4 = _a4_assign_slot_roles(
-            all_slots=all_slots,
-            session_defs=session_defs,
-            all_sessions=all_sessions,
+            all_specs=all_specs,
             trainer_id=request.trainer_id,
             plan_id=str(plan.pk),
         )
@@ -803,7 +842,7 @@ def generate_training_plan(request: GeneratePlanRequest) -> GeneratePlanResult:
 
         # A5: Set set structure
         log_a5 = _a5_set_structure(
-            all_slots=all_slots,
+            all_specs=all_specs,
             goal=request.goal,
             trainer_id=request.trainer_id,
             plan_id=str(plan.pk),
@@ -812,31 +851,33 @@ def generate_training_plan(request: GeneratePlanRequest) -> GeneratePlanResult:
 
         # A6: Select exercises
         log_a6 = _a6_select_exercises(
-            all_slots=all_slots,
+            all_specs=all_specs,
             all_sessions=all_sessions,
             session_defs=session_defs,
-            difficulty=request.difficulty,
+            pool=pool,
             trainer_id=request.trainer_id,
             plan_id=str(plan.pk),
         )
         decision_log_ids.append(str(log_a6.pk))
 
-        # A7: Build swap recommendations
+        # A7: Build swap recommendations (uses shared pool, no per-slot queries)
         log_a7 = _a7_build_swap_recommendations(
-            all_slots=all_slots,
+            all_specs=all_specs,
+            all_exercises=all_exercises,
             trainer_id=request.trainer_id,
             plan_id=str(plan.pk),
         )
         decision_log_ids.append(str(log_a7.pk))
 
-        # Now bulk_create all slots (exercise is assigned)
-        PlanSlot.objects.bulk_create(all_slots)
+        # Convert specs to PlanSlot model instances and bulk_create
+        plan_slots = _specs_to_plan_slots(all_specs)
+        PlanSlot.objects.bulk_create(plan_slots)
 
     return GeneratePlanResult(
         plan_id=str(plan.pk),
         plan_name=plan.name,
         weeks_count=weeks_count,
         sessions_count=len(all_sessions),
-        slots_count=len(all_slots),
+        slots_count=len(plan_slots),
         decision_log_ids=decision_log_ids,
     )

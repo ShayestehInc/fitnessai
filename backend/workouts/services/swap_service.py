@@ -109,9 +109,11 @@ def get_swap_options(
     cached_explore_ids = cache.get('explore', [])
 
     # Tab 1: Same Muscle
+    # Always apply privacy_q even on cached IDs to prevent cross-trainer leakage
     if cached_muscle_ids:
         same_muscle_exercises = list(
             Exercise.objects.filter(
+                privacy_q,
                 pk__in=cached_muscle_ids,
             ).exclude(base_exclude)[:_MAX_RESULTS_PER_TAB]
         )
@@ -127,6 +129,7 @@ def get_swap_options(
     if cached_pattern_ids:
         same_pattern_exercises = list(
             Exercise.objects.filter(
+                privacy_q,
                 pk__in=cached_pattern_ids,
             ).exclude(base_exclude)[:_MAX_RESULTS_PER_TAB]
         )
@@ -145,6 +148,7 @@ def get_swap_options(
     if cached_explore_ids:
         explore_exercises = list(
             Exercise.objects.filter(
+                privacy_q,
                 pk__in=cached_explore_ids,
             ).exclude(base_exclude)[:_MAX_RESULTS_PER_TAB]
         )
@@ -186,6 +190,9 @@ def execute_swap(
     new_exercise_id: int,
     actor_id: int | None = None,
     reason: str = '',
+    plan_id: str = '',
+    week_id: str = '',
+    session_id: str = '',
 ) -> SwapResult:
     """
     Execute an exercise swap on a plan slot.
@@ -258,14 +265,14 @@ def execute_swap(
         decision_log = DecisionLog.objects.create(
             actor_type=(
                 DecisionLog.ActorType.TRAINER
-                if actor_id else DecisionLog.ActorType.USER
+                if actor_id else DecisionLog.ActorType.SYSTEM
             ),
             actor_id=actor_id,
             decision_type='exercise_swap',
             context={
-                'plan_id': str(slot.session.week.plan_id),
-                'week_id': str(slot.session.week_id),
-                'session_id': str(slot.session_id),
+                'plan_id': plan_id or str(slot.session_id),
+                'week_id': week_id or str(slot.session_id),
+                'session_id': session_id or str(slot.session_id),
                 'slot_id': str(slot.pk),
             },
             inputs_snapshot={

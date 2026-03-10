@@ -3932,12 +3932,24 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
         return TrainingPlanSerializer
 
     def get_queryset(self) -> QuerySet[TrainingPlan]:
+        from django.db.models import Count
+
         user = self.request.user
-        qs = TrainingPlan.objects.select_related(
-            'trainee', 'split_template', 'created_by',
-        ).prefetch_related(
-            'weeks__sessions__slots__exercise',
-        )
+
+        # List: lightweight query with annotated weeks_count, no deep prefetch
+        if self.action == 'list':
+            qs = TrainingPlan.objects.select_related(
+                'trainee', 'split_template',
+            ).annotate(
+                weeks_count=Count('weeks'),
+            )
+        else:
+            # Detail: full hierarchy prefetch for nested serializer
+            qs = TrainingPlan.objects.select_related(
+                'trainee', 'split_template', 'created_by',
+            ).prefetch_related(
+                'weeks__sessions__slots__exercise',
+            )
 
         if user.role == 'ADMIN':
             return qs
@@ -3946,13 +3958,13 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
         else:
             return qs.filter(trainee=user)
 
-    def perform_create(self, serializer: BaseSerializer[Any]) -> None:
-        """Create a plan manually (not via generator)."""
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Create a plan manually (not via generator). Returns detail serializer."""
+        serializer = TrainingPlanCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        user = self.request.user
 
-        trainee_id = data['trainee_id']
-        trainee = self._resolve_trainee(trainee_id)
+        trainee = self._resolve_trainee(data['trainee_id'])
 
         plan = TrainingPlan.objects.create(
             trainee=trainee,
@@ -3962,10 +3974,11 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
             difficulty=data['difficulty'],
             duration_weeks=data['duration_weeks'],
             split_template_id=data.get('split_template_id'),
-            created_by=user if user.role in ('TRAINER', 'ADMIN') else None,
+            created_by=request.user if request.user.role in ('TRAINER', 'ADMIN') else None,
         )
-        # Store the created instance for the response
-        serializer.instance = plan  # type: ignore[attr-defined]
+
+        response_serializer = TrainingPlanSerializer(plan)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def _resolve_trainee(self, trainee_id: int) -> User:
         """Resolve and authorize access to the trainee."""
@@ -4022,14 +4035,14 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
 
     @action(detail=True, methods=['post'], url_path='activate')
     def activate(self, request: Request, pk: str | None = None) -> Response:
-        """Set plan status to active. Deactivates other active plans for the trainee."""
+        """Set plan status to active. Completes other active plans for the trainee."""
         plan = self.get_object()
 
-        # Deactivate other active plans for this trainee
+        # Complete other active plans for this trainee (not archive — they were used)
         TrainingPlan.objects.filter(
             trainee=plan.trainee,
             status=TrainingPlan.Status.ACTIVE,
-        ).exclude(pk=plan.pk).update(status=TrainingPlan.Status.ARCHIVED)
+        ).exclude(pk=plan.pk).update(status=TrainingPlan.Status.COMPLETED)
 
         plan.status = TrainingPlan.Status.ACTIVE
         plan.save(update_fields=['status', 'updated_at'])
@@ -4143,6 +4156,9 @@ class PlanSlotViewSet(
             new_exercise_id=data['new_exercise_id'],
             actor_id=request.user.pk,
             reason=data.get('reason', ''),
+            plan_id=str(slot.session.week.plan_id),
+            week_id=str(slot.session.week_id),
+            session_id=str(slot.session_id),
         )
 
         return Response({
@@ -4159,6 +4175,7 @@ class SplitTemplateViewSet(viewsets.ModelViewSet[SplitTemplate]):
     """
     CRUD for split templates.
     Trainers see system templates + their own. Admins see all.
+    Trainees: read-only access to system + their trainer's templates.
     """
     permission_classes = [IsAuthenticated]
     serializer_class = SplitTemplateSerializer
@@ -4172,25 +4189,34 @@ class SplitTemplateViewSet(viewsets.ModelViewSet[SplitTemplate]):
                 Q(is_system=True) | Q(created_by=user)
             )
         else:
-            # Trainees can view system + their trainer's templates
-            return SplitTemplate.objects.filter(
-                Q(is_system=True) | Q(created_by=user.parent_trainer)
-            )
+            # Trainees: system templates + their trainer's (if trainer exists)
+            q = Q(is_system=True)
+            if user.parent_trainer_id is not None:
+                q |= Q(created_by_id=user.parent_trainer_id)
+            return SplitTemplate.objects.filter(q)
 
     def perform_create(self, serializer: BaseSerializer[Any]) -> None:
         user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot create split templates.")
         if user.role == 'ADMIN':
             serializer.save(is_system=True, created_by=user)
         else:
             serializer.save(is_system=False, created_by=user)
 
     def perform_update(self, serializer: BaseSerializer[Any]) -> None:
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot modify split templates.")
         instance = serializer.instance
-        if instance and instance.is_system and self.request.user.role != 'ADMIN':
+        if instance and instance.is_system and user.role != 'ADMIN':
             raise PermissionDenied("Cannot modify system split templates.")
         serializer.save()
 
     def perform_destroy(self, instance: SplitTemplate) -> None:
-        if instance.is_system and self.request.user.role != 'ADMIN':
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot delete split templates.")
+        if instance.is_system and user.role != 'ADMIN':
             raise PermissionDenied("Cannot delete system split templates.")
         instance.delete()

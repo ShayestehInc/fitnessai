@@ -1416,14 +1416,17 @@ class TrainingPlanSerializer(serializers.ModelSerializer[TrainingPlan]):
 
 
 class TrainingPlanListSerializer(serializers.ModelSerializer[TrainingPlan]):
-    """List serializer for training plans (no nested weeks)."""
+    """List serializer for training plans (no nested weeks).
+
+    Expects queryset annotated with weeks_count=Count('weeks').
+    """
     split_template_name = serializers.CharField(
         source='split_template.name', read_only=True, default='',
     )
     trainee_email = serializers.CharField(
         source='trainee.email', read_only=True,
     )
-    weeks_count = serializers.SerializerMethodField()
+    weeks_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = TrainingPlan
@@ -1433,9 +1436,6 @@ class TrainingPlanListSerializer(serializers.ModelSerializer[TrainingPlan]):
             'duration_weeks', 'weeks_count', 'created_by', 'created_at', 'updated_at',
         ]
         read_only_fields = fields
-
-    def get_weeks_count(self, obj: TrainingPlan) -> int:
-        return obj.weeks.count()
 
 
 class TrainingPlanCreateSerializer(serializers.Serializer[None]):
@@ -1505,3 +1505,17 @@ class SplitTemplateSerializer(serializers.ModelSerializer[SplitTemplate]):
                     f"session_definitions[{i}] must have a 'muscle_groups' list."
                 )
         return value
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        session_defs = data.get('session_definitions')
+        days_per_week = data.get('days_per_week')
+
+        if session_defs is not None and days_per_week is not None:
+            if len(session_defs) != days_per_week:
+                raise serializers.ValidationError({
+                    'session_definitions': (
+                        f"Length of session_definitions ({len(session_defs)}) must equal "
+                        f"days_per_week ({days_per_week})."
+                    ),
+                })
+        return data
