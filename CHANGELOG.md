@@ -4,6 +4,19 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-10] — Pipeline 67: v6.5 Step 10 (Food Swap Engine + Nutrition DecisionLog)
+
+### Added
+
+- Backend: Food swap recommendation engine — 3 modes: same_macros (calorie-normalized P/C/F similarity), same_category (name matching), explore (diverse alternatives)
+- Backend: Food swap execution — replaces MealLogEntry food item with UndoSnapshot for reversal
+- Backend: CARB_CYCLING template type — Mifflin-St Jeor BMR × activity multiplier, 3 day types (high_carb: 40P/40C/20F, medium: 40P/30C/30F, low_carb: 45P/15C/40F)
+- Backend: Nutrition DecisionLog — plan generation decisions now logged with inputs/outputs
+- Backend: 2 new API endpoints: GET /food-items/{id}/swaps/, POST /meal-logs/entries/{id}/swap/
+- Backend: 25 tests covering similarity scoring, swap recommendations, swap execution, carb cycling
+
+---
+
 ## [2026-03-10] — Pipeline 66: v6.5 Step 9 (Session Feedback + Trainer Routing Rules)
 
 ### Added
