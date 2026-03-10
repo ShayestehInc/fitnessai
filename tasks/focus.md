@@ -1,40 +1,39 @@
-# Focus: Trainer Packet v6.5 — Step 15: Analytics + Correlations + Dashboards
+# Focus: Trainer Packet v6.5 — Step 16: Full Audit UI + Exports
 
 ## Priority
 
-Critical — Step 15 of the v6.5 build order. Builds correlation engine on top of existing analytics infrastructure.
+Critical — Step 16 (final step) of the v6.5 build order. Completes the audit trail with summary endpoints and comprehensive data exports.
 
 ## What to Build
 
-### 1. Correlation Analytics Service
+### 1. Audit Trail Summary API
 
-- Protein adherence ↔ strength gains (e1RM progression rate)
-- Sleep hours ↔ volume tolerance (next-day workout volume)
-- Calorie adherence ↔ weight change trend
-- Workout consistency ↔ nutrition logging adherence
-- Exercise-specific progression patterns (fastest/slowest gaining exercises)
+- GET /audit/summary/ — Decision counts by type, by actor_type, recent activity count
+- GET /audit/timeline/ — Paginated timeline of recent decisions with human-readable descriptions
+- Both endpoints trainer-scoped (trainer sees own + trainee decisions)
 
-### 2. Pattern Detection
+### 2. Audit Data Export
 
-- Trainee-level pattern detection: what's working, what's stalling
-- Cohort comparison: high-adherence vs low-adherence outcome differences
-- Alerts: plateaus, overtraining risk, deload effectiveness
+- GET /export/decision-logs/ — CSV export of DecisionLog entries (filtered by date range)
+- Include: timestamp, actor, decision_type, context summary, final_choice summary
 
-### 3. API Endpoints
+### 3. Comprehensive Trainee Data Exports
 
-- GET /analytics/correlations/ — Overview correlations for trainer's trainees
-- GET /analytics/trainee/{id}/patterns/ — Per-trainee insights
-- GET /analytics/cohort/ — Cohort comparison (high vs low adherence)
+- GET /export/trainee/{id}/workout-history/ — CSV of all workout sessions (sets, reps, weights, RPE)
+- GET /export/trainee/{id}/nutrition-history/ — CSV of daily nutrition logs
+- GET /export/trainee/{id}/progress/ — CSV of weight check-ins + e1RM history
 
 ### 4. Data Sources (already exist)
 
+- DecisionLog + UndoSnapshot: audit trail
+- LiftSetLog: per-set workout data
 - TraineeActivitySummary: daily nutrition/workout/sleep
-- LiftSetLog + LiftMax: per-set performance + e1RM history
-- WeightCheckIn: weight trends
-- Existing analytics: adherence, retention, revenue
+- WeightCheckIn: weight history
+- LiftMax: e1RM history
+- Existing exports: payments, subscribers, trainees (in trainer/export_views.py)
 
 ## What NOT to Build
 
 - Web dashboard UI (backend API only)
 - Mobile UI
-- Nightly batch jobs (compute on demand)
+- Admin-level exports (trainer-scoped only)
