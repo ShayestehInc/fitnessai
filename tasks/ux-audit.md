@@ -1,26 +1,26 @@
-# UX Audit: Progression Engine (v6.5 Step 7)
+# UX Audit: Session Runner (v6.5 Step 8)
 
 ## Scope
 
-This feature is **backend-only** — no mobile/frontend UI was built (session runner UI is Step 8). The UX audit covers API response design and developer experience.
+Backend-only feature. No mobile/frontend UI built (that's a separate step). Auditing API response design.
 
 ## API Response UX
 
-| #   | Severity | Endpoint                  | Issue                                                                 | Status |
-| --- | -------- | ------------------------- | --------------------------------------------------------------------- | ------ |
-| 1   | Info     | All progression endpoints | Responses include human-readable `reason_display` field               | GOOD   |
-| 2   | Info     | next-prescription         | Returns `confidence` level (high/medium/low) for UI to show certainty | GOOD   |
-| 3   | Info     | progression-readiness     | Returns structured `blockers` array for UI to show specific issues    | GOOD   |
-| 4   | Info     | apply-progression         | Returns 201 with full event details including old/new prescription    | GOOD   |
+| #   | Severity | Endpoint                     | Issue                                         | Status |
+| --- | -------- | ---------------------------- | --------------------------------------------- | ------ |
+| 1   | Info     | GET /sessions/{id}/status/   | Full session state with slot/set progress     | GOOD   |
+| 2   | Info     | POST /sessions/{id}/log-set/ | Returns updated set status immediately        | GOOD   |
+| 3   | Info     | GET /sessions/active/        | Single endpoint to check for active session   | GOOD   |
+| 4   | Info     | All mutation endpoints       | Machine-readable error codes + human messages | GOOD   |
 
 ## Missing States
 
 - [x] Loading / skeleton — N/A (backend only)
-- [x] Empty / zero data — hold prescription with reason codes
-- [x] Error / failure — DRF validation errors returned
-- [x] Success / confirmation — 201 with event details
-- [x] Permission denied — 403 for trainees on apply-progression
+- [x] Empty / zero data — 404 for no active session, empty slots handled
+- [x] Error / failure — structured error responses with codes
+- [x] Success / confirmation — 201 for start, 200 for log/complete
+- [x] Permission denied — 403 for non-trainees
 
 ## Overall UX Score: 9/10
 
-No UI to audit. API design is clean with good human-readable messages for future UI consumption.
+Clean API design with progress_pct, current_slot_index, and structured status for future UI consumption.

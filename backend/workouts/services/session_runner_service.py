@@ -310,33 +310,7 @@ def log_set(
         )
         _validate_session_mutable(session)
 
-        # Fetch all set logs for this session once (M2/M8: avoid redundant queries)
-        all_set_logs = list(
-            ActiveSetLog.objects
-            .select_for_update()
-            .filter(active_session=session)
-            .select_related('plan_slot', 'exercise')
-            .order_by('plan_slot__order', 'set_number')
-        )
-
-        # Find the specific set log
-        set_log: ActiveSetLog | None = None
-        for sl in all_set_logs:
-            if str(sl.plan_slot_id) == str(slot_id) and sl.set_number == set_number:
-                set_log = sl
-                break
-
-        if set_log is None:
-            raise SessionError(
-                error_code='set_not_found',
-                message=f'Set {set_number} for slot {slot_id} not found.',
-            )
-
-        if set_log.status != ActiveSetLog.Status.PENDING:
-            raise SessionError(
-                error_code='set_already_logged',
-                message=f'Set {set_number} has already been {set_log.status}.',
-            )
+        set_log, all_set_logs = _fetch_and_find_pending_set(session, slot_id, set_number)
 
         now = timezone.now()
         set_log.status = ActiveSetLog.Status.COMPLETED
@@ -356,8 +330,8 @@ def log_set(
         # Auto-advance current_slot_index using in-memory set_logs (M2 fix)
         _maybe_advance_slot_index(session, set_logs=all_set_logs)
 
-    # Build status from in-memory data instead of re-fetching (M8 fix)
-    return _build_session_status(session)
+    # Build status using the in-memory set_logs to avoid a stale re-fetch
+    return _build_session_status(session, set_logs=all_set_logs)
 
 
 def skip_set(
@@ -379,32 +353,7 @@ def skip_set(
         )
         _validate_session_mutable(session)
 
-        # Fetch all set logs once (M2/M8: avoid redundant queries)
-        all_set_logs = list(
-            ActiveSetLog.objects
-            .select_for_update()
-            .filter(active_session=session)
-            .select_related('plan_slot', 'exercise')
-            .order_by('plan_slot__order', 'set_number')
-        )
-
-        set_log: ActiveSetLog | None = None
-        for sl in all_set_logs:
-            if str(sl.plan_slot_id) == str(slot_id) and sl.set_number == set_number:
-                set_log = sl
-                break
-
-        if set_log is None:
-            raise SessionError(
-                error_code='set_not_found',
-                message=f'Set {set_number} for slot {slot_id} not found.',
-            )
-
-        if set_log.status != ActiveSetLog.Status.PENDING:
-            raise SessionError(
-                error_code='set_already_logged',
-                message=f'Set {set_number} has already been {set_log.status}.',
-            )
+        set_log, all_set_logs = _fetch_and_find_pending_set(session, slot_id, set_number)
 
         set_log.status = ActiveSetLog.Status.SKIPPED
         set_log.skip_reason = reason
@@ -414,8 +363,8 @@ def skip_set(
         # Use in-memory set_logs (M2 fix)
         _maybe_advance_slot_index(session, set_logs=all_set_logs)
 
-    # Build status from in-memory data instead of re-fetching (M8 fix)
-    return _build_session_status(session)
+    # Build status using the in-memory set_logs to avoid a stale re-fetch
+    return _build_session_status(session, set_logs=all_set_logs)
 
 
 def complete_session(
@@ -595,9 +544,18 @@ def _get_session_with_logs(active_session_id: str) -> ActiveSession:
     )
 
 
-def _build_session_status(session: ActiveSession) -> SessionStatus:
-    """Build a SessionStatus dataclass from an ActiveSession with prefetched logs."""
-    all_set_logs: list[ActiveSetLog] = list(session.set_logs.all())
+def _build_session_status(
+    session: ActiveSession,
+    set_logs: list[ActiveSetLog] | None = None,
+) -> SessionStatus:
+    """Build a SessionStatus dataclass from an ActiveSession.
+
+    If ``set_logs`` is provided, uses them directly (avoids a redundant DB
+    query when the caller already holds the data — e.g. inside log_set/skip_set).
+    Otherwise falls back to ``session.set_logs.all()`` which uses the prefetch
+    cache if populated, or hits the DB.
+    """
+    all_set_logs: list[ActiveSetLog] = set_logs if set_logs is not None else list(session.set_logs.all())
 
     # Group by slot
     slot_map: dict[str | None, list[ActiveSetLog]] = {}
@@ -685,6 +643,45 @@ def _build_session_status(session: ActiveSession) -> SessionStatus:
         pending_sets=pending,
         elapsed_seconds=elapsed,
     )
+
+
+def _fetch_and_find_pending_set(
+    session: ActiveSession,
+    slot_id: str,
+    set_number: int,
+) -> tuple[ActiveSetLog, list[ActiveSetLog]]:
+    """Fetch all set logs for a session and locate a specific pending set.
+
+    Returns ``(target_set_log, all_set_logs)`` or raises ``SessionError``.
+    The returned ``all_set_logs`` can be reused by callers to avoid further queries.
+    """
+    all_set_logs = list(
+        ActiveSetLog.objects
+        .select_for_update()
+        .filter(active_session=session)
+        .select_related('plan_slot', 'exercise')
+        .order_by('plan_slot__order', 'set_number')
+    )
+
+    target: ActiveSetLog | None = None
+    for sl in all_set_logs:
+        if str(sl.plan_slot_id) == str(slot_id) and sl.set_number == set_number:
+            target = sl
+            break
+
+    if target is None:
+        raise SessionError(
+            error_code='set_not_found',
+            message=f'Set {set_number} for slot {slot_id} not found.',
+        )
+
+    if target.status != ActiveSetLog.Status.PENDING:
+        raise SessionError(
+            error_code='set_already_logged',
+            message=f'Set {set_number} has already been {target.status}.',
+        )
+
+    return target, all_set_logs
 
 
 def _validate_session_mutable(session: ActiveSession) -> None:

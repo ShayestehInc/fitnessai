@@ -19,6 +19,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer
 
+from users.models import User
+
 from .models import ActiveSession, ActiveSetLog
 from .session_serializers import (
     AbandonSessionInputSerializer,
@@ -281,7 +283,7 @@ class ActiveSessionViewSet(viewsets.GenericViewSet[ActiveSession]):
             )
         return _session_status_response(session_status)
 
-    def _resolve_trainee(self, request: Request) -> Any:
+    def _resolve_trainee(self, request: Request) -> User:
         """
         Resolve the effective trainee for the request.
 

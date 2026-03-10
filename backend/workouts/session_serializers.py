@@ -200,6 +200,7 @@ class LogSetInputSerializer(serializers.Serializer[Any]):
         required=False,
         default='',
         allow_blank=True,
+        max_length=1000,
     )
 
 

@@ -137,3 +137,50 @@ The core business logic is well-structured and the overall architecture is solid
 2. **C2 (No role guard):** Trainers and admins can create sessions for themselves, bypassing the trainee-only intent.
 3. **C3 (N+1):** 5 unnecessary queries per serialized session will cause performance degradation at scale.
 4. **C4 (Race in stale cleanup):** Potential for duplicate LiftSetLog entries from concurrent requests.
+
+---
+
+## Re-Review After Fixes (Round 1)
+
+**Date:** 2026-03-09
+
+### Critical Issues
+
+| #   | Status | Verification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | FIXED  | Ownership check added at `session_runner_service.py:169-175`. After fetching PlanSession with `select_related('week__plan')`, verifies `plan_session.week.plan.trainee_id != trainee_id` and raises opaque `plan_session_not_found` error. Correct — uses the already-loaded relation, returns 404 not 403 to avoid enumeration.                                                                                                                                                                    |
+| C2  | FIXED  | `_resolve_trainee()` in `session_views.py:284-299` now checks `user.role != 'TRAINEE'` and raises `PermissionDenied`. Since impersonation swaps `request.user` via JWT middleware, impersonating trainers will pass correctly.                                                                                                                                                                                                                                                                      |
+| C3  | FIXED  | `ActiveSessionSerializer` now uses `_get_cached_logs()` which calls `obj.set_logs.all()` on prefetched data. All five method fields (`total_sets`, `completed_sets`, `skipped_sets`, `pending_sets`, `progress_pct`) iterate the cached list instead of issuing DB queries. Note: `_get_cached_logs` calls `list(obj.set_logs.all())` on every method invocation — so the list is built 5 times per serialization. This is negligible (in-memory iteration) but a minor inefficiency. Not blocking. |
+| C4  | FIXED  | `_auto_abandon_stale_sessions` now wrapped in `transaction.atomic()` with `select_for_update()` on the stale sessions queryset. Concurrent requests will block on the row lock, preventing duplicate LiftSetLog creation.                                                                                                                                                                                                                                                                           |
+
+### Major Issues
+
+| #   | Status     | Verification                                                                                                                                                                                                   |
+| --- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1  | FIXED      | `is_last_set_map` dict hack replaced with `is_last = (set_num == slot.sets)`. Clear and correct.                                                                                                               |
+| M2  | FIXED      | `_maybe_advance_slot_index` now accepts optional `set_logs` parameter. Both `log_set` and `skip_set` pass in-memory `all_set_logs`, avoiding redundant DB query. Fallback DB fetch retained for other callers. |
+| M3  | FIXED      | `_create_lift_set_logs` now uses `bulk_create` for all LiftSetLog entries, then loops for `MaxLoadService.update_max_from_set`. N INSERTs reduced to 1. Early return on empty list added.                      |
+| M4  | FIXED      | Failed progression evaluations now create a `DecisionLog` entry with error details and append a failure result to `progression_results` with `event_type: 'error'`. Audit trail is complete.                   |
+| M5  | FIXED      | Exception type narrowed from bare `Exception` to `(ValueError, LookupError, TypeError, AttributeError)`. Log level changed from WARNING to ERROR.                                                              |
+| M6  | FIXED      | `ActiveSessionPagination` added with `page_size=20`, `max_page_size=100`. Applied to the viewset via `pagination_class`.                                                                                       |
+| M7  | DOCUMENTED | Comment added to `rest_timer_service.py` explaining the 90s limitation. Accepted as known limitation — proper fix deferred.                                                                                    |
+| M8  | FIXED      | `log_set` and `skip_set` now call `_build_session_status(session)` with in-memory data instead of `get_session_status(active_session_id)` which re-fetched from DB.                                            |
+
+### Minor Issues Addressed
+
+- **m2:** `session_date` parameter typed as `datetime.date` instead of `Any`.
+- **m4:** Status filter validated against `ActiveSession.Status.choices`, returns 400 on invalid.
+- **m6:** `'updated_at'` removed from `update_fields` across all `save()` calls (4 occurrences).
+
+### Minor Issues Not Addressed (acceptable)
+
+- **m1:** Serializers still use `ModelSerializer` instead of `rest_framework_dataclasses`. Acceptable deviation for now — the serializers work with Django model instances, not dataclasses.
+- **m3:** `progression_results` still typed as `list[dict[str, Any]]`. Low priority.
+- **m5:** Default ordering with JOIN on ActiveSetLog unchanged. Low priority.
+- **m7:** `slot_map` None-key grouping not documented. Low priority.
+
+### Updated Quality Score: 8/10
+
+All 4 critical issues are properly resolved. All 8 major issues are addressed (7 fixed, 1 documented with justification). The security surface is now correct — IDOR blocked, role enforcement in place, stale cleanup atomic. Performance issues resolved — N+1 eliminated, bulk_create adopted, redundant fetches removed.
+
+## Recommendation: APPROVE
