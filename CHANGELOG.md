@@ -4,6 +4,27 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-10] — Pipeline 66: v6.5 Step 9 (Session Feedback + Trainer Routing Rules)
+
+### Added
+
+- Backend: SessionFeedback model — end-of-session feedback with 6 rating scales (1-5), completion_state, friction_reasons JSON, recovery_concern, notes. OneToOneField to ActiveSession
+- Backend: PainEvent model — pain/discomfort tracking with 17 body regions, pain_score (1-10), sensation_type, onset_phase, warmup_effect. Can be standalone or linked to a session
+- Backend: TrainerRoutingRule model — configurable alert rules (low_rating, pain_report, high_difficulty, recovery_concern, form_breakdown, missed_sessions) with threshold_value JSON and notification_method
+- Backend: Feedback service — submit_feedback evaluates routing rules and creates TrainerNotifications when thresholds exceeded. Standalone pain event logging with rule evaluation
+- Backend: 9 API endpoints: POST submit feedback, GET feedback for session, GET list feedback, POST log pain event, GET list/retrieve pain events, CRUD routing rules, GET defaults, POST initialize
+- Backend: Default routing rule initialization (5 rules) for trainers, idempotent
+- Backend: 30 comprehensive tests covering service, serializer, and API layers
+
+### Security
+
+- Role enforcement: trainee-only for feedback submission and pain logging, trainer/admin for routing rule CRUD
+- IDOR prevention: session ownership check on feedback submission
+- Cross-trainer protection on routing rule update/delete
+- Notification creation failure handling (does not roll back feedback)
+
+---
+
 ## [2026-03-09] — Pipeline 65: v6.5 Step 8 (Client Session Runner — Backend)
 
 ### Added
