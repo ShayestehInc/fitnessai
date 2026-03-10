@@ -73,33 +73,35 @@ ADMIN (Super Admin — platform owner)
 
 ## Key Models
 
-| Model                    | App      | Purpose                                                                                                                                               |
-| ------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `User`                   | users    | AbstractUser with role enum, email-as-username, `parent_trainer` FK                                                                                   |
-| `UserProfile`            | users    | Onboarding data (sex, age, height, weight, goals, diet type)                                                                                          |
-| `Exercise`               | workouts | Exercise library (ExerciseCard). v6.5 rich tags: pattern_tags, muscle_contribution_map, stance, plane, rom_bias, standardization_block, swap_seed_ids |
-| `DecisionLog`            | workouts | Audit trail for every automated decision. UUID PK, actor, inputs/options/choice/reasons, undo support                                                 |
-| `UndoSnapshot`           | workouts | Before/after state snapshots for reverting decisions. Linked to DecisionLog                                                                           |
-| `LiftSetLog`             | workouts | Per-set performance tracking. UUID PK, auto-computed canonical load/workload, standardization gate for e1RM                                           |
-| `LiftMax`                | workouts | Cached e1RM + Training Max per exercise per trainee. Auto-updated from qualifying sets. History arrays                                                |
-| `WorkloadFactTemplate`   | workouts | Deterministic cool fact templates for exercise/session completion. Priority-based selection, condition rules                                          |
-| `SplitTemplate`          | workouts | Reusable split definitions: session_definitions JSON, days_per_week, goal_type, is_system                                                             |
-| `TrainingPlan`           | workouts | Relational plan container: trainee, goal, status (draft/active/completed/archived), split_template FK                                                 |
-| `PlanWeek`               | workouts | Week within a plan: week_number, is_deload, intensity/volume modifiers                                                                                |
-| `PlanSession`            | workouts | Session within a week: day_of_week, label, order                                                                                                      |
-| `PlanSlot`               | workouts | Exercise slot: exercise FK, slot_role, sets, reps_min/max, rest_seconds, swap_options_cache                                                           |
-| `Program`                | workouts | (Legacy) Assigned to trainee. `schedule` JSONField = weeks→days→exercises                                                                             |
-| `DailyLog`               | workouts | Daily log. `nutrition_data` + `workout_data` JSONFields                                                                                               |
-| `NutritionGoal`          | workouts | Daily macro targets (can be trainer-adjusted)                                                                                                         |
-| `MacroPreset`            | workouts | Named presets: Training Day, Rest Day, etc.                                                                                                           |
-| `WeightCheckIn`          | workouts | Weight tracking entries                                                                                                                               |
-| `ProgramTemplate`        | workouts | Reusable templates for trainers to assign                                                                                                             |
-| `ProgramWeek`            | workouts | Week-specific overrides (intensity/volume modifiers)                                                                                                  |
-| `WeeklyNutritionPlan`    | workouts | Week-specific nutrition (carb cycling support)                                                                                                        |
-| `TraineeInvitation`      | trainer  | Invitation codes for onboarding new trainees                                                                                                          |
-| `TrainerSession`         | trainer  | Impersonation audit trail                                                                                                                             |
-| `TraineeActivitySummary` | trainer  | Cached daily trainee metrics for dashboard                                                                                                            |
-| `TrainerNotification`    | trainer  | In-app notifications for trainers                                                                                                                     |
+| Model                    | App      | Purpose                                                                                                                                                                |
+| ------------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `User`                   | users    | AbstractUser with role enum, email-as-username, `parent_trainer` FK                                                                                                    |
+| `UserProfile`            | users    | Onboarding data (sex, age, height, weight, goals, diet type)                                                                                                           |
+| `Exercise`               | workouts | Exercise library (ExerciseCard). v6.5 rich tags: pattern_tags, muscle_contribution_map, stance, plane, rom_bias, standardization_block, swap_seed_ids                  |
+| `DecisionLog`            | workouts | Audit trail for every automated decision. UUID PK, actor, inputs/options/choice/reasons, undo support                                                                  |
+| `UndoSnapshot`           | workouts | Before/after state snapshots for reverting decisions. Linked to DecisionLog                                                                                            |
+| `LiftSetLog`             | workouts | Per-set performance tracking. UUID PK, auto-computed canonical load/workload, standardization gate for e1RM                                                            |
+| `LiftMax`                | workouts | Cached e1RM + Training Max per exercise per trainee. Auto-updated from qualifying sets. History arrays                                                                 |
+| `WorkloadFactTemplate`   | workouts | Deterministic cool fact templates for exercise/session completion. Priority-based selection, condition rules                                                           |
+| `SplitTemplate`          | workouts | Reusable split definitions: session_definitions JSON, days_per_week, goal_type, is_system                                                                              |
+| `TrainingPlan`           | workouts | Relational plan container: trainee, goal, status (draft/active/completed/archived), split_template FK                                                                  |
+| `PlanWeek`               | workouts | Week within a plan: week_number, is_deload, intensity/volume modifiers                                                                                                 |
+| `PlanSession`            | workouts | Session within a week: day_of_week, label, order                                                                                                                       |
+| `PlanSlot`               | workouts | Exercise slot: exercise FK, slot_role, sets, reps_min/max, rest_seconds, swap_options_cache, set_structure_modality FK, modality_details, modality_volume_contribution |
+| `SetStructureModality`   | workouts | Set structure modality: name, slug, volume_multiplier, guardrails, use_when/avoid_when                                                                                 |
+| `ModalityGuardrail`      | workouts | Enforcement rule: modality FK, rule_type, condition_field/operator/value, error_message                                                                                |
+| `Program`                | workouts | (Legacy) Assigned to trainee. `schedule` JSONField = weeks→days→exercises                                                                                              |
+| `DailyLog`               | workouts | Daily log. `nutrition_data` + `workout_data` JSONFields                                                                                                                |
+| `NutritionGoal`          | workouts | Daily macro targets (can be trainer-adjusted)                                                                                                                          |
+| `MacroPreset`            | workouts | Named presets: Training Day, Rest Day, etc.                                                                                                                            |
+| `WeightCheckIn`          | workouts | Weight tracking entries                                                                                                                                                |
+| `ProgramTemplate`        | workouts | Reusable templates for trainers to assign                                                                                                                              |
+| `ProgramWeek`            | workouts | Week-specific overrides (intensity/volume modifiers)                                                                                                                   |
+| `WeeklyNutritionPlan`    | workouts | Week-specific nutrition (carb cycling support)                                                                                                                         |
+| `TraineeInvitation`      | trainer  | Invitation codes for onboarding new trainees                                                                                                                           |
+| `TrainerSession`         | trainer  | Impersonation audit trail                                                                                                                                              |
+| `TraineeActivitySummary` | trainer  | Cached daily trainee metrics for dashboard                                                                                                                             |
+| `TrainerNotification`    | trainer  | In-app notifications for trainers                                                                                                                                      |
 
 ## Mobile Feature Map
 
@@ -126,17 +128,17 @@ features/
 
 ## API Endpoint Map
 
-| Area     | Base Path                   | Key Endpoints                                                                                                                                                                                         |
-| -------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Auth     | `/api/auth/`                | `jwt/create/`, `jwt/refresh/`, `users/me/`                                                                                                                                                            |
-| Users    | `/api/users/`               | `profiles/`, `profiles/onboarding/`, `me/`                                                                                                                                                            |
-| Workouts | `/api/workouts/`            | `exercises/`, `programs/`, `daily-logs/`, `nutrition-goals/`, `macro-presets/`, `lift-set-logs/`, `lift-maxes/`, `workload/`, `workload-facts/`, `training-plans/`, `plan-slots/`, `split-templates/` |
-| AI Parse | `/api/workouts/daily-logs/` | `parse-natural-language/`, `confirm-and-save/`                                                                                                                                                        |
-| Surveys  | `/api/workouts/surveys/`    | `readiness/`, `post-workout/`                                                                                                                                                                         |
-| Trainer  | `/api/trainer/`             | `dashboard/`, `trainees/`, `invitations/`, `impersonate/`, `ai/chat/`                                                                                                                                 |
-| Payments | `/api/payments/`            | `connect/onboard/`, `pricing/`, `checkout/subscription/`                                                                                                                                              |
-| Admin    | `/api/admin/`               | `dashboard/`, `trainers/`, `tiers/`, `coupons/`, `users/`                                                                                                                                             |
-| Calendar | `/api/calendar/`            | `connections/`, `google/auth/`, `events/`                                                                                                                                                             |
+| Area     | Base Path                   | Key Endpoints                                                                                                                                                                                                                          |
+| -------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth     | `/api/auth/`                | `jwt/create/`, `jwt/refresh/`, `users/me/`                                                                                                                                                                                             |
+| Users    | `/api/users/`               | `profiles/`, `profiles/onboarding/`, `me/`                                                                                                                                                                                             |
+| Workouts | `/api/workouts/`            | `exercises/`, `programs/`, `daily-logs/`, `nutrition-goals/`, `macro-presets/`, `lift-set-logs/`, `lift-maxes/`, `workload/`, `workload-facts/`, `training-plans/`, `plan-slots/`, `plan-sessions/`, `modalities/`, `split-templates/` |
+| AI Parse | `/api/workouts/daily-logs/` | `parse-natural-language/`, `confirm-and-save/`                                                                                                                                                                                         |
+| Surveys  | `/api/workouts/surveys/`    | `readiness/`, `post-workout/`                                                                                                                                                                                                          |
+| Trainer  | `/api/trainer/`             | `dashboard/`, `trainees/`, `invitations/`, `impersonate/`, `ai/chat/`                                                                                                                                                                  |
+| Payments | `/api/payments/`            | `connect/onboard/`, `pricing/`, `checkout/subscription/`                                                                                                                                                                               |
+| Admin    | `/api/admin/`               | `dashboard/`, `trainers/`, `tiers/`, `coupons/`, `users/`                                                                                                                                                                              |
+| Calendar | `/api/calendar/`            | `connections/`, `google/auth/`, `events/`                                                                                                                                                                                              |
 
 ---
 

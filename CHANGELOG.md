@@ -4,6 +4,34 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-09] — Pipeline 63: v6.5 Step 6 (Modality Library with Counting Rules and Guardrails)
+
+### Added
+
+- Backend: SetStructureModality model — 8 system modalities (Straight Sets, Down Sets, Controlled Eccentrics, Giant Sets, Myo-reps, Drop Sets, Supersets, Occlusion) with volume multipliers from v6.5 packet
+- Backend: ModalityGuardrail model — configurable rule engine with condition_field/operator/value pattern supporting 6 operators (has_any, has_none, gt, lt, eq, in)
+- Backend: PlanSlot modality fields — set_structure_modality FK, modality_details JSON, modality_volume_contribution Decimal (backward compatible)
+- Backend: Modality service — guardrail validation, ranked recommendations by goal/slot_role, volume computation, apply with UndoSnapshot + DecisionLog
+- Backend: A5 generator enhancement — default modality assignment during plan generation based on goal + slot_role table, deload weeks force Straight Sets
+- Backend: Session volume summary — per-muscle volume aggregation with modality multipliers
+- Backend: API endpoints: modalities CRUD, plan-slots modality-recommendations/set-modality, plan-sessions volume-summary
+- Backend: seed_modalities management command — idempotent seeding of 8 modalities + 5 guardrails
+
+### Security
+
+- Row-level security on all new ViewSets (modalities, plan-sessions)
+- Modality IDOR prevention: visibility_q scoping on set-modality action
+- Trainee guardrail override restriction (403 for trainees)
+- Prefetch with filtered guardrails to avoid information leakage
+
+### Performance
+
+- Prefetched system modalities once during pipeline (dict lookup, zero per-slot queries)
+- Filtered Prefetch on guardrails (avoids re-hitting DB for active guardrail filtering)
+- Session volume summary uses single query with select_related
+
+---
+
 ## [2026-03-09] — Pipeline 62: v6.5 Step 5 (Training Generator Pipeline + Swap System)
 
 ### Added
