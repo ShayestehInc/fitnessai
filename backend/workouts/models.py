@@ -3036,3 +3036,250 @@ class ActiveSetLog(models.Model):
             f"ActiveSetLog(set={self.set_number}, "
             f"exercise={self.exercise_id}, status={self.status})"
         )
+
+
+# ---------------------------------------------------------------------------
+# Session Feedback & Pain Events (v6.5 Step 9)
+# ---------------------------------------------------------------------------
+
+class SessionFeedback(models.Model):
+    """
+    End-of-session feedback from a trainee.
+    One feedback per ActiveSession. Drives trainer routing rules.
+    """
+
+    class CompletionState(models.TextChoices):
+        COMPLETED = 'completed', 'Completed'
+        PARTIAL = 'partial', 'Partial'
+        ABANDONED = 'abandoned', 'Abandoned'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    active_session = models.OneToOneField(
+        ActiveSession,
+        on_delete=models.CASCADE,
+        related_name='feedback',
+    )
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='session_feedbacks',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    completion_state = models.CharField(
+        max_length=20,
+        choices=CompletionState.choices,
+    )
+
+    # Ratings (1-5 scale, all optional to allow partial feedback)
+    rating_overall = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    rating_muscle_feel = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    rating_energy = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    rating_confidence = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    rating_enjoyment = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    rating_difficulty = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+
+    friction_reasons = models.JSONField(
+        default=list,
+        help_text=(
+            "List of friction reasons: too_heavy, too_light, time_pressure, "
+            "pain, form_breakdown, fatigue, equipment_unavailable, other."
+        ),
+    )
+    recovery_concern = models.BooleanField(default=False)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'session_feedbacks'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['trainee', '-created_at']),
+        ]
+
+    def __str__(self) -> str:
+        return f"SessionFeedback(session={self.active_session_id}, overall={self.rating_overall})"
+
+
+class PainEvent(models.Model):
+    """
+    Records pain or discomfort reported by a trainee.
+    Can be linked to a session or logged standalone.
+    """
+
+    class BodyRegion(models.TextChoices):
+        NECK = 'neck', 'Neck'
+        SHOULDER_LEFT = 'shoulder_left', 'Left Shoulder'
+        SHOULDER_RIGHT = 'shoulder_right', 'Right Shoulder'
+        UPPER_BACK = 'upper_back', 'Upper Back'
+        LOWER_BACK = 'lower_back', 'Lower Back'
+        CHEST = 'chest', 'Chest'
+        ELBOW_LEFT = 'elbow_left', 'Left Elbow'
+        ELBOW_RIGHT = 'elbow_right', 'Right Elbow'
+        WRIST_LEFT = 'wrist_left', 'Left Wrist'
+        WRIST_RIGHT = 'wrist_right', 'Right Wrist'
+        HIP_LEFT = 'hip_left', 'Left Hip'
+        HIP_RIGHT = 'hip_right', 'Right Hip'
+        KNEE_LEFT = 'knee_left', 'Left Knee'
+        KNEE_RIGHT = 'knee_right', 'Right Knee'
+        ANKLE_LEFT = 'ankle_left', 'Left Ankle'
+        ANKLE_RIGHT = 'ankle_right', 'Right Ankle'
+        OTHER = 'other', 'Other'
+
+    class Side(models.TextChoices):
+        LEFT = 'left', 'Left'
+        RIGHT = 'right', 'Right'
+        BILATERAL = 'bilateral', 'Bilateral'
+        MIDLINE = 'midline', 'Midline'
+
+    class SensationType(models.TextChoices):
+        SHARP = 'sharp', 'Sharp'
+        DULL = 'dull', 'Dull'
+        BURNING = 'burning', 'Burning'
+        ACHING = 'aching', 'Aching'
+        TIGHTNESS = 'tightness', 'Tightness'
+        NUMBNESS = 'numbness', 'Numbness'
+        OTHER = 'other', 'Other'
+
+    class OnsetPhase(models.TextChoices):
+        WARMUP = 'warmup', 'Warm-up'
+        WORKING_SET = 'working_set', 'Working Set'
+        BETWEEN_SETS = 'between_sets', 'Between Sets'
+        COOLDOWN = 'cooldown', 'Cooldown'
+        POST_SESSION = 'post_session', 'Post-Session'
+
+    class WarmupEffect(models.TextChoices):
+        BETTER = 'better', 'Better'
+        SAME = 'same', 'Same'
+        WORSE = 'worse', 'Worse'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='pain_events',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    active_session = models.ForeignKey(
+        ActiveSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pain_events',
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pain_events',
+    )
+    body_region = models.CharField(max_length=30, choices=BodyRegion.choices)
+    side = models.CharField(max_length=20, choices=Side.choices, default=Side.MIDLINE)
+    pain_score = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+    )
+    sensation_type = models.CharField(
+        max_length=20,
+        choices=SensationType.choices,
+        default=SensationType.OTHER,
+    )
+    onset_phase = models.CharField(
+        max_length=20,
+        choices=OnsetPhase.choices,
+        blank=True,
+        default='',
+    )
+    warmup_effect = models.CharField(
+        max_length=20,
+        choices=WarmupEffect.choices,
+        blank=True,
+        default='',
+    )
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'pain_events'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['trainee', '-created_at']),
+            models.Index(fields=['trainee', 'body_region']),
+        ]
+
+    def __str__(self) -> str:
+        return f"PainEvent({self.body_region}, score={self.pain_score})"
+
+
+class TrainerRoutingRule(models.Model):
+    """
+    Configurable rules for when to alert a trainer based on trainee feedback.
+    Each rule defines a trigger type, threshold, and notification method.
+    """
+
+    class RuleType(models.TextChoices):
+        LOW_RATING = 'low_rating', 'Low Rating'
+        PAIN_REPORT = 'pain_report', 'Pain Report'
+        MISSED_SESSIONS = 'missed_sessions', 'Missed Sessions'
+        HIGH_DIFFICULTY = 'high_difficulty', 'High Difficulty'
+        RECOVERY_CONCERN = 'recovery_concern', 'Recovery Concern'
+        FORM_BREAKDOWN = 'form_breakdown', 'Form Breakdown'
+
+    class NotificationMethod(models.TextChoices):
+        IN_APP = 'in_app', 'In-App'
+        EMAIL = 'email', 'Email'
+        BOTH = 'both', 'Both'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainer = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='routing_rules',
+        limit_choices_to={'role': 'TRAINER'},
+    )
+    rule_type = models.CharField(max_length=30, choices=RuleType.choices)
+    threshold_value = models.JSONField(
+        default=dict,
+        help_text=(
+            "Threshold config. E.g., {min_rating: 2} for low_rating, "
+            "{min_pain_score: 7} for pain_report, {consecutive_missed: 3} for missed_sessions."
+        ),
+    )
+    notification_method = models.CharField(
+        max_length=20,
+        choices=NotificationMethod.choices,
+        default=NotificationMethod.IN_APP,
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'trainer_routing_rules'
+        ordering = ['rule_type']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trainer', 'rule_type'],
+                name='unique_rule_per_trainer_per_type',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"RoutingRule({self.trainer_id}, {self.rule_type})"
