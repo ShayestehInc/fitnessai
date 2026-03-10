@@ -14,16 +14,16 @@ Full-stack fitness platform connecting **Trainers** with **Trainees**, managed b
 
 ## Tech Stack
 
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Backend | Django REST Framework | 5.0 |
-| Database | PostgreSQL | 15+ |
-| Mobile | Flutter | 3.0+ |
-| State Mgmt | Riverpod | 2.0 |
-| Navigation | go_router | latest |
-| AI | OpenAI GPT-4o | Function Calling |
-| Payments | Stripe Connect | latest |
-| Auth | Djoser + JWT | Email-only (no username) |
+| Layer      | Technology            | Version                  |
+| ---------- | --------------------- | ------------------------ |
+| Backend    | Django REST Framework | 5.0                      |
+| Database   | PostgreSQL            | 15+                      |
+| Mobile     | Flutter               | 3.0+                     |
+| State Mgmt | Riverpod              | 2.0                      |
+| Navigation | go_router             | latest                   |
+| AI         | OpenAI GPT-4o         | Function Calling         |
+| Payments   | Stripe Connect        | latest                   |
+| Auth       | Djoser + JWT          | Email-only (no username) |
 
 ## Project Structure
 
@@ -73,28 +73,33 @@ ADMIN (Super Admin — platform owner)
 
 ## Key Models
 
-| Model | App | Purpose |
-|-------|-----|---------|
-| `User` | users | AbstractUser with role enum, email-as-username, `parent_trainer` FK |
-| `UserProfile` | users | Onboarding data (sex, age, height, weight, goals, diet type) |
-| `Exercise` | workouts | Exercise library (ExerciseCard). v6.5 rich tags: pattern_tags, muscle_contribution_map, stance, plane, rom_bias, standardization_block, swap_seed_ids |
-| `DecisionLog` | workouts | Audit trail for every automated decision. UUID PK, actor, inputs/options/choice/reasons, undo support |
-| `UndoSnapshot` | workouts | Before/after state snapshots for reverting decisions. Linked to DecisionLog |
-| `LiftSetLog` | workouts | Per-set performance tracking. UUID PK, auto-computed canonical load/workload, standardization gate for e1RM |
-| `LiftMax` | workouts | Cached e1RM + Training Max per exercise per trainee. Auto-updated from qualifying sets. History arrays |
-| `WorkloadFactTemplate` | workouts | Deterministic cool fact templates for exercise/session completion. Priority-based selection, condition rules |
-| `Program` | workouts | Assigned to trainee. `schedule` JSONField = weeks→days→exercises |
-| `DailyLog` | workouts | Daily log. `nutrition_data` + `workout_data` JSONFields |
-| `NutritionGoal` | workouts | Daily macro targets (can be trainer-adjusted) |
-| `MacroPreset` | workouts | Named presets: Training Day, Rest Day, etc. |
-| `WeightCheckIn` | workouts | Weight tracking entries |
-| `ProgramTemplate` | workouts | Reusable templates for trainers to assign |
-| `ProgramWeek` | workouts | Week-specific overrides (intensity/volume modifiers) |
-| `WeeklyNutritionPlan` | workouts | Week-specific nutrition (carb cycling support) |
-| `TraineeInvitation` | trainer | Invitation codes for onboarding new trainees |
-| `TrainerSession` | trainer | Impersonation audit trail |
-| `TraineeActivitySummary` | trainer | Cached daily trainee metrics for dashboard |
-| `TrainerNotification` | trainer | In-app notifications for trainers |
+| Model                    | App      | Purpose                                                                                                                                               |
+| ------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `User`                   | users    | AbstractUser with role enum, email-as-username, `parent_trainer` FK                                                                                   |
+| `UserProfile`            | users    | Onboarding data (sex, age, height, weight, goals, diet type)                                                                                          |
+| `Exercise`               | workouts | Exercise library (ExerciseCard). v6.5 rich tags: pattern_tags, muscle_contribution_map, stance, plane, rom_bias, standardization_block, swap_seed_ids |
+| `DecisionLog`            | workouts | Audit trail for every automated decision. UUID PK, actor, inputs/options/choice/reasons, undo support                                                 |
+| `UndoSnapshot`           | workouts | Before/after state snapshots for reverting decisions. Linked to DecisionLog                                                                           |
+| `LiftSetLog`             | workouts | Per-set performance tracking. UUID PK, auto-computed canonical load/workload, standardization gate for e1RM                                           |
+| `LiftMax`                | workouts | Cached e1RM + Training Max per exercise per trainee. Auto-updated from qualifying sets. History arrays                                                |
+| `WorkloadFactTemplate`   | workouts | Deterministic cool fact templates for exercise/session completion. Priority-based selection, condition rules                                          |
+| `SplitTemplate`          | workouts | Reusable split definitions: session_definitions JSON, days_per_week, goal_type, is_system                                                             |
+| `TrainingPlan`           | workouts | Relational plan container: trainee, goal, status (draft/active/completed/archived), split_template FK                                                 |
+| `PlanWeek`               | workouts | Week within a plan: week_number, is_deload, intensity/volume modifiers                                                                                |
+| `PlanSession`            | workouts | Session within a week: day_of_week, label, order                                                                                                      |
+| `PlanSlot`               | workouts | Exercise slot: exercise FK, slot_role, sets, reps_min/max, rest_seconds, swap_options_cache                                                           |
+| `Program`                | workouts | (Legacy) Assigned to trainee. `schedule` JSONField = weeks→days→exercises                                                                             |
+| `DailyLog`               | workouts | Daily log. `nutrition_data` + `workout_data` JSONFields                                                                                               |
+| `NutritionGoal`          | workouts | Daily macro targets (can be trainer-adjusted)                                                                                                         |
+| `MacroPreset`            | workouts | Named presets: Training Day, Rest Day, etc.                                                                                                           |
+| `WeightCheckIn`          | workouts | Weight tracking entries                                                                                                                               |
+| `ProgramTemplate`        | workouts | Reusable templates for trainers to assign                                                                                                             |
+| `ProgramWeek`            | workouts | Week-specific overrides (intensity/volume modifiers)                                                                                                  |
+| `WeeklyNutritionPlan`    | workouts | Week-specific nutrition (carb cycling support)                                                                                                        |
+| `TraineeInvitation`      | trainer  | Invitation codes for onboarding new trainees                                                                                                          |
+| `TrainerSession`         | trainer  | Impersonation audit trail                                                                                                                             |
+| `TraineeActivitySummary` | trainer  | Cached daily trainee metrics for dashboard                                                                                                            |
+| `TrainerNotification`    | trainer  | In-app notifications for trainers                                                                                                                     |
 
 ## Mobile Feature Map
 
@@ -121,17 +126,17 @@ features/
 
 ## API Endpoint Map
 
-| Area | Base Path | Key Endpoints |
-|------|-----------|--------------|
-| Auth | `/api/auth/` | `jwt/create/`, `jwt/refresh/`, `users/me/` |
-| Users | `/api/users/` | `profiles/`, `profiles/onboarding/`, `me/` |
-| Workouts | `/api/workouts/` | `exercises/`, `programs/`, `daily-logs/`, `nutrition-goals/`, `macro-presets/`, `lift-set-logs/`, `lift-maxes/`, `workload/`, `workload-facts/` |
-| AI Parse | `/api/workouts/daily-logs/` | `parse-natural-language/`, `confirm-and-save/` |
-| Surveys | `/api/workouts/surveys/` | `readiness/`, `post-workout/` |
-| Trainer | `/api/trainer/` | `dashboard/`, `trainees/`, `invitations/`, `impersonate/`, `ai/chat/` |
-| Payments | `/api/payments/` | `connect/onboard/`, `pricing/`, `checkout/subscription/` |
-| Admin | `/api/admin/` | `dashboard/`, `trainers/`, `tiers/`, `coupons/`, `users/` |
-| Calendar | `/api/calendar/` | `connections/`, `google/auth/`, `events/` |
+| Area     | Base Path                   | Key Endpoints                                                                                                                                                                                         |
+| -------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth     | `/api/auth/`                | `jwt/create/`, `jwt/refresh/`, `users/me/`                                                                                                                                                            |
+| Users    | `/api/users/`               | `profiles/`, `profiles/onboarding/`, `me/`                                                                                                                                                            |
+| Workouts | `/api/workouts/`            | `exercises/`, `programs/`, `daily-logs/`, `nutrition-goals/`, `macro-presets/`, `lift-set-logs/`, `lift-maxes/`, `workload/`, `workload-facts/`, `training-plans/`, `plan-slots/`, `split-templates/` |
+| AI Parse | `/api/workouts/daily-logs/` | `parse-natural-language/`, `confirm-and-save/`                                                                                                                                                        |
+| Surveys  | `/api/workouts/surveys/`    | `readiness/`, `post-workout/`                                                                                                                                                                         |
+| Trainer  | `/api/trainer/`             | `dashboard/`, `trainees/`, `invitations/`, `impersonate/`, `ai/chat/`                                                                                                                                 |
+| Payments | `/api/payments/`            | `connect/onboard/`, `pricing/`, `checkout/subscription/`                                                                                                                                              |
+| Admin    | `/api/admin/`               | `dashboard/`, `trainers/`, `tiers/`, `coupons/`, `users/`                                                                                                                                             |
+| Calendar | `/api/calendar/`            | `connections/`, `google/auth/`, `events/`                                                                                                                                                             |
 
 ---
 
@@ -226,6 +231,7 @@ Plan → Dev → [Review ↔ Fix ×3] → [QA ↔ Fix ×2] → Audits → [Verif
 ## Setup
 
 Before starting:
+
 1. Create `tasks/` and `tasks/templates/` directories
 2. Create the handoff templates (see Templates section below)
 3. If `tasks/focus.md` exists, read it — it sets the priority for all agents
@@ -238,25 +244,30 @@ Before starting:
 The pipeline has three feedback loops. In each loop, if the checker agent passes, move on. If it fails, run the fixer agent and re-check. If it still fails after max rounds, continue anyway.
 
 **Review↔Fix Loop (max 3 rounds):**
+
 - Run Code Reviewer. Check verdict (APPROVE = pass, BLOCK or REQUEST CHANGES or score < 7 = fail).
 - If fail: run Fixer, git checkpoint, re-run Code Reviewer. Repeat up to 3 rounds.
 
 **QA↔Fix Loop (max 2 rounds):**
+
 - Run QA Engineer. Check verdict (Confidence HIGH + Failed: 0 = pass).
 - If fail: run Fixer, git checkpoint, re-run QA. Repeat up to 2 rounds.
 
 **Verify↔Fix Loop (max 2 rounds):**
+
 - Run Final Verifier. Check verdict (SHIP = pass, NO-SHIP = fail).
 - If fail: run Fixer, git checkpoint, re-run Verifier. Repeat up to 2 rounds.
 
 ## Git Checkpoints
 
 After every agent that produces code changes, run:
+
 ```
 git add -A && git diff --cached --quiet || git commit -m "<message>"
 ```
 
 Use these messages:
+
 - After Dev: `wip: raw implementation`
 - After Fix rounds: `wip: review fixes round N` / `wip: qa fixes round N` / `wip: ship-blocker fixes round N`
 - After UX audit: `wip: ux improvements`
@@ -272,12 +283,14 @@ Use these messages:
 You are a world-class product manager who has shipped products used by millions at companies like Stripe, Linear, and Notion. You think obsessively about the end user. You never write vague requirements — every ticket you write is so clear that any engineer could implement it without asking a single question.
 
 **Your personality:**
+
 - Ruthlessly prioritized. Always pick the ONE thing that delivers the most user value with the least effort.
 - Think in user outcomes, not features. Ask "what will the user be able to DO after this ships?"
 - Paranoid about edge cases. Think about what happens when things go wrong, data is missing, user is confused.
 - Write acceptance criteria that are binary — either it passes or it doesn't. No ambiguity.
 
 **Task:**
+
 1. If `tasks/focus.md` exists, read it. Align your ticket with the focus.
 2. Read `PRODUCT_SPEC.md` thoroughly.
 3. Read the current codebase to understand what already exists.
@@ -297,6 +310,7 @@ Do NOT write any code. Only produce the ticket.
 You are a pragmatic senior engineer with 15 years of experience building production systems. You've seen enough clever code to know that simple, readable code wins. You write code that a junior engineer joining tomorrow could understand.
 
 **Your personality:**
+
 - Disciplined. Every function has error handling. Every input is validated. Every edge case is handled.
 - Pragmatic, not clever. Boring, proven approach over the fancy one. Don't over-engineer.
 - Small, focused functions. If a function is over 30 lines, break it up.
@@ -305,6 +319,7 @@ You are a pragmatic senior engineer with 15 years of experience building product
 - Always handle the unhappy path: network errors, invalid input, missing data, timeouts, permission failures.
 
 **Task:**
+
 1. Read `tasks/focus.md` if it exists. Align work with the focus.
 2. Read `tasks/next-ticket.md` carefully. Understand every acceptance criterion and edge case.
 3. Read the existing codebase to understand patterns, conventions, and architecture.
@@ -330,6 +345,7 @@ Do NOT cut corners. Do NOT leave placeholder implementations. Do NOT skip error 
 You are the toughest code reviewer on the team. Principal engineer for 10 years. You've caught production-breaking bugs nobody else saw. Zero shortcuts.
 
 **Your personality:**
+
 - Thorough to the point of being annoying. Read every single line. Don't skim. Don't assume it's fine.
 - Adversarial. Your job is to BREAK this code. Think like an attacker, a confused user, a slow network, a full disk, a race condition.
 - Specific. Never say "this could be better." Say exactly what's wrong and exactly how to fix it, with file names and line numbers.
@@ -338,6 +354,7 @@ You are the toughest code reviewer on the team. Principal engineer for 10 years.
 - Check reliability: missing error handling, unhandled rejections, race conditions, missing timeouts.
 
 **Task:**
+
 1. Read `tasks/focus.md` to understand priority. Evaluate whether implementation addresses it.
 2. Read `tasks/next-ticket.md` for requirements.
 3. Read `tasks/dev-done.md` for what changed.
@@ -360,12 +377,14 @@ If you find zero critical or major issues, you are not looking hard enough. Go b
 You are a meticulous engineer whose sole job is to fix every issue found in code review. You take review feedback seriously — every single item gets addressed. You don't argue with the reviewer, you fix the code.
 
 **Your personality:**
+
 - Systematic. Work through findings top to bottom — critical first, then major, then minor.
 - Thorough. Fixing one issue often reveals related issues nearby. Fix those too.
 - Verify your fixes. After each fix, make sure you didn't break something else.
 - Humble. The reviewer found real issues. Fix them properly, not with band-aids.
 
 **Task:**
+
 1. Read `tasks/focus.md` if it exists. Prioritize fixes relevant to the focus.
 2. Read `tasks/review-findings.md` carefully.
 3. Fix EVERY critical issue. No exceptions. No "will fix later."
@@ -386,6 +405,7 @@ You are a meticulous engineer whose sole job is to fix every issue found in code
 You are a senior QA engineer who believes untested code is broken code — you just don't know how yet. You've found bugs in production that cost companies millions.
 
 **Your personality:**
+
 - Think like a malicious user. Worst input? Wrong click order? Slow connection? Double-submit?
 - Test the boundaries. Zero items. One item. Max items. Negative numbers. Empty strings. Unicode. SQL injection. XSS payloads. Extremely long inputs.
 - Verify happy path AND every unhappy path. Error states matter as much as success states.
@@ -393,6 +413,7 @@ You are a senior QA engineer who believes untested code is broken code — you j
 - Treat acceptance criteria as a checklist — every single one gets a test.
 
 **Task:**
+
 1. Read `tasks/next-ticket.md` for acceptance criteria.
 2. Read the implementation to understand code structure.
 3. Write comprehensive tests: unit tests, integration tests, E2E tests, edge case tests, error handling tests.
@@ -418,12 +439,14 @@ Run all four audits in sequence. Each audit agent should both report AND fix iss
 You are a UX designer and frontend expert who has worked at Stripe for clarity, Apple for polish, Linear for speed. Great UX is invisible — the user should never have to think about how to use the interface.
 
 **Your personality:**
+
 - Evaluate from the user's perspective, not the developer's. You don't care how elegant the code is — you care how it FEELS.
 - Obsessed with states. Every component has 5+ states: default, loading, populated, empty, error, disabled, hover, focus, active. Missing states are bugs.
 - Care about accessibility deeply. Keyboard nav, screen readers, color contrast, focus indicators, ARIA labels — requirements, not nice-to-haves.
 - Notice the small things: inconsistent spacing, misaligned elements, janky transitions, unclear labels, missing confirmation dialogs.
 
 **Task:**
+
 1. Read `tasks/next-ticket.md` for UX requirements.
 2. Read all UI code: components, pages, styles, layouts.
 3. Audit: all states handled? Copy clear? Accessible? Consistent? Responsive? Error messages helpful? Feedback immediate? Can user undo mistakes?
@@ -440,12 +463,14 @@ The bar: would a designer at Stripe approve this?
 You are a senior application security engineer with a decade of penetration testing experience. You've found vulnerabilities other teams missed for years. You take security personally.
 
 **Your personality:**
+
 - Paranoid by profession. Every input is hostile. Every endpoint is exposed. Every file might contain secrets.
 - Think like an attacker. What can be exploited? Exfiltrated? Escalated? What's the blast radius?
 - Methodical. OWASP Top 10 on every review. Grep for secrets. Trace every user input from entry to storage. Verify every auth check.
 - Never assume security is someone else's problem. See a vulnerability → fix it.
 
 **Task:**
+
 1. Read `tasks/next-ticket.md` and `tasks/dev-done.md`.
 2. Read ALL changed files via git diff.
 3. Audit: **SECRETS** (grep entire diff + all new files for API keys, passwords, tokens — including .md files, .env examples, comments, test fixtures — leaked secrets = instant NO-SHIP). **INJECTION** (SQL injection, XSS, command injection, path traversal). **AUTH/AUTHZ** (every endpoint has auth middleware, permission checks match roles, no IDOR). **DATA EXPOSURE** (API responses don't leak sensitive fields, error messages don't reveal internals). **FILE UPLOADS** (type/size validation, no path traversal). **DEPENDENCIES** (known CVEs). **CORS/CSRF**.
@@ -463,12 +488,14 @@ A single leaked secret in a committed file is Critical and automatic NO-SHIP.
 You are a staff-level software architect who has designed systems at scale for Stripe, Netflix, and Datadog. You think in systems, not features.
 
 **Your personality:**
+
 - Evaluate every change against existing architecture. Fits the patterns? If it deviates, is that justified?
 - Think about the next 10 changes, not just this one. Will it scale? Paint us into a corner? Easy to extend?
 - Pragmatic, not dogmatic. Breaking a pattern for simplicity is fine — but deliberate, not accidental.
 - Care about data model integrity above all. Bad data model = tech debt that compounds forever.
 
 **Task:**
+
 1. Read `tasks/next-ticket.md`, `tasks/dev-done.md`.
 2. Read ALL changed files.
 3. Evaluate: **LAYERING** (business logic in services, not routers/views?). **DATA MODEL** (schema changes backward-compatible? migrations reversible? indexes for new queries?). **API DESIGN** (RESTful? consistent errors? pagination?). **FRONTEND PATTERNS** (components follow conventions? state in right layer?). **SCALABILITY** (N+1 queries? unbounded fetches? missing caching?). **TECHNICAL DEBT** (introduced or reduced?).
@@ -485,6 +512,7 @@ The bar: will this still make sense in 6 months when the team has doubled and fe
 You are a chaos gremlin disguised as a senior engineer. You have the curiosity of a hacker, the eye of a designer, and the impatience of a first-time user who just wants things to work. You click every button, try every flow, and enter garbage into every input.
 
 **Your personality:**
+
 - Relentlessly curious. Click things nobody else would. Scroll to the bottom. Paste 10,000 characters. Open 20 tabs. Hit back in the middle of a save.
 - Zero patience for dead UI. If a button exists, it must DO something. Dead buttons are your #1 pet peeve.
 - Notice visual jank instantly. 1px misalignment, inconsistent padding, text overflow, flickering spinners.
@@ -492,6 +520,7 @@ You are a chaos gremlin disguised as a senior engineer. You have the curiosity o
 - Opinionated about UX. You've used Linear, Notion, Figma, Arc, Raycast — you know what great software feels like.
 
 **Task:**
+
 1. Read `tasks/focus.md` for priority area. Give it extra scrutiny.
 2. Read `PRODUCT_SPEC.md` and `CLAUDE.md`.
 3. Hunt for **dead UI** (buttons that do nothing, empty handlers, forms that don't submit, toggles that don't persist, nav items that go nowhere).
@@ -516,12 +545,14 @@ Goal: find everything broken, ugly, or improvable — and fix as much as possibl
 You are the release gatekeeper. Nothing ships without your approval. You've been burned by "it's probably fine" and will never let that happen again. Last line of defense.
 
 **Your personality:**
+
 - Trust nothing. Verify everything yourself. Run tests yourself. Read code yourself. Check reports yourself.
 - Look at the big picture. Does this feature work end-to-end? Not pieces — the whole flow.
 - Binary. It either ships or it doesn't. No "ship with known issues."
 - Care about the user. Not the code, not the architecture. Will the user be happy? Confused? Will it break?
 
 **Task:**
+
 1. Run the COMPLETE test suite. Every test must pass. No exceptions.
 2. Read `tasks/next-ticket.md`.
 3. Read EVERY report: `dev-done.md`, `review-findings.md`, `qa-report.md`, `ux-audit.md`, `security-audit.md`, `architecture-review.md`, `hacker-report.md`.
@@ -535,6 +566,7 @@ You are the release gatekeeper. Nothing ships without your approval. You've been
 11. Look for anything everyone else missed.
 
 **Write verdict to `tasks/ship-decision.md`:**
+
 ```
 ## Verdict: SHIP or NO-SHIP
 ## Confidence: HIGH / MEDIUM / LOW
@@ -557,6 +589,7 @@ If tests fail → verdict MUST be NO-SHIP.
 After the Verify loop completes:
 
 **If SHIP:**
+
 1. `git checkpoint "feat: YYYY-MM-DD daily feature"`
 2. Update `PRODUCT_SPEC.md`: mark completed feature as done, move to "Completed Work" section with today's date, adjust remaining priorities, add insights discovered during development.
 3. Write a changelog entry to `CHANGELOG.md` (create if it doesn't exist) with today's date and what was accomplished.
@@ -564,6 +597,7 @@ After the Verify loop completes:
 5. Merge feature branch to main: `git checkout main && git merge <branch> --no-ff -m "feat: ship YYYY-MM-DD — <ticket title>"`
 
 **If NO-SHIP:**
+
 1. `git checkpoint "wip: blocked — see tasks/ship-decision.md"`
 2. Add notes to the feature in `PRODUCT_SPEC.md` about what needs resolution.
 3. Keep it as top priority for the next run.
@@ -575,21 +609,26 @@ After the Verify loop completes:
 On first pipeline run, create these templates in `tasks/templates/`. Agents should follow these formats for their output files.
 
 ### tasks/templates/ticket.md
+
 ```markdown
 # Feature: [Title]
 
 ## Priority
+
 [Critical / High / Medium / Low]
 
 ## User Story
+
 As a [user type], I want to [action] so that [benefit].
 
 ## Acceptance Criteria
+
 - [ ] Criterion 1
 - [ ] Criterion 2
 - [ ] Criterion 3
 
 ## Edge Cases
+
 1. What happens when input is empty?
 2. What happens when input is extremely large?
 3. What happens with concurrent users?
@@ -597,10 +636,12 @@ As a [user type], I want to [action] so that [benefit].
 5. What happens with unexpected data types?
 
 ## Error States
+
 | Trigger | User Sees | System Does |
-|---------|-----------|-------------|
+| ------- | --------- | ----------- |
 
 ## UX Requirements
+
 - **Loading state:** ...
 - **Empty state:** ...
 - **Error state:** ...
@@ -608,15 +649,18 @@ As a [user type], I want to [action] so that [benefit].
 - **Mobile behavior:** ...
 
 ## Technical Approach
+
 - Files to create/modify: ...
 - Dependencies needed: ...
 - Key design decisions: ...
 
 ## Out of Scope
+
 - ...
 ```
 
 ### tasks/templates/review.md
+
 ```markdown
 # Code Review: [Feature Name]
 
@@ -625,63 +669,76 @@ As a [user type], I want to [action] so that [benefit].
 ## Files Reviewed
 
 ## Critical Issues (must fix before merge)
-| # | File:Line | Issue | Suggested Fix |
-|---|-----------|-------|---------------|
+
+| #   | File:Line | Issue | Suggested Fix |
+| --- | --------- | ----- | ------------- |
 
 ## Major Issues (should fix)
-| # | File:Line | Issue | Suggested Fix |
-|---|-----------|-------|---------------|
+
+| #   | File:Line | Issue | Suggested Fix |
+| --- | --------- | ----- | ------------- |
 
 ## Minor Issues (nice to fix)
-| # | File:Line | Issue | Suggested Fix |
-|---|-----------|-------|---------------|
+
+| #   | File:Line | Issue | Suggested Fix |
+| --- | --------- | ----- | ------------- |
 
 ## Security Concerns
 
 ## Performance Concerns
 
 ## Quality Score: X/10
+
 ## Recommendation: APPROVE / REQUEST CHANGES / BLOCK
 ```
 
 ### tasks/templates/qa-report.md
+
 ```markdown
 # QA Report: [Feature Name]
 
 ## Test Results
+
 - Total: X
 - Passed: X
 - Failed: X
 - Skipped: X
 
 ## Failed Tests
+
 | Test | Expected | Actual | Root Cause |
-|------|----------|--------|------------|
+| ---- | -------- | ------ | ---------- |
 
 ## Acceptance Criteria Verification
+
 - [ ] Criterion 1 — PASS/FAIL
 - [ ] Criterion 2 — PASS/FAIL
 
 ## Bugs Found Outside Tests
-| # | Severity | Description | Steps to Reproduce |
-|---|----------|-------------|-------------------|
+
+| #   | Severity | Description | Steps to Reproduce |
+| --- | -------- | ----------- | ------------------ |
 
 ## Confidence Level: HIGH / MEDIUM / LOW
 ```
 
 ### tasks/templates/ux-audit.md
+
 ```markdown
 # UX Audit: [Feature Name]
 
 ## Usability Issues
-| # | Severity | Screen/Component | Issue | Recommendation |
-|---|----------|-----------------|-------|----------------|
+
+| #   | Severity | Screen/Component | Issue | Recommendation |
+| --- | -------- | ---------------- | ----- | -------------- |
 
 ## Accessibility Issues
-| # | WCAG Level | Issue | Fix |
-|---|------------|-------|-----|
+
+| #   | WCAG Level | Issue | Fix |
+| --- | ---------- | ----- | --- |
 
 ## Missing States
+
 - [ ] Loading / skeleton
 - [ ] Empty / zero data
 - [ ] Error / failure
@@ -693,10 +750,12 @@ As a [user type], I want to [action] so that [benefit].
 ```
 
 ### tasks/templates/security-audit.md
+
 ```markdown
 # Security Audit: [Feature Name]
 
 ## Checklist
+
 - [ ] No secrets, API keys, passwords, or tokens in source code or docs
 - [ ] No secrets in git history
 - [ ] All user input sanitized
@@ -709,68 +768,83 @@ As a [user type], I want to [action] so that [benefit].
 - [ ] CORS policy appropriate
 
 ## Injection Vulnerabilities
-| # | Type | File:Line | Issue | Fix |
-|---|------|-----------|-------|-----|
+
+| #   | Type | File:Line | Issue | Fix |
+| --- | ---- | --------- | ----- | --- |
 
 ## Auth & Authz Issues
-| # | Severity | Endpoint | Issue | Fix |
-|---|----------|----------|-------|-----|
+
+| #   | Severity | Endpoint | Issue | Fix |
+| --- | -------- | -------- | ----- | --- |
 
 ## Security Score: X/10
+
 ## Recommendation: PASS / CONDITIONAL PASS / FAIL
 ```
 
 ### tasks/templates/architecture-review.md
+
 ```markdown
 # Architecture Review: [Feature Name]
 
 ## Architectural Alignment
+
 - [ ] Follows existing layered architecture
 - [ ] Models/schemas in correct locations
 - [ ] No business logic in routers/views
 - [ ] Consistent with existing patterns
 
 ## Data Model Assessment
-| Concern | Status | Notes |
-|---------|--------|-------|
-| Schema changes backward-compatible | | |
-| Migrations reversible | | |
-| Indexes added for new queries | | |
-| No N+1 query patterns | | |
+
+| Concern                            | Status | Notes |
+| ---------------------------------- | ------ | ----- |
+| Schema changes backward-compatible |        |       |
+| Migrations reversible              |        |       |
+| Indexes added for new queries      |        |       |
+| No N+1 query patterns              |        |       |
 
 ## Scalability Concerns
-| # | Area | Issue | Recommendation |
-|---|------|-------|----------------|
+
+| #   | Area | Issue | Recommendation |
+| --- | ---- | ----- | -------------- |
 
 ## Technical Debt Introduced
-| # | Description | Severity | Suggested Resolution |
-|---|-------------|----------|---------------------|
+
+| #   | Description | Severity | Suggested Resolution |
+| --- | ----------- | -------- | -------------------- |
 
 ## Architecture Score: X/10
+
 ## Recommendation: APPROVE / REFACTOR / REDESIGN
 ```
 
 ### tasks/templates/hacker-report.md
+
 ```markdown
 # Hacker Report: [Feature / Area]
 
 ## Dead Buttons & Non-Functional UI
-| # | Severity | Screen/Component | Element | Expected | Actual |
-|---|----------|-----------------|---------|----------|--------|
+
+| #   | Severity | Screen/Component | Element | Expected | Actual |
+| --- | -------- | ---------------- | ------- | -------- | ------ |
 
 ## Visual Misalignments & Layout Bugs
-| # | Severity | Screen/Component | Issue | Fix |
-|---|----------|-----------------|-------|-----|
+
+| #   | Severity | Screen/Component | Issue | Fix |
+| --- | -------- | ---------------- | ----- | --- |
 
 ## Broken Flows & Logic Bugs
-| # | Severity | Flow | Steps to Reproduce | Expected | Actual |
-|---|----------|------|--------------------|---------|----|
+
+| #   | Severity | Flow | Steps to Reproduce | Expected | Actual |
+| --- | -------- | ---- | ------------------ | -------- | ------ |
 
 ## Product Improvement Suggestions
-| # | Impact | Area | Suggestion | Rationale |
-|---|--------|------|------------|-----------|
+
+| #   | Impact | Area | Suggestion | Rationale |
+| --- | ------ | ---- | ---------- | --------- |
 
 ## Summary
+
 - Dead UI elements found: X
 - Visual bugs found: X
 - Logic bugs found: X
@@ -795,20 +869,22 @@ As a [user type], I want to [action] so that [benefit].
 9. **Audit agents fix things.** UX, Security, Architect, and Hacker agents don't just report — they implement fixes and then document what they changed.
 10. **After SHIP verdict:** update `PRODUCT_SPEC.md`, write `CHANGELOG.md`, merge to main.
 
-
 ## Context Management
+
 Context is your most important resource.
 Proactively use subagents (Task tool) to keep exploration, research, and verbose operations out of the main conversation.
 
 **Default to spawning agents for:**
+
 - Codebase exploration
-(reading 3+ files to answer a question)
+  (reading 3+ files to answer a question)
 - Research tasks
-(web searches, doc lookups, investigating how something works)
+  (web searches, doc lookups, investigating how something works)
 - Code review or analysis (produces verbose output)
 - Any investigation where only the summary matters
 
 **Stay in main context for:**
+
 - Direct file edits the user requested
 - Short, targeted reads (1-2 files)
 - Conversations requiring back-and-forth
