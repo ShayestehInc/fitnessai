@@ -4,6 +4,37 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-09] — Pipeline 60: v6.5 Step 3 (LiftSetLog + LiftMax + Max/Load Engine)
+
+### Added
+- Backend: LiftSetLog model — per-set performance tracking with UUID PK, auto-computed canonical load (per-hand entries doubled), auto-computed workload (load × reps), load entry modes (total/per-hand/bodyweight+external), RPE tracking, standardization pass gate
+- Backend: LiftMax model — per-exercise per-trainee cached e1RM and Training Max with history arrays (capped at 200 entries), unique constraint on (trainee, exercise)
+- Backend: MaxLoadService — e1RM estimation (conservative: lower of Epley/Brzycki), e1RM smoothing (max ±15%/10% per update), TM calculation (80-100% of e1RM), load prescription with equipment rounding, auto-update from qualifying sets with `select_for_update()` concurrency protection
+- Backend: LiftSetLog API — Create + List + Retrieve (no update/delete — historical records), filtering by exercise, date, date range, trainee
+- Backend: LiftMax API — Read-only with pagination, history endpoint (GET /history/?exercise_id=), load prescription endpoint (POST /prescribe/)
+- Backend: `prescribe_for_trainee` service method — encapsulates full prescription flow with unit resolution
+- Backend: Proper indexes — composite indexes on (trainee, session_date), (trainee, exercise), (exercise, session_date), unique constraint on (trainee, exercise, session_date, set_number)
+
+### Security
+- Row-level security on all endpoints — trainees see own data, trainers see their trainees', admins see all
+- LiftSetLog is create+read only — no update/delete to prevent tampering with historical performance data
+- `standardization_pass` and `workload_eligible` are read-only in serializer — clients cannot bypass standardization gates
+- `standardization_pass` defaults to False (fail-closed) — sets must be explicitly marked as passing
+- `trainee_id` in prescribe endpoint validated through serializer (not raw request.data)
+- Trainer row-level check on prescribe — trainers can only prescribe for their own trainees
+
+### Edge Cases Handled
+- 0 reps → e1RM = 0 (no update)
+- RPE=10 with 1 rep → weight IS the 1RM (no formula)
+- >15 reps → capped at 15 for estimation accuracy
+- Per-hand entry → canonical load doubled
+- Bodyweight+external → canonical is just external portion
+- No existing LiftMax → auto-created on first qualifying set
+- e1RM smoothing prevents wild swings (±15%/10% caps)
+- No LiftMax for exercise → prescribe returns null with reason
+
+---
+
 ## [2026-03-09] — Pipeline 59: v6.5 Foundation (ExerciseCard Tags + DecisionLog + UndoSnapshot)
 
 ### Added
