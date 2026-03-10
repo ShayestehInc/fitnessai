@@ -1,11 +1,11 @@
-# Ship Decision: Pipeline 60 — LiftSetLog + LiftMax + Max/Load Engine
+# Ship Decision: Pipeline 61 — Workload Engine
 
 ## Verdict: SHIP
 ## Confidence: HIGH
-## Quality Score: 9/10
+## Quality Score: 8/10
 
 ## Summary
-All 10 acceptance criteria are met. Every critical and major issue from code review has been fixed. Security audit passed. Django system checks pass with zero issues. The implementation is production-ready.
+All 17 acceptance criteria are met. All 3 critical and 5 of 6 major review issues have been fixed. Row-level security is correctly implemented across all endpoints. Django system checks pass with zero issues. The implementation is production-ready.
 
 ---
 
@@ -13,52 +13,62 @@ All 10 acceptance criteria are met. Every critical and major issue from code rev
 
 | # | Criterion | Status | Evidence |
 |---|-----------|--------|----------|
-| 1 | LiftSetLog model with all v6.5 fields | PASS | models.py:1895-2068 — exercise FK, weight, reps, RPE, standardization_pass, load entry modes, canonical load, workload fields, UUID PK |
-| 2 | LiftMax model with e1RM, TM, history arrays | PASS | models.py:2070-2142 — e1rm_current, e1rm_history, tm_current, tm_percentage, tm_history, unique constraint |
-| 3 | MaxLoadService with e1RM estimation, TM calc, load prescription | PASS | max_load_service.py — Epley+Brzycki conservative, smoothing, TM calc, equipment rounding |
-| 4 | Only standardization-passing sets update e1RM | PASS | max_load_service.py:324 checks standardization_pass; default=False (fail-closed, models.py:1994); read-only in serializer (serializers.py:1237) |
-| 5 | LiftSetLog CRUD API (trainees create, trainers read) | PASS | views.py:3407-3487 — Create+List+Retrieve only (no update/delete), trainee-only create guard |
-| 6 | LiftMax read API with history endpoint | PASS | views.py:3532-3558 — detail=False action with exercise_id query param |
-| 7 | Load prescription endpoint | PASS | views.py:3560-3625 — trainee_id validated through serializer (serializers.py:1290-1293) |
-| 8 | Row-level security on all endpoints | PASS | Both viewsets scope querysets by role (admin=all, trainer=their trainees, trainee=self). Prescribe checks parent_trainer ownership. |
-| 9 | Proper indexes for performance | PASS | 4 indexes + unique constraint on LiftSetLog; 2 indexes + unique constraint on LiftMax |
-| 10 | Service methods return dataclasses, not dicts | PASS | E1RMEstimate and LoadPrescription are frozen dataclasses |
+| 1 | WorkloadFactTemplate model | PASS | models.py:2144-2199 — UUID PK, scope enum, template_text, condition_rules JSONField, priority, is_active, created_by FK, composite index |
+| 2 | WorkloadAggregationService with exercise/session/weekly | PASS | workload_service.py:91-476 — three compute methods with proper ORM aggregation |
+| 3 | Workload-by-muscle-group distribution using muscle_contribution_map | PASS | workload_service.py:447-458 — uses muscle_contribution_map, falls back to primary_muscle_group, then 'unclassified' |
+| 4 | Workload-by-pattern distribution using pattern_tags | PASS | workload_service.py:461-465 — splits workload evenly across pattern_tags |
+| 5 | WorkloadTrendService with ACWR (7d/28d) | PASS | workload_service.py:483-562 — rolling_7_day / (rolling_28_day / 4), null if < 28 days data |
+| 6 | Spike/dip detection with configurable thresholds | PASS | workload_service.py:489-492 — class constants SPIKE_ACWR_THRESHOLD=1.3, DIP_ACWR_THRESHOLD=0.8 |
+| 7 | Week-over-week delta computation | PASS | workload_service.py:578-608 — `_get_weekly_deltas` with percentage changes |
+| 8 | WorkloadFactService with deterministic template selection | PASS | workload_service.py:615-739 — priority-ordered, first match wins, regex-based rendering |
+| 9 | Comparable session/exercise matching for delta comparisons | PASS | workload_service.py:199-239 — finds last exposure, computes percentage delta |
+| 10 | API: exercise workload endpoint | PASS | views.py:3725-3772 — GET /workload/exercise/ with exercise_id, session_date params |
+| 11 | API: session workload summary with top exercises and week-to-date | PASS | views.py:3774-3819 — includes top_exercises, week_to_date_workload |
+| 12 | API: weekly workload with muscle-group and pattern breakdowns | PASS | views.py:3821-3858 — by_muscle_group, by_pattern in response |
+| 13 | API: trends endpoint with ACWR, spike/dip flags | PASS | views.py:3860-3893 — acute_chronic_ratio, spike_flag, dip_flag |
+| 14 | API: CRUD for WorkloadFactTemplate | PASS | views.py:3636-3685 — full ModelViewSet with create/update/delete permission guards |
+| 15 | Row-level security on all endpoints | PASS | `_resolve_trainee()` enforces trainee=self, trainer=own trainees, admin=all; `get_queryset()` scopes fact templates similarly |
+| 16 | All service methods return dataclasses, not dicts | PASS | ExerciseWorkload, SessionWorkload, WeeklyWorkload, WorkloadTrend — all frozen dataclasses |
+| 17 | Only workload_eligible sets included | PASS | workload_service.py:121 — `workload_eligible=True` filter in `_get_eligible_sets` |
 
 ## Edge Case Verification
 
 | # | Edge Case | Status | Evidence |
 |---|-----------|--------|----------|
-| 1 | 0 reps — no e1RM update | PASS | max_load_service.py:326 |
-| 2 | RPE=10 with 1 rep = true max | PASS | max_load_service.py:122-128 |
-| 3 | >15 reps capped at 15 | PASS | max_load_service.py:131 |
-| 4 | Bodyweight exercise (canonical load may be 0) | PASS | No e1RM update when load <= 0 (line 328) |
-| 5 | Per-hand entry — canonical load doubled | PASS | models.py:2055-2056 |
-| 6 | No existing LiftMax — create on first qualifying set | PASS | max_load_service.py:340-343 (get_or_create) |
-| 7 | e1RM going down — smoothing prevents wild swings | PASS | max_load_service.py:67 (SMOOTHING_FLOOR_FACTOR = 0.90) |
-| 8 | Prescription with no LiftMax — null with reason | PASS | views.py:3609-3614 |
+| 1 | No sets logged — return zero workload | PASS | Aggregates default to Decimal('0') via `or Decimal('0')` pattern |
+| 2 | All sets workload_eligible=False — return zero | PASS | Filtered out by `_get_eligible_sets` |
+| 3 | Mixed units — flag mixed | PASS | `_detect_mixed_units()` checks distinct units, `mixed_units` bool in dataclasses and responses |
+| 4 | No muscle_contribution_map — use primary_muscle_group | PASS | workload_service.py:452-454 |
+| 5 | No pattern_tags — skip pattern attribution | PASS | workload_service.py:461 — `if tags:` guard |
+| 6 | No prior comparable session — delta = null | PASS | workload_service.py:222-223 returns None, None |
+| 7 | < 28 days of data — ACWR = null | PASS | workload_service.py:521-524 checks earliest date |
+| 8 | Week boundary Monday-Sunday | PASS | workload_service.py:287 — `session_date.weekday()` (Monday=0) |
+| 9 | Trainee with zero history — empty/null | PASS | All aggregates return zero/empty, no errors thrown |
 
-## Review Issues — All Fixed
+## Review Issues — Fix Status
 
 | Issue | Severity | Status | Fix |
 |-------|----------|--------|-----|
-| C1: No ownership guard on update/delete | Critical | FIXED | ViewSet now uses Create+List+Retrieve mixins only (no update/delete) |
-| C2: trainee_id bypasses serializer | Critical | FIXED | trainee_id added to LiftMaxPrescribeSerializer (serializers.py:1290-1293) |
-| M1: Unbounded history arrays | Major | FIXED | MAX_HISTORY_ENTRIES=200, trimming in update_max_from_set (lines 362-363, 374-375) |
-| M2: Race condition on concurrent updates | Major | FIXED | select_for_update() on line 346 |
-| M3: standardization_pass default=True | Major | FIXED | Changed to default=False (models.py:1994) |
-| M4: History endpoint URL deviation | Major | FIXED | Changed to detail=False with exercise_id query param (views.py:3532) |
-| M5: No pagination on LiftMaxViewSet | Major | FIXED | LiftMaxPagination added (views.py:3489-3491, 3508) |
-| M6: Type hint mismatch | Major | FIXED | validate_entered_load_value uses Decimal types (serializers.py:1243) |
+| C1: Fact template scoping | Critical | FIXED | `select_and_render()` accepts `trainer_id`, filters `Q(created_by__isnull=True) \| Q(created_by_id=trainer_id)`. Call sites pass `trainee.parent_trainer_id`. |
+| C2: Template injection via format_map | Critical | FIXED | Replaced with `re.compile(r'\{(\w+)\}')` regex substitution. No attribute access possible. |
+| C3: Unbounded template iteration | Critical | FIXED | `MAX_TEMPLATES_EVALUATED = 50`, queryset sliced with `[:50]`. |
+| M1: Mixed units flag | Major | FIXED | `mixed_units: bool` field added to dataclasses, `_detect_mixed_units()` method, exposed in API responses. |
+| M2: Single-pass distributions | Major | FIXED | `_compute_distributions()` computes both muscle and pattern in one iteration. |
+| M3: serializer.instance | Major | FIXED | `perform_update` uses `serializer.instance` (line 3674). |
+| M4: parent_trainer guard | Major | FIXED | Trainees without parent_trainer see only system defaults (line 3662). |
+| M5: rest_framework_dataclasses serializers | Major | NOT FIXED | Views still use manual dict construction. Convention violation but not a functional or security issue. |
+| M6: weeks_back bounds | Major | FIXED | `max(1, min(int(weeks_str), 52))` on line 3874. |
 
 ## Security Verification
 
-- standardization_pass in read_only_fields — VERIFIED (serializers.py:1237)
-- workload_eligible in read_only_fields — VERIFIED (serializers.py:1236)
-- No secrets or credentials in any code — VERIFIED
-- Row-level security on all endpoints — VERIFIED
-- trainee_id validated through serializer — VERIFIED
-- Race condition mitigated with select_for_update — VERIFIED
-- Security audit score: 9/10, recommendation: PASS
+- Template injection mitigated with regex-only substitution — VERIFIED
+- Fact templates scoped by trainer — VERIFIED
+- Template iteration bounded at 50 — VERIFIED
+- Row-level security on WorkloadViewSet (`_resolve_trainee`) — VERIFIED
+- Row-level security on WorkloadFactTemplateViewSet (`get_queryset`) — VERIFIED
+- Create/update/delete restricted to trainers+admins — VERIFIED
+- Trainers can only edit/delete their own templates — VERIFIED
+- No secrets or credentials in code — VERIFIED
 
 ## Django System Checks
 
@@ -68,18 +78,19 @@ System check identified no issues (0 silenced).
 
 ## Remaining Concerns (non-blocking)
 
-1. **Architecture review artifact is from Pipeline 59** — The `tasks/architecture-review.md` covers ExerciseCard/DecisionLog, not Pipeline 60. The Pipeline 60 code follows the same approved patterns (service layer, dataclass returns, select_related, row-level security).
-2. **Minor: `__str__` N+1** — LiftSetLog.__str__ accesses exercise.name without prefetch guarantee. Acceptable; can add select_related in admin config.
-3. **Minor: Extra DB query for latest_unit** — prescribe_for_trainee queries LiftSetLog for unit. Low impact given prescription is not high-frequency.
+1. **M5 not addressed** — WorkloadViewSet actions use manual dict serialization instead of `rest_framework_dataclasses`. This is a convention violation per `.claude/rules/datatypes.md`. Not blocking because: (a) responses are correctly structured, (b) no security risk, (c) can be refactored in a follow-up.
+2. **N+1 in weekly_deltas** — `_get_weekly_deltas` with weeks_back=52 triggers 53 DB queries. Acceptable per ticket ("optimize later") and bounded by the max(1, min(52)) guard.
+3. **condition_rules validation** — No whitelist validation on allowed keys in condition_rules JSONField. Invalid keys silently pass through. Low severity.
 
 ---
 
 ## What Was Built
 
-**LiftSetLog + LiftMax + Max/Load Engine (v6.5 Step 3)**
+**Workload Engine — Aggregation, Trends, and Facts (v6.5 Step 4)**
 
-- **LiftSetLog model** — Per-set performance records with UUID PKs, load entry modes (total/per-hand/bodyweight+external), auto-computed canonical load and workload, standardization gate (fail-closed), RPE tracking, and 4 composite indexes.
-- **LiftMax model** — Per-exercise per-trainee estimated maxes with e1RM/TM current values and capped history arrays (max 200 entries), unique constraint on (trainee, exercise).
-- **MaxLoadService** — e1RM estimation (conservative lower of Epley/Brzycki), rep capping at 15, RPE=10 true max, smoothing (max +15%/-10%), TM calculation with bounds validation, equipment-rounded load prescription, auto-update from qualifying sets with row-level locking.
-- **REST API** — LiftSetLog create+read (immutable for audit integrity), LiftMax read-only with history and prescribe endpoints, pagination on both viewsets, date range and exercise filters, trainee_id filter for trainers/admins.
-- **Security** — standardization_pass and workload_eligible server-controlled (read-only), trainee_id validated through serializer, concurrent updates serialized with select_for_update, generic error messages prevent information leakage.
+- **WorkloadFactTemplate model** — Deterministic "cool fact" templates with UUID PK, scope (exercise/session), priority ordering, condition rules (JSONField), trainer ownership (created_by FK), and composite index for efficient queries.
+- **WorkloadAggregationService** — Exercise-level, session-level, and weekly workload aggregation from LiftSetLog data. Muscle-group distribution via muscle_contribution_map with primary_muscle_group fallback. Pattern distribution via pattern_tags with even splitting. Mixed-unit detection. Comparable exercise/session matching with percentage deltas. Week-to-date tracking. Top exercises by workload.
+- **WorkloadTrendService** — Acute:chronic workload ratio (7-day / 28-day weekly average), spike/dip detection with configurable thresholds, trend direction (rising/stable/declining), week-over-week delta history.
+- **WorkloadFactService** — Deterministic fact selection: templates filtered by scope and trainer, sorted by priority, first condition match wins. Safe regex-based rendering prevents template injection. Bounded evaluation (max 50 templates).
+- **REST API** — Four read-only workload endpoints (exercise, session, weekly, trends) with row-level security. Full CRUD for fact templates with trainer/admin permission guards. Input validation on all query parameters.
+- **Security** — Tenant-isolated fact templates (system defaults + trainer's own). Safe template rendering (regex-only, no attribute access). Bounded iteration. Row-level security on all endpoints.
