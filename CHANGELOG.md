@@ -4,6 +4,18 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-10] — Pipeline 69: v6.5 Step 12 (Import Pipeline — Draft/Confirm)
+
+### Added
+
+- Backend: ProgramImportDraft model — UUID PK, status lifecycle (pending_review/confirmed/rejected/expired), raw CSV storage, parsed data, validation errors/warnings
+- Backend: CSV import service — parse & validate CSV, case-insensitive exercise lookup, row-level validation with detailed error messages
+- Backend: Atomic confirm — creates TrainingPlan → PlanWeek → PlanSession → PlanSlot hierarchy + DecisionLog + UndoSnapshot
+- Backend: 5 API endpoints: POST upload, GET list, GET detail, POST confirm, DELETE reject
+- Backend: 24 tests covering CSV parsing (10), confirm import (4), draft management (5), API endpoints (9)
+
+---
+
 ## [2026-03-10] — Pipeline 68: v6.5 Step 11 (Trainer Copilot + Daily Digest)
 
 ### Added
