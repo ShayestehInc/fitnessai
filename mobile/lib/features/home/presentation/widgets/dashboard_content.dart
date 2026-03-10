@@ -109,59 +109,8 @@ class DashboardContent extends StatelessWidget {
             child: WeightLogCard(),
           ),
 
-          // v6.5 Feature Cards — Performance
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Performance',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: TrainingPlansCard(),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: LiftMaxesCard(),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: WorkloadCard(),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: FeedbackHistoryCard(),
-          ),
-
-          // v6.5 Feature Cards — AI Tools
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'AI Tools',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: VoiceMemosCard(),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: VideoAnalysisCard(),
-          ),
+          // v6.5 Feature Cards (Performance + AI Tools)
+          const V65FeatureSection(),
 
           const SizedBox(height: 16),
           const Padding(
@@ -181,8 +130,8 @@ class DashboardContent extends StatelessWidget {
       try {
         final d = DateTime.parse(w.date);
         days.add(d.weekday);
-      } catch (e) {
-        debugPrint('Failed to parse workout date: $e');
+      } catch (_) {
+        // Silently skip unparseable dates — they are non-critical.
       }
     }
     return days;

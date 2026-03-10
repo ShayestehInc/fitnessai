@@ -169,3 +169,65 @@ class FeedbackHistoryCard extends StatelessWidget {
     );
   }
 }
+
+/// Composite section containing all v6.5 feature navigation cards,
+/// grouped under "Performance" and "AI Tools" headings.
+class V65FeatureSection extends StatelessWidget {
+  const V65FeatureSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final sectionStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Performance section
+        const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text('Performance', style: sectionStyle),
+        ),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: TrainingPlansCard(),
+        ),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: LiftMaxesCard(),
+        ),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: WorkloadCard(),
+        ),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: FeedbackHistoryCard(),
+        ),
+
+        // AI Tools section
+        const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text('AI Tools', style: sectionStyle),
+        ),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: VoiceMemosCard(),
+        ),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: VideoAnalysisCard(),
+        ),
+      ],
+    );
+  }
+}

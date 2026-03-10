@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../providers/video_analysis_provider.dart';
 import '../widgets/video_analysis_card.dart';
 
@@ -64,7 +65,7 @@ class _VideoAnalysisListScreenState
         children: [
           analysesAsync.when(
             loading: () =>
-                const Center(child: CircularProgressIndicator()),
+                const Center(child: AdaptiveSpinner()),
             error: (error, _) => _ErrorView(
               error: error.toString(),
               onRetry: _onRefresh,

@@ -1,123 +1,92 @@
-# Architecture Review: Session Runner v6.5 Step 8
+# Architecture Review: v6.5 Navigation Wiring
 
 ## Review Date
 
-2026-03-09
+2026-03-10
 
 ## Files Reviewed
 
-- `backend/workouts/services/session_runner_service.py`
-- `backend/workouts/services/rest_timer_service.py`
-- `backend/workouts/session_views.py`
-- `backend/workouts/session_serializers.py`
-- `backend/workouts/models.py` (ActiveSession, ActiveSetLog)
+- `mobile/lib/features/home/presentation/widgets/v65_feature_cards.dart` (new)
+- `mobile/lib/features/home/presentation/widgets/dashboard_content.dart` (modified)
+- `mobile/lib/features/trainer/presentation/screens/trainee_detail_screen.dart` (modified)
+- `mobile/lib/features/exercises/presentation/screens/exercise_bank_screen.dart` (modified)
+- `mobile/lib/features/trainer/presentation/screens/trainer_dashboard_screen.dart` (modified)
+- `mobile/lib/core/router/app_router.dart` (verified routes exist)
+
+## Scope
+
+Navigation-only change: adds v6.5 feature nav cards to the trainee dashboard, a "View Patterns" button to trainer's trainee detail screen, and minor fixes (URI encoding for query params).
 
 ## Architectural Alignment
 
-- [x] Follows existing layered architecture (service layer holds all business logic)
-- [x] Models/schemas in correct locations
-- [x] No business logic in views -- views are thin dispatchers to service functions
-- [x] Consistent with existing patterns (dataclass returns from services, DRF serializers for wire format)
-- [x] Service functions return frozen dataclasses, not dicts
-- [x] DecisionLog audit trail on every state transition
-- [x] Row-level security enforced in ViewSet `get_queryset()` and `_resolve_trainee()`
+- [x] Follows existing layered architecture
+- [x] Card widgets live in the correct directory (`features/home/presentation/widgets/`)
+- [x] No business logic in widgets -- pure navigation via `context.push()`
+- [x] Consistent with existing patterns (StatelessWidgets with `const` constructors, theme-aware styling)
+- [x] All routes verified as registered in `app_router.dart`
 
-### Strengths
+## Layering Assessment
 
-1. **Transaction discipline.** Every mutation uses `transaction.atomic()` with `select_for_update()`. The partial unique constraint at the DB level (`unique_active_session_per_trainee` WHERE `status='in_progress'`) is the right approach for preventing concurrent active sessions -- application-level checks alone are insufficient under concurrency.
-2. **IDOR protection.** `start_session` verifies `plan_session.week.plan.trainee_id` matches the caller. The ViewSet `get_queryset()` enforces role-based row filtering. The error message intentionally returns "not found" rather than "forbidden" to avoid information leakage.
-3. **Graceful degradation.** Progression engine failures are caught, logged to DecisionLog, and returned as error results rather than crashing the session. The fallback prescription in `_get_prescription_for_slot` ensures sessions can always start.
-4. **Stale session auto-abandonment.** Practical solution for sessions left open. Completed sets from stale sessions are preserved in LiftSetLog -- partial data is real data.
-5. **Clean layering.** Views are 100% thin. Serializers handle validation only. All state machine logic, set lookup, slot advancement, LiftSetLog creation, and progression evaluation live in the service module.
-6. **Denormalized exercise on ActiveSetLog.** Smart trade-off documented in help_text. Avoids a join through PlanSlot on every set read.
+**Correct decisions:**
 
-## Data Model Assessment
+1. `v65_feature_cards.dart` is placed in `features/home/presentation/widgets/` -- the right location since these cards are specific to the trainee home dashboard, not shared across features.
+2. The `_FeatureNavCard` base class is file-private (underscore prefix), which correctly prevents other features from depending on this particular card layout while still allowing the public card classes (`TrainingPlansCard`, etc.) to be imported individually if needed.
+3. The `trainee_detail_screen.dart` change adds a button inline rather than extracting a widget -- proportional for a single `IconButton`.
 
-| Concern                            | Status | Notes                                                                                                            |
-| ---------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------- |
-| Schema changes backward-compatible | PASS   | UUID PKs, SET_NULL on plan references -- sessions survive plan deletion                                          |
-| Partial unique constraint          | PASS   | `unique_active_session_per_trainee` on `(trainee)` WHERE `status='in_progress'` prevents dual-active at DB level |
-| Indexes for hot paths              | PASS   | `(trainee, status)` and `(trainee, -created_at)` on ActiveSession; `(active_session, status)` on ActiveSetLog    |
-| Unique set constraint              | PASS   | `(active_session, plan_slot, set_number)` prevents duplicate set logging                                         |
-| No N+1 query patterns              | FIXED  | See issue #1 below                                                                                               |
+## Should `_FeatureNavCard` Live in `shared/widgets/`?
+
+**No.** The existing `shared/widgets/` directory contains cross-cutting concerns: navigation shells, loading shimmers, health permission sheets, sync status badges. The `_FeatureNavCard` is a layout pattern specific to the v6.5 feature sections on the trainee home screen. If a similar card is needed elsewhere in the future, the pattern can be promoted to `shared/widgets/` at that point. Premature extraction would violate YAGNI.
+
+## Scalability
+
+| Concern                                                          | Assessment                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Adding more v6.5 feature cards                                   | Trivial -- add a new `StatelessWidget` wrapping `_FeatureNavCard` with route/icon/copy, then add it to `V65FeatureSection`                                                                                                          |
+| Adding new card sections/groups                                  | Add another heading + card list block inside `V65FeatureSection`                                                                                                                                                                    |
+| Cards needing dynamic visibility (e.g. role-based, feature-flag) | Would require passing context or a provider; current static approach is correct for the current scope                                                                                                                               |
+| Route string drift                                               | Routes are hardcoded strings in both the cards and `app_router.dart` -- this is consistent with the rest of the codebase. Type-safe route constants would be better but that's a codebase-wide concern, not specific to this change |
+
+The approach scales well for the expected trajectory (10-20 feature cards). No architectural concern.
 
 ## Issues Found and Fixed
 
-### 1. FIXED -- Stale data / redundant query in `_build_session_status` (Major)
+### 1. FIXED -- `dashboard_content.dart` exceeded 150-line widget limit (Minor)
 
-**Files:** `session_runner_service.py` (log_set, skip_set, \_build_session_status)
+**File:** `dashboard_content.dart` (was 190 lines)
 
-`log_set()` and `skip_set()` both fetched all set logs with `select_for_update()` inside a transaction, mutated them, then called `_build_session_status(session)` **outside** the transaction. That function called `session.set_logs.all()` which had no prefetch cache on the session object, causing:
+The inline v6.5 card sections (two section headers + six card widgets with padding) pushed the file to 190 lines, violating the project's mandatory 150-line widget file limit.
 
-- A redundant DB round-trip on every set log/skip (the hottest path in the system)
-- Potential for reading stale data if another request interleaved between the transaction commit and the re-fetch
+**Fix:** Extracted a `V65FeatureSection` composite widget in `v65_feature_cards.dart` that encapsulates both section headers and all card instances. `dashboard_content.dart` now references it as a single `const V65FeatureSection()` call. File reduced to 139 lines.
 
-The code comments claimed "Build status from in-memory data instead of re-fetching (M8 fix)" but the implementation did not actually do this.
+## Issues Documented (Not Fixed)
 
-**Fix:** Added an optional `set_logs: list[ActiveSetLog] | None` parameter to `_build_session_status()`. When provided, uses the list directly instead of querying `session.set_logs.all()`. Both `log_set` and `skip_set` now pass their in-memory `all_set_logs` list. This eliminates the extra query and guarantees data consistency.
+### 2. Hardcoded section title strings (Low)
 
-### 2. FIXED -- Duplicated set-log lookup logic (Minor)
+**File:** `v65_feature_cards.dart` lines 196, 213
 
-**Files:** `session_runner_service.py` (log_set, skip_set)
+The section headers "Performance" and "AI Tools" are hardcoded English strings, not going through `context.l10n`. This is consistent with several other places in the codebase that use hardcoded strings (the existing dashboard section headers use `DashboardSectionHeader` with hardcoded strings too). Should be addressed in a future i18n sweep, not in this navigation-only change.
 
-Both `log_set()` and `skip_set()` contained identical 25-line blocks for: fetching all set logs with `select_for_update`, scanning for a matching `(slot_id, set_number)`, and validating the set is pending. This violates DRY and increases the surface area for divergent bugs.
+### 3. URI encoding inconsistency in trainee_detail_screen.dart (Low)
 
-**Fix:** Extracted `_fetch_and_find_pending_set(session, slot_id, set_number)` helper that returns `(target_set_log, all_set_logs)`. Both callers now use a single function call.
+**File:** `trainee_detail_screen.dart` line 688
 
-### 3. FIXED -- `_resolve_trainee` returned `Any` (Minor)
+The AI chat button now correctly uses `Uri.encodeComponent(displayName)` (line 141), and the new patterns button does too (line 149). However, the calendar navigation at line 688 still passes `name=$displayName` without encoding. This is a pre-existing issue, not introduced by this change.
 
-**File:** `session_views.py` line 284
+## Data Model Assessment
 
-The return type was `Any` instead of `User`, violating the project's strict typing rules.
+No data model changes. N/A.
 
-**Fix:** Changed return type to `User`, added `from users.models import User` import.
+## Technical Debt
 
-## Issues Documented (Not Fixed -- Require Design Decisions)
+| #   | Description                                       | Severity | Direction                         |
+| --- | ------------------------------------------------- | -------- | --------------------------------- |
+| 1   | Hardcoded English strings in section titles       | Low      | Unchanged (pre-existing pattern)  |
+| 2   | Route strings duplicated between cards and router | Low      | Unchanged (codebase-wide pattern) |
 
-### 4. Rest timer sentinel value design (Low)
+No new tech debt introduced. The `V65FeatureSection` extraction slightly reduces debt by keeping `dashboard_content.dart` within the project's line limit.
 
-**File:** `rest_timer_service.py` line 59-60
+## Architecture Score: 9/10
 
-The M7 comment documents a known limitation: if a trainer intentionally sets rest to exactly 90s, it is indistinguishable from "not explicitly set." A proper fix requires a schema change (`rest_seconds_override` nullable field or a boolean flag on PlanSlot). This is acceptable tech debt for now but should be tracked.
-
-### 5. `SessionSummary.progression_results` typed as `list[dict[str, Any]]` (Low)
-
-**File:** `session_runner_service.py` line 113
-
-This violates the project rule "never return dict from services." The progression results should use a frozen dataclass. The blast radius is contained (only constructed in `_run_progression_evaluation` and serialized immediately by `ProgressionResultSerializer`). Recommend converting to a `ProgressionResult` dataclass in a future pass.
-
-## Scalability Concerns
-
-| #   | Area                           | Issue                                                                                                                                                                                                                                  | Status     |
-| --- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| 1   | Set log scan                   | `_fetch_and_find_pending_set` does a linear scan over all set logs to find a match. For typical sessions (5-8 exercises x 3-5 sets = 15-40 rows) this is negligible. Would only matter at >1000 sets which is not a realistic workout. | Acceptable |
-| 2   | `_auto_abandon_stale_sessions` | Runs on every `start_session` and `get_active_session` call. Queries with `select_for_update` which acquires row locks. For a single trainee the lock contention is minimal. No cross-trainee impact.                                  | Acceptable |
-| 3   | `_create_lift_set_logs`        | Calls `MaxLoadService.update_max_from_set()` in a per-row loop after `bulk_create`. This is O(n) DB calls for n completed sets. Acceptable for session completion (happens once per session, typical n=15-40).                         | Acceptable |
-| 4   | Progression evaluation         | Calls `compute_next_prescription` + `apply_progression` per slot on completion. O(slots) with typical count 5-8.                                                                                                                       | Acceptable |
-
-## Technical Debt Introduced
-
-| #   | Description                                                | Severity | Suggested Resolution                             |
-| --- | ---------------------------------------------------------- | -------- | ------------------------------------------------ |
-| 1   | `progression_results` as `list[dict]` instead of dataclass | Low      | Create `ProgressionResult` frozen dataclass      |
-| 2   | Rest timer sentinel value (90s ambiguity)                  | Low      | Add nullable `rest_seconds_override` to PlanSlot |
-
-## Pattern Consistency
-
-| Pattern                               | This Implementation                                                              | Verdict    |
-| ------------------------------------- | -------------------------------------------------------------------------------- | ---------- |
-| UUID PKs                              | Both new models                                                                  | Consistent |
-| Frozen dataclasses from services      | `SessionStatus`, `SessionSummary`, `SetStatus`, `SlotStatus`, `RestPrescription` | Consistent |
-| Service layer for business logic      | All public functions + helpers in service module                                 | Consistent |
-| DRF serializer validation             | Input serializers validate before hitting service                                | Consistent |
-| `select_related` / `prefetch_related` | Used correctly in ViewSet queryset and service functions                         | Consistent |
-| Row-level security in `get_queryset`  | Role-based filtering (Admin/Trainer/Trainee)                                     | Consistent |
-| `transaction.atomic()`                | Every state mutation is transactional with `select_for_update`                   | Consistent |
-| DecisionLog audit trail               | Session start, complete, abandon, and progression failures all logged            | Consistent |
-| Error handling via domain exceptions  | `SessionError` with error codes, mapped to HTTP status in views                  | Consistent |
-
-## Architecture Score: 8/10
-
-The Session Runner is well-architected. Clean service/view/serializer layering. Strong transaction safety with both application-level and DB-level concurrency controls. Solid data model with appropriate constraints, indexes, and FK cascade behaviors. The REST API design is consistent and RESTful with proper error code mapping. Three issues were found and fixed: a redundant query / stale data bug on the hottest code path (`log_set`/`skip_set`), duplicated lookup logic, and a missing type annotation. The remaining items (sentinel rest value, dict return type for progression results) are low-severity and can be addressed in future iterations without architectural risk.
+This is a clean, proportional navigation-wiring change. Correct file placement, correct layering, correct use of `const` constructors and theme-aware styling. Good accessibility (`Semantics` wrapper on `_FeatureNavCard`). All routes verified as registered. The only deduction is for hardcoded strings that skip l10n, which is a pre-existing pattern. One minor issue was found and fixed (150-line limit violation).
 
 ## Recommendation: APPROVE
