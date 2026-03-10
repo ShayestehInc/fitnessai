@@ -37,6 +37,11 @@ from .notification_views import (
 from .export_views import (
     PaymentExportView, SubscriberExportView, TraineeExportView,
 )
+from .correlation_views import (
+    CohortAnalysisView,
+    CorrelationOverviewView,
+    TraineePatternsView,
+)
 from community.trainer_views import (
     TrainerAnnouncementListCreateView,
     TrainerAnnouncementDetailView,
@@ -102,6 +107,11 @@ urlpatterns = [
     path('analytics/revenue/', RevenueAnalyticsView.as_view(), name='analytics-revenue'),
     path('analytics/retention/', RetentionAnalyticsView.as_view(), name='analytics-retention'),
     path('analytics/at-risk/', AtRiskTraineesView.as_view(), name='analytics-at-risk'),
+
+    # Correlation analytics (v6.5 Step 15)
+    path('analytics/correlations/', CorrelationOverviewView.as_view(), name='analytics-correlations'),
+    path('analytics/trainee/<int:trainee_id>/patterns/', TraineePatternsView.as_view(), name='analytics-trainee-patterns'),
+    path('analytics/cohort/', CohortAnalysisView.as_view(), name='analytics-cohort'),
 
     # CSV Exports
     path('export/payments/', PaymentExportView.as_view(), name='export-payments'),
