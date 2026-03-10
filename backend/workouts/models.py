@@ -2499,6 +2499,28 @@ class PlanSlot(models.Model):
             "{same_muscle: [id, ...], same_pattern: [id, ...], explore: [id, ...]}."
         ),
     )
+    set_structure_modality = models.ForeignKey(
+        'SetStructureModality',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='plan_slots',
+        help_text="The set structure modality for this slot (e.g., straight sets, drop sets).",
+    )
+    modality_details = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Modality-specific parameters (e.g., paired_exercise_id for supersets, "
+            "tempo for eccentrics, fatigue_override for myo-reps)."
+        ),
+    )
+    modality_volume_contribution = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text="Computed volume contribution: sets × modality volume_multiplier.",
+    )
 
     class Meta:
         db_table = 'plan_slots'
@@ -2519,3 +2541,113 @@ class PlanSlot(models.Model):
             f"PlanSlot(order={self.order}, {self.slot_role}, "
             f"exercise={self.exercise_id})"
         )
+
+
+class SetStructureModality(models.Model):
+    """
+    A set structure modality defines HOW an exercise should be performed
+    (straight sets, drop sets, myo-reps, supersets, etc.).
+
+    Each modality has:
+    - Counting rules: volume_multiplier applied to sets for workload counting
+    - Use/avoid conditions: JSON descriptions of when to use or avoid
+    - Guardrails: related ModalityGuardrail rules for enforcement
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
+    description = models.TextField(blank=True, default='')
+    volume_multiplier = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        default=Decimal('1.00'),
+        validators=[MinValueValidator(Decimal('0.01')), MaxValueValidator(Decimal('3.00'))],
+        help_text="Multiplier applied to each working set for volume counting (e.g., 0.67 for drop sets).",
+    )
+    use_when = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of conditions describing when to use this modality.",
+    )
+    avoid_when = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of conditions describing when to avoid this modality.",
+    )
+    is_system = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_modalities',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'set_structure_modalities'
+        ordering = ['name']
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.volume_multiplier}x)"
+
+
+class ModalityGuardrail(models.Model):
+    """
+    Enforcement rule for a modality. Defines conditions under which a modality
+    should NOT be applied (or MUST be applied).
+
+    rule_type:
+    - 'avoid': modality should NOT be used when condition is met
+    - 'require': modality MUST be used when condition is met
+
+    condition_field: field to check on exercise or slot
+    condition_operator: how to compare (has_any, has_none, gt, lt, eq, in)
+    condition_value: value to compare against (JSON-encoded)
+    """
+
+    class RuleType(models.TextChoices):
+        AVOID = 'avoid', 'Avoid'
+        REQUIRE = 'require', 'Require'
+
+    class ConditionOperator(models.TextChoices):
+        HAS_ANY = 'has_any', 'Has Any'
+        HAS_NONE = 'has_none', 'Has None'
+        GT = 'gt', 'Greater Than'
+        LT = 'lt', 'Less Than'
+        EQ = 'eq', 'Equals'
+        IN = 'in', 'In List'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    modality = models.ForeignKey(
+        SetStructureModality,
+        on_delete=models.CASCADE,
+        related_name='guardrails',
+    )
+    rule_type = models.CharField(max_length=10, choices=RuleType.choices)
+    condition_field = models.CharField(
+        max_length=100,
+        help_text="Field to check: 'exercise.athletic_skill_tags', 'slot.reps_max', 'slot.slot_role', etc.",
+    )
+    condition_operator = models.CharField(max_length=20, choices=ConditionOperator.choices)
+    condition_value = models.JSONField(
+        help_text="Value to compare against. JSON-encoded.",
+    )
+    error_message = models.CharField(
+        max_length=500,
+        help_text="Human-readable message when guardrail is violated.",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'modality_guardrails'
+        ordering = ['modality', 'rule_type']
+        indexes = [
+            models.Index(fields=['modality', 'is_active']),
+        ]
+
+    def __str__(self) -> str:
+        return f"Guardrail({self.modality.name}: {self.rule_type} when {self.condition_field} {self.condition_operator})"

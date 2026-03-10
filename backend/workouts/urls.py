@@ -16,10 +16,12 @@ from .views import (
     NutritionGoalViewSet,
     NutritionTemplateAssignmentViewSet,
     NutritionTemplateViewSet,
+    PlanSessionViewSet,
     PlanSlotViewSet,
     ProgressionSuggestionViewSet,
     ProgressPhotoViewSet,
     ProgramViewSet,
+    SetStructureModalityViewSet,
     SplitTemplateViewSet,
     TrainingPlanViewSet,
     WeightCheckInViewSet,
@@ -54,6 +56,8 @@ router.register(r'workload-facts', WorkloadFactTemplateViewSet, basename='worklo
 router.register(r'workload', WorkloadViewSet, basename='workload')
 router.register(r'training-plans', TrainingPlanViewSet, basename='trainingplan')
 router.register(r'plan-slots', PlanSlotViewSet, basename='planslot')
+router.register(r'plan-sessions', PlanSessionViewSet, basename='plansession')
+router.register(r'modalities', SetStructureModalityViewSet, basename='modality')
 router.register(r'split-templates', SplitTemplateViewSet, basename='splittemplate')
 
 urlpatterns = [

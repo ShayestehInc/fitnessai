@@ -27,6 +27,7 @@ from .models import (
     NutritionDayPlan,
     NutritionGoal,
     NutritionTemplate,
+    ModalityGuardrail,
     NutritionTemplateAssignment,
     PlanSession,
     PlanSlot,
@@ -34,6 +35,7 @@ from .models import (
     Program,
     ProgressionSuggestion,
     ProgressPhoto,
+    SetStructureModality,
     SplitTemplate,
     TrainingPlan,
     UndoSnapshot,
@@ -1333,6 +1335,17 @@ class PlanSlotSerializer(serializers.ModelSerializer[PlanSlot]):
         source='exercise.primary_muscle_group', read_only=True,
     )
     reps_display = serializers.SerializerMethodField()
+    modality_name = serializers.CharField(
+        source='set_structure_modality.name', read_only=True, default=None,
+    )
+    modality_slug = serializers.CharField(
+        source='set_structure_modality.slug', read_only=True, default=None,
+    )
+    modality_volume_multiplier = serializers.DecimalField(
+        source='set_structure_modality.volume_multiplier',
+        read_only=True, default=None,
+        max_digits=4, decimal_places=2,
+    )
 
     class Meta:
         model = PlanSlot
@@ -1340,8 +1353,11 @@ class PlanSlotSerializer(serializers.ModelSerializer[PlanSlot]):
             'id', 'session', 'exercise', 'exercise_name', 'exercise_primary_muscle',
             'order', 'slot_role', 'sets', 'reps_min', 'reps_max', 'reps_display',
             'rest_seconds', 'load_prescription_pct', 'notes', 'swap_options_cache',
+            'set_structure_modality', 'modality_name', 'modality_slug',
+            'modality_volume_multiplier', 'modality_details',
+            'modality_volume_contribution',
         ]
-        read_only_fields = ['id', 'swap_options_cache']
+        read_only_fields = ['id', 'swap_options_cache', 'modality_volume_contribution']
 
     def get_reps_display(self, obj: PlanSlot) -> str:
         if obj.reps_min == obj.reps_max:
@@ -1519,3 +1535,53 @@ class SplitTemplateSerializer(serializers.ModelSerializer[SplitTemplate]):
                     ),
                 })
         return data
+
+
+# ---------------------------------------------------------------------------
+# Modality Library serializers (v6.5 Step 6)
+# ---------------------------------------------------------------------------
+
+class ModalityGuardrailSerializer(serializers.ModelSerializer[ModalityGuardrail]):
+    """Read serializer for modality guardrails."""
+
+    class Meta:
+        model = ModalityGuardrail
+        fields = [
+            'id', 'modality', 'rule_type', 'condition_field',
+            'condition_operator', 'condition_value', 'error_message', 'is_active',
+        ]
+        read_only_fields = ['id']
+
+
+class SetStructureModalitySerializer(serializers.ModelSerializer[SetStructureModality]):
+    """CRUD serializer for set structure modalities."""
+    guardrails = ModalityGuardrailSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = SetStructureModality
+        fields = [
+            'id', 'name', 'slug', 'description', 'volume_multiplier',
+            'use_when', 'avoid_when', 'is_system', 'created_by',
+            'created_at', 'updated_at', 'guardrails',
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+
+
+class SetStructureModalityListSerializer(serializers.ModelSerializer[SetStructureModality]):
+    """List serializer for modalities (without guardrails)."""
+
+    class Meta:
+        model = SetStructureModality
+        fields = [
+            'id', 'name', 'slug', 'description', 'volume_multiplier',
+            'is_system', 'created_at',
+        ]
+        read_only_fields = fields
+
+
+class SetModalityInputSerializer(serializers.Serializer[None]):
+    """Input serializer for applying a modality to a slot."""
+    modality_id = serializers.UUIDField()
+    override_guardrails = serializers.BooleanField(default=False)
+    modality_details = serializers.JSONField(required=False, default=dict)
+    reason = serializers.CharField(required=False, default='')

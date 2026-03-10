@@ -55,6 +55,7 @@ from .models import (
     Program,
     ProgressionSuggestion,
     ProgressPhoto,
+    SetStructureModality,
     WeightCheckIn,
     WorkoutTemplate,
 )
@@ -3949,6 +3950,7 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
                 'trainee', 'split_template', 'created_by',
             ).prefetch_related(
                 'weeks__sessions__slots__exercise',
+                'weeks__sessions__slots__set_structure_modality',
             )
 
         if user.role == 'ADMIN':
@@ -4078,6 +4080,7 @@ class PlanSlotViewSet(
         user = self.request.user
         qs = PlanSlot.objects.select_related(
             'exercise',
+            'set_structure_modality',
             'session__week__plan__trainee',
         )
 
@@ -4176,6 +4179,189 @@ class PlanSlotViewSet(
             'new_exercise_id': result.new_exercise_id,
             'new_exercise_name': result.new_exercise_name,
             'decision_log_id': result.decision_log_id,
+        })
+
+    @action(detail=True, methods=['get'], url_path='modality-recommendations')
+    def modality_recommendations(self, request: Request, pk: str | None = None) -> Response:
+        """Get ranked modality recommendations for this slot."""
+        from .services.modality_service import get_modality_recommendations
+
+        slot = self.get_object()
+        plan = slot.session.week.plan
+        goal = plan.goal
+
+        recommendations = get_modality_recommendations(
+            slot_role=slot.slot_role,
+            goal=goal,
+            exercise=slot.exercise,
+            reps_min=slot.reps_min,
+            reps_max=slot.reps_max,
+        )
+
+        return Response({
+            'slot_id': str(slot.pk),
+            'recommendations': [
+                {
+                    'modality_id': r.modality_id,
+                    'modality_name': r.modality_name,
+                    'modality_slug': r.modality_slug,
+                    'volume_multiplier': r.volume_multiplier,
+                    'score': r.score,
+                    'is_valid': r.is_valid,
+                    'violations': [
+                        {
+                            'guardrail_id': v.guardrail_id,
+                            'rule_type': v.rule_type,
+                            'error_message': v.error_message,
+                        }
+                        for v in r.violations
+                    ],
+                }
+                for r in recommendations
+            ],
+        })
+
+    @action(detail=True, methods=['post'], url_path='set-modality')
+    def set_modality(self, request: Request, pk: str | None = None) -> Response:
+        """Apply a modality to this slot with guardrail validation."""
+        from .serializers import SetModalityInputSerializer
+        from .services.modality_service import apply_modality_to_slot
+
+        slot = self.get_object()
+        serializer = SetModalityInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            modality = SetStructureModality.objects.get(pk=data['modality_id'])
+        except SetStructureModality.DoesNotExist:
+            return Response(
+                {'detail': f"Modality with id={data['modality_id']} not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            result = apply_modality_to_slot(
+                slot=slot,
+                modality=modality,
+                actor_id=request.user.pk,
+                override_guardrails=data.get('override_guardrails', False),
+                modality_details=data.get('modality_details'),
+                reason=data.get('reason', ''),
+            )
+        except ValueError as exc:
+            return Response(
+                {'detail': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({
+            'slot_id': result.slot_id,
+            'modality_id': result.modality_id,
+            'modality_name': result.modality_name,
+            'volume_contribution': result.volume_contribution,
+            'decision_log_id': result.decision_log_id,
+            'guardrails_overridden': result.guardrails_overridden,
+        })
+
+
+class SetStructureModalityViewSet(viewsets.ModelViewSet[SetStructureModality]):
+    """
+    CRUD for set structure modalities.
+    System modalities visible to all. Trainer-created visible to creator + their trainees.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
+        if self.action == 'list':
+            from .serializers import SetStructureModalityListSerializer
+            return SetStructureModalityListSerializer
+        from .serializers import SetStructureModalitySerializer
+        return SetStructureModalitySerializer
+
+    def get_queryset(self) -> QuerySet[SetStructureModality]:
+        user = self.request.user
+        if user.role == 'ADMIN':
+            return SetStructureModality.objects.prefetch_related('guardrails').all()
+        elif user.role == 'TRAINER':
+            return SetStructureModality.objects.prefetch_related('guardrails').filter(
+                Q(is_system=True) | Q(created_by=user)
+            )
+        else:
+            # Trainee: system + their trainer's
+            q = Q(is_system=True)
+            if user.parent_trainer_id is not None:
+                q |= Q(created_by_id=user.parent_trainer_id)
+            return SetStructureModality.objects.prefetch_related('guardrails').filter(q)
+
+    def perform_create(self, serializer: BaseSerializer[Any]) -> None:
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot create modalities.")
+        if user.role == 'ADMIN':
+            serializer.save(is_system=True, created_by=user)
+        else:
+            serializer.save(is_system=False, created_by=user)
+
+    def perform_update(self, serializer: BaseSerializer[Any]) -> None:
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot modify modalities.")
+        instance = serializer.instance
+        if instance and instance.is_system and user.role != 'ADMIN':
+            raise PermissionDenied("Cannot modify system modalities.")
+        serializer.save()
+
+    def perform_destroy(self, instance: SetStructureModality) -> None:
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot delete modalities.")
+        if instance.is_system and user.role != 'ADMIN':
+            raise PermissionDenied("Cannot delete system modalities.")
+        instance.delete()
+
+
+class PlanSessionViewSet(
+    viewsets.GenericViewSet[PlanSession],
+    viewsets.mixins.RetrieveModelMixin,
+):
+    """
+    Retrieve plan sessions. Supports volume summary action.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[PlanSession]:
+        user = self.request.user
+        qs = PlanSession.objects.select_related('week__plan__trainee')
+        if user.role == 'ADMIN':
+            return qs
+        elif user.role == 'TRAINER':
+            return qs.filter(week__plan__trainee__parent_trainer=user)
+        else:
+            return qs.filter(week__plan__trainee=user)
+
+    @action(detail=True, methods=['get'], url_path='volume-summary')
+    def volume_summary(self, request: Request, pk: str | None = None) -> Response:
+        """Get per-muscle volume summary for this session."""
+        from .services.modality_service import get_session_volume_summary
+
+        session = self.get_object()
+        summary = get_session_volume_summary(session_id=str(session.pk))
+
+        return Response({
+            'session_id': summary.session_id,
+            'session_label': summary.session_label,
+            'total_raw_sets': summary.total_raw_sets,
+            'total_adjusted_volume': summary.total_adjusted_volume,
+            'by_muscle': [
+                {
+                    'muscle_group': entry.muscle_group,
+                    'raw_sets': entry.raw_sets,
+                    'adjusted_volume': entry.adjusted_volume,
+                    'slot_count': entry.slot_count,
+                }
+                for entry in summary.by_muscle
+            ],
         })
 
 

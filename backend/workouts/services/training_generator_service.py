@@ -29,6 +29,7 @@ from workouts.models import (
     PlanSession,
     PlanSlot,
     PlanWeek,
+    SetStructureModality,
     SplitTemplate,
     TrainingPlan,
 )
@@ -80,6 +81,8 @@ class SlotSpec:
     rest_seconds: int
     exercise: Exercise | None = None
     swap_options_cache: dict[str, Any] = field(default_factory=dict)
+    set_structure_modality: SetStructureModality | None = None
+    modality_volume_contribution: Decimal = field(default_factory=lambda: Decimal('0.00'))
 
 
 # ---------------------------------------------------------------------------
@@ -535,8 +538,16 @@ def _a5_set_structure(
     goal: str,
     trainer_id: int | None,
     plan_id: str,
+    deload_week_numbers: set[int],
+    modality_by_slug: dict[str, SetStructureModality],
 ) -> DecisionLog:
-    """A5: Assign sets/reps/rest based on slot role and goal."""
+    """A5: Assign sets/reps/rest and default modality based on slot role and goal."""
+    from workouts.services.modality_service import (
+        assign_default_modality_to_specs,
+        compute_volume_contribution,
+        get_default_modality_slug,
+    )
+
     structures: list[dict[str, Any]] = []
 
     for spec in all_specs:
@@ -551,12 +562,24 @@ def _a5_set_structure(
         spec.reps_max = reps_max
         spec.rest_seconds = rest
 
+    # Assign default modalities (mutates specs in place)
+    assign_default_modality_to_specs(
+        all_specs=all_specs,
+        goal=goal,
+        deload_week_numbers=deload_week_numbers,
+        modality_by_slug=modality_by_slug,
+    )
+
+    for spec in all_specs:
+        modality_slug = spec.set_structure_modality.slug if spec.set_structure_modality else 'straight-sets'
         structures.append({
             'slot_order': spec.order,
             'role': spec.slot_role,
-            'sets': sets,
-            'reps': f'{reps_min}-{reps_max}',
-            'rest': rest,
+            'sets': spec.sets,
+            'reps': f'{spec.reps_min}-{spec.reps_max}',
+            'rest': spec.rest_seconds,
+            'modality': modality_slug,
+            'volume_contribution': str(spec.modality_volume_contribution),
         })
 
     log = _log_decision(
@@ -564,10 +587,10 @@ def _a5_set_structure(
         actor_id=trainer_id,
         context={'plan_id': plan_id},
         inputs_snapshot={'goal': goal, 'total_slots': len(all_specs)},
-        constraints={},
+        constraints={'modalities_available': list(modality_by_slug.keys())},
         options=[],
         final_choice={'structures': structures[:50]},
-        reason_codes=['goal_based_scheme'],
+        reason_codes=['goal_based_scheme', 'modality_assigned'],
         total_options_count=len(structures),
     )
     return log
@@ -764,6 +787,8 @@ def _specs_to_plan_slots(all_specs: list[SlotSpec]) -> list[PlanSlot]:
             reps_max=spec.reps_max,
             rest_seconds=spec.rest_seconds,
             swap_options_cache=spec.swap_options_cache,
+            set_structure_modality=spec.set_structure_modality,
+            modality_volume_contribution=spec.modality_volume_contribution,
         ))
     return slots
 
@@ -840,12 +865,23 @@ def generate_training_plan(request: GeneratePlanRequest) -> GeneratePlanResult:
         )
         decision_log_ids.append(str(log_a4.pk))
 
-        # A5: Set set structure
+        # Prefetch system modalities for A5 modality assignment
+        from workouts.services.modality_service import prefetch_system_modalities
+        modality_by_slug = prefetch_system_modalities()
+
+        # Collect deload week numbers
+        deload_week_numbers: set[int] = {
+            w.week_number for w in all_weeks if w.is_deload
+        }
+
+        # A5: Set set structure + assign modalities
         log_a5 = _a5_set_structure(
             all_specs=all_specs,
             goal=request.goal,
             trainer_id=request.trainer_id,
             plan_id=str(plan.pk),
+            deload_week_numbers=deload_week_numbers,
+            modality_by_slug=modality_by_slug,
         )
         decision_log_ids.append(str(log_a5.pk))
 
