@@ -1,46 +1,83 @@
-# Feature: Workload Engine — Aggregation, Trends, and Facts
+# Feature: Training Generator Pipeline + Swap System
 
 ## Priority
-Critical — Step 4 of v6.5 build order. Foundation for progression engine, session feedback, and trainer analytics.
+Critical — Step 5 of v6.5 build order. Foundation for session runner, progression engine, and trainer copilot.
 
 ## User Story
-As a **trainee**, I want to see how much total work I did per exercise, per session, and per week so I can track progressive overload and understand my training volume.
+As a **trainer**, I want to generate structured training plans for my trainees using a deterministic pipeline so I can quickly create periodized programs with full auditability.
 
-As a **trainer**, I want to see workload trends, spikes/dips, and muscle-group breakdowns across my trainees so I can make informed programming decisions.
+As a **trainee**, I want to swap exercises in my plan with intelligent alternatives so I can adapt my training without losing programming intent.
 
 ## Acceptance Criteria
-- [ ] WorkloadFactTemplate model for deterministic cool facts
-- [ ] WorkloadAggregationService with exercise/session/weekly workload computation
-- [ ] Workload-by-muscle-group distribution using Exercise.muscle_contribution_map
-- [ ] Workload-by-pattern distribution using Exercise.pattern_tags
-- [ ] WorkloadTrendService with acute:chronic workload ratio (7d/28d)
-- [ ] Spike/dip detection with configurable thresholds
-- [ ] Week-over-week delta computation
-- [ ] WorkloadFactService with deterministic template selection and rendering
-- [ ] Comparable session/exercise matching for delta comparisons
-- [ ] API: exercise workload endpoint with comparison to last exposure
-- [ ] API: session workload summary with top exercises and week-to-date
-- [ ] API: weekly workload with muscle-group and pattern breakdowns
-- [ ] API: trends endpoint with ACWR, spike/dip flags
-- [ ] API: CRUD for WorkloadFactTemplate (trainer-facing)
+
+### Models
+- [ ] TrainingPlan model with trainee FK, name, goal, status (draft/active/completed/archived), created_by
+- [ ] PlanWeek model with plan FK, week_number, is_deload, intensity_modifier, volume_modifier
+- [ ] PlanSession model with week FK, day_of_week, label, order
+- [ ] PlanSlot model with session FK, exercise FK, order, slot_role, sets, reps_min, reps_max, rest_seconds, load_prescription_pct, notes, swap_options_cache
+- [ ] SplitTemplate model with name, days_per_week, session_definitions JSON, goal_type, is_system, created_by
+- [ ] All models use UUID primary keys
+- [ ] Proper unique constraints and indexes
+
+### Generator Pipeline
+- [ ] A1: SELECT_PROGRAM_LENGTH — returns weeks count based on goal/experience
+- [ ] A2: SELECT_SPLIT_TEMPLATE — picks split based on frequency/goal
+- [ ] A3: BUILD_WEEKLY_SLOT_SKELETON — creates PlanWeek/PlanSession/PlanSlot records
+- [ ] A4: ASSIGN_SLOT_ROLE — tags each slot (primary_compound, secondary_compound, accessory, isolation)
+- [ ] A5: SET_SET_STRUCTURE — assigns sets/reps/rest per role and goal
+- [ ] A6: SELECT_EXERCISE — fills slots from exercise pool (respecting muscle, pattern, equipment, variety)
+- [ ] A7: BUILD_SWAP_RECOMMENDATIONS — pre-computes swap candidates per slot
+- [ ] Each step creates a DecisionLog entry
+- [ ] Pipeline is transactional — failure at any step rolls back
+- [ ] Pipeline returns the complete TrainingPlan with nested structure
+
+### Swap System
+- [ ] Same Muscle tab: exercises sharing primary_muscle_group
+- [ ] Same Pattern tab: exercises sharing pattern_tags
+- [ ] Explore All tab: all exercises matching equipment constraints
+- [ ] Swap execution: updates PlanSlot.exercise, creates DecisionLog + UndoSnapshot
+- [ ] Swap preserves set/rep prescription (transfers to new exercise)
+- [ ] Pre-computed swap_seed_ids used when available, dynamic query as fallback
+
+### API Endpoints
+- [ ] CRUD for TrainingPlan with nested reads
+- [ ] POST /api/workouts/training-plans/generate/ — run full pipeline
+- [ ] GET /api/workouts/plan-slots/{id}/swap-options/ — 3-tab swap candidates
+- [ ] POST /api/workouts/plan-slots/{id}/swap/ — execute swap
+- [ ] CRUD for SplitTemplate
 - [ ] Row-level security on all endpoints
+
+### Conventions
 - [ ] All service methods return dataclasses, not dicts
-- [ ] Only workload_eligible sets included in aggregations
+- [ ] Business logic in services/, not views
+- [ ] Type hints on all functions
+- [ ] No raw queries — Django ORM only
+- [ ] Proper prefetching on all querysets
 
 ## Edge Cases
-1. No sets logged for session_date — return zero workload with empty breakdowns
-2. All sets have workload_eligible=False — return zero with reason
-3. Mixed units (lb_reps and kg_reps in same session) — aggregate separately by unit, flag mixed
-4. Exercise with no muscle_contribution_map — attribute 100% to primary_muscle_group
-5. Exercise with no pattern_tags — skip pattern attribution, don't error
-6. No prior comparable session — comparison delta = null
-7. < 28 days of data — ACWR = null (insufficient data)
-8. Week boundary: use Monday-Sunday by default
-9. Trainee with zero history — all endpoints return empty/null, not errors
+1. No exercises match slot criteria (muscle group + equipment) — widen search progressively: drop equipment, drop difficulty, use any exercise with matching primary_muscle_group
+2. Trainee has no exercise history — generate without variety constraints
+3. Split template requires 6 days but only 3 available — select template matching available days
+4. Swap to same exercise already in session — prevent duplicate in same session
+5. All swap candidates exhausted — show empty tab with explanation
+6. Deload week — reduce volume/intensity modifiers, skip heavy compounds
+7. Exercise has no pattern_tags — skip pattern-based swap tab, don't error
+8. Exercise has no swap_seed_ids — fall back to dynamic query
+9. Plan generation with zero exercises in database — return error before creating any records
+10. Concurrent swap on same slot — last write wins (no optimistic locking needed for v1)
 
 ## Technical Approach
-- Create `backend/workouts/models.py` — add WorkloadFactTemplate model
-- Create `backend/workouts/services/workload_service.py` — aggregation + trends + facts
-- Add serializers and views
-- Register routes
-- No snapshot/cache models for now — compute on read (optimize later if needed)
+- Create models in `backend/workouts/models.py`
+- Create `backend/workouts/services/training_generator_service.py` — 7-step pipeline
+- Create `backend/workouts/services/swap_service.py` — swap computation + execution
+- Add serializers to `backend/workouts/serializers.py`
+- Add views to `backend/workouts/views.py`
+- Register routes in `backend/workouts/urls.py`
+- Generate migration
+
+## Out of Scope
+- Set structure modalities (Step 6)
+- Progression engine integration (Step 7)
+- Session runner UI (Step 8)
+- AI-powered generation alternative
+- Workout schedule calendar sync

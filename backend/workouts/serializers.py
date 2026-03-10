@@ -28,9 +28,14 @@ from .models import (
     NutritionGoal,
     NutritionTemplate,
     NutritionTemplateAssignment,
+    PlanSession,
+    PlanSlot,
+    PlanWeek,
     Program,
     ProgressionSuggestion,
     ProgressPhoto,
+    SplitTemplate,
+    TrainingPlan,
     UndoSnapshot,
     WeightCheckIn,
     WorkloadFactTemplate,
@@ -1315,3 +1320,188 @@ class WorkloadFactTemplateSerializer(serializers.ModelSerializer[WorkloadFactTem
             'updated_at',
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+
+
+# ---------------------------------------------------------------------------
+# Training Generator + Swap System serializers (v6.5 Step 5)
+# ---------------------------------------------------------------------------
+
+class PlanSlotSerializer(serializers.ModelSerializer[PlanSlot]):
+    """Read serializer for a plan slot with exercise details."""
+    exercise_name = serializers.CharField(source='exercise.name', read_only=True)
+    exercise_primary_muscle = serializers.CharField(
+        source='exercise.primary_muscle_group', read_only=True,
+    )
+    reps_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PlanSlot
+        fields = [
+            'id', 'session', 'exercise', 'exercise_name', 'exercise_primary_muscle',
+            'order', 'slot_role', 'sets', 'reps_min', 'reps_max', 'reps_display',
+            'rest_seconds', 'load_prescription_pct', 'notes', 'swap_options_cache',
+        ]
+        read_only_fields = ['id', 'swap_options_cache']
+
+    def get_reps_display(self, obj: PlanSlot) -> str:
+        if obj.reps_min == obj.reps_max:
+            return str(obj.reps_min)
+        return f"{obj.reps_min}-{obj.reps_max}"
+
+
+class PlanSlotWriteSerializer(serializers.ModelSerializer[PlanSlot]):
+    """Write serializer for updating a plan slot."""
+
+    class Meta:
+        model = PlanSlot
+        fields = [
+            'exercise', 'order', 'slot_role', 'sets', 'reps_min', 'reps_max',
+            'rest_seconds', 'load_prescription_pct', 'notes',
+        ]
+
+
+class PlanSessionSerializer(serializers.ModelSerializer[PlanSession]):
+    """Read serializer for a plan session with nested slots."""
+    slots = PlanSlotSerializer(many=True, read_only=True)
+    day_name = serializers.SerializerMethodField()
+
+    DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+    class Meta:
+        model = PlanSession
+        fields = [
+            'id', 'week', 'day_of_week', 'day_name', 'label', 'order', 'slots',
+        ]
+        read_only_fields = ['id']
+
+    def get_day_name(self, obj: PlanSession) -> str:
+        if 0 <= obj.day_of_week <= 6:
+            return self.DAY_NAMES[obj.day_of_week]
+        return str(obj.day_of_week)
+
+
+class PlanWeekSerializer(serializers.ModelSerializer[PlanWeek]):
+    """Read serializer for a plan week with nested sessions."""
+    sessions = PlanSessionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PlanWeek
+        fields = [
+            'id', 'plan', 'week_number', 'is_deload',
+            'intensity_modifier', 'volume_modifier', 'notes', 'sessions',
+        ]
+        read_only_fields = ['id']
+
+
+class TrainingPlanSerializer(serializers.ModelSerializer[TrainingPlan]):
+    """Read serializer for a training plan with nested hierarchy."""
+    weeks = PlanWeekSerializer(many=True, read_only=True)
+    split_template_name = serializers.CharField(
+        source='split_template.name', read_only=True, default='',
+    )
+    trainee_email = serializers.CharField(
+        source='trainee.email', read_only=True,
+    )
+
+    class Meta:
+        model = TrainingPlan
+        fields = [
+            'id', 'trainee', 'trainee_email', 'name', 'description', 'goal',
+            'status', 'split_template', 'split_template_name', 'difficulty',
+            'duration_weeks', 'created_by', 'created_at', 'updated_at', 'weeks',
+        ]
+        read_only_fields = [
+            'id', 'created_by', 'created_at', 'updated_at',
+        ]
+
+
+class TrainingPlanListSerializer(serializers.ModelSerializer[TrainingPlan]):
+    """List serializer for training plans (no nested weeks)."""
+    split_template_name = serializers.CharField(
+        source='split_template.name', read_only=True, default='',
+    )
+    trainee_email = serializers.CharField(
+        source='trainee.email', read_only=True,
+    )
+    weeks_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TrainingPlan
+        fields = [
+            'id', 'trainee', 'trainee_email', 'name', 'description', 'goal',
+            'status', 'split_template', 'split_template_name', 'difficulty',
+            'duration_weeks', 'weeks_count', 'created_by', 'created_at', 'updated_at',
+        ]
+        read_only_fields = fields
+
+    def get_weeks_count(self, obj: TrainingPlan) -> int:
+        return obj.weeks.count()
+
+
+class TrainingPlanCreateSerializer(serializers.Serializer[None]):
+    """Input serializer for training plan manual creation."""
+    trainee_id = serializers.IntegerField()
+    name = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, default='')
+    goal = serializers.ChoiceField(choices=TrainingPlan.GoalType.choices)
+    difficulty = serializers.ChoiceField(choices=Exercise.DifficultyLevel.choices)
+    duration_weeks = serializers.IntegerField(min_value=1, max_value=52)
+    split_template_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class GeneratePlanSerializer(serializers.Serializer[None]):
+    """Input serializer for plan generation endpoint."""
+    trainee_id = serializers.IntegerField()
+    goal = serializers.ChoiceField(choices=TrainingPlan.GoalType.choices)
+    difficulty = serializers.ChoiceField(
+        choices=Exercise.DifficultyLevel.choices,
+        default='intermediate',
+    )
+    days_per_week = serializers.IntegerField(min_value=1, max_value=7)
+    duration_weeks = serializers.IntegerField(
+        min_value=1, max_value=52, required=False, allow_null=True,
+    )
+    split_template_id = serializers.UUIDField(required=False, allow_null=True)
+    training_day_indices = serializers.ListField(
+        child=serializers.IntegerField(min_value=0, max_value=6),
+        required=False,
+        default=list,
+    )
+
+
+class SwapExecuteSerializer(serializers.Serializer[None]):
+    """Input serializer for executing an exercise swap."""
+    new_exercise_id = serializers.IntegerField()
+    reason = serializers.CharField(required=False, default='')
+
+
+class SplitTemplateSerializer(serializers.ModelSerializer[SplitTemplate]):
+    """CRUD serializer for split templates."""
+
+    class Meta:
+        model = SplitTemplate
+        fields = [
+            'id', 'name', 'days_per_week', 'session_definitions',
+            'goal_type', 'is_system', 'created_by', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+
+    def validate_session_definitions(self, value: Any) -> Any:
+        if not isinstance(value, list):
+            raise serializers.ValidationError("session_definitions must be a list.")
+        if not value:
+            raise serializers.ValidationError("session_definitions cannot be empty.")
+        for i, entry in enumerate(value):
+            if not isinstance(entry, dict):
+                raise serializers.ValidationError(
+                    f"session_definitions[{i}] must be an object."
+                )
+            if 'label' not in entry:
+                raise serializers.ValidationError(
+                    f"session_definitions[{i}] must have a 'label' key."
+                )
+            if 'muscle_groups' not in entry or not isinstance(entry['muscle_groups'], list):
+                raise serializers.ValidationError(
+                    f"session_definitions[{i}] must have a 'muscle_groups' list."
+                )
+        return value

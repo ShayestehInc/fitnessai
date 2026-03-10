@@ -1,40 +1,43 @@
-# Focus: Trainer Packet v6.5 — Step 4: Workload Engine
+# Focus: Trainer Packet v6.5 — Step 5: Training Generator Pipeline + Swap System
 
 ## Priority
-Critical — Step 4 of the v6.5 build order. Aggregates per-set data (from LiftSetLog) into exercise, session, and weekly workload totals. Enables workload trending, muscle-group distribution, and progressive overload tracking.
+Critical — Step 5 of the v6.5 build order. Replaces flat JSON Program.schedule with a relational Plan→Week→Session→Slot hierarchy. Adds a 7-step deterministic generator pipeline and 3-tab swap system.
 
 ## What to Build
 
-### 1. WorkloadFactTemplate Model
-Deterministic "cool fact" templates shown after exercise/session completion:
-- `scope` (exercise/session), `template_text` with placeholders, `condition_rules` JSON, `priority`, `is_active`
+### 1. New Relational Models
+- TrainingPlan: top-level container replacing Program.schedule's flat JSON
+- PlanWeek: week within a plan (week_number, is_deload, intensity/volume modifiers)
+- PlanSession: session within a week (day_of_week, label like "Upper A")
+- PlanSlot: individual exercise slot within a session (order, exercise FK, set/rep prescription, rest, role)
+- SplitTemplate: reusable split definitions (Full Body, Upper/Lower, PPL, Bro Split, etc.)
 
-### 2. Workload Aggregation Service
-- `compute_exercise_workload(trainee, exercise, session_date)` → dataclass
-- `compute_session_workload(trainee, session_date)` → dataclass
-- `compute_weekly_workload(trainee, week_start, week_end)` → dataclass
-- `compute_workload_by_muscle_group(trainee, date_range)` → dict
-- `compute_workload_by_pattern(trainee, date_range)` → dict
+### 2. 7-Step Deterministic Generator Pipeline (A1-A7)
+- A1: SELECT_PROGRAM_LENGTH → pick weeks based on goal/experience
+- A2: SELECT_SPLIT_TEMPLATE → pick split based on frequency/goal
+- A3: BUILD_WEEKLY_SLOT_SKELETON → create empty sessions and slots per split
+- A4: ASSIGN_SLOT_ROLE → tag each slot (primary_compound, secondary_compound, accessory, isolation)
+- A5: SET_SET_STRUCTURE → assign sets/reps/rest per role and goal
+- A6: SELECT_EXERCISE → fill slots with exercises from pool (respecting muscle/pattern/equipment)
+- A7: BUILD_SWAP_RECOMMENDATIONS → pre-compute 3-tab swap candidates per slot
 
-### 3. Workload Trend Service
-- `compute_acute_chronic_ratio(trainee, as_of_date)` → Decimal
-- `detect_spike(trainee, threshold)` / `detect_dip(trainee, threshold)` → bool
-- `get_weekly_deltas(trainee, weeks_back)` → list
+Each step logs a DecisionLog entry with full context.
 
-### 4. Workload Fact Service
-- Deterministic fact selection from template library
-- Template rendering with context data
+### 3. Swap System Service
+- 3 tabs: Same Muscle, Same Pattern, Explore All
+- Uses Exercise.swap_seed_ids for pre-computed recommendations
+- Falls back to dynamic query when seeds unavailable
+- Swap execution creates DecisionLog + UndoSnapshot
 
-### 5. API Endpoints
-- GET /api/workouts/workload/exercise/ — exercise workload for a session
-- GET /api/workouts/workload/session/ — session workload summary
-- GET /api/workouts/workload/weekly/ — weekly workload with breakdowns
-- GET /api/workouts/workload/trends/ — trend data with ACWR
-- CRUD for WorkloadFactTemplate (trainer)
+### 4. API Endpoints
+- CRUD for TrainingPlan (with nested weeks/sessions/slots)
+- POST /generate/ — run the 7-step pipeline
+- GET /slots/{id}/swap-options/ — 3-tab swap candidates
+- POST /slots/{id}/swap/ — execute swap with DecisionLog
+- CRUD for SplitTemplate (trainer-facing)
 
 ## What NOT to Build
-- Session runner UI (Step 8)
+- Set Structure Modalities (Step 6)
 - Progression engine integration (Step 7)
-- Set structure counting multipliers (Step 6 — modality library)
-- WorkloadFormula registry (overkill — one formula exists: load × reps)
-- Snapshot models for caching (can add later if performance requires it)
+- Session runner (Step 8)
+- AI-powered generation alternative (use deterministic only)
