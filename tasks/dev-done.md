@@ -1,29 +1,48 @@
-# Dev Done: Full Audit UI + Exports — v6.5 Step 16
+# Dev Done: Wire All v6.5 Features Into Mobile Navigation
 
-## Files Created
+## Files Changed
 
-- `backend/trainer/services/audit_service.py` — Audit trail summary + timeline (decision counts, grouping, human-readable descriptions)
-- `backend/trainer/services/audit_export_service.py` — CSV exports: decision logs, trainee workout history, nutrition history, progress (weight + e1RM)
-- `backend/trainer/audit_views.py` — 6 API views: AuditSummaryView, AuditTimelineView, DecisionLogExportView, TraineeWorkoutExportView, TraineeNutritionExportView, TraineeProgressExportView
-- `backend/trainer/tests/test_audit_exports.py` — 24 tests (service + API)
+### Created
 
-## Files Modified
+- `mobile/lib/features/home/presentation/widgets/v65_feature_cards.dart` — 6 card widgets (TrainingPlansCard, LiftMaxesCard, WorkloadCard, VoiceMemosCard, VideoAnalysisCard, FeedbackHistoryCard)
 
-- `backend/trainer/urls.py` — Added 6 routes for audit + export endpoints
+### Modified
 
-## Endpoints
-
-- GET /api/trainer/audit/summary/ — Decision counts by type/actor, recent 7d count, reverted count
-- GET /api/trainer/audit/timeline/ — Paginated timeline with human-readable descriptions
-- GET /api/trainer/export/decision-logs/ — CSV export of decision log entries
-- GET /api/trainer/export/trainee/{id}/workout-history/ — CSV of LiftSetLog entries (sets, reps, weight, RPE)
-- GET /api/trainer/export/trainee/{id}/nutrition-history/ — CSV of TraineeActivitySummary (calories, macros, adherence)
-- GET /api/trainer/export/trainee/{id}/progress/ — CSV of weight check-ins + e1RM history
+- `mobile/lib/features/home/presentation/widgets/dashboard_content.dart` — Added import and 6 card widgets between WeightLogCard and LeaderboardTeaserCard
+- `mobile/lib/features/trainer/presentation/screens/trainer_dashboard_screen.dart` — Added "Analytics & Insights" section with 4 cards (Correlations, Audit Trail, Decision Log, Import Programs) before "Your Trainees" section
+- `mobile/lib/features/trainer/presentation/screens/trainee_detail_screen.dart` — Added "View Patterns" IconButton in SliverAppBar actions
+- `mobile/lib/features/exercises/presentation/screens/exercise_bank_screen.dart` — Added go_router import, 3 new ListTiles in quick actions (Lift History, Auto-Tag, Tag History), 2 new OutlinedButtons in detail sheet (Lift History, Auto-Tag)
 
 ## Key Decisions
 
-- Reuses CsvExportResult dataclass and CSV sanitization from existing export_service.py
-- Row-level security: all endpoints scoped to trainer + their trainees
-- Human-readable timeline descriptions generated from decision context
-- All exports have CSV injection protection via \_sanitize_csv_value
-- Pagination for timeline via limit/offset params (clamped to 1-100)
+1. Used existing Card > InkWell pattern (matching QuickLogCard) for home screen cards
+2. Used existing GestureDetector > Container pattern for trainer dashboard cards
+3. Added exercise actions to both quick-actions and detail bottom sheet for discoverability
+4. URI-encoded exercise name in tag history route to handle special characters
+
+## Navigation Map
+
+| Feature          | Route                           | Entry Point                     |
+| ---------------- | ------------------------------- | ------------------------------- |
+| Training Plans   | `/my-plans`                     | Home screen card                |
+| Lift Maxes       | `/lift-maxes`                   | Home screen card                |
+| Workload         | `/workload`                     | Home screen card                |
+| Voice Memos      | `/voice-memos`                  | Home screen card                |
+| Video Analysis   | `/video-analysis`               | Home screen card                |
+| Session Feedback | `/feedback-history`             | Home screen card                |
+| Correlations     | `/trainer/correlations`         | Trainer dashboard               |
+| Audit Trail      | `/trainer/audit-trail`          | Trainer dashboard               |
+| Decision Log     | `/decision-log`                 | Trainer dashboard               |
+| Import Programs  | `/program-import`               | Trainer dashboard               |
+| Trainee Patterns | `/trainer/trainee-patterns/:id` | Trainee detail app bar          |
+| Lift History     | `/lift-history/:id`             | Exercise quick actions + detail |
+| Auto-Tag         | `/auto-tag/:id`                 | Exercise quick actions + detail |
+| Tag History      | `/tag-history/:id`              | Exercise quick actions          |
+
+## How to Manually Test
+
+1. Open app as trainee → scroll home screen → verify 6 new cards visible → tap each
+2. Open app as trainer → scroll dashboard → verify Analytics & Insights section with 4 cards → tap each
+3. Open trainee detail → verify patterns icon in app bar → tap it
+4. Open exercise bank → long-press exercise → verify 3 new options → tap each
+5. Open exercise detail → verify Lift History and Auto-Tag buttons → tap each

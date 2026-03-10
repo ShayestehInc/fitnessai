@@ -12,6 +12,7 @@ import 'progression_alert_card.dart';
 import 'quick_log_card.dart';
 import 'todays_workouts_section.dart';
 import 'week_calendar_strip.dart';
+import 'v65_feature_cards.dart';
 import 'weight_log_card.dart';
 
 /// Main scrollable dashboard content composed of section widgets.
@@ -108,6 +109,9 @@ class DashboardContent extends StatelessWidget {
             child: WeightLogCard(),
           ),
 
+          // v6.5 Feature Cards (Performance + AI Tools)
+          const V65FeatureSection(),
+
           const SizedBox(height: 16),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -126,8 +130,8 @@ class DashboardContent extends StatelessWidget {
       try {
         final d = DateTime.parse(w.date);
         days.add(d.weekday);
-      } catch (e) {
-        debugPrint('Failed to parse workout date: $e');
+      } catch (_) {
+        // Silently skip unparseable dates — they are non-critical.
       }
     }
     return days;

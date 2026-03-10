@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/voice_memo_model.dart';
 import '../providers/voice_memo_provider.dart';
 import '../widgets/voice_memo_card.dart';
-import 'voice_memo_detail_screen.dart';
 
 /// Screen displaying a list of recorded voice memos with pull-to-refresh
 /// and an upload FAB.
@@ -131,11 +131,7 @@ class _VoiceMemoListScreenState extends ConsumerState<VoiceMemoListScreen> {
   }
 
   void _openDetail(VoiceMemoModel memo) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => VoiceMemoDetailScreen(memoId: memo.id),
-      ),
-    );
+    context.push('/voice-memos/${memo.id}');
   }
 
   Future<void> _handleUpload() async {

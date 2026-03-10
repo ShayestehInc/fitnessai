@@ -4,6 +4,30 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-10] — Pipeline 74: Wire All v6.5 Features Into Mobile Navigation
+
+### Added
+
+- Mobile: 6 feature navigation cards on trainee home screen, grouped under "Performance" (Training Plans, Lift Maxes, Workload, Session Feedback) and "AI Tools" (Voice Memos, Video Analysis)
+- Mobile: "Analytics & Insights" section on trainer dashboard with Correlations, Audit Trail, and Decision Log cards
+- Mobile: "Import Programs" card under Your Programs section on trainer dashboard
+- Mobile: "View Patterns" action button on trainee detail screen app bar
+- Mobile: Lift History, Auto-Tag, and Tag History options in exercise bank long-press menu and detail bottom sheet
+- Mobile: Reusable `_FeatureNavCard` base widget and `V65FeatureSection` composite widget
+- Mobile: `_buildAnalyticsCard` helper to eliminate dashboard card duplication
+
+### Fixed
+
+- Mobile: Voice memo list navigation now uses go_router instead of raw Navigator.push
+- Mobile: Video analysis list screen uses AdaptiveSpinner consistently
+- Mobile: Feedback history screen now has pull-to-refresh
+- Mobile: Removed debugPrint in dashboard workout date parser
+- Mobile: Added Semantics(button: true) for screen reader accessibility on all new cards
+- Mobile: Added ?name= query params with Uri.encodeComponent on all exercise and trainee routes
+- Mobile: Fixed URI encoding on trainee name in AI chat route (pre-existing bug)
+
+---
+
 ## [2026-03-10] — Pipeline 73: v6.5 Step 16 (Full Audit UI + Exports)
 
 ### Added

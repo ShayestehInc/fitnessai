@@ -341,6 +341,15 @@ class TrainerDashboardScreen extends ConsumerWidget {
                       loading: () => _buildCarouselShimmer(),
                       error: (e, _) => Text(context.l10n.featureReqErrore),
                     ),
+                    const SizedBox(height: 12),
+                    _buildAnalyticsCard(
+                      context,
+                      icon: Icons.upload_file,
+                      color: Colors.green,
+                      title: 'Import Programs',
+                      subtitle: 'Import programs from spreadsheets or files',
+                      route: '/program-import',
+                    ),
                     const SizedBox(height: 24),
 
                     // Exercises Carousel
@@ -354,6 +363,37 @@ class TrainerDashboardScreen extends ConsumerWidget {
                       data: (exercises) => _buildExercisesCarousel(context, exercises),
                       loading: () => _buildCarouselShimmer(),
                       error: (e, _) => Text(context.l10n.featureReqErrore),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Analytics & Insights
+                    _buildSectionHeader(context, 'Analytics & Insights'),
+                    const SizedBox(height: 12),
+                    _buildAnalyticsCard(
+                      context,
+                      icon: Icons.insights,
+                      color: Colors.deepPurple,
+                      title: 'Correlations & Insights',
+                      subtitle: 'Discover patterns across trainee data',
+                      route: '/trainer/correlations',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildAnalyticsCard(
+                      context,
+                      icon: Icons.history,
+                      color: Colors.brown,
+                      title: 'Audit Trail',
+                      subtitle: 'Review all automated decisions and changes',
+                      route: '/trainer/audit-trail',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildAnalyticsCard(
+                      context,
+                      icon: Icons.rule,
+                      color: Colors.indigo,
+                      title: 'Decision Log',
+                      subtitle: 'View and override AI-driven decisions',
+                      route: '/decision-log',
                     ),
                     const SizedBox(height: 24),
 
@@ -435,6 +475,72 @@ class TrainerDashboardScreen extends ConsumerWidget {
             child: Text(context.l10n.commonViewAll),
           ),
       ],
+    );
+  }
+
+  Widget _buildAnalyticsCard(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required String route,
+  }) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: 'Navigate to $title',
+      child: InkWell(
+      onTap: () => context.push(route),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: theme.textTheme.bodySmall?.color,
+            ),
+          ],
+        ),
+      ),
+    ),
     );
   }
 

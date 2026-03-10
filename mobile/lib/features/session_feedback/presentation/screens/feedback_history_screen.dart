@@ -28,7 +28,7 @@ class FeedbackHistoryScreen extends ConsumerWidget {
           if (feedbackList.isEmpty) {
             return _buildEmptyState(theme);
           }
-          return _buildFeedbackList(theme, feedbackList);
+          return _buildFeedbackList(theme, feedbackList, ref);
         },
       ),
     );
@@ -100,14 +100,20 @@ class FeedbackHistoryScreen extends ConsumerWidget {
   Widget _buildFeedbackList(
     ThemeData theme,
     List<SessionFeedbackModel> feedbackList,
+    WidgetRef ref,
   ) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: feedbackList.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        return _FeedbackCard(feedback: feedbackList[index]);
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(feedbackListProvider);
       },
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: feedbackList.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          return _FeedbackCard(feedback: feedbackList[index]);
+        },
+      ),
     );
   }
 }
