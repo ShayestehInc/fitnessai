@@ -129,7 +129,7 @@ class _WeightInButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: () => context.push('/nutrition/weight-checkin'),
+      onPressed: () => context.push('/weight-checkin'),
       style: ElevatedButton.styleFrom(
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,

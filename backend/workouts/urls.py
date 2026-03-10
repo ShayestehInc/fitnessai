@@ -4,6 +4,7 @@ from .views import (
     CheckInResponseViewSet,
     CheckInTemplateViewSet,
     DailyLogViewSet,
+    DecisionLogViewSet,
     ExerciseViewSet,
     FoodItemViewSet,
     HabitViewSet,
@@ -39,6 +40,7 @@ router.register(r'nutrition-template-assignments', NutritionTemplateAssignmentVi
 router.register(r'nutrition-day-plans', NutritionDayPlanViewSet, basename='nutritiondayplan')
 router.register(r'food-items', FoodItemViewSet, basename='fooditem')
 router.register(r'meal-logs', MealLogViewSet, basename='meallog')
+router.register(r'decision-logs', DecisionLogViewSet, basename='decisionlog')
 
 urlpatterns = [
     path('', include(router.urls)),

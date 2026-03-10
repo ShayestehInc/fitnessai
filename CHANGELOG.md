@@ -4,6 +4,28 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-09] — Pipeline 59: v6.5 Foundation (ExerciseCard Tags + DecisionLog + UndoSnapshot)
+
+### Added
+- Backend: ExerciseCard v6.5 enrichment — 16 new fields on Exercise model: `pattern_tags`, `athletic_skill_tags`, `athletic_attribute_tags`, `muscle_contribution_map`, `primary_muscle_group`, `secondary_muscle_groups`, `stance`, `plane`, `rom_bias`, `equipment_required`, `equipment_optional`, `athletic_constraints`, `standardization_block`, `swap_seed_ids`, `aliases`, `version`
+- Backend: Full tag taxonomy from Trainer Packet v6.5 — 16 pattern tags, 19 athletic skill tags, 10 athletic attribute tags, 21 detailed muscle groups, 13 stances, 4 planes, 4 ROM biases
+- Backend: DecisionLog model — UUID PK, actor tracking, full decision trail (inputs_snapshot, constraints_applied, options_considered, final_choice, reason_codes), override tracking, undo support
+- Backend: UndoSnapshot model — full before/after state snapshots, scope-based (slot/session/week/exercise/nutrition_day), revert tracking
+- Backend: DecisionLogService — `log_decision()` and `undo_decision()` with `@transaction.atomic`, returns frozen `DecisionResult` dataclass
+- Backend: DecisionLog API — GET list/detail with filtering (decision_type, actor_type, date range), POST undo endpoint
+- Backend: Exercise tag-based filtering — pattern_tags (overlap), stance, plane, rom_bias, primary_muscle_group, equipment_required
+- Backend: `backfill_exercise_tags` management command — maps legacy muscle_group to v6.5 tags using name heuristics, bulk_update with iterator
+- Backend: GIN index on pattern_tags for efficient overlap queries
+- Backend: Serializer validation — muscle_contribution_map sum-to-1.0, pattern/skill/attribute tag choices validation
+
+### Security
+- Row-level security on DecisionLog — trainers see only their trainees' decisions, trainees see only their own
+- IDOR protection on undo endpoint — verifies decision is in user's queryset scope before allowing undo
+- Exercise creation restricted to trainers (custom) and admins (public) — trainees blocked
+- `is_public` and `created_by` on Exercise are read-only in serializer
+
+---
+
 ## [2026-03-09] — Pipeline 58: Progress Photos
 
 ### Added

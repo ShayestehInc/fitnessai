@@ -67,6 +67,9 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Exercise bank (system + trainer-custom) | ✅ Done | Images, video URL, muscle groups, tags |
+| ExerciseCard v6.5 rich tagging | ✅ Done | Shipped 2026-03-09 (Pipeline 59): 16 new fields — pattern_tags, athletic_skill/attribute_tags, muscle_contribution_map, stance, plane, rom_bias, equipment, athletic_constraints, standardization_block, swap_seed_ids, aliases, version. Full tag taxonomy from trainer packet v6.5. GIN index on pattern_tags. |
+| DecisionLog + UndoSnapshot | ✅ Done | Shipped 2026-03-09 (Pipeline 59): Audit trail for every automated decision. UUID PKs, full state snapshots, undo endpoint, row-level security. Foundation for all future decision engine features. |
+| Decision audit API | ✅ Done | Shipped 2026-03-09 (Pipeline 59): GET /api/workouts/decision-logs/ with filtering, POST undo endpoint, proper IDOR protection |
 | KILO exercise library | ✅ Done | Shipped 2026-02-21 (Pipeline 31): 1,067 exercises, difficulty classification (beginner/intermediate/advanced) |
 | Exercise difficulty classification | ✅ Done | Shipped 2026-02-21 (Pipeline 31): AI + heuristic classification, cached in database |
 | Smart program generator | ✅ Done | Shipped 2026-02-21 (Pipeline 31): Deterministic generation (PPL, Upper/Lower, Full Body, Bro Split, Custom splits), 3-step web/mobile wizard, progressive overload with deload weeks, goal-based nutrition templates |

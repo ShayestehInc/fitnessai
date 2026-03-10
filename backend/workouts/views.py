@@ -30,6 +30,7 @@ from .models import (
     CheckInResponse,
     CheckInTemplate,
     DailyLog,
+    DecisionLog,
     Exercise,
     FoodItem,
     Habit,
@@ -90,6 +91,7 @@ from .serializers import (
     WorkoutDetailSerializer,
     WorkoutHistorySummarySerializer,
     WorkoutTemplateSerializer,
+    DecisionLogSerializer,
     FoodItemCreateSerializer,
     FoodItemSerializer,
     MealLogEntrySerializer,
@@ -100,6 +102,7 @@ from .serializers import (
 from core.permissions import IsTrainer as IsTrainerPerm
 
 from .services.daily_log_service import DailyLogService
+from .services.decision_log_service import DecisionLogService
 from .services.natural_language_parser import NaturalLanguageParserService
 
 
@@ -128,6 +131,8 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
         else:
             # Trainees see only public exercises
             queryset = Exercise.objects.filter(is_public=True)
+
+        queryset = queryset.select_related('created_by')
 
         # Apply filters from query parameters
         muscle_group = self.request.query_params.get('muscle_group')
@@ -158,15 +163,61 @@ class ExerciseViewSet(viewsets.ModelViewSet[Exercise]):
             else:
                 return queryset.none()
 
+        # v6.5 tag-based filters
+        pattern_tags = self.request.query_params.get('pattern_tags')
+        if pattern_tags:
+            tag_list = [t.strip() for t in pattern_tags.split(',') if t.strip()]
+            queryset = queryset.filter(pattern_tags__overlap=tag_list)
+
+        stance = self.request.query_params.get('stance')
+        if stance:
+            valid_stances = {c[0] for c in Exercise.Stance.choices}
+            if stance in valid_stances:
+                queryset = queryset.filter(stance=stance)
+            else:
+                return queryset.none()
+
+        plane = self.request.query_params.get('plane')
+        if plane:
+            valid_planes = {c[0] for c in Exercise.Plane.choices}
+            if plane in valid_planes:
+                queryset = queryset.filter(plane=plane)
+            else:
+                return queryset.none()
+
+        rom_bias = self.request.query_params.get('rom_bias')
+        if rom_bias:
+            valid_biases = {c[0] for c in Exercise.RomBias.choices}
+            if rom_bias in valid_biases:
+                queryset = queryset.filter(rom_bias=rom_bias)
+            else:
+                return queryset.none()
+
+        primary_muscle = self.request.query_params.get('primary_muscle_group')
+        if primary_muscle:
+            valid_muscles = {c[0] for c in Exercise.DetailedMuscleGroup.choices}
+            if primary_muscle in valid_muscles:
+                queryset = queryset.filter(primary_muscle_group=primary_muscle)
+            else:
+                return queryset.none()
+
+        equipment = self.request.query_params.get('equipment_required')
+        if equipment:
+            eq_list = [e.strip() for e in equipment.split(',') if e.strip()]
+            queryset = queryset.filter(equipment_required__contains=eq_list)
+
         return queryset.order_by('muscle_group', 'name')
 
     def perform_create(self, serializer: BaseSerializer[Exercise]) -> None:
-        """Set created_by to current user if trainer."""
+        """Only trainers (custom) and admins (public) can create exercises."""
         user = cast(User, self.request.user)
         if user.is_trainer():
             serializer.save(created_by=user, is_public=False)
-        else:
+        elif user.is_admin():
             serializer.save(is_public=True)
+        else:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only trainers and admins can create exercises.")
 
     @action(detail=True, methods=['post'], url_path='upload-image', parser_classes=[MultiPartParser, FormParser])
     def upload_image(self, request: Request, pk: int = None) -> Response:
@@ -3201,3 +3252,141 @@ class MealLogViewSet(
 
         entry.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DecisionLogPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 200
+
+
+class DecisionLogViewSet(viewsets.ReadOnlyModelViewSet[DecisionLog]):
+    """
+    Read-only ViewSet for DecisionLog entries (v6.5 audit trail).
+
+    Trainers see decisions they made + decisions about their trainees.
+    Admins see all. Trainees see only decisions where they are the actor.
+
+    Filtering: ?decision_type=, ?actor_type=, ?date_from=, ?date_to=
+    Undo action: POST /api/workouts/decision-logs/{id}/undo/
+    """
+    serializer_class = DecisionLogSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = DecisionLogPagination
+
+    def get_queryset(self) -> QuerySet[DecisionLog]:
+        user = cast(User, self.request.user)
+
+        if user.is_admin():
+            queryset = DecisionLog.objects.all()
+        elif user.is_trainer():
+            # Trainer sees: decisions they made + decisions about their trainees
+            # Uses subquery to avoid materializing all trainee IDs into memory
+            trainee_subquery = User.objects.filter(
+                parent_trainer=user
+            ).values('id')
+            queryset = DecisionLog.objects.filter(
+                models.Q(actor=user)
+                | models.Q(actor_id__in=trainee_subquery)
+            )
+        else:
+            # Trainee sees ONLY decisions where they are the actor
+            queryset = DecisionLog.objects.filter(actor=user)
+
+        queryset = queryset.select_related('actor', 'undo_snapshot')
+
+        # Filters with validation
+        decision_type = self.request.query_params.get('decision_type')
+        if decision_type:
+            queryset = queryset.filter(decision_type=decision_type)
+
+        actor_type = self.request.query_params.get('actor_type')
+        if actor_type:
+            valid_actor_types = {c[0] for c in DecisionLog.ActorType.choices}
+            if actor_type in valid_actor_types:
+                queryset = queryset.filter(actor_type=actor_type)
+            else:
+                return queryset.none()
+
+        date_from = self.request.query_params.get('date_from')
+        if date_from:
+            try:
+                parsed = datetime.strptime(date_from, '%Y-%m-%d').date()
+                queryset = queryset.filter(timestamp__date__gte=parsed)
+            except ValueError:
+                return queryset.none()
+
+        date_to = self.request.query_params.get('date_to')
+        if date_to:
+            try:
+                parsed = datetime.strptime(date_to, '%Y-%m-%d').date()
+                queryset = queryset.filter(timestamp__date__lte=parsed)
+            except ValueError:
+                return queryset.none()
+
+        return queryset.order_by('-timestamp')
+
+    @action(detail=True, methods=['post'], url_path='undo')
+    def undo(self, request: Request, pk: str | None = None) -> Response:
+        """
+        Mark a decision as reverted and return the before_state for the caller to apply.
+
+        POST /api/workouts/decision-logs/{id}/undo/
+
+        Returns the before_state so the caller (frontend or service) can apply
+        the actual state restoration. The undo itself is logged as a new DecisionLog.
+
+        NOTE: This endpoint does NOT automatically restore domain objects. The caller
+        must use the returned before_state to update the relevant objects. This is by
+        design — different decision types require different restoration logic.
+        """
+        user = cast(User, request.user)
+
+        # Only trainers and admins can undo
+        if not (user.is_trainer() or user.is_admin()):
+            return Response(
+                {'error': 'Only trainers and admins can undo decisions.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            from uuid import UUID
+            decision_uuid = UUID(str(pk))
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Invalid decision ID format.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # IDOR protection: verify the decision is within the user's queryset scope
+        if not self.get_queryset().filter(id=decision_uuid).exists():
+            return Response(
+                {'error': 'Decision not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            result = DecisionLogService.undo_decision(
+                decision_id=decision_uuid,
+                actor=user,
+            )
+        except ValueError as e:
+            error_msg = str(e)
+            if "already been reverted" in error_msg:
+                return Response(
+                    {'error': error_msg},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            return Response(
+                {'error': error_msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                'message': 'Decision marked as reverted.',
+                'undo_decision_id': str(result.decision_id),
+                'before_state': result.before_state,
+            },
+            status=status.HTTP_200_OK,
+        )

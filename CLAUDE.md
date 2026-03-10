@@ -77,7 +77,9 @@ ADMIN (Super Admin — platform owner)
 |-------|-----|---------|
 | `User` | users | AbstractUser with role enum, email-as-username, `parent_trainer` FK |
 | `UserProfile` | users | Onboarding data (sex, age, height, weight, goals, diet type) |
-| `Exercise` | workouts | Exercise library. `is_public=True` system / `False` trainer-custom |
+| `Exercise` | workouts | Exercise library (ExerciseCard). v6.5 rich tags: pattern_tags, muscle_contribution_map, stance, plane, rom_bias, standardization_block, swap_seed_ids |
+| `DecisionLog` | workouts | Audit trail for every automated decision. UUID PK, actor, inputs/options/choice/reasons, undo support |
+| `UndoSnapshot` | workouts | Before/after state snapshots for reverting decisions. Linked to DecisionLog |
 | `Program` | workouts | Assigned to trainee. `schedule` JSONField = weeks→days→exercises |
 | `DailyLog` | workouts | Daily log. `nutrition_data` + `workout_data` JSONFields |
 | `NutritionGoal` | workouts | Daily macro targets (can be trainer-adjusted) |
@@ -182,6 +184,11 @@ python manage.py migrate && python manage.py runserver
 
 # Mobile
 cd mobile && flutter pub get && flutter run -d ios
+
+# Deploy to TestFlight (Fastlane)
+cd mobile/ios && fastlane beta
+# Fastfile: mobile/ios/fastlane/Fastfile
+# Uses App Store Connect API key from ~/.appstoreconnect/AuthKey_WH6LJ6PVQT.p8
 
 # Seed data
 docker-compose exec backend python manage.py seed_admin

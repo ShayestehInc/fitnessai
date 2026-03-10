@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dropdown.dart';
@@ -46,11 +47,20 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
         _data = data;
         _isLoading = false;
       });
-    } catch (_) {
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final message = e.response?.data is Map
+          ? (e.response!.data as Map)['error']?.toString() ?? e.message ?? 'Failed to load leaderboard'
+          : e.message ?? 'Failed to load leaderboard';
+      setState(() {
+        _isLoading = false;
+        _error = message;
+      });
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _error = 'Failed to load leaderboard';
+        _error = e.toString();
       });
     }
   }
