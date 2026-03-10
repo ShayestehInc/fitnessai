@@ -146,6 +146,13 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
           tooltip: context.l10n.trainerAskAIAboutThisTrainee,
         ),
         IconButton(
+          icon: const Icon(Icons.insights),
+          onPressed: () => context.push(
+            '/trainer/trainee-patterns/${trainee.id}',
+          ),
+          tooltip: 'View Patterns',
+        ),
+        IconButton(
           icon: const Icon(Icons.visibility),
           onPressed: () => _startImpersonation(context),
           tooltip: context.l10n.trainerViewAsTrainee,

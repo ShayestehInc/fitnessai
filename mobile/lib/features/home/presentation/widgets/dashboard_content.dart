@@ -12,6 +12,7 @@ import 'progression_alert_card.dart';
 import 'quick_log_card.dart';
 import 'todays_workouts_section.dart';
 import 'week_calendar_strip.dart';
+import 'v65_feature_cards.dart';
 import 'weight_log_card.dart';
 
 /// Main scrollable dashboard content composed of section widgets.
@@ -106,6 +107,38 @@ class DashboardContent extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: WeightLogCard(),
+          ),
+
+          // v6.5 Feature Cards
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: TrainingPlansCard(),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: LiftMaxesCard(),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: WorkloadCard(),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: VoiceMemosCard(),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: VideoAnalysisCard(),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: FeedbackHistoryCard(),
           ),
 
           const SizedBox(height: 16),

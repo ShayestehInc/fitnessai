@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/haptic_service.dart';
@@ -406,6 +407,37 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                       },
                       icon: const Icon(Icons.videocam, size: 18),
                       label: Text(context.l10n.exercisesEditVideo),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // v6.5 quick-access buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        if (parentContext.mounted) {
+                          parentContext.push('/lift-history/${exercise.id}');
+                        }
+                      },
+                      icon: const Icon(Icons.history, size: 18),
+                      label: const Text('Lift History'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        if (parentContext.mounted) {
+                          parentContext.push('/auto-tag/${exercise.id}');
+                        }
+                      },
+                      icon: const Icon(Icons.auto_fix_high, size: 18),
+                      label: const Text('Auto-Tag'),
                     ),
                   ),
                 ],
@@ -834,6 +866,41 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                   Navigator.pop(sheetContext);
                   if (parentContext.mounted) {
                     _showExerciseDetail(parentContext, exercise);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text('Lift History'),
+                subtitle: const Text('View your set logs for this exercise'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  if (parentContext.mounted) {
+                    parentContext.push('/lift-history/${exercise.id}');
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.auto_fix_high),
+                title: const Text('Auto-Tag'),
+                subtitle: const Text('Run AI tagging on this exercise'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  if (parentContext.mounted) {
+                    parentContext.push('/auto-tag/${exercise.id}');
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.label),
+                title: const Text('Tag History'),
+                subtitle: const Text('View tagging history and changes'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  if (parentContext.mounted) {
+                    parentContext.push(
+                      '/tag-history/${exercise.id}?name=${Uri.encodeComponent(exercise.name)}',
+                    );
                   }
                 },
               ),
