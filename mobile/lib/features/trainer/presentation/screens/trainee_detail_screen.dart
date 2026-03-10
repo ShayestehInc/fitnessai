@@ -137,10 +137,8 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
         IconButton(
           icon: const Icon(Icons.psychology),
           onPressed: () {
-            final name = '${trainee.firstName ?? ''} ${trainee.lastName ?? ''}'.trim();
-            final displayName = name.isEmpty ? trainee.email.split('@').first : name;
             context.push(
-              '/trainer/ai-chat?trainee_id=${trainee.id}&trainee_name=$displayName',
+              '/trainer/ai-chat?trainee_id=${trainee.id}&trainee_name=${Uri.encodeComponent(displayName)}',
             );
           },
           tooltip: context.l10n.trainerAskAIAboutThisTrainee,
@@ -148,7 +146,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
         IconButton(
           icon: const Icon(Icons.insights),
           onPressed: () => context.push(
-            '/trainer/trainee-patterns/${trainee.id}',
+            '/trainer/trainee-patterns/${trainee.id}?name=${Uri.encodeComponent(displayName)}',
           ),
           tooltip: 'View Patterns',
         ),

@@ -110,7 +110,7 @@ class DashboardContent extends StatelessWidget {
           ),
 
           // v6.5 Feature Cards
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: TrainingPlansCard(),

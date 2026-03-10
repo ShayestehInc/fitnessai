@@ -420,7 +420,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                       onPressed: () {
                         Navigator.pop(sheetContext);
                         if (parentContext.mounted) {
-                          parentContext.push('/lift-history/${exercise.id}');
+                          parentContext.push('/lift-history/${exercise.id}?name=${Uri.encodeComponent(exercise.name)}');
                         }
                       },
                       icon: const Icon(Icons.history, size: 18),
@@ -433,7 +433,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                       onPressed: () {
                         Navigator.pop(sheetContext);
                         if (parentContext.mounted) {
-                          parentContext.push('/auto-tag/${exercise.id}');
+                          parentContext.push('/auto-tag/${exercise.id}?name=${Uri.encodeComponent(exercise.name)}');
                         }
                       },
                       icon: const Icon(Icons.auto_fix_high, size: 18),
@@ -876,7 +876,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 onTap: () {
                   Navigator.pop(sheetContext);
                   if (parentContext.mounted) {
-                    parentContext.push('/lift-history/${exercise.id}');
+                    parentContext.push('/lift-history/${exercise.id}?name=${Uri.encodeComponent(exercise.name)}');
                   }
                 },
               ),
@@ -887,7 +887,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 onTap: () {
                   Navigator.pop(sheetContext);
                   if (parentContext.mounted) {
-                    parentContext.push('/auto-tag/${exercise.id}');
+                    parentContext.push('/auto-tag/${exercise.id}?name=${Uri.encodeComponent(exercise.name)}');
                   }
                 },
               ),
