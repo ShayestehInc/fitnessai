@@ -1,60 +1,104 @@
-# Security Audit: v6.5 ExerciseCard + DecisionLog + UndoSnapshot
+# Security Audit: Pipeline 60 — Max/Load Engine (LiftSetLog, LiftMax, MaxLoadService)
 
 ## Audit Date: 2026-03-09
 
-## Files Audited
-- `backend/workouts/models.py` — Exercise v6.5 fields, DecisionLog, UndoSnapshot models
-- `backend/workouts/serializers.py` — ExerciseSerializer, DecisionLogSerializer, UndoSnapshotSerializer
-- `backend/workouts/views.py` — ExerciseViewSet filter updates, DecisionLogViewSet + undo action
-- `backend/workouts/urls.py` — Router registration for decision-logs
-- `backend/workouts/services/decision_log_service.py` — DecisionLogService
-- `backend/workouts/management/commands/backfill_exercise_tags.py` — Tag backfill command
-- `backend/config/settings.py` — No new secrets or config changes
+## Files Reviewed
+- `backend/workouts/services/max_load_service.py`
+- `backend/workouts/views.py` (LiftSetLogViewSet, LiftMaxViewSet)
+- `backend/workouts/serializers.py` (LiftSetLogSerializer, LiftMaxSerializer, LiftMaxPrescribeSerializer)
+- `backend/workouts/models.py` (LiftSetLog, LiftMax)
+- `backend/workouts/urls.py` (router registrations)
 
 ## Checklist
 - [x] No secrets, API keys, passwords, or tokens in source code or docs
-- [x] No secrets in git history for these changes
-- [x] All user input sanitized (serializer validates tags, contribution map, query params validated)
+- [x] No secrets in git diff
+- [x] All user input sanitized (serializer validation on all numeric fields)
 - [x] Authentication checked on all new endpoints (IsAuthenticated on both ViewSets)
-- [x] Authorization — correct role/permission guards (get_queryset scoped by role, undo restricted to trainer/admin)
-- [x] No IDOR vulnerabilities — **FIXED** (see Critical #1 below)
-- [x] File uploads validated (no new upload endpoints)
-- [x] Rate limiting on sensitive endpoints (global throttle applies)
-- [x] Error messages don't leak internals (ValueError messages are user-facing, no stack traces)
-- [x] CORS policy appropriate (unchanged)
+- [x] Authorization — correct role/permission guards (row-level queryset filtering by role)
+- [x] No IDOR vulnerabilities (history and prescribe endpoints use role-scoped querysets)
+- [x] No file uploads in this feature
+- [x] Rate limiting — not applicable (read-heavy endpoints, pagination in place)
+- [x] Error messages don't leak internals (generic "not found" messages)
+- [x] CORS policy — no changes
 
 ## Critical Issues Found & Fixed
 
-### 1. IDOR on DecisionLog Undo Endpoint (FIXED)
+### 1. `standardization_pass` Writable by Client (FIXED)
 
-**Severity:** Critical
-**File:** `backend/workouts/views.py:3361`
-**Issue:** The `undo` action checked that the user is a trainer/admin but did NOT verify the decision belongs to the user's scope. A Trainer A could undo decisions belonging to Trainer B's trainees by knowing/guessing the UUID.
+**Severity:** HIGH
+**File:** `backend/workouts/serializers.py:1224`
+**Issue:** `standardization_pass` was NOT in `read_only_fields`, meaning a trainee could submit `{"standardization_pass": true}` on any set they create. This bypasses the server-side standardization gate — the entire point of which is to control which sets qualify for e1RM updates. A malicious trainee could force arbitrary sets to update their estimated max, inflating their numbers and corrupting the load prescription system.
 
-The `get_queryset()` method correctly scopes DecisionLog records per role (trainers only see their own + their trainees' decisions), but the `undo` action bypassed this by passing the UUID directly to `DecisionLogService.undo_decision()` without checking membership in the queryset.
+**Fix applied:** Added `standardization_pass` to `read_only_fields`. The field defaults to `False` (fail-closed) and should only be set by server-side logic evaluating standardization criteria.
 
-**Fix applied:** Added `self.get_queryset().filter(id=decision_uuid).exists()` check before calling the service. Returns 404 if the decision is not in the user's scope. This follows the same IDOR-prevention pattern used elsewhere in the codebase.
+### 2. `workload_eligible` Writable by Client (FIXED)
 
-### 2. ExerciseSerializer `is_public` and `created_by` Were Writable (FIXED)
+**Severity:** MEDIUM
+**File:** `backend/workouts/serializers.py:1219`
+**Issue:** `workload_eligible` was writable by the client. A trainee could set `workload_eligible=False` to exclude valid sets from workload calculations (hiding training volume from their trainer), or set it to `True` on timed-only sets where it should be `False`, skewing workload analytics.
 
-**Severity:** High
-**File:** `backend/workouts/serializers.py:57`
-**Issue:** `is_public` and `created_by` were in `fields` but NOT in `read_only_fields`. While `perform_create` correctly sets these on creation, a PUT/PATCH request could override them — allowing a trainer to set `is_public=True` on their custom exercise (making it visible to all users) or change `created_by` to another user.
+**Fix applied:** Added `workload_eligible` to `read_only_fields`.
 
-**Fix applied:** Added `'is_public', 'created_by'` to `read_only_fields`. These fields are now exclusively controlled by `perform_create` logic.
+## Injection Vulnerabilities
 
-## No Issues Found In
+None found. All database access uses Django ORM with parameterized queries. No raw SQL. Date filters in `LiftSetLogViewSet.get_queryset()` use `datetime.strptime` with explicit format validation and return `queryset.none()` on parse failure. The `notes` free-text field is rendered as JSON by DRF — no HTML injection vector.
 
-| Area | Status | Notes |
-|------|--------|-------|
-| Secrets in code | PASS | All sensitive values loaded from env vars via `os.getenv()` |
-| Injection (SQL/XSS) | PASS | Django ORM used throughout, no raw SQL. ArrayField/JSONField values validated by serializers. Query param filters use ORM lookups (not raw interpolation). |
-| Auth middleware | PASS | Both ExerciseViewSet and DecisionLogViewSet use `IsAuthenticated`. DecisionLog undo further restricts to trainer/admin. |
-| Data exposure | PASS | DecisionLogSerializer is fully read-only. UndoSnapshot before/after_state contains domain data (exercise slots, etc.) which is appropriate for trainers to see. No sensitive PII is stored in snapshots. |
-| Input validation | PASS | Tag fields validated against TextChoices enums in serializer. `muscle_contribution_map` validated for valid keys and sum-to-1.0. Query param filters validated against choice sets with `queryset.none()` fallback for invalid values. |
-| Backfill command | PASS | Management command only reads/writes Exercise model data. No external input. `--dry-run` flag supported. Uses `bulk_update` safely. |
+## Auth & Authz Assessment (No Issues)
+
+| Endpoint | Auth | Row-Level Security | Notes |
+|----------|------|--------------------|-------|
+| `POST /lift-set-logs/` | IsAuthenticated + trainee-only check in `perform_create` | `trainee=user` forced server-side | Trainee cannot create sets for other users |
+| `GET /lift-set-logs/` | IsAuthenticated | Role-scoped queryset (admin=all, trainer=their trainees, trainee=self) | Correct |
+| `GET /lift-set-logs/?trainee_id=X` | IsAuthenticated | Filter only applied for trainer/admin roles; queryset already scoped | Trainee cannot use `trainee_id` to access others' data |
+| `GET /lift-maxes/` | IsAuthenticated | Same role-scoped queryset pattern | Correct |
+| `GET /lift-maxes/history/` | IsAuthenticated | Uses `self.get_queryset()` which is role-scoped | No IDOR |
+| `POST /lift-maxes/prescribe/` | IsAuthenticated | Trainee prescribes for self; trainer checked via `parent_trainer_id`; admin unrestricted | Correct |
+
+### Prescribe Endpoint `trainee_id` Handling
+
+The prescribe endpoint correctly handles `trainee_id`:
+1. If user is a trainee, `trainee_id` is ignored and `trainee = user` is used.
+2. If user is a trainer/admin, `trainee_id` is required.
+3. Trainer ownership is verified: `trainee.parent_trainer_id != user.id` returns 404.
+4. Error message is generic ("Trainee not found") — no information leakage about whether the trainee exists under a different trainer.
+
+## Data Exposure Assessment
+
+| Field | Exposure Risk | Status |
+|-------|--------------|--------|
+| `e1rm_history` / `tm_history` | Contains `source_set_id` UUIDs | Low risk — UUIDs are non-sequential, history endpoint is role-scoped |
+| `trainee` FK on responses | User ID visible | Acceptable — needed for trainer dashboard; queryset scoped |
+| `notes` free-text field | User-controlled content | JSON serialized, no HTML injection vector |
+
+## Numeric Input Validation
+
+| Field | Validation | Status |
+|-------|-----------|--------|
+| `entered_load_value` | Custom validator: `>= 0` | OK |
+| `rpe` | Model validators: `MinValue(1)`, `MaxValue(10)` | OK |
+| `completed_reps` | `PositiveIntegerField` (>= 0) | OK |
+| `set_number` | `PositiveIntegerField` (>= 0) | OK |
+| `target_percentage` | `min_value=1`, `max_value=120` | OK |
+| `rounding_increment` | `min_value=0` | OK — service handles `<= 0` safely (skips rounding) |
+| `tm_percentage` | Model validators: `MinValue(80)`, `MaxValue(100)` | OK |
+
+## Service Layer Security
+
+- `MaxLoadService.update_max_from_set()` uses `select_for_update()` row lock — prevents race conditions on concurrent set submissions.
+- `@transaction.atomic` ensures consistency.
+- History arrays capped at 200 entries — prevents unbounded JSON growth.
+- Smoothing factors prevent a single malicious set from causing extreme e1RM swings (max 15% increase, max 10% decrease per update).
+- Division-by-zero in Brzycki formula handled (`denominator <= 0` returns 0).
+
+## Summary of Fixes Applied
+
+1. **`standardization_pass`** added to `read_only_fields` in `LiftSetLogSerializer` — HIGH severity.
+2. **`workload_eligible`** added to `read_only_fields` in `LiftSetLogSerializer` — MEDIUM severity.
 
 ## Security Score: 9/10
+
+One high-severity issue found and fixed (client-writable `standardization_pass`). Otherwise, the implementation demonstrates strong security practices: role-scoped querysets, server-side field enforcement, proper input validation, row-level locking, no raw SQL, no secrets in code.
+
 ## Recommendation: PASS
 
-Both critical/high issues were fixed inline. No remaining security concerns.
+All critical and high issues have been fixed. No remaining security concerns.

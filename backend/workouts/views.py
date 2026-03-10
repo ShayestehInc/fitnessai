@@ -3600,9 +3600,11 @@ class LiftMaxViewSet(viewsets.ReadOnlyModelViewSet[LiftMax]):
                 )
 
         try:
-            lift_max = LiftMax.objects.select_related('exercise').get(
-                trainee=trainee,
+            prescription = MaxLoadService.prescribe_for_trainee(
+                trainee_id=trainee.id,
                 exercise_id=exercise_id,
+                target_percentage=target_percentage,
+                rounding_increment=rounding_increment,
             )
         except LiftMax.DoesNotExist:
             return Response({
@@ -3611,34 +3613,13 @@ class LiftMaxViewSet(viewsets.ReadOnlyModelViewSet[LiftMax]):
                           'Log qualifying sets to build an estimated max.',
             })
 
-        if lift_max.tm_current <= 0:
-            return Response({
-                'prescribed_load': None,
-                'reason': 'Training max is zero. Log qualifying sets to build an estimated max.',
-            })
-
-        # Get the unit from the trainee's most recent set for this exercise
-        latest_unit = LiftSetLog.objects.filter(
-            trainee=trainee,
-            exercise_id=exercise_id,
-        ).order_by('-created_at').values_list(
-            'canonical_external_load_unit', flat=True
-        ).first() or 'lb'
-
-        prescription = MaxLoadService.prescribe_load(
-            tm=lift_max.tm_current,
-            target_percentage=target_percentage,
-            rounding_increment=rounding_increment,
-            unit=str(latest_unit),
-        )
-
         return Response({
-            'prescribed_load': str(prescription.prescribed_load),
+            'prescribed_load': str(prescription.prescribed_load) if prescription.prescribed_load else None,
             'unit': prescription.unit,
             'based_on_tm': str(prescription.based_on_tm),
             'target_percentage': str(prescription.target_percentage),
             'rounding_increment': str(prescription.rounding_increment),
-            'exercise_id': exercise_id,
-            'exercise_name': lift_max.exercise.name,
+            'exercise_id': prescription.exercise_id,
+            'exercise_name': prescription.exercise_name,
             'reason': prescription.reason,
         })

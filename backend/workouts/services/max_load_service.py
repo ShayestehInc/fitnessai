@@ -36,6 +36,8 @@ class LoadPrescription:
     target_percentage: Decimal
     rounding_increment: Decimal
     reason: str | None
+    exercise_id: int | None = None
+    exercise_name: str | None = None
 
 
 class MaxLoadService:
@@ -240,6 +242,68 @@ class MaxLoadService:
             target_percentage=target_percentage,
             rounding_increment=rounding_increment,
             reason=None,
+        )
+
+    @classmethod
+    def prescribe_for_trainee(
+        cls,
+        trainee_id: int | UUID,
+        exercise_id: int,
+        target_percentage: Decimal,
+        rounding_increment: Decimal = Decimal("2.5"),
+    ) -> LoadPrescription:
+        """
+        Full prescription flow: look up trainee's LiftMax, resolve unit, prescribe load.
+
+        Raises LiftMax.DoesNotExist if no max record exists.
+        Returns a LoadPrescription with reason='No training max available.' if tm_current is 0.
+        """
+        from workouts.models import LiftMax as LiftMaxModel, LiftSetLog as LiftSetLogModel
+
+        lift_max = LiftMaxModel.objects.select_related('exercise').get(
+            trainee_id=trainee_id,
+            exercise_id=exercise_id,
+        )
+
+        if lift_max.tm_current <= 0:
+            return LoadPrescription(
+                prescribed_load=Decimal("0"),
+                unit="lb",
+                based_on_tm=lift_max.tm_current,
+                target_percentage=target_percentage,
+                rounding_increment=rounding_increment,
+                reason="Training max is zero. Log qualifying sets to build an estimated max.",
+                exercise_id=exercise_id,
+                exercise_name=lift_max.exercise.name,
+            )
+
+        # Resolve unit from trainee's most recent set for this exercise
+        latest_unit: str = (
+            LiftSetLogModel.objects.filter(
+                trainee_id=trainee_id,
+                exercise_id=exercise_id,
+            )
+            .order_by('-created_at')
+            .values_list('canonical_external_load_unit', flat=True)
+            .first()
+        ) or 'lb'
+
+        base = cls.prescribe_load(
+            tm=lift_max.tm_current,
+            target_percentage=target_percentage,
+            rounding_increment=rounding_increment,
+            unit=latest_unit,
+        )
+        # Enrich with exercise metadata from the already-fetched lift_max
+        return LoadPrescription(
+            prescribed_load=base.prescribed_load,
+            unit=base.unit,
+            based_on_tm=base.based_on_tm,
+            target_percentage=base.target_percentage,
+            rounding_increment=base.rounding_increment,
+            reason=base.reason,
+            exercise_id=exercise_id,
+            exercise_name=lift_max.exercise.name,
         )
 
     @classmethod

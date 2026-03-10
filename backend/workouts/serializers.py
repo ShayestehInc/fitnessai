@@ -1233,6 +1233,8 @@ class LiftSetLogSerializer(serializers.ModelSerializer[LiftSetLog]):
             'trainee',
             'canonical_external_load_value',
             'canonical_external_load_unit',
+            'workload_eligible',
+            'standardization_pass',
             'set_workload_value',
             'set_workload_unit',
             'created_at',
