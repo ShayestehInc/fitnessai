@@ -23,6 +23,13 @@ from .ai_chat_views import (
     AIChatThreadDetailView,
     AIChatThreadSendView,
 )
+from .digest_views import (
+    DigestGenerateView,
+    DigestHistoryView,
+    DigestDetailView,
+    DigestPreferenceView,
+    DraftMessageView,
+)
 from .notification_views import (
     NotificationListView, UnreadCountView,
     MarkNotificationReadView, MarkAllReadView, DeleteNotificationView,
@@ -124,6 +131,15 @@ urlpatterns = [
     path('ai/threads/', AIChatThreadListCreateView.as_view(), name='ai-thread-list-create'),
     path('ai/threads/<int:thread_id>/', AIChatThreadDetailView.as_view(), name='ai-thread-detail'),
     path('ai/threads/<int:thread_id>/send/', AIChatThreadSendView.as_view(), name='ai-thread-send'),
+
+    # Daily Digest
+    path('ai/daily-digest/generate/', DigestGenerateView.as_view(), name='digest-generate'),
+    path('ai/daily-digest/history/', DigestHistoryView.as_view(), name='digest-history'),
+    path('ai/daily-digest/preferences/', DigestPreferenceView.as_view(), name='digest-preferences'),
+    path('ai/daily-digest/<str:digest_id>/', DigestDetailView.as_view(), name='digest-detail'),
+
+    # Message Drafting
+    path('ai/draft-message/', DraftMessageView.as_view(), name='draft-message'),
 
     # Announcements (trainer CRUD)
     path('announcements/', TrainerAnnouncementListCreateView.as_view(), name='trainer-announcements'),
