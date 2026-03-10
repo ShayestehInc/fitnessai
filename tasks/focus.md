@@ -1,41 +1,43 @@
-# Focus: Trainer Packet v6.5 — Step 7: Progression Engine (Staircase + Wave + Deload)
+# Focus: Trainer Packet v6.5 — Step 8: Client Session Runner (Backend Only)
 
 ## Priority
 
-Critical — Step 7 of the v6.5 build order. Powers automatic load/rep adjustments session-to-session. Foundation for session runner and feedback loop.
+Critical — Step 8 of the v6.5 build order. The session runner is the runtime engine that a trainee interacts with during a workout. Without it, the progression engine (Step 7) has no live data source.
 
 ## What to Build
 
-### 1. ProgressionProfile Model
+### 1. ActiveSession + ActiveSetLog Models
 
-- Selectable template defining HOW progression works for a plan/exercise
-- Supports: Staircase Percent, Rep Staircase, Wave-by-Month, Double Progression, Linear, DUP, WUP, Block, Concurrent
-- Each profile stores: progression_type, rules JSON (step size, deload rules, failure rules, TM adjustment), is_system, created_by
-- Pinned to TrainingPlan (plan-level default) and overrideable per PlanSlot
+- ActiveSession tracks an in-progress workout for a trainee, linked to a PlanSession
+- ActiveSetLog tracks per-set data (weight, reps, RPE, rest time, timestamps) within an active session
+- Only one active session per trainee at a time
 
-### 2. ProgressionRule Engine
+### 2. Session Runner Service
 
-- evaluate_progression(trainee, exercise, plan_slot, session_history) → ProgressionSuggestion
-- Reads LiftSetLog history + LiftMax to determine next session prescription
-- Auto-progression gated by: completion, effort (RIR ±1), symptom flags
-- Failure rules: repeat week, reduce load, micro-reset
-- Deload rules: drop volume 30-50%, drop intensity 5-10%
+- start_session, log_set, skip_set, complete_session, abandon_session
+- get_current_prescription integrates with progression engine for next-set guidance
+- get_session_status returns full progress overview
+- complete_session triggers LiftSetLog creation + progression evaluation
 
-### 3. Integration Points
+### 3. Rest Timer Service
 
-- PlanSlot gets progression_profile FK (nullable, falls back to plan default)
-- TrainingPlan gets default_progression_profile FK
-- compute_next_session_prescription(slot) → sets/reps/load for next session
-- All suggestions logged via DecisionLog
+- Compute rest durations based on slot_role and modality
+- Default rest times: primary_compound=180s, secondary_compound=120s, isolation=90s, accessory=60s
+- Modality overrides (e.g., cluster sets get shorter rest between clusters)
 
 ### 4. API Endpoints
 
-- CRUD for ProgressionProfile (system + trainer-created)
-- GET /plan-slots/{id}/next-prescription/ — compute next session
-- POST /plan-slots/{id}/apply-progression/ — apply suggestion
+- POST /sessions/start/ — start a session
+- GET /sessions/{id}/status/ — current session status with prescription
+- POST /sessions/{id}/log-set/ — log a completed set
+- POST /sessions/{id}/skip-set/ — skip current set
+- POST /sessions/{id}/complete/ — complete session
+- POST /sessions/{id}/abandon/ — abandon session
+- GET /sessions/active/ — get trainee's active session (if any)
 
 ## What NOT to Build
 
-- Session runner UI (Step 8)
-- End-of-session feedback (Step 9)
-- AI-powered progression selection
+- Mobile/Flutter session runner UI (separate step)
+- End-of-session feedback page (Step 9)
+- Pain event tracking (separate step)
+- Real-time WebSocket push (defer — polling is fine for now)

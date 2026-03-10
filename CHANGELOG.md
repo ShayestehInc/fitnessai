@@ -4,6 +4,27 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-09] — Pipeline 65: v6.5 Step 8 (Client Session Runner — Backend)
+
+### Added
+
+- Backend: ActiveSession model — tracks in-progress workout sessions with status lifecycle (not_started → in_progress → completed/abandoned). UUID PK, partial unique constraint for one-active-per-trainee
+- Backend: ActiveSetLog model — per-set tracking during active sessions with prescribed vs actual values, skip reasons, timestamps
+- Backend: Session runner service — full session lifecycle (start, log_set, skip_set, complete, abandon, get_status, get_active). Pre-populates set prescriptions from progression engine. Auto-creates LiftSetLog records on complete/abandon. Triggers progression evaluation on completion
+- Backend: Rest timer service — computes rest durations by slot_role (180/120/90/60s) with modality overrides (myo_reps=20s, drop_sets=10s) and between-exercise bonus (+30s)
+- Backend: 8 API endpoints: POST start, GET status, POST log-set, POST skip-set, POST complete, POST abandon, GET active, GET list (with pagination)
+- Backend: Stale session auto-abandon (>4hr) with race-safe select_for_update
+- Backend: 48 comprehensive tests
+
+### Security
+
+- Trainee-only role enforcement on session mutations (PermissionDenied for trainers/admins)
+- IDOR protection: PlanSession ownership verified via plan→week→session chain
+- select_for_update on all session mutations to prevent race conditions
+- Stale cleanup wrapped in transaction.atomic with select_for_update
+
+---
+
 ## [2026-03-09] — Pipeline 64: v6.5 Step 7 (Progression Engine — Staircase + Wave + Deload)
 
 ### Added
