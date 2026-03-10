@@ -1,141 +1,158 @@
-# Ship Decision: Progress Photos — Critical Bug Fixes & Web Dashboard
+# Ship Decision: ExerciseCard Rich Tagging + DecisionLog + UndoSnapshot Foundation (v6.5)
 
 ## Verdict: SHIP
 ## Confidence: HIGH
 ## Quality Score: 8/10
 
 ## Summary
-The Progress Photos feature is production-ready. All 4 critical security issues from Round 1 (auth bypass/IDOR, global state leak, date injection, measurements encoding) are fixed. Both HIGH security vulnerabilities (unvalidated file uploads, unvalidated measurements JSON) are fixed with proper server-side validation. The web dashboard is fully functional with upload, delete, filter, pagination, comparison, and proper trainer read-only views. Mobile bug fixes (category tabs, trainer view, FAB hiding) are all verified. 23 of 24 acceptance criteria pass.
+The v6.5 foundation layer is production-ready. All ExerciseCard tag fields, DecisionLog, and UndoSnapshot models are properly defined with correct choices, defaults, indexes, and row-level security. The DecisionLogService uses dataclass returns and atomic transactions, the backfill command uses bulk_update with iterator, and the undo endpoint has proper scope checks preventing IDOR.
 
 ---
 
-## Test Results
-- Backend: 785 tests ran, 783 passed, 2 errors (pre-existing `mcp_server` import errors -- `ModuleNotFoundError: No module named 'mcp'` -- excluded per instructions)
-- Frontend (TypeScript): `tsc --noEmit` passed with zero errors
-- New tests: 38 progress photo tests, all passing -- covering permissions, filtering, pagination, edge cases, security boundaries
+## Acceptance Criteria Verification
 
-## Acceptance Criteria Status (24 items)
+### ExerciseCard Enrichment: ALL PASS
+- [x] `pattern_tags` ArrayField with PatternTag choices (16 movement patterns) — models.py:197
+- [x] `athletic_skill_tags` ArrayField with AthleticSkillTag choices (19 skills) — models.py:204
+- [x] `athletic_attribute_tags` ArrayField with AthleticAttributeTag choices (10 attributes) — models.py:211
+- [x] `muscle_contribution_map` JSONField — models.py:233
+- [x] `stance` CharField with 13 Stance choices — models.py:240
+- [x] `plane` CharField with 4 Plane choices — models.py:248
+- [x] `rom_bias` CharField with 4 RomBias choices — models.py:256
+- [x] `equipment_required` ArrayField — models.py:264
+- [x] `equipment_optional` ArrayField — models.py:271
+- [x] `athletic_constraints` JSONField — models.py:278
+- [x] `standardization_block` JSONField — models.py:286
+- [x] `swap_seed_ids` JSONField — models.py:293
+- [x] All new fields nullable/have defaults (blank=True, default=list/dict) — no existing exercises broken
+- [x] ExerciseSerializer includes all v6.5 fields — serializers.py:44-55
+- [x] ExerciseViewSet supports filtering by pattern_tags (overlap), stance, plane, rom_bias, primary_muscle_group, equipment_required — views.py:166-208
+- [x] Validation: muscle_contribution_map weights sum to 1.0 (tolerance 0.01) — serializers.py:59-78
+- [x] Validation: pattern_tags, athletic_skill_tags, athletic_attribute_tags validated against allowed choices — serializers.py:80-114
+- [x] DB indexes: GinIndex on pattern_tags, Index on stance, plane, primary_muscle_group — models.py:321-330
+- [x] `version` field for versioning — models.py:301
 
-### Mobile Bug Fixes (AC-1 through AC-7): ALL PASS
-- AC-1: Gallery filter tabs show All/Front/Side/Back -- PASS
-- AC-2: Add Photo categories show Front/Side/Back/Other -- PASS
-- AC-3: Trainer sees trainee's photos via trainee_id routing -- PASS
-- AC-4: Measurements sent as proper JSON (jsonEncode/JSON.stringify) -- PASS
-- AC-5: Trainer cannot delete (403 on backend, UI hides delete) -- PASS
-- AC-6: Gallery header shows trainee name -- PASS
-- AC-7: FAB hidden for trainer view -- PASS
+### DecisionLog Model: ALL PASS
+- [x] UUID primary key — models.py:1798
+- [x] timestamp (auto_now_add) — models.py:1799
+- [x] actor_type (system/trainer/user) with TextChoices — models.py:1793-1796, 1802
+- [x] actor FK to User, nullable, SET_NULL — models.py:1807-1814
+- [x] decision_type CharField — models.py:1817
+- [x] context JSONField — models.py:1822
+- [x] inputs_snapshot JSONField — models.py:1829
+- [x] constraints_applied JSONField — models.py:1833
+- [x] options_considered JSONField — models.py:1837
+- [x] final_choice JSONField — models.py:1841
+- [x] reason_codes ArrayField — models.py:1845
+- [x] override_info JSONField nullable — models.py:1853
+- [x] undo_snapshot OneToOneField to UndoSnapshot, nullable — models.py:1860
+- [x] DecisionLogSerializer is fully read-only (read_only_fields = fields) — serializers.py:147
+- [x] DecisionLogViewSet is ReadOnlyModelViewSet — views.py:3263
+- [x] Filtering by decision_type, actor_type, date_from, date_to — views.py:3299-3325
+- [x] Row-level security: admins see all, trainers see own + trainee decisions, trainees see only own — views.py:3280-3294
+- [x] NO blanket system decision access for non-admins — VERIFIED (system decisions where actor=None only visible to admins)
+- [x] Proper indexes on decision_type, actor_type, timestamp, actor — models.py:1872-1876
 
-### Web Dashboard -- Trainee (AC-8 through AC-16): ALL PASS
-- AC-8: Progress Photos section on trainee progress page -- PASS
-- AC-9: Photo grid grouped by date -- PASS
-- AC-10: Category filter tabs work -- PASS
-- AC-11: Click photo opens detail dialog -- PASS
-- AC-12: Upload dialog with file/category/date/measurements/notes + drag-and-drop -- PASS
-- AC-13: Upload sends multipart, refreshes grid via query invalidation -- PASS
-- AC-14: Delete with confirmation + cancel button -- PASS
-- AC-15: Compare button opens comparison view -- PASS
-- AC-16: Measurement diffs in comparison view -- PASS
+### UndoSnapshot Model: ALL PASS
+- [x] UUID primary key — models.py:1753
+- [x] scope choices (slot/session/week/exercise/nutrition_day) — models.py:1746-1751
+- [x] before_state JSONField — models.py:1759
+- [x] after_state JSONField — models.py:1762
+- [x] created_at DateTimeField — models.py:1765
+- [x] reverted_at nullable — models.py:1766
+- [x] is_reverted property — models.py:1780-1782
+- [x] Undo endpoint: POST /api/workouts/decision-logs/{id}/undo/ — views.py:3329
+- [x] Undo creates new DecisionLog recording the undo action — decision_log_service.py:160-170
+- [x] Already-reverted returns 409 Conflict — views.py:3375-3379
+- [x] Non-undoable returns 400 — decision_log_service.py:143
 
-### Web Dashboard -- Trainer (AC-17 through AC-22): ALL PASS
-- AC-17: Trainee detail page has Photos tab -- PASS
-- AC-18: Photos tab shows trainee's photos in grid -- PASS
-- AC-19: Category filter on trainer photos tab -- PASS
-- AC-20: Trainer detail dialog is read-only (no delete) -- PASS
-- AC-21: Comparison view accessible from trainer tab -- PASS
-- AC-22: Empty state "No progress photos yet" -- PASS
+### DecisionLogService: ALL PASS
+- [x] Returns `DecisionResult` frozen dataclass (not dict) — decision_log_service.py:20-25
+- [x] `undo_decision` returns `before_state` in result — decision_log_service.py:172-176
+- [x] Uses `@transaction.atomic` on both methods — decision_log_service.py:53, 119
+- [x] Partial undo fields raises ValueError — decision_log_service.py:82-85
+- [x] select_related('undo_snapshot') on undo lookup — decision_log_service.py:138
 
-### Pagination (AC-23 through AC-24): 1 PASS, 1 FAIL
-- AC-23: Mobile infinite scroll pagination -- **FAIL** (backend pagination works, mobile UI fetches single page without infinite scroll)
-- AC-24: Web pagination with page navigation -- PASS
+### Undo Endpoint Security: ALL PASS
+- [x] Only trainers and admins can undo (403 for trainees) — views.py:3346-3350
+- [x] IDOR protection: verifies decision is within user's queryset scope — views.py:3362
+- [x] UUID format validation — views.py:3353-3359
 
-**23/24 PASS** -- AC-23 is non-blocking; the feature is functional with the first 20 photos displayed. Infinite scroll is a UX enhancement for follow-up.
+### Migration & Seed Data: ALL PASS
+- [x] backfill_exercise_tags uses `bulk_update` with batch_size=200 — backfill_exercise_tags.py:159
+- [x] Uses `iterator(chunk_size=500)` for memory efficiency — backfill_exercise_tags.py:126
+- [x] Supports --dry-run flag — backfill_exercise_tags.py:114-118
+- [x] Maps legacy muscle_group to primary_muscle_group + contribution map — backfill_exercise_tags.py:23-56
+- [x] Name-based heuristics for pattern_tags — backfill_exercise_tags.py:59-107
+
+### URL Registration: PASS
+- [x] decision-logs registered in router — urls.py:43
 
 ---
 
 ## Security Verification
-- All CRITICAL/HIGH security issues fixed:
-  - C1: Auth bypass (trainer could CUD on other trainers' trainees) -- FIXED
-  - C2: Global state leak (photosProvider not scoped) -- FIXED
-  - C3: Date filter injection -- FIXED (validation added)
-  - C4: Measurements .toString() -- FIXED (jsonEncode)
-  - SEC-1: File upload type validation -- FIXED (allowlist: JPEG/PNG/WebP, 10MB limit)
-  - SEC-2: Measurements JSONField injection -- FIXED (allowlisted keys, numeric validation, range 0-500)
-  - SEC-3: Notes length limit -- FIXED (1000 char server-side limit)
-  - Hacker Critical: Comparison screen ignores trainee_id -- FIXED
-  - QA Bug: Compare endpoint 500 on non-numeric IDs -- FIXED
-- No secrets, API keys, or tokens in source code or git diff
-- IDOR prevention verified: `get_queryset()` scopes by role in all paths
-- Security audit score: 8/10, CONDITIONAL PASS (conditions met)
+- No secrets, API keys, or tokens in any reviewed files
+- Row-level security enforced in DecisionLogViewSet.get_queryset() — trainers scoped to own + trainees
+- IDOR protection on undo endpoint via queryset scope check
+- DecisionLog is read-only (ReadOnlyModelViewSet + read_only_fields on serializer)
+- Input validation on all tag fields, muscle_contribution_map, and filter parameters
+- Invalid filter values return empty querysets (not unfiltered data)
 
 ## Architecture Verification
-- Architecture score: 8/10, APPROVED
-- Admin role gap in `get_queryset()` -- FIXED
-- Orphaned file cleanup on delete -- FIXED (perform_destroy with storage.delete)
-- Compare endpoint consolidated to single query -- FIXED
-- Follows existing layered patterns across backend, web, and mobile
-- No N+1 queries (select_related used on all paths)
-- Proper pagination (20/page, max 50)
-
-## Audit Scores
-| Audit | Score | Verdict |
-|-------|-------|---------|
-| Code Review R2 | 7/10 | APPROVE |
-| QA | HIGH confidence | 38/38 passing, 0 failures |
-| UX Audit | 8/10 | Accessibility fixes applied |
-| Security Audit | 8/10 | CONDITIONAL PASS (conditions met) |
-| Architecture | 8/10 | APPROVE |
-| Hacker | 6/10 | 3 bugs found and fixed |
+- Business logic in services (DecisionLogService), not views — correct layering
+- Dataclass returns per project rules (no raw dicts from services)
+- select_related('created_by') on ExerciseViewSet, select_related('actor', 'undo_snapshot') on DecisionLogViewSet
+- All new fields backward-compatible (defaults/nullable)
+- GinIndex for ArrayField queries, standard indexes for CharFields
+- Pagination on DecisionLogViewSet
 
 ---
 
-## Remaining Concerns (non-blocking, for follow-up)
+## Remaining Concerns (non-blocking)
 
-1. **AC-23 (Mobile infinite scroll):** Backend pagination works but mobile UI fetches a single page. Should be addressed in a follow-up ticket.
-2. **Compare limited to current page (web):** ComparisonView only accesses photos on the current page (max 20). Cross-page comparison not possible. UX limitation for v1.
-3. **Mobile repository returns `Map<String, dynamic>`:** Violates `.claude/rules/datatypes.md` but is the established pattern across all mobile repositories. Cross-cutting refactor, not scoped to this feature.
-4. **Silent date filter validation:** Invalid `date_from`/`date_to` silently ignored. Architecture review deemed acceptable for optional filter parameters.
-5. **No rate limiting on upload endpoint:** Low severity since authentication is required.
-6. **Unused `useComparePhotos` hook:** Dead code on web -- comparison view does client-side diff instead of using the backend `/compare/` endpoint.
-7. **Date timezone edge case:** `new Date("2026-03-01")` can show as previous day in western time zones. Minor.
+1. **System decision visibility gap:** System decisions (actor=None) about a trainee's plan are only visible to admins, not to the trainee's trainer. The trainer query filters by actor identity, not by context (e.g., plan_id belonging to their trainee). This is acceptable for the foundation layer since no system decisions are being created yet — when the swap/progression engines are built (Steps 3-5), the DecisionLogViewSet scoping should be extended to also check context fields.
+
+2. **Trainee DecisionLog access is actor-only:** Trainees can only see decisions where they are the actor. System-generated decisions about their program (actor=None) are invisible to them. This matches the ticket specification but may need revisiting when the decision engine is active.
+
+3. **No pagination on backfill command's bulk_update:** The `to_update` list accumulates all exercises in memory before calling `bulk_update`. For very large exercise libraries (10k+), this could use significant memory. The `batch_size=200` on bulk_update mitigates the DB side, but the Python list still holds all objects. Low risk for current data volumes.
 
 ---
 
 ## What Was Built
 
-**Progress Photos -- Critical Bug Fixes & Web Dashboard**
+**ExerciseCard Rich Tagging + DecisionLog + UndoSnapshot Foundation (v6.5 Step 1)**
 
-### Mobile Bug Fixes
-- Fixed category filter tabs showing 4x "All" -> All/Front/Side/Back/Other
-- Fixed Add Photo showing duplicate "Side" -> Front/Side/Back/Other
-- Fixed trainer seeing empty gallery instead of trainee's photos (trainee_id routing)
-- Fixed measurements sent as `.toString()` instead of proper JSON
-- Added trainer read-only mode (no delete, no FAB, header shows trainee name)
-- Fixed comparison screen ignoring trainee_id parameter
-- Extracted CategoryFilterBar and PhotoDetailDialog into separate widget files
+### Exercise Model Enrichment
+- 16 movement pattern tags (knee_dominant through carries)
+- 19 athletic skill tags (jumps, sprints, throws, Olympic derivatives)
+- 10 athletic attribute tags (power, elasticity, speed, agility, etc.)
+- 21 detailed muscle groups replacing the legacy 10-group taxonomy
+- Muscle contribution map with sum-to-1.0 validation
+- Stance (13 positions), Plane (4), ROM Bias (4) classifications
+- Equipment required/optional arrays
+- Athletic constraints JSON (impact, ground contacts, space, surface, skill demand)
+- Standardization block JSON (what_counts, feel_checks, fail_flags, default_dials, assess_hooks)
+- Swap seed IDs for pre-computed swap candidates
+- Version field for edit tracking
+- GinIndex on pattern_tags, indexes on stance/plane/primary_muscle_group
 
-### Web Dashboard -- Trainee Progress Photos
-- Photo grid grouped by date with category filter tabs (All/Front/Side/Back/Other)
-- Upload dialog with drag-and-drop, file type/size validation, category/date/measurements/notes
-- Photo detail dialog with full-size image, measurements display, delete with confirmation + cancel
-- Comparison view with before/after photo selectors and measurement diffs (color-coded)
-- Pagination with Previous/Next page navigation
-- Full loading skeleton, empty state with CTA, filtered-empty state, error state with retry
-- Accessibility: focus-visible rings, aria-labels, aria-live regions, screen reader support
+### DecisionLog + UndoSnapshot Models
+- Full audit trail for every automated decision: inputs, constraints, options considered, final choice, reason codes
+- UndoSnapshot with before/after state, scope (slot/session/week/exercise/nutrition_day), revert tracking
+- Read-only API with filtering by decision_type, actor_type, date range
+- Undo endpoint with IDOR protection, double-undo prevention (409), proper actor logging
 
-### Web Dashboard -- Trainer Photos Tab
-- New "Photos" tab on trainee detail page (5th tab)
-- Read-only photo grid with category filter
-- Photo detail dialog without delete button
-- Comparison view accessible from trainer tab
-- Empty state when trainee has no photos
+### DecisionLogService
+- Atomic log_decision and undo_decision methods
+- Frozen dataclass return type (DecisionResult)
+- Partial undo field validation
 
-### Backend Enhancements
-- Pagination (20/page, max 50) on ProgressPhotoViewSet
-- Category and date range query filters
-- Compare endpoint with integer validation and single-query optimization
-- Server-side file type validation (JPEG/PNG/WebP allowlist, 10MB limit)
-- Server-side measurements validation (allowlisted keys, numeric values, range 0-500, max 10 fields)
-- Server-side notes length limit (1000 chars)
-- Admin role support in get_queryset()
-- File cleanup on photo deletion (storage.delete before DB delete)
-- 38 new comprehensive tests covering permissions, filtering, pagination, edge cases, and security
+### ExerciseViewSet Enhancements
+- Tag-based filtering: pattern_tags (overlap), stance, plane, rom_bias, primary_muscle_group, equipment_required
+- Input validation on all filter parameters (invalid values return empty queryset)
+
+### Backfill Management Command
+- Maps legacy muscle_group to detailed taxonomy
+- Name-based heuristic pattern tag assignment
+- Memory-efficient: iterator(chunk_size=500) + bulk_update(batch_size=200)
+- Dry-run support
