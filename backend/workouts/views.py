@@ -4370,7 +4370,7 @@ class PlanSessionViewSet(
         from .services.modality_service import get_session_volume_summary
 
         session = self.get_object()
-        summary = get_session_volume_summary(session_id=str(session.pk))
+        summary = get_session_volume_summary(session=session)
 
         return Response({
             'session_id': summary.session_id,

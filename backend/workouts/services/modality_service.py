@@ -389,15 +389,14 @@ def compute_volume_contribution(sets: int, volume_multiplier: Decimal) -> Decima
 
 
 def get_session_volume_summary(
-    session_id: str,
+    session: PlanSession,
 ) -> SessionVolumeSummary:
     """
     Compute per-muscle volume summary for a session, accounting for
     modality multipliers. Slots without a modality default to 1.0x.
     """
-    session = PlanSession.objects.select_related('week__plan').get(pk=session_id)
     slots = list(
-        PlanSlot.objects.filter(session_id=session_id)
+        PlanSlot.objects.filter(session_id=session.pk)
         .select_related('exercise', 'set_structure_modality')
         .order_by('order')
     )
