@@ -1,4 +1,4 @@
-# Ship Decision: Analytics + Correlations (v6.5 Step 15)
+# Ship Decision: Full Audit UI + Exports (v6.5 Step 16)
 
 ## Verdict: SHIP
 
@@ -8,15 +8,15 @@
 
 ## Summary
 
-Correlation analytics engine with Pearson r computation, cross-metric correlations (protein↔strength, sleep↔volume, calorie↔workout, food↔workout logging), per-trainee pattern detection (high/low adherence, plateaus, overtraining risk, sleep decline), cohort comparison, and exercise progression tracking. 3 API endpoints with proper row-level security.
+Complete audit trail summary API (decision counts, timeline) and comprehensive CSV exports for decision logs, trainee workout history, nutrition history, and progress data (weight + e1RM). 6 new endpoints with row-level security and CSV injection protection.
 
 ## What Was Built
 
-- CorrelationAnalyticsService with 3 entry points (overview, trainee patterns, cohort)
-- Pearson correlation computation with interpretation
-- 5 insight types: high_adherence, low_protein_adherence, volume_plateau, overtraining_risk, sleep_declining
-- Cohort comparison across 3 metrics: weekly volume, protein adherence, workout consistency
-- Exercise progression tracking with e1RM history analysis (gaining/plateau/declining)
-- 3 API endpoints: GET /analytics/correlations/, GET /analytics/trainee/{id}/patterns/, GET /analytics/cohort/
-- 22 tests (unit + service + API)
-- N+1 query fix: batched session counts for exercise progressions
+- Audit summary endpoint: decision counts by type/actor, reverted count, 7-day recent count
+- Audit timeline endpoint: paginated, human-readable decision descriptions
+- Decision log CSV export with date range filtering
+- Trainee workout history CSV (LiftSetLog: sets, reps, weight, RPE, workload)
+- Trainee nutrition history CSV (TraineeActivitySummary: calories, macros, adherence, sleep)
+- Trainee progress CSV (WeightCheckIn + LiftMax e1RM history)
+- 24 tests covering services and all 6 API endpoints
+- Fixed WeightCheckIn field names (trainee, weight_kg) and filesystem-safe filename generation

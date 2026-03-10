@@ -4,6 +4,21 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-10] — Pipeline 73: v6.5 Step 16 (Full Audit UI + Exports)
+
+### Added
+
+- Backend: Audit trail summary API — decision counts by type/actor, recent 7-day count, reverted count
+- Backend: Audit timeline API — paginated timeline with human-readable descriptions of every automated decision
+- Backend: Decision log CSV export — filtered by date range, includes all decision metadata
+- Backend: Trainee workout history CSV export — LiftSetLog entries (exercise, sets, reps, weight, RPE, workload)
+- Backend: Trainee nutrition history CSV export — TraineeActivitySummary (calories, macros, adherence, sleep, steps)
+- Backend: Trainee progress CSV export — weight check-ins + e1RM history per exercise
+- Backend: 6 API endpoints: audit/summary/, audit/timeline/, export/decision-logs/, export/trainee/{id}/workout-history|nutrition-history|progress/
+- Backend: 24 tests (service + API endpoint tests)
+
+---
+
 ## [2026-03-10] — Pipeline 72: v6.5 Step 15 (Analytics + Correlations)
 
 ### Added
