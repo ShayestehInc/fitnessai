@@ -18,6 +18,8 @@ from .models import (
     FoodItem,
     Habit,
     HabitLog,
+    LiftMax,
+    LiftSetLog,
     MacroPreset,
     MealLog,
     MealLogEntry,
@@ -1186,3 +1188,104 @@ class QuickAddEntrySerializer(serializers.Serializer[dict[str, Any]]):
                 "Either food_item_id or custom_name is required."
             )
         return data
+
+
+# ---------------------------------------------------------------------------
+# LiftSetLog + LiftMax serializers (v6.5 Step 3)
+# ---------------------------------------------------------------------------
+
+class LiftSetLogSerializer(serializers.ModelSerializer[LiftSetLog]):
+    """
+    Serializer for per-set performance logging.
+
+    On create, trainee is auto-set to the requesting user.
+    canonical_external_load and workload fields are computed on save — read-only here.
+    """
+
+    class Meta:
+        model = LiftSetLog
+        fields = [
+            'id',
+            'trainee',
+            'exercise',
+            'session_date',
+            'set_number',
+            'entered_load_value',
+            'entered_load_unit',
+            'load_entry_mode',
+            'canonical_external_load_value',
+            'canonical_external_load_unit',
+            'workload_eligible',
+            'completed_reps',
+            'completed_time_seconds',
+            'completed_distance_meters',
+            'rpe',
+            'standardization_pass',
+            'set_workload_value',
+            'set_workload_unit',
+            'tempo_modifier',
+            'notes',
+            'created_at',
+        ]
+        read_only_fields = [
+            'id',
+            'trainee',
+            'canonical_external_load_value',
+            'canonical_external_load_unit',
+            'set_workload_value',
+            'set_workload_unit',
+            'created_at',
+        ]
+
+    def validate_completed_reps(self, value: int) -> int:
+        if value < 0:
+            raise serializers.ValidationError("Reps cannot be negative.")
+        return value
+
+    def validate_entered_load_value(self, value: float) -> float:
+        if value < 0:
+            raise serializers.ValidationError("Load value cannot be negative.")
+        return value
+
+
+class LiftMaxSerializer(serializers.ModelSerializer[LiftMax]):
+    """Read-only serializer for cached estimated maxes."""
+
+    exercise_name = serializers.CharField(source='exercise.name', read_only=True)
+
+    class Meta:
+        model = LiftMax
+        fields = [
+            'id',
+            'trainee',
+            'exercise',
+            'exercise_name',
+            'e1rm_current',
+            'e1rm_history',
+            'tm_current',
+            'tm_percentage',
+            'tm_history',
+            'updated_at',
+            'created_at',
+        ]
+        read_only_fields = fields
+
+
+class LiftMaxPrescribeSerializer(serializers.Serializer[None]):
+    """Input serializer for load prescription endpoint."""
+
+    exercise_id = serializers.IntegerField()
+    target_percentage = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=1,
+        max_value=120,
+        help_text="Target percentage of Training Max (e.g., 80 for 80%).",
+    )
+    rounding_increment = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=2.5,
+        min_value=0,
+        help_text="Round to nearest increment in lb/kg (default 2.5).",
+    )

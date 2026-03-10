@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.conf import settings
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Any, cast
 
 from core.permissions import IsTrainee
@@ -35,6 +36,8 @@ from .models import (
     FoodItem,
     Habit,
     HabitLog,
+    LiftMax,
+    LiftSetLog,
     MacroPreset,
     MealLog,
     MealLogEntry,
@@ -92,6 +95,9 @@ from .serializers import (
     WorkoutHistorySummarySerializer,
     WorkoutTemplateSerializer,
     DecisionLogSerializer,
+    LiftMaxPrescribeSerializer,
+    LiftMaxSerializer,
+    LiftSetLogSerializer,
     FoodItemCreateSerializer,
     FoodItemSerializer,
     MealLogEntrySerializer,
@@ -103,6 +109,7 @@ from core.permissions import IsTrainer as IsTrainerPerm
 
 from .services.daily_log_service import DailyLogService
 from .services.decision_log_service import DecisionLogService
+from .services.max_load_service import MaxLoadService
 from .services.natural_language_parser import NaturalLanguageParserService
 
 
@@ -3390,3 +3397,230 @@ class DecisionLogViewSet(viewsets.ReadOnlyModelViewSet[DecisionLog]):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class LiftSetLogPagination(PageNumberPagination):
+    page_size = 50
+    max_page_size = 200
+
+
+class LiftSetLogViewSet(viewsets.ModelViewSet[LiftSetLog]):
+    """
+    CRUD for per-set performance tracking (v6.5 Step 3).
+
+    Trainees create their own set logs.
+    Trainers can read their trainees' set logs.
+    Admins can read all.
+
+    Filtering: ?exercise_id=, ?session_date=, ?date_from=, ?date_to=, ?trainee_id= (trainer/admin)
+    """
+    serializer_class = LiftSetLogSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = LiftSetLogPagination
+
+    def get_queryset(self) -> QuerySet[LiftSetLog]:
+        user = cast(User, self.request.user)
+
+        if user.is_admin():
+            queryset = LiftSetLog.objects.all()
+        elif user.is_trainer():
+            trainee_subquery = User.objects.filter(
+                parent_trainer=user
+            ).values('id')
+            queryset = LiftSetLog.objects.filter(trainee_id__in=trainee_subquery)
+        else:
+            queryset = LiftSetLog.objects.filter(trainee=user)
+
+        queryset = queryset.select_related('exercise', 'trainee')
+
+        # Filters
+        exercise_id = self.request.query_params.get('exercise_id')
+        if exercise_id:
+            queryset = queryset.filter(exercise_id=exercise_id)
+
+        session_date = self.request.query_params.get('session_date')
+        if session_date:
+            try:
+                parsed = datetime.strptime(session_date, '%Y-%m-%d').date()
+                queryset = queryset.filter(session_date=parsed)
+            except ValueError:
+                return queryset.none()
+
+        date_from = self.request.query_params.get('date_from')
+        if date_from:
+            try:
+                parsed = datetime.strptime(date_from, '%Y-%m-%d').date()
+                queryset = queryset.filter(session_date__gte=parsed)
+            except ValueError:
+                return queryset.none()
+
+        date_to = self.request.query_params.get('date_to')
+        if date_to:
+            try:
+                parsed = datetime.strptime(date_to, '%Y-%m-%d').date()
+                queryset = queryset.filter(session_date__lte=parsed)
+            except ValueError:
+                return queryset.none()
+
+        # Trainer/admin can filter by trainee
+        trainee_id = self.request.query_params.get('trainee_id')
+        if trainee_id and (user.is_trainer() or user.is_admin()):
+            queryset = queryset.filter(trainee_id=trainee_id)
+
+        return queryset.order_by('-session_date', 'set_number')
+
+    def perform_create(self, serializer: BaseSerializer[LiftSetLog]) -> None:
+        user = cast(User, self.request.user)
+        if not user.is_trainee():
+            raise serializers.ValidationError(
+                "Only trainees can log sets."
+            )
+        set_log = serializer.save(trainee=user)
+        # Auto-update LiftMax if set qualifies
+        MaxLoadService.update_max_from_set(set_log)
+
+    def perform_update(self, serializer: BaseSerializer[LiftSetLog]) -> None:
+        set_log = serializer.save()
+        MaxLoadService.update_max_from_set(set_log)
+
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
+        return LiftSetLogSerializer
+
+
+class LiftMaxViewSet(viewsets.ReadOnlyModelViewSet[LiftMax]):
+    """
+    Read-only ViewSet for cached estimated maxes (v6.5 Step 3).
+
+    Trainees see their own maxes.
+    Trainers see their trainees' maxes.
+    Admins see all.
+
+    Custom actions:
+    - GET /{exercise_id}/history/ — e1RM history for charting
+    - POST /prescribe/ — get recommended load for exercise+target
+    """
+    serializer_class = LiftMaxSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[LiftMax]:
+        user = cast(User, self.request.user)
+
+        if user.is_admin():
+            queryset = LiftMax.objects.all()
+        elif user.is_trainer():
+            trainee_subquery = User.objects.filter(
+                parent_trainer=user
+            ).values('id')
+            queryset = LiftMax.objects.filter(trainee_id__in=trainee_subquery)
+        else:
+            queryset = LiftMax.objects.filter(trainee=user)
+
+        queryset = queryset.select_related('exercise', 'trainee')
+
+        # Optional trainee filter for trainers/admins
+        trainee_id = self.request.query_params.get('trainee_id')
+        if trainee_id and (user.is_trainer() or user.is_admin()):
+            queryset = queryset.filter(trainee_id=trainee_id)
+
+        return queryset.order_by('exercise__name')
+
+    @action(detail=True, methods=['get'], url_path='history')
+    def history(self, request: Request, pk: str | None = None) -> Response:
+        """
+        GET /api/workouts/lift-maxes/{id}/history/
+
+        Returns the e1RM history array for charting.
+        """
+        lift_max = self.get_object()
+        return Response({
+            'exercise_id': lift_max.exercise_id,
+            'exercise_name': lift_max.exercise.name,
+            'e1rm_history': lift_max.e1rm_history,
+            'tm_history': lift_max.tm_history,
+        })
+
+    @action(detail=False, methods=['post'], url_path='prescribe')
+    def prescribe(self, request: Request) -> Response:
+        """
+        POST /api/workouts/lift-maxes/prescribe/
+
+        Get recommended load for a given exercise and target percentage.
+        Request body: {exercise_id, target_percentage, rounding_increment?}
+        """
+        serializer = LiftMaxPrescribeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = cast(User, request.user)
+        exercise_id = serializer.validated_data['exercise_id']
+        target_percentage = serializer.validated_data['target_percentage']
+        rounding_increment = serializer.validated_data.get(
+            'rounding_increment', Decimal("2.5")
+        )
+
+        # Determine the trainee
+        if user.is_trainee():
+            trainee = user
+        else:
+            trainee_id = request.data.get('trainee_id')
+            if not trainee_id:
+                return Response(
+                    {'error': 'trainee_id is required for trainers/admins.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                trainee = User.objects.get(id=trainee_id, role='TRAINEE')
+            except User.DoesNotExist:
+                return Response(
+                    {'error': 'Trainee not found.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            # Row-level security: trainer can only prescribe for their trainees
+            if user.is_trainer() and trainee.parent_trainer_id != user.id:
+                return Response(
+                    {'error': 'Trainee not found.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        try:
+            lift_max = LiftMax.objects.select_related('exercise').get(
+                trainee=trainee,
+                exercise_id=exercise_id,
+            )
+        except LiftMax.DoesNotExist:
+            return Response({
+                'prescribed_load': None,
+                'reason': 'No training max available for this exercise. '
+                          'Log qualifying sets to build an estimated max.',
+            })
+
+        if lift_max.tm_current <= 0:
+            return Response({
+                'prescribed_load': None,
+                'reason': 'Training max is zero. Log qualifying sets to build an estimated max.',
+            })
+
+        # Get the unit from the trainee's most recent set for this exercise
+        latest_unit = LiftSetLog.objects.filter(
+            trainee=trainee,
+            exercise_id=exercise_id,
+        ).order_by('-created_at').values_list(
+            'canonical_external_load_unit', flat=True
+        ).first() or 'lb'
+
+        prescription = MaxLoadService.prescribe_load(
+            tm=lift_max.tm_current,
+            target_percentage=target_percentage,
+            rounding_increment=rounding_increment,
+            unit=str(latest_unit),
+        )
+
+        return Response({
+            'prescribed_load': str(prescription.prescribed_load),
+            'unit': prescription.unit,
+            'based_on_tm': str(prescription.based_on_tm),
+            'target_percentage': str(prescription.target_percentage),
+            'rounding_increment': str(prescription.rounding_increment),
+            'exercise_id': exercise_id,
+            'exercise_name': lift_max.exercise.name,
+            'reason': prescription.reason,
+        })
