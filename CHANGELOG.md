@@ -4,6 +4,19 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-10] — Pipeline 72: v6.5 Step 15 (Analytics + Correlations)
+
+### Added
+
+- Backend: Correlation analytics service — Pearson r computation for cross-metric correlations (protein↔strength, sleep↔volume, calorie↔workout, food↔workout logging)
+- Backend: Pattern detection — 5 insight types: high_adherence, low_protein_adherence, volume_plateau, overtraining_risk, sleep_declining
+- Backend: Cohort comparison — high vs low adherence cohort analysis across weekly volume, protein adherence, workout consistency
+- Backend: Exercise progression tracking — e1RM history analysis with gaining/plateau/declining trend classification
+- Backend: 3 API endpoints: GET /analytics/correlations/, GET /analytics/trainee/{id}/patterns/, GET /analytics/cohort/
+- Backend: 22 tests (Pearson correlation unit tests, service tests, API endpoint tests)
+
+---
+
 ## [2026-03-10] — Pipeline 71: v6.5 Step 14 (Voice Memo Parsing + Video Analysis)
 
 ### Added

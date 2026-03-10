@@ -1,4 +1,4 @@
-# Ship Decision: Voice Memo Parsing + Video Analysis (v6.5 Step 14)
+# Ship Decision: Analytics + Correlations (v6.5 Step 15)
 
 ## Verdict: SHIP
 
@@ -8,13 +8,15 @@
 
 ## Summary
 
-Voice memo transcription (OpenAI Whisper) + NLP parsing pipeline, and video exercise analysis (GPT-4o Vision) with form scoring and rep counting. Both features follow trainee-owned, AI-powered workflow with proper validation and error handling.
+Correlation analytics engine with Pearson r computation, cross-metric correlations (protein↔strength, sleep↔volume, calorie↔workout, food↔workout logging), per-trainee pattern detection (high/low adherence, plateaus, overtraining risk, sleep decline), cohort comparison, and exercise progression tracking. 3 API endpoints with proper row-level security.
 
 ## What Was Built
 
-- VoiceMemo model with status lifecycle + Whisper transcription + NLP parsing
-- VideoAnalysis model with GPT-4o Vision form analysis + exercise matching
-- File validation (format, size) for both audio and video
-- DecisionLog on video analysis confirmation
-- 7 API endpoints (3 voice memo, 4 video analysis)
-- 24 tests with mocked AI
+- CorrelationAnalyticsService with 3 entry points (overview, trainee patterns, cohort)
+- Pearson correlation computation with interpretation
+- 5 insight types: high_adherence, low_protein_adherence, volume_plateau, overtraining_risk, sleep_declining
+- Cohort comparison across 3 metrics: weekly volume, protein adherence, workout consistency
+- Exercise progression tracking with e1RM history analysis (gaining/plateau/declining)
+- 3 API endpoints: GET /analytics/correlations/, GET /analytics/trainee/{id}/patterns/, GET /analytics/cohort/
+- 22 tests (unit + service + API)
+- N+1 query fix: batched session counts for exercise progressions
