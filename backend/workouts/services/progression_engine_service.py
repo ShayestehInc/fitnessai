@@ -621,7 +621,6 @@ def _evaluate_wave_by_month(
     is_deload = current_week == wave_length - 1
 
     load_value = None
-    load_unit = 'lb'
     if lift_max and lift_max.tm_current:
         load_value = _round_load(lift_max.tm_current * target_pct / 100)
 

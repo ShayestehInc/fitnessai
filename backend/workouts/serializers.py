@@ -1348,6 +1348,12 @@ class PlanSlotSerializer(serializers.ModelSerializer[PlanSlot]):
         read_only=True, default=None,
         max_digits=4, decimal_places=2,
     )
+    progression_profile_name = serializers.CharField(
+        source='progression_profile.name', read_only=True, default=None,
+    )
+    progression_profile_type = serializers.CharField(
+        source='progression_profile.progression_type', read_only=True, default=None,
+    )
 
     class Meta:
         model = PlanSlot
@@ -1358,6 +1364,7 @@ class PlanSlotSerializer(serializers.ModelSerializer[PlanSlot]):
             'set_structure_modality', 'modality_name', 'modality_slug',
             'modality_volume_multiplier', 'modality_details',
             'modality_volume_contribution',
+            'progression_profile', 'progression_profile_name', 'progression_profile_type',
         ]
         read_only_fields = ['id', 'swap_options_cache', 'modality_volume_contribution']
 

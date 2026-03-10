@@ -19,6 +19,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.conf import settings
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
@@ -4344,7 +4345,6 @@ class PlanSlotViewSet(
         prescription = compute_next_prescription(slot=slot, trainee_id=trainee.pk)
 
         # Apply trainer overrides if provided
-        from dataclasses import replace
         override_kwargs: dict[str, Any] = {}
         if overrides.get('override_sets') is not None:
             override_kwargs['sets'] = overrides['override_sets']
@@ -4362,6 +4362,7 @@ class PlanSlotViewSet(
             prescription=prescription,
             actor_id=user.pk,
             trainee_id=trainee.pk,
+            reason=overrides.get('reason', ''),
         )
 
         return Response({
